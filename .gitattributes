@@ -1,0 +1,5 @@
+*.ipynb merge=notebook diff=notebook
+
+*.py filter=whitespace
+*.rst filter=whitespace
+*.md filter=whitespace
