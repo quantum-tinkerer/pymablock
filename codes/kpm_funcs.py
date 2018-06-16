@@ -5,7 +5,7 @@ from warnings import warn
 from functools import partial
 from kwant._common import ensure_rng
 
-def build_perturbation(eigenvalues, psi, ham, params=None):
+def build_perturbation(eigenvalues, psi, ham0, ham1, params=None, kpm_params=dict()):
     """Build the perturbation elements `<psi_i|H|psi_j>`.
 
     Given a perturbed Hamiltonian `H`, we calculate the the
@@ -22,8 +22,8 @@ def build_perturbation(eigenvalues, psi, ham, params=None):
     psi : (M, N) ndarray
         Vectors of length (N), the same as the system defined
         by `ham`.
-    ham : kwant.System or ndarray
-        Finalized kwant system or ndarray of the Hamiltonian.
+    ham0, ham1 : ndarrays
+        Hamiltonian matrix, and perturbation.
     params : dict, optional
         Parameters for the kwant system.
 
@@ -36,40 +36,30 @@ def build_perturbation(eigenvalues, psi, ham, params=None):
     """
     # Normalize the format of vectors
     eigenvalues = np.atleast_1d(eigenvalues)
+    (num_e,) = eigenvalues.shape
     psi = np.atleast_2d(psi)
-    # Normalize the format of 'ham'
-    if isinstance(ham, kwant.system.System):
-        ham = ham.hamiltonian_submatrix(params=params, sparse=True)
+    num_vecs, dim = psi.shape
+    assert num_vecs == num_e
+    # Normalize the format of the Hamiltonian
     try:
-        ham = scipy.sparse.csr_matrix(ham)
+        ham0 = scipy.sparse.csr_matrix(ham0, dtype=complex)
+        ham1 = scipy.sparse.csr_matrix(ham1, dtype=complex)
     except Exception:
-        raise ValueError("'ham' is neither a matrix nor a Kwant system.")
+        raise ValueError("'ham0' or 'ham1' is not a matrix.")
+    assert ham0.shape == ham1.shape
+    assert ham0.shape == (dim, dim)
 
-    def proj_A(vec):
-        return (psi.conj() @ vec.T).T @ psi
-    def proj_B(vec):
-        return vec - (psi.conj() @ vec.T).T @ psi
+    p_vectors = proj((ham1 @ psi.T).T, psi)
 
-    # project the vectors to the subspace `B`
-    p_vectors = proj_B((ham @ psi.T).T)
-    # Build the greens functions for these vectors
-    green = build_greens_function(ham, params=params, vectors=p_vectors)
-    psi_i = green(eigenvalues)
-    # we want only the diagonal elements that map each vector to its eigenvalue
-    psi_i = np.diagonal(psi_i, axis1=1, axis2=2)
-    """
-    This is may be too much of computation, because this evaluates
-    the Green's function of each vector to every other energy.
-    It could be less expensive to build each green function and evaluate
-    it for each energy. Like this
-    """
-    #greens = lambda vec, e: build_greens_function(
-        #ham, params=params, vectors=proj_B(vec)).squeeze()
-    #psi_i = np.array([greens(vec, e)
-                      #for (vec, e) in zip(vectors, eigenvalues)]).T
+    greens = partial(build_greens_function,
+                     ham0, params=params,
+                     kpm_params=kpm_params)
+
     # evaluate for all the energies
-
-    ham_ij = psi_i.conj().T @ psi_i
+    psi_i = np.array([greens(vectors=vec)(e) for (vec, e)
+                      in zip(p_vectors, eigenvalues)]).squeeze(1)
+    ham_ij = p_vectors.conj() @ psi_i.T
+    ham_ij = (ham_ij + ham_ij.conj().T) / 2
     return ham_ij
 
 def build_greens_function(ham, params=None, vectors=None, kpm_params=dict()):
@@ -85,7 +75,7 @@ def build_greens_function(ham, params=None, vectors=None, kpm_params=dict()):
         Finalized kwant system or ndarray of the Hamiltonian.
     params : dict, optional
         Parameters for the kwant system.
-    vectors : ndarray (M,N), optional
+    vectors : ndarray (M, N), optional
         Vectors upon which the projector will act. `M` is the
         number of vectors and `N` the number of orbitals in the
         system.
@@ -98,38 +88,89 @@ def build_greens_function(ham, params=None, vectors=None, kpm_params=dict()):
         kpm_params['vector_factory'] = None
     else:
         vectors = np.atleast_2d(vectors)
-        num_vectors = vectors.shape[0]
+        num_vectors, dim = vectors.shape
         kpm_params['num_vectors'] = num_vectors
         kpm_params['vector_factory'] = _make_vector_factory(vectors)
 
     # extract the number of moments or set default to 100
     num_moments = kpm_params.get('num_moments', 100)
+    kpm_params['num_moments'] = num_moments
     # prefactors of the kernel in kpm
     m = np.arange(num_moments)
-    gs = _kernel(np.ones(num_moments))
+    gs = _kernel(np.ones(num_moments), kernel='J')
     gs[0] = gs[0] / 2
 
-    kpm_params['num_moments'] = num_moments
     # overwrite operator to extract kpm expanded vectors only
     kpm_params['operator'] = lambda bra, ket: ket
 
     # calculate kpm expanded vectors
     spectrum = kwant.kpm.SpectralDensity(ham, params=params, **kpm_params)
+    _a, _b = spectrum._a, spectrum._b
     expanded_vectors = np.array(spectrum._moments_list)
+    expanded_vectors = np.rollaxis(expanded_vectors, 2, 0)
 
+    def green_expansion(e_F):
+        """Takes an energy and returns the Greens function times the vectors,
+        for those energies.
 
-    def get_coefs(e_F):
-        # TODO put the proper coefficients here
-        e_F = np.atleast_1d(e_F)
-        e_rescaled = (e_F - spectrum._b) / spectrum._a
+        The ndarray returned has initial dimension the same as
+        `e_F`, unless it is `1` or `e_F` is a scalar.
+        """
+        nonlocal _a, _b, m, gs, expanded_vectors, num_moments
+        e_F = np.atleast_1d(e_F).flatten()
+        (num_e,) = e_F.shape
+        e_rescaled = (e_F - _b) / _a
         phi_e = np.arccos(e_rescaled)
-        prefactor = 2j / np.sqrt(1 - e_rescaled)
+        prefactor = -2j / (np.sqrt(1 - e_rescaled**2))
+        prefactor = prefactor / _a # rescale energy expansion
+
         coef = gs * np.exp(-1j * np.outer(phi_e, m))
-        coef = prefactor[:, None] * coef
-        return coef
+        coef = prefactor[:,None] * coef
+        expanded_vectors_in_energy = (expanded_vectors @ coef.T).T
+        if num_e == 1:
+            return expanded_vectors_in_energy.squeeze(0)
+        return (expanded_vectors @ coef.T).T
 
-    return lambda e_F : get_coefs(e_F) @ expanded_vectors.T
+    return green_expansion
 
+
+def exact_greens_function(ham):
+    """Takes a Hamiltonian and returns the Green's function operator."""
+    eigs, evecs = np.linalg.eigh(ham)
+    (dim,) = eigs.shape
+    def green(vec, e, eta=1e-2j):
+        """Takes a vector `vec` of shape (M,N), with `M` vectors of length `N`,
+        the same as the Hamiltonian. Returns the Green's function exact expansion
+        of the vectors with the same shape as `vec`."""
+        nonlocal dim, eigs, evecs
+
+        # normalize the shapes of `e` and `vec`
+        e = np.atleast_1d(e).flatten()
+        (num_e,) = e.shape
+        vec = np.atleast_2d(vec)
+        num_vectors, vec_dim = vec.shape
+        assert vec_dim == dim
+        assert num_vectors == num_e
+
+        coefs = vec @ evecs.conj()
+        e_diff = e[:,None] - eigs[None,:]
+        coefs = coefs / (e_diff + eta)
+        return coefs @ evecs.T
+    return green
+
+def proj(vec, subspace):
+    """takes a set of vectors `vec` as an (M,N) ndarray,
+    and a subspace (P,N) ndarray, and returns the vectors
+    with the subspace projected out.
+    The shape of `vec` will be set to a least (1,N), so
+    if `M` is omited, a new dimension will be added.
+    The output has the same shape as the (reshaped) input.
+    """
+    vec = np.atleast_2d(vec)
+    subspace = np.atleast_2d(subspace)
+    assert vec.shape[1] == subspace.shape[1]
+    c = subspace.conj() @ vec.T
+    return vec - (c.T @ subspace)
 
 def _kernel(moments, kernel='J'):
     """Convolutes the moments with a kernel.
@@ -158,7 +199,7 @@ def _kernel(moments, kernel='J'):
     return conv_moments
 
 
-def _make_vector_factory(vectors=None, eigenvecs=None, rng=0, idx=-1):
+def _make_vector_factory(vectors=None, eigenvecs=None, rng=None, idx=None):
     """Return a `vector_factory` that outputs vectors.
 
     Parameters
@@ -171,10 +212,14 @@ def _make_vector_factory(vectors=None, eigenvecs=None, rng=0, idx=-1):
     rng : int or array_like, optional
         Seed for the random number generator, or a random number
         generator.
-    idx : int, default to '-1'
-        `idx` is -1 for kwant stable version, if kwant=dev,
-        then `idx` is 0.
+    idx : int, optional
+        Set to '-1' or '0' for a modified version of kwant.
+        For stable versions, leave the default value set to 'None'.
     """
+    if float(kwant.__version__[:3]) > 1.3:
+        idx = 0
+    else:
+        idx = -1
     rng = ensure_rng(rng)
     def vector_factory(n):
         nonlocal idx, rng, vectors, eigenvecs
