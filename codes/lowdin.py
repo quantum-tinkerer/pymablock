@@ -1,9 +1,12 @@
 from .misc import make_commutative, monomials, discretize_with_hoppings
+from .qsymm.linalg import simult_diag
 
 import kwant
 
+import sympy
 import itertools
 import numpy as np
+import scipy.linalg as la
 
 
 # Code responsible for preparation of the initial Hamiltonian
@@ -85,11 +88,61 @@ def prepare_hamiltonian(ham, gens, coords, grid, shape, start, locals=None):
     return H0, H1
 
 
-# Explicit implementation of perturbation theory
+# Various helper functions
 
 def triproduct(left, matrix, right):
+    """Calculate "vector^dagger @ matrix @ vector" product."""
     return left.T.conjugate() @ matrix @ right
 
+
+def inbasis(operator, subspace):
+    """Return operator in basis of a given subspace."""
+    return subspace.T.conjugate() @ operator @ subspace
+
+
+def decouple_basis(operators, subspace):
+    """Decouple eigenstates in subspace by diagonalizing operators."""
+    operators = [inbasis(op, subspace) for op in operators]
+    U = np.hstack(simult_diag(operators))
+
+    list_ev = []
+    for op in operators:
+        ev = np.diag(triproduct(U, op, U)).real
+        assert np.allclose(sorted(la.eigvalsh(op)), sorted(ev))
+        list_ev.append(ev)
+
+    sort_indices = np.lexsort(list_ev)
+    return U[:, sort_indices], [ev[sort_indices] for ev in list_ev]
+
+
+def apply_smart_gauge(evec):
+    """Apply "smart" gauge choice to prettify final output.
+
+    I have no idea how this works, but it works, and is wonderful.
+    It is a pure magic!
+
+    This metod modifies "evec" in-place.
+    """
+    for i, v in enumerate(evec.T):
+        phase = np.angle(v @ v)
+        evec[:, i] = v * np.exp(-1j*phase/2)
+
+
+def sympify_perturbation(M1=None, M2=None, decimals=12):
+    terms = []
+    terms += [(k, v) for k, v in M1.items() if M1 is not None]
+    terms += [(k[0] * k[1], v) for k, v in M2.items() if M2 is not None]
+
+    if len(terms) == 0:
+        raise ValueError("At least one of 'M1' or 'M2' should contain "
+                         "some items.")
+    output = []
+    for k, v in terms:
+        output.append(k * sympy.Matrix(np.round(v, decimals)))
+    return sympy.MatAdd(*output).as_explicit()
+
+
+# Explicit implementation of perturbation theory
 
 def first_order(perturbation, states):
     """Return the first order effective model.
