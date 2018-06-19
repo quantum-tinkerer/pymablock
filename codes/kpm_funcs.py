@@ -5,7 +5,7 @@ from warnings import warn
 from functools import partial
 from kwant._common import ensure_rng
 
-def build_perturbation(eigenvalues, psi, ham0, ham1, params=None, kpm_params=dict()):
+def build_perturbation(eigenvalues, psi, H0, H1L, H1R, params=None, kpm_params=dict()):
     """Build the perturbation elements `<psi_i|H|psi_j>`.
 
     Given a perturbed Hamiltonian `H`, we calculate the the
@@ -22,8 +22,8 @@ def build_perturbation(eigenvalues, psi, ham0, ham1, params=None, kpm_params=dic
     psi : (M, N) ndarray
         Vectors of length (N), the same as the system defined
         by `ham`.
-    ham0, ham1 : ndarrays
-        Hamiltonian matrix, and perturbation.
+    H0, H1L, H1R : ndarrays
+        Hamiltonian matrix, and perturbations
     params : dict, optional
         Parameters for the kwant system.
 
@@ -42,25 +42,29 @@ def build_perturbation(eigenvalues, psi, ham0, ham1, params=None, kpm_params=dic
     assert num_vecs == num_e
     # Normalize the format of the Hamiltonian
     try:
-        ham0 = scipy.sparse.csr_matrix(ham0, dtype=complex)
-        ham1 = scipy.sparse.csr_matrix(ham1, dtype=complex)
+        H0 = scipy.sparse.csr_matrix(H0, dtype=complex)
+        H1L = scipy.sparse.csr_matrix(H1L, dtype=complex)
+        H1R = scipy.sparse.csr_matrix(H1R, dtype=complex)
     except Exception:
-        raise ValueError("'ham0' or 'ham1' is not a matrix.")
-    assert ham0.shape == ham1.shape
-    assert ham0.shape == (dim, dim)
+        raise ValueError("'H0' or 'H1L' or 'H1R' is not a matrix.")
+    assert H0.shape == H1L.shape
+    assert H0.shape == H1R.shape
+    assert H0.shape == (dim, dim)
 
-    p_vectors = proj((ham1 @ psi.T).T, psi)
+    p_vectors_R = proj((H1R @ psi.T).T, psi)
+    p_vectors_L = proj((H1L @ psi.T).T, psi)
 
     greens = partial(build_greens_function,
-                     ham0, params=params,
+                     H0, params=params,
                      kpm_params=kpm_params)
 
     # evaluate for all the energies
     psi_i = np.array([greens(vectors=vec)(e) for (vec, e)
-                      in zip(p_vectors, eigenvalues)]).squeeze(1)
-    ham_ij = p_vectors.conj() @ psi_i.T
+                      in zip(p_vectors_R, eigenvalues)]).squeeze(1)
+    ham_ij = p_vectors_L.conj() @ psi_i.T
     ham_ij = (ham_ij + ham_ij.conj().T) / 2
     return ham_ij
+
 
 def build_greens_function(ham, params=None, vectors=None, kpm_params=dict()):
     """Build a Green's function operator.
@@ -158,6 +162,7 @@ def exact_greens_function(ham):
         return coefs @ evecs.T
     return green
 
+
 def proj(vec, subspace):
     """takes a set of vectors `vec` as an (M,N) ndarray,
     and a subspace (P,N) ndarray, and returns the vectors
@@ -171,6 +176,7 @@ def proj(vec, subspace):
     assert vec.shape[1] == subspace.shape[1]
     c = subspace.conj() @ vec.T
     return vec - (c.T @ subspace)
+
 
 def _kernel(moments, kernel='J'):
     """Convolutes the moments with a kernel.
