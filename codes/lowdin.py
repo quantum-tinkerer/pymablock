@@ -1,3 +1,5 @@
+from .kpm_funcs import build_perturbation
+
 from .misc import make_commutative, monomials, discretize_with_hoppings
 from .qsymm.linalg import simult_diag
 
@@ -145,7 +147,7 @@ def sympify_perturbation(M1=None, M2=None, decimals=12):
 # Explicit implementation of perturbation theory
 
 def first_order(perturbation, states):
-    """Return the first order effective model.
+    """Return first order effective model.
 
     Parameters
     ----------
@@ -183,7 +185,7 @@ def first_order(perturbation, states):
 
 
 def second_order_explicit(perturbation, indices, ev, evec, truncate=True):
-    """Return the second order effective model.
+    """Return second order effective model.
 
     Parameters
     ----------
@@ -249,5 +251,39 @@ def second_order_explicit(perturbation, indices, ev, evec, truncate=True):
             elements.append(element)
 
         output[SL, SR] = np.array(elements).reshape(M, M)
+
+    return output
+
+
+# KPM optimisation of second order perturbation theory
+
+def second_order_kpm(hamiltonian, perturbation, energies, subspace,
+                     num_moments=1000, truncate=True):
+    """Return second order effective model."""
+
+    output = {}
+    kpm_params = dict(num_moments=num_moments)
+
+    # Cast perturbation to "dict" if it is "array"
+    if not isinstance(perturbation, dict):
+        perturbation = {1: perturbation}
+
+    def power(expr):
+        """Return total power of factors in the expression."""
+        powers = [s.as_base_exp()[1] for s in expr.as_ordered_factors()]
+        return sum(powers)
+
+    for SL, SR in itertools.product(perturbation.keys(), repeat=2):
+
+        if truncate and (power(SL) + power(SR) > 2):
+            continue
+
+        H1L = perturbation[SL]
+        H1R = perturbation[SR]
+
+        element = build_perturbation(energies, subspace.T, hamiltonian,
+                                     H1L, H1R, kpm_params=kpm_params)
+
+        output[SL, SR] = element
 
     return output
