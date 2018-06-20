@@ -217,7 +217,7 @@ def second_order_explicit(perturbation, indices, ev, evec, truncate=True):
     ev : array(N)
         Energies of H0 for all states in the system.
     evec : array(N, N)
-        Eigenstates of H0 for al states in the system.
+        Eigenstates of H0 for all states in the system.
         The numpy convention is used, where "evec[:, i]" is i-th
         eigenstate.
     truncate : bool
@@ -302,7 +302,7 @@ def second_order_kpm(hamiltonian, perturbation, energies, subspace,
         H1L = perturbation[SL]
         H1R = perturbation[SR]
 
-        element = build_perturbation(energies, subspace.T, hamiltonian,
+        element = build_perturbation(energies, subspace, hamiltonian,
                                      H1L, H1R, kpm_params=kpm_params)
 
         output[SL, SR] = element

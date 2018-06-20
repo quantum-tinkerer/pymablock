@@ -5,28 +5,56 @@ from warnings import warn
 from functools import partial
 from kwant._common import ensure_rng
 
-def build_perturbation(eigenvalues, psi, H0, H1L, H1R=None, params=None, kpm_params=dict()):
-    """Build the perturbation elements `<psi_i|H|psi_j>`.
 
-    Given a perturbed Hamiltonian `H`, we calculate the the
-    perturbation approximation of the effect of the complement
-    space `B` on the space `A`.
-    The vectors `psi` expand a space `A`, which complement is `B`.
-    `psi` are eigenvectors of `H_0` (not specified) with a
-    corresponding set of `eigenvalues`.
+
+def proj(vec, subspace):
+    """Project out "subspace" from "vec".
 
     Parameters
     ----------
-    eigenvalues : (M) array of floats
-        Eigenvalues of the eigenvectors `psi` of `H_0`.
-    psi : (M, N) ndarray
-        Vectors of length (N), the same as the system defined
-        by `ham`.
+    vec : array(N)
+        Vector to which project P_B obtained from "subspace" is applied.
+    subspace : array(N, M)
+        Subspace in numpy convention: subspace[:, i] is i-th vector.
+        These vectors are used to built project P_A = sum_i |i X i|,
+        from which project P_B = identity(N, N) - P_A is built.
+
+    Returns
+    -------
+    vec : array(N)
+    """
+    P_A = subspace @ subspace.T.conj()
+    return vec -  P_A @ vec
+
+
+def build_perturbation(ev, evec, H0, H1L, H1R=None, indices=None,
+                       kpm_params=None):
+    """Build the perturbation elements of the 2nd order perturbation.
+
+    This calculates "H1L'_{im} H1R'_{mj} x (1 / (Ei - Em) + 1 / (Ej / Em))"".
+
+    Given a perturbed Hamiltonian "H0", we calculate the the
+    perturbation approximation of the effect of the complement
+    space "B" on the space "A".
+    The vectors "evec[:, indices]" expand a space "A", which complement is "B".
+    Space "B" consists of subspace "B1" and "B2".
+    Subspace B1 contains eigenvectors "evec[:, i]" for "i" not in "indices"
+    and is not considered by this function.
+    Subspace "B2" contains all eingestates of "H0" not included in "evec" that
+    are considered approximately by KPM through this function.
+
+    Parameters
+    ----------
+    ev : array(M)
+        Eigenvalues of "H0" for states known exactly.
+    evec : (N, M) ndarray
+        Eigenvectors of "H0" for states known exactly.
     H0, H1L, H1R : ndarrays
         Hamiltonian matrix, and perturbations. If H1R=None,
         H1R=H1L is used.
-    params : dict, optional
-        Parameters for the kwant system.
+    indices : sequence of M integers
+        Indices of states for which we calculate the effective model.
+        If unset (None) then all states in "evec" will be considered.
 
     Returns
     -------
@@ -35,17 +63,18 @@ def build_perturbation(eigenvalues, psi, H0, H1L, H1R=None, params=None, kpm_par
         of subspace `A` due to the interaction `H` with
         the subspace `B`.
     """
-    # Normalize the format of vectors
-    eigenvalues = np.atleast_1d(eigenvalues)
-    (num_e,) = eigenvalues.shape
-    psi = np.atleast_2d(psi)
-    num_vecs, dim = psi.shape
-    assert num_vecs == num_e
+    if kpm_params is None:
+        kpm_params = dict()
+
+    if indices is None:
+        indices = range(len(ev))
+
     if H1R is None:
         H1R = H1L
         ReqL = True
     else:
         ReqL = False
+
     # Normalize the format of the Hamiltonian
     try:
         H0 = scipy.sparse.csr_matrix(H0, dtype=complex)
@@ -53,29 +82,24 @@ def build_perturbation(eigenvalues, psi, H0, H1L, H1R=None, params=None, kpm_par
         H1R = scipy.sparse.csr_matrix(H1R, dtype=complex)
     except Exception:
         raise ValueError("'H0' or 'H1L' or 'H1R' is not a matrix.")
-    assert H0.shape == H1L.shape
-    assert H0.shape == H1R.shape
-    assert H0.shape == (dim, dim)
 
-    p_vectors_L = proj((H1L @ psi.T).T, psi)
-    p_vectors_R = proj((H1R @ psi.T).T, psi)
+    p_vectors_L = proj((H1L @ evec[:, indices]), evec)
+    p_vectors_R = proj((H1R @ evec[:, indices]), evec)
 
-    greens = partial(build_greens_function,
-                     H0, params=params,
-                     kpm_params=kpm_params)
+    greens = partial(build_greens_function, H0, kpm_params=kpm_params)
 
     # evaluate for all the energies
     psi_iR = np.array([greens(vectors=vec)(e) for (vec, e)
-                       in zip(p_vectors_R, eigenvalues)]).squeeze(1)
-    ham_ij_LR = p_vectors_L.conj() @ psi_iR.T
+                       in zip(p_vectors_R.T, ev)]).squeeze(1)
+    ham_ij_LR = p_vectors_L.T.conj() @ psi_iR.T
 
     if ReqL:
         ham_ij = (ham_ij_LR + ham_ij_LR.conj().T) / 2
 
     else:
         psi_iL = np.array([greens(vectors=vec)(e) for (vec, e)
-                       in zip(p_vectors_L, eigenvalues)]).squeeze(1)
-        ham_ij_RL = p_vectors_R.conj() @ psi_iL.T
+                           in zip(p_vectors_L.T, ev)]).squeeze(1)
+        ham_ij_RL = p_vectors_R.T.conj() @ psi_iL.T
         ham_ij = (ham_ij_LR + ham_ij_RL.conj().T) / 2
 
     return ham_ij
@@ -176,21 +200,6 @@ def exact_greens_function(ham):
         coefs = coefs / (e_diff + eta)
         return coefs @ evecs.T
     return green
-
-
-def proj(vec, subspace):
-    """takes a set of vectors `vec` as an (M,N) ndarray,
-    and a subspace (P,N) ndarray, and returns the vectors
-    with the subspace projected out.
-    The shape of `vec` will be set to a least (1,N), so
-    if `M` is omited, a new dimension will be added.
-    The output has the same shape as the (reshaped) input.
-    """
-    vec = np.atleast_2d(vec)
-    subspace = np.atleast_2d(subspace)
-    assert vec.shape[1] == subspace.shape[1]
-    c = subspace.conj() @ vec.T
-    return vec - (c.T @ subspace)
 
 
 def _kernel(moments, kernel='J'):
