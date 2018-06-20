@@ -144,10 +144,17 @@ def apply_smart_gauge(evec):
         evec[:, i] = v * np.exp(-1j*phase/2)
 
 
-def sympify_perturbation(M1=None, M2=None, decimals=12):
+def sympify_perturbation(energies=None, M1=None, M2=None, decimals=12):
     terms = []
-    terms += [(k, v) for k, v in M1.items() if M1 is not None]
-    terms += [(k[0] * k[1], v) for k, v in M2.items() if M2 is not None]
+
+    if energies is not None:
+        terms += [(1, np.diag(energies))]
+
+    if M1 is not None:
+        terms += [(k, v) for k, v in M1.items()]
+
+    if M2 is not None:
+        terms += [(k[0] * k[1], v) for k, v in M2.items()]
 
     if len(terms) == 0:
         raise ValueError("At least one of 'M1' or 'M2' should contain "
