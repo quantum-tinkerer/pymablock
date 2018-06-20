@@ -14,16 +14,24 @@ import scipy.linalg as la
 # Code responsible for preparation of the initial Hamiltonian
 
 def separate_hamiltonian(ham, gens):
-    # First, make sure that generators are commutative symbols
+    """Separate "ham" into "H0" and "H1"."""
+
+    # Cast strings to sympy objects using kwant.continuum.sympify rules
+    # Elements that are already symbols will not be altered.
     gens = [kwant.continuum.sympify(g) for g in gens]
-    gens = [make_commutative(g, g) for g in gens]
 
-    # Second, make sure that gens in "ham" are commutative
-    ham = make_commutative(ham, *gens)
+    # Select commutative generators and make sure that they are commutative in
+    # the Hamiltonian
+    commutative_gens = [g for g in gens if g.is_commutative]
+    ham = make_commutative(ham, *commutative_gens)
 
-    # Finally, get monomials
+    # Now get the monomials and separate H0 from H1
     H1 = monomials(ham, gens)
-    H0 = H1.pop(1)
+    try:
+        H0 = H1.pop(1)
+    except KeyError:
+        raise ValueError('Separation of perturbation failed. '
+                         'Check if "gens" are chosen correctly.')
     return H0, H1
 
 
@@ -36,7 +44,13 @@ def prepare_hamiltonian(ham, gens, coords, grid, shape, start, locals=None):
         Symbolic representation of a continuous Hamiltonian.  It is
         converted to a SymPy expression using `kwant.continuum.sympify`.
     gens: sequence of sympy.Symbol objects or strings (optional)
-        Generators of the perturbation.
+        Generators of the perturbation. If this is a sequence of strings then
+        corresponding symbols will be generated using `kwant.continuum.sympify`
+        rules, especially regarding the commutative properties. If this is
+        already a sequence of SymPy symbols then their commutative properties
+        will be respected, i.e if symbol is defined as commutative in "gens" it
+        will be casted to the commutative symbol in "ham". Commutative symbols
+        will not however be casted to noncommutative.
     coords : sequence of strings, or ``None`` (default)
         The coordinates for which momentum operators will be treated as
         differential operators. May contain only "x", "y" and "z" and must be
