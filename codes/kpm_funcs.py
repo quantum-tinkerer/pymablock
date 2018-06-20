@@ -5,7 +5,7 @@ from warnings import warn
 from functools import partial
 from kwant._common import ensure_rng
 
-def build_perturbation(eigenvalues, psi, H0, H1L, H1R, params=None, kpm_params=dict()):
+def build_perturbation(eigenvalues, psi, H0, H1L, H1R=None, params=None, kpm_params=dict()):
     """Build the perturbation elements `<psi_i|H|psi_j>`.
 
     Given a perturbed Hamiltonian `H`, we calculate the the
@@ -23,7 +23,8 @@ def build_perturbation(eigenvalues, psi, H0, H1L, H1R, params=None, kpm_params=d
         Vectors of length (N), the same as the system defined
         by `ham`.
     H0, H1L, H1R : ndarrays
-        Hamiltonian matrix, and perturbations
+        Hamiltonian matrix, and perturbations. If H1R=None,
+        H1R=H1L is used.
     params : dict, optional
         Parameters for the kwant system.
 
@@ -40,6 +41,11 @@ def build_perturbation(eigenvalues, psi, H0, H1L, H1R, params=None, kpm_params=d
     psi = np.atleast_2d(psi)
     num_vecs, dim = psi.shape
     assert num_vecs == num_e
+    if H1R is None:
+        H1R = H1L
+        ReqL = True
+    else:
+        ReqL = False
     # Normalize the format of the Hamiltonian
     try:
         H0 = scipy.sparse.csr_matrix(H0, dtype=complex)
@@ -51,8 +57,8 @@ def build_perturbation(eigenvalues, psi, H0, H1L, H1R, params=None, kpm_params=d
     assert H0.shape == H1R.shape
     assert H0.shape == (dim, dim)
 
-    p_vectors_R = proj((H1R @ psi.T).T, psi)
     p_vectors_L = proj((H1L @ psi.T).T, psi)
+    p_vectors_R = proj((H1R @ psi.T).T, psi)
 
     greens = partial(build_greens_function,
                      H0, params=params,
@@ -61,11 +67,17 @@ def build_perturbation(eigenvalues, psi, H0, H1L, H1R, params=None, kpm_params=d
     # evaluate for all the energies
     psi_iR = np.array([greens(vectors=vec)(e) for (vec, e)
                        in zip(p_vectors_R, eigenvalues)]).squeeze(1)
-    psi_iL = np.array([greens(vectors=vec)(e) for (vec, e)
-                       in zip(p_vectors_L, eigenvalues)]).squeeze(1)
     ham_ij_LR = p_vectors_L.conj() @ psi_iR.T
-    ham_ij_RL = p_vectors_R.conj() @ psi_iL.T
-    ham_ij = (ham_ij_LR + ham_ij_RL.conj().T) / 2
+
+    if ReqL:
+        ham_ij = (ham_ij_LR + ham_ij_LR.conj().T) / 2
+
+    else:
+        psi_iL = np.array([greens(vectors=vec)(e) for (vec, e)
+                       in zip(p_vectors_L, eigenvalues)]).squeeze(1)
+        ham_ij_RL = p_vectors_R.conj() @ psi_iL.T
+        ham_ij = (ham_ij_LR + ham_ij_RL.conj().T) / 2
+
     return ham_ij
 
 
