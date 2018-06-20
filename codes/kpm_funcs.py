@@ -59,10 +59,13 @@ def build_perturbation(eigenvalues, psi, H0, H1L, H1R, params=None, kpm_params=d
                      kpm_params=kpm_params)
 
     # evaluate for all the energies
-    psi_i = np.array([greens(vectors=vec)(e) for (vec, e)
-                      in zip(p_vectors_R, eigenvalues)]).squeeze(1)
-    ham_ij = p_vectors_L.conj() @ psi_i.T
-    ham_ij = (ham_ij + ham_ij.conj().T) / 2
+    psi_iR = np.array([greens(vectors=vec)(e) for (vec, e)
+                       in zip(p_vectors_R, eigenvalues)]).squeeze(1)
+    psi_iL = np.array([greens(vectors=vec)(e) for (vec, e)
+                       in zip(p_vectors_L, eigenvalues)]).squeeze(1)
+    ham_ij_LR = p_vectors_L.conj() @ psi_iR.T
+    ham_ij_RL = p_vectors_R.conj() @ psi_iL.T
+    ham_ij = (ham_ij_LR + ham_ij_RL.conj().T) / 2
     return ham_ij
 
 
