@@ -83,8 +83,16 @@ def build_perturbation(ev, evec, H0, H1L, H1R=None, indices=None,
     except Exception:
         raise ValueError("'H0' or 'H1L' or 'H1R' is not a matrix.")
 
-    p_vectors_L = proj((H1L @ evec[:, indices]), evec)
-    p_vectors_R = proj((H1R @ evec[:, indices]), evec)
+    # Debug checks (to be removed later or replaced)
+    assert len(ev) == evec.shape[1]
+    assert len(indices) <= len(ev)
+    assert H0.shape == H1L.shape
+    assert H0.shape == H1R.shape
+
+    # Project out everything from inside "evec" subspace.
+    p_vectors_L = proj(H1L @ evec[:, indices], evec)
+    p_vectors_R = proj(H1R @ evec[:, indices], evec)
+    ev = ev[indices]
 
     greens = partial(build_greens_function, H0, kpm_params=kpm_params)
 
