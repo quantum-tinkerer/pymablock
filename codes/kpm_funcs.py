@@ -229,7 +229,7 @@ def _kernel(moments, kernel='J'):
     return conv_moments
 
 
-def _make_vector_factory(vectors=None, eigenvecs=None, rng=None, idx=None):
+def _make_vector_factory(vectors=None, eigenvecs=None, rng=0):
     """Return a `vector_factory` that outputs vectors.
 
     Parameters
@@ -242,14 +242,9 @@ def _make_vector_factory(vectors=None, eigenvecs=None, rng=None, idx=None):
     rng : int or array_like, optional
         Seed for the random number generator, or a random number
         generator.
-    idx : int, optional
-        Set to '-1' or '0' for a modified version of kwant.
-        For stable versions, leave the default value set to 'None'.
     """
-    if float(kwant.__version__[:3]) > 1.3:
-        idx = 0
-    else:
-        idx = -1
+    idx = -1 + 1*_version_higher() # initial vector index according to version
+
     rng = ensure_rng(rng)
     def vector_factory(n):
         nonlocal idx, rng, vectors, eigenvecs
@@ -258,8 +253,15 @@ def _make_vector_factory(vectors=None, eigenvecs=None, rng=None, idx=None):
             return np.exp(rng.rand(n) * 2j * np.pi)
         vec = vectors[idx]
         if eigenvecs is not None:
-            # TODO check this bit
-            vec = vec - ((eigenvecs.conj().T @ vec) @ eigenvecs.T).T
+            vec = vec - ((eigenvecs.conj() @ vec) @ eigenvecs)
         idx += 1
         return vec
     return vector_factory
+
+def _version_higher(v='1.3.2'):
+    from kwant import __version__ as n
+    v = tuple(int(char) for char in  v[:5].split('.'))
+    n = tuple(int(char) for char in  n[:5].split('.'))
+    if n > v:
+        return True
+    return False
