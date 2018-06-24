@@ -1,0 +1,296 @@
+\documentclass[10pt, onecolumn, aps, prb, superscriptaddress, floatfix, showpacs, notitlepage]{revtex4-1}
+\pdfoutput=1
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+% \usepackage{wasysym}
+\usepackage{bm}
+\usepackage{xcolor}
+\usepackage[colorlinks, citecolor={blue!50!black}, urlcolor={blue!50!black}]{hyperref}
+\usepackage{bookmark}
+\usepackage{tabularx}
+\usepackage{mathtools}
+\usepackage{microtype}
+\usepackage[load=physical,load=abbr]{siunitx}
+
+\DeclareMathOperator{\sgn}{sgn}
+\DeclareMathOperator{\im}{Im}
+\DeclareMathOperator{\re}{Re}
+
+\newcommand{\ev}[1]{\langle#1\rangle}
+\newcommand{\bra}[1]{\langle #1|}
+\newcommand{\ket}[1]{|#1\rangle}
+\newcommand{\bracket}[2]{\langle #1|#2\rangle}
+
+\graphicspath{{figures/}}
+
+\begin{document}
+
+\author{PM Perez-Piskunow}
+\affiliation
+{Delft University of Technology}
+
+\title{kpm expansion of second order perturbation matrix elements}
+
+% \begin{abstract}
+%     Abstract
+% \end{abstract}
+\maketitle
+
+\textbf{$\mathbf{H^0}$ initial Hamiltonian}
+
+We start with an initial system $H^0$, and solve the initial
+eigenvalues problem
+
+$$
+H^0 \ket{\psi_n} = \epsilon_n \ket{\psi_n}.
+$$
+
+We express the initial Hamiltonian in it's diagonal basis
+$$
+\tilde{H^0}_{i,j} = \delta_{i,j}\epsilon_i.
+$$
+
+\textbf{Perturbation}
+
+We add a perturbation $\lambda H^1$, where $\lambda$ is a real parameter in $[0,1]$.
+
+and we want to know what is the effect of this perturbation on the spectrum
+of $H = H^0 + \lambda H^1$.
+
+From non-degenerate perturbation theory, we can get the correction to the
+eigenstates and eigenvalues of $H^0$ by expanding in a series of powers in
+$\lambda$. Since degeneracies can occur, we must find an effective Hamiltonian
+that couples the degenerate states.
+
+
+\textbf{First order}
+
+The first thing we can do is to express $H^1$ in the basis diagonalises $H^0$,
+
+$$
+\tilde{H^1}_{i,j} = \bra{\psi_i} H^1 \ket{\psi_j}.
+$$
+
+The diagonal elements $\tilde{H^1}_{i,i}$ are the first order corrections
+to the energy of the perturbed system, and the effective Hamiltonian up to
+first order is
+
+$$
+H_{eff}^1 = \tilde{H^0} + \lambda\tilde{H^1},
+$$
+
+
+(Actually, diagonalising the effective
+Hamiltonian up to first order will include some corrections of second order,
+since the perturbation is mixing the initial states, and giving non-diagonal elements
+in $H_{eff}^1$. The energy correction will depend on $\lambda^2$ if $V=\lambda H^1$.)
+
+
+\textbf{Second order}
+
+After expanding the perturbation up to second order for the eigenstates of the system
+we can arrive at the second order term of the effective Hamiltonian, where we have
+separated the system into two substates $A$ and $B$ expanded by $\{\ket{\psi_i}\}_i$ and
+$\{\ket{\psi_\mu}\}_\mu$, respectively.
+
+$$
+\tilde{H^2}_{i,j} = \sum_\mu\frac{
+\bra{\psi_i} H^1 \ket{\psi_\mu}
+\bra{\psi_\mu} H^1 \ket{\psi_j}
+}
+{\epsilon_j-\epsilon_\mu
+}
+$$
+
+This correction is derived for the degenerate case of the initial states
+in the small system expanded by the states $\ket{i}$.
+Then, it must be symmetrized for the general
+``not-only'' degenerate case, when $\epsilon_i\ne \epsilon_j$.
+
+\begin{align}
+\tilde{H^2}_{i,j} &= \sum_\mu\frac{1}{2}
+\left(
+\frac{
+\bra{\psi_i} H^1 \ket{\psi_\mu}
+\bra{\psi_\mu} H^1 \ket{\psi_j}}{\epsilon_j-\epsilon_\mu}
++
+\frac{
+\bra{\psi_i} H^1 \ket{\psi_\mu}
+\bra{\psi_\mu} H^1 \ket{\psi_j}}{\epsilon_i-\epsilon_\mu}
+\right)
+\\
+\tilde{H^2}_{i,j} &= \sum_\mu\frac{1}{2}
+\bra{\psi_i} H^1 \ket{\psi_\mu}
+\bra{\psi_\mu} H^1 \ket{\psi_j}
+\left(\frac{1}{\epsilon_j-\epsilon_\mu}
++\frac{1}{\epsilon_i-\epsilon_\mu}
+\right)
+\end{align}
+
+
+\textbf{Effective Hamiltonian}
+
+The effective Hamiltonian up to second order is
+
+\begin{align}
+H_{eff}^2 &= \tilde{H^0} + \lambda \tilde{H^1} + \lambda^2\tilde{H^2}\\
+(H_{eff}^2)_{i,j} &= \delta_{i,j}\epsilon_i +
+\lambda \bra{\psi_i} H^1 \ket{\psi_j} \\
+&+ 
+\sum_\mu\frac{1}{2}
+\bra{\psi_i} H^1 \ket{\psi_\mu}
+\bra{\psi_\mu} H^1 \ket{\psi_j}
+\left(\frac{1}{\epsilon_j-\epsilon_\mu}
++\frac{1}{\epsilon_i-\epsilon_\mu}
+\right)
+\end{align}
+
+\textbf{kpm expansion}
+
+The second order contribution to the effective Hamiltonian can be expressed as
+\begin{align}
+\tilde{H^2}_{i,j} &= \frac{1}{2}
+\bra{\psi_i} H^1
+\left[
+\sum_\mu
+\frac{\ket{\psi_\mu} \bra{\psi_\mu}}{\epsilon_j-\epsilon_\mu}
+\right]
+H^1 \ket{\psi_j}
++
+\frac{1}{2}
+\bra{\psi_i} H^1
+\left[
+\sum_\mu
+\frac{\ket{\psi_\mu} \bra{\psi_\mu}}{\epsilon_i-\epsilon_\mu}
+\right]
+H^1 \ket{\psi_j}
+\\
+&= \frac{1}{2}
+\bra{\psi_i} H^1
+\left[P_B
+\frac{1}{\epsilon_j-H^0}
+P_B\right]
+H^1 \ket{\psi_j}
++
+\frac{1}{2}
+\bra{\psi_i} H^1
+\left[P_B
+\frac{1}{\epsilon_i-H^0}
+P_B\right]
+H^1 \ket{\psi_j},
+\end{align}
+
+where $P_B$ is a projector over the space $B$ defined by $\{\psi_\mu\}_\mu$,
+and we see the action of a Green's function defined as
+
+$$
+G(\epsilon, H^0) = \frac{1}{\epsilon-H^0}.
+$$
+
+This function can be expanded with the KPM, with the vectors of the expansion
+being
+
+$$
+\ket{\phi_i} = P_B H^1\ket{\psi_i},
+$$
+
+
+such that
+
+
+\begin{align}
+\tilde{H^2}_{i,j} &= \frac{1}{2}
+\bra{\phi_i} G(\epsilon_j, H^0) \ket{\phi_j}
++
+\frac{1}{2}
+\bra{\phi_i} G(\epsilon_i, H^0) \ket{\phi_j}
+\end{align}
+
+\textbf{Green's function expansion with KPM}
+
+A function of a parameter and a Hamiltonian is expressed as 
+
+$$
+f(\epsilon, H) = \sum_k f(\epsilon, E_k) \ket{\psi_k}\bra{\psi_k},
+$$
+
+where the funcion $f$ is expanded in KPM as
+
+\begin{align}
+f(\epsilon, E_k) &= \frac{2}{\pi}\sum_m c_m(\epsilon)T_m(E_k)\\
+c_m(\epsilon) &=\frac{1}{1+\delta_{m,0}}
+\int_{-1}^1 \frac{f(\epsilon, E_k) T_m(E_k)}{\sqrt{1-E_k^2}}\mathrm{d}E_k.
+\end{align}
+
+To simplify the calculations we can instead expand
+
+\begin{align}
+\sqrt{1-E_k^2}f(\epsilon, E_k) &= \frac{2}{\pi}\sum_m c_m(\epsilon)T_m(E_k)\\
+c_m(\epsilon) &=\frac{1}{1+\delta_{m,0}}
+\int_{-1}^1 {f(\epsilon, E_k) T_m(E_k)}\mathrm{d}E_k.
+\end{align}
+
+
+The solution is expanded elsewhere\cite{Garcia2014} for the rescaled
+Hamiltonian $\tilde{H}=(H-bI)/a$, and rescaled energies
+$\tilde{\epsilon}=(\epsilon-b)/a$.
+
+\begin{align}
+f(\epsilon, H)^\pm &= \frac{1}{\epsilon-H \pm i0}\\
+f(\epsilon, H)^\pm &= \frac{1}{\tilde{\epsilon}a+b-\tilde{H}a-b \pm i0}\\
+f(\epsilon, H)^\pm &= a^{-1}\frac{1}{\tilde{\epsilon}-\tilde{H} \pm i0}\\
+f(\epsilon, H)^\pm_M &= \mp \frac{2i}{a\sqrt{1-\epsilon^2}}
+\sum_{m=0}^{M}\frac{g_m}{1+\delta_{m,0}}
+\exp(\pm i\,m\,\mathrm{arccos}(\epsilon)) T_m(H)
+\end{align}
+
+
+% In our case, we can solve the last expression as
+% 
+% \begin{align}
+% f(\epsilon, E) &= \frac{1}{\epsilon-E}\\
+% T_m(E) &= \cos (m\,\mathrm{arcos}(E))\\
+% \phi &= \mathrm{arcos}(E)\\
+% \Rightarrow 
+% {\mathrm{d}E}
+% &= {\mathrm{d}\cos(\phi)} = -{\sin(\phi)} \mathrm{d}\phi\\
+% &\rightarrow\\
+% c_m(\epsilon) &=
+% \frac{1}{1+\delta_{m,0}}
+% \int_0^{\pi}
+% {f(\epsilon, \cos(\phi)) \cos (m\,\phi)} {\sin(\phi)}
+% \mathrm{d}\phi\\
+% c_m(\epsilon) &=
+% \frac{1}{1+\delta_{m,0}}
+% \int_0^{\pi}
+% \frac{\cos (m\,\phi)\sin(\phi)}{\epsilon-\cos(\phi)}
+% \mathrm{d}\phi\\
+% \theta &= \epsilon - \cos(\phi)\\
+% \Rightarrow \mathrm{d}\theta &= -\mathrm{d}\cos(\phi)
+% \\
+% &= \sin(\phi)\mathrm{d}\phi
+
+
+% \section{Introduction}
+
+% \subsection{}
+
+% \begin{figure}[!h]
+% \centering
+% \includegraphics[width=\linewidth]{name}
+% \caption{}
+% \label{fig1}
+% \end{figure}
+
+\begin{thebibliography}{2}
+\bibitem{Garcia2014}Real-space calculation of the conductivity tensor for disordered topological matter
+Jose H. Garcia, Lucian Covaci, Tatiana G. Rappoport. Phys. Rev. Lett. 114, 116602 (2015)
+\end{thebibliography}
+
+
+\end{document}
