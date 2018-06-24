@@ -19,7 +19,7 @@ run analysis:
     - $ENVIRONMENT/bin/python -m ipykernel install --user --name run_env
     - cd analysis
     - for ipynb in *.ipynb; do
-    -    jupyter nbconvert --ExecutePreprocessor.kernel_name=run_env --to notebook --execute $ipynb --output $ipynb
+    -    jupyter nbconvert --ExecutePreprocessor.kernel_name=run_env --to notebook --execute "$ipynb" --output "$ipynb"
     - done
   artifacts:
     paths:
