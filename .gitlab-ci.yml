@@ -15,8 +15,7 @@ before_script:
 run analysis:
   script:
     - cd analysis
-    - for ipynb in *.ipynb; do
-    -   jupyter nbconvert --to notebook --execute $ipynb
+    - jupyter nbconvert --to notebook --execute *.ipynb
     - done
   artifacts:
     paths:
