@@ -3,4 +3,4 @@
 	path = data
 [submodule ".qsymm"]
 	path = .qsymm
-	url = ../../qt/qsymm.git
+	url = ../../qsymm.git
