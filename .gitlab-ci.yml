@@ -30,6 +30,7 @@ run analysis:
 
 
 .pdf-build: &pdf_build
+  image: quantumtinkerer/research
   stage: build documents
   script:
     - cd $CWD
