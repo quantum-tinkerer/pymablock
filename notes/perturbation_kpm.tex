@@ -211,6 +211,21 @@ such that
 \bra{\phi_i} G(\epsilon_i, H^0) \ket{\phi_j}
 \end{align}
 
+This calculation can be simplified by collecting the vectors to matrices, define $\Phi$ as the matrix consisting of columns that are $\ket{\phi_i}$ and $\Xi$ whose columns are $G(\epsilon_i, H^0) \ket{\phi_i}$. With this:
+\begin{equation}
+\tilde{H}^2 = \frac{1}{2} (\Phi^\dag \Xi + \text{h.c.})
+\end{equation}
+
+\textbf{Multiple expansion parameters}
+
+It is common that there are multiple small parameters, i.e. the perturbed Hamiltonian is
+\[H = H^0 + \sum_{\alpha} \lambda_{\alpha} H^1_{\alpha}\]
+and we seek the second order effective Hamiltonian as
+\[H_{eff}^2 = \tilde{H}^0 +  \sum_{\alpha} \lambda_{\alpha} \tilde{H}^1_{\alpha} +  \sum_{\alpha\beta} \lambda_{\alpha}\lambda_{\beta}\tilde{H}^2_{\alpha\beta}.\]
+Similar as before, we introduce $\Phi_{\alpha}$ as the collection of column vectors $P_B H^1_{\alpha}\ket{\psi_i}$ and $\Xi_{\alpha}$ as $G(\epsilon_i, H^0) P_B H^1_{\alpha}\ket{\psi_i}$. With this
+\[\tilde{H}^2_{\alpha\beta} = \frac{1}{2} (\Phi_{\alpha}^\dag \Xi_{\beta} + \Xi_{\alpha}^\dag\Phi_{\beta})\]
+which is also valid if the expansion coefficients do not commute.
+
 \textbf{Green's function expansion with KPM}
 
 A function of a parameter and a Hamiltonian is expressed as 
