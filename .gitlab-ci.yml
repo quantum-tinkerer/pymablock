@@ -7,6 +7,7 @@ stages:
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   ENVIRONMENT: /opt/conda/envs/kwant
+  EXEC_TIMEOUT: 180
 
 before_script:
   - shopt -s nullglob  # sane behaviour when globs do not match
@@ -19,7 +20,7 @@ run analysis:
     - $ENVIRONMENT/bin/python -m ipykernel install --user --name run_env
     - cd analysis
     - for ipynb in *.ipynb; do
-    -    jupyter nbconvert --ExecutePreprocessor.kernel_name=run_env --to notebook --execute "$ipynb" --output "$ipynb"
+    -    jupyter nbconvert --ExecutePreprocessor.kernel_name=run_env --to notebook --execute "$ipynb" --output "$ipynb" --ExecutePreprocessor.timeout=$EXEC_TIMEOUT
     - done
   artifacts:
     paths:
