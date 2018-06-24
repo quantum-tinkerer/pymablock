@@ -1,4 +1,4 @@
-image: quantumtinkerer/research
+image: rafalskolasinski/science:latest
 
 stages:
   - run analysis
@@ -6,6 +6,7 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  ENVIRONMENT: /opt/conda/envs/kwant
 
 before_script:
   - shopt -s nullglob  # sane behaviour when globs do not match
@@ -14,8 +15,11 @@ before_script:
 
 run analysis:
   script:
+    - $ENVIRONMENT/bin/pip install git+https://gitlab.kwant-project.org/semicon/semicon.git
+    - $ENVIRONMENT/bin/python -m ipykernel install --user --name run_env
     - cd analysis
-    - jupyter nbconvert --to notebook --execute *.ipynb
+    - for ipynb in *.ipynb; do
+    -    jupyter nbconvert --ExecutePreprocessor.kernel_name=run_env --to notebook --execute $ipynb --output $ipynb
     - done
   artifacts:
     paths:
@@ -54,7 +58,8 @@ build notes:
     CWD: notes
   artifacts:
     paths:
-      - notes/*.pdf
+      - notes/notes.pdf
+      - notes/diff_notes.pdf
     expire_in: 1 month
 
 build publication:

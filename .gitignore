@@ -1,9 +1,67 @@
-### OS and IDE temporaries
-*.DS_Store
-.*~
-.*.swp
+## This is a template gitignore file to use in your research
+## project repositories. Documentation about this file format
+## can be found here: https://git-scm.com/docs/gitignore#_pattern_format
 
-## Latex temporaries
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.pyc
+*.aux
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# OS generated files #
+######################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# illustrator file:
+*.ai
+
+# IPython notebook / Python
+.ipynb_checkpoints
+Untitled.ipynb
+*slides.html
+*.pyc
+__pycache__/
+.ipynb_checkpoints
+
+# DATA files #
+*.dat
+*.h5
+*.hdf
+*.h
+
+## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof
 *.log
@@ -11,39 +69,86 @@
 *.fls
 *.out
 *.toc
-*.fmt
-*.fot
-*.cb
-*.cb2
+
+## Intermediate documents:
+*.dvi
+# these rules might exclude image files for figures etc.
+# *.ps
+# *.eps
+# *.pdf
+
+## Bibliography auxiliary files (bibtex/biblatex/biber):
 *.bbl
 *.bcf
 *.blg
 *-blx.aux
 *-blx.bib
+*.run.xml
 
-### Python temporaries
-**/__pycache__/*
-*.py[cod]
-*.egg
-MANIFEST
+## Build tool auxiliary files:
+*.fdb_latexmk
+*.synctex.gz
+*.pdfsync
+*Notes.bib
+auto
 
-### Jupyter temporaries
-**/.ipynb_checkpoints
+## Auxiliary and intermediate files from other packages:
 
-### Compiled binaries
-*.so
-*.o
-*.a
-*.exe
-*.out
+# algorithms
+*.alg
+*.loa
 
-### Testing and coverage reports
-htmlcov/
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-.hypothesis/
+# amsthm
+*.thm
+
+# beamer
+*.nav
+*.snm
+*.vrb
+
+# glossaries
+*.acn
+*.acr
+*.glg
+*.glo
+*.gls
+
+# hyperref
+*.brf
+
+# listings
+*.lol
+
+# makeidx
+*.idx
+*.ilg
+*.ind
+*.ist
+
+# minitoc
+*.maf
+*.mtc
+*.mtc0
+
+# minted
+*.pyg
+
+# nomencl
+*.nlo
+
+# todonotes
+*.tdo
+
+# xindy
+*.xdy
+
+
+# Temporary files
+.DS_Store
+*~
+\#*#
+
+
+
+# this project
+notes/*.pdf
