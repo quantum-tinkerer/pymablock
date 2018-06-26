@@ -30,7 +30,7 @@
 
 \begin{document}
 
-\author{PM Perez-Piskunow}
+\author{nice people ;-)}
 \affiliation
 {Delft University of Technology}
 
@@ -41,148 +41,105 @@
 % \end{abstract}
 \maketitle
 
-\textbf{$\mathbf{H^0}$ initial Hamiltonian}
+\section{Quasi-Degenerate Perturbation theory: standard approach}
 
-We start with an initial system $H^0$, and solve the initial
-eigenvalues problem
+\subsection{Problem definition}
 
-$$
-H^0 \ket{\psi_n} = \epsilon_n \ket{\psi_n}.
-$$
+We start by separating initial Hamiltonian into unperturbed part $H^0$ and perturbation $H^{\prime}\,$:
+\begin{equation}
+H = H^{0} + H^{\prime} \,.
+\end{equation}
 
-We express the initial Hamiltonian in it's diagonal basis
-$$
-\tilde{H^0}_{i,j} = \delta_{i,j}\epsilon_i.
-$$
+We assume that eingestates and energies of $H^{0}$ are known:
+\begin{equation}
+H^0 \ket{\psi_n} = \epsilon_n \ket{\psi_n} \,.
+\end{equation}
 
-\textbf{Perturbation}
-
-We add a perturbation $\lambda H^1$, where $\lambda$ is a real parameter in $[0,1]$.
-
-and we want to know what is the effect of this perturbation on the spectrum
-of $H = H^0 + \lambda H^1$.
-
-From non-degenerate perturbation theory, we can get the correction to the
-eigenstates and eigenvalues of $H^0$ by expanding in a series of powers in
-$\lambda$. Since degeneracies can occur, we must find an effective Hamiltonian
-that couples the degenerate states.
+We now split states $\ket{\psi_n}$ into two groups, $A$ and $B$.
+We are interested in states from group $A$ whereas effect of states $B$ we want to include via perturbation theory.
+We assume that these two group of states are clearly separated in energies.
 
 
-\textbf{First order}
-
-The first thing we can do is to express $H^1$ in the basis diagonalises $H^0$,
-
-$$
-\tilde{H^1}_{i,j} = \bra{\psi_i} H^1 \ket{\psi_j}.
-$$
-
-The diagonal elements $\tilde{H^1}_{i,i}$ are the first order corrections
-to the energy of the perturbed system, and the effective Hamiltonian up to
-first order is
-
-$$
-H_{eff}^1 = \tilde{H^0} + \lambda\tilde{H^1},
-$$
-
-
-(Actually, diagonalising the effective
-Hamiltonian up to first order will include some corrections of second order,
-since the perturbation is mixing the initial states, and giving non-diagonal elements
-in $H_{eff}^1$. The energy correction will depend on $\lambda^2$ if $V=\lambda H^1$.)
-
-
-\textbf{Second order}
-
-After expanding the perturbation up to second order for the eigenstates of the system
-we can arrive at the second order term of the effective Hamiltonian, where we have
-separated the system into two substates $A$ and $B$ expanded by $\{\ket{\psi_i}\}_i$ and
-$\{\ket{\psi_\mu}\}_\mu$, respectively.
-
-$$
-\tilde{H^2}_{i,j} = \sum_\mu\frac{
-\bra{\psi_i} H^1 \ket{\psi_\mu}
-\bra{\psi_\mu} H^1 \ket{\psi_j}
-}
-{\epsilon_j-\epsilon_\mu
-}
-$$
-
-This correction is derived for the degenerate case of the initial states
-in the small system expanded by the states $\ket{i}$.
-Then, it must be symmetrized for the general
-``not-only'' degenerate case, when $\epsilon_i\ne \epsilon_j$.
-
+\subsection{L\"owdin partitioning}
+L\"owdin partitioning, see Winkler's book,~\cite{winkler} provide us with the extension of standard perturbation theory to the case of quasi-degenerate states:
+\begin{equation}
+\tilde{H} = e^{-s} H \, e^{s}\,,
+\end{equation}
+with the effective Hamiltonian given as sum of successive order of perturbation:
+\begin{equation}
+\tilde{H} = \tilde{H}^{(0)} + \tilde{H}^{(1)} + \tilde{H}^{(2)} + \ldots\,.
+\end{equation}
+For all the math, again, see Winkler's book or Rafal's thesis.
+The explicit solution, for first two orders, is:
+\begin{subequations}
+\label{lowdin-explicit}
 \begin{align}
-\tilde{H^2}_{i,j} &= \sum_\mu\frac{1}{2}
-\left(
-\frac{
-\bra{\psi_i} H^1 \ket{\psi_\mu}
-\bra{\psi_\mu} H^1 \ket{\psi_j}}{\epsilon_j-\epsilon_\mu}
-+
-\frac{
-\bra{\psi_i} H^1 \ket{\psi_\mu}
-\bra{\psi_\mu} H^1 \ket{\psi_j}}{\epsilon_i-\epsilon_\mu}
-\right)
-\\
-\tilde{H^2}_{i,j} &= \sum_\mu\frac{1}{2}
-\bra{\psi_i} H^1 \ket{\psi_\mu}
-\bra{\psi_\mu} H^1 \ket{\psi_j}
-\left(\frac{1}{\epsilon_j-\epsilon_\mu}
-+\frac{1}{\epsilon_i-\epsilon_\mu}
-\right)
+    \tilde{H}^{(0)}_{mn} &= H^0_{mn} \,,\\
+    \tilde{H}^{(1)}_{mn} &= H^1_{mn} \,,\\
+    \tilde{H}^{(2)}_{mn} &= \frac{1}{2} \sum_{l\in B}
+    H^{2}_{m l} H^{2}_{l n}
+    \left(\frac{1}{E_m - E_l} + \frac{1}{E_n - E_l}\right)\,,
 \end{align}
+\end{subequations}
+where $m, n$ indices go over states from group $A$, $H^{1}$ corresponds to block-diagonal part of the perturbation and $H^{2}$ is non-block-diagonal part of the perturbation.
+The actual separation of $H^{\prime}$ as $H^{1}+H^{2}$ is not important here as proper blocks are taken into account automatically through correct indexing in Eq.~\eqref{lowdin-explicit}.
 
 
-\textbf{Effective Hamiltonian}
 
-The effective Hamiltonian up to second order is
-
+\subsection{Perturbation as polynomial in free parameters}
+From practical point of view, we usually treat $H^{\prime}$ as polynomial in some free parameters $\alpha$
+\begin{equation}
+H^{\prime} = \sum_\alpha \lambda_\alpha H^{\prime}_\alpha\,,
+\end{equation}
+where $\lambda_\alpha$ can be in example $k_x\,$, $k_x^2\,$, $B_z\,$, etc.
+Taking that into account and calculating matrix elements in Eq.~\eqref{lowdin-explicit} explicitly we obtain:
+\begin{subequations}
+\label{lowdin-explicit}
 \begin{align}
-H_{eff}^2 &= \tilde{H^0} + \lambda \tilde{H^1} + \lambda^2\tilde{H^2}\\
-(H_{eff}^2)_{i,j} &= \delta_{i,j}\epsilon_i +
-\lambda \bra{\psi_i} H^1 \ket{\psi_j} \\
-&+
-\sum_\mu\frac{1}{2}
-\bra{\psi_i} H^1 \ket{\psi_\mu}
-\bra{\psi_\mu} H^1 \ket{\psi_j}
-\left(\frac{1}{\epsilon_j-\epsilon_\mu}
-+\frac{1}{\epsilon_i-\epsilon_\mu}
-\right)
+    \tilde{H}^{(0)}_{mn} &= \epsilon_m \delta_{m,n} \,,\\
+    \tilde{H}^{(1)}_{mn} &= \sum_{\alpha} \lambda_\alpha \bra{\psi_m} H^{\prime}_\alpha \ket{\psi_n} \,,\\
+    \tilde{H}^{(2)}_{mn} &= \frac{1}{2} \sum_{\alpha,\beta} \lambda_\alpha\lambda_\beta\sum_{l\in B}
+    \left(\frac{\bra{\psi_m}H^{\prime}_{\alpha}\ket{\psi_l}\bra{\psi_l}H^{\prime}_{\beta}\ket{\psi_n}}{E_m - E_l} + \frac{\bra{\psi_m}H^{\prime}_{\alpha}\ket{\psi_l}\bra{\psi_l}H^{\prime}_{\beta}\ket{\psi_n}}{E_n - E_l}\right)\,,
 \end{align}
+\end{subequations}
 
-\textbf{kpm expansion}
+
+
+\section{kpm expansion}
+
+\subsection{Main idea}
 
 The second order contribution to the effective Hamiltonian can be expressed as
 \begin{align}
-\tilde{H^2}_{i,j} &= \frac{1}{2}
-\bra{\psi_i} H^1
+\tilde{H}^{(2)}_{i,j} &= \frac{1}{2}
+\bra{\psi_i} H^{\prime}
 \left[
 \sum_\mu
 \frac{\ket{\psi_\mu} \bra{\psi_\mu}}{\epsilon_j-\epsilon_\mu}
 \right]
-H^1 \ket{\psi_j}
+H^{\prime} \ket{\psi_j}
 +
 \frac{1}{2}
-\bra{\psi_i} H^1
+\bra{\psi_i} H^{\prime}
 \left[
 \sum_\mu
 \frac{\ket{\psi_\mu} \bra{\psi_\mu}}{\epsilon_i-\epsilon_\mu}
 \right]
-H^1 \ket{\psi_j}
+H^{\prime} \ket{\psi_j}
 \\
 &= \frac{1}{2}
-\bra{\psi_i} H^1
+\bra{\psi_i} H^{\prime}
 \left[P_B
 \frac{1}{\epsilon_j-H^0}
 P_B\right]
-H^1 \ket{\psi_j}
+H^{\prime} \ket{\psi_j}
 +
 \frac{1}{2}
-\bra{\psi_i} H^1
+\bra{\psi_i} H^{\prime}
 \left[P_B
 \frac{1}{\epsilon_i-H^0}
 P_B\right]
-H^1 \ket{\psi_j},
+H^{\prime} \ket{\psi_j},
 \end{align}
 
 where $P_B$ is a projector over the space $B$ defined by $\{\psi_\mu\}_\mu$,
@@ -196,7 +153,7 @@ This function can be expanded with the KPM, with the vectors of the expansion
 being
 
 $$
-\ket{\phi_i} = P_B H^1\ket{\psi_i},
+\ket{\phi_i} = P_B H^{\prime}\ket{\psi_i},
 $$
 
 
@@ -204,7 +161,7 @@ such that
 
 
 \begin{align}
-\tilde{H^2}_{i,j} &= \frac{1}{2}
+\tilde{H}^{(2)}_{i,j} &= \frac{1}{2}
 \bra{\phi_i} G(\epsilon_j, H^0) \ket{\phi_j}
 +
 \frac{1}{2}
@@ -213,20 +170,20 @@ such that
 
 This calculation can be simplified by collecting the vectors to matrices, define $\Phi$ as the matrix consisting of columns that are $\ket{\phi_i}$ and $\Xi$ whose columns are $G(\epsilon_i, H^0) \ket{\phi_i}$. With this:
 \begin{equation}
-\tilde{H}^2 = \frac{1}{2} (\Phi^\dag \Xi + \text{h.c.})
+\tilde{H}^{(2)} = \frac{1}{2} (\Phi^\dag \Xi + \text{h.c.})
 \end{equation}
 
-\textbf{Multiple expansion parameters}
+\subsection{Multiple expansion parameters}
 
 It is common that there are multiple small parameters, i.e. the perturbed Hamiltonian is
-\[H = H^0 + \sum_{\alpha} \lambda_{\alpha} H^1_{\alpha}\]
+\[H = H^0 + \sum_{\alpha} \lambda_{\alpha} H^{\prime}_{\alpha}\]
 and we seek the second order effective Hamiltonian as
-\[H_{eff}^2 = \tilde{H}^0 +  \sum_{\alpha} \lambda_{\alpha} \tilde{H}^1_{\alpha} +  \sum_{\alpha\beta} \lambda_{\alpha}\lambda_{\beta}\tilde{H}^2_{\alpha\beta}.\]
-Similar as before, we introduce $\Phi_{\alpha}$ as the collection of column vectors $P_B H^1_{\alpha}\ket{\psi_i}$ and $\Xi_{\alpha}$ as $G(\epsilon_i, H^0) P_B H^1_{\alpha}\ket{\psi_i}$. With this
+\[\tilde{H}_{eff} = \tilde{H}^{(0)} +  \sum_{\alpha} \lambda_{\alpha} \tilde{H}^{(1)}_{\alpha} +  \sum_{\alpha\beta} \lambda_{\alpha}\lambda_{\beta}\tilde{H}^{(2)}_{\alpha\beta}.\]
+Similar as before, we introduce $\Phi_{\alpha}$ as the collection of column vectors $P_B H^{\prime}_{\alpha}\ket{\psi_i}$ and $\Xi_{\alpha}$ as $G(\epsilon_i, H^0) P_B H^{\prime}_{\alpha}\ket{\psi_i}$. With this
 \[\tilde{H}^2_{\alpha\beta} = \frac{1}{2} (\Phi_{\alpha}^\dag \Xi_{\beta} + \Xi_{\alpha}^\dag\Phi_{\beta})\]
 which is also valid if the expansion coefficients do not commute.
 
-\textbf{Green's function expansion with KPM}
+\subsection{Green's function expansion with KPM}
 
 A function of a parameter and a Hamiltonian is expressed as
 
