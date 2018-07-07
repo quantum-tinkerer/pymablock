@@ -6,7 +6,7 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  ENVIRONMENT: /opt/conda/envs/kwant
+  ENVIRONMENT: /opt/conda/envs/science
   EXEC_TIMEOUT: 180
 
 before_script:
