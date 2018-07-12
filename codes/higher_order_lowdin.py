@@ -49,22 +49,23 @@ def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
     return output
 
 
-def divide_by_energies(rhs, all_energies, indices):
-    indexes_B = [i for i in range(len(all_energies)) if i not in indices]
+def divide_by_energies(Y, energies_A, vectors_A, H_0):
 
-    output = MatCoeffPolynomial()
-    for key, val in rhs.items():
+    S = MatCoeffPolynomial()
+    for key, val in Y.items():
         if type(val) == csr_matrix:
             val = val.toarray()
 
-        for i,j in product(indices, indexes_B):
-            val[i,j] = val[i,j] * 1.0 / (all_energies[i] - all_energies[j])
+        res = np.zeros_like(val)
 
-        for i,j in product(indexes_B, indices):
-            val[i,j] = val[i,j] * 1.0 / (all_energies[i] - all_energies[j])
+        for E_m, vec_m in zip(energies_A, vectors_A):
+            G = np.diag([(0 if np.isclose(E_l, E_m) else 1/(E_m - E_l)) for E_l in np.diag(H_0)])
+            res += np.outer(vec_m.conj(), vec_m).dot(val).dot(G)
 
-        output[key] = csr_matrix(val)
-    return output
+        res -= res.T.conj()
+
+        S[key] = csr_matrix(res)
+    return S
 
 
 def precalculate_in_basis(polynomial, basis):
@@ -135,6 +136,7 @@ def get_effective_model(ev, evec, indices, perturbation, interesting_keys=None, 
         of perturbation hamiltonian. Basis in which perturbation is given
         should be the same as basis in which basis is calculated.
     """
+
     def polycommute(a, b):
         return a * b - b * a
 
@@ -153,6 +155,10 @@ def get_effective_model(ev, evec, indices, perturbation, interesting_keys=None, 
     precalculated = precalculate_in_basis(perturbation, evec)
     H0, H1, H2 = get_H0_H1_H2(ev, precalculated, indices)
 
+    ev_A = ev[indices]
+    evec_A = np.eye(evec.shape[0])[indices]
+
+
     H0.interesting_keys = interesting_keys
     H1.interesting_keys = interesting_keys
     H2.interesting_keys = interesting_keys
@@ -163,9 +169,9 @@ def get_effective_model(ev, evec, indices, perturbation, interesting_keys=None, 
 
     Ss = []
     for i in range(1, 6):
-        rhs = Y_i[i - 1]
-        rhs = rhs(H0, H1, H2, *Ss)
-        S_i = divide_by_energies(rhs, ev, indices)
+        Y = Y_i[i - 1]
+        Y = Y(H0, H1, H2, *Ss)
+        S_i = divide_by_energies(Y, ev_A, evec_A, np.diag(ev))
         S_i.interesting_keys = interesting_keys
         Ss.append(S_i)
 
