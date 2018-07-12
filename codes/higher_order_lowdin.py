@@ -1,4 +1,4 @@
-from . import old_perturbationS as ps
+from .old_perturbationS import Y_i
 
 import collections
 
@@ -9,6 +9,7 @@ from scipy.sparse import csr_matrix
 from math import factorial
 import sympy
 import numpy as np
+from .kpm_funcs import build_greens_function
 
 
 def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
@@ -135,7 +136,7 @@ def get_effective_model(ev, evec, indices, perturbation, interesting_keys=None, 
         should be the same as basis in which basis is calculated.
     """
     def polycommute(a, b):
-        return polydot(a,b, interesting_keys) - polydot(b,a, interesting_keys)
+        return a * b - b * a
 
     def polycommute_n(a,b,n):
         if n == 0:
@@ -152,52 +153,27 @@ def get_effective_model(ev, evec, indices, perturbation, interesting_keys=None, 
     precalculated = precalculate_in_basis(perturbation, evec)
     H0, H1, H2 = get_H0_H1_H2(ev, precalculated, indices)
 
-    def transform_to_sparse(polynomial):
-        output = MatCoeffPolynomial()
-        for key, val in polynomial.items():
-            output[key] = csr_matrix(val)
-
-        output.interesting_keys = polynomial.interesting_keys
-        output.remove_not_interesting_keys(interesting_keys)
-        return output
-
     H0.interesting_keys = interesting_keys
     H1.interesting_keys = interesting_keys
     H2.interesting_keys = interesting_keys
 
-    H0 = transform_to_sparse(H0)
-    H1 = transform_to_sparse(H1)
-    H2 = transform_to_sparse(H2)
+    H0 = H0.tosparse()
+    H1 = H1.tosparse()
+    H2 = H2.tosparse()
 
-    rhs = ps.Y1
-    rhs = rhs(H0, H1, H2)
-    S1 = divide_by_energies(rhs, ev, indices)
-    S1.interesting_keys = interesting_keys
+    Ss = []
+    for i in range(1, 6):
+        rhs = Y_i[i - 1]
+        rhs = rhs(H0, H1, H2, *Ss)
+        S_i = divide_by_energies(rhs, ev, indices)
+        S_i.interesting_keys = interesting_keys
+        Ss.append(S_i)
 
-    rhs = ps.Y2
-    rhs = rhs(H0, H1, H2, S1)
-    S2 = divide_by_energies(rhs, ev, indices)
-    S2.interesting_keys = interesting_keys
+    S = sum(Ss)
 
-    rhs = ps.Y3
-    rhs = rhs(H0, H1, H2, S1, S2)
-    S3 = divide_by_energies(rhs, ev, indices)
-    S3.interesting_keys = interesting_keys
-
-    rhs = ps.Y4
-    rhs = rhs(H0, H1, H2, S1, S2, S3)
-    S4 = divide_by_energies(rhs, ev, indices)
-    S4.interesting_keys = interesting_keys
-
-    rhs = ps.Y5
-    rhs = rhs(H0, H1, H2, S1, S2, S3, S4)
-    S5 = divide_by_energies(rhs, ev, indices)
-    S5.interesting_keys = interesting_keys
-
-    S = S1 + S2 + S3 + S4 + S5
     S.interesting_keys = interesting_keys
 
-    S = transform_to_sparse(S)
+    S = S.tosparse()
 
     Hd = polycommute_n(H0+H1, S, 0) + polycommute_n(H2, S, 1)
 
@@ -245,6 +221,15 @@ class MatCoeffPolynomial(collections.defaultdict):
         result.simplify()
         return result
 
+    def tosparse(self):
+        output = MatCoeffPolynomial()
+        for key, val in self.items():
+            output[key] = csr_matrix(val)
+
+        output.interesting_keys = self.interesting_keys
+        output.remove_not_interesting_keys(output.interesting_keys)
+        return output
+
     def lambdify(self, *gens):
         """Lambdify MatCoeffPolynomial using gens as variables."""
         result = self.tosympy()
@@ -289,7 +274,10 @@ class MatCoeffPolynomial(collections.defaultdict):
         return result
 
     def __radd__(self, A):
-        return self + A
+        if not A:
+            return self.copy()
+        else:
+            return self + A
 
     def __rsub__(self, A):
         return -self + A
