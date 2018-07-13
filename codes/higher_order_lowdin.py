@@ -56,10 +56,8 @@ def divide_by_energies(Y_AB, energies_A, vectors_A, H_0, kpm_params):
     S_AB.interesting_keys = Y_AB.interesting_keys
     if isinstance(vectors_A, spmatrix):
         vectors_A = vectors_A.A
+    Y_AB = Y_AB.todense()
     for key, val in Y_AB.items():
-        if isinstance(val, spmatrix):
-            val = val.toarray()
-
         res = []
         for m, E_m in enumerate(energies_A):
             G_Y_vec_m = build_greens_function(H_0, params=None, vectors=val[m].conj(), kpm_params=kpm_params)
@@ -136,7 +134,7 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
     evec_A = csr_matrix(evec_A)
 
     H0_AA = evec_A * H0 * evec_A.T.conj()
-    assert H0_AA == H0_AA.H()
+    assert H0_AA == H0_AA.H(), H0_AA.todense()
     ev_A = np.diag(H0_AA.todense()[1])
     assert np.allclose(np.diag(ev_A), H0_AA.todense()[1]), 'evec_A should be eigenvectors of H0'
     H1_AA = evec_A * H1 * evec_A.T.conj()
@@ -145,48 +143,25 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
     H2_BA = H1 * evec_A.T.conj() - evec_A.T.conj() * H1_AA
     assert H2_AB == H2_BA.H()
 
-    H0 = H0.tosparse()
-    H0_AA = H0_AA.tosparse()
-    assert H0_AA == H0_AA.H(), H0_AA.todense()
-    H1 = H1.tosparse()
-    H1_AA = H1_AA.tosparse()
-    H2_AB = H2_AB.tosparse()
-    H2_BA = H2_BA.tosparse()
-
     S_AB = []
     S_BA = []
     for i in range(1, order):
         Y = Y_i[i - 1]
         Y_AB = Y(H0_AA, H0, H1_AA, H1, H2_AB, H2_BA, S_AB, S_BA)
-        # print('Y_AB', Y_AB.todense())
         S_AB_i = divide_by_energies(Y_AB, ev_A, evec_A, H0[1], kpm_params=kpm_params)
-        # print('S_AB_i', S_AB_i.todense())
-        # print('step1')
         S_BA_i = -S_AB_i.H()
         S_AB.append(S_AB_i)
         S_BA.append(S_BA_i)
-        # print('step2')
 
     S_AB = sum(S_AB)
-    # print('S_AB', S_AB.todense())
     S_BA = -S_AB.H()
 
-    # print('step4')
-    assert H0_AA == H0_AA.H()
-    assert H1_AA == H1_AA.H()
-    assert H2_AB == H2_BA.H()
-    assert S_AB == -S_BA.H()
     Hd = H0_AA + H1_AA + H2_AB * S_BA - S_AB * H2_BA
-    # print('Hd', Hd.todense())
     assert Hd == Hd.H(), Hd.todense()
 
-    # print('step5')
     for j in range(1, order//2 + 1):
-        # print(j)
         Hd += commute_n_even(H0_AA + H1_AA, H0 + H1, S_AB, S_BA, j) * (1 / factorial(2*j))
-        # print('Hd', Hd.todense())
         Hd += commute_n_odd(H2_AB, H2_BA, S_AB, S_BA, j) * (1 / factorial(2*j + 1))
-        # print('Hd', Hd.todense())
         assert Hd == Hd.H(), Hd.todense()
 
     Hd = Hd.todense()
