@@ -5,7 +5,7 @@ import collections
 from functools import reduce
 from operator import mul
 from itertools import product
-from scipy.sparse import csr_matrix, spmatrix
+import scipy.sparse
 from math import factorial
 import sympy
 from sympy.core.basic import Basic
@@ -54,7 +54,7 @@ def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
 def divide_by_energies(Y_AB, energies_A, vectors_A, H_0, kpm_params):
     S_AB = MatCoeffPolynomial()
     S_AB.interesting_keys = Y_AB.interesting_keys
-    if isinstance(vectors_A, spmatrix):
+    if isinstance(vectors_A, scipy.sparse.spmatrix):
         vectors_A = vectors_A.A
     Y_AB = Y_AB.todense()
     for key, val in Y_AB.items():
@@ -126,17 +126,17 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
     if interesting_keys is None:
         interesting_keys = get_maximum_powers(H1.keys(), order)
 
-    N = H0.shape[0]
+    # Convert to appropriate format
     H0 = MatCoeffPolynomial({1: H0}, interesting_keys = interesting_keys)
     H0 = H0.tosparse()
     H1 = MatCoeffPolynomial(H1, interesting_keys = interesting_keys)
     H1 = H1.tosparse()
-    evec_A = csr_matrix(evec_A)
+    if isinstance(evec_A, scipy.sparse.spmatrix):
+        evec_A = evec_A.A
 
     H0_AA = evec_A * H0 * evec_A.T.conj()
-    assert H0_AA == H0_AA.H(), H0_AA.todense()
-    ev_A = np.diag(H0_AA.todense()[1])
-    assert np.allclose(np.diag(ev_A), H0_AA.todense()[1]), 'evec_A should be eigenvectors of H0'
+    ev_A = np.diag(H0_AA[1])
+    assert np.allclose(np.diag(ev_A), H0_AA[1]), 'evec_A should be eigenvectors of H0'
     H1_AA = evec_A * H1 * evec_A.T.conj()
     assert H1_AA == H1_AA.H()
     H2_AB = evec_A * H1 - H1_AA * evec_A
@@ -170,6 +170,22 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
 
 
 # *********************** POLYNOMIAL CLASS ************************************
+
+# Functions to handle different types of arrays
+def smart_dot(a, b):
+    if isinstance(a, scipy.sparse.spmatrix) or isinstance(b, scipy.sparse.spmatrix):
+        return scipy.sparse.csr_matrix.dot(a, b)
+    else:
+        return np.dot(a, b)
+
+def smart_add(a, b):
+    result = a + b
+    if isinstance(a, scipy.sparse.spmatrix) ^ isinstance(b, scipy.sparse.spmatrix):
+        return result.A
+    else:
+        return result
+
+
 class MatCoeffPolynomial(collections.defaultdict):
 
     # Make it work with numpy arrays
@@ -209,14 +225,14 @@ class MatCoeffPolynomial(collections.defaultdict):
     def tosparse(self):
         output = self.copy()
         for key, val in output.items():
-            output[key] = csr_matrix(val)
+            output[key] = scipy.sparse.csr_matrix(val)
         return output
 
     def todense(self):
         output = self.copy()
         for key, val in output.items():
-            if isinstance(val, spmatrix):
-                output[key] = val.toarray()
+            if isinstance(val, scipy.sparse.spmatrix):
+                output[key] = val.A
         return output
 
     def lambdify(self, *gens):
@@ -263,10 +279,9 @@ class MatCoeffPolynomial(collections.defaultdict):
 
         try:
             for key in B:
-                result[key] += B[key]
+                result[key] = smart_add(result[key], B[key])
         except TypeError:
-            result[1] += B
-
+            result[1] = smart_add(result[key], B)
         return result
 
     def __sub__(self, B):
@@ -274,9 +289,9 @@ class MatCoeffPolynomial(collections.defaultdict):
 
         try:
             for key in B:
-                result[key] -= B[key]
+                result[key] = smart_add(result[key], -B[key])
         except TypeError:
-            result[1] -= B
+            result[1] = smart_add(result[key], -B)
 
         return result
 
@@ -298,15 +313,15 @@ class MatCoeffPolynomial(collections.defaultdict):
         elif isinstance(other, Basic):
             result = MatCoeffPolynomial({key * other: val for key, val in self.items()})
             result.interesting_keys = self.interesting_keys
-        elif isinstance(other, np.ndarray) or isinstance(other, spmatrix):
+        elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
             result = self.copy()
             for key, val in list(result.items()):
-                result[key] = np.dot(val, other)
+                result[key] = smart_dot(val, other)
             # result.shape = np.dot(np.zeros(self.shape), other).shape
         elif isinstance(other, MatCoeffPolynomial):
             result = MatCoeffPolynomial()
             for (k1, v1), (k2, v2) in product(self.items(), other.items()):
-                result[k1 * k2] += v1.dot(v2)
+                result[k1 * k2] += smart_dot(v1, v2)
             result.interesting_keys = list(set(self.interesting_keys) | set(other.interesting_keys))
             result.clean_keys()
         else:
@@ -334,10 +349,10 @@ class MatCoeffPolynomial(collections.defaultdict):
         elif isinstance(other, Basic):
             result = MatCoeffPolynomial({other * key: val for key, val in self.items()})
             result.interesting_keys = self.interesting_keys
-        elif isinstance(other, np.ndarray) or isinstance(other, spmatrix):
+        elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
             result = self.copy()
             for key, val in list(result.items()):
-                result[key] = other.dot(val)
+                result[key] = smart_dot(other, val)
             # result.shape = np.dot(other, np.zeros(self.shape)).shape
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
