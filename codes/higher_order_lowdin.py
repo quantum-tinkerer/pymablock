@@ -64,7 +64,7 @@ def divide_by_energies(Y_AB, energies_A, vectors_A, H_0, kpm_params):
             res.append(G_Y_vec_m(E_m).conj())
         res = np.vstack(res)
 
-        S_AB[key] = res - res.dot(vectors_A.T.conj()).dot(vectors_A)
+        S_AB[key] = res - res.dot(vectors_A).dot(vectors_A.T.conj())
     # S_AB = vectors_A * (vectors_A.T.conj() * S_AB)
     return S_AB.tosparse()
 
@@ -105,7 +105,7 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
         Perturbation to the Hamiltonian
     evec_A : array
         Basis of the interesting `A` subspace of H0 given
-        as a set of row vectors
+        as a set of column vectors
     interesting_keys : list of sympy.Symbol
         List of interesting keys to keep in the calculation.
         Should contain all subexpressions of desired keys, as
@@ -134,13 +134,13 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
     if isinstance(evec_A, scipy.sparse.spmatrix):
         evec_A = evec_A.A
 
-    H0_AA = evec_A * H0 * evec_A.T.conj()
+    H0_AA = evec_A.T.conj() * H0 * evec_A
     ev_A = np.diag(H0_AA[1])
     assert np.allclose(np.diag(ev_A), H0_AA[1]), 'evec_A should be eigenvectors of H0'
-    H1_AA = evec_A * H1 * evec_A.T.conj()
+    H1_AA = evec_A.T.conj() * H1 * evec_A
     assert H1_AA == H1_AA.H()
-    H2_AB = evec_A * H1 - H1_AA * evec_A
-    H2_BA = H1 * evec_A.T.conj() - evec_A.T.conj() * H1_AA
+    H2_AB = evec_A.T.conj() * H1 - H1_AA * evec_A.T.conj()
+    H2_BA = H1 * evec_A - evec_A * H1_AA
     assert H2_AB == H2_BA.H()
 
     S_AB = []
@@ -296,7 +296,7 @@ class MatCoeffPolynomial(collections.defaultdict):
         return result
 
     def __radd__(self, A):
-        if not A:
+        if (A == 0 or A == {}):
             return self.copy()
         else:
             return self + A
