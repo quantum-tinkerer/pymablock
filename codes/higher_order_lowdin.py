@@ -54,6 +54,8 @@ def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
 def divide_by_energies(Y_AB, energies_A, vectors_A, H_0, kpm_params):
     S_AB = MatCoeffPolynomial()
     S_AB.interesting_keys = Y_AB.interesting_keys
+    if isinstance(vectors_A, spmatrix):
+        vectors_A = vectors_A.A
     for key, val in Y_AB.items():
         if isinstance(val, spmatrix):
             val = val.toarray()
@@ -128,12 +130,15 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
 
     N = H0.shape[0]
     H0 = MatCoeffPolynomial({1: H0}, interesting_keys = interesting_keys)
+    H0 = H0.tosparse()
     H1 = MatCoeffPolynomial(H1, interesting_keys = interesting_keys)
+    H1 = H1.tosparse()
+    evec_A = csr_matrix(evec_A)
 
     H0_AA = evec_A * H0 * evec_A.T.conj()
     assert H0_AA == H0_AA.H()
     ev_A = np.diag(H0_AA.todense()[1])
-    assert np.allclose(np.diag(ev_A), H0_AA[1]), 'evec_A should be eigenvectors of H0'
+    assert np.allclose(np.diag(ev_A), H0_AA.todense()[1]), 'evec_A should be eigenvectors of H0'
     H1_AA = evec_A * H1 * evec_A.T.conj()
     assert H1_AA == H1_AA.H()
     H2_AB = evec_A * H1 - H1_AA * evec_A
@@ -318,14 +323,10 @@ class MatCoeffPolynomial(collections.defaultdict):
         elif isinstance(other, Basic):
             result = MatCoeffPolynomial({key * other: val for key, val in self.items()})
             result.interesting_keys = self.interesting_keys
-        elif isinstance(other, np.ndarray):
+        elif isinstance(other, np.ndarray) or isinstance(other, spmatrix):
             result = self.copy()
             for key, val in list(result.items()):
-                prod = np.dot(val, other)
-                if np.allclose(prod, 0):
-                    del result[key]
-                else:
-                    result[key] = prod
+                result[key] = np.dot(val, other)
             # result.shape = np.dot(np.zeros(self.shape), other).shape
         elif isinstance(other, MatCoeffPolynomial):
             result = MatCoeffPolynomial()
@@ -358,14 +359,10 @@ class MatCoeffPolynomial(collections.defaultdict):
         elif isinstance(other, Basic):
             result = MatCoeffPolynomial({other * key: val for key, val in self.items()})
             result.interesting_keys = self.interesting_keys
-        elif isinstance(other, np.ndarray):
+        elif isinstance(other, np.ndarray) or isinstance(other, spmatrix):
             result = self.copy()
             for key, val in list(result.items()):
-                prod = other.dot(val)
-                if np.allclose(prod, 0):
-                    del result[key]
-                else:
-                    result[key] = prod
+                result[key] = other.dot(val)
             # result.shape = np.dot(other, np.zeros(self.shape)).shape
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
