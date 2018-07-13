@@ -127,14 +127,12 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
         interesting_keys = get_maximum_powers(H1.keys(), order)
 
     N = H0.shape[0]
-    H0 = MatCoeffPolynomial({1: H0})
-    H1 = MatCoeffPolynomial(H1)
-    H0.interesting_keys = interesting_keys
-    H1.interesting_keys = interesting_keys
+    H0 = MatCoeffPolynomial({1: H0}, interesting_keys = interesting_keys)
+    H1 = MatCoeffPolynomial(H1, interesting_keys = interesting_keys)
 
     H0_AA = evec_A * H0 * evec_A.T.conj()
     assert H0_AA == H0_AA.H()
-    ev_A = np.diag(H0_AA[1])
+    ev_A = np.diag(H0_AA.todense()[1])
     assert np.allclose(np.diag(ev_A), H0_AA[1]), 'evec_A should be eigenvectors of H0'
     H1_AA = evec_A * H1 * evec_A.T.conj()
     assert H1_AA == H1_AA.H()
@@ -197,9 +195,9 @@ class MatCoeffPolynomial(collections.defaultdict):
     # Make it work with numpy arrays
     __array_ufunc__ = None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, interesting_keys = None, **kwargs):
         super(MatCoeffPolynomial, self).__init__(lambda: 0, *args, **kwargs)
-        self.interesting_keys = None
+        self.interesting_keys = interesting_keys
 
     def copy(self):
         result = MatCoeffPolynomial()
@@ -214,11 +212,12 @@ class MatCoeffPolynomial(collections.defaultdict):
 
         return result
 
-    def remove_not_interesting_keys(self, interesting_keys):
+    def clean_keys(self):
         """Removing all key that are not interesting."""
-        for key in list(self.keys()):
-            if key not in interesting_keys:
-                del self[key]
+        if self.interesting_keys is not None:
+            for key in list(self.keys()):
+                if key not in self.interesting_keys:
+                    del self[key]
 
     def tosympy(self, digits=12):
         """Convert MatCoeffPolynomial into sympy matrix."""
@@ -228,12 +227,9 @@ class MatCoeffPolynomial(collections.defaultdict):
         return result
 
     def tosparse(self):
-        output = MatCoeffPolynomial()
-        for key, val in self.items():
+        output = self.copy()
+        for key, val in output.items():
             output[key] = csr_matrix(val)
-
-        output.interesting_keys = self.interesting_keys
-        output.remove_not_interesting_keys(output.interesting_keys)
         return output
 
     def todense(self):
@@ -316,12 +312,9 @@ class MatCoeffPolynomial(collections.defaultdict):
     def __mul__(self, other):
         # Multiplication by numbers, sympy symbols, arrays and Model
         if isinstance(other, Number):
-            if np.isclose(other, 0):
-                result = self.zeros_like()
-            else:
-                result = self.copy()
-                for key, val in result.items():
-                    result[key] = other * val
+            result = self.copy()
+            for key, val in result.items():
+                result[key] = other * val
         elif isinstance(other, Basic):
             result = MatCoeffPolynomial({key * other: val for key, val in self.items()})
             result.interesting_keys = self.interesting_keys
@@ -337,9 +330,9 @@ class MatCoeffPolynomial(collections.defaultdict):
         elif isinstance(other, MatCoeffPolynomial):
             result = MatCoeffPolynomial()
             for (k1, v1), (k2, v2) in product(self.items(), other.items()):
-                result[k1 * k2] += np.dot(v1, v2)
+                result[k1 * k2] += v1.dot(v2)
             result.interesting_keys = list(set(self.interesting_keys) | set(other.interesting_keys))
-            result.remove_not_interesting_keys(result.interesting_keys)
+            result.clean_keys()
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
         return result
@@ -368,7 +361,7 @@ class MatCoeffPolynomial(collections.defaultdict):
         elif isinstance(other, np.ndarray):
             result = self.copy()
             for key, val in list(result.items()):
-                prod = np.dot(other, val)
+                prod = other.dot(val)
                 if np.allclose(prod, 0):
                     del result[key]
                 else:
@@ -390,17 +383,3 @@ class MatCoeffPolynomial(collections.defaultdict):
             result = result * self
 
         return result
-
-
-def polydot(A, B, interesting_keys=None):
-    result = MatCoeffPolynomial()
-    for keyA, valA in A.items():
-        for keyB, valB in B.items():
-
-            out_key = keyA*keyB
-            if interesting_keys != None and out_key not in interesting_keys:
-                pass
-            else:
-                result[out_key] += valA.dot(valB)
-
-    return result
