@@ -51,25 +51,26 @@ def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
     return output
 
 
-def divide_by_energies(Y_AB, energies_A, vectors_A, H_0, kpm_params):
-    S_AB = MatCoeffPolynomial()
-    S_AB.interesting_keys = Y_AB.interesting_keys
-    if isinstance(vectors_A, scipy.sparse.spmatrix):
-        vectors_A = vectors_A.A
-    Y_AB = Y_AB.todense()
-    for key, val in Y_AB.items():
-        res = []
-        for m, E_m in enumerate(energies_A):
-            G_Y_vec_m = build_greens_function(H_0, params=None, vectors=val[m].conj(), kpm_params=kpm_params)
-            res.append(G_Y_vec_m(E_m).conj())
-        res = np.vstack(res)
-
+def _divide_by_energies(Y_AB, energies_A, vectors_A, H_0, kpm_params):
+    """Apply energy denominators using KPM Green's function"""
+    S_AB = Y_AB.copy()
+    # Apply Green's function from the right to Y_AB row by row
+    for key, val in S_AB.items():
+        # This way we do it for all rows at once, bit faster but uses more RAM
+        vec_G_Y = build_greens_function(H_0,
+                                        params=None,
+                                        vectors=val.conj(),
+                                        kpm_params=kpm_params)
+        res = np.vstack([vec_G_Y(E_m)[m].conj() for m, E_m in enumerate(energies_A)])
+        # Apply projector from right, not really necessary, but safeguards
+        # against numerical errors creeping the result into `A` subspace.
         S_AB[key] = res - res.dot(vectors_A).dot(vectors_A.T.conj())
-    # S_AB = vectors_A * (vectors_A.T.conj() * S_AB)
-    return S_AB.tosparse()
+    return S_AB
 
 
-def commute_n_even(H_AA, H_BB, S_AB, S_BA, n):
+def _commute_n_even(H_AA, H_BB, S_AB, S_BA, n):
+    # Nested commutator `[...[[H, S], S],...]` of order `2n` written out in block form
+    # for block-diagonal `H` and off-diagonal `S`.
     res_AA = H_AA.copy()
     res_BB = H_BB.copy()
     for i in range(n):
@@ -80,7 +81,9 @@ def commute_n_even(H_AA, H_BB, S_AB, S_BA, n):
     return res_AA
 
 
-def commute_n_odd(H_AB, H_BA, S_AB, S_BA, n):
+def _commute_n_odd(H_AB, H_BA, S_AB, S_BA, n):
+    # Nested commutator `[...[[H, S], S],...]` of order `2n + 1` written out in block form
+    # for off-diagonal `H` and off-diagonal `S`.
     res_AA = H_AB * S_BA - S_AB * H_BA
     res_BB = H_BA * S_AB - S_BA * H_AB
     for i in range(n):
@@ -134,6 +137,7 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
     if isinstance(evec_A, scipy.sparse.spmatrix):
         evec_A = evec_A.A
 
+    # Generate projected terms
     H0_AA = evec_A.T.conj() * H0 * evec_A
     ev_A = np.diag(H0_AA[1])
     assert np.allclose(np.diag(ev_A), H0_AA[1]), 'evec_A should be eigenvectors of H0'
@@ -142,29 +146,34 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
     H2_AB = evec_A.T.conj() * H1 - H1_AA * evec_A.T.conj()
     H2_BA = H1 * evec_A - evec_A * H1_AA
     assert H2_AB == H2_BA.H()
+    assert not any((H0_AA.issparse(), H1_AA.issparse(), H2_AB.issparse(), H2_BA.issparse()))
 
+    # Generate `S` to `order-1` order
     S_AB = []
     S_BA = []
     for i in range(1, order):
+        # `Y_i` is the right hand side of the equation `[H0, S_i] = Y_i`.
+        # We take the expressions for `Y_i` from an external file.
         Y = Y_i[i - 1]
         Y_AB = Y(H0_AA, H0, H1_AA, H1, H2_AB, H2_BA, S_AB, S_BA)
-        S_AB_i = divide_by_energies(Y_AB, ev_A, evec_A, H0[1], kpm_params=kpm_params)
+        # Solve for `S_i` by applying Green's function
+        S_AB_i = _divide_by_energies(Y_AB, ev_A, evec_A, H0[1], kpm_params=kpm_params)
         S_BA_i = -S_AB_i.H()
+        assert not any((Y_AB.issparse(), S_AB_i.issparse(), S_BA_i.issparse()))
         S_AB.append(S_AB_i)
         S_BA.append(S_BA_i)
-
     S_AB = sum(S_AB)
     S_BA = -S_AB.H()
 
+    # Generate effective Hamiltonian `Hd` to `order` order using `S`.
     Hd = H0_AA + H1_AA + H2_AB * S_BA - S_AB * H2_BA
     assert Hd == Hd.H(), Hd.todense()
 
     for j in range(1, order//2 + 1):
-        Hd += commute_n_even(H0_AA + H1_AA, H0 + H1, S_AB, S_BA, j) * (1 / factorial(2*j))
-        Hd += commute_n_odd(H2_AB, H2_BA, S_AB, S_BA, j) * (1 / factorial(2*j + 1))
+        Hd += _commute_n_even(H0_AA + H1_AA, H0 + H1, S_AB, S_BA, j) * (1 / factorial(2*j))
+        Hd += _commute_n_odd(H2_AB, H2_BA, S_AB, S_BA, j) * (1 / factorial(2*j + 1))
+        assert not Hd.issparse()
         assert Hd == Hd.H(), Hd.todense()
-
-    Hd = Hd.todense()
 
     return Hd
 
@@ -172,18 +181,20 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
 # *********************** POLYNOMIAL CLASS ************************************
 
 # Functions to handle different types of arrays
-def smart_dot(a, b):
+# If either of them are dense, the result is dense.
+def _smart_dot(a, b):
     if isinstance(a, scipy.sparse.spmatrix) or isinstance(b, scipy.sparse.spmatrix):
         return scipy.sparse.csr_matrix.dot(a, b)
     else:
         return np.dot(a, b)
 
-def smart_add(a, b):
-    result = a + b
-    if isinstance(a, scipy.sparse.spmatrix) ^ isinstance(b, scipy.sparse.spmatrix):
-        return result.A
+def _smart_add(a, b):
+    if isinstance(a, scipy.sparse.spmatrix):
+        return (a + b).A
+    elif isinstance(b, scipy.sparse.spmatrix):
+        return (b + a).A
     else:
-        return result
+        return a + b
 
 
 class MatCoeffPolynomial(collections.defaultdict):
@@ -227,6 +238,12 @@ class MatCoeffPolynomial(collections.defaultdict):
         for key, val in output.items():
             output[key] = scipy.sparse.csr_matrix(val)
         return output
+
+    def issparse(self):
+        for key, val in self.items():
+            if isinstance(val, scipy.sparse.spmatrix):
+                return True
+        return False
 
     def todense(self):
         output = self.copy()
@@ -279,9 +296,9 @@ class MatCoeffPolynomial(collections.defaultdict):
 
         try:
             for key in B:
-                result[key] = smart_add(result[key], B[key])
+                result[key] = _smart_add(result[key], B[key])
         except TypeError:
-            result[1] = smart_add(result[key], B)
+            result[1] = _smart_add(result[key], B)
         return result
 
     def __sub__(self, B):
@@ -289,9 +306,9 @@ class MatCoeffPolynomial(collections.defaultdict):
 
         try:
             for key in B:
-                result[key] = smart_add(result[key], -B[key])
+                result[key] = _smart_add(result[key], -B[key])
         except TypeError:
-            result[1] = smart_add(result[key], -B)
+            result[1] = _smart_add(result[key], -B)
 
         return result
 
@@ -316,12 +333,11 @@ class MatCoeffPolynomial(collections.defaultdict):
         elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
             result = self.copy()
             for key, val in list(result.items()):
-                result[key] = smart_dot(val, other)
-            # result.shape = np.dot(np.zeros(self.shape), other).shape
+                result[key] = _smart_dot(val, other)
         elif isinstance(other, MatCoeffPolynomial):
             result = MatCoeffPolynomial()
             for (k1, v1), (k2, v2) in product(self.items(), other.items()):
-                result[k1 * k2] += smart_dot(v1, v2)
+                result[k1 * k2] += _smart_dot(v1, v2)
             result.interesting_keys = list(set(self.interesting_keys) | set(other.interesting_keys))
             result.clean_keys()
         else:
@@ -352,8 +368,7 @@ class MatCoeffPolynomial(collections.defaultdict):
         elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
             result = self.copy()
             for key, val in list(result.items()):
-                result[key] = smart_dot(other, val)
-            # result.shape = np.dot(other, np.zeros(self.shape)).shape
+                result[key] = _smart_dot(other, val)
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
         return result
