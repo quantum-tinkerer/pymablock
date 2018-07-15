@@ -17,6 +17,7 @@ before_script:
 run analysis:
   script:
     - $ENVIRONMENT/bin/pip install git+https://gitlab.kwant-project.org/semicon/semicon.git
+    - conda install -n $ENVIRONMENT line_profiler
     - $ENVIRONMENT/bin/python -m ipykernel install --user --name run_env
     - cd analysis
     - for ipynb in *.ipynb; do
