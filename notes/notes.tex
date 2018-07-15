@@ -246,28 +246,30 @@ which is also valid if the expansion coefficients do not commute.
 \subsection{Using KPM in higher orders}
 
 To use KPM efficiently, we want to avoid using and explicit basis for the $B$ subspace.
-We observe that the expressions \eqref{eq:lowdin-get-s} for $Y$ can be expanded in terms of the restricted operators (i.e. $H'_{AA}$, $H'_{AB}$, etc.).
+We observe that the expressions \eqref{eq:lowdin-get-s} for $Y$ and \eqref{eq:lowdin-hd} for $\tilde{H}_{AA}$ can be expanded in terms of the restricted operators (i.e. $H'_{AA}$, $H'_{AB}$, etc.).
 Whenever two terms with $A$ indices are adjacent, we may insert a projector onto the $A$ states $P_A = \sum_m | m \rangle\langle m |$ with a full basis of $A$ states $| m \rangle$.
 Whenever two terms with $B$ indices are adjacent, we insert a projector onto the $B$ subspace $P_B = 1 - \sum_m | m \rangle\langle m |$. This allows to remove the restriction from one of the adjecent terms, for example
 \begin{equation}
-\langle m | S_{AB} H'_{BB} S_{BA} | m' \rangle = \langle m | P_A S P_B P_B H' P_B P_B S P_A  | m' \rangle = \langle m | S_{AB} H' S_{BA} m' \rangle = \left(S_{AB}\right)_{mi} H'_{ij} \left(S_{BA}\right)_{j m'}
+\langle m | S_{AB} H'_{BB} S_{BA} | m' \rangle = \langle m | P_A S P_B P_B H' P_B P_B S P_A  | m' \rangle = \langle m | S_{AB} H' S_{BA} | m' \rangle = \left(S_{AB}\right)_{mi} H'_{ij} \left(S_{BA}\right)_{j m'}
 \end{equation}
 with indices $i$, $j$ running over the full Hilbert space and $m$, $m'$ on the basis of the $A$ subspace.
+It is possible to replace all $H_{BB}$ terms with $H$ because there is only one $H$ in every product, all the other terms are $S$'s.
 This is advantageous as $H'$ acting on the full Hilbert space of size $N$ can be represented as a sparse matrix of $O(N)$ nonzero entries, while $S_{AB}$ and other off-diagonal components can be stored as small dense matrices with $O(N a)$ entries where $a = \dim(A)$.
 
 Now we rewrite \eqref{eq:lowdin-s-from-y} in terms of the Green's function:
 \begin{equation}
-\left(S^{(n)}_{AB}\right)_{mi} =\left(Y^{(n)}_{AB}\right)_{mj} \left(\frac{1}{E_m - H_0}\right)_{ji} = \left[G(E_m, H_0)_{ij} \left(Y^{(n)}_{AB}\right)_{mj}^* \right]^* .
+\left(S^{(n)}_{AB}\right)_{mi} =\sum_j \left(Y^{(n)}_{AB}\right)_{mj} \left(\frac{1}{E_m - H_0}\right)_{ji} = \sum_j \left[G(E_m, H_0)_{ij} \left({Y^{(n)}_{AB}}^{\dagger} \right)_{jm}\right]^{\dagger}
 \end{equation}
+where we used that $S_{AB} P_B = S_{AB}$, $Y_{AB} P_B = Y_{AB}$ and that $G(E, H_0)$ doesn't mix the $A$ and $B$ subspaces.
+For numerical stability reasons, we still apply $P_B$ from the right in practice.
 Following the procedure outlined in section \ref{sec:lowdin} we successively generate all $S$ terms and produce $\tilde{H}_{AA}$, the only difference is using the above basis convention.
 
 The computational complexity of generating the $n$'th order effective Hamiltonian (in the case of a single small parameter) is $O(n^2 a N M)$, where $M$ is the number of KPM moments, practically chosen to be at the order of bandwidth/gap.
-We obtain this estimate by the following reasoning: A single evaluation of the KPM Green's function on a vector costs $O(NM)$. To get $S^{(j)}$, we need to apply $G$ to $a j$ vectors on the right hand side, as $Y^{(j)}$ is a polynomial of the small parameter.
-We argue that the KPM step is the costliest part of the procedure.
-Evaluation of $Y$ and $\tilde{H}$ only involves products of small or sparse matrices.
-There is, however, a rapidly growing combinatorical prefactor in the number of terms involved in these expressions.
+We obtain this estimate by the following reasoning: A single evaluation of the KPM Green's function on a vector costs $O(NM)$. To get $S^{(j)}$, we need to apply $G$ to $(a j)$ vectors on the right hand side, as $Y^{(j)}$ is a $j$'th order polynomial of the small parameter.
+We argue that the KPM step is the costliest part of the procedure, because evaluation of $Y$ and $\tilde{H}$ only involves products of small or sparse matrices.
+There is, however, a combinatorical factor in the number of terms involved in these expressions, which grows exponentially with $n$.
 These factors are even larger if there are multiple small parameters in the expansion.
-We defer in-depth analysis of the complexity for now.
+We defer in-depth analysis of the complexity of high order expansions for now.
 
 \subsection{Green's function expansion with KPM}
 
