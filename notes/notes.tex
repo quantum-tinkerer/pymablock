@@ -45,9 +45,9 @@
 
 \subsection{Problem definition}
 
-We start by separating initial Hamiltonian into unperturbed part $H^0$ and perturbation $H^{\prime}\,$:
+We start by separating initial Hamiltonian into unperturbed part $H^0$ and perturbation $\lambda H^{\prime}\,$ with $\lambda$ as a small parameter:
 \begin{equation}
-H = H^{0} + H^{\prime} \,.
+H = H^{0} + \lambda H^{\prime} \,.
 \end{equation}
 
 We assume that eingestates and energies of $H^{0}$ are known:
@@ -58,18 +58,79 @@ H^0 \ket{\psi_n} = \epsilon_n \ket{\psi_n} \,.
 We now split states $\ket{\psi_n}$ into two groups, $A$ and $B$.
 We are interested in states from group $A$ whereas effect of states $B$ we want to include via perturbation theory.
 We assume that these two group of states are clearly separated in energies.
+We write operator $X$ restricted to various blocks as $X_{AA}$, $X_{BB}$, $X_{AB}$ and $X_{BA}$.
 
 
 \subsection{L\"owdin partitioning}
-L\"owdin partitioning, see Winkler's book,~\cite{winkler} provide us with the extension of standard perturbation theory to the case of quasi-degenerate states:
+\label{sec:lowdin}
+L\"owdin partitioning (also known as Schrieffer–Wolff transformation), see Winkler's book,~\cite{winkler} provide us with the extension of standard perturbation theory to the case of quasi-degenerate states.
+We apply a unitary basis transformation with skew Hermitian $S$ ($S^\dagger = -S$):
 \begin{equation}
-\tilde{H} = e^{-s} H \, e^{s}\,,
+\tilde{H} = e^{-S} H \, e^{S}\,.
 \end{equation}
-with the effective Hamiltonian given as sum of successive order of perturbation:
+The transformation should be the identity when the perturbation vanishes and we expand $S$ as a series in successive orders of the perturbation
 \begin{equation}
-\tilde{H} = \tilde{H}^{(0)} + \tilde{H}^{(1)} + \tilde{H}^{(2)} + \ldots\,.
+S = \sum_{j = 1}^{\infty} \lambda^j S^{(j)}.
 \end{equation}
-For all the math, again, see Winkler's book or Rafal's thesis.
+The transformed Hamiltonian (using the Baker-Campbell-Hausdorff formula) is
+\begin{equation}
+\tilde{H}
+    = \sum_{j=0}^{\infty}\frac{1}{j!} [H,\,S]^{(j)}
+    = \sum_{j=0}^{\infty}\frac{1}{j!} [H^0 + \lambda H^1,\,S]^{(j)}
+    + \sum_{j=0}^{\infty}\frac{1}{j!} [\lambda H^2,\,S]^{(j)}\,,
+\end{equation}
+where the commutator $[A, B]^{(j)}$ is defined as
+\begin{equation}
+[A, B]^{(j)} = [\ldots[[A,\underbrace{\,B],\,B],\ldots,\,B]}_\text{$j$ times},
+\end{equation}
+and we introduced $H^1 = H'_{AA} + H'_{BB}$, $H^2 = H'_{AB} + H'_{BA}$.
+The requirement on the $S$ we seek is $\tilde{H}_{AB} = \tilde{H}_{BA} = 0$ and we call $\tilde{H}_{AA}$ the effective Hamiltonian.
+We choose $S$ to be block off-diagonal such that $S_{AA} = S_{BB} = 0$.
+
+To do $n$'th order perturbation theory we demand the equations to be satisfied for all terms up to $\lambda^n$.
+Separating terms that contribute to diagonal and off-diagonal terms ($\tilde{H}_{d}$ and $\tilde{H}_{n}$) we find:
+\begin{subequations}
+\begin{eqnarray}
+\label{eq:lowdin-hd}
+\tilde{H}_{d}
+    &=& \sum_{j=0}^{\infty}\frac{1}{(2j)!} [H^0 + \lambda H^1,\,S]^{(2j)}
+    + \sum_{j=0}^{\infty}\frac{1}{(2j+1)!} [\lambda H^2,\,S]^{(2j+1)}\,,\\
+\label{eq:lowdin-hn}
+\tilde{H}_{n}
+    &=& \sum_{j=0}^{\infty}\frac{1}{(2j+1)!} [H^0 + \lambda H^1,\,S]^{(2j+1)}
+    + \sum_{j=0}^{\infty}\frac{1}{(2j)!} [\lambda H^2,\,S]^{(2j)}\,.
+\end{eqnarray}
+\end{subequations}
+We solve \eqref{eq:lowdin-hn} up to $n-1$ order by inserting the expansion $S = \sum_{j = 1}^{n-1} \lambda^j S^{(j)}$ and letting the sums in $j$ run to $\left\lfloor (n-1)/2 \right\rfloor$, this produces all terms up to $n-1$ order.
+We observe that at $j$'th order $S^{(j)}$ only appears in a single commutator, allowing to rearrange the $j$'th order terms in the equation $\tilde{H}_{n} = 0$ as
+\begin{equation}
+{[H^0,\,S^{(j)}]} = Y^{(j)}
+\end{equation}
+where $Y^{(j)}$ only depends on lower orders of $S$.
+We generate the $Y$'s using symbolic computer algebra.
+The first few terms are:
+\begin{subequations}
+\label{eq:lowdin-get-s}
+\begin{align}
+{[H^0,\,S^{(1)}]} &= Y^{(1)} = -H^2\,,\\
+{[H^0,\,S^{(2)}]} &= Y^{(2)} = -[H^1,\,S^{(1)}]\,,\\
+{[H^0,\,S^{(3)}]} &= Y^{(3)} = -[H^1,\,S^{(2)}] - \frac{1}{3} [[H^2,\,S^{(1)}],\,S^{(1)}]\,.
+\end{align}
+\end{subequations}
+As the $Y$'s are purely off-diagonal Hermitian, it is possible to write only $Y^{(j)}_{AB}$ in terms of $S_{AB}$, $S_{BA}$ and the restricted components of $H$.
+
+The equations \eqref{eq:lowdin-get-s} can be iteratively solved as
+\begin{equation}
+\label{eq:lowdin-s-from-y}
+S^{(j)}_{ml} = \frac{Y^{(j)}_{ml}}{E_m - E_l}
+\end{equation}
+where indices $m$ and $l$ correspond to states in the $A$ and $B$ subspace respectively.
+With the $n-1$ order expansion of $S$ at hand, we substitute it into \eqref{eq:lowdin-hd} with the sum over $j$ running to $\left\lfloor n/2 \right\rfloor$ to produce $\tilde{H}_{d}$ up to $n$'th order.
+
+Also writing the transformed Hamiltonian as a sum of successive orders of the perturbation
+\begin{equation}
+\tilde{H} = \tilde{H}^{(0)} + \lambda \tilde{H}^{(1)} + \lambda^2 \tilde{H}^{(2)} + \ldots\,,
+\end{equation}
 The explicit solution, for first two orders, is:
 \begin{subequations}
 \label{lowdin-explicit}
@@ -81,8 +142,7 @@ The explicit solution, for first two orders, is:
     \left(\frac{1}{E_m - E_l} + \frac{1}{E_n - E_l}\right)\,,
 \end{align}
 \end{subequations}
-where $m, n$ indices go over states from group $A$, $H^{1}$ corresponds to block-diagonal part of the perturbation and $H^{2}$ is non-block-diagonal part of the perturbation.
-The actual separation of $H^{\prime}$ as $H^{1}+H^{2}$ is not important here as proper blocks are taken into account automatically through correct indexing in Eq.~\eqref{lowdin-explicit}.
+where $m, n$ indices go over states from group $A$, and $l$ in group $B$.
 
 
 
@@ -182,6 +242,32 @@ and we seek the second order effective Hamiltonian as
 Similar as before, we introduce $\Phi_{\alpha}$ as the collection of column vectors $P_B H^{\prime}_{\alpha}\ket{\psi_i}$ and $\Xi_{\alpha}$ as $G(\epsilon_i, H^0) P_B H^{\prime}_{\alpha}\ket{\psi_i}$. With this
 \[\tilde{H}^2_{\alpha\beta} = \frac{1}{2} (\Phi_{\alpha}^\dag \Xi_{\beta} + \Xi_{\alpha}^\dag\Phi_{\beta})\]
 which is also valid if the expansion coefficients do not commute.
+
+\subsection{Using KPM in higher orders}
+
+To use KPM efficiently, we want to avoid using and explicit basis for the $B$ subspace.
+We observe that the expressions \eqref{eq:lowdin-get-s} for $Y$ can be expanded in terms of the restricted operators (i.e. $H'_{AA}$, $H'_{AB}$, etc.).
+Whenever two terms with $A$ indices are adjacent, we may insert a projector onto the $A$ states $P_A = \sum_m | m \rangle\langle m |$ with a full basis of $A$ states $| m \rangle$.
+Whenever two terms with $B$ indices are adjacent, we insert a projector onto the $B$ subspace $P_B = 1 - \sum_m | m \rangle\langle m |$. This allows to remove the restriction from one of the adjecent terms, for example
+\begin{equation}
+\langle m | S_{AB} H'_{BB} S_{BA} | m' \rangle = \langle m | P_A S P_B P_B H' P_B P_B S P_A  | m' \rangle = \langle m | S_{AB} H' S_{BA} m' \rangle = \left(S_{AB}\right)_{mi} H'_{ij} \left(S_{BA}\right)_{j m'}
+\end{equation}
+with indices $i$, $j$ running over the full Hilbert space and $m$, $m'$ on the basis of the $A$ subspace.
+This is advantageous as $H'$ acting on the full Hilbert space of size $N$ can be represented as a sparse matrix of $O(N)$ nonzero entries, while $S_{AB}$ and other off-diagonal components can be stored as small dense matrices with $O(N a)$ entries where $a = \dim(A)$.
+
+Now we rewrite \eqref{eq:lowdin-s-from-y} in terms of the Green's function:
+\begin{equation}
+\left(S^{(n)}_{AB}\right)_{mi} =\left(Y^{(n)}_{AB}\right)_{mj} \left(\frac{1}{E_m - H_0}\right)_{ji} = \left[G(E_m, H_0)_{ij} \left(Y^{(n)}_{AB}\right)_{mj}^* \right]^* .
+\end{equation}
+Following the procedure outlined in section \ref{sec:lowdin} we successively generate all $S$ terms and produce $\tilde{H}_{AA}$, the only difference is using the above basis convention.
+
+The computational complexity of generating the $n$'th order effective Hamiltonian (in the case of a single small parameter) is $O(n^2 a N M)$, where $M$ is the number of KPM moments, practically chosen to be at the order of bandwidth/gap.
+We obtain this estimate by the following reasoning: A single evaluation of the KPM Green's function on a vector costs $O(NM)$. To get $S^{(j)}$, we need to apply $G$ to $a j$ vectors on the right hand side, as $Y^{(j)}$ is a polynomial of the small parameter.
+We argue that the KPM step is the costliest part of the procedure.
+Evaluation of $Y$ and $\tilde{H}$ only involves products of small or sparse matrices.
+There is, however, a rapidly growing combinatorical prefactor in the number of terms involved in these expressions.
+These factors are even larger if there are multiple small parameters in the expansion.
+We defer in-depth analysis of the complexity for now.
 
 \subsection{Green's function expansion with KPM}
 
