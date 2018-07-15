@@ -6,8 +6,8 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  ENV: kwant
-  ENV_PATH: /opt/conda/envs/$ENV
+  ENV_NAME: kwant
+  ENV_PATH: /opt/conda/envs/$ENV_NAME
   EXEC_TIMEOUT: 180
 
 before_script:
@@ -18,7 +18,7 @@ before_script:
 run analysis:
   script:
     - $ENV_PATH/bin/pip install git+https://gitlab.kwant-project.org/semicon/semicon.git
-    - conda install -n $ENV_PATH line_profiler
+    - conda install -n $ENV_NAME line_profiler
     - $ENV_PATH/bin/python -m ipykernel install --user --name run_env
     - cd analysis
     - for ipynb in *.ipynb; do
