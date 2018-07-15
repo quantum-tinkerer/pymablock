@@ -6,7 +6,8 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  ENVIRONMENT: /opt/conda/envs/kwant
+  ENV: kwant
+  ENV_PATH: /opt/conda/envs/$ENV
   EXEC_TIMEOUT: 180
 
 before_script:
@@ -16,9 +17,9 @@ before_script:
 
 run analysis:
   script:
-    - $ENVIRONMENT/bin/pip install git+https://gitlab.kwant-project.org/semicon/semicon.git
-    - conda install -n $ENVIRONMENT line_profiler
-    - $ENVIRONMENT/bin/python -m ipykernel install --user --name run_env
+    - $ENV_PATH/bin/pip install git+https://gitlab.kwant-project.org/semicon/semicon.git
+    - conda install -n $ENV_PATH line_profiler
+    - $ENV_PATH/bin/python -m ipykernel install --user --name run_env
     - cd analysis
     - for ipynb in *.ipynb; do
     -    jupyter nbconvert --ExecutePreprocessor.kernel_name=run_env --to notebook --execute "$ipynb" --output "$ipynb" --ExecutePreprocessor.timeout=$EXEC_TIMEOUT
