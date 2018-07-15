@@ -129,6 +129,12 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
     if interesting_keys is None:
         interesting_keys = get_maximum_powers(H1.keys(), order)
 
+    if order > len(Y_i) + 1:
+        raise ValueError('Terms for {}\'th order perturbation theory not available. '
+                         'If you want to calculate {}\'th order perturbations, run '
+                         'generating_s_terms.ipynb with wanted_order = {}. '
+                         'This may take very long.'.format(order, order, order-1))
+
     # Convert to appropriate format
     H0 = MatCoeffPolynomial({1: H0}, interesting_keys = interesting_keys)
     H0 = H0.tosparse()
