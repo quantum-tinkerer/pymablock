@@ -74,6 +74,7 @@ S = \sum_{j = 1}^{\infty} \lambda^j S^{(j)}.
 \end{equation}
 The transformed Hamiltonian (using the Baker-Campbell-Hausdorff formula) is
 \begin{equation}
+\label{eq:lowdin-h}
 \tilde{H}
     = \sum_{j=0}^{\infty}\frac{1}{j!} [H,\,S]^{(j)}
     = \sum_{j=0}^{\infty}\frac{1}{j!} [H^0 + \lambda H^1,\,S]^{(j)}
@@ -125,7 +126,7 @@ The equations \eqref{eq:lowdin-get-s} can be iteratively solved as
 S^{(j)}_{ml} = \frac{Y^{(j)}_{ml}}{E_m - E_l}
 \end{equation}
 where indices $m$ and $l$ correspond to states in the $A$ and $B$ subspace respectively.
-With the $n-1$ order expansion of $S$ at hand, we substitute it into \eqref{eq:lowdin-hd} with the sum over $j$ running to $\left\lfloor n/2 \right\rfloor$ to produce $\tilde{H}_{d}$ up to $n$'th order.
+With the $n-1$ order expansion of $S$ at hand, we substitute it into \eqref{eq:lowdin-hd} with the sum over $j$ running to $\left\lfloor n/2 \right\rfloor$, or directly into \eqref{eq:lowdin-h} with the sum over $j$ running to $n$, to produce $\tilde{H}_{d}$ up to $n$'th order.
 
 Also writing the transformed Hamiltonian as a sum of successive orders of the perturbation
 \begin{equation}
@@ -269,8 +270,9 @@ We obtain this estimate by the following reasoning: A single evaluation of the K
 We argue that the KPM step is the costliest part of the procedure, because evaluation of $Y$ and $\tilde{H}$ only involves products of small or sparse matrices.
 
 There is, however, a combinatorical factor in the number of terms involved in these expressions, which grows exponentially with $j$.
-At high orders $Y^{(j)}$ contains $O(2^j)$ terms with a single expansion coefficient.
-It is likely more efficient to directly valuate the commutator series giving $Y^{(j)}$, substitute a $j-1$ order expansion of $S$ with numerical coefficients, and select terms at order $j$, this only takes $O(j^3)$ time.
+At high orders $Y^{(j)}$ contains $O(2^j)$ terms with a single small parameter.
+It is likely more efficient to directly evaluate the commutator series giving $Y^{(j)}$ by substituting the $j-1$ order expansion of $S$ with numerical coefficients.
+Truncating to terms of at most order $j$ after every multiplication, this only takes $O(j^3)$ time.
 These combinatorical factors are even larger if there are multiple small parameters in the expansion.
 We defer in-depth analysis of the complexity and possible optimizations of high order expansions for now.
 
