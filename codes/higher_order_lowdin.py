@@ -67,9 +67,12 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A,
                                         kpm_params=kpm_params)
         res = np.vstack([vec_G_Y(E_m)[m].conj() for m, E_m in enumerate(energies_A)])
         # Add back the explicit part
-        for E_l, vec_l in zip(energies_B, vectors_B.T):
-            res += np.vstack([val[m].dot(vec_l.T) * vec_l.conj()/(E_m - E_l)
-                              for m, E_m in enumerate(energies_A)])
+        # for E_l, vec_l in zip(energies_B, vectors_B.T):
+        #     res += np.vstack([val[m].dot(vec_l.T) * vec_l.conj()/(E_m - E_l)
+        #                       for m, E_m in enumerate(energies_A)])
+        val_ml = val.dot(vectors_B)
+        G_ml = 1/(np.array([energies_A]).T - energies_B)
+        res += (val_ml * G_ml).dot(vectors_B.T.conj())
         # Apply projector from right, not really necessary, but safeguards
         # against numerical errors creeping the result into `A` subspace.
         S_AB[key] = res - res.dot(vectors_A).dot(vectors_A.T.conj())
