@@ -51,17 +51,25 @@ def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
     return output
 
 
-def _divide_by_energies(Y_AB, energies_A, vectors_A, H_0, kpm_params):
-    """Apply energy denominators using KPM Green's function"""
+def _divide_by_energies(Y_AB, energies_A, vectors_A,
+                        energies_B, vectors_B, H_0, kpm_params):
+    """Apply energy denominators using hybrid KPM Green's function"""
     S_AB = Y_AB.copy()
     # Apply Green's function from the right to Y_AB row by row
     for key, val in S_AB.items():
+        # Project out A subspace and the explicit part of B subspace
+        val_KPM = (val - val.dot(vectors_A).dot(vectors_A.T.conj())
+                   - val.dot(vectors_B).dot(vectors_B.T.conj()))
         # This way we do it for all rows at once, bit faster but uses more RAM
         vec_G_Y = build_greens_function(H_0,
                                         params=None,
-                                        vectors=val.conj(),
+                                        vectors=val_KPM.conj(),
                                         kpm_params=kpm_params)
         res = np.vstack([vec_G_Y(E_m)[m].conj() for m, E_m in enumerate(energies_A)])
+        # Add back the explicit part
+        for E_l, vec_l in zip(energies_B, vectors_B.T):
+            res += np.vstack([val[m].dot(vec_l.T) * vec_l.conj()/(E_m - E_l)
+                              for m, E_m in enumerate(energies_A)])
         # Apply projector from right, not really necessary, but safeguards
         # against numerical errors creeping the result into `A` subspace.
         S_AB[key] = res - res.dot(vectors_A).dot(vectors_A.T.conj())
@@ -80,7 +88,7 @@ def _block_commute(H, S_AB, S_BA):
     return ((res_AA, res_AB), (res_BA, res_BB))
 
 
-def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_params=None):
+def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, order=2, kpm_params=None):
     """Return effective model for given perturbation.
 
     Implementation of quasi-degenerated perturbation theory.
@@ -95,6 +103,10 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
     evec_A : array
         Basis of the interesting `A` subspace of H0 given
         as a set of column vectors
+    evec_B : array
+        Basis of a subspace of the `B` subspace of H0 given
+        as a set of column vectors, which will be taken
+        into account exactly in hybrid-KPM approach.
     interesting_keys : list of sympy.Symbol
         List of interesting keys to keep in the calculation.
         Should contain all subexpressions of desired keys, as
@@ -122,12 +134,22 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
                          'This may take very long.'.format(order, order, order-1))
 
     # Convert to appropriate format
-    H0 = MatCoeffPolynomial({1: H0}, interesting_keys = interesting_keys)
+    H0 = MatCoeffPolynomial({1: H0}, interesting_keys=interesting_keys)
     H0 = H0.tosparse()
-    H1 = MatCoeffPolynomial(H1, interesting_keys = interesting_keys)
+    H1 = MatCoeffPolynomial(H1, interesting_keys=interesting_keys)
     H1 = H1.tosparse()
     if isinstance(evec_A, scipy.sparse.spmatrix):
         evec_A = evec_A.A
+
+    if evec_B is None:
+        evec_B = np.empty((evec_A.shape[0], 0))
+        ev_B = []
+    else:
+        if isinstance(evec_B, scipy.sparse.spmatrix):
+            evec_B = evec_B.A
+        H0_BB = evec_B.T.conj() * H0 * evec_B
+        ev_B = np.diag(H0_BB[1])
+        assert np.allclose(np.diag(ev_B), H0_BB[1]), 'evec_B should be eigenvectors of H0'
 
     # Generate projected terms
     H0_AA = evec_A.T.conj() * H0 * evec_A
@@ -149,7 +171,8 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
         Y = Y_i[i - 1]
         Y_AB = Y(H0_AA, H0, H1_AA, H1, H2_AB, H2_BA, S_AB, S_BA)
         # Solve for `S_i` by applying Green's function
-        S_AB_i = _divide_by_energies(Y_AB, ev_A, evec_A, H0[1], kpm_params=kpm_params)
+        S_AB_i = _divide_by_energies(Y_AB, ev_A, evec_A, ev_B, evec_B,
+                                     H0[1], kpm_params=kpm_params)
         S_BA_i = -S_AB_i.H()
         assert not any((Y_AB.issparse(), S_AB_i.issparse(), S_BA_i.issparse()))
         S_AB.append(S_AB_i)
