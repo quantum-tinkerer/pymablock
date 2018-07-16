@@ -68,30 +68,16 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A, H_0, kpm_params):
     return S_AB
 
 
-def _commute_n_even(H_AA, H_BB, S_AB, S_BA, n):
-    # Nested commutator `[...[[H, S], S],...]` of order `2n` written out in block form
-    # for block-diagonal `H` and off-diagonal `S`.
-    res_AA = H_AA.copy()
-    res_BB = H_BB.copy()
-    for i in range(n):
-        res_AB = res_AA * S_AB - S_AB * res_BB
-        res_BA = res_BB * S_BA - S_BA * res_AA
-        res_AA = res_AB * S_BA - S_AB * res_BA
-        res_BB = res_BA * S_AB - S_BA * res_AB
-    return res_AA
-
-
-def _commute_n_odd(H_AB, H_BA, S_AB, S_BA, n):
-    # Nested commutator `[...[[H, S], S],...]` of order `2n + 1` written out in block form
-    # for off-diagonal `H` and off-diagonal `S`.
+def _block_commute(H, S_AB, S_BA):
+    # Commutator `[H, S]` written out in block form
+    # for general `H = ((H_AA, H_AB), (H_BA, H_BB))`
+    # and off-diagonal `S = ((0, S_AB), (S_BA, 0))`.
+    ((H_AA, H_AB), (H_BA, H_BB)) = H
+    res_AB = H_AA * S_AB - S_AB * H_BB
+    res_BA = H_BB * S_BA - S_BA * H_AA
     res_AA = H_AB * S_BA - S_AB * H_BA
     res_BB = H_BA * S_AB - S_BA * H_AB
-    for i in range(n):
-        res_AB = res_AA * S_AB - S_AB * res_BB
-        res_BA = res_BB * S_BA - S_BA * res_AA
-        res_AA = res_AB * S_BA - S_AB * res_BA
-        res_BB = res_BA * S_AB - S_BA * res_AB
-    return res_AA
+    return ((res_AA, res_AB), (res_BA, res_BB))
 
 
 def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_params=None):
@@ -172,12 +158,15 @@ def get_effective_model(H0, H1, evec_A, interesting_keys=None, order=2, kpm_para
     S_BA = -S_AB.H()
 
     # Generate effective Hamiltonian `Hd` to `order` order using `S`.
-    Hd = H0_AA + H1_AA + H2_AB * S_BA - S_AB * H2_BA
+    # 0th commutator of H
+    comm_j = ((H0_AA + H1_AA, H2_AB), (H2_BA, H0 + H1))
+    # 0th order effective Hamiltonian
+    Hd = H0_AA + H1_AA
     assert Hd == Hd.H(), Hd.todense()
 
-    for j in range(1, order//2 + 1):
-        Hd += _commute_n_even(H0_AA + H1_AA, H0 + H1, S_AB, S_BA, j) * (1 / factorial(2*j))
-        Hd += _commute_n_odd(H2_AB, H2_BA, S_AB, S_BA, j) * (1 / factorial(2*j + 1))
+    for j in range(1, order + 1):
+        comm_j = _block_commute(comm_j, S_AB, S_BA)
+        Hd += comm_j[0][0] * (1 / factorial(j))
         assert not Hd.issparse()
         assert Hd == Hd.H(), Hd.todense()
 
