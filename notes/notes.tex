@@ -267,9 +267,12 @@ Following the procedure outlined in section \ref{sec:lowdin} we successively gen
 The computational complexity of generating the $n$'th order effective Hamiltonian (in the case of a single small parameter) is $O(n^2 a N M)$, where $M$ is the number of KPM moments, practically chosen to be at the order of bandwidth/gap.
 We obtain this estimate by the following reasoning: A single evaluation of the KPM Green's function on a vector costs $O(NM)$. To get $S^{(j)}$, we need to apply $G$ to $(a j)$ vectors on the right hand side, as $Y^{(j)}$ is a $j$'th order polynomial of the small parameter.
 We argue that the KPM step is the costliest part of the procedure, because evaluation of $Y$ and $\tilde{H}$ only involves products of small or sparse matrices.
-There is, however, a combinatorical factor in the number of terms involved in these expressions, which grows exponentially with $n$.
-These factors are even larger if there are multiple small parameters in the expansion.
-We defer in-depth analysis of the complexity of high order expansions for now.
+
+There is, however, a combinatorical factor in the number of terms involved in these expressions, which grows exponentially with $j$.
+At high orders $Y^{(j)}$ contains $O(2^j)$ terms with a single expansion coefficient.
+It is likely more efficient to directly valuate the commutator series giving $Y^{(j)}$, substitute a $j-1$ order expansion of $S$ with numerical coefficients, and select terms at order $j$, this only takes $O(j^3)$ time.
+These combinatorical factors are even larger if there are multiple small parameters in the expansion.
+We defer in-depth analysis of the complexity and possible optimizations of high order expansions for now.
 
 \subsection{Green's function expansion with KPM}
 
