@@ -340,6 +340,21 @@ f(\epsilon, H)^\pm_M &= \mp \frac{2i}{a\sqrt{1-\epsilon^2}}
 % \\
 % &= \sin(\phi)\mathrm{d}\phi
 
+\subsection{Hybrid KPM}
+
+In the hybrid KPM approach a subset $B_e$ of the $B$ eigenstates are known explicitly.
+These can be obtained from sparse diagonalization and are practically states that lie close in energy to the $A$ states.
+We split the Green's function of the $B$ subspace to two terms:
+\begin{equation}
+G_B(E, H_0) = G(E, H_0) P_B = \sum_{l\in B_e} \frac{| l \rangle\langle l |}{E - E_l} + G_{\text{KPM}}(E, H_0) (P_B - P_{B_e})
+\end{equation}
+where $P_B$ and $P_{B_e}$ are projectors to the various subspaces, and $G_{\text{KPM}}$ is the KPM approximateg Green's function.
+
+\subsection{Error analysis}
+
+TODO:
+Analyze the accuracy of the KPM approximation as function of gap and number of moments $M$.
+What is the best kernel for Green's function?
 
 % \section{Introduction}
 
