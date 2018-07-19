@@ -76,17 +76,39 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A,
     return S_AB
 
 
-def _block_commute(H, S_AB, S_BA):
+def _block_commute_diag(H, S):
     # Commutator `[H, S]` written out in block form
-    # for general `H = ((H_AA, H_AB), (H_BA, H_BB))`
+    # for block-diagonal `H = ((H_AA, 0), (0, H_BB))`
     # and off-diagonal `S = ((0, S_AB), (S_BA, 0))`.
-    ((H_AA, H_AB), (H_BA, H_BB)) = H
+    ((H_AA, _), (_, H_BB)) = H
+    ((_, S_AB), (S_BA, _)) = S
     res_AB = H_AA * S_AB - S_AB * H_BB
     res_BA = H_BB * S_BA - S_BA * H_AA
-    res_AA = H_AB * S_BA - S_AB * H_BA
-    res_BB = H_BA * S_AB - S_BA * H_AB
-    return ((res_AA, res_AB), (res_BA, res_BB))
+    return ((0, res_AB), (res_BA, 0))
 
+
+def _block_commute_AA(H, S):
+    # Commutator `[H, S]` written out in block form
+    # for off-diagonal `H = ((0, H_AB), (H_BA, 0))`
+    # and off-diagonal `S = ((0, S_AB), (S_BA, 0))`.
+    # Only the AA block is kept
+    ((_, H_AB), (H_BA, _)) = H
+    ((_, S_AB), (S_BA, _)) = S
+    res_AA = H_AB * S_BA - S_AB * H_BA
+    return res_AA
+
+
+def _block_commute_2(H, S):
+    # Commutator `[[H, S], S]` written out in block form
+    # for off-diagonal `H = ((0, H_AB), (H_BA, 0))`
+    # and off-diagonal `S = ((0, S_AB), (S_BA, 0))`.
+    ((_, H_AB), (H_BA, _)) = H
+    ((_, S_AB), (S_BA, _)) = S
+    res_AA = H_AB * S_BA - S_AB * H_BA
+    # Ordering that avoids calculating BB blocks
+    res_AB = res_AA * S_AB - (S_AB * H_BA) * S_AB + (S_AB * S_BA) * H_AB
+    res_BA = H_BA * (S_AB * S_BA) - S_BA * (H_AB * S_BA) - S_BA * res_AA
+    return ((0, res_AB), (res_BA, 0))
 
 def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, order=2, kpm_params=None):
     """Return effective model for given perturbation.
@@ -179,17 +201,31 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
         S_BA.append(S_BA_i)
     S_AB = sum(S_AB)
     S_BA = -S_AB.H()
+    S = ((0, S_AB), (S_BA, 0))
 
     # Generate effective Hamiltonian `Hd` to `order` order using `S`.
-    # 0th commutator of H
-    comm_j = ((H0_AA + H1_AA, H2_AB), (H2_BA, H0 + H1))
-    # 0th order effective Hamiltonian
+    # 0th commutators of H
+    comm_diag = ((H0_AA + H1_AA, 0), (0, H0 + H1))
+    comm_offdiag = ((0, H2_AB), (H2_BA, 0))
+    # Add 0th commutator of diagonal
     Hd = H0_AA + H1_AA
+    # Add 1st commutator of off-diagonal
+    Hd += _block_commute_AA(comm_offdiag, S)
+    # Make 1st commutator of diagonal
+    comm_diag = _block_commute_diag(comm_diag, S)
+    # Add 2nd commutator of diagonal
+    Hd += _block_commute_AA(comm_diag, S) * (1 / factorial(2))
     assert Hd == Hd.H(), Hd.todense()
 
-    for j in range(1, order + 1):
-        comm_j = _block_commute(comm_j, S_AB, S_BA)
-        Hd += comm_j[0][0] * (1 / factorial(j))
+    for j in range(2, order//2 + 1):
+        # Make (2j-2)'th commutator of off-diagonal
+        comm_offdiag = _block_commute_2(comm_offdiag, S)
+        # Add (2j-1)'th commutator of off-diagonal
+        Hd += _block_commute_AA(comm_offdiag, S) * (1 / factorial(2*j-1))
+        # Make (2j-1)'th commutator of diagonal
+        comm_diag = _block_commute_2(comm_diag, S)
+        # Add 2j'th commutator of diagonal
+        Hd += _block_commute_AA(comm_diag, S) * (1 / factorial(2*j))
         assert not Hd.issparse()
         assert Hd == Hd.H(), Hd.todense()
 
