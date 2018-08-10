@@ -210,6 +210,64 @@ def first_order(perturbation, subspace):
     return output
 
 
+def second_order(hamiltonian, perturbation, evecA, evecB=None, moments=0,
+                 truncate=True):
+    """Return second order effective model.
+
+    This calculates contribution to second order effective models
+    coming from "evecB" states explicitly. If "moments" is not zero then
+    contribution to 2nd order effective model coming from states not included
+    in evecA and evecB will be calculated through KPM.
+
+    Parameters
+    ----------
+    hamiltonian : array(N, N)
+        Unperturbated Hamiltonian H0.
+    perturbation : array(N, N) or dict: SymPy expression -> array(N, N)
+        Perturbation Hamiltonian H'.
+    evecA : array(N, m)
+        Eigenstates of H0 for which we calculate the effective model.
+        The numpy convention is used, where "subspace[:, i]" is i-th
+        eigenstate.
+    evecB : array(N, b)
+        Eigenstates of H0 which contribution to the effective model we
+        include explicitly.
+    moments : int
+        Number of kpm moments. If not zero kpm contribution to effective
+        model will be included.
+    truncate : bool
+        If "truncate=True" then terms for which total power of expansion
+        coefficients > 2 will not be calculated.
+
+    Returns
+    -------
+    model : dict: SymPy expression -> array(M, M)
+        Second order contribution to the effective model.
+    """
+    if evecB is not None:
+        evec = np.column_stack([evecA, evecB])
+        ev = (evec.T.conj() @ hamiltonian @ evec).diagonal().real
+
+        indices = list(range(evecA.shape[1]))
+        exp = second_order_explicit(perturbation, ev, evec, indices,
+                                    truncate=truncate)
+    else:
+        evec = evecA
+        ev = (evec.T.conj() @ hamiltonian @ evec).diagonal().real
+
+        indices = None
+        exp = None
+
+    if moments:
+        kpm = second_order_kpm(hamiltonian, perturbation, ev, evec,
+                               indices=indices, num_moments=moments,
+                               truncate=truncate)
+    else:
+        kpm = None
+
+    return exp, kpm
+
+
 def second_order_explicit(perturbation, energies, subspace, indices,
                           truncate=True):
     """Return second order effective model calculated explicitly.
@@ -221,7 +279,7 @@ def second_order_explicit(perturbation, energies, subspace, indices,
     Parameters
     ----------
     perturbation : array(N, N) or dict: SymPy expression -> array(N, N)
-        Perturbation Hamiltonian H1.
+        Perturbation Hamiltonian H'.
     energies : array(k)
         Energies of H0 for all known states in the system.
     subspace : array(N, k)
