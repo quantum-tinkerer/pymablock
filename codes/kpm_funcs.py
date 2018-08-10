@@ -23,8 +23,8 @@ def proj(vec, subspace):
     -------
     vec : array(N)
     """
-    P_A = subspace @ subspace.T.conj()
-    return vec -  P_A @ vec
+    c = subspace.T.conj() @ vec
+    return vec -  subspace @ c
 
 
 def build_perturbation(ev, evec, H0, H1L, H1R=None, indices=None,
