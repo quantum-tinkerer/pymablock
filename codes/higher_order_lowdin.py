@@ -12,6 +12,9 @@ from sympy.core.basic import Basic
 import numpy as np
 from .kpm_funcs import build_greens_function
 from numbers import Number
+from .qsymm.model import Model, allclose, _find_shape
+
+one = sympy.sympify(1)
 
 
 def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
@@ -142,7 +145,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
 
     Returns:
     --------
-    Hd : MatCoeffPolynomial
+    Hd : PerturbativeModel
         Effective Hamiltonian in the `A` subspace.
     """
 
@@ -156,9 +159,9 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
                          'This may take very long.'.format(order, order, order-1))
 
     # Convert to appropriate format
-    H0 = MatCoeffPolynomial({1: H0}, interesting_keys=interesting_keys)
+    H0 = PerturbativeModel({one: H0}, interesting_keys=interesting_keys)
     H0 = H0.tosparse()
-    H1 = MatCoeffPolynomial(H1, interesting_keys=interesting_keys)
+    H1 = PerturbativeModel(H1, interesting_keys=interesting_keys)
     H1 = H1.tosparse()
     if isinstance(evec_A, scipy.sparse.spmatrix):
         evec_A = evec_A.A
@@ -170,18 +173,18 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
         if isinstance(evec_B, scipy.sparse.spmatrix):
             evec_B = evec_B.A
         H0_BB = evec_B.T.conj() * H0 * evec_B
-        ev_B = np.diag(H0_BB[1])
-        assert np.allclose(np.diag(ev_B), H0_BB[1]), 'evec_B should be eigenvectors of H0'
+        ev_B = np.diag(H0_BB[one])
+        assert np.allclose(np.diag(ev_B), H0_BB[one]), 'evec_B should be eigenvectors of H0'
 
     # Generate projected terms
     H0_AA = evec_A.T.conj() * H0 * evec_A
-    ev_A = np.diag(H0_AA[1])
-    assert np.allclose(np.diag(ev_A), H0_AA[1]), 'evec_A should be eigenvectors of H0'
+    ev_A = np.diag(H0_AA[one])
+    assert np.allclose(np.diag(ev_A), H0_AA[one]), 'evec_A should be eigenvectors of H0'
     H1_AA = evec_A.T.conj() * H1 * evec_A
-    assert H1_AA == H1_AA.H()
+    assert H1_AA == H1_AA.T().conj()
     H2_AB = evec_A.T.conj() * H1 - H1_AA * evec_A.T.conj()
     H2_BA = H1 * evec_A - evec_A * H1_AA
-    assert H2_AB == H2_BA.H()
+    assert H2_AB == H2_BA.T().conj()
     assert not any((H0_AA.issparse(), H1_AA.issparse(), H2_AB.issparse(), H2_BA.issparse()))
 
     # Generate `S` to `order-1` order
@@ -194,13 +197,13 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
         Y_AB = Y(H0_AA, H0, H1_AA, H1, H2_AB, H2_BA, S_AB, S_BA)
         # Solve for `S_i` by applying Green's function
         S_AB_i = _divide_by_energies(Y_AB, ev_A, evec_A, ev_B, evec_B,
-                                     H0[1], kpm_params=kpm_params)
-        S_BA_i = -S_AB_i.H()
+                                     H0[one], kpm_params=kpm_params)
+        S_BA_i = -S_AB_i.T().conj()
         assert not any((Y_AB.issparse(), S_AB_i.issparse(), S_BA_i.issparse()))
         S_AB.append(S_AB_i)
         S_BA.append(S_BA_i)
     S_AB = sum(S_AB)
-    S_BA = -S_AB.H()
+    S_BA = -S_AB.T().conj()
     S = ((0, S_AB), (S_BA, 0))
 
     # Generate effective Hamiltonian `Hd` to `order` order using `S`.
@@ -215,7 +218,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
     comm_diag = _block_commute_diag(comm_diag, S)
     # Add 2nd commutator of diagonal
     Hd += _block_commute_AA(comm_diag, S) * (1 / factorial(2))
-    assert Hd == Hd.H(), Hd.todense()
+    assert Hd == Hd.T().conj(), Hd.todense()
 
     for j in range(2, order//2 + 1):
         # Make (2j-2)'th commutator of off-diagonal
@@ -227,7 +230,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
         # Add 2j'th commutator of diagonal
         Hd += _block_commute_AA(comm_diag, S) * (1 / factorial(2*j))
         assert not Hd.issparse()
-        assert Hd == Hd.H(), Hd.todense()
+        assert Hd == Hd.T().conj(), Hd.todense()
 
     return Hd
 
@@ -243,7 +246,9 @@ def _smart_dot(a, b):
         return np.dot(a, b)
 
 def _smart_add(a, b):
-    if isinstance(a, scipy.sparse.spmatrix):
+    if isinstance(a, scipy.sparse.spmatrix) and isinstance(b, scipy.sparse.spmatrix):
+        return a + b
+    elif isinstance(a, scipy.sparse.spmatrix):
         return (a + b).A
     elif isinstance(b, scipy.sparse.spmatrix):
         return (b + a).A
@@ -251,38 +256,60 @@ def _smart_add(a, b):
         return a + b
 
 
-class MatCoeffPolynomial(collections.defaultdict):
+class PerturbativeModel(Model):
 
-    # Make it work with numpy arrays
-    __array_ufunc__ = None
+    def __init__(self, hamiltonian={}, locals=None, interesting_keys=None, momenta=[]):
+        """General class to store Hamiltonian families.
+        Can be used to efficiently store any matrix valued function.
+        Implements many sympy and numpy methods. Arithmetic operators are overloaded,
+        such that `*` corresponds to matrix multiplication.
+        Enhances the functionality of Model by allowing interesting_keys to be
+        specified, terms with different coefficients are discarded.
+        Allows the use of scipy sparse matrices besides numpy arrays.
 
-    def __init__(self, *args, interesting_keys = None, **kwargs):
-        super(MatCoeffPolynomial, self).__init__(lambda: 0, *args, **kwargs)
-        self.interesting_keys = interesting_keys
+        Parameters
+        ----------
+        hamiltonian : str, SymPy expression or dict
+            Symbolic representation of a Hamiltonian.  It is
+            converted to a SymPy expression using `kwant_continuum.sympify`.
+            If a dict is provided, it should have the form
+            {sympy expression: array} with all arrays either dense or sparse, with
+            the same size and sympy expressions consisting purely of symbolic
+            coefficients, no constant factors.
+        locals : dict or ``None`` (default)
+            Additional namespace entries for `~kwant_continuum.sympify`.  May be
+            used to simplify input of matrices or modify input before proceeding
+            further. For example:
+            ``locals={'k': 'k_x + I * k_y'}`` or
+            ``locals={'sigma_plus': [[0, 2], [0, 0]]}``.
+        interesting_keys : iterable of sympy expressions
+            Set of symbolic coefficients that are kept, anything that does not
+            appear here is discarded. Useful for perturbative calculations where
+            only terms to a given order are needed.
+        momenta : list of int or list of Sympy objects
+            Indices of momenta the monomials depend on from 'k_x', 'k_y' and 'k_z'
+            or a list of names for the momentum variables.
+        """
+        # Usual case is initializing with a dict
+        if isinstance(hamiltonian, dict):
+            collections.UserDict.__init__(self, hamiltonian)
+            self.shape = _find_shape(hamiltonian)
+        # Otherwise try to parse the input with Model's machinery.
+        # This will always result in a dense PerturbativeModel.
+        else:
+            super().__init__(hamiltonian, locals, momenta)
 
-    def copy(self):
-        result = MatCoeffPolynomial()
-
-        for key in self:
-            try:
-                result[key] = self[key].copy()
-            except AttributeError:
-                result[key] = self[key]
-
-        result.interesting_keys = self.interesting_keys
-
-        return result
-
-    def clean_keys(self):
-        """Removing all key that are not interesting."""
+        self.interesting_keys = set(interesting_keys)
+        # Removing all key that are not interesting.
         if self.interesting_keys is not None:
-            for key in list(self.keys()):
+            for key in self.keys():
                 if key not in self.interesting_keys:
                     del self[key]
 
     def tosympy(self, digits=12):
-        """Convert MatCoeffPolynomial into sympy matrix."""
-        result = [(key * np.round(val, digits)) for key, val in self.items()]
+        """Convert into sympy matrix."""
+        result = self.todense()
+        result = [(key * np.round(val, digits)) for key, val in result.items()]
         result = sympy.Matrix(sum(result))
         result.simplify()
         return result
@@ -307,7 +334,7 @@ class MatCoeffPolynomial(collections.defaultdict):
         return output
 
     def lambdify(self, *gens):
-        """Lambdify MatCoeffPolynomial using gens as variables."""
+        """Lambdify using gens as variables."""
         result = self.tosympy()
         result = sympy.lambdify(gens, result, 'numpy')
         return result
@@ -319,81 +346,56 @@ class MatCoeffPolynomial(collections.defaultdict):
             result.append(key * val)
         return sum(result)
 
-    def H(self):
-        result = self.copy()
-
-        for key, val in result.items():
-            result[key] = val.T.conj()
-
+    def conj(self):
+        """Complex conjugation"""
+        result = type(self)({key.subs(sympy.I, -sympy.I): val.conj() for key, val in self.items()},
+                             interesting_keys=self.interesting_keys)
         return result
 
     def __eq__(self, other):
-        if not set(self) == set(other):
-            return False
         a = self.todense()
         b = other.todense()
-        for k, v in a.items():
-            if not np.allclose(v, b[k]):
+        for key in a.keys() | b.keys():
+            if not allclose(a[key], b[key]):
                 return False
         return True
 
-    def __neg__(self):
-        result = self.copy()
-
-        for key in result:
-            result[key] *= -1
-
-        return result
-
-    def __add__(self, B):
-        result = self.copy()
-
-        try:
-            for key in B:
-                result[key] = _smart_add(result[key], B[key])
-        except TypeError:
-            result[1] = _smart_add(result[key], B)
-        return result
-
-    def __sub__(self, B):
-        result = self.copy()
-
-        try:
-            for key in B:
-                result[key] = _smart_add(result[key], -B[key])
-        except TypeError:
-            result[1] = _smart_add(result[key], -B)
-
-        return result
-
-    def __radd__(self, A):
-        if (A == 0 or A == {}):
-            return self.copy()
+    def __add__(self, other):
+        # Addition of Models. It is assumed that both Models are
+        # structured correctly, every key is in standard form.
+        # Define addition of 0 and {}
+        if not other:
+            result = self.copy()
+        # If self is empty return other
+        elif not self and isinstance(other, type(self)):
+            result = other.copy()
+        elif isinstance(other, type(self)):
+            result = self.copy()
+            for key, val in other.items():
+                result[key] = _smart_add(result[key], val)
         else:
-            return self + A
-
-    def __rsub__(self, A):
-        return -self + A
+            raise NotImplementedError('Addition of {} with {} not supported'.format(type(self), type(other)))
+        return result
 
     def __mul__(self, other):
         # Multiplication by numbers, sympy symbols, arrays and Model
         if isinstance(other, Number):
             result = self.copy()
             for key, val in result.items():
-                result[key] = other * val
+                result[key] *= other
         elif isinstance(other, Basic):
-            result = MatCoeffPolynomial({key * other: val for key, val in self.items()})
-            result.interesting_keys = self.interesting_keys
+            result = PerturbativeModel({key * other: val for key, val in self.items()},
+                                        interesting_keys=interesting_keys)
         elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
             result = self.copy()
             for key, val in list(result.items()):
                 result[key] = _smart_dot(val, other)
-        elif isinstance(other, MatCoeffPolynomial):
-            result = MatCoeffPolynomial()
-            for (k1, v1), (k2, v2) in product(self.items(), other.items()):
-                result[k1 * k2] += _smart_dot(v1, v2)
-            result.interesting_keys = list(set(self.interesting_keys) | set(other.interesting_keys))
-            result.clean_keys()
+            result.shape = (self.shape[0], other.shape[1])
+        elif isinstance(other, PerturbativeModel):
+            interesting_keys = self.interesting_keys | other.interesting_keys
+            result = sum([PerturbativeModel({k1 * k2: _smart_dot(v1, v2)}, interesting_keys=interesting_keys)
+                      for (k1, v1), (k2, v2) in product(self.items(), other.items())
+                      if (k1 * k2 in interesting_keys or interesting_keys is None)])
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
         return result
@@ -401,10 +403,10 @@ class MatCoeffPolynomial(collections.defaultdict):
     def __truediv__(self, B):
         result = self.copy()
 
-        if isinstance(B, MatCoeffPolynomial):
+        if isinstance(B, PerturbativeModel):
             raise TypeError(
-                "unsupported operand type(s) for /: 'MatCoeffPolynomial' and "
-                "'MatCoeffPolynomial'"
+                "unsupported operand type(s) for /: 'PerturbativeModel' and "
+                "'PerturbativeModel'"
             )
         else:
             for key in result:
@@ -417,25 +419,24 @@ class MatCoeffPolynomial(collections.defaultdict):
         if isinstance(other, Number):
             result = self.__mul__(other)
         elif isinstance(other, Basic):
-            result = MatCoeffPolynomial({other * key: val for key, val in self.items()})
-            result.interesting_keys = self.interesting_keys
+            result = PerturbativeModel({other * key: val for key, val in self.items()},
+                                        interesting_keys=interesting_keys)
         elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
             result = self.copy()
             for key, val in list(result.items()):
                 result[key] = _smart_dot(other, val)
+            result.shape = (other.shape[0], self.shape[1])
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
         return result
 
-    def __pow__(self, n):
-        if n == 0:
-            return 1
-        if n == 1:
-            return self
-        else:
-            result = 1.0
+    def around(self, decimals=3):
+        raise NotImplementedError()
 
-        for i in range(n):
-            result = result * self
-
+    def zeros_like(self):
+        """Return an empty model object that inherits the size and momenta"""
+        result = type(self)({})
+        result.shape = self.shape
+        result.momenta = self.momenta
+        result.interesting_keys = self.interesting_keys
         return result
