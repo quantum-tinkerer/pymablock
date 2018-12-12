@@ -12,7 +12,7 @@ from sympy.core.basic import Basic
 import numpy as np
 from .kpm_funcs import build_greens_function
 from numbers import Number
-from .qsymm.model import Model, allclose, _find_shape
+from .qsymm.model import Model, allclose, _find_shape, _find_momenta
 
 one = sympy.sympify(1)
 
@@ -294,14 +294,18 @@ class PerturbativeModel(Model):
         if isinstance(hamiltonian, dict):
             collections.UserDict.__init__(self, hamiltonian)
             self.shape = _find_shape(hamiltonian)
+            self.momenta = _find_momenta(momenta)
         # Otherwise try to parse the input with Model's machinery.
         # This will always result in a dense PerturbativeModel.
         else:
             super().__init__(hamiltonian, locals, momenta)
 
-        self.interesting_keys = set(interesting_keys)
+        if interesting_keys is not None:
+            self.interesting_keys = set(interesting_keys)
+        else:
+            self.interesting_keys = set()
         # Removing all key that are not interesting.
-        if self.interesting_keys is not None:
+        if self.interesting_keys:
             for key in self.keys():
                 if key not in self.interesting_keys:
                     del self[key]
@@ -346,12 +350,6 @@ class PerturbativeModel(Model):
             result.append(key * val)
         return sum(result)
 
-    def conj(self):
-        """Complex conjugation"""
-        result = type(self)({key.subs(sympy.I, -sympy.I): val.conj() for key, val in self.items()},
-                             interesting_keys=self.interesting_keys)
-        return result
-
     def __eq__(self, other):
         a = self.todense()
         b = other.todense()
@@ -395,7 +393,7 @@ class PerturbativeModel(Model):
             interesting_keys = self.interesting_keys | other.interesting_keys
             result = sum([PerturbativeModel({k1 * k2: _smart_dot(v1, v2)}, interesting_keys=interesting_keys)
                       for (k1, v1), (k2, v2) in product(self.items(), other.items())
-                      if (k1 * k2 in interesting_keys or interesting_keys is None)])
+                      if (k1 * k2 in interesting_keys or not interesting_keys)])
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
         return result
@@ -432,11 +430,3 @@ class PerturbativeModel(Model):
 
     def around(self, decimals=3):
         raise NotImplementedError()
-
-    def zeros_like(self):
-        """Return an empty model object that inherits the size and momenta"""
-        result = type(self)({})
-        result.shape = self.shape
-        result.momenta = self.momenta
-        result.interesting_keys = self.interesting_keys
-        return result
