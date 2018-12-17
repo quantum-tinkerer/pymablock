@@ -132,19 +132,20 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
     evec_A : array
         Basis of the interesting `A` subspace of H0 given
         as a set of orthonormal column vectors
-    evec_B : array
+    evec_B : array or None (default)
         Basis of a subspace of the `B` subspace of H0 given
         as a set of orthonormal column vectors, which will be
         taken into account exactly in hybrid-KPM approach.
-    interesting_keys : list of sympy.Symbol
+    interesting_keys : list of sympy expressions or None (default)
         List of interesting keys to keep in the calculation.
         Should contain all subexpressions of desired keys, as
         terms not listed in `interesting_keys` are discarded
         at every step of the calculation. By default up to
         `order` power of every key in H1 is kept.
-    order : int
-        Order of the perturbation calculation
-    kpm_params : dict
+    order : int (default 2)
+        Order of the perturbation calculation. Ignored if
+        `interesting_keys` is not `None`.
+    kpm_params : dict or None (default)
         Parameters to pass on to KPM solver. By default num_moments=100.
 
     Returns
