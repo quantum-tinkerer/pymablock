@@ -60,15 +60,19 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A,
     S_AB = Y_AB.copy()
     # Apply Green's function from the right to Y_AB row by row
     for key, val in S_AB.items():
-        # Project out A subspace and the explicit part of B subspace
-        val_KPM = (val - val.dot(vectors_A).dot(vectors_A.T.conj())
-                   - val.dot(vectors_B).dot(vectors_B.T.conj()))
-        # This way we do it for all rows at once, bit faster but uses more RAM
-        vec_G_Y = build_greens_function(H_0,
-                                        params=None,
-                                        vectors=val_KPM.conj(),
-                                        kpm_params=kpm_params)
-        res = np.vstack([vec_G_Y(E_m)[m].conj() for m, E_m in enumerate(energies_A)])
+        # if all of the B subspace is explicitely given, skip KPM
+        if len(energies_A) + len(energies_B) < vectors_A.shape[0]:
+            # Project out A subspace and the explicit part of B subspace
+            val_KPM = (val - val.dot(vectors_A).dot(vectors_A.T.conj())
+                       - val.dot(vectors_B).dot(vectors_B.T.conj()))
+            # This way we do it for all rows at once, bit faster but uses more RAM
+            vec_G_Y = build_greens_function(H_0,
+                                            params=None,
+                                            vectors=val_KPM.conj(),
+                                            kpm_params=kpm_params)
+            res = np.vstack([vec_G_Y(E_m)[m].conj() for m, E_m in enumerate(energies_A)])
+        else:
+            res = np.zeros(val.shape, dtype=complex)
         # Add back the explicit part
         val_ml = val.dot(vectors_B)
         G_ml = 1/(np.array([energies_A]).T - energies_B)
@@ -119,19 +123,19 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
     Implementation of quasi-degenerated perturbation theory.
     Inspired by appendix in R. Winkler book.
 
-    Input
-    -----
+    Parameters
+    ----------
     H0 : array
         Unperturbed hamiltonian, dense or sparse matrix
     H1 : dict of {sympy.Symbol : array}
         Perturbation to the Hamiltonian
     evec_A : array
         Basis of the interesting `A` subspace of H0 given
-        as a set of column vectors
+        as a set of orthonormal column vectors
     evec_B : array
         Basis of a subspace of the `B` subspace of H0 given
-        as a set of column vectors, which will be taken
-        into account exactly in hybrid-KPM approach.
+        as a set of orthonormal column vectors, which will be
+        taken into account exactly in hybrid-KPM approach.
     interesting_keys : list of sympy.Symbol
         List of interesting keys to keep in the calculation.
         Should contain all subexpressions of desired keys, as
@@ -143,8 +147,8 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
     kpm_params : dict
         Parameters to pass on to KPM solver. By default num_moments=100.
 
-    Returns:
-    --------
+    Returns
+    -------
     Hd : PerturbativeModel
         Effective Hamiltonian in the `A` subspace.
     """
@@ -174,12 +178,18 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
             evec_B = evec_B.A
         H0_BB = evec_B.T.conj() * H0 * evec_B
         ev_B = np.diag(H0_BB[one])
-        assert np.allclose(np.diag(ev_B), H0_BB[one]), 'evec_B should be eigenvectors of H0'
+        if not (allclose(np.diag(ev_B), H0_BB[one]) and
+                allclose(evec_B.T.conj() @ evec_B, np.eye(evec_B.shape[1]))):
+            raise ValueError('evec_B must be orthonormal eigenvectors of H0')
+        if not allclose(evec_B.T.conj() @ evec_A, 0):
+            raise ValueError('Vectors in evec_B must be orthogonal to all vectors in evec_A.')
 
     # Generate projected terms
     H0_AA = evec_A.T.conj() * H0 * evec_A
     ev_A = np.diag(H0_AA[one])
-    assert np.allclose(np.diag(ev_A), H0_AA[one]), 'evec_A should be eigenvectors of H0'
+    if not (allclose(np.diag(ev_A), H0_AA[one]) and
+            allclose(evec_A.T.conj() @ evec_A, np.eye(evec_A.shape[1]))):
+        raise ValueError('evec_A must be orthonormal eigenvectors of H0')
     H1_AA = evec_A.T.conj() * H1 * evec_A
     assert H1_AA == H1_AA.T().conj()
     H2_AB = evec_A.T.conj() * H1 - H1_AA * evec_A.T.conj()
