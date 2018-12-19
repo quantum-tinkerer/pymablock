@@ -1,4 +1,4 @@
-image: rafalskolasinski/science:latest
+image: rafalskolasinski/science:lowdin
 
 stages:
   - run analysis
@@ -15,7 +15,6 @@ before_script:
 
 run analysis:
   script:
-    - pip install git+https://gitlab.kwant-project.org/semicon/semicon.git
     - cd analysis
     - for ipynb in *.ipynb; do
     -    jupyter nbconvert --to notebook --execute "$ipynb" --output "$ipynb" --ExecutePreprocessor.timeout=$EXEC_TIMEOUT
