@@ -170,7 +170,6 @@ def build_greens_function(ham, params=None, vectors=None, kpm_params=dict(), ker
         The ndarray returned has initial dimension the same as
         `e_F`, unless it is `1` or `e_F` is a scalar.
         """
-        nonlocal _a, _b, m, gs, expanded_vectors, num_moments
         e_F = np.atleast_1d(e_F).flatten()
         (num_e,) = e_F.shape
         e_rescaled = (e_F - _b) / _a
@@ -196,8 +195,6 @@ def exact_greens_function(ham):
         """Takes a vector `vec` of shape (M,N), with `M` vectors of length `N`,
         the same as the Hamiltonian. Returns the Green's function exact expansion
         of the vectors with the same shape as `vec`."""
-        nonlocal dim, eigs, evecs
-
         # normalize the shapes of `e` and `vec`
         e = np.atleast_1d(e).flatten()
         (num_e,) = e.shape
@@ -254,11 +251,16 @@ def _make_vector_factory(vectors=None, eigenvecs=None, rng=0):
         Seed for the random number generator, or a random number
         generator.
     """
+    if _version_higher(v='1.3.9'):
+        # kwant>=1.4 takes arrays, no need to do anything
+        assert eigenvecs is None # Not supported for now
+        return vectors
+
     idx = -1 + 1*_version_higher() # initial vector index according to version
 
     rng = ensure_rng(rng)
     def vector_factory(n):
-        nonlocal idx, rng, vectors, eigenvecs
+        nonlocal idx
         if idx == -1:
             idx += 1
             return np.exp(rng.rand(n) * 2j * np.pi)
@@ -268,6 +270,7 @@ def _make_vector_factory(vectors=None, eigenvecs=None, rng=0):
         idx += 1
         return vec
     return vector_factory
+
 
 def _version_higher(v='1.3.2'):
     from kwant import __version__ as n
