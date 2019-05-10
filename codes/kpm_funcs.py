@@ -113,7 +113,7 @@ def build_perturbation(ev, evec, H0, H1L, H1R=None, indices=None,
     return ham_ij
 
 
-def build_greens_function(ham, params=None, vectors=None, kpm_params=dict()):
+def build_greens_function(ham, params=None, vectors=None, kpm_params=dict(), kernel='L'):
     """Build a Green's function operator.
 
     Returns a function that takes a Fermi energy, and returns the
@@ -134,6 +134,9 @@ def build_greens_function(ham, params=None, vectors=None, kpm_params=dict()):
         Dictionary containing the parameters to pass to the `~kwant.kpm`
         module. 'num_vectors' will be overwritten to match the number
         of vectors, and 'operator' key will be deleted.
+    kernel : 'J' or 'L'
+        Which Kernel to use for the green's function, 'J': Jackson,
+        'L': Lorentz.
     """
     if vectors is None:
         kpm_params['vector_factory'] = None
@@ -148,7 +151,7 @@ def build_greens_function(ham, params=None, vectors=None, kpm_params=dict()):
     kpm_params['num_moments'] = num_moments
     # prefactors of the kernel in kpm
     m = np.arange(num_moments)
-    gs = _kernel(np.ones(num_moments), kernel='J')
+    gs = _kernel(np.ones(num_moments), kernel=kernel)
     gs[0] = gs[0] / 2
 
     # overwrite operator to extract kpm expanded vectors only
