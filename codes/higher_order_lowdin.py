@@ -71,6 +71,9 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A,
                                             params=None,
                                             vectors=val_KPM.conj(),
                                             kpm_params=kpm_params)(energies_A)
+            # Need to add back index if B supspace was one dimensional
+            if len(vec_G_Y.shape) == 2:
+                vec_G_Y = vec_G_Y[None, :, :]
             res = np.vstack([vec_G_Y[m, m, :].conj() for m in range(len(energies_A))])
         else:
             res = np.zeros(val.shape, dtype=complex)
@@ -133,14 +136,16 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
     H1 : dict of {sympy.Symbol : array} or PerturbativeModel
         Perturbation to the Hamiltonian
     evec_A : array
-        Basis of the interesting `A` subspace of H0 given
+        Basis of the interesting `A` subspace of `H0` given
         as a set of orthonormal column vectors
     evec_B : array or None (default)
-        Basis of a subspace of the `B` subspace of H0 given
+        Basis of a subspace of the `B` subspace of `H0` given
         as a set of orthonormal column vectors, which will be
         taken into account exactly in hybrid-KPM approach.
+        If `evec_A` includes at least `N-1` eigenstates, then
+        `evec_B` must be provided.
     interesting_keys : iterable of sympy expressions or None (default)
-        By default up to `order` power of every key in H1 is kept.
+        By default up to `order` power of every key in `H1` is kept.
         List of interesting keys to keep in the calculation.
         Should contain all subexpressions of desired keys, as
         terms not listed in `interesting_keys` are discarded
@@ -169,6 +174,11 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
         H0 = PerturbativeModel({one: H0}, interesting_keys=interesting_keys)
     elif not (len(H0) == 1 and list(H0.keys()).pop() == one):
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
+
+    if evec_A.shape[1] >= H0.shape[0] - 1 and evec_B is None:
+        raise ValueError('If `evec_A` includes at least `N-1` eigenstates, '+
+                         'then `evec_B` must be provided.')
+
     H0 = H0.tosparse()
     H1 = PerturbativeModel(H1, interesting_keys=interesting_keys)
     H1 = H1.tosparse()
@@ -336,7 +346,7 @@ class PerturbativeModel(Model):
     def tosparse(self):
         output = self.copy()
         for key, val in output.items():
-            output[key] = scipy.sparse.csr_matrix(val)
+            output[key] = scipy.sparse.csr_matrix(val, dtype=complex)
         return output
 
     def issparse(self):
