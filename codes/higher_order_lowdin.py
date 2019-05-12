@@ -65,12 +65,13 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A,
             # Project out A subspace and the explicit part of B subspace
             val_KPM = (val - val.dot(vectors_A).dot(vectors_A.T.conj())
                        - val.dot(vectors_B).dot(vectors_B.T.conj()))
-            # This way we do it for all rows at once, bit faster but uses more RAM
+            # This way we do all vectors for all energies, uses a bit more RAM than
+            # absolutely necessary, but makes the code simpler.
             vec_G_Y = build_greens_function(H_0,
                                             params=None,
                                             vectors=val_KPM.conj(),
-                                            kpm_params=kpm_params)
-            res = np.vstack([vec_G_Y(E_m)[m].conj() for m, E_m in enumerate(energies_A)])
+                                            kpm_params=kpm_params)(energies_A)
+            res = np.vstack([vec_G_Y[m, m, :].conj() for m in range(len(energies_A))])
         else:
             res = np.zeros(val.shape, dtype=complex)
         # Add back the explicit part
@@ -125,9 +126,11 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
 
     Parameters
     ----------
-    H0 : array
-        Unperturbed hamiltonian, dense or sparse matrix
-    H1 : dict of {sympy.Symbol : array}
+    H0 : array or PerturbativeModel
+        Unperturbed hamiltonian, dense or sparse matrix. If
+        provided as PerturbativeModel, it must contain a single
+        entry {sympy.sympify(1): array}
+    H1 : dict of {sympy.Symbol : array} or PerturbativeModel
         Perturbation to the Hamiltonian
     evec_A : array
         Basis of the interesting `A` subspace of H0 given
@@ -136,16 +139,14 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
         Basis of a subspace of the `B` subspace of H0 given
         as a set of orthonormal column vectors, which will be
         taken into account exactly in hybrid-KPM approach.
-    interesting_keys : list of sympy expressions or None (default)
+    interesting_keys : iterable of sympy expressions or None (default)
+        By default up to `order` power of every key in H1 is kept.
         List of interesting keys to keep in the calculation.
         Should contain all subexpressions of desired keys, as
         terms not listed in `interesting_keys` are discarded
-        at every step of the calculation. By default up to
-        `order` power of every key in H1 is kept.
+        at every step of the calculation.
     order : int (default 2)
-        Order of the perturbation calculation. Ignored if
-        `interesting_keys` is not `None`.
-    kpm_params : dict or None (default)
+        Order of the perturbation calculation.
         Parameters to pass on to KPM solver. By default num_moments=100.
 
     Returns
@@ -164,7 +165,10 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
                          'This may take very long.'.format(order, order, order-1))
 
     # Convert to appropriate format
-    H0 = PerturbativeModel({one: H0}, interesting_keys=interesting_keys)
+    if not isinstance(H0, PerturbativeModel):
+        H0 = PerturbativeModel({one: H0}, interesting_keys=interesting_keys)
+    elif not (len(H0) == 1 and list(H0.keys()).pop() == one):
+        raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
     H0 = H0.tosparse()
     H1 = PerturbativeModel(H1, interesting_keys=interesting_keys)
     H1 = H1.tosparse()
