@@ -113,7 +113,8 @@ def build_perturbation(ev, evec, H0, H1L, H1R=None, indices=None,
     return ham_ij
 
 
-def build_greens_function(ham, params=None, vectors=None, kpm_params=dict(), kernel='L'):
+def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
+                          kernel='L', precalculate_moments=False):
     """Build a Green's function operator.
 
     Returns a function that takes a Fermi energy, and returns the
@@ -123,13 +124,15 @@ def build_greens_function(ham, params=None, vectors=None, kpm_params=dict(), ker
     Parameters
     ----------
     ham : kwant.System or ndarray
-        Finalized kwant system or ndarray of the Hamiltonian.
+        Finalized kwant system or dense or sparse ndarray of the
+        Hamiltonian with shape `(N, N)`.
+    vectors : 1D or 2D array
+        Vectors upon which the Green's function will act.
+        Vector of length `N` or array of vectors with shape `(M, N)`.
+        `M` is the number of vectors and `N` the number of orbitals
+        in the system.
     params : dict, optional
         Parameters for the kwant system.
-    vectors : ndarray (M, N), optional
-        Vectors upon which the projector will act. `M` is the
-        number of vectors and `N` the number of orbitals in the
-        system.
     kpm_params : dict, optional
         Dictionary containing the parameters to pass to the `~kwant.kpm`
         module. 'num_vectors' will be overwritten to match the number
@@ -137,38 +140,58 @@ def build_greens_function(ham, params=None, vectors=None, kpm_params=dict(), ker
     kernel : 'J' or 'L'
         Which Kernel to use for the green's function, 'J': Jackson,
         'L': Lorentz.
+    precalculate_moments: bool, default False
+        Whether to precalculate and store all the KPM moments of `vectors`.
+        This is useful if the Green's function is evaluated at a large
+        number of energies, but uses a large amount of memory.
+        If False, the KPM expansion is performed every time the Green's
+        function is called, which minimizes memory use.
     """
-    if vectors is None:
-        kpm_params['vector_factory'] = None
-    else:
-        vectors = np.atleast_2d(vectors)
-        num_vectors, dim = vectors.shape
-        kpm_params['num_vectors'] = num_vectors
-        kpm_params['vector_factory'] = _make_vector_factory(vectors)
-
+    vectors = np.atleast_2d(vectors)
+    num_vectors, dim = vectors.shape
     # extract the number of moments or set default to 100
     num_moments = kpm_params.get('num_moments', 100)
-    kpm_params['num_moments'] = num_moments
     # prefactors of the kernel in kpm
     m = np.arange(num_moments)
     gs = _kernel(np.ones(num_moments), kernel=kernel)
     gs[0] = gs[0] / 2
+    # Normalize the format of `ham`
+    if isinstance(ham, kwant.system.System):
+        ham = ham.hamiltonian_submatrix(params=params, sparse=True)
+    try:
+        ham = scipy.sparse.csr_matrix(ham)
+    except Exception:
+        raise ValueError("'ham' is neither a matrix nor a Kwant system.")
 
-    # overwrite operator to extract kpm expanded vectors only
-    kpm_params['operator'] = lambda bra, ket: ket
+    # precalclulate expanded_vectors
+    if precalculate_moments:
+        kpm_params['num_vectors'] = num_vectors
+        kpm_params['vector_factory'] = _make_vector_factory(vectors)
+        kpm_params['num_moments'] = num_moments
+        # overwrite operator to extract kpm expanded vectors only
+        kpm_params['operator'] = lambda bra, ket: ket
 
-    # calculate kpm expanded vectors
-    spectrum = kwant.kpm.SpectralDensity(ham, params=params, **kpm_params)
-    _a, _b = spectrum._a, spectrum._b
-    expanded_vectors = np.array(spectrum._moments_list)
-    expanded_vectors = np.rollaxis(expanded_vectors, 2, 0)
+        # calculate kpm expanded vectors
+        spectrum = kwant.kpm.SpectralDensity(ham, **kpm_params)
+        _a, _b = spectrum._a, spectrum._b
+        expanded_vectors = np.array(spectrum._moments_list)
+        expanded_vectors = np.rollaxis(expanded_vectors, 2, 0)
+    else:
+        # Find the bounds of the spectrum and rescale `ham`
+        eps = kpm_params.get('eps', 0.05)
+        bounds = kpm_params.get('bounds', None)
+        if eps <= 0:
+            raise ValueError("'eps' must be positive")
+        # Hamiltonian rescaled as in Eq. (24)
+        ham, (_a, _b) = kwant.kpm._rescale(ham, eps=eps, bounds=bounds, v0=None)
 
     def green_expansion(e_F):
         """Takes an energy and returns the Greens function times the vectors,
         for those energies.
 
-        The ndarray returned has initial dimension the same as
-        `e_F`, unless it is `1` or `e_F` is a scalar.
+        The ndarray returned has initial dimension the same `num_e` as `e_F`,
+        unless it is `1` or `e_F` is a scalar. The shape of the returned array
+        is `(num_e, M, N)` or `(M, N)`.
         """
         e_F = np.atleast_1d(e_F).flatten()
         (num_e,) = e_F.shape
@@ -176,13 +199,21 @@ def build_greens_function(ham, params=None, vectors=None, kpm_params=dict(), ker
         phi_e = np.arccos(e_rescaled)
         prefactor = -2j / (np.sqrt(1 - e_rescaled**2))
         prefactor = prefactor / _a # rescale energy expansion
-
         coef = gs * np.exp(-1j * np.outer(phi_e, m))
-        coef = prefactor[:,None] * coef
-        expanded_vectors_in_energy = (expanded_vectors @ coef.T).T
+        coef = prefactor[:, None] * coef
+
+        if precalculate_moments:
+            expanded_vectors_in_energy = (expanded_vectors @ coef.T).T
+        else:
+            # Make generator to calculate expanded vectors on the fly
+            expanded_vector_generator = _kpm_vector_generator(ham, vectors, num_moments)
+            # Make sure axes in the result are ordered as (energies, vectors, degrees of freedom)
+            expanded_vectors_in_energy = sum(vec[None, :, :] * c[:, None, None]
+                                             for c, vec in zip(coef.T, expanded_vector_generator))
+
         if num_e == 1:
             return expanded_vectors_in_energy.squeeze(0)
-        return (expanded_vectors @ coef.T).T
+        return expanded_vectors_in_energy
 
     return green_expansion
 
@@ -235,6 +266,48 @@ def _kernel(moments, kernel='J'):
     # transposes handle the case where operators have vector outputs
     conv_moments = np.transpose(moments.transpose() * kernel_array)
     return conv_moments
+
+
+def _kpm_vector_generator(ham, vectors, max_moments):
+    """
+    Generator object that succesively yields KPM vectors `T_n(ham) |vector>`
+    for vectors in `vectors` for n in [0, max_moments].
+
+    Parameters
+    ----------
+    vectors : 1D or 2D array
+        Vector of length `N` or array of vectors with shape `(M, N)`. The size of
+        the last index should be the same as the size of `ham` `N`.
+    ham : 2D array
+        Hamiltonian, dense or sparse array with shape (N, N)
+    max_moments : int
+        Number of moments to stop with iteration
+
+    Notes
+    -----
+    Returns a sequence of expanded vectors of shape (M, N). If the input was
+    a vector, M=1.
+    """
+    # Internally store as column vectors
+    vectors = np.atleast_2d(vectors).T
+    alpha_prev = np.zeros(vectors.shape, dtype=complex)
+    alpha = np.zeros(vectors.shape, dtype=complex)
+    alpha_next = np.zeros(vectors.shape, dtype=complex)
+
+    alpha[:] = vectors
+    n = 0
+    yield alpha.T
+    n += 1
+    alpha_prev[:] = alpha
+    alpha[:] = ham @ alpha
+    yield alpha.T
+    n += 1
+    while n < max_moments:
+        alpha_next[:] = 2 * ham @ alpha - alpha_prev
+        alpha_prev[:] = alpha
+        alpha[:] = alpha_next
+        yield alpha.T
+        n += 1
 
 
 def _make_vector_factory(vectors=None, eigenvecs=None, rng=0):
