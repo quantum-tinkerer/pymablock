@@ -20,7 +20,7 @@ def test_simple_model():
     evec_A = evec2[:, indices2]
     evec_B = evec2[:, np.array([1])]
 
-    model = get_effective_model(mat02, mat12, evec_A, evec_B, order=8)
+    model = get_effective_model(mat02, mat12, evec_A, evec_B=evec_B, order=8)
 
     # Should match within default tolerance
     assert model == exact_result, model - exact_result
@@ -41,7 +41,7 @@ def test_simple_model():
     evec_A = evec2[:, indices2]
     evec_B = evec2[:, np.array([2, 3])]
 
-    model = get_effective_model(mat02, mat12, evec_A, evec_B, order=8)
+    model = get_effective_model(mat02, mat12, evec_A, evec_B=evec_B, order=8)
 
     # Should match within default tolerance
     assert model == exact_result, model - exact_result
@@ -51,7 +51,7 @@ def test_simple_model():
     evec_A = evec2[:, indices2]
     evec_B = None
 
-    model = get_effective_model(mat02, mat12, evec_A, evec_B, order=8, kpm_params=kpm_params)
+    model = get_effective_model(mat02, mat12, evec_A, evec_B=evec_B, order=8, kpm_params=kpm_params)
 
     # Should match wit larger tolerance
     for key in model.keys():

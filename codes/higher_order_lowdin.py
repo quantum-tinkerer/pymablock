@@ -55,7 +55,7 @@ def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
 
 
 def _divide_by_energies(Y_AB, energies_A, vectors_A,
-                        energies_B, vectors_B, H_0, kpm_params):
+                        energies_B, vectors_B, H_0, kpm_params, precalculate_moments):
     """Apply energy denominators using hybrid KPM Green's function"""
     S_AB = Y_AB.copy()
     # Apply Green's function from the right to Y_AB row by row
@@ -70,7 +70,8 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A,
             vec_G_Y = build_greens_function(H_0,
                                             params=None,
                                             vectors=val_KPM.conj(),
-                                            kpm_params=kpm_params)(energies_A)
+                                            kpm_params=kpm_params,
+                                            precalculate_moments=precalculate_moments)(energies_A)
             # Need to add back index if B supspace was one dimensional
             if len(vec_G_Y.shape) == 2:
                 vec_G_Y = vec_G_Y[None, :, :]
@@ -121,7 +122,8 @@ def _block_commute_2(H, S):
     res_BA = H_BA * (S_AB * S_BA) - S_BA * (H_AB * S_BA) - S_BA * res_AA
     return ((0, res_AB), (res_BA, 0))
 
-def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, order=2, kpm_params=None):
+def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
+                        kpm_params=None, _precalculate_moments=False):
     """Return effective model for given perturbation.
 
     Implementation of quasi-degenerated perturbation theory.
@@ -153,6 +155,14 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
     order : int (default 2)
         Order of the perturbation calculation.
         Parameters to pass on to KPM solver. By default num_moments=100.
+    kpm_params : dict, optional
+        Dictionary containing the parameters to pass to the `~kwant.kpm`
+        module. 'num_vectors' will be overwritten to match the number
+        of vectors, and 'operator' key will be deleted.
+    _precalculate_moments : bool, default False
+        Whether to precalculate and store all the KPM moments.
+        Typically the default is the best choice for effective model
+        calculation.
 
     Returns
     -------
@@ -222,7 +232,8 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, interesting_keys=None, orde
         Y_AB = Y(H0_AA, H0, H1_AA, H1, H2_AB, H2_BA, S_AB, S_BA)
         # Solve for `S_i` by applying Green's function
         S_AB_i = _divide_by_energies(Y_AB, ev_A, evec_A, ev_B, evec_B,
-                                     H0[one], kpm_params=kpm_params)
+                                     H0[one], kpm_params=kpm_params,
+                                     precalculate_moments=_precalculate_moments)
         S_BA_i = -S_AB_i.T().conj()
         assert not any((Y_AB.issparse(), S_AB_i.issparse(), S_BA_i.issparse()))
         S_AB.append(S_AB_i)
