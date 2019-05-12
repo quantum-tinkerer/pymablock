@@ -144,8 +144,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
         Basis of a subspace of the `B` subspace of `H0` given
         as a set of orthonormal column vectors, which will be
         taken into account exactly in hybrid-KPM approach.
-        If `evec_A` includes at least `N-1` eigenstates, then
-        `evec_B` must be provided.
+        If the Hamiltonian is 2x2, must provide `evec_B`.
     interesting_keys : iterable of sympy expressions or None (default)
         By default up to `order` power of every key in `H1` is kept.
         List of interesting keys to keep in the calculation.
@@ -185,9 +184,8 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
     elif not (len(H0) == 1 and list(H0.keys()).pop() == one):
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
 
-    if evec_A.shape[1] >= H0.shape[0] - 1 and evec_B is None:
-        raise ValueError('If `evec_A` includes at least `N-1` eigenstates, '+
-                         'then `evec_B` must be provided.')
+    if evec_A.shape[1] < H0.shape[0] <= 2 and evec_B is None:
+        raise ValueError('If the Hamiltonian is 2x2, must provide `evec_B`.')
 
     H0 = H0.tosparse()
     H1 = PerturbativeModel(H1, interesting_keys=interesting_keys)
