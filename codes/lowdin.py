@@ -1,15 +1,16 @@
-from .kpm_funcs import build_greens_function
-
-from .misc import make_commutative, monomials, discretize_with_hoppings
-from .qsymm.linalg import simult_diag
-
-import kwant
-
 import sympy
 import itertools
 import collections
+from functools import partial
 import numpy as np
 import scipy.linalg as la
+import scipy.sparse
+
+import kwant
+
+from .kpm_funcs import build_greens_function
+from .misc import make_commutative, monomials, discretize_with_hoppings
+from .qsymm.linalg import simult_diag
 
 
 # Code responsible for preparation of the initial Hamiltonian
