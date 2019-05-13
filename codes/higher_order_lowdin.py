@@ -17,6 +17,8 @@ from .qsymm.model import Model, allclose, _find_shape, _find_momenta
 one = sympy.sympify(1)
 
 
+
+### TODO clean this up, we are not using additional_keys
 def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
     """ Generating list of interesting keys.
 
@@ -35,6 +37,7 @@ def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
     # First getting momenta. Total power <= max_order
     sets = [range(max_order+1) for i in range(len(basic_keys))]
     momenta = []
+    ### TODO there should be a more efficient way to do the combinatorics here
     for power in product(*sets):
         if sum(power) <= max_order:
             momentum = reduce(mul, [k**n for (k,n) in zip(basic_keys, power)])
@@ -144,20 +147,23 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
         Basis of a subspace of the `B` subspace of `H0` given
         as a set of orthonormal column vectors, which will be
         taken into account exactly in hybrid-KPM approach.
+        If `evec_A` and `evec_B` contain all eigenvectors of
+        H0, everything is treated exactly and KPM is not used.
         If the Hamiltonian is 2x2, must provide `evec_B`.
-    interesting_keys : iterable of sympy expressions or None (default)
-        By default up to `order` power of every key in `H1` is kept.
-        List of interesting keys to keep in the calculation.
-        Should contain all subexpressions of desired keys, as
-        terms not listed in `interesting_keys` are discarded
-        at every step of the calculation.
     order : int (default 2)
         Order of the perturbation calculation.
-        Parameters to pass on to KPM solver. By default num_moments=100.
+    interesting_keys : iterable of sympy expressions or None (default)
+        By default up to `order` order polynomials of every key in `H1`
+        is kept. If not all of these are interesting, tha calculation
+        can be sped up by providing a subset of these keys to keep.
+        Should be a subset of the keys up to `order` and should contain
+        all subexpressions of desired keys, as terms not listed in
+        `interesting_keys` are discarded at every step of the calculation.
     kpm_params : dict, optional
         Dictionary containing the parameters to pass to the `~kwant.kpm`
         module. 'num_vectors' will be overwritten to match the number
         of vectors, and 'operator' key will be deleted.
+        By default num_moments=100 and Jackson kernel is used.
     _precalculate_moments : bool, default False
         Whether to precalculate and store all the KPM moments.
         Typically the default is the best choice for effective model
@@ -169,6 +175,8 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
         Effective Hamiltonian in the `A` subspace.
     """
 
+    ### TODO make sure interesting_keys is a subset of the default list,
+    # as higher powers might appear but will not contain all contributions.
     if interesting_keys is None:
         interesting_keys = get_maximum_powers(H1.keys(), order)
 
@@ -321,8 +329,10 @@ class PerturbativeModel(Model):
             appear here is discarded. Useful for perturbative calculations where
             only terms to a given order are needed.
         momenta : list of int or list of Sympy objects
-            Indices of momenta the monomials depend on from 'k_x', 'k_y' and 'k_z'
-            or a list of names for the momentum variables.
+            Indices of momentum variables from ['k_x', 'k_y', 'k_z']
+            or a list of names for the momentum variables as sympy symbols.
+            Momenta are treated the same as other keys for the purpose of
+            `interesting_keys`, need to list interesting powers of momenta.
         """
         # Usual case is initializing with a dict
         if isinstance(hamiltonian, dict):
