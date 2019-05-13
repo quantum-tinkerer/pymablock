@@ -75,9 +75,6 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A,
                                             vectors=val_KPM.conj(),
                                             kpm_params=kpm_params,
                                             precalculate_moments=precalculate_moments)(energies_A)
-            # Need to add back index if B supspace was one dimensional
-            if len(vec_G_Y.shape) == 2:
-                vec_G_Y = vec_G_Y[None, :, :]
             res = np.vstack([vec_G_Y[m, m, :].conj() for m in range(len(energies_A))])
         else:
             res = np.zeros(val.shape, dtype=complex)

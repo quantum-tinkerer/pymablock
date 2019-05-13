@@ -3,6 +3,7 @@ import numpy as np
 import kwant
 from warnings import warn
 from functools import partial
+from numbers import Number
 from kwant._common import ensure_rng
 
 
@@ -28,7 +29,7 @@ def proj(vec, subspace):
 
 
 def build_perturbation(ev, evec, H0, H1L, H1R=None, indices=None,
-                       kpm_params=None):
+                       kpm_params=None, _precalculate_moments=False):
     """Build the perturbation elements of the 2nd order perturbation.
 
     This calculates "H1L'_{im} H1R'_{mj} x (1 / (Ei - Em) + 1 / (Ej / Em))"".
@@ -94,19 +95,20 @@ def build_perturbation(ev, evec, H0, H1L, H1R=None, indices=None,
     p_vectors_R = proj(H1R @ evec[:, indices], evec)
     ev = ev[indices]
 
-    greens = partial(build_greens_function, H0, kpm_params=kpm_params)
+    greens = partial(build_greens_function, H0, kpm_params=kpm_params,
+                     precalculate_moments=_precalculate_moments)
 
     # evaluate for all the energies
-    psi_iR = np.array([greens(vectors=vec)(e) for (vec, e)
-                       in zip(p_vectors_R.T, ev)]).squeeze(1)
+    G_vecs = greens(vectors=p_vectors_R.T)(ev)
+    psi_iR = np.array([G_vecs[m, m, :] for m in range(len(ev))])
     ham_ij_LR = p_vectors_L.T.conj() @ psi_iR.T
 
     if ReqL:
         ham_ij = (ham_ij_LR + ham_ij_LR.conj().T) / 2
 
     else:
-        psi_iL = np.array([greens(vectors=vec)(e) for (vec, e)
-                           in zip(p_vectors_L.T, ev)]).squeeze(1)
+        G_vecs = greens(vectors=p_vectors_L.T)(ev)
+        psi_iL = np.array([G_vecs[m, m, :] for m in range(len(ev))])
         ham_ij_RL = p_vectors_R.T.conj() @ psi_iL.T
         ham_ij = (ham_ij_LR + ham_ij_RL.conj().T) / 2
 
@@ -115,11 +117,10 @@ def build_perturbation(ev, evec, H0, H1L, H1R=None, indices=None,
 
 def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
                           precalculate_moments=False):
-    """Build a Green's function operator.
+    """Build a Green's function operator using KPM.
 
-    Returns a function that takes a Fermi energy, and returns the
-    Green's function of the `vectors` over the occupied energies of the
-    Hamiltonian.
+    Returns a function that takes an energy or a list of energies, and returns
+    the Green's function with that energy acting on `vectors`.
 
     Parameters
     ----------
@@ -143,8 +144,25 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         number of energies, but uses a large amount of memory.
         If False, the KPM expansion is performed every time the Green's
         function is called, which minimizes memory use.
+
+    Returns
+    -------
+    green_expansion : callable
+        Takes an energy or array of energies and returns the Greens function
+        acting on the vectors, for those energies.
+        The ndarray returned has initial dimension the same `num_e` as `e`,
+        unless `e` is a scalar, and second dimension `M` unless `vectors` is
+        a single vector. The shape of the returned array is `(num_e, M, N)` or
+        `(M, N)` or `(num_e, N)` or `(N,)`.
     """
-    vectors = np.atleast_2d(vectors)
+    # remember if only one vector is given
+    if len(vectors.shape) == 1:
+        one_vec = True
+        vectors = np.atleast_2d(vectors)
+    elif len(vectors.shape) > 2 or len(vectors.shape) == 0:
+        raise ValueError('vectors must be a 1D or 2D array.')
+    else:
+        one_vec = False
     num_vectors, dim = vectors.shape
     # extract the number of moments or set default to 100
     num_moments = kpm_params.get('num_moments', 100)
@@ -183,17 +201,19 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         # Hamiltonian rescaled as in Eq. (24)
         ham, (_a, _b) = kwant.kpm._rescale(ham, eps=eps, bounds=bounds, v0=None)
 
-    def green_expansion(e_F):
+    def green_expansion(e):
         """Takes an energy and returns the Greens function times the vectors,
         for those energies.
 
-        The ndarray returned has initial dimension the same `num_e` as `e_F`,
-        unless it is `1` or `e_F` is a scalar. The shape of the returned array
-        is `(num_e, M, N)` or `(M, N)`.
+        The ndarray returned has initial dimension the same `num_e` as `e`,
+        unless `e` is a scalar, and second dimension `M` unless `vectors` is
+        a single vector. The shape of the returned array is `(num_e, M, N)` or
+        `(M, N)` or `(num_e, N)` or `(N,)`.
         """
-        e_F = np.atleast_1d(e_F).flatten()
-        (num_e,) = e_F.shape
-        e_rescaled = (e_F - _b) / _a
+        # remember if only one e was given
+        one_e = isinstance(e, Number)
+        e = np.atleast_1d(e).flatten()
+        e_rescaled = (e - _b) / _a
         phi_e = np.arccos(e_rescaled)
         prefactor = -2j / (np.sqrt(1 - e_rescaled**2))
         prefactor = prefactor / _a # rescale energy expansion
@@ -209,8 +229,11 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
             expanded_vectors_in_energy = sum(vec[None, :, :] * c[:, None, None]
                                              for c, vec in zip(coef.T, expanded_vector_generator))
 
-        if num_e == 1:
-            return expanded_vectors_in_energy.squeeze(0)
+        # Only squeeze out axes with size 1, if the input didn't have the matching axis.
+        if one_vec:
+            expanded_vectors_in_energy = expanded_vectors_in_energy.squeeze(1)
+        if one_e:
+            expanded_vectors_in_energy = expanded_vectors_in_energy.squeeze(0)
         return expanded_vectors_in_energy
 
     return green_expansion
