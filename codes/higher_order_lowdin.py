@@ -1,6 +1,5 @@
 from functools import reduce
 from operator import mul
-from itertools import product
 from numbers import Number
 import scipy.sparse
 from math import factorial
@@ -14,43 +13,39 @@ from .perturbative_model import PerturbativeModel, allclose
 one = sympy.sympify(1)
 
 
-### TODO clean this up, we are not using additional_keys
-def get_maximum_powers(basic_keys, max_order=2, additional_keys=None):
-    """ Generating list of interesting keys.
-
+def get_interesting_keys(keys, order=2):
+    """
+    Generate list of interesting keys as monomials of `keys`
+    with maximum total power `order`.
     It helps minimize total time of calculations.
 
-    Input
-    -----
-    basic_keys: array of keys for calculating maximum powers
-    max_order: int (maximum momentum order)
-    additional_keys: array of tuples (symbol, max_power)
+    Parameters
+    ----------
+    keys: iterable of sympy expressions
+        Keys that appear in monomials.
+    order: int (default 2)
+        Maximum total power of `keys` in `interesting_keys`.
 
-    Note:
-    additional key will only appeard in maximal power specified for it.
+    Returns
+    -------
+    interesting_keys: set of sympy expressions
     """
+    def partition(n, d, depth=0):
+        # Partition the number n into d parts sensitive to the order of terms
+        if d == depth:
+            return [[]]
+        return [
+            item + [i]
+            for i in range(n+1)
+            for item in partition(n-i, d, depth=depth+1)
+            ]
 
-    # First getting momenta. Total power <= max_order
-    sets = [range(max_order+1) for i in range(len(basic_keys))]
-    momenta = []
-    ### TODO there should be a more efficient way to do the combinatorics here
-    for power in product(*sets):
-        if sum(power) <= max_order:
-            momentum = reduce(mul, [k**n for (k,n) in zip(basic_keys, power)])
-            momenta.append(momentum)
-
-    if not additional_keys:
-        return momenta
-
-    # Getting additional keys. Power of every key <= max_order
-    addition = [[k**n for n in range(m+1)] for (k,m) in additional_keys]
-    addition = [reduce(mul, key) for key in product(*addition)]
-
-    output = []
-    for (a,b) in product(momenta, addition):
-        output.append(a*b)
-
-    return output
+    # Generate partitioning of `order` to `len(keys) + 1` parts, this includes all
+    # monomials with lower total power as well
+    powers = partition(order, len(keys) + 1)
+    interesting_keys = set(reduce(mul, [k**n for (k, n) in zip(keys, power)])
+                          for power in powers)
+    return interesting_keys
 
 
 def _divide_by_energies(Y_AB, energies_A, vectors_A,
@@ -147,7 +142,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
         Order of the perturbation calculation.
     interesting_keys : iterable of sympy expressions or None (default)
         By default up to `order` order polynomials of every key in `H1`
-        is kept. If not all of these are interesting, tha calculation
+        is kept. If not all of these are interesting, the calculation
         can be sped up by providing a subset of these keys to keep.
         Should be a subset of the keys up to `order` and should contain
         all subexpressions of desired keys, as terms not listed in
@@ -168,11 +163,12 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
         Effective Hamiltonian in the `A` subspace.
     """
 
-    ### TODO make sure interesting_keys is a subset of the default list,
-    # as higher powers might appear but will not contain all contributions.
+    all_keys = get_interesting_keys(H1.keys(), order)
     if interesting_keys is None:
-        interesting_keys = get_maximum_powers(H1.keys(), order)
-
+        interesting_keys = all_keys
+    elif not interesting_keys <= all_keys:
+        raise ValueError('`interesting_keys` should be a subset of all monomials of `H1.keys()` '
+                         'up to total power `order`.')
     if order > len(Y_i) + 1:
         raise ValueError('Terms for {}\'th order perturbation theory not available. '
                          'If you want to calculate {}\'th order perturbations, run '
