@@ -166,7 +166,9 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
     all_keys = get_interesting_keys(H1.keys(), order)
     if interesting_keys is None:
         interesting_keys = all_keys
-    elif not interesting_keys <= all_keys:
+    else:
+        interesting_keys = set(interesting_keys)
+    if not interesting_keys <= all_keys:
         raise ValueError('`interesting_keys` should be a subset of all monomials of `H1.keys()` '
                          'up to total power `order`.')
     if order > len(Y_i) + 1:
