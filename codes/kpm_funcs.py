@@ -1,118 +1,10 @@
-import scipy
-import numpy as np
-import kwant
-from warnings import warn
 from functools import partial
 from numbers import Number
+import scipy
+import numpy as np
+
+import kwant
 from kwant._common import ensure_rng
-
-
-
-def proj(vec, subspace):
-    """Project out "subspace" from "vec".
-
-    Parameters
-    ----------
-    vec : array(N)
-        Vector to which project P_B obtained from "subspace" is applied.
-    subspace : array(N, M)
-        Subspace in numpy convention: subspace[:, i] is i-th vector.
-        These vectors are used to built project P_A = sum_i |i X i|,
-        from which project P_B = identity(N, N) - P_A is built.
-
-    Returns
-    -------
-    vec : array(N)
-    """
-    c = subspace.T.conj() @ vec
-    return vec -  subspace @ c
-
-
-def build_perturbation(ev, evec, H0, H1L, H1R=None, indices=None,
-                       kpm_params=None, _precalculate_moments=False):
-    """Build the perturbation elements of the 2nd order perturbation.
-
-    This calculates "H1L'_{im} H1R'_{mj} x (1 / (Ei - Em) + 1 / (Ej / Em))"".
-
-    Given a perturbed Hamiltonian "H0", we calculate the the
-    perturbation approximation of the effect of the complement
-    space "B" on the space "A".
-    The vectors "evec[:, indices]" expand a space "A", which complement is "B".
-    Space "B" consists of subspace "B1" and "B2".
-    Subspace B1 contains eigenvectors "evec[:, i]" for "i" not in "indices"
-    and is not considered by this function.
-    Subspace "B2" contains all eingestates of "H0" not included in "evec" that
-    are considered approximately by KPM through this function.
-
-    Parameters
-    ----------
-    ev : array(M)
-        Eigenvalues of "H0" for states known exactly.
-    evec : (N, M) ndarray
-        Eigenvectors of "H0" for states known exactly.
-    H0, H1L, H1R : ndarrays
-        Hamiltonian matrix, and perturbations. If H1R=None,
-        H1R=H1L is used.
-    indices : sequence of M integers
-        Indices of states for which we calculate the effective model.
-        If unset (None) then all states in "evec" will be considered.
-
-    Returns
-    -------
-    ham_ij : (M, M) ndarray
-        Matrix elements of the second order perturbation
-        of subspace `A` due to the interaction `H` with
-        the subspace `B`.
-    """
-    if kpm_params is None:
-        kpm_params = dict()
-
-    if indices is None:
-        indices = range(len(ev))
-
-    if H1R is None:
-        H1R = H1L
-        ReqL = True
-    else:
-        ReqL = False
-
-    # Normalize the format of the Hamiltonian
-    try:
-        H0 = scipy.sparse.csr_matrix(H0, dtype=complex)
-        H1L = scipy.sparse.csr_matrix(H1L, dtype=complex)
-        H1R = scipy.sparse.csr_matrix(H1R, dtype=complex)
-    except Exception:
-        raise ValueError("'H0' or 'H1L' or 'H1R' is not a matrix.")
-
-    # Debug checks (to be removed later or replaced)
-    assert len(ev) == evec.shape[1]
-    assert len(indices) <= len(ev)
-    assert H0.shape == H1L.shape
-    assert H0.shape == H1R.shape
-
-    # Project out everything from inside "evec" subspace.
-    p_vectors_L = proj(H1L @ evec[:, indices], evec)
-    p_vectors_R = proj(H1R @ evec[:, indices], evec)
-    ev = ev[indices]
-
-    greens = partial(build_greens_function, H0, kpm_params=kpm_params,
-                     precalculate_moments=_precalculate_moments)
-
-    # evaluate for all the energies
-    G_vecs = greens(vectors=p_vectors_R.T)(ev)
-    psi_iR = np.array([G_vecs[m, m, :] for m in range(len(ev))])
-    ham_ij_LR = p_vectors_L.T.conj() @ psi_iR.T
-
-    if ReqL:
-        ham_ij = (ham_ij_LR + ham_ij_LR.conj().T) / 2
-
-    else:
-        G_vecs = greens(vectors=p_vectors_L.T)(ev)
-        psi_iL = np.array([G_vecs[m, m, :] for m in range(len(ev))])
-        ham_ij_RL = p_vectors_R.T.conj() @ psi_iL.T
-        ham_ij = (ham_ij_LR + ham_ij_RL.conj().T) / 2
-
-    return ham_ij
 
 
 def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
@@ -237,29 +129,6 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         return expanded_vectors_in_energy
 
     return green_expansion
-
-
-def exact_greens_function(ham):
-    """Takes a Hamiltonian and returns the Green's function operator."""
-    eigs, evecs = np.linalg.eigh(ham)
-    (dim,) = eigs.shape
-    def green(vec, e, eta=1e-2j):
-        """Takes a vector `vec` of shape (M,N), with `M` vectors of length `N`,
-        the same as the Hamiltonian. Returns the Green's function exact expansion
-        of the vectors with the same shape as `vec`."""
-        # normalize the shapes of `e` and `vec`
-        e = np.atleast_1d(e).flatten()
-        (num_e,) = e.shape
-        vec = np.atleast_2d(vec)
-        num_vectors, vec_dim = vec.shape
-        assert vec_dim == dim
-        assert num_vectors == num_e
-
-        coefs = vec @ evecs.conj()
-        e_diff = e[:,None] - eigs[None,:]
-        coefs = coefs / (e_diff + eta)
-        return coefs @ evecs.T
-    return green
 
 
 def _kernel(moments, kernel='J'):

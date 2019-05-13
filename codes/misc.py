@@ -120,3 +120,26 @@ def _expression_monomials(expr, gens):
         output[sympy.Mul(*key)] += sympy.Mul(*val)
 
     return dict(output)
+
+
+def exact_greens_function(ham):
+    """Takes a Hamiltonian and returns the Green's function operator."""
+    eigs, evecs = np.linalg.eigh(ham)
+    (dim,) = eigs.shape
+    def green(vec, e, eta=1e-2j):
+        """Takes a vector `vec` of shape (M,N), with `M` vectors of length `N`,
+        the same as the Hamiltonian. Returns the Green's function exact expansion
+        of the vectors with the same shape as `vec`."""
+        # normalize the shapes of `e` and `vec`
+        e = np.atleast_1d(e).flatten()
+        (num_e,) = e.shape
+        vec = np.atleast_2d(vec)
+        num_vectors, vec_dim = vec.shape
+        assert vec_dim == dim
+        assert num_vectors == num_e
+
+        coefs = vec @ evecs.conj()
+        e_diff = e[:,None] - eigs[None,:]
+        coefs = coefs / (e_diff + eta)
+        return coefs @ evecs.T
+    return green
