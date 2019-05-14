@@ -152,3 +152,6 @@ auto
 
 # this project
 notes/*.pdf
+
+# pytest
+.pytest_cache/
