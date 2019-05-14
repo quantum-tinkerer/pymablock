@@ -56,13 +56,8 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
     else:
         one_vec = False
     num_vectors, dim = vectors.shape
-    # extract the number of moments or set default to 100
-    num_moments = kpm_params.get('num_moments', 100)
     # prefactors of the kernel in kpm
     kernel = kpm_params.get('kernel', kwant.kpm.jackson_kernel)
-    m = np.arange(num_moments)
-    gs = kernel(np.ones(num_moments))
-    gs[0] = gs[0] / 2
     # Normalize the format of `ham`
     if isinstance(ham, kwant.system.System):
         ham = ham.hamiltonian_submatrix(params=params, sparse=True)
@@ -75,7 +70,6 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
     if precalculate_moments:
         kpm_params['num_vectors'] = num_vectors
         kpm_params['vector_factory'] = _make_vector_factory(vectors)
-        kpm_params['num_moments'] = num_moments
         # overwrite operator to extract kpm expanded vectors only
         kpm_params['operator'] = lambda bra, ket: ket
 
@@ -92,6 +86,22 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
             raise ValueError("'eps' must be positive")
         # Hamiltonian rescaled as in Eq. (24)
         ham, (_a, _b) = kwant.kpm._rescale(ham, eps=eps, bounds=bounds, v0=None)
+        # extract the number of moments or set default to 100
+        if kpm_params.get('energy_resolution'):
+            num_moments = math.ceil((1.6 * self._a) / energy_resolution)
+            if kpm_params.get('num_moments'):
+                raise TypeError("Only one of 'num_moments' or 'energy_resolution' can be provided.")
+        elif kpm_params.get('num_moments') is None:
+            num_moments = 100
+        else:
+            num_moments = kpm_params.get('num_moments')
+
+    # Get the kernel coefficients
+    m = np.arange(num_moments)
+    gs = kernel(np.ones(num_moments))
+    gs[0] = gs[0] / 2
+
+
 
     def green_expansion(e):
         """Takes an energy and returns the Greens function times the vectors,
