@@ -80,7 +80,7 @@ class PerturbativeModel(Model):
             self.interesting_keys = set(interesting_keys)
         else:
             self.interesting_keys = set()
-        # Removing all key that are not interesting.
+        # Removing all keys that are not interesting.
         if self.interesting_keys:
             for key in self.keys():
                 if key not in self.interesting_keys:
@@ -176,18 +176,16 @@ class PerturbativeModel(Model):
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
         return result
 
-    def __truediv__(self, B):
+    def __truediv__(self, other):
         result = self.copy()
 
-        if isinstance(B, PerturbativeModel):
-            raise TypeError(
-                "unsupported operand type(s) for /: 'PerturbativeModel' and "
-                "'PerturbativeModel'"
-            )
-        else:
+        if isinstance(other, Number):
             for key in result:
-                result[key] /= B
-
+                result[key] /= other
+        else:
+            raise TypeError(
+                "unsupported operand type for /: 'PerturbativeModel' and "
+                "{}".format(type(other)))
         return result
 
     def __rmul__(self, other):

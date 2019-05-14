@@ -30,13 +30,14 @@ def test_simple_model():
 
     ###
     # Slightly more complicated model
-    # Simple model
     ev2 = np.array([0, 0, 1, 1])
-    mat02 = np.diag(ev2)
-    mat12 = {sympy.Symbol('x'): np.array([[0, 0, 0, 1],
-                                          [0, 0, 1, 0],
-                                          [0, 1, 2, 0],
-                                          [1, 0, 0, 2]])}
+    # Initialize with PerturbativeModel
+    mat02 = PerturbativeModel({1: np.diag(ev2)})
+    # and string keys
+    mat12 = {'x': np.array([[0, 0, 0, 1],
+                            [0, 0, 1, 0],
+                            [0, 1, 2, 0],
+                            [1, 0, 0, 2]])}
     evec2 = np.eye(4)
     indices2 = [0, 1]
 
