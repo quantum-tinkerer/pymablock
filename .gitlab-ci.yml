@@ -3,6 +3,7 @@ image: rafalskolasinski/science:lowdin
 stages:
   # - run analysis
   - build documents
+  - run tests
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -71,3 +72,12 @@ build publication:
       - publication/*.pdf
     expire_in: 1 month
   stage: build documents
+
+run tests:
+  script:
+    - conda install -y -q pytest-cov
+    - py.test codes/tests/ --cov=codes --verbose --cov-report html --cov-report term
+  artifacts:
+    paths:
+      - htmlcov
+  stage: run tests
