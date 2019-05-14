@@ -66,7 +66,7 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A,
                                             vectors=val_KPM.conj(),
                                             kpm_params=kpm_params,
                                             precalculate_moments=precalculate_moments)(energies_A)
-            res = np.vstack([vec_G_Y[m, m, :].conj() for m in range(len(energies_A))])
+            res = np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(energies_A))])
         else:
             res = np.zeros(val.shape, dtype=complex)
         # Add back the explicit part

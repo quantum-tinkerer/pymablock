@@ -77,7 +77,7 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         spectrum = kwant.kpm.SpectralDensity(ham, **kpm_params)
         _a, _b = spectrum._a, spectrum._b
         expanded_vectors = np.array(spectrum._moments_list)
-        expanded_vectors = np.rollaxis(expanded_vectors, 2, 0)
+        expanded_vectors = np.moveaxis(expanded_vectors, -1, 0)
         num_moments = spectrum.num_moments
     else:
         # Find the bounds of the spectrum and rescale `ham`
@@ -119,23 +119,18 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         phi_e = np.arccos(e_rescaled)
         prefactor = -2j / (np.sqrt(1 - e_rescaled**2))
         prefactor = prefactor / _a # rescale energy expansion
-        coef = gs * np.exp(-1j * np.outer(phi_e, m))
-        coef = prefactor[:, None] * coef
+        coef = gs[:, None] * np.exp(-1j * np.outer(m, phi_e))
+        coef = prefactor * coef
 
         if precalculate_moments:
-            expanded_vectors_in_energy = (expanded_vectors @ coef.T).T
+            expanded_vectors_in_energy = expanded_vectors @ coef
         else:
             # Make generator to calculate expanded vectors on the fly
             expanded_vector_generator = _kpm_vector_generator(ham, vectors, num_moments)
             # Make sure axes in the result are ordered as (energies, vectors, degrees of freedom)
-            expanded_vectors_in_energy = sum(vec[None, :, :] * c[:, None, None]
-                                             for c, vec in zip(coef.T, expanded_vector_generator))
+            expanded_vectors_in_energy = sum(vec[None, :, :].T * c[None, None, :]
+                                             for c, vec in zip(coef, expanded_vector_generator))
 
-        # Only squeeze out axes with size 1, if the input didn't have the matching axis.
-        if one_vec:
-            expanded_vectors_in_energy = expanded_vectors_in_energy.squeeze(1)
-        if one_e:
-            expanded_vectors_in_energy = expanded_vectors_in_energy.squeeze(0)
         return expanded_vectors_in_energy
 
     return green_expansion
