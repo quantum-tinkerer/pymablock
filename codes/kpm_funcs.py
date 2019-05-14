@@ -88,8 +88,9 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         # Hamiltonian rescaled as in Eq. (24)
         ham, (_a, _b) = kwant.kpm._rescale(ham, eps=eps, bounds=bounds, v0=None)
         # extract the number of moments or set default to 100
-        if kpm_params.get('energy_resolution'):
-            num_moments = math.ceil((1.6 * self._a) / energy_resolution)
+        energy_resolution = kpm_params.get('energy_resolution')
+        if energy_resolution is not None:
+            num_moments = int(np.ceil((1.6 * _a) / energy_resolution))
             if kpm_params.get('num_moments'):
                 raise TypeError("Only one of 'num_moments' or 'energy_resolution' can be provided.")
         elif kpm_params.get('num_moments') is None:
