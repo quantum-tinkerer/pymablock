@@ -5,6 +5,7 @@ import numpy as np
 import scipy.sparse
 import sympy
 from sympy.core.basic import Basic
+
 from .qsymm.model import Model, allclose, _find_shape, _find_momenta
 
 # *********************** POLYNOMIAL CLASS ************************************
@@ -64,9 +65,10 @@ class PerturbativeModel(Model):
             Momenta are treated the same as other keys for the purpose of
             `interesting_keys`, need to list interesting powers of momenta.
         """
-        # Usual case is initializing with a dict
+        # Usual case is initializing with a dict,
+        # want to bypass cleanum mechanism in Model
         if isinstance(hamiltonian, dict):
-            UserDict.__init__(self, hamiltonian)
+            UserDict.__init__(self, {sympy.sympify(k): v for k, v in hamiltonian.items()})
             self.shape = _find_shape(hamiltonian)
             self.momenta = _find_momenta(momenta)
         # Otherwise try to parse the input with Model's machinery.
@@ -168,6 +170,8 @@ class PerturbativeModel(Model):
             result = sum([PerturbativeModel({k1 * k2: _smart_dot(v1, v2)}, interesting_keys=interesting_keys)
                       for (k1, v1), (k2, v2) in product(self.items(), other.items())
                       if (k1 * k2 in interesting_keys or not interesting_keys)])
+            # need to set in case one of them is empty
+            result.shape = (self.shape[0], other.shape[1])
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
         return result
