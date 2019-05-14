@@ -69,7 +69,7 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
     # precalclulate expanded_vectors
     if precalculate_moments:
         kpm_params['num_vectors'] = num_vectors
-        kpm_params['vector_factory'] = _make_vector_factory(vectors)
+        kpm_params['vector_factory'] = vectors
         # overwrite operator to extract kpm expanded vectors only
         kpm_params['operator'] = lambda bra, ket: ket
 
@@ -100,8 +100,6 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
     m = np.arange(num_moments)
     gs = kernel(np.ones(num_moments))
     gs[0] = gs[0] / 2
-
-
 
     def green_expansion(e):
         """Takes an energy and returns the Greens function times the vectors,
@@ -139,33 +137,6 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         return expanded_vectors_in_energy
 
     return green_expansion
-
-
-def _kernel(moments, kernel='J'):
-    """Convolutes the moments with a kernel.
-
-    Implemented for Jackson ('J') and Lorentz ('L') kernels.
-    """
-    n_moments, *extra_shape = moments.shape
-    if kernel == 'J':
-        # Jackson kernel, as in Eq. (71), and kernel improved moments,
-        # as in Eq. (81).
-        m = np.arange(n_moments)
-        kernel_array = ((n_moments - m + 1) *
-                    np.cos(np.pi * m/(n_moments + 1)) +
-                    np.sin(np.pi * m/(n_moments + 1)) /
-                    np.tan(np.pi/(n_moments + 1)))
-        kernel_array /= n_moments + 1
-    elif kernel == 'L':
-        # Lorentz kernel
-        # parameter for the Lorentz kernel. Prefered values are between 3 and 5
-        l = 5
-        m = np.arange(n_moments)
-        kernel_array = np.sinh(l * (1 - m / n_moments)) / np.sinh(l)
-
-    # transposes handle the case where operators have vector outputs
-    conv_moments = np.transpose(moments.transpose() * kernel_array)
-    return conv_moments
 
 
 def _kpm_vector_generator(ham, vectors, max_moments):
@@ -208,47 +179,3 @@ def _kpm_vector_generator(ham, vectors, max_moments):
         alpha[:] = alpha_next
         yield alpha.T
         n += 1
-
-
-def _make_vector_factory(vectors=None, eigenvecs=None, rng=0):
-    """Return a `vector_factory` that outputs vectors.
-
-    Parameters
-    ----------
-    vectors : iterable of vectors
-        Vectors to be returned one by one on call.
-    eigenvecs : (M, N) ndarray, optional
-        Vectors that expand the space that will be projected out
-        of the vectors returned by the `vector_factory`.
-    rng : int or array_like, optional
-        Seed for the random number generator, or a random number
-        generator.
-    """
-    if _version_higher(v='1.3.9'):
-        # kwant>=1.4 takes arrays, no need to do anything
-        assert eigenvecs is None # Not supported for now
-        return vectors
-
-    idx = -1 + 1*_version_higher() # initial vector index according to version
-
-    rng = ensure_rng(rng)
-    def vector_factory(n):
-        nonlocal idx
-        if idx == -1:
-            idx += 1
-            return np.exp(rng.rand(n) * 2j * np.pi)
-        vec = vectors[idx]
-        if eigenvecs is not None:
-            vec = vec - ((eigenvecs.conj() @ vec) @ eigenvecs)
-        idx += 1
-        return vec
-    return vector_factory
-
-
-def _version_higher(v='1.3.2'):
-    from kwant import __version__ as n
-    v = tuple(int(char) for char in  v[:5].split('.'))
-    n = tuple(int(char) for char in  n[:5].split('.'))
-    if n > v:
-        return True
-    return False
