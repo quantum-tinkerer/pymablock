@@ -56,3 +56,15 @@ def test_simple_model():
     # Should match wit larger tolerance
     for key in model.keys():
         assert allclose(model[key], exact_result[key], rtol=2e-2), (key, model[key] - exact_result[key])
+
+    # Test KPM method with precalculated moments
+    kpm_params = dict(num_moments=1000)
+    evec_A = evec2[:, indices2]
+    evec_B = None
+
+    model = get_effective_model(mat02, mat12, evec_A, evec_B=evec_B, order=8,
+                                kpm_params=kpm_params, _precalculate_moments=True)
+
+    # Should match wit larger tolerance
+    for key in model.keys():
+        assert allclose(model[key], exact_result[key], rtol=2e-2), (key, model[key] - exact_result[key])

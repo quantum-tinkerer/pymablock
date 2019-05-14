@@ -78,6 +78,7 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         _a, _b = spectrum._a, spectrum._b
         expanded_vectors = np.array(spectrum._moments_list)
         expanded_vectors = np.rollaxis(expanded_vectors, 2, 0)
+        num_moments = spectrum.num_moments
     else:
         # Find the bounds of the spectrum and rescale `ham`
         eps = kpm_params.get('eps', 0.05)
