@@ -46,9 +46,9 @@ class PerturbativeModel(Model):
             Symbolic representation of a Hamiltonian.  It is
             converted to a SymPy expression using `kwant_continuum.sympify`.
             If a dict is provided, it should have the form
-            {sympy expression: array} with all arrays either dense or sparse, with
-            the same size and sympy expressions consisting purely of symbolic
-            coefficients, no constant factors.
+            `{expression: array}` with all arrays the same size (dense or sparse).
+            `expression` will be passed through sympy.sympify, and should consist
+            purely of symbolic coefficients, no constant factors other than 1.
         locals : dict or ``None`` (default)
             Additional namespace entries for `~kwant_continuum.sympify`.  May be
             used to simplify input of matrices or modify input before proceeding
@@ -66,7 +66,7 @@ class PerturbativeModel(Model):
             `interesting_keys`, need to list interesting powers of momenta.
         """
         # Usual case is initializing with a dict,
-        # want to bypass cleanum mechanism in Model
+        # want to bypass cleanup mechanism in Model
         if isinstance(hamiltonian, dict):
             UserDict.__init__(self, {sympy.sympify(k): v for k, v in hamiltonian.items()})
             self.shape = _find_shape(hamiltonian)
