@@ -3,6 +3,7 @@ import scipy
 import codes.trace_perturbation as pert
 from codes.perturbative_model import PerturbativeModel
 from ..qsymm.linalg import allclose
+from scipy.sparse.linalg import LinearOperator
 
 def test_simple_model():
     order = 2
@@ -37,4 +38,14 @@ def test_simple_model():
     res2 = model(func) / N
     # Energy changes at second order
     exact2 = PerturbativeModel({'x**2': -0.5})
-    assert all([allclose(v, exact1[k], atol=atol) for k, v in res1.items()]), res2 - exact2
+    assert all([allclose(v, exact2[k], atol=atol) for k, v in res2.items()]), res2 - exact2
+
+    # Test operator
+    a = np.array([1] * N + [0] * N) / np.sqrt(N)
+    operator = PerturbativeModel({1: LinearOperator((2 * N, 2 * N), lambda v: v.T - a * (a.dot(v)))})
+    operator *= 1/(N-1)
+    kpm_params = dict(num_moments=1000, num_vectors=10, operator=operator)
+    model = pert.trace_perturbation(mat02, mat12, order=2, kpm_params=kpm_params)
+
+    res3 = model(func)
+    assert all([allclose(v, exact2[k], atol=atol) for k, v in res3.items()]), res3 - exact2

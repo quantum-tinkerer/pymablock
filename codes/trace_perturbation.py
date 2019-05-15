@@ -110,7 +110,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     # Calculate all the moments, this is where most of the work is done.
     moments = []
     for kpm_vec in _perturbative_kpm_vector_generator(ham, vectors, num_moments):
-        next_moment = (vectors.conj() * operator if operator else vectors.conj()) * kpm_vec.T()
+        next_moment = vectors.conj() * (operator * kpm_vec.T() if operator else kpm_vec.T())
         if trace:
             next_moment = next_moment.trace() / num_vectors
         moments.append(next_moment)

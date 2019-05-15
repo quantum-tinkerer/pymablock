@@ -12,8 +12,11 @@ from .qsymm.model import Model, allclose, _find_shape, _find_momenta, _mul_shape
 
 # Functions to handle different types of arrays
 # If either of them are dense, the result is dense.
+# LinearOperator only works if it is on the left
 def _smart_dot(a, b):
-    if isinstance(a, scipy.sparse.spmatrix) or isinstance(b, scipy.sparse.spmatrix):
+    if isinstance(a, scipy.sparse.linalg.LinearOperator):
+        return a.dot(b)
+    elif isinstance(a, scipy.sparse.spmatrix) or isinstance(b, scipy.sparse.spmatrix):
         return scipy.sparse.csr_matrix.dot(a, b)
     else:
         return np.dot(a, b)
@@ -21,10 +24,10 @@ def _smart_dot(a, b):
 def _smart_add(a, b):
     if isinstance(a, scipy.sparse.spmatrix) and isinstance(b, scipy.sparse.spmatrix):
         return a + b
-    elif isinstance(a, scipy.sparse.spmatrix):
-        return (a + b).A
-    elif isinstance(b, scipy.sparse.spmatrix):
-        return (b + a).A
+    elif isinstance(a, scipy.sparse.spmatrix) and isinstance(b, np.array):
+        return a.A + b
+    elif isinstance(b, scipy.sparse.spmatrix) and isinstance(a, np.array):
+        return a + b.A
     else:
         return a + b
 
