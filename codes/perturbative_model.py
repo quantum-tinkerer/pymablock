@@ -6,7 +6,7 @@ import scipy.sparse
 import sympy
 from sympy.core.basic import Basic
 
-from .qsymm.model import Model, allclose, _find_shape, _find_momenta
+from .qsymm.model import Model, allclose, _find_shape, _find_momenta, _mul_shape
 
 # *********************** POLYNOMIAL CLASS ************************************
 
@@ -143,11 +143,6 @@ class PerturbativeModel(Model):
                 return False
         return True
 
-    def __neg__(self):
-        result = self.zeros_like()
-        result.data = {key: -val for key, val in self.items()}
-        return result
-
     def __add__(self, other):
         # Addition of Models. It is assumed that both Models are
         # structured correctly, every key is in standard form.
@@ -177,29 +172,18 @@ class PerturbativeModel(Model):
         elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
             result = self.zeros_like()
             result.data = {key: _smart_dot(val, other) for key, val in self.items()}
-            result.shape = (self.shape[0], other.shape[1])
+            result.shape = _mul_shape(self.shape, other.shape)
         elif isinstance(other, PerturbativeModel):
             interesting_keys = self.interesting_keys | other.interesting_keys
             result = sum(PerturbativeModel({k1 * k2: _smart_dot(v1, v2)},
-                                           interesting_keys=interesting_keys,
-                                           momenta=self.momenta)
+                                           interesting_keys=interesting_keys)
                       for (k1, v1), (k2, v2) in product(self.items(), other.items())
                       if (k1 * k2 in interesting_keys or not interesting_keys))
+            result.momenta = list(set(self.momenta) | set(other.momenta))
             # need to set in case one of them is empty
-            result.shape = (self.shape[0], other.shape[1])
+            result.shape = _mul_shape(self.shape, other.shape)
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
-        return result
-
-    def __truediv__(self, other):
-        result = self.zeros_like()
-
-        if isinstance(other, Number):
-            result.data = {key : val / other for key, val in self.items()}
-        else:
-            raise TypeError(
-                "unsupported operand type for /: 'PerturbativeModel' and "
-                "{}".format(type(other)))
         return result
 
     def __rmul__(self, other):
@@ -212,19 +196,13 @@ class PerturbativeModel(Model):
         elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
             result = self.zeros_like()
             result.data = {key: _smart_dot(other, val) for key, val in self.items()}
-            result.shape = (other.shape[0], self.shape[1])
+            result.shape = _mul_shape(other.shape, self.shape)
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
         return result
 
     def around(self, decimals=3):
         raise NotImplementedError()
-
-    def trace(self):
-        result = self.zeros_like()
-        result.data = {key: np.array([[np.sum(val.diagonal())]]) for key, val in self.items()}
-        result.shape = (1, 1)
-        return result
 
     def zeros_like(self):
         """Return an empty model object that inherits the other properties"""
