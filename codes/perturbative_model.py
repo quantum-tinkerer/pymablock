@@ -1,6 +1,7 @@
 from itertools import product
 from collections import UserDict
 from numbers import Number
+from copy import copy
 import numpy as np
 import scipy.sparse
 import sympy
@@ -24,9 +25,9 @@ def _smart_dot(a, b):
 def _smart_add(a, b):
     if isinstance(a, scipy.sparse.spmatrix) and isinstance(b, scipy.sparse.spmatrix):
         return a + b
-    elif isinstance(a, scipy.sparse.spmatrix) and isinstance(b, np.array):
+    elif isinstance(a, scipy.sparse.spmatrix) and isinstance(b, np.ndarray):
         return a.A + b
-    elif isinstance(b, scipy.sparse.spmatrix) and isinstance(a, np.array):
+    elif isinstance(b, scipy.sparse.spmatrix) and isinstance(a, np.ndarray):
         return a + b.A
     else:
         return a + b
@@ -158,9 +159,12 @@ class PerturbativeModel(Model):
             result = other.zeros_like()
             result.data = other.data.copy()
         elif isinstance(other, type(self)):
-            result.data = self.data.copy()
-            for key, val in other.items():
-                result[key] = _smart_add(result[key], val)
+            for key in self.keys() & other.keys():
+                result[key] = _smart_add(self[key], other[key])
+            for key in self.keys() - other.keys():
+                result[key] = copy(self[key])
+            for key in other.keys() - self.keys():
+                result[key] = copy(other[key])
         else:
             raise NotImplementedError('Addition of {} with {} not supported'.format(type(self), type(other)))
         return result
