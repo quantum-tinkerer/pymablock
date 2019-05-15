@@ -1,7 +1,9 @@
-import kwant.kpm
 import numpy as np
 import sympy
 import scipy.sparse
+
+import kwant.kpm
+from kwant._common import ensure_rng
 
 from .perturbative_model import PerturbativeModel
 from .higher_order_lowdin import get_interesting_keys
@@ -97,7 +99,8 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     vectors = kpm_params.get('vector_factory')
     if vectors is None:
         # Make random vectors
-        vectors = np.exp(2j * np.pi * np.random.random((num_vectors, N)))
+        rng = ensure_rng(kpm_params.get('rng'))
+        vectors = np.exp(2j * np.pi * rng.random_sample((num_vectors, N)))
     if not isinstance(vectors, PerturbativeModel):
         vectors = PerturbativeModel({1: np.atleast_2d(vectors)})
 
