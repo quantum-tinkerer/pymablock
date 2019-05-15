@@ -154,3 +154,30 @@ def _kpm_vector_generator(ham, vectors, max_moments):
         alpha[:] = alpha_next
         yield alpha.T
         n += 1
+
+
+def _kpm_preprocess(ham, kpm_params):
+    # Find the bounds of the spectrum and rescale `ham`
+    eps = kpm_params.get('eps', 0.05)
+    bounds = kpm_params.get('bounds', None)
+    if eps <= 0:
+        raise ValueError("'eps' must be positive")
+    # Hamiltonian rescaled as in Eq. (24)
+    ham_rescaled, (_a, _b) = kwant.kpm._rescale(ham, eps=eps, bounds=bounds, v0=None)
+    # Make sure to return the same format
+    if isinstance(ham, np.ndarray):
+        ham_rescaled = (ham - _b * np.eye(ham.shape[0])) / _a
+    elif isinstance(ham, scipy.sparse.spmatrix):
+        ham_rescaled = (ham - _b * scipy.sparse.identity(ham.shape[0], dtype='complex', format='csr')) / _a
+    # extract the number of moments or set default to 100
+    energy_resolution = kpm_params.get('energy_resolution')
+    if energy_resolution is not None:
+        num_moments = int(np.ceil((1.6 * _a) / energy_resolution))
+        if kpm_params.get('num_moments'):
+            raise TypeError("Only one of 'num_moments' or 'energy_resolution' can be provided.")
+    elif kpm_params.get('num_moments') is None:
+        num_moments = 100
+    else:
+        num_moments = kpm_params.get('num_moments')
+
+    return ham_rescaled, (_a, _b), num_moments

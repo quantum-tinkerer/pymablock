@@ -7,6 +7,7 @@ from kwant._common import ensure_rng
 
 from .perturbative_model import PerturbativeModel
 from .higher_order_lowdin import get_interesting_keys
+from .kpm_funcs import _kpm_preprocess
 
 one = sympy.sympify(1)
 
@@ -72,25 +73,8 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
     H0 = H0.tosparse()
     # Find the bounds of the spectrum and rescale `ham`
-    eps = kpm_params.get('eps', 0.05)
-    bounds = kpm_params.get('bounds', None)
-    if eps <= 0:
-        raise ValueError("'eps' must be positive")
-    # Hamiltonian rescaled as in Eq. (24)
-    _, (_a, _b) = kwant.kpm._rescale(H0[one], eps=eps, bounds=bounds, v0=None)
-    # rescale as sparse matrix
-    H0[one] = (H0[one] - _b * scipy.sparse.identity(H0[one].shape[0], dtype='complex', format='csr')) / _a
+    H0[one], (_a, _b), num_moments = _kpm_preprocess(H0[one], kpm_params)
     H1 /= _a
-    # extract the number of moments or set default to 100
-    energy_resolution = kpm_params.get('energy_resolution')
-    if energy_resolution is not None:
-        num_moments = int(np.ceil((1.6 * _a) / energy_resolution))
-        if kpm_params.get('num_moments'):
-            raise TypeError("Only one of 'num_moments' or 'energy_resolution' can be provided.")
-    elif kpm_params.get('num_moments') is None:
-        num_moments = 100
-    else:
-        num_moments = kpm_params.get('num_moments')
 
     ham = H0 + H1
     N = ham.shape[0]
