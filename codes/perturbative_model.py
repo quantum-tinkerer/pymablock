@@ -206,3 +206,10 @@ class PerturbativeModel(Model):
 
     def around(self, decimals=3):
         raise NotImplementedError()
+
+    def trace(self):
+        result = self.copy()
+        for key, val in result.items():
+            result[key] = np.array([[np.sum(val.diagonal())]])
+        result.shape = (1, 1)
+        return result
