@@ -86,6 +86,16 @@ class PerturbativeModel(Model):
                 if key not in self.interesting_keys:
                     del self[key]
 
+    # Defaultdict functionality
+    def __missing__(self, key):
+        if self.shape is not None:
+            if self.issparse():
+                return scipy.sparse.csr_matrix(self.shape, dtype=complex)
+            else:
+                return np.zeros(self.shape, dtype=complex)
+        else:
+            return None
+
     def tosympy(self, digits=12):
         """Convert into sympy matrix."""
         result = self.todense()
