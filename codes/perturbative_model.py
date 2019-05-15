@@ -95,9 +95,9 @@ class PerturbativeModel(Model):
         return result
 
     def tosparse(self):
-        output = self.copy()
-        for key, val in output.items():
-            output[key] = scipy.sparse.csr_matrix(val, dtype=complex)
+        output = self.zeros_like()
+        output.data = {key: scipy.sparse.csr_matrix(val, dtype=complex)
+                       for key, val in self.items()}
         return output
 
     def issparse(self):
@@ -107,10 +107,9 @@ class PerturbativeModel(Model):
         return False
 
     def todense(self):
-        output = self.copy()
-        for key, val in output.items():
-            if isinstance(val, scipy.sparse.spmatrix):
-                output[key] = val.A
+        output = self.zeros_like()
+        output.data = {key : (val.A if isinstance(val, scipy.sparse.spmatrix) else val)
+                        for key, val in self.items()}
         return output
 
     def lambdify(self, *gens):
@@ -134,17 +133,24 @@ class PerturbativeModel(Model):
                 return False
         return True
 
+    def __neg__(self):
+        result = self.zeros_like()
+        result.data = {key: -val for key, val in self.items()}
+        return result
+
     def __add__(self, other):
         # Addition of Models. It is assumed that both Models are
         # structured correctly, every key is in standard form.
         # Define addition of 0 and {}
+        result = self.zeros_like()
         if not other:
-            result = self.copy()
+            result.data = self.data.copy()
         # If self is empty return other
         elif not self and isinstance(other, type(self)):
-            result = other.copy()
+            result = other.zeros_like()
+            result.data = other.data.copy()
         elif isinstance(other, type(self)):
-            result = self.copy()
+            result.data = self.data.copy()
             for key, val in other.items():
                 result[key] = _smart_add(result[key], val)
         else:
@@ -153,23 +159,22 @@ class PerturbativeModel(Model):
 
     def __mul__(self, other):
         # Multiplication by numbers, sympy symbols, arrays and Model
+        result = self.zeros_like()
         if isinstance(other, Number):
-            result = self.copy()
-            for key, val in result.items():
-                result[key] *= other
+            result.data = {key: val * other for key, val in self.items()}
         elif isinstance(other, Basic):
-            result = PerturbativeModel({key * other: val for key, val in self.items()},
-                                        interesting_keys=interesting_keys)
+            result.data = {key * other: val for key, val in self.items()}
         elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
-            result = self.copy()
-            for key, val in list(result.items()):
-                result[key] = _smart_dot(val, other)
+            result = self.zeros_like()
+            result.data = {key: _smart_dot(val, other) for key, val in self.items()}
             result.shape = (self.shape[0], other.shape[1])
         elif isinstance(other, PerturbativeModel):
             interesting_keys = self.interesting_keys | other.interesting_keys
-            result = sum([PerturbativeModel({k1 * k2: _smart_dot(v1, v2)}, interesting_keys=interesting_keys)
+            result = sum(PerturbativeModel({k1 * k2: _smart_dot(v1, v2)},
+                                           interesting_keys=interesting_keys,
+                                           momenta=self.momenta)
                       for (k1, v1), (k2, v2) in product(self.items(), other.items())
-                      if (k1 * k2 in interesting_keys or not interesting_keys)])
+                      if (k1 * k2 in interesting_keys or not interesting_keys))
             # need to set in case one of them is empty
             result.shape = (self.shape[0], other.shape[1])
         else:
@@ -177,11 +182,10 @@ class PerturbativeModel(Model):
         return result
 
     def __truediv__(self, other):
-        result = self.copy()
+        result = self.zeros_like()
 
         if isinstance(other, Number):
-            for key in result:
-                result[key] /= other
+            result.data = {key : val / other for key, val in self.items()}
         else:
             raise TypeError(
                 "unsupported operand type for /: 'PerturbativeModel' and "
@@ -193,12 +197,11 @@ class PerturbativeModel(Model):
         if isinstance(other, Number):
             result = self.__mul__(other)
         elif isinstance(other, Basic):
-            result = PerturbativeModel({other * key: val for key, val in self.items()},
-                                        interesting_keys=interesting_keys)
+            result = self.zeros_like()
+            result.data = {other * key: val for key, val in self.items()}
         elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
-            result = self.copy()
-            for key, val in list(result.items()):
-                result[key] = _smart_dot(other, val)
+            result = self.zeros_like()
+            result.data = {key: _smart_dot(other, val) for key, val in self.items()}
             result.shape = (other.shape[0], self.shape[1])
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
@@ -208,8 +211,15 @@ class PerturbativeModel(Model):
         raise NotImplementedError()
 
     def trace(self):
-        result = self.copy()
-        for key, val in result.items():
-            result[key] = np.array([[np.sum(val.diagonal())]])
+        result = self.zeros_like()
+        result.data = {key: np.array([[np.sum(val.diagonal())]]) for key, val in self.items()}
         result.shape = (1, 1)
+        return result
+
+    def zeros_like(self):
+        """Return an empty model object that inherits the other properties"""
+        result = PerturbativeModel()
+        result.interesting_keys = self.interesting_keys.copy()
+        result.momenta = self.momenta.copy()
+        result.shape = self.shape
         return result

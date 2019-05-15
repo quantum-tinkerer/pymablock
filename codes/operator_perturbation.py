@@ -1,7 +1,10 @@
-from perturbative_model import PerturbativeModel
 import kwant.kpm
 import numpy as np
 import sympy
+import scipy.sparse
+
+from .perturbative_model import PerturbativeModel
+from .higher_order_lowdin import get_interesting_keys
 
 one = sympy.sympify(1)
 
@@ -9,7 +12,7 @@ one = sympy.sympify(1)
 def trace_perturbation(H0, H1, order=2, interesting_keys=None,
                        trace=True, kpm_params=dict()):
     """
-    Perturbative expansion of `Tr(f(ham) * operator)` using stochastic trace.
+    Perturbative expansion of `Tr(f(H) * A)` using stochastic trace.
 
     Parameters
     ----------
@@ -17,9 +20,9 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     H0 : array or PerturbativeModel
         Unperturbed hamiltonian, dense or sparse matrix. If
         provided as PerturbativeModel, it must contain a single
-        entry {sympy.sympify(1): array}
-    H1 : dict of {sympy.Symbol : array} or PerturbativeModel
-        Perturbation to the Hamiltonian
+        entry {1 : array}.
+    H1 : dict of {symbol : array} or PerturbativeModel
+        Perturbation to the Hamiltonian.
     order : int (default 2)
         Order of the perturbation calculation.
     interesting_keys : iterable of sympy expressions or None (default)
@@ -41,12 +44,12 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         num_moments : int, default 100
             Number of moments in the KPM expansion.
         operator : 2D array or PerturbativeModel or None (default)
-            Operator in the expectation value.
+            Operator in the expectation value, default is identity.
         vector_factory : 1D or 2D array or PerturbativeModel or None (default)
             Vector of length `N` or array of vectors with shape `(M, N)`.
             If PerturbativeModel, must be of shape `(M, N)`. The size of
-            the last index should be the same as the size of `ham` `N`.
-            If not provided, random vectors are used.
+            the last index should be the same as the size of the Hamiltonian.
+            By default, random vectors are used.
     """
     H1 = PerturbativeModel(H1)
     H1 = H1.tosparse()
@@ -72,7 +75,9 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     if eps <= 0:
         raise ValueError("'eps' must be positive")
     # Hamiltonian rescaled as in Eq. (24)
-    H0[one], (_a, _b) = kwant.kpm._rescale(H0[one], eps=eps, bounds=bounds, v0=None)
+    _, (_a, _b) = kwant.kpm._rescale(H0[one], eps=eps, bounds=bounds, v0=None)
+    # rescale as sparse matrix
+    H0[one] = (H0[one] - _b * scipy.sparse.identity(H0[one].shape[0], dtype='complex', format='csr')) / _a
     H1 /= _a
     # extract the number of moments or set default to 100
     energy_resolution = kpm_params.get('energy_resolution')
@@ -85,8 +90,10 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     else:
         num_moments = kpm_params.get('num_moments')
 
+    ham = H0 + H1
     N = ham.shape[0]
 
+    num_vectors = kpm_params.get('num_vectors', 10)
     vectors = kpm_params.get('vector_factory')
     if vectors is None:
         # Make random vectors
@@ -97,18 +104,22 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     _kernel = kpm_params.get('kernel', kwant.kpm.jackson_kernel)
     operator = kpm_params.get('operator')
 
-    # Calculate all the moments
+    # Calculate all the moments, this is where most of the work is done.
     moments = []
     for kpm_vec in _perturbative_kpm_vector_generator(ham, vectors, num_moments):
         next_moment = (vectors.conj() * operator if operator else vectors.conj()) * kpm_vec.T()
         if trace:
-            next_moment = next_moment.trace()
+            next_moment = next_moment.trace() / num_vectors
         moments.append(next_moment)
 
     def expansion(f):
+        """
+        Perturbative expansion of `Tr(f(H) * A)` using stochastic trace.
+        The moments are precalculated, so evaluation should be fast.
+        """
         coef = np.polynomial.chebyshev.chebinterpolate(lambda x: f(x * _a + _b), num_moments)
         coef = _kernel(coef)
-        return sum(c * moment for c, moments in zip(coef, moments))
+        return sum(c * moment for c, moment in zip(coef, moments))
 
     return expansion
 
@@ -138,6 +149,8 @@ def _perturbative_kpm_vector_generator(ham, vectors, max_moments):
     """
     if not isinstance(vectors, PerturbativeModel):
         alpha = PerturbativeModel({1: np.atleast_2d(vectors)})
+    else:
+        alpha = vectors
     # Internally store as column vectors
     alpha = alpha.T()
     n = 0
@@ -148,7 +161,8 @@ def _perturbative_kpm_vector_generator(ham, vectors, max_moments):
     yield alpha.T()
     n += 1
     while n < max_moments:
-        alpha_next = 2 * ham * alpha - alpha_prev
+        # Multiplying sparse matrix with number is much slower
+        alpha_next = ham * (2 * alpha) - alpha_prev
         alpha_prev = alpha
         alpha = alpha_next
         yield alpha.T()
