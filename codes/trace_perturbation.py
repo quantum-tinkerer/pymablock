@@ -63,7 +63,6 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         moments of the expansion are precalculated.
     """
     H1 = PerturbativeModel(H1)
-    # H1 = H1.tosparse()
     all_keys = get_interesting_keys(H1.keys(), order)
     if interesting_keys is None:
         interesting_keys = all_keys
@@ -79,7 +78,6 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         H0 = PerturbativeModel({one: H0}, interesting_keys=interesting_keys)
     elif not (len(H0) == 1 and list(H0.keys()).pop() == one):
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
-    # H0 = H0.tosparse()
     # Find the bounds of the spectrum and rescale `ham`
     H0[one], (_a, _b), num_moments, _kernel = _kpm_preprocess(H0[one], kpm_params)
     H1 /= _a

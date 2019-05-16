@@ -163,7 +163,6 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
         Effective Hamiltonian in the `A` subspace.
     """
     H1 = PerturbativeModel(H1)
-    H1 = H1.tosparse()
     all_keys = get_interesting_keys(H1.keys(), order)
     if interesting_keys is None:
         interesting_keys = all_keys
@@ -184,7 +183,6 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
         H0 = PerturbativeModel({one: H0}, interesting_keys=interesting_keys)
     elif not (len(H0) == 1 and list(H0.keys()).pop() == one):
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
-    H0 = H0.tosparse()
 
     if evec_A.shape[1] < H0.shape[0] <= 2 and evec_B is None:
         raise ValueError('If the Hamiltonian is 2x2, must provide `evec_B`.')

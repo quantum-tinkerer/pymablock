@@ -8,7 +8,7 @@ def test_simple_model():
     order = 8
     rtol = 2e-2
     # Simple model
-    ev2 = np.array([0., 1.])
+    ev2 = np.array([0, 1], dtype=complex)
     mat02 = np.diag(ev2)
     mat12 = {sympy.Symbol('x'): np.array([[0, 1.], [1., 2]])}
     evec2 = np.eye(2)
@@ -30,7 +30,7 @@ def test_simple_model():
 
     ###
     # Slightly more complicated model
-    ev2 = np.array([0, 0, 1, 1])
+    ev2 = np.array([0, 0, 1, 1], dtype=complex)
     # Initialize with PerturbativeModel
     mat02 = PerturbativeModel({1: np.diag(ev2)})
     # and string keys
