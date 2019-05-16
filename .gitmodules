@@ -4,3 +4,4 @@
 [submodule ".qsymm"]
 	path = .qsymm
 	url = ../../qsymm.git
+	brnch = new_model
