@@ -85,8 +85,8 @@ def _block_commute_diag(H, S):
     # and off-diagonal `S = ((0, S_AB), (S_BA, 0))`.
     ((H_AA, _), (_, H_BB)) = H
     ((_, S_AB), (S_BA, _)) = S
-    res_AB = H_AA * S_AB - S_AB * H_BB
-    res_BA = H_BB * S_BA - S_BA * H_AA
+    res_AB = H_AA @ S_AB - S_AB @ H_BB
+    res_BA = H_BB @ S_BA - S_BA @ H_AA
     return ((0, res_AB), (res_BA, 0))
 
 
@@ -97,7 +97,7 @@ def _block_commute_AA(H, S):
     # Only the AA block is kept
     ((_, H_AB), (H_BA, _)) = H
     ((_, S_AB), (S_BA, _)) = S
-    res_AA = H_AB * S_BA - S_AB * H_BA
+    res_AA = H_AB @ S_BA - S_AB @ H_BA
     return res_AA
 
 
@@ -107,10 +107,10 @@ def _block_commute_2(H, S):
     # and off-diagonal `S = ((0, S_AB), (S_BA, 0))`.
     ((_, H_AB), (H_BA, _)) = H
     ((_, S_AB), (S_BA, _)) = S
-    res_AA = H_AB * S_BA - S_AB * H_BA
+    res_AA = H_AB @ S_BA - S_AB @ H_BA
     # Ordering that avoids calculating BB blocks
-    res_AB = res_AA * S_AB - (S_AB * H_BA) * S_AB + (S_AB * S_BA) * H_AB
-    res_BA = H_BA * (S_AB * S_BA) - S_BA * (H_AB * S_BA) - S_BA * res_AA
+    res_AB = res_AA @ S_AB - (S_AB @ H_BA) @ S_AB + (S_AB @ S_BA) @ H_AB
+    res_BA = H_BA @ (S_AB @ S_BA) - S_BA @ (H_AB @ S_BA) - S_BA @ res_AA
     return ((0, res_AB), (res_BA, 0))
 
 def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
@@ -198,7 +198,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
     else:
         if isinstance(evec_B, scipy.sparse.spmatrix):
             evec_B = evec_B.A
-        H0_BB = evec_B.T.conj() * H0 * evec_B
+        H0_BB = evec_B.T.conj() @ H0 @ evec_B
         ev_B = np.diag(H0_BB[one])
         if not (allclose(np.diag(ev_B), H0_BB[one]) and
                 allclose(evec_B.T.conj() @ evec_B, np.eye(evec_B.shape[1]))):
@@ -207,15 +207,15 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
             raise ValueError('Vectors in evec_B must be orthogonal to all vectors in evec_A.')
 
     # Generate projected terms
-    H0_AA = evec_A.T.conj() * H0 * evec_A
+    H0_AA = evec_A.T.conj() @ H0 @ evec_A
     ev_A = np.diag(H0_AA[one])
     if not (allclose(np.diag(ev_A), H0_AA[one]) and
             allclose(evec_A.T.conj() @ evec_A, np.eye(evec_A.shape[1]))):
         raise ValueError('evec_A must be orthonormal eigenvectors of H0')
-    H1_AA = evec_A.T.conj() * H1 * evec_A
+    H1_AA = evec_A.T.conj() @ H1 @ evec_A
     assert H1_AA == H1_AA.T().conj()
-    H2_AB = evec_A.T.conj() * H1 - H1_AA * evec_A.T.conj()
-    H2_BA = H1 * evec_A - evec_A * H1_AA
+    H2_AB = evec_A.T.conj() @ H1 - H1_AA @ evec_A.T.conj()
+    H2_BA = H1 @ evec_A - evec_A @ H1_AA
     assert H2_AB == H2_BA.T().conj()
     assert not any((H0_AA.issparse(), H1_AA.issparse(), H2_AB.issparse(), H2_BA.issparse()))
 
