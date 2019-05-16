@@ -53,6 +53,14 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
             If PerturbativeModel, must be of shape `(M, N)`. The size of
             the last index should be the same as the size of the Hamiltonian.
             By default, random vectors are used.
+
+    Returns
+    -------
+
+    expansion : callable
+        A function that takes the function of energy `f` and returns the
+        expansion of the trace. This evaluation is very fast, as the
+        moments of the expansion are precalculated.
     """
     H1 = PerturbativeModel(H1)
     H1 = H1.tosparse()
@@ -73,7 +81,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
     H0 = H0.tosparse()
     # Find the bounds of the spectrum and rescale `ham`
-    H0[one], (_a, _b), num_moments = _kpm_preprocess(H0[one], kpm_params)
+    H0[one], (_a, _b), num_moments, _kernel = _kpm_preprocess(H0[one], kpm_params)
     H1 /= _a
 
     ham = H0 + H1
@@ -88,7 +96,6 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     if not isinstance(vectors, PerturbativeModel):
         vectors = PerturbativeModel({1: np.atleast_2d(vectors)})
 
-    _kernel = kpm_params.get('kernel', kwant.kpm.jackson_kernel)
     operator = kpm_params.get('operator')
 
     # Calculate all the moments, this is where most of the work is done.

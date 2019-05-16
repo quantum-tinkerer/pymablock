@@ -48,41 +48,28 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         a single vector. The shape of the returned array is `(num_e, M, N)` or
         `(M, N)` or `(num_e, N)` or `(N,)`.
     """
-    init_moments = 2
     vectors = np.atleast_2d(vectors)
-    params = copy.deepcopy(kpm_params)
-    params['num_vectors'] = None
-    params['vector_factory'] = vectors
-    # overwrite operator to extract kpm expanded vectors only
-    params['operator'] = lambda bra, ket: ket
-
-    # calculate kpm expanded vectors
-    num_moments = params.get('num_moments')
-    params['num_moments'] = init_moments
-    energy_resolution = params.get('energy_resolution')
-    params['energy_resolution'] = None
-    kpm_expansion = kwant.kpm.SpectralDensity(ham, **params)
-
-    _a, _b = kpm_expansion._a, kpm_expansion._b
-    if num_moments is None:
-        if not energy_resolution is None:
-            num_moments = int(np.ceil((1.6 * _a) / energy_resolution)) - 2
-        else:
-            num_moments = 100
 
     # precalclulate expanded_vectors
     if precalculate_moments:
-        kpm_expansion.add_moments(num_moments=num_moments-init_moments)
+        params = copy.deepcopy(kpm_params)
+        params['num_vectors'] = None
+        params['vector_factory'] = vectors
+        # overwrite operator to extract kpm expanded vectors only
+        params['operator'] = lambda bra, ket: ket
+        # Do the KPM expansion
+        kpm_expansion = kwant.kpm.SpectralDensity(ham, **params)
         expanded_vectors = np.array(kpm_expansion._moments_list)
-        expanded_vectors = np.moveaxis(expanded_vectors, 0, 1)
+        expanded_vectors = np.moveaxis(expanded_vectors, -1, 0)
+        kernel, num_moments = kpm_expansion.kernel, kpm_expansion.num_moments
+        _a, _b = kpm_expansion._a, kpm_expansion._b
     else:
-        # Make generator to calculate expanded vectors on the fly
-        expanded_vectors = _kpm_vector_generator(
-            kpm_expansion.hamiltonian, vectors, num_moments)
+        # Rescale Hamiltonian
+        ham, (_a, _b), num_moments, kernel = _kpm_preprocess(ham, kpm_params)
 
     # Get the kernel coefficients
     m = np.arange(num_moments)
-    gs = kpm_expansion.kernel(np.ones(num_moments))
+    gs = kernel(np.ones(num_moments))
     gs[0] = gs[0] / 2
 
     def green_expansion(e):
@@ -101,9 +88,14 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
         coef = gs[:, None] * np.exp(-1j * np.outer(m, phi_e))
         coef = prefactor * coef
 
-        # axes are ordered as (energies, vectors, degrees of freedom)
-        vecs_in_energy = sum(vec[None, :, :].T * c[None, None, :]
-                             for c, vec in zip(coef, expanded_vectors))
+        if precalculate_moments:
+            vecs_in_energy = expanded_vectors @ coef
+        else:
+            # Make generator to calculate expanded vectors on the fly
+            expanded_vector_generator = _kpm_vector_generator(ham, vectors, num_moments)
+            # Make sure axes in the result are ordered as (energies, vectors, degrees of freedom)
+            vecs_in_energy = sum(vec[None, :, :].T * c[None, None, :]
+                                 for c, vec in zip(coef, expanded_vector_generator))
 
         return vecs_in_energy
 
@@ -162,7 +154,7 @@ def _kpm_preprocess(ham, kpm_params):
     bounds = kpm_params.get('bounds', None)
     if eps <= 0:
         raise ValueError("'eps' must be positive")
-    # Hamiltonian rescaled as in Eq. (24)
+    # Hamiltonian rescaled as in Eq. (24), This returns a LinearOperator
     ham_rescaled, (_a, _b) = kwant.kpm._rescale(ham, eps=eps, bounds=bounds, v0=None)
     # Make sure to return the same format
     if isinstance(ham, np.ndarray):
@@ -179,5 +171,6 @@ def _kpm_preprocess(ham, kpm_params):
         num_moments = 100
     else:
         num_moments = kpm_params.get('num_moments')
+    kernel = kpm_params.get('kernel', kwant.kpm.jackson_kernel)
 
-    return ham_rescaled, (_a, _b), num_moments
+    return ham_rescaled, (_a, _b), num_moments, kernel
