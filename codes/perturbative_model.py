@@ -7,26 +7,7 @@ import scipy.sparse
 import sympy
 from sympy.core.basic import Basic
 
-from .qsymm.model import Model, allclose, _find_shape, _find_momenta, _mul_shape
-
-# *********************** POLYNOMIAL CLASS ************************************
-
-# Functions to handle different types of arrays
-# If either of them are dense, the result is dense.
-def _smart_dot(a, b):
-    if isinstance(a, Number) or isinstance(b, Number):
-        # Scalar multiplication
-        return a * b
-    else:
-        # LinearOperator only works if it is on the left
-        return a @ b
-
-def _smart_add(a, b):
-    if isinstance(a, scipy.sparse.spmatrix) ^ isinstance(b, scipy.sparse.spmatrix):
-        # If only one is sparse matrix, the result is np.matrix, recast it to np.ndarray
-        return (a + b).A
-    else:
-        return a + b
+from .qsymm.model import Model, allclose, _find_shape, _find_momenta
 
 
 class PerturbativeModel(Model):
@@ -156,7 +137,11 @@ class PerturbativeModel(Model):
             result.data = other.data.copy()
         elif isinstance(other, type(self)):
             for key in self.keys() & other.keys():
-                result[key] = _smart_add(self[key], other[key])
+                total = self[key] + other[key]
+                # If only one is sparse matrix, the result is np.matrix, recast it to np.ndarray
+                if isinstance(total, np.matrix):
+                    total = total.A
+                result[key] = total
             for key in self.keys() - other.keys():
                 result[key] = copy(self[key])
             for key in other.keys() - self.keys():
@@ -171,22 +156,21 @@ class PerturbativeModel(Model):
         if isinstance(other, Number):
             result.data = {key: val * other for key, val in self.items()}
         elif isinstance(other, Basic):
-            result.data = {key * other: val for key, val in self.items()}
-        elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
-            result = self.zeros_like()
-            result.data = {key: _smart_dot(val, other) for key, val in self.items()}
-            result.shape = _mul_shape(self.shape, other.shape)
+            result.data = {key * other: val for key, val in self.items()
+                           if (key * other in interesting_keys or not interesting_keys)}
         elif isinstance(other, PerturbativeModel):
             interesting_keys = self.interesting_keys | other.interesting_keys
-            result = sum(PerturbativeModel({k1 * k2: _smart_dot(v1, v2)},
+            result = sum(PerturbativeModel({k1 * k2: v1 * v2},
                                            interesting_keys=interesting_keys)
                       for (k1, v1), (k2, v2) in product(self.items(), other.items())
                       if (k1 * k2 in interesting_keys or not interesting_keys))
             result.momenta = list(set(self.momenta) | set(other.momenta))
-            # need to set in case one of them is empty
-            result.shape = _mul_shape(self.shape, other.shape)
+            # Find out the shape of the result even if it is empty
+            result.shape = _find_shape(result.data) if result.data else (self[1] * other[1]).shape
         else:
-            raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
+            # Otherwise try to multiply every value with other
+            result.data = {key: val * other for key, val in self.items()}
+            result.shape = _find_shape(result.data) if result.data else (self[1] * other).shape
         return result
 
     def __rmul__(self, other):
@@ -196,12 +180,11 @@ class PerturbativeModel(Model):
         elif isinstance(other, Basic):
             result = self.zeros_like()
             result.data = {other * key: val for key, val in self.items()}
-        elif isinstance(other, np.ndarray) or isinstance(other, scipy.sparse.spmatrix):
-            result = self.zeros_like()
-            result.data = {key: _smart_dot(other, val) for key, val in self.items()}
-            result.shape = _mul_shape(other.shape, self.shape)
         else:
-            raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
+            # Otherwise try to multiply every value with other
+            result = self.zeros_like()
+            result.data = {key: other * val for key, val in self.items()}
+            result.shape = _find_shape(result.data) if result.data else (other * self[1]).shape
         return result
 
     def __matmul__(self, other):
@@ -213,20 +196,19 @@ class PerturbativeModel(Model):
                       for (k1, v1), (k2, v2) in product(self.items(), other.items())
                       if (k1 * k2 in interesting_keys or not interesting_keys))
             result.momenta = list(set(self.momenta) | set(other.momenta))
-            # need to set in case one of them is empty
-            result.shape = _mul_shape(self.shape, other.shape)
+            result.shape = _find_shape(result.data) if result.data else (self[1] @ other[1]).shape
         else:
-            # Otherwise try to multiply with other
+            # Otherwise try to multiply every value with other
             result = self.zeros_like()
             result.data = {key: val @ other for key, val in self.items()}
-            result.shape = _mul_shape(self.shape, other.shape)
+            result.shape = _find_shape(result.data) if result.data else (self[1] @ other).shape
         return result
 
     def __rmatmul__(self, other):
         # Left multiplication by arrays
         result = self.zeros_like()
         result.data = {key: other @ val for key, val in self.items()}
-        result.shape = _mul_shape(other.shape, self.shape)
+        result.shape = _find_shape(result.data) if result.data else (other @ self[1]).shape
         return result
 
     def around(self, decimals=3):
