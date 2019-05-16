@@ -8,7 +8,7 @@ import kwant
 from kwant._common import ensure_rng
 
 
-def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
+def greens_function(ham, vectors, params=None, kpm_params=dict(),
                           precalculate_moments=False):
     """Build a Green's function operator using KPM.
 
@@ -92,7 +92,7 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
             vecs_in_energy = expanded_vectors @ coef
         else:
             # Make generator to calculate expanded vectors on the fly
-            expanded_vector_generator = _kpm_vector_generator(ham, vectors, num_moments)
+            expanded_vector_generator = _kpm_vectors(ham, vectors, num_moments)
             # Make sure axes in the result are ordered as (energies, vectors, degrees of freedom)
             vecs_in_energy = sum(vec[None, :, :].T * c[None, None, :]
                                  for c, vec in zip(coef, expanded_vector_generator))
@@ -102,7 +102,7 @@ def build_greens_function(ham, vectors, params=None, kpm_params=dict(),
     return green_expansion
 
 
-def _kpm_vector_generator(ham, vectors, max_moments):
+def _kpm_vectors(ham, vectors, max_moments):
     """Generator of KPM vectors
 
     This generator yields vectors as

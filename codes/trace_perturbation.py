@@ -6,7 +6,7 @@ import kwant.kpm
 from kwant._common import ensure_rng
 
 from .perturbative_model import PerturbativeModel
-from .higher_order_lowdin import get_interesting_keys
+from .higher_order_lowdin import _interesting_keys
 from .kpm_funcs import _kpm_preprocess
 
 one = sympy.sympify(1)
@@ -63,7 +63,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         moments of the expansion are precalculated.
     """
     H1 = PerturbativeModel(H1)
-    all_keys = get_interesting_keys(H1.keys(), order)
+    all_keys = _interesting_keys(H1.keys(), order)
     if interesting_keys is None:
         interesting_keys = all_keys
     else:
@@ -104,7 +104,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     else:
         op_vecs = vectors
 
-    for kpm_vec in _perturbative_kpm_vector_generator(ham, vectors, num_moments):
+    for kpm_vec in _perturbative_kpm_vectors(ham, vectors, num_moments):
         next_moment = op_vecs.conj() @ kpm_vec.T()
         if trace:
             next_moment = next_moment.trace() / num_vectors
@@ -122,7 +122,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     return expansion
 
 
-def _perturbative_kpm_vector_generator(ham, vectors, max_moments):
+def _perturbative_kpm_vectors(ham, vectors, max_moments):
     """
     Generator object that succesively yields KPM vectors `T_n(ham) |vector>`
     for vectors in `vectors` for n in [0, max_moments].
