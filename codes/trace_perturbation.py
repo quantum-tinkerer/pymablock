@@ -63,7 +63,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         moments of the expansion are precalculated.
     """
     H1 = PerturbativeModel(H1)
-    H1 = H1.tosparse()
+    # H1 = H1.tosparse()
     all_keys = get_interesting_keys(H1.keys(), order)
     if interesting_keys is None:
         interesting_keys = all_keys
@@ -79,7 +79,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         H0 = PerturbativeModel({one: H0}, interesting_keys=interesting_keys)
     elif not (len(H0) == 1 and list(H0.keys()).pop() == one):
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
-    H0 = H0.tosparse()
+    # H0 = H0.tosparse()
     # Find the bounds of the spectrum and rescale `ham`
     H0[one], (_a, _b), num_moments, _kernel = _kpm_preprocess(H0[one], kpm_params)
     H1 /= _a
@@ -100,8 +100,14 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
 
     # Calculate all the moments, this is where most of the work is done.
     moments = []
+    # Precalculate operator acting on vectors, assume it is Hermitian
+    if operator:
+        op_vecs = (operator * vectors.T()).T()
+    else:
+        op_vecs = vectors
+
     for kpm_vec in _perturbative_kpm_vector_generator(ham, vectors, num_moments):
-        next_moment = vectors.conj() * (operator * kpm_vec.T() if operator else kpm_vec.T())
+        next_moment = op_vecs.conj() * kpm_vec.T()
         if trace:
             next_moment = next_moment.trace() / num_vectors
         moments.append(next_moment)
