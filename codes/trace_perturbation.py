@@ -102,12 +102,12 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     moments = []
     # Precalculate operator acting on vectors, assume it is Hermitian
     if operator:
-        op_vecs = (operator * vectors.T()).T()
+        op_vecs = (operator @ vectors.T()).T()
     else:
         op_vecs = vectors
 
     for kpm_vec in _perturbative_kpm_vector_generator(ham, vectors, num_moments):
-        next_moment = op_vecs.conj() * kpm_vec.T()
+        next_moment = op_vecs.conj() @ kpm_vec.T()
         if trace:
             next_moment = next_moment.trace() / num_vectors
         moments.append(next_moment)
@@ -157,12 +157,11 @@ def _perturbative_kpm_vector_generator(ham, vectors, max_moments):
     yield alpha.T()
     n += 1
     alpha_prev = alpha
-    alpha = ham * alpha
+    alpha = ham @ alpha
     yield alpha.T()
     n += 1
     while n < max_moments:
-        # Multiplying sparse matrix with number is much slower
-        alpha_next = ham * (2 * alpha) - alpha_prev
+        alpha_next = 2 * ham @ alpha - alpha_prev
         alpha_prev = alpha
         alpha = alpha_next
         yield alpha.T()
