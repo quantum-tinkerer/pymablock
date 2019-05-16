@@ -13,22 +13,18 @@ from .qsymm.model import Model, allclose, _find_shape, _find_momenta, _mul_shape
 
 # Functions to handle different types of arrays
 # If either of them are dense, the result is dense.
-# LinearOperator only works if it is on the left
 def _smart_dot(a, b):
-    if isinstance(a, scipy.sparse.linalg.LinearOperator):
-        return a.dot(b)
-    elif isinstance(a, scipy.sparse.spmatrix) or isinstance(b, scipy.sparse.spmatrix):
-        return scipy.sparse.csr_matrix.dot(a, b)
+    if isinstance(a, Number) or isinstance(b, Number):
+        # Scalar multiplication
+        return a * b
     else:
-        return np.dot(a, b)
+        # LinearOperator only works if it is on the left
+        return a @ b
 
 def _smart_add(a, b):
-    if isinstance(a, scipy.sparse.spmatrix) and isinstance(b, scipy.sparse.spmatrix):
-        return a + b
-    elif isinstance(a, scipy.sparse.spmatrix) and isinstance(b, np.ndarray):
-        return a.A + b
-    elif isinstance(b, scipy.sparse.spmatrix) and isinstance(a, np.ndarray):
-        return a + b.A
+    if isinstance(a, scipy.sparse.spmatrix) ^ isinstance(b, scipy.sparse.spmatrix):
+        # If only one is sparse matrix, the result is np.matrix, recast it to np.ndarray
+        return (a + b).A
     else:
         return a + b
 
@@ -206,6 +202,31 @@ class PerturbativeModel(Model):
             result.shape = _mul_shape(other.shape, self.shape)
         else:
             raise NotImplementedError('Multiplication with type {} not implemented'.format(type(other)))
+        return result
+
+    def __matmul__(self, other):
+        # Multiplication by arrays and PerturbativeModel
+        if isinstance(other, PerturbativeModel):
+            interesting_keys = self.interesting_keys | other.interesting_keys
+            result = sum(PerturbativeModel({k1 * k2: v1 @ v2},
+                                           interesting_keys=interesting_keys)
+                      for (k1, v1), (k2, v2) in product(self.items(), other.items())
+                      if (k1 * k2 in interesting_keys or not interesting_keys))
+            result.momenta = list(set(self.momenta) | set(other.momenta))
+            # need to set in case one of them is empty
+            result.shape = _mul_shape(self.shape, other.shape)
+        else:
+            # Otherwise try to multiply with other
+            result = self.zeros_like()
+            result.data = {key: val @ other for key, val in self.items()}
+            result.shape = _mul_shape(self.shape, other.shape)
+        return result
+
+    def __rmatmul__(self, other):
+        # Left multiplication by arrays
+        result = self.zeros_like()
+        result.data = {key: other @ val for key, val in self.items()}
+        result.shape = _mul_shape(other.shape, self.shape)
         return result
 
     def around(self, decimals=3):
