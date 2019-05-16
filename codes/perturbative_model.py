@@ -13,13 +13,17 @@ from .qsymm.model import Model, allclose, _find_shape, _find_momenta
 class PerturbativeModel(Model):
 
     def __init__(self, hamiltonian={}, locals=None, interesting_keys=None, momenta=[]):
-        """General class to store Hamiltonian families.
-        Can be used to efficiently store any matrix valued function.
-        Implements many sympy and numpy methods. Arithmetic operators are overloaded,
-        such that `*` corresponds to matrix multiplication.
-        Enhances the functionality of Model by allowing interesting_keys to be
-        specified, terms with different coefficients are discarded.
-        Allows the use of scipy sparse matrices besides numpy arrays.
+        """
+        General class to efficiently store any matrix valued function.
+        The internal structure is a dict with {symbol: value}, where
+        symbol is a sympy expression, the object representing sum(symbol * value).
+        The values can be scalars, arrays (both dense and sparse) or LinearOperators.
+        Implements many sympy and numpy methods and arithmetic operators.
+        Multiplication is distributed over the sum, `*` is passed down to
+        both symbols and values, `@` is passed to symbols as `*` and to values
+        as `@`. Assumes that symbols form a commutative group.
+        Enhances the functionality of Model by allowing `interesting_keys` to be
+        specified, symbols not listed there are discarded.
 
         Parameters
         ----------
@@ -66,42 +70,45 @@ class PerturbativeModel(Model):
             for key in self.keys():
                 if key not in self.interesting_keys:
                     del self[key]
+        # Keep track of whether this is a dense array
+        self._isarray = any(isinstance(val, np.ndarray) for val in self.values())
 
     # Defaultdict functionality
     def __missing__(self, key):
         if self.shape is not None:
-            if self.issparse():
-                return scipy.sparse.csr_matrix(self.shape, dtype=complex)
-            else:
+            if self.shape == ():
+                #scalar
+                return 0
+            elif self._isarray:
+                # Return dense zero array if dense
                 return np.zeros(self.shape, dtype=complex)
+            else:
+                # Otherwise return a csr_matrix
+                return scipy.sparse.csr_matrix(self.shape, dtype=complex)
         else:
             return None
 
     def tosympy(self, digits=12):
         """Convert into sympy matrix."""
-        result = self.todense()
+        result = self.toarray()
         result = [(key * np.round(val, digits)) for key, val in result.items()]
         result = sympy.Matrix(sum(result))
         result.simplify()
         return result
 
-    def tosparse(self):
-        output = self.zeros_like()
-        output.data = {key: scipy.sparse.csr_matrix(val, dtype=complex)
+    def tocsr(self):
+        result = self.zeros_like()
+        result.data = {key: scipy.sparse.csr_matrix(val, dtype=complex)
                        for key, val in self.items()}
-        return output
+        result._isarray = False
+        return result
 
-    def issparse(self):
-        for key, val in self.items():
-            if isinstance(val, scipy.sparse.spmatrix):
-                return True
-        return False
-
-    def todense(self):
-        output = self.zeros_like()
-        output.data = {key : (val.A if isinstance(val, scipy.sparse.spmatrix) else val)
+    def toarray(self):
+        result = self.zeros_like()
+        result.data = {key : (val if isinstance(val, np.ndarray) else val.toarray())
                         for key, val in self.items()}
-        return output
+        result._isarray = True
+        return result
 
     def lambdify(self, *gens):
         """Lambdify using gens as variables."""
@@ -117,8 +124,8 @@ class PerturbativeModel(Model):
         return sum(result)
 
     def __eq__(self, other):
-        a = self.todense()
-        b = other.todense()
+        a = self.toarray()
+        b = other.toarray()
         for key in a.keys() | b.keys():
             if not allclose(a[key], b[key]):
                 return False
@@ -220,4 +227,5 @@ class PerturbativeModel(Model):
         result.interesting_keys = self.interesting_keys.copy()
         result.momenta = self.momenta.copy()
         result.shape = self.shape
+        result._isarray = self._isarray
         return result

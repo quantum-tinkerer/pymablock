@@ -215,7 +215,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
     H2_AB = evec_A.T.conj() @ H1 - H1_AA @ evec_A.T.conj()
     H2_BA = H1 @ evec_A - evec_A @ H1_AA
     assert H2_AB == H2_BA.T().conj()
-    assert not any((H0_AA.issparse(), H1_AA.issparse(), H2_AB.issparse(), H2_BA.issparse()))
+    assert all((H0_AA._isarray, H1_AA._isarray, H2_AB._isarray, H2_BA._isarray))
 
     # Generate `S` to `order-1` order
     S_AB = []
@@ -230,7 +230,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
                                      H0[one], kpm_params=kpm_params,
                                      precalculate_moments=_precalculate_moments)
         S_BA_i = -S_AB_i.T().conj()
-        assert not any((Y_AB.issparse(), S_AB_i.issparse(), S_BA_i.issparse()))
+        assert all((Y_AB._isarray, S_AB_i._isarray, S_BA_i._isarray))
         S_AB.append(S_AB_i)
         S_BA.append(S_BA_i)
     S_AB = sum(S_AB)
@@ -249,7 +249,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
     comm_diag = _block_commute_diag(comm_diag, S)
     # Add 2nd commutator of diagonal
     Hd += _block_commute_AA(comm_diag, S) * (1 / factorial(2))
-    assert Hd == Hd.T().conj(), Hd.todense()
+    assert Hd == Hd.T().conj(), Hd.toarray()
 
     for j in range(2, order//2 + 1):
         # Make (2j-2)'th commutator of off-diagonal
@@ -260,7 +260,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
         comm_diag = _block_commute_2(comm_diag, S)
         # Add 2j'th commutator of diagonal
         Hd += _block_commute_AA(comm_diag, S) * (1 / factorial(2*j))
-        assert not Hd.issparse()
-        assert Hd == Hd.T().conj(), Hd.todense()
+        assert Hd._isarray
+        assert Hd == Hd.T().conj(), Hd.toarray()
 
     return Hd
