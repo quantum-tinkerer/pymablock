@@ -70,30 +70,3 @@ class PerturbativeModel(Model):
 
         # Keep track of whether this is a dense array
         self._isarray = any(isinstance(val, np.ndarray) for val in self.values())
-
-    # This only differs in not deleting small values
-    def __add__(self, other):
-        # Addition of Models. It is assumed that both Models are
-        # structured correctly, every key is in standard form.
-        # Define addition of 0 and {}
-        result = self.zeros_like()
-        if not other:
-            result.data = self.data.copy()
-        # If self is empty return other
-        elif not self and isinstance(other, type(self)):
-            result = other.zeros_like()
-            result.data = other.data.copy()
-        elif isinstance(other, type(self)):
-            for key in self.keys() & other.keys():
-                total = self[key] + other[key]
-                # If only one is sparse matrix, the result is np.matrix, recast it to np.ndarray
-                if isinstance(total, np.matrix):
-                    total = total.A
-                result[key] = total
-            for key in self.keys() - other.keys():
-                result[key] = copy(self[key])
-            for key in other.keys() - self.keys():
-                result[key] = copy(other[key])
-        else:
-            raise NotImplementedError('Addition of {} with {} not supported'.format(type(self), type(other)))
-        return result
