@@ -1,6 +1,6 @@
 import numpy as np
 import scipy
-import codes.trace_perturbation as pert
+from codes.trace_perturbation import trace_perturbation
 from codes.perturbative_model import PerturbativeModel
 from ..qsymm.linalg import allclose
 from scipy.sparse.linalg import LinearOperator
@@ -20,7 +20,7 @@ def test_simple_model():
         V[i + N, i] = 1
     mat12 = {'x': V.tocsr()}
 
-    model = pert.trace_perturbation(mat02, mat12, order=order, kpm_params=kpm_params)
+    model = trace_perturbation(mat02, mat12, order=order, kpm_params=kpm_params)
 
     # Step function
     def func(x):
@@ -45,7 +45,7 @@ def test_simple_model():
     operator = PerturbativeModel({1: LinearOperator((2 * N, 2 * N), lambda v: v.T - a * (a.dot(v)))})
     operator *= 1/(N-1)
     kpm_params = dict(num_moments=1000, num_vectors=10, operator=operator)
-    model = pert.trace_perturbation(mat02, mat12, order=2, kpm_params=kpm_params)
+    model = trace_perturbation(mat02, mat12, order=2, kpm_params=kpm_params)
 
     res3 = model(func)
     assert all([allclose(v, exact2[k], atol=atol) for k, v in res3.items()]), res3 - exact2

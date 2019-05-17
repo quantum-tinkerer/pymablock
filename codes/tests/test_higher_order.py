@@ -1,6 +1,6 @@
 import numpy as np
 import sympy
-from codes.higher_order_lowdin import get_effective_model
+from codes.higher_order_lowdin import effective_model
 from codes.perturbative_model import PerturbativeModel
 from ..qsymm.linalg import allclose
 
@@ -23,7 +23,7 @@ def test_simple_model():
     evec_A = evec2[:, indices2]
     evec_B = evec2[:, np.array([1])]
 
-    model = get_effective_model(mat02, mat12, evec_A, evec_B=evec_B, order=order)
+    model = effective_model(mat02, mat12, evec_A, evec_B=evec_B, order=order)
 
     # Should match within default tolerance
     assert model == exact_result, model - exact_result

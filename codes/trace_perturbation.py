@@ -6,7 +6,7 @@ import kwant.kpm
 from kwant._common import ensure_rng
 
 from .perturbative_model import PerturbativeModel
-from .higher_order_lowdin import get_interesting_keys
+from .higher_order_lowdin import _interesting_keys
 from .kpm_funcs import _kpm_preprocess
 
 one = sympy.sympify(1)
@@ -63,7 +63,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         moments of the expansion are precalculated.
     """
     H1 = PerturbativeModel(H1)
-    all_keys = get_interesting_keys(H1.keys(), order)
+    all_keys = _interesting_keys(H1.keys(), order)
     if interesting_keys is None:
         interesting_keys = all_keys
     else:

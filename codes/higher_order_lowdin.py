@@ -13,7 +13,7 @@ from .perturbative_model import PerturbativeModel, allclose
 one = sympy.sympify(1)
 
 
-def get_interesting_keys(keys, order=2):
+def _interesting_keys(keys, order=2):
     """
     Generate list of interesting keys as monomials of `keys`
     with maximum total power `order`.
@@ -113,7 +113,7 @@ def _block_commute_2(H, S):
     res_BA = H_BA @ (S_AB @ S_BA) - S_BA @ (H_AB @ S_BA) - S_BA @ res_AA
     return ((0, res_AB), (res_BA, 0))
 
-def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
+def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
                         kpm_params=None, _precalculate_moments=False):
     """Return effective model for given perturbation.
 
@@ -163,7 +163,7 @@ def get_effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=N
         Effective Hamiltonian in the `A` subspace.
     """
     H1 = PerturbativeModel(H1)
-    all_keys = get_interesting_keys(H1.keys(), order)
+    all_keys = _interesting_keys(H1.keys(), order)
     if interesting_keys is None:
         interesting_keys = all_keys
     else:
