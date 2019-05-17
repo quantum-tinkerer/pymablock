@@ -7,7 +7,7 @@ import numpy as np
 import sympy
 
 from .perturbationS import Y_i
-from .kpm_funcs import build_greens_function
+from .kpm_funcs import greens_function
 from .perturbative_model import PerturbativeModel, allclose
 
 one = sympy.sympify(1)
@@ -61,11 +61,11 @@ def _divide_by_energies(Y_AB, energies_A, vectors_A,
                        - val.dot(vectors_B).dot(vectors_B.T.conj()))
             # This way we do all vectors for all energies, uses a bit more RAM than
             # absolutely necessary, but makes the code simpler.
-            vec_G_Y = build_greens_function(H_0,
-                                            params=None,
-                                            vectors=val_KPM.conj(),
-                                            kpm_params=kpm_params,
-                                            precalculate_moments=precalculate_moments)(energies_A)
+            vec_G_Y = greens_function(H_0,
+                                      params=None,
+                                      vectors=val_KPM.conj(),
+                                      kpm_params=kpm_params,
+                                      precalculate_moments=precalculate_moments)(energies_A)
             res = np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(energies_A))])
         else:
             res = np.zeros(val.shape, dtype=complex)
