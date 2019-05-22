@@ -5,7 +5,8 @@ import scipy.sparse
 import kwant.kpm
 from kwant._common import ensure_rng
 
-from .perturbative_model import PerturbativeModel
+from .qsymm.model import Model
+
 from .higher_order_lowdin import _interesting_keys
 from .kpm_funcs import _kpm_preprocess
 
@@ -20,11 +21,11 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     Parameters
     ----------
 
-    H0 : array or PerturbativeModel
+    H0 : array or Model
         Unperturbed hamiltonian, dense or sparse matrix. If
-        provided as PerturbativeModel, it must contain a single
+        provided as Model, it must contain a single
         entry {1 : array}.
-    H1 : dict of {symbol : array} or PerturbativeModel
+    H1 : dict of {symbol : array} or Model
         Perturbation to the Hamiltonian.
     order : int (default 2)
         Order of the perturbation calculation.
@@ -46,11 +47,11 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
             is provided.
         num_moments : int, default 100
             Number of moments in the KPM expansion.
-        operator : 2D array or PerturbativeModel or None (default)
+        operator : 2D array or Model or None (default)
             Operator in the expectation value, default is identity.
-        vector_factory : 1D or 2D array or PerturbativeModel or None (default)
+        vector_factory : 1D or 2D array or Model or None (default)
             Vector of length `N` or array of vectors with shape `(M, N)`.
-            If PerturbativeModel, must be of shape `(M, N)`. The size of
+            If Model, must be of shape `(M, N)`. The size of
             the last index should be the same as the size of the Hamiltonian.
             By default, random vectors are used.
 
@@ -62,7 +63,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         expansion of the trace. This evaluation is very fast, as the
         moments of the expansion are precalculated.
     """
-    H1 = PerturbativeModel(H1)
+    H1 = Model(H1)
     all_keys = _interesting_keys(H1.keys(), order)
     if interesting_keys is None:
         interesting_keys = all_keys
@@ -74,9 +75,9 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
                          'up to total power `order`.')
 
     # Convert to appropriate format
-    if not isinstance(H0, PerturbativeModel):
-        H0 = PerturbativeModel({one: H0}, interesting_keys=interesting_keys)
-    elif not (len(H0) == 1 and list(H0.keys()).pop() == one):
+    if not isinstance(H0, Model):
+        H0 = Model({1: H0}, interesting_keys=interesting_keys)
+    elif not (len(H0) == 1 and list(H0.keys()).pop() == 1):
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
     # Find the bounds of the spectrum and rescale `ham`
     H0[one], (_a, _b), num_moments, _kernel = _kpm_preprocess(H0[one], kpm_params)
@@ -91,8 +92,8 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         # Make random vectors
         rng = ensure_rng(kpm_params.get('rng'))
         vectors = np.exp(2j * np.pi * rng.random_sample((num_vectors, N)))
-    if not isinstance(vectors, PerturbativeModel):
-        vectors = PerturbativeModel({1: np.atleast_2d(vectors)})
+    if not isinstance(vectors, Model):
+        vectors = Model({1: np.atleast_2d(vectors)})
 
     operator = kpm_params.get('operator')
 
@@ -129,24 +130,24 @@ def _perturbative_kpm_vectors(ham, vectors, max_moments):
 
     Parameters
     ----------
-    ham : PerturbativeModel
-        Hamiltonian, PerturbativeModel with shape `(N, N)`.
+    ham : Model
+        Hamiltonian, Model with shape `(N, N)`.
         The `interesting_keys` property is used to limit the powers of
         free parameters that we keep track of in the expansion.
-    vectors : 1D or 2D array or PerturbativeModel
+    vectors : 1D or 2D array or Model
         Vector of length `N` or array of vectors with shape `(M, N)`.
-        If PerturbativeModel, must be of shape `(M, N)`. The size of
+        If Model, must be of shape `(M, N)`. The size of
         the last index should be the same as the size of `ham` `N`.
     max_moments : int
         Number of moments to stop with iteration
 
     Notes
     -----
-    Returns a sequence of expanded vectors, PerturbativeModels of shape (M, N).
+    Returns a sequence of expanded vectors, Models of shape (M, N).
     If the input was a vector, M=1.
     """
-    if not isinstance(vectors, PerturbativeModel):
-        alpha = PerturbativeModel({1: np.atleast_2d(vectors)})
+    if not isinstance(vectors, Model):
+        alpha = Model({1: np.atleast_2d(vectors)})
     else:
         alpha = vectors
     # Internally store as column vectors

@@ -8,9 +8,7 @@ import sympy
 
 from .perturbationS import Y_i
 from .kpm_funcs import greens_function
-from .perturbative_model import PerturbativeModel, allclose
-
-one = sympy.sympify(1)
+from .qsymm.model import allclose, Model
 
 
 def _interesting_keys(keys, order=2):
@@ -122,11 +120,11 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
 
     Parameters
     ----------
-    H0 : array or PerturbativeModel
+    H0 : array or Model
         Unperturbed hamiltonian, dense or sparse matrix. If
-        provided as PerturbativeModel, it must contain a single
+        provided as Model, it must contain a single
         entry {sympy.sympify(1): array}
-    H1 : dict of {sympy.Symbol : array} or PerturbativeModel
+    H1 : dict of {sympy.Symbol : array} or Model
         Perturbation to the Hamiltonian
     evec_A : array
         Basis of the interesting `A` subspace of `H0` given
@@ -159,10 +157,10 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
 
     Returns
     -------
-    Hd : PerturbativeModel
+    Hd : Model
         Effective Hamiltonian in the `A` subspace.
     """
-    H1 = PerturbativeModel(H1)
+    H1 = Model(H1)
     all_keys = _interesting_keys(H1.keys(), order)
     if interesting_keys is None:
         interesting_keys = all_keys
@@ -179,9 +177,9 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
                          'This may take very long.'.format(order, order, order-1))
 
     # Convert to appropriate format
-    if not isinstance(H0, PerturbativeModel):
-        H0 = PerturbativeModel({one: H0}, interesting_keys=interesting_keys)
-    elif not (len(H0) == 1 and list(H0.keys()).pop() == one):
+    if not isinstance(H0, Model):
+        H0 = Model({1: H0}, interesting_keys=interesting_keys)
+    elif not (len(H0) == 1 and list(H0.keys()).pop() == 1):
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
 
     if evec_A.shape[1] < H0.shape[0] <= 2 and evec_B is None:
@@ -197,8 +195,8 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         if isinstance(evec_B, scipy.sparse.spmatrix):
             evec_B = evec_B.A
         H0_BB = evec_B.T.conj() @ H0 @ evec_B
-        ev_B = np.diag(H0_BB[one])
-        if not (allclose(np.diag(ev_B), H0_BB[one]) and
+        ev_B = np.diag(H0_BB[1])
+        if not (allclose(np.diag(ev_B), H0_BB[1]) and
                 allclose(evec_B.T.conj() @ evec_B, np.eye(evec_B.shape[1]))):
             raise ValueError('evec_B must be orthonormal eigenvectors of H0')
         if not allclose(evec_B.T.conj() @ evec_A, 0):
@@ -206,8 +204,8 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
 
     # Generate projected terms
     H0_AA = evec_A.T.conj() @ H0 @ evec_A
-    ev_A = np.diag(H0_AA[one])
-    if not (allclose(np.diag(ev_A), H0_AA[one]) and
+    ev_A = np.diag(H0_AA[1])
+    if not (allclose(np.diag(ev_A), H0_AA[1]) and
             allclose(evec_A.T.conj() @ evec_A, np.eye(evec_A.shape[1]))):
         raise ValueError('evec_A must be orthonormal eigenvectors of H0')
     H1_AA = evec_A.T.conj() @ H1 @ evec_A
@@ -215,7 +213,8 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
     H2_AB = evec_A.T.conj() @ H1 - H1_AA @ evec_A.T.conj()
     H2_BA = H1 @ evec_A - evec_A @ H1_AA
     assert H2_AB == H2_BA.T().conj()
-    assert all((H0_AA._isarray, H1_AA._isarray, H2_AB._isarray, H2_BA._isarray))
+    assert all((H0_AA.dtype is np.ndarray, H1_AA.dtype is np.ndarray,
+                H2_AB.dtype is np.ndarray, H2_BA.dtype is np.ndarray))
 
     # Generate `S` to `order-1` order
     S_AB = []
@@ -227,10 +226,10 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         Y_AB = Y(H0_AA, H0, H1_AA, H1, H2_AB, H2_BA, S_AB, S_BA)
         # Solve for `S_i` by applying Green's function
         S_AB_i = _divide_by_energies(Y_AB, ev_A, evec_A, ev_B, evec_B,
-                                     H0[one], kpm_params=kpm_params,
+                                     H0[1], kpm_params=kpm_params,
                                      precalculate_moments=_precalculate_moments)
         S_BA_i = -S_AB_i.T().conj()
-        assert all((Y_AB._isarray, S_AB_i._isarray, S_BA_i._isarray))
+        assert all((Y_AB.dtype is np.ndarray, S_AB_i.dtype is np.ndarray, S_BA_i.dtype is np.ndarray))
         S_AB.append(S_AB_i)
         S_BA.append(S_BA_i)
     S_AB = sum(S_AB)
@@ -260,7 +259,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         comm_diag = _block_commute_2(comm_diag, S)
         # Add 2j'th commutator of diagonal
         Hd += _block_commute_AA(comm_diag, S) * (1 / factorial(2*j))
-        assert Hd._isarray
+        assert Hd.dtype is np.ndarray
         assert Hd == Hd.T().conj(), Hd.toarray()
 
     return Hd

@@ -1,8 +1,8 @@
 import numpy as np
 import sympy
 from codes.higher_order_lowdin import effective_model
-from codes.perturbative_model import PerturbativeModel
-from ..qsymm.linalg import allclose
+from codes.qsymm.model import Model
+from codes.qsymm.linalg import allclose
 
 def test_simple_model():
     order = 8
@@ -16,7 +16,7 @@ def test_simple_model():
 
     # We know the exact result from series expansion of the exact eigenvalue
     x = sympy.symbols('x')
-    exact_result = PerturbativeModel({x**n: np.array([[val]])
+    exact_result = Model({x**n: np.array([[val]])
                     for n, val in enumerate([0, 0, -1, 2, -3, 2, 6, -28, 61])})
 
     # Test explicit method
@@ -31,8 +31,8 @@ def test_simple_model():
     ###
     # Slightly more complicated model
     ev2 = np.array([0, 0, 1, 1], dtype=complex)
-    # Initialize with PerturbativeModel
-    mat02 = PerturbativeModel({1: np.diag(ev2)})
+    # Initialize with Model
+    mat02 = Model({1: np.diag(ev2)})
     # and string keys
     mat12 = {'x': np.array([[0, 0, 0, 1],
                             [0, 0, 1, 0],
@@ -41,7 +41,7 @@ def test_simple_model():
     evec2 = np.eye(4)
     indices2 = [0, 1]
 
-    exact_result = PerturbativeModel({x**n: val * np.eye(2)
+    exact_result = Model({x**n: val * np.eye(2)
                                   for n, val in enumerate([0, 0, -1, 2, -3, 2, 6, -28, 61])})
 
     # Test explicit method
