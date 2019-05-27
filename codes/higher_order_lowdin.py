@@ -213,8 +213,8 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
     H2_AB = evec_A.T.conj() @ H1 - H1_AA @ evec_A.T.conj()
     H2_BA = H1 @ evec_A - evec_A @ H1_AA
     assert H2_AB == H2_BA.T().conj()
-    assert all((H0_AA.dtype is np.ndarray, H1_AA.dtype is np.ndarray,
-                H2_AB.dtype is np.ndarray, H2_BA.dtype is np.ndarray))
+    assert all((H0_AA.format is np.ndarray, H1_AA.format is np.ndarray,
+                H2_AB.format is np.ndarray, H2_BA.format is np.ndarray))
 
     # Generate `S` to `order-1` order
     S_AB = []
@@ -229,7 +229,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
                                      H0[1], kpm_params=kpm_params,
                                      precalculate_moments=_precalculate_moments)
         S_BA_i = -S_AB_i.T().conj()
-        assert all((Y_AB.dtype is np.ndarray, S_AB_i.dtype is np.ndarray, S_BA_i.dtype is np.ndarray))
+        assert all((Y_AB.format is np.ndarray, S_AB_i.format is np.ndarray, S_BA_i.format is np.ndarray))
         S_AB.append(S_AB_i)
         S_BA.append(S_BA_i)
     S_AB = sum(S_AB)
@@ -259,7 +259,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         comm_diag = _block_commute_2(comm_diag, S)
         # Add 2j'th commutator of diagonal
         Hd += _block_commute_AA(comm_diag, S) * (1 / factorial(2*j))
-        assert Hd.dtype is np.ndarray
+        assert Hd.format is np.ndarray
         assert Hd == Hd.T().conj(), Hd.toarray()
 
     return Hd
