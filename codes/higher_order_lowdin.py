@@ -166,7 +166,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         interesting_keys = all_keys
     else:
         interesting_keys = set(interesting_keys)
-    H1.interesting_keys = interesting_keys
+    H1.keep = interesting_keys
     if not interesting_keys <= all_keys:
         raise ValueError('`interesting_keys` should be a subset of all monomials of `H1.keys()` '
                          'up to total power `order`.')
@@ -178,7 +178,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
 
     # Convert to appropriate format
     if not isinstance(H0, Model):
-        H0 = Model({1: H0}, interesting_keys=interesting_keys)
+        H0 = Model({1: H0}, keep=interesting_keys)
     elif not (len(H0) == 1 and list(H0.keys()).pop() == 1):
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
 
