@@ -210,6 +210,10 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         raise ValueError('evec_A must be orthonormal eigenvectors of H0')
     H1_AA = evec_A.T.conj() @ H1 @ evec_A
     assert H1_AA == H1_AA.T().conj()
+
+    if order == 1:
+        return H0_AA + H1_AA
+
     H2_AB = evec_A.T.conj() @ H1 - H1_AA @ evec_A.T.conj()
     H2_BA = H1 @ evec_A - evec_A @ H1_AA
     assert H2_AB == H2_BA.T().conj()
