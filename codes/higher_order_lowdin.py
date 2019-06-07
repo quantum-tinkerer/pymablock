@@ -112,7 +112,7 @@ def _block_commute_2(H, S):
     return ((0, res_AB), (res_BA, 0))
 
 def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
-                        kpm_params=None, _precalculate_moments=False):
+                        kpm_params=dict(), _precalculate_moments=False):
     """Return effective model for given perturbation.
 
     Implementation of quasi-degenerated perturbation theory.
