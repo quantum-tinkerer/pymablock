@@ -137,7 +137,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         H0, everything is treated exactly and KPM is not used.
         If the Hamiltonian is 2x2, must provide `evec_B`.
     order : int (default 2)
-        Order of the perturbation calculation.
+        Order of the perturbation calculation, non-negative integer.
     interesting_keys : iterable of sympy expressions or None (default)
         By default up to `order` order polynomials of every key in `H1`
         is kept. If not all of these are interesting, the calculation
@@ -170,7 +170,12 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
     if not interesting_keys <= all_keys:
         raise ValueError('`interesting_keys` should be a subset of all monomials of `H1.keys()` '
                          'up to total power `order`.')
-    if order > len(Y_i) + 1:
+
+    if not isinstance(order, int):
+        raise ValueError('`order` must be an integer.')
+    elif order < 0:
+        raise ValueError('`order` must be non-negative.')
+    elif order > len(Y_i) + 1:
         raise ValueError('Terms for {}\'th order perturbation theory not available. '
                          'If you want to calculate {}\'th order perturbations, run '
                          'generating_s_terms.ipynb with wanted_order = {}. '
@@ -180,7 +185,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
     if not isinstance(H0, Model):
         H0 = Model({1: H0}, keep=interesting_keys)
     elif not (len(H0) == 1 and list(H0.keys()).pop() == 1):
-        raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
+        raise ValueError('H0 must contain a single entry {1: array}.')
 
     if evec_A.shape[1] < H0.shape[0] <= 2 and evec_B is None:
         raise ValueError('If the Hamiltonian is 2x2, must provide `evec_B`.')
@@ -211,7 +216,9 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
     H1_AA = evec_A.T.conj() @ H1 @ evec_A
     assert H1_AA == H1_AA.T().conj()
 
-    if order == 1:
+    if order == 0:
+        return H0_AA
+    elif order == 1:
         return H0_AA + H1_AA
 
     H2_AB = evec_A.T.conj() @ H1 - H1_AA @ evec_A.T.conj()
