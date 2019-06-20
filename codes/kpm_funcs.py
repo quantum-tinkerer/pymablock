@@ -1,10 +1,12 @@
 from functools import partial
 from numbers import Number
 import scipy
+import scipy.sparse
 import numpy as np
 import copy
 
 import kwant
+from kwant.kpm import SpectralDensity, _rescale, jackson_kernel
 from kwant._common import ensure_rng
 
 
@@ -53,12 +55,12 @@ def greens_function(ham, vectors, params=None, kpm_params=dict(),
     # precalclulate expanded_vectors
     if precalculate_moments:
         params = copy.deepcopy(kpm_params)
-        params['num_vectors'] = None
-        params['vector_factory'] = vectors
+        kpm_params['num_vectors'] = None
+        kpm_params['vector_factory'] = vectors
         # overwrite operator to extract kpm expanded vectors only
-        params['operator'] = lambda bra, ket: ket
+        kpm_params['operator'] = lambda bra, ket: ket
         # Do the KPM expansion
-        kpm_expansion = kwant.kpm.SpectralDensity(ham, **params)
+        kpm_expansion = SpectralDensity(ham, params=params, **kpm_params)
         expanded_vectors = np.array(kpm_expansion._moments_list)
         expanded_vectors = np.moveaxis(expanded_vectors, -1, 0)
         kernel, num_moments = kpm_expansion.kernel, kpm_expansion.num_moments
@@ -155,22 +157,24 @@ def _kpm_preprocess(ham, kpm_params):
     if eps <= 0:
         raise ValueError("'eps' must be positive")
     # Hamiltonian rescaled as in Eq. (24), This returns a LinearOperator
-    ham_rescaled, (_a, _b) = kwant.kpm._rescale(ham, eps=eps, bounds=bounds, v0=None)
+    ham_rescaled, (_a, _b) = _rescale(ham, eps=eps, bounds=bounds, v0=None)
     # Make sure to return the same format
     if isinstance(ham, np.ndarray):
         ham_rescaled = (ham - _b * np.eye(ham.shape[0])) / _a
     elif isinstance(ham, scipy.sparse.spmatrix):
-        ham_rescaled = (ham - _b * scipy.sparse.identity(ham.shape[0], dtype='complex', format='csr')) / _a
+        id = scipy.sparse.identity(ham.shape[0], dtype='complex', format='csr')
+        ham_rescaled = (ham - _b * id) / _a
     # extract the number of moments or set default to 100
     energy_resolution = kpm_params.get('energy_resolution')
     if energy_resolution is not None:
         num_moments = int(np.ceil((1.6 * _a) / energy_resolution))
         if kpm_params.get('num_moments'):
-            raise TypeError("Only one of 'num_moments' or 'energy_resolution' can be provided.")
+            raise TypeError("Only one of 'num_moments' or 'energy_resolution' "
+                            "can be provided.")
     elif kpm_params.get('num_moments') is None:
         num_moments = 100
     else:
         num_moments = kpm_params.get('num_moments')
-    kernel = kpm_params.get('kernel', kwant.kpm.jackson_kernel)
+    kernel = kpm_params.get('kernel', jackson_kernel)
 
     return ham_rescaled, (_a, _b), num_moments, kernel
