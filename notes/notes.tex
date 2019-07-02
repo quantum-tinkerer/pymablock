@@ -26,6 +26,8 @@
 \newcommand{\ket}[1]{|#1\rangle}
 \newcommand{\bracket}[2]{\langle #1|#2\rangle}
 
+\def\Tr{\ensuremath{\operatorname{Tr}}}
+
 \graphicspath{{figures/}}
 
 \begin{document}
@@ -350,11 +352,43 @@ G_B(E, H_0) = G(E, H_0) P_B = \sum_{l\in B_e} \frac{| l \rangle\langle l |}{E - 
 \end{equation}
 where $P_B$ and $P_{B_e}$ are projectors to the various subspaces, and $G_{\text{KPM}}$ is the KPM approximateg Green's function.
 
-\subsection{Error analysis}
 
-TODO:
-Analyze the accuracy of the KPM approximation as function of gap and number of moments $M$.
-What is the best kernel for Green's function?
+\section{Perturbation theory of thermodynamic quantities}
+
+While the L{\"o}wdin perturbation theory allows accurate treatment of a small set of states, we are often interested in perturbation expansions of quantities summed over an extensive number of states.
+For example, the expectation value of an operator $A$ in a Fermi sea state can be written as $\Tr \left(A f(H) \right)$ where $f$ is the Fermi function and $H$ is the Hamiltonian.
+As we saw, KPM offers efficient evaluation of traces, here we generalize the KPM expansion to allow order-by-order expansion of such quantities in small perturbations to the Hamiltonian.
+
+Let the Hamiltonian be
+\begin{equation}
+H = H_0 + \lambda V
+\end{equation}
+where $\lambda$ is a small parameter and introduce the notation
+\begin{equation}
+f'(H_0) = \left.\frac{d}{d\lambda} f (H_0 + \lambda V)\right|_{\lambda=0}.
+\end{equation}
+We write $f$ as the Chebyshev expansion, so we only need to solve the case when $f$ is a Chebyshev polynomial.
+We take the derivative of the recursion relation of the Chebyshev polynomials to get
+\begin{equation}
+T_{n+1}'(H_0) = 2 V T_n(H_0) + 2 H_0 T_n'(H_0) - T_{n-1}'(H_0).
+\end{equation}
+By doing simultaneously two recursions (for $T_n(H_0) \ket{v}$ and $T_n'(H_0) \ket{v}$) we can calculate the derivative operator's action on a vector $\ket{v}$ the same way as before.
+
+This expression generalizes to higher order derivatives as
+\begin{equation}
+T_{n+1}^{(k)}(H_0) = 2 k V T_n^{(k-1)}(H_0) + 2 H_0 T_n^{(k)}(H_0) - T_{n-1}^{(k)}(H_0),
+\end{equation}
+and the cost grows linearly with the order (while calculating all lower orders as well), as the recursion depends on the lower orders, but the formula does not grow in complexity.
+
+In fact, this perturbation expansion is achieved by simply substituting a parametric form of the Hamiltonian into the existing KPM machinery and only keeping track of terms up to the desired order.
+This is implemented in \texttt{trace\_perturbation.py}.
+
+\subsection{Error analysis}
+How well does this expansion converge?
+
+\subsection{Hybrid version}
+How do we make this calculation hybrid?
+Could we simply split the trace into two subspaces with interesting and uninteresting states?
 
 % \section{Introduction}
 
