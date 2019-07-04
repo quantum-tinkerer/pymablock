@@ -5,3 +5,9 @@
 	path = .qsymm
 	url = ../../qsymm.git
 	branch = new_model
+[submodule "codes/qsymm"]
+	path = codes/qsymm
+	url = ssh://git@gitlab.kwant-project.org:443/qt/qsymm.git
+[submodule "codes/_qsymm"]
+	path = codes/_qsymm
+	url = ssh://git@gitlab.kwant-project.org:443/qt/qsymm.git
