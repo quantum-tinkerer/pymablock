@@ -132,7 +132,7 @@ def _perturbative_kpm_vectors(ham, vectors, max_moments):
     ----------
     ham : Model
         Hamiltonian, Model with shape `(N, N)`.
-        The `interesting_keys` property is used to limit the powers of
+        The `keep` property is used to limit the powers of
         free parameters that we keep track of in the expansion.
     vectors : 1D or 2D array or Model
         Vector of length `N` or array of vectors with shape `(M, N)`.

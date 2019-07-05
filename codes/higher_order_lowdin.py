@@ -165,11 +165,12 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
     if interesting_keys is None:
         interesting_keys = all_keys
     else:
-        interesting_keys = set(interesting_keys)
+        interesting_keys = {qsymm.model._symbol_normalizer(key) for key in interesting_keys}
     H1.keep = interesting_keys
     if not interesting_keys <= all_keys:
-        raise ValueError('`interesting_keys` should be a subset of all monomials of `H1.keys()` '
-                         'up to total power `order`.')
+        raise ValueError('`interesting_keys` must be a subset of all monomials of `H1.keys()` '
+                         'up to total power `order`. Make sure `order` is set at least as high '
+                         'as the highest power appearing in `interesting_keys`.')
 
     if not isinstance(order, int):
         raise ValueError('`order` must be an integer.')
