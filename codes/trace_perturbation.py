@@ -5,7 +5,7 @@ import scipy.sparse
 import kwant.kpm
 from kwant._common import ensure_rng
 
-from .qsymm.model import Model
+from .qsymm.model import Model, _symbol_normalizer
 
 from .higher_order_lowdin import _interesting_keys
 from .kpm_funcs import _kpm_preprocess
@@ -14,7 +14,10 @@ one = sympy.sympify(1)
 
 
 def trace_perturbation(H0, H1, order=2, interesting_keys=None,
-                       trace=True, kpm_params=dict()):
+                       trace=True, num_moments=100, operator=None,
+                       num_vectors=10, vectors=None,
+                       normalized_vectors=False, kpm_params=dict()
+                      ):
     """
     Perturbative expansion of `Tr(f(H) * A)` using stochastic trace.
 
@@ -28,32 +31,36 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     H1 : dict of {symbol : array} or Model
         Perturbation to the Hamiltonian.
     order : int (default 2)
-        Order of the perturbation calculation.
+        Order of the perturbation calculation, up to `order` order
+        polynomials of every key in `H1` is kept during the expansion.
+        If `interesting_keys` is provided, `order` is ignored.
     interesting_keys : iterable of sympy expressions or None (default)
-        By default up to `order` order polynomials of every key in `H1`
-        is kept. If not all of these are interesting, the calculation
-        can be sped up by providing a subset of these keys to keep.
-        Should be a subset of the keys up to `order` and should contain
-        all subexpressions of desired keys, as terms not listed in
-        `interesting_keys` are discarded at every step of the calculation.
+        The calculation can be sped up by providing an explicit set of keys
+        to keep. Should contain all subexpressions of desired keys, as terms
+        not listed in `interesting_keys` are discarded at every step of the
+        calculation.
     trace : bool, default True
         Whether to calculate the trace. If False, all matrix elements
         between pairs of vectors are separately returned.
+    num_moments : int, default 100
+        Number of moments in the KPM expansion.
+    operator : 2D array or Model or None (default)
+        Operator in the expectation value, default is identity.
+    num_vectors : int, default 10
+        Number of random vectors used in KPM. Ignored if `vector_factory`
+        is provided.
+    vectors : 1D or 2D array or Model or None (default)
+        Vector of length `N` or array of vectors with shape `(M, N)`.
+        If Model, must be of shape `(M, N)`. The size of
+        the last index should be the same as the size of the Hamiltonian.
+        By default, random vectors are used.
+    normalized_vectors: bool, default False
+        Whether the vectors returned by `vector_factory` are normalized.
+        By default the result is divided by the number of vectors, as
+        random phase vectors are assumed. If True, the result is not
+        divided.
     kpm_params : dict, optional
-        Dictionary containing the parameters, see `~kwant.kpm`.
-
-        num_vectors : int, default 10
-            Number of random vectors used in KPM. Ignored if `vector_factory`
-            is provided.
-        num_moments : int, default 100
-            Number of moments in the KPM expansion.
-        operator : 2D array or Model or None (default)
-            Operator in the expectation value, default is identity.
-        vector_factory : 1D or 2D array or Model or None (default)
-            Vector of length `N` or array of vectors with shape `(M, N)`.
-            If Model, must be of shape `(M, N)`. The size of
-            the last index should be the same as the size of the Hamiltonian.
-            By default, random vectors are used.
+        Dictionary containing additional KPM parameters, see `~kwant.kpm`.
 
     Returns
     -------
@@ -68,11 +75,12 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     if interesting_keys is None:
         interesting_keys = all_keys
     else:
-        interesting_keys = set(interesting_keys)
+        interesting_keys = {_symbol_normalizer(k) for k in interesting_keys}
     H1.keep = interesting_keys
-    if not interesting_keys <= all_keys:
-        raise ValueError('`interesting_keys` should be a subset of all monomials of `H1.keys()` '
-                         'up to total power `order`.')
+    ## Removed this restriction, because small parameters can also appear in `operator`
+#     if not interesting_keys <= all_keys:
+#         raise ValueError('`interesting_keys` should be a subset of all monomials of `H1.keys()` '
+#                          'up to total power `order`.')
 
     # Convert to appropriate format
     if not isinstance(H0, Model):
@@ -80,14 +88,13 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     elif not (len(H0) == 1 and list(H0.keys()).pop() == 1):
         raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
     # Find the bounds of the spectrum and rescale `ham`
+    kpm_params['num_moments'] = num_moments
     H0[one], (_a, _b), num_moments, _kernel = _kpm_preprocess(H0[one], kpm_params)
     H1 /= _a
 
     ham = H0 + H1
     N = ham.shape[0]
 
-    num_vectors = kpm_params.get('num_vectors', 10)
-    vectors = kpm_params.get('vector_factory')
     if vectors is None:
         # Make random vectors
         rng = ensure_rng(kpm_params.get('rng'))
@@ -95,12 +102,10 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     if not isinstance(vectors, Model):
         vectors = Model({1: np.atleast_2d(vectors)})
 
-    operator = kpm_params.get('operator')
-
     # Calculate all the moments, this is where most of the work is done.
     moments = []
     # Precalculate operator acting on vectors, assume it is Hermitian
-    if operator:
+    if operator is not None:
         op_vecs = (operator @ vectors.T()).T()
     else:
         op_vecs = vectors
@@ -108,7 +113,9 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     for kpm_vec in _perturbative_kpm_vectors(ham, vectors, num_moments):
         next_moment = op_vecs.conj() @ kpm_vec.T()
         if trace:
-            next_moment = next_moment.trace() / num_vectors
+            next_moment = next_moment.trace()
+        if not normalized_vectors:
+            next_moment /= num_vectors
         moments.append(next_moment)
 
     def expansion(f):
