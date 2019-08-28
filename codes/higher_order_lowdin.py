@@ -8,7 +8,7 @@ import sympy
 
 from .perturbationS import Y_i
 from .kpm_funcs import greens_function
-from .qsymm.model import allclose, Model
+from .qsymm.model import allclose, Model, _symbol_normalizer
 
 
 def _interesting_keys(keys, order=2):
@@ -165,7 +165,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
     if interesting_keys is None:
         interesting_keys = all_keys
     else:
-        interesting_keys = {qsymm.model._symbol_normalizer(key) for key in interesting_keys}
+        interesting_keys = {_symbol_normalizer(key) for key in interesting_keys}
     H1.keep = interesting_keys
     if not interesting_keys <= all_keys:
         raise ValueError('`interesting_keys` must be a subset of all monomials of `H1.keys()` '
@@ -205,7 +205,8 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         if not (allclose(np.diag(ev_B), H0_BB[1]) and
                 allclose(evec_B.T.conj() @ evec_B, np.eye(evec_B.shape[1]))):
             raise ValueError('evec_B must be orthonormal eigenvectors of H0')
-        if not allclose(evec_B.T.conj() @ evec_A, 0):
+        if not (allclose(evec_B.T.conj() @ evec_A, 0) or
+                evec_B.shape[-1] == 0):
             raise ValueError('Vectors in evec_B must be orthogonal to all vectors in evec_A.')
 
     # Generate projected terms
