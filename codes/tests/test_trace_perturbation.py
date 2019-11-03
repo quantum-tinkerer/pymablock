@@ -1,15 +1,15 @@
 import numpy as np
 import scipy
 from codes.trace_perturbation import trace_perturbation
-from codes.qsymm.model import Model
-from ..qsymm.linalg import allclose
+from qsymm.model import Model
+from qsymm.linalg import allclose
 from scipy.sparse.linalg import LinearOperator
 
 def test_simple_model():
     order = 2
     atol = 2e-2
     N = 1000
-    kpm_params = dict(num_moments=200, num_vectors=10, rng=0)
+    kpm_params = dict(rng=0)
     # Simple model
     ev2 = np.array([0] * N + [2] * N)
     mat02 = scipy.sparse.diags(ev2, dtype=complex, format='csr')
@@ -20,7 +20,8 @@ def test_simple_model():
         V[i + N, i] = 1
     mat12 = {'x': V.tocsr()}
 
-    model = trace_perturbation(mat02, mat12, order=order, kpm_params=kpm_params)
+    model = trace_perturbation(mat02, mat12, order=order, kpm_params=kpm_params,
+                               num_moments=200, num_vectors=10)
 
     # Step function
     def func(x):
@@ -44,8 +45,9 @@ def test_simple_model():
     a = np.array([1] * N + [0] * N) / np.sqrt(N)
     operator = Model({1: LinearOperator((2 * N, 2 * N), lambda v: v.T - a * (a.dot(v)))})
     operator *= 1/(N-1)
-    kpm_params = dict(num_moments=1000, num_vectors=10, operator=operator)
-    model = trace_perturbation(mat02, mat12, order=2, kpm_params=kpm_params)
+    model = trace_perturbation(mat02, mat12, order=2, kpm_params=kpm_params,
+                               num_moments=200, num_vectors=10,
+                               operator=operator)
 
     res3 = model(func)
     assert all([allclose(v, exact2[k], atol=atol) for k, v in res3.items()]), res3 - exact2
