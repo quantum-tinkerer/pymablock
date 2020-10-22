@@ -1,18 +1,18 @@
-image: quantumtinkerer/research
+image: gitlab.kwant-project.org:5005/qt/research-docker
 
 stages:
   # - run analysis
-  - build documents
-  - run tests
+- build documents
+- run tests
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   EXEC_TIMEOUT: 180
 
 before_script:
-  - shopt -s nullglob  # sane behaviour when globs do not match
-  - pip install gitlab-ci-tools  # for last-good-build
-  - LAST_GOOD_SHA=$(last-good-build || echo '')
+- shopt -s nullglob    # sane behaviour when globs do not match
+- pip install gitlab-ci-tools    # for last-good-build
+- LAST_GOOD_SHA=$(last-good-build || echo '')
 
 # run analysis:
 #   script:
@@ -28,29 +28,29 @@ before_script:
 
 
 .pdf-build: &pdf_build
-  image: quantumtinkerer/research
+  image: gitlab.kwant-project.org:5005/qt/research-docker
   stage: build documents
   script:
-    - cd $CWD
-    - if [ -d images ]; then
-    -   cd images
-    -   for image in *.svg; do
-    -     inkscape -Dz --export-pdf="${image%.*}" $image
-    -   done
-    -   cd ..
-    -  fi
-    - for tex in *.tex; do
-    -   if grep "documentclass" $tex >/dev/null; then
-    -     latexmk -pdf $tex
-    -     DIFF="$(git diff $LAST_GOOD_SHA -- $tex || echo '')"
-    -     if [ "$LAST_GOOD_SHA" ] && [ "$DIFF" ]; then
-    -       git show $LAST_GOOD_SHA:$CWD/$tex > old_$tex
-    -       latexdiff old_$tex $tex > diff_$tex
-    -       rm old_$tex
-    -       latexmk -pdf diff_$tex
-    -     fi
-    -   fi
-    - done
+  - cd $CWD
+  - if [ -d images ]; then
+  - cd images
+  - for image in *.svg; do
+  - inkscape -Dz --export-pdf="${image%.*}" $image
+  - done
+  - cd ..
+  - fi
+  - for tex in *.tex; do
+  - if grep "documentclass" $tex >/dev/null; then
+  - latexmk -pdf $tex
+  - DIFF="$(git diff $LAST_GOOD_SHA -- $tex || echo '')"
+  - if [ "$LAST_GOOD_SHA" ] && [ "$DIFF" ]; then
+  - git show $LAST_GOOD_SHA:$CWD/$tex > old_$tex
+  - latexdiff old_$tex $tex > diff_$tex
+  - rm old_$tex
+  - latexmk -pdf diff_$tex
+  - fi
+  - fi
+  - done
 
 build notes:
   <<: *pdf_build
@@ -58,26 +58,28 @@ build notes:
     CWD: notes
   artifacts:
     paths:
-      - notes/notes.pdf
-      - notes/diff_notes.pdf
+    - notes/notes.pdf
+    - notes/diff_notes.pdf
     expire_in: 1 month
   stage: build documents
 
+  image: gitlab.kwant-project.org:5005/qt/research-docker
 build publication:
   <<: *pdf_build
   variables:
     CWD: publication
   artifacts:
     paths:
-      - publication/*.pdf
+    - publication/*.pdf
     expire_in: 1 month
   stage: build documents
 
+  image: gitlab.kwant-project.org:5005/qt/research-docker
 run tests:
   script:
-    - conda install -y -q pytest-cov
-    - py.test codes/tests/ --cov=codes --verbose --cov-report html --cov-report term
+  - conda install -y -q pytest-cov
+  - py.test codes/tests/ --cov=codes --verbose --cov-report html --cov-report term
   artifacts:
     paths:
-      - htmlcov
+    - htmlcov
   stage: run tests
