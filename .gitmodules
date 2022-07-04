@@ -1,6 +1,3 @@
 [submodule "data"]
 	url = ../lowdin-data
 	path = data
-[submodule "codes/_qsymm"]
-	url = ../qsymm
-	path = .qsymm
