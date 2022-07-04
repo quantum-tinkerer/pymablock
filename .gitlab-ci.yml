@@ -75,7 +75,7 @@ build publication:
 
 run tests:
   script:
-    - conda install -y -q pytest-cov
+    - pip install pytest-cov
     - py.test codes/tests/ --cov=codes --verbose --cov-report html --cov-report term
   artifacts:
     paths:
