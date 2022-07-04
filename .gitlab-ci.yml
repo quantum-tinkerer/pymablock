@@ -27,7 +27,7 @@ before_script:
 #   stage: run analysis
 
 
-.pdf-build: &pdf_build
+.pdf-build:
   image: quantumtinkerer/research
   stage: build documents
   script:
@@ -52,19 +52,19 @@ before_script:
     -   fi
     - done
 
-build notes:
-  <<: *pdf_build
+pages:
+  extends: .pdf-build
   variables:
     CWD: notes
+  after_script:
+    - mkdir public && cp notes/*.pdf public
   artifacts:
     paths:
-      - notes/notes.pdf
-      - notes/diff_notes.pdf
-    expire_in: 1 month
+      - public
   stage: build documents
 
 build publication:
-  <<: *pdf_build
+  extends: .pdf-build
   variables:
     CWD: publication
   artifacts:
