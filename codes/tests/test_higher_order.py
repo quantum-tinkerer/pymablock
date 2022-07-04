@@ -1,8 +1,8 @@
 import numpy as np
 import sympy
 from codes.higher_order_lowdin import effective_model
-from codes.qsymm.model import Model
-from codes.qsymm.linalg import allclose
+from qsymm.model import Model
+from qsymm.linalg import allclose
 
 def test_simple_model():
     order = 8

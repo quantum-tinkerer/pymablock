@@ -1,7 +1,7 @@
 import numpy as np
 import scipy
 from codes.trace_perturbation import trace_perturbation
-from codes.qsymm.model import Model
+from qsymm.model import Model
 from ..qsymm.linalg import allclose
 from scipy.sparse.linalg import LinearOperator
 
