@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 from codes.trace_perturbation import trace_perturbation
 from qsymm.model import Model
-from ..qsymm.linalg import allclose
+from qsymm.linalg import allclose
 from scipy.sparse.linalg import LinearOperator
 
 def test_simple_model():
