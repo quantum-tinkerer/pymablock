@@ -28,7 +28,7 @@ before_script:
 
 
 .pdf-build:
-  image: quantumtinkerer/research
+  image: gitlab.kwant-project.org:5005/qt/research-docker
   stage: build documents
   script:
     - cd $CWD
