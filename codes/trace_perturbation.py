@@ -5,7 +5,7 @@ import scipy.sparse
 import kwant.kpm
 from kwant._common import ensure_rng
 
-from .qsymm.model import Model, _symbol_normalizer
+from qsymm.model import Model, _symbol_normalizer
 
 from .higher_order_lowdin import _interesting_keys
 from .kpm_funcs import _kpm_preprocess

@@ -10,7 +10,7 @@ import kwant
 
 from .kpm_funcs import build_greens_function
 from .misc import make_commutative, monomials, discretize_with_hoppings
-from .qsymm.linalg import simult_diag
+from qsymm.linalg import simult_diag
 
 
 # Code responsible for preparation of the initial Hamiltonian

@@ -8,7 +8,7 @@ import sympy
 
 from .perturbationS import Y_i
 from .kpm_funcs import greens_function
-from .qsymm.model import allclose, Model, _symbol_normalizer
+from qsymm.model import allclose, Model, _symbol_normalizer
 
 
 def _interesting_keys(keys, order=2):
