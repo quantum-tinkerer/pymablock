@@ -111,7 +111,6 @@ def _block_commute_2(H, S):
     res_BA = H_BA @ (S_AB @ S_BA) - S_BA @ (H_AB @ S_BA) - S_BA @ res_AA
     return ((0, res_AB), (res_BA, 0))
 
-# +
 def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
                         kpm_params=dict(), _precalculate_moments=False):
     """Return effective model for given perturbation.
@@ -246,11 +245,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         assert all((Y_AB.format is np.ndarray, S_AB_i.format is np.ndarray, S_BA_i.format is np.ndarray))
         S_AB.append(S_AB_i)
         S_BA.append(S_BA_i)
-    print('changed')
-    return S_AB, S_BA
-
-
-"""
+  
     S_AB = sum(S_AB)
     S_BA = -S_AB.T().conj()
     S = ((0, S_AB), (S_BA, 0))
@@ -282,4 +277,3 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
         assert Hd == Hd.T().conj(), Hd.toarray()
 
     return Hd
-"""
