@@ -137,13 +137,17 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
         U_AB_next = np.zeros((N_A, N_B), dtype=complex)
         U_BB_next = np.zeros((N_B, N_B), dtype=complex)
         # i=0 term from the sum in the expression from the note
-        Y_next = -(
-            U_AAn[n-1] @ H_p_AA @ (U_ABn[0] + V_ABn[0])
-            + U_AAn[n-1] @ H_p_AB @ U_BBn[0]
-            + (U_ABn[n-1] - V_ABn[n-1]) @ H_p_AB.conj().T @ (U_ABn[0] + V_ABn[0])
-            + (U_ABn[n-1] - V_ABn[n-1]) @ H_p_BB @ U_BBn[0]
-        )
-        for i in range(1, n):
+        Y_next = np.zeros_like(U_AB_next)
+        for i in range(n):
+            Y_next -= (
+                + U_AAn[n-i-1] @ H_p_AA @ (U_ABn[i] + V_ABn[i])
+                + U_AAn[n-i-1] @ H_p_AB @ U_BBn[i]
+                + (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p_AB.conj().T @ (U_ABn[i] + V_ABn[i])
+                + (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p_BB @ U_BBn[i]
+            )
+            if not i:
+                continue  # Most terms in the sums go from 1.
+
             U_AA_next -= (
                 U_AAn[n-i] @ U_AAn[i]
                 + (U_ABn[n-i] - V_ABn[n-i]) @ (U_ABn[i] - V_ABn[i]).conj().T
@@ -158,12 +162,7 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
             Y_next -= (
                 # H_0 terms
                 U_AAn[n-i] @ H_0_AA @ (U_ABn[i] + V_ABn[i])
-                - (U_ABn[n-i] - V_ABn[n-i]) @ H_0_BB @ U_BBn[i]
-                # H_1 terms
-                + U_AAn[n-i-1] @ H_p_AA @ (U_ABn[i] + V_ABn[i])
-                + U_AAn[n-i-1] @ H_p_AB @ U_BBn[i]
-                + (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p_AB.conj().T @ (U_ABn[i] + V_ABn[i])
-                + (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p_BB @ U_BBn[i]
+                + (U_ABn[n-i] - V_ABn[n-i]) @ H_0_BB @ U_BBn[i]
             )
 
         U_AAn.append(U_AA_next)
@@ -230,11 +229,6 @@ strengths = np.logspace(-3, -1)
 pert_energies = np.array([E_pert(strength, H_tilde_n) for strength in strengths])
 exact_energies = np.array([E_exact(strength, H_0, H_p) for strength in strengths])
 
-plt.plot(strengths, np.abs(pert_energies - exact_energies) / strengths.reshape(-1, 1)**wanted_order)
-plt.loglog()
-plt.title("Energies should be exact up to wanted order")
-plt.figure()
-
 plt.figure()
 plt.plot(
     strengths,
@@ -244,5 +238,7 @@ plt.loglog()
 plt.title("Matrices should be unitary to given order")
 
 plt.imshow(np.abs(H_tilde_n[3]))
+
+[np.linalg.norm(U_AB) for U_AB in U_ABn]
 
 plt.imshow(np.abs(U_n[4]))
