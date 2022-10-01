@@ -214,7 +214,7 @@ for H_tilde_ord in H_tilde_n:
     non_hermiticity = np.linalg.norm(H_tilde_ord - H_tilde_ord.T.conj())
     assert non_hermiticity < 1e-10, non_hermiticity
     
-def unitarity(strenth, U_n, V_n):
+def unitarity(strength, U_n, V_n):
     U = sum(
         (strength**i * (U + V) for i, (U, V) in enumerate(zip(U_n, V_n))),
         np.zeros_like(U_n[0])
@@ -256,38 +256,3 @@ plt.plot(
 )
 plt.loglog()
 plt.title("Matrices should be unitary to given order")
-# -
-
-# Exact diagonalization
-plt.imshow(np.diag(evals.real), cmap='seismic')
-plt.colorbar()
-
-if wanted_order==0:
-    H_tilde_sum = H_tilde_n[0]
-else:
-    H_tilde_sum = np.sum(H_tilde_n, axis=0)
-
-# Lowdin result
-plt.imshow(H_tilde_sum.real, cmap='seismic')
-plt.colorbar()
-
-# Difference between Lowdin and exact diagonalization
-plt.imshow(np.diag(evals.real)-H_tilde_sum.real/(2*wanted_order+2),
-           vmin=-np.max(np.abs(np.diag(evals.real)-H_tilde_sum.real/(2*wanted_order+2))),
-           vmax=np.max(np.abs(np.diag(evals.real)-H_tilde_sum.real/(2*wanted_order+2))),
-           cmap='seismic'
-          ) # factor of 2 mismatch
-plt.colorbar()
-
-# :) :tada:
-
-# **There is a factor of 2 mismatch per order of H**, but that's for later 
-
-# #### Other plots
-
-H_tilde_order = H_tilde_n[1].real
-plt.imshow(H_tilde_order,
-           vmin=-np.max(np.abs(H_tilde_order)),
-           vmax=np.max(np.abs(H_tilde_order)),
-           cmap='seismic')
-plt.colorbar()
