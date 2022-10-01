@@ -89,15 +89,6 @@ sympy.block_collapse(H_tilde_n[1]).blocks[1, 0] # should be 0 and give condition
 
 # ### Computing $U_n$ and $V_n$
 
-# These are the blocks computed recursively
-# $$
-# \begin{align}
-# -2U_n^{AA} &= \sum_{i=1}^{n-1} \left(U_{n-i}^{AA}U_i^{AA} + (U_{n-i}^{AB} + V_{n-i}^{AB})(U_i^{AB} + V_i^{AB})^\dagger\right)\\
-# -2U_n^{BB} &= \sum_{i=1}^{n-1} \left(U_{n-i}^{BB}U_i^{BB} + (U_{n-i}^{AB} - V_{n-i}^{AB})^\dagger (U_i^{AB} - V_{n-i}^{AB})\right)\\
-# -2U_n^{AB} &= \sum_{i=1}^{n-1} \left(U_{n-i}^{AA}(U_i^{AB} + V_i^{AB}) + (U_{n-i}^{AB} - V_{n-i}^{AB}) U_i^{BB}\right)\\
-# \end{align}
-# $$
-
 def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
     """
     H_0 : np Hamiltonian in eigenbasis and ordered by eigenenergy.
@@ -145,7 +136,7 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
         U_AA_next = np.zeros((N_A, N_A), dtype=complex)
         U_AB_next = np.zeros((N_A, N_B), dtype=complex)
         U_BB_next = np.zeros((N_B, N_B), dtype=complex)
-        # 0th term from the sum in the expression from the note
+        # i=0 term from the sum in the expression from the note
         Y_next = -(
             U_AAn[n-1] @ H_p_AA @ (U_ABn[0] + V_ABn[0])
             + U_AAn[n-1] @ H_p_AB @ U_BBn[0]
@@ -155,14 +146,14 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
         for i in range(1, n):
             U_AA_next -= (
                 U_AAn[n-i] @ U_AAn[i]
-                + (U_ABn[n-i] + V_ABn[n-i]) @ (U_ABn[i] + V_ABn[i]).conj().T
+                + (U_ABn[n-i] - V_ABn[n-i]) @ (U_ABn[i] - V_ABn[i]).conj().T
             ) / 2
             U_AB_next -= (
                 U_AAn[n-i] @ (U_ABn[i] + V_ABn[i]) + (U_ABn[n-i] - V_ABn[n-i]) @ U_BBn[i]
             ) / 2
             U_BB_next -= (
                 U_BBn[n-i] @ U_BBn[i]
-                + (U_ABn[n-i] - V_ABn[n-i]).conj().T @ (U_ABn[i] - V_ABn[i])
+                + (U_ABn[n-i] + V_ABn[n-i]).conj().T @ (U_ABn[i] + V_ABn[i])
             ) / 2
             Y_next -= (
                 # H_0 terms
@@ -213,13 +204,15 @@ H_tilde_n = H_tilde(H_0, H_p, wanted_order, U_n, V_n)
 for H_tilde_ord in H_tilde_n:
     non_hermiticity = np.linalg.norm(H_tilde_ord - H_tilde_ord.T.conj())
     assert non_hermiticity < 1e-10, non_hermiticity
-    
+
+[print(f"{np.linalg.norm(H_tilde[:N_A, N_A:])=}") for H_tilde in H_tilde_n]
+
 def unitarity(strength, U_n, V_n):
-    U = sum(
+    U_tot = sum(
         (strength**i * (U + V) for i, (U, V) in enumerate(zip(U_n, V_n))),
         np.zeros_like(U_n[0])
     )
-    return np.linalg.norm(U.T.conj() @ U - np.identity(U_n[0].shape[0]))
+    return np.linalg.norm(U_tot.T.conj() @ U_tot - np.identity(U_n[0].shape[0]))
 
 def H_pert(strength, H_tilde_n):
     return sum(
@@ -242,13 +235,6 @@ plt.loglog()
 plt.title("Energies should be exact up to wanted order")
 plt.figure()
 
-plt.plot(
-    strengths,
-    [np.linalg.norm(H_pert(strength, H_tilde_n)[:N_A, N_A:]) for strength in strengths] / strengths**wanted_order
-)
-plt.loglog()
-plt.title("Offdiagonal blocks should vanish to given order")
-
 plt.figure()
 plt.plot(
     strengths,
@@ -256,3 +242,7 @@ plt.plot(
 )
 plt.loglog()
 plt.title("Matrices should be unitary to given order")
+
+plt.imshow(np.abs(H_tilde_n[3]))
+
+plt.imshow(np.abs(U_n[4]))
