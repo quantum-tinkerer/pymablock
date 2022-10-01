@@ -63,15 +63,15 @@ zero = BlockMatrix([[ZeroMatrix(N/2, N/2), ZeroMatrix(N/2, N/2)], [ZeroMatrix(N/
 def H_tilde(H_0, H_p, wanted_order, U_n, V_n):
     """Returns H tilde to a certain order"""
     H_tilde_n = []
-    
-    if isinstance(V_n[0], sympy.matrices.expressions.blockmatrix.BlockMatrix):
-        first_term = zero
-        second_term = zero
-    else:
-        first_term = np.zeros_like(V_n[0])
-        second_term = np.zeros_like(V_n[0])
 
     for n in range(0, wanted_order+1):
+        if isinstance(V_n[0], sympy.matrices.expressions.blockmatrix.BlockMatrix):
+            first_term = zero
+            second_term = zero
+        else:
+            first_term = np.zeros_like(V_n[0])
+            second_term = np.zeros_like(V_n[0])
+
         for i in range(0, n + 1):
             first_term += (U_n[n-i] - V_n[n-i]) @ H_0 @ (U_n[i] + V_n[i])
             if i<n:
@@ -113,7 +113,7 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
     N = H_0.shape[0]
     if N_A is None:
         N_A = N // 2
-    N_B = N - N_A
+
     H_0_AA = H_0[:N_A, :N_A]
     H_0_BB = H_0[N_A:, N_A:]
     H_p_AA = H_p[:N_A, :N_A]
@@ -188,7 +188,7 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
 # ### Testing
 
 # +
-wanted_order = 2
+wanted_order = 4
 N_A = 4
 N_B = 5
 N = N_A + N_B
