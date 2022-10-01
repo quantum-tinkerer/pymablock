@@ -213,6 +213,13 @@ H_tilde_n = H_tilde(H_0, H_p, wanted_order, U_n, V_n)
 for H_tilde_ord in H_tilde_n:
     non_hermiticity = np.linalg.norm(H_tilde_ord - H_tilde_ord.T.conj())
     assert non_hermiticity < 1e-10, non_hermiticity
+    
+def unitarity(strenth, U_n, V_n):
+    U = sum(
+        (strength**i * (U + V) for i, (U, V) in enumerate(zip(U_n, V_n))),
+        np.zeros_like(U_n[0])
+    )
+    return np.linalg.norm(U.T.conj() @ U - np.identity(U_n[0].shape[0]))
 
 def H_pert(strength, H_tilde_n):
     return sum(
@@ -229,16 +236,26 @@ def E_exact(strength, H_0, H_p):
 strengths = np.logspace(-3, -1)
 pert_energies = np.array([E_pert(strength, H_tilde_n) for strength in strengths])
 exact_energies = np.array([E_exact(strength, H_0, H_p) for strength in strengths])
+
 plt.plot(strengths, np.abs(pert_energies - exact_energies) / strengths.reshape(-1, 1)**wanted_order)
 plt.loglog()
 plt.title("Energies should be exact up to wanted order")
 plt.figure()
+
 plt.plot(
     strengths,
     [np.linalg.norm(H_pert(strength, H_tilde_n)[:N_A, N_A:]) for strength in strengths] / strengths**wanted_order
 )
 plt.loglog()
 plt.title("Offdiagonal blocks should vanish to given order")
+
+plt.figure()
+plt.plot(
+    strengths,
+    [unitarity(strength, U_n, V_n) for strength in strengths] / strengths**wanted_order
+)
+plt.loglog()
+plt.title("Matrices should be unitary to given order")
 # -
 
 # Exact diagonalization
