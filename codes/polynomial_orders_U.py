@@ -85,7 +85,6 @@ sympy.block_collapse(H_tilde_n[1]).blocks[0, 1] # should be 0 and give condition
 
 sympy.block_collapse(H_tilde_n[1]).blocks[1, 0] # should be 0 and give condition for V^AB
 
-
 # ### Computing $U_n$ and $V_n$
 
 # These are the blocks computed recursively
@@ -97,7 +96,10 @@ sympy.block_collapse(H_tilde_n[1]).blocks[1, 0] # should be 0 and give condition
 # \end{align}.
 # $$
 
-def compute_next_orders(H_0, H_p, wanted_order):
+np.arange(4).reshape(-1, 1) + np.arange(5)
+
+
+def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
     """
     H_0 : np Hamiltonian in eigenbasis and ordered by eigenenergy.
     H_p : np Hamiltonian in eigenbasis of H_0
@@ -109,76 +111,81 @@ def compute_next_orders(H_0, H_p, wanted_order):
     U_BBn : list of BB block matrices up to order wanted_order
     V_ABn : list of AB block matrices up to order wanted_order
     """
-    # Simplification: A and B subspaces have equal dimension
     N = H_0.shape[0]
-    N_A = N_B = int(N/2)
-    assert N%2==0 
-    
+    if N_A is None:
+        N_A = N // 2
+    N_B = N - N_A
+    H_p_AA = H_p[:N_A, :N_A]
+    H_p_AB = H_p[:N_A, N_A:]
+    H_p_BB = H_p[N_A:, N_A:]
+
     # Blocks of U and V
     # 0th order
-    U_AAn = [np.eye(N_A)]
+    U_AAn = [np.eye(N_A, dtype=complex)]
     U_ABn = [np.zeros((N_A, N_B), dtype=complex)]
     U_BBn = [np.eye(N_B, dtype=complex)]
     V_ABn = [np.zeros((N_A, N_B), dtype=complex)]
+    if wanted_order = 0:
+        return U_AAn, U_ABn, U_BBn, V_ABn
     
     #1st order
     E_A = np.diag(H_0)[:N_A]
     E_B = np.diag(H_0)[N_A:]
-    energy_differences = 1/(np.tile(E_A, [N_B, 1]).T - np.tile(E_B, [N_A, 1]))
+    energy_denominators = 1/(E_A.reshape(-1, 1) - E_B)
     
     U_AAn.append(np.zeros((N_A, N_A), dtype=complex))
     U_ABn.append(np.zeros((N_A, N_B), dtype=complex))
     U_BBn.append(np.zeros((N_B, N_B), dtype=complex))
     V_ABn.append((       
-                 U_AAn[0] @ H_p[:N_A, :N_A] @ (U_ABn[0] + V_ABn[0]) +
-                 U_AAn[0] @ H_p[:N_A, N_A:] @ U_BBn[0] +
-                 (U_ABn[0] - V_ABn[0]) @ H_p[:N_A, N_A:].conj().T @ (U_ABn[0] + V_ABn[0]) +
-                 (U_ABn[0] - V_ABn[0]) @ H_p[N_A:, N_A:] @ U_BBn[0]
-                 )/energy_differences
+                 U_AAn[0] @ H_p_AA @ (U_ABn[0] + V_ABn[0]) +
+                 U_AAn[0] @ H_p_AB @ U_BBn[0] +
+                 (U_ABn[0] - V_ABn[0]) @ H_p_AB.conj().T @ (U_ABn[0] + V_ABn[0]) +
+                 (U_ABn[0] - V_ABn[0]) @ H_p_BB @ U_BBn[0]
+                 ) * energy_denominators
                 ) # V_1
-    if wanted_order < 2:
+    if wanted_order = 1:
         return U_AAn, U_ABn, U_BBn, V_ABn
-    else:
-        for n in range(2, wanted_order+1):
-            U_AA_next = np.zeros((N_A, N_A), dtype=complex)
-            U_AB_next = np.zeros((N_A, N_B), dtype=complex)
-            U_BB_next = np.zeros((N_B, N_B), dtype=complex)
-            Y_next = -(
-                        U_AAn[n-1] @ H_p[:N_A, :N_A] @ (U_ABn[0] + V_ABn[0]) +
-                        U_AAn[n-1] @ H_p[:N_A, N_A:] @ U_BBn[0] +
-                        (U_ABn[n-1] - V_ABn[n-1]) @ H_p[:N_A, N_A:].conj().T @ (U_ABn[0] + V_ABn[0]) +
-                        (U_ABn[n-1] - V_ABn[n-1]) @ H_p[N_A:, N_A:] @ U_BBn[0]
-                      )
-            for i in range(1, n):
-                U_AA_next -= (
-                              U_AAn[n-i] @ U_AAn[i] + U_ABn[n-i] @ U_ABn[i].conj().T +
-                              U_ABn[n-i] @ V_ABn[i].conj().T + V_ABn[n-i] @ U_ABn[i].conj().T +
-                              V_ABn[n-i] @ V_ABn[i].conj().T
-                             )/2
-                U_AB_next -= (
-                              U_AAn[n-i] @ U_ABn[i] + U_ABn[n-i] @ U_BBn[i] -
-                              V_ABn[n-i] @ U_BBn[i] + U_AAn[n-i] @ V_ABn[i]
-                             )/2
-                U_BB_next -= (
-                              U_BBn[n-i] @ U_BBn[i] + U_ABn[n-i].conj().T @ U_ABn[i] -
-                              U_ABn[n-i].conj().T @ V_ABn[i] - V_ABn[n-i].conj().T @ U_ABn[i] +
-                              V_ABn[n-i].conj().T @ V_ABn[i]
-                             )/2
-                Y_next -= (
-                            U_ABn[n-i] @ H_0[:N_A, :N_A] @ (U_ABn[i] + V_ABn[i]) +
-                            (U_ABn[n-i] - V_ABn[n-i]) @ H_0[N_A:, N_A:] @ U_BBn[i] +
-                            U_AAn[n-i-1] @ H_p[:N_A, :N_A] @ (U_ABn[i] + V_ABn[i]) +
-                            U_AAn[n-i-1] @ H_p[:N_A, N_A:] @ U_BBn[i] +
-                            (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p[:N_A, N_A:].conj().T @ (U_ABn[i] + V_ABn[i]) +
-                            (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p[N_A:, N_A:] @ U_BBn[i]
-                            )
 
-            U_AAn.append(U_AA_next)
-            U_ABn.append(U_AB_next)
-            U_BBn.append(U_BB_next)
-            
-            Y_next -= H_0[:N_A, :N_A] @ U_AB_next + U_AB_next @ H_0[N_A:, N_A:]
-            V_ABn.append(Y_next/energy_differences)
+    for n in range(2, wanted_order+1):
+        U_AA_next = np.zeros((N_A, N_A), dtype=complex)
+        U_AB_next = np.zeros((N_A, N_B), dtype=complex)
+        U_BB_next = np.zeros((N_B, N_B), dtype=complex)
+        Y_next = -(
+            U_AAn[n-1] @ H_p_AA @ (U_ABn[0] + V_ABn[0]) +
+            U_AAn[n-1] @ H_p[:N_A, N_A:] @ U_BBn[0] +
+            (U_ABn[n-1] - V_ABn[n-1]) @ H_p[:N_A, N_A:].conj().T @ (U_ABn[0] + V_ABn[0]) +
+            (U_ABn[n-1] - V_ABn[n-1]) @ H_p[N_A:, N_A:] @ U_BBn[0]
+        )
+        for i in range(1, n):
+            U_AA_next -= (
+                U_AAn[n-i] @ U_AAn[i] + U_ABn[n-i] @ U_ABn[i].conj().T +
+                U_ABn[n-i] @ V_ABn[i].conj().T + V_ABn[n-i] @ U_ABn[i].conj().T +
+                V_ABn[n-i] @ V_ABn[i].conj().T
+            ) / 2
+            U_AB_next -= (
+                U_AAn[n-i] @ U_ABn[i] + U_ABn[n-i] @ U_BBn[i] -
+                V_ABn[n-i] @ U_BBn[i] + U_AAn[n-i] @ V_ABn[i]
+            ) / 2
+            U_BB_next -= (
+                U_BBn[n-i] @ U_BBn[i] + U_ABn[n-i].conj().T @ U_ABn[i] -
+                U_ABn[n-i].conj().T @ V_ABn[i] - V_ABn[n-i].conj().T @ U_ABn[i] +
+                V_ABn[n-i].conj().T @ V_ABn[i]
+            ) / 2
+            Y_next -= (
+                U_ABn[n-i] @ H_p_AB.T.conj() @ (U_ABn[i] + V_ABn[i]) +
+                (U_ABn[n-i] - V_ABn[n-i]) @ H_p_BB @ U_BBn[i] +
+                U_AAn[n-i-1] @ H_p_AA @ (U_ABn[i] + V_ABn[i]) +
+                U_AAn[n-i-1] @ H_p_AB @ U_BBn[i] +
+                (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p_AB.conj().T @ (U_ABn[i] + V_ABn[i]) +
+                (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p_BB @ U_BBn[i]
+            )
+
+        U_AAn.append(U_AA_next)
+        U_ABn.append(U_AB_next)
+        U_BBn.append(U_BB_next)
+
+        Y_next -= H_0[:N_A, :N_A] @ U_AB_next + U_AB_next @ H_0[N_A:, N_A:]
+        V_ABn.append(Y_next * energy_denominators)
         
     return U_AAn, U_ABn, U_BBn, V_ABn
 
@@ -187,22 +194,24 @@ def compute_next_orders(H_0, H_p, wanted_order):
 
 # +
 wanted_order = 4
-N_A = N_B = 4
-H_0 = np.diag([-1, -1, -1, -1, 1, 1, 1, 1])
+N_A = 4
+N_B = 5
+N = N_A + N_B
+H_0 = np.diag(np.sort(np.random.randn(N)))
 
 strength = 0.0001
-H_p = np.random.random(size=(N_A+N_B, N_A+N_B)) + 1j * np.random.random(size=(N_A+N_B, N_A+N_B)) 
+H_p = np.random.random(size=(N, N)) + 1j * np.random.random(size=(N, N))
 H_p += H_p.conj().T
 H_p = strength * H_p
 # -
 
-U_AAn, U_ABn, U_BBn, V_ABn = compute_next_orders(H_0, H_p, wanted_order) 
+U_AAn, U_ABn, U_BBn, V_ABn = compute_next_orders(H_0, H_p, wanted_order, N_A=N_A)
 
 evals, evecs = np.linalg.eigh(H_0 + H_p)
 
 # +
 U_n = [np.block([[U_AA, U_AB], [U_AB.conj().T, U_BB]]) for U_AA, U_AB, U_BB in zip(U_AAn, U_ABn, U_BBn)]
-V_n = [np.block([[np.zeros((N_A, N_B)), V_AB], [-V_AB.conj().T, np.zeros((N_B, N_A))]]) for V_AB in V_ABn]
+V_n = [np.block([[np.zeros((N_A, N_A)), V_AB], [-V_AB.conj().T, np.zeros((N_B, N_B))]]) for V_AB in V_ABn]
 
 H_tilde_n = H_tilde(H_0, H_p, wanted_order, U_n, V_n)
 # -
