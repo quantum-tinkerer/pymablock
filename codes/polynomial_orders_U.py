@@ -97,7 +97,6 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
     
     Returns:
     U_AAn : list of AA block matrices up to order wanted_order
-    U_ABn : list of AB block matrices up to order wanted_order
     U_BBn : list of BB block matrices up to order wanted_order
     V_ABn : list of AB block matrices up to order wanted_order
     """
@@ -114,11 +113,10 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
     # Blocks of U and V
     # 0th order
     U_AAn = [np.eye(N_A, dtype=complex)]
-    U_ABn = [np.zeros((N_A, N_B), dtype=complex)]
     U_BBn = [np.eye(N_B, dtype=complex)]
     V_ABn = [np.zeros((N_A, N_B), dtype=complex)]
     if wanted_order == 0:
-        return U_AAn, U_ABn, U_BBn, V_ABn
+        return U_AAn, U_BBn, V_ABn
     
     #1st order
     E_A = np.diag(H_0)[:N_A]
@@ -126,59 +124,41 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
     energy_denominators = 1/(E_A.reshape(-1, 1) - E_B)
     
     U_AAn.append(np.zeros((N_A, N_A), dtype=complex))
-    U_ABn.append(np.zeros((N_A, N_B), dtype=complex))
     U_BBn.append(np.zeros((N_B, N_B), dtype=complex))
     V_ABn.append(-H_p_AB * energy_denominators)
     if wanted_order == 1:
-        return U_AAn, U_ABn, U_BBn, V_ABn
+        return U_AAn, U_BBn, V_ABn
 
     for n in range(2, wanted_order+1):
         U_AA_next = np.zeros((N_A, N_A), dtype=complex)
-        U_AB_next = np.zeros((N_A, N_B), dtype=complex)
         U_BB_next = np.zeros((N_B, N_B), dtype=complex)
         # i=0 term from the sum in the expression from the note
-        Y_next = np.zeros_like(U_AB_next)
+        Y_next = np.zeros_like(V_ABn[0])
         for i in range(n):
             Y_next -= (
-                + U_AAn[n-i-1] @ H_p_AA @ (U_ABn[i] + V_ABn[i])
+                + U_AAn[n-i-1] @ H_p_AA @ V_ABn[i]
                 + U_AAn[n-i-1] @ H_p_AB @ U_BBn[i]
-                + (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p_AB.conj().T @ (U_ABn[i] + V_ABn[i])
-                + (U_ABn[n-i-1] - V_ABn[n-i-1]) @ H_p_BB @ U_BBn[i]
+                - V_ABn[n-i-1] @ H_p_AB.conj().T @ V_ABn[i]
+                - V_ABn[n-i-1] @ H_p_BB @ U_BBn[i]
             )
             if not i:
                 continue  # Most terms in the sums go from 1.
 
-            U_AA_next -= (
-                U_AAn[n-i] @ U_AAn[i]
-                + (U_ABn[n-i] - V_ABn[n-i]) @ (U_ABn[i] - V_ABn[i]).conj().T
-            ) / 2
-            U_AB_next -= (
-                U_AAn[n-i] @ (U_ABn[i] + V_ABn[i]) + (U_ABn[n-i] - V_ABn[n-i]) @ U_BBn[i]
-            ) / 2
-            U_BB_next -= (
-                U_BBn[n-i] @ U_BBn[i]
-                + (U_ABn[n-i] + V_ABn[n-i]).conj().T @ (U_ABn[i] + V_ABn[i])
-            ) / 2
-            Y_next -= (
-                # H_0 terms
-                U_AAn[n-i] @ H_0_AA @ (U_ABn[i] + V_ABn[i])
-                + (U_ABn[n-i] - V_ABn[n-i]) @ H_0_BB @ U_BBn[i]
-            )
+            U_AA_next -= (U_AAn[n-i] @ U_AAn[i] + V_ABn[n-i] @ V_ABn[i].conj().T) / 2
+            U_BB_next -= (U_BBn[n-i] @ U_BBn[i] + V_ABn[n-i].conj().T @ V_ABn[i]) / 2
+            Y_next -= U_AAn[n-i] @ H_0_AA @ V_ABn[i] - V_ABn[n-i] @ H_0_BB @ U_BBn[i]
 
         U_AAn.append(U_AA_next)
-        U_ABn.append(U_AB_next)
         U_BBn.append(U_BB_next)
-
-        Y_next -= H_0_AA @ U_AB_next + U_AB_next @ H_0_BB
         V_ABn.append(Y_next * energy_denominators)
         
-    return U_AAn, U_ABn, U_BBn, V_ABn
+    return U_AAn, U_BBn, V_ABn
 
 
 # ### Testing
 
 # +
-wanted_order = 4
+wanted_order = 5
 N_A = 4
 N_B = 5
 N = N_A + N_B
@@ -189,22 +169,20 @@ H_p += H_p.conj().T
 H_p = H_p
 # -
 
-U_AAn, U_ABn, U_BBn, V_ABn = compute_next_orders(H_0, H_p, wanted_order, N_A=N_A)
+U_AAn, U_BBn, V_ABn = compute_next_orders(H_0, H_p, wanted_order, N_A=N_A)
 assert all(U_AA.shape == (N_A, N_A) for U_AA in U_AAn)
-assert all(U_AB.shape == (N_A, N_B) for U_AB in U_ABn)
 assert all(U_BB.shape == (N_B, N_B) for U_BB in U_BBn)
 assert all(V_AB.shape == (N_A, N_B) for V_AB in V_ABn)
 
 # +
-U_n = [np.block([[U_AA, U_AB], [U_AB.conj().T, U_BB]]) for U_AA, U_AB, U_BB in zip(U_AAn, U_ABn, U_BBn)]
+U_n = [np.block([[U_AA, np.zeros((N_A, N_B))], [np.zeros((N_B, N_A)), U_BB]]) for U_AA, U_BB in zip(U_AAn, U_BBn)]
 V_n = [np.block([[np.zeros((N_A, N_A)), V_AB], [-V_AB.conj().T, np.zeros((N_B, N_B))]]) for V_AB in V_ABn]
 
 H_tilde_n = H_tilde(H_0, H_p, wanted_order, U_n, V_n)
 for H_tilde_ord in H_tilde_n:
     non_hermiticity = np.linalg.norm(H_tilde_ord - H_tilde_ord.T.conj())
     assert non_hermiticity < 1e-10, non_hermiticity
-
-[print(f"{np.linalg.norm(H_tilde[:N_A, N_A:])=}") for H_tilde in H_tilde_n]
+    assert np.linalg.norm(H_tilde_ord[:N_A, N_A:]) < 1e-10
 
 def unitarity(strength, U_n, V_n):
     U_tot = sum(
@@ -232,13 +210,7 @@ exact_energies = np.array([E_exact(strength, H_0, H_p) for strength in strengths
 plt.figure()
 plt.plot(
     strengths,
-    [unitarity(strength, U_n, V_n) for strength in strengths] / strengths**wanted_order
+    [unitarity(strength, U_n, V_n) for strength in strengths] / strengths**(wanted_order)
 )
 plt.loglog()
-plt.title("Matrices should be unitary to given order")
-
-plt.imshow(np.abs(H_tilde_n[3]))
-
-[np.linalg.norm(U_AB) for U_AB in U_ABn]
-
-plt.imshow(np.abs(U_n[4]))
+plt.title("Matrices are unitary to given order");
