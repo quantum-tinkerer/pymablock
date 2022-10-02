@@ -103,6 +103,7 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
     N = H_0.shape[0]
     if N_A is None:
         N_A = N // 2
+    N_B = N - N_A
 
     H_0_AA = H_0[:N_A, :N_A]
     H_0_BB = H_0[N_A:, N_A:]
@@ -167,7 +168,6 @@ H_0 = np.diag(np.sort(np.random.randn(N)))
 H_p = np.random.random(size=(N, N)) + 1j * np.random.random(size=(N, N))
 H_p += H_p.conj().T
 H_p = H_p
-# -
 
 U_AAn, U_BBn, V_ABn = compute_next_orders(H_0, H_p, wanted_order, N_A=N_A)
 assert all(U_AA.shape == (N_A, N_A) for U_AA in U_AAn)
@@ -214,3 +214,6 @@ plt.plot(
 )
 plt.loglog()
 plt.title("Matrices are unitary to given order");
+# -
+
+
