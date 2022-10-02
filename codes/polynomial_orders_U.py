@@ -1,7 +1,11 @@
+# # The polynomial alternative to Lowdin perturbation theory
+#
+# See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
+
 import numpy as np
 import sympy
 from sympy import (
-    Symbol, MatrixSymbol, Matrix,
+    symbols, Symbol, MatrixSymbol, Matrix,
     diff, BlockMatrix, BlockDiagMatrix,
     ZeroMatrix, Identity
 )
@@ -12,7 +16,7 @@ import matplotlib.pyplot as plt
 # ### Obtaining $\tilde{H}^{(n)AB}$
 
 # +
-N = Symbol('N')
+N, M = symbols('N M')
 
 U_AA = Symbol('U^{AA}')
 U_AB = Symbol('U^{AB}')
@@ -23,42 +27,32 @@ V_AB = Symbol('V^{AB}')
 # +
 wanted_order = 4
 
-H_AA = MatrixSymbol('H^{AA}_0', N/2, N/2)
-H_BB = MatrixSymbol('H^{BB}_0', N/2, N/2)
+H_AA = MatrixSymbol('H^{AA}_0', N, N)
+H_BB = MatrixSymbol('H^{BB}_0', M, M)
 
-H_1_AA = MatrixSymbol('H^{AA}_1', N/2, N/2)
-H_1_BB = MatrixSymbol('H^{BB}_1', N/2, N/2)
-H_2_AB = MatrixSymbol('H^{AB}_2', N/2, N/2)
+H_1_AA = MatrixSymbol('H^{AA}_1', N, N)
+H_1_BB = MatrixSymbol('H^{BB}_1', M, M)
+H_2_AB = MatrixSymbol('H^{AB}_2', N, M)
 H_2_BA = Dagger(H_2_AB)
 
-U_AAn = [Identity(N/2), ZeroMatrix(N/2, N/2)]
-U_ABn = [ZeroMatrix(N/2, N/2), ZeroMatrix(N/2, N/2)]
-U_BAn = [ZeroMatrix(N/2, N/2), ZeroMatrix(N/2, N/2)]
-U_BBn = [Identity(N/2), ZeroMatrix(N/2, N/2)]
-U_AAn += [MatrixSymbol(U_AA.name + '_{}'.format(n), N/2, N/2) for n in range(2, wanted_order + 1)]
-U_ABn += [MatrixSymbol(U_AB.name + '_{}'.format(n), N/2, N/2) for n in range(2, wanted_order + 1)]
-U_BAn += [Dagger(U_ABn[n]) for n in range(2, wanted_order + 1)]
-U_BBn += [MatrixSymbol(U_BB.name + '_{}'.format(n), N/2, N/2) for n in range(2, wanted_order + 1)]
+U_AAn = [Identity(N), ZeroMatrix(N, N)]
+U_BBn = [Identity(M), ZeroMatrix(M, M)]
+U_AAn += [MatrixSymbol(f'{U_AA.name}_{{{n}}}', N, N) for n in range(2, wanted_order + 1)]
+U_BBn += [MatrixSymbol(f'{U_BB.name}_{{{n}}}', M, M) for n in range(2, wanted_order + 1)]
 
-V_ABn = [ZeroMatrix(N/2, N/2), Identity(N/2)]
-V_BAn = [ZeroMatrix(N/2, N/2), -Identity(N/2)]
-V_ABn += [MatrixSymbol(V_AB.name + '_{}'.format(n), N/2, N/2) for n in range(2, wanted_order + 1)]
-V_BAn += [-Dagger(V_ABn[n]) for n in range(2, wanted_order + 1)]
+V_ABn = [ZeroMatrix(N, M)]
+V_ABn += [MatrixSymbol(V_AB.name + '_{}'.format(n), N, M) for n in range(1, wanted_order + 1)]
 
-H_0 = BlockMatrix([[H_AA, ZeroMatrix(N/2, N/2)], [ZeroMatrix(N/2, N/2), H_BB]])
+H_0 = BlockMatrix([[H_AA, ZeroMatrix(N, M)], [ZeroMatrix(M, N), H_BB]])
 H_p = BlockMatrix([[H_1_AA, H_2_AB], [H_2_BA, H_1_BB]])
 
-U_n = [BlockMatrix([[U_AAn[n], U_ABn[n]], [U_BAn[n], U_BBn[n]]]) for n in range(0, wanted_order + 1)]
-V_n = [BlockMatrix([[ZeroMatrix(N/2, N/2), V_ABn[n]], [V_BAn[n], ZeroMatrix(N/2, N/2)]]) for n in range(0, wanted_order + 1)]
+U_n = [BlockMatrix([[U_AA, ZeroMatrix(N, M)], [ZeroMatrix(M, N), U_BB]]) for U_AA, U_BB in zip(U_AAn, U_BBn)]
+V_n = [BlockMatrix([[ZeroMatrix(N, N), V_AB], [-Dagger(V_AB), ZeroMatrix(M, M)]]) for V_AB in V_ABn]
 
-zero = BlockMatrix([[ZeroMatrix(N/2, N/2), ZeroMatrix(N/2, N/2)], [ZeroMatrix(N/2, N/2), ZeroMatrix(N/2, N/2)]])
+zero = BlockMatrix([[ZeroMatrix(N, N), ZeroMatrix(N, M)], [ZeroMatrix(M, N), ZeroMatrix(M, M)]])
 
 
 # -
-
-# $$
-# \tilde{H}^{(n)} = \sum_{i=0}^n (U_{n-i} - V_{n-i}) H_0 (U_i + V_i) + \sum_{i=0}^{n-1} (U_{n-i-1} - V_{n-i-1}) H_p (U_i + V_i).
-# $$
 
 def H_tilde(H_0, H_p, wanted_order, U_n, V_n):
     """Returns H tilde to a certain order"""
@@ -82,7 +76,7 @@ def H_tilde(H_0, H_p, wanted_order, U_n, V_n):
 
 H_tilde_n = H_tilde(H_0, H_p, wanted_order, U_n, V_n)
 
-sympy.block_collapse(H_tilde_n[1]).blocks[0, 1] # should be 0 and give condition for V^AB
+sympy.block_collapse(H_tilde_n[3]).blocks[0, 1] # should be 0 and give condition for V^AB
 
 sympy.block_collapse(H_tilde_n[1]).blocks[1, 0] # should be 0 and give condition for V^AB
 
@@ -147,6 +141,8 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
             U_AA_next -= (U_AAn[n-i] @ U_AAn[i] + V_ABn[n-i] @ V_ABn[i].conj().T) / 2
             U_BB_next -= (U_BBn[n-i] @ U_BBn[i] + V_ABn[n-i].conj().T @ V_ABn[i]) / 2
 
+        if any(not np.all(np.isfinite(mat)) for mat in (U_AA_next, U_BB_next, Y_next)):
+            raise RuntimeError(f"Instability encountered in {n}th order.")
         U_AAn.append(U_AA_next)
         U_BBn.append(U_BB_next)
         V_ABn.append(Y_next * energy_denominators)
@@ -157,7 +153,7 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
 # ### Testing
 
 # +
-wanted_order = 5
+wanted_order = 200
 N_A = 4
 N_B = 5
 N = N_A + N_B
@@ -167,10 +163,7 @@ H_p = np.random.random(size=(N, N)) + 1j * np.random.random(size=(N, N))
 H_p += H_p.conj().T
 H_p = H_p
 
-U_AAn, U_BBn, V_ABn = compute_next_orders(H_0, H_p, wanted_order, N_A=N_A)
-assert all(U_AA.shape == (N_A, N_A) for U_AA in U_AAn)
-assert all(U_BB.shape == (N_B, N_B) for U_BB in U_BBn)
-assert all(V_AB.shape == (N_A, N_B) for V_AB in V_ABn)
+# %time U_AAn, U_BBn, V_ABn = compute_next_orders(H_0, H_p, wanted_order, N_A=N_A)
 
 # +
 U_n = [np.block([[U_AA, np.zeros((N_A, N_B))], [np.zeros((N_B, N_A)), U_BB]]) for U_AA, U_BB in zip(U_AAn, U_BBn)]
