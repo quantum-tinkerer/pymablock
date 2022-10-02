@@ -133,8 +133,8 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
     for n in range(2, wanted_order+1):
         U_AA_next = np.zeros((N_A, N_A), dtype=complex)
         U_BB_next = np.zeros((N_B, N_B), dtype=complex)
-        # i=0 term from the sum in the expression from the note
         Y_next = np.zeros_like(V_ABn[0])
+
         for i in range(n):
             Y_next -= (
                 + U_AAn[n-i-1] @ H_p_AA @ V_ABn[i]
@@ -142,12 +142,10 @@ def compute_next_orders(H_0, H_p, wanted_order, N_A=None):
                 - V_ABn[n-i-1] @ H_p_AB.conj().T @ V_ABn[i]
                 - V_ABn[n-i-1] @ H_p_BB @ U_BBn[i]
             )
-            if not i:
-                continue  # Most terms in the sums go from 1.
-
+        for i in range(1, n):
+            Y_next -= U_AAn[n-i] @ H_0_AA @ V_ABn[i] - V_ABn[n-i] @ H_0_BB @ U_BBn[i]
             U_AA_next -= (U_AAn[n-i] @ U_AAn[i] + V_ABn[n-i] @ V_ABn[i].conj().T) / 2
             U_BB_next -= (U_BBn[n-i] @ U_BBn[i] + V_ABn[n-i].conj().T @ V_ABn[i]) / 2
-            Y_next -= U_AAn[n-i] @ H_0_AA @ V_ABn[i] - V_ABn[n-i] @ H_0_BB @ U_BBn[i]
 
         U_AAn.append(U_AA_next)
         U_BBn.append(U_BB_next)
