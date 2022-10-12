@@ -184,7 +184,7 @@ def effective_model(H0, H1, evec_A, evec_B=None, order=2, interesting_keys=None,
 
     # Convert to appropriate format
     if not isinstance(H0, Model):
-        H0 = Model({1: H0}, keep= [*interesting_keys, 1] )
+        H0 = Model({1: H0}, keep=[*interesting_keys, 1])
     elif not (len(H0) == 1 and list(H0.keys()).pop() == 1):
         raise ValueError('H0 must contain a single entry {1: array}.')
 
