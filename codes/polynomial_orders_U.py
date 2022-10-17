@@ -85,8 +85,11 @@ sympy.block_collapse(H_tilde_n[1]).blocks[1, 0] # should be 0 and give condition
 
 def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order):
     """
-    H_0 : np Hamiltonian in eigenbasis and ordered by eigenenergy.
-    H_p : np Hamiltonian in eigenbasis of H_0
+    H_0_AA : np Hamiltonian A block in eigenbasis and ordered by eigenenergy.
+    H_0_BB : np Hamiltonian B block in eigenbasis and ordered by eigenenergy.
+    H_p_AA : np Hamiltonian A block in eigenbasis of H_0
+    H_p_BB : np Hamiltonian B block in eigenbasis of H_0
+    H_p_AB : np Hamiltonian AB blocks in eigenbasis of H_0
     wanted_order : int order of perturbation
     
     Returns:
@@ -145,16 +148,17 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order):
             U_AA_next = U_AA_next - (U_AAn[n-i] @ U_AAn[i] + V_ABn[n-i] @ Dagger(V_ABn[i])) / 2
             U_BB_next = U_BB_next - (U_BBn[n-i] @ U_BBn[i] + Dagger(V_ABn[n-i]) @ V_ABn[i]) / 2
         
-        if isinstance(H_p, np.ndarray):
-            if any(not np.all(np.isfinite(mat)) for mat in (U_AA_next, U_BB_next, Y_next)):
-                raise RuntimeError(f"Instability encountered in {n}th order.")
+        # if isinstance(H_p_AA, np.ndarray):
+        #     if any(not np.all(np.isfinite(mat)) for mat in (U_AA_next, U_BB_next, Y_next)):
+        #         raise RuntimeError(f"Instability encountered in {n}th order.")
         U_AAn.append(U_AA_next)
         U_BBn.append(U_BB_next)
         V_ABn.append(Y_next * energy_denominators)
-    if type(H_p) == type(Matrix()):
-        U_AAn = [Matrix(u) for u in U_AAn]
-        U_BBn = [Matrix(u) for u in U_BBn]
-        V_ABn = [Matrix(u) for u in V_ABn]
+        
+    if isinstance(H_p_AA, Matrix()):
+        U_AAn = [Matrix(U) for U in U_AAn]
+        U_BBn = [Matrix(U) for U in U_BBn]
+        V_ABn = [Matrix(U) for U in V_ABn]
         
     return U_AAn, U_BBn, V_ABn
 
@@ -166,7 +170,9 @@ wanted_order = 4
 N_A = 2
 N_B = 2
 N = N_A + N_B
-H_0 = np.diag(np.sort(np.random.randn(N)))
+#H_0 = np.diag(np.sort(np.random.randn(N)))
+
+H_0 = np.diag([Symbol('E_{}'.format(i)) for i in range(N)])
 
 kx, ky, kz = symbols('k_x k_y k_z')
 a, b, c = symbols('a b c')
@@ -231,3 +237,13 @@ plt.title("Matrices are unitary to given order");
 H_tilde_n[3]
 
 H_p
+
+a = np.random.random((10, 10))
+
+type(a)
+
+type(Dagger(a))
+
+type(H_p.conjugate().transpose())
+
+
