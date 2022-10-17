@@ -83,53 +83,50 @@ sympy.block_collapse(H_tilde_n[1]).blocks[1, 0] # should be 0 and give condition
 
 # ### Computing $U_n$ and $V_n$
 
-def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order):
+# +
+# -
+
+def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order=1, divide_energies=None):
     """
     H_0_AA : np Hamiltonian A block in eigenbasis and ordered by eigenenergy.
     H_0_BB : np Hamiltonian B block in eigenbasis and ordered by eigenenergy.
     H_p_AA : np Hamiltonian A block in eigenbasis of H_0
     H_p_BB : np Hamiltonian B block in eigenbasis of H_0
     H_p_AB : np Hamiltonian AB blocks in eigenbasis of H_0
-    wanted_order : int order of perturbation
-    
+    wanted_order : int order of perturbation; must be at least 1
+
     Returns:
     U_AAn : list of AA block matrices up to order wanted_order
     U_BBn : list of BB block matrices up to order wanted_order
     V_ABn : list of AB block matrices up to order wanted_order
     """
-    H_0_AA = np.array(H_0_AA)
-    H_0_BB = np.array(H_0_BB)
-    H_p_AA = np.array(H_p_AA)
-    H_p_BB = np.array(H_p_BB)
-    H_p_AB = np.array(H_p_AB)
     
-    N_A = H_0_AA.shape[0]
-    N_B = H_0_BB.shape[0]
-    
-    assert H_p_AA.shape[0]==N_A
-    assert H_p_BB.shape[0]==N_B
-    assert H_p_AB.shape[0]==N_A
-    assert H_p_AB.shape[1]==N_B
-        
-    # Blocks of U and V
-    # 0th order
-    U_AAn = [np.eye(N_A, dtype=complex)]
-    U_BBn = [np.eye(N_B, dtype=complex)]
-    V_ABn = [np.zeros((N_A, N_B), dtype=complex)]
-    
-    if wanted_order == 0:
-        return U_AAn, U_BBn, V_ABn
-        
+    if wanted_order<2:
+        raise ValueError('Orders smaller than 1 cannot be returned')\
+
+    if divide_energies is None:
+        E_A = np.diag(np.array(H_0_AA))
+        E_B = np.diag(np.array(H_0_BB))
+        energy_denominators = 1/(E_A.reshape(-1, 1) - E_B)
+        def divide_energies(Y):
+            return Y * energy_denominators
+
     #1st order
+    """
+    This shall be substituted by some class instance that 
+    implements prblem specific logic
+
     E_A = np.diag(np.array(H_0_AA))
     E_B = np.diag(np.array(H_0_BB))
     energy_denominators = 1/(E_A.reshape(-1, 1) - E_B)
-    
-    U_AAn.append(np.zeros((N_A, N_A), dtype=complex))
-    U_BBn.append(np.zeros((N_B, N_B), dtype=complex))
-    V_ABn.append(-H_p_AB * energy_denominators)
+    """
+
     if wanted_order == 1:
+        U_AAn = []
+        U_BBn = []
+        V_ABn = [-divide_energies(H_p_AB)]
         return U_AAn, U_BBn, V_ABn
+
 
     for n in range(2, wanted_order+1):
         U_AA_next = np.zeros((N_A, N_A), dtype=complex)
@@ -153,20 +150,18 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order):
         #         raise RuntimeError(f"Instability encountered in {n}th order.")
         U_AAn.append(U_AA_next)
         U_BBn.append(U_BB_next)
-        V_ABn.append(Y_next * energy_denominators)
-        
-    if isinstance(H_p_AA, Matrix()):
-        U_AAn = [Matrix(U) for U in U_AAn]
-        U_BBn = [Matrix(U) for U in U_BBn]
-        V_ABn = [Matrix(U) for U in V_ABn]
+        V_ABn.append(divide_energies(Y_next))
         
     return U_AAn, U_BBn, V_ABn
 
 
+terms = [sympy.Symbol(f'Y_{i}') for i in range(10)]
+sum(terms)
+
 # ### Testing
 
 # +
-wanted_order = 4
+wanted_order = 0
 N_A = 2
 N_B = 2
 N = N_A + N_B
@@ -234,16 +229,6 @@ plt.loglog()
 plt.title("Matrices are unitary to given order");
 # -
 
-H_tilde_n[3]
 
-H_p
-
-a = np.random.random((10, 10))
-
-type(a)
-
-type(Dagger(a))
-
-type(H_p.conjugate().transpose())
 
 
