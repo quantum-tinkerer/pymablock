@@ -174,37 +174,35 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     needed_orders = generate_volume(wanted_orders)
     
     for order in needed_orders:
-        # print('ADDED EXTRA MINUS HERE')
         Y = (
             # sum from i=1 with H_0
             - product_by_order(order, U_AA, H_0_AA, V_AB)
             + product_by_order(order, V_AB, H_0_BB, U_BB)
             #sum from i=0 with H_p
-            + product_by_order(order, H_p_AA, V_AB)
-            + product_by_order(order, U_AA, H_p_AB)
-            + product_by_order(order, H_p_AB, U_BB)
-            + product_by_order(order, H_p_AB)
-            - product_by_order(order, V_AB, H_p_BA, V_AB)
-            - product_by_order(order, V_AB, H_p_BB)
+            - product_by_order(order, H_p_AA, V_AB)
+            - product_by_order(order, U_AA, H_p_AB)
+            - product_by_order(order, H_p_AB, U_BB)
+            - product_by_order(order, H_p_AB)
+            + product_by_order(order, V_AB, H_p_BA, V_AB)
+            + product_by_order(order, V_AB, H_p_BB)
             # sum from i=1 with H_p
-            + product_by_order(order, U_AA, H_p_AA, V_AB)
-            + product_by_order(order, U_AA, H_p_AB, U_BB)
-            - product_by_order(order, V_AB, H_p_BA, V_AB)
-            - product_by_order(order, V_AB, H_p_BB, U_BB)
+            - product_by_order(order, U_AA, H_p_AA, V_AB)
+            - product_by_order(order, U_AA, H_p_AB, U_BB)
+            + product_by_order(order, V_AB, H_p_BA, V_AB)
+            + product_by_order(order, V_AB, H_p_BB, U_BB)
         )
         V_AB[order] = divide_energies(Y)
         V_BA[order] = -Dagger(V_AB[order])
         
         if sum(order)==1:
             continue
-        # print('ADDED EXTRA MINUSES HERE')
         U_AA[order] = (
             - product_by_order(order, U_AA, U_AA)
-            - product_by_order(order, V_AB, V_BA)
+            + product_by_order(order, V_AB, V_BA)
         )/2
         U_BB[order] = (
             - product_by_order(order, U_BB, U_BB)
-            - product_by_order(order, V_BA, V_AB)
+            + product_by_order(order, V_BA, V_AB)
         )/2
     return U_AA, U_BB, V_AB
 
