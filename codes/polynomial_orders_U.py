@@ -134,6 +134,9 @@ class Zero:
     def __neg__(self):
         return self
 
+    def __truediv__(self, other):
+        return self
+
 zero = Zero()
 
 
@@ -206,19 +209,24 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
             + product_by_order(order, V_AB, H_p_BA, V_AB)
             + product_by_order(order, V_AB, H_p_BB, U_BB)
         )
-        V_AB[order] = divide_energies(Y)
-        V_BA[order] = -Dagger(V_AB[order])
-        
-        if sum(order)==1:
-            continue
-        U_AA[order] = (
+        if Y is not zero:
+            V_AB[order] = divide_energies(Y)
+            V_BA[order] = -Dagger(V_AB[order])
+
+        new_U_AA = (
             - product_by_order(order, U_AA, U_AA)
             + product_by_order(order, V_AB, V_BA)
         )/2
-        U_BB[order] = (
+        if new_U_AA is not zero:
+            U_AA[order] = new_U_AA
+
+        new_U_BB = (
             - product_by_order(order, U_BB, U_BB)
             + product_by_order(order, V_BA, V_AB)
         )/2
+        if new_U_BB is not zero:
+            U_BB[order] = new_U_BB
+
     return U_AA, U_BB, V_AB
 
 
@@ -309,7 +317,7 @@ def compute_next_orders_old(H_0, H_p, wanted_order, N_A=None):
         U_AAn.append(U_AA_next)
         U_BBn.append(U_BB_next)
         V_ABn.append(Y_next * energy_denominators)
-        
+
     return U_AAn, U_BBn, V_ABn
 
 
@@ -361,7 +369,7 @@ V_AB
 
 V_AB_old
 
-U_AA
+[np.linalg.norm(V_AB_old[key[0]] - value) for key, value in V_AB.items()]
 
 U_AA_old # seems good up to 3rd order
 
