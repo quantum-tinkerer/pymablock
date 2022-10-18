@@ -245,7 +245,7 @@ def divide_by_energies(rhs):
     return sympy.MatrixSymbol(f"Y({rhs})".replace("*", " "), n, n)
 
 U_AA, U_BB, V_AB = compute_next_orders(
-    H_0_AA, H_0_BB, {one: H_p_AA}, {one: H_p_AB}, {one: H_p_BB},
+    H_0_AA, H_0_BB, {one: H_p_AA}, {one: H_p_BB}, {one: H_p_AB},
     wanted_orders=[one*3],
     divide_energies=divide_by_energies
 )
