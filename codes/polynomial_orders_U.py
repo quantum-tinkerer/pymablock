@@ -3,7 +3,9 @@
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
 
 # +
-from itertools import count, product, chain
+from itertools import count, product
+from functools import reduce
+from operator import matmul
 
 import numpy as np
 import sympy
@@ -96,7 +98,14 @@ sympy.block_collapse(H_tilde_n[3]).blocks[0, 1]
 # ### Computing $U_n$ and $V_n$
 
 def generate_volume(wanted_orders):
-    """Generate ordered array with tinyarrays in volume of wanted_orders."""
+    """
+    Generate ordered array with tinyarrays in volume of wanted_orders.
+    
+    wanted_orders : list of tinyarrays containing the wanted order of each perturbation.
+    
+    Returns:
+    List of sorted tinyarrays contained in the volume of required orders to compute the wanted orders.
+    """
     wanted_orders = np.array(wanted_orders)
     N_o, N_p = wanted_orders.shape
     max_order = np.max(wanted_orders, axis=0)
@@ -106,26 +115,26 @@ def generate_volume(wanted_orders):
     indices = np.any(np.all(possible_orders.reshape(N_p, -1, 1)
                             <= wanted_orders.T.reshape(N_p, 1, -1), axis=0), axis=1)
     keep_arrays = possible_orders.T[indices]
-    return sorted(keep_arrays, key=sum)
+    return (ta.array(i) for i in sorted(keep_arrays, key=sum) if any(i))
 
 
-# simple test
-wanted_orders = np.array([ta.array([1, 1]), ta.array([3, 0]), ta.array([0, 3])])
-generate_volume(wanted_orders)
+def product_by_order(order, *terms):
+    """
+    Compute sum of all product of terms of wanted order.
+    
+    wanted_orders : list of tinyarrays containing the wanted order of each perturbation.
+    
+    Returns:
+    Sum of all contributing products.
+    """
+    contributing_products = []
+    for combination in product(*(term.items() for term in terms)):
+        if sum(key for key, _ in combination) == order:
+            contributing_products.append(reduce(matmul, (value for _, value in combination)))
+    return sum(contributing_products)
 
 
-def product_by_order(wanted_order, *polynomials):
-    """will write this later"""
-    #     itertools.product(*(term.items() for term in terms))
-    #     sum(keys) == wanted_order
-
-    #     + U_AAn[n-i-1] @ H_p_AA @ V_ABn[i]
-    #     + U_AAn[n-i-1] @ H_p_AB @ U_BBn[i]
-    #     - V_ABn[n-i-1] @ Dagger(H_p_AB) @ V_ABn[i]
-    #     - V_ABn[n-i-1] @ H_p_BB @ U_BBn[i]
-
-
-def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order, divide_energies=None):
+def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, divide_energies=None):
     """
     H_0_AA : np Hamiltonian A block in eigenbasis and ordered by eigenenergy.
     H_0_BB : np Hamiltonian B block in eigenbasis and ordered by eigenenergy.
@@ -139,8 +148,13 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order, di
     U_BBn : list of BB block matrices up to order wanted_order
     V_ABn : list of AB block matrices up to order wanted_order
     """
+    N_A = H_0_AA.shape[0]
+    N_B = H_0_BB.shape[0]
     N_p = len(H_p_AA)
+    assert N_A == H_0_AA.shape[1]  #== H_p_AA.shape[0] == H_p_AA.shape[1] == H_p_AB.shape[0]
+    assert N_B == H_0_BB.shape[1]  #== H_p_BB.shape[0] == H_p_BB.shape[1] == H_p_AB.shape[1]    
     assert N_p == len(H_p_BB) == len(H_p_AB)
+    H_p_BA = {item[0]: Dagger(item[1]) for item in H_p_AB.items()}
 
     if divide_energies is None:
         E_A = np.diag(H_0_AA)
@@ -149,6 +163,94 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order, di
 
         def divide_energies(Y):
             return Y * energy_denominators
+        
+    H_0_AA = {ta.array(np.zeros(N_p)): H_0_AA}
+    H_0_BB = {ta.array(np.zeros(N_p)): H_0_BB}
+    
+    U_AA = {}
+    U_BB = {}
+    V_AB = {}
+    V_BA = {}
+    needed_orders = generate_volume(wanted_orders)
+    
+    for order in needed_orders:
+        # print('ADDED EXTRA MINUS HERE')
+        Y = (
+            # sum from i=1 with H_0
+            - product_by_order(order, U_AA, H_0_AA, V_AB)
+            + product_by_order(order, V_AB, H_0_BB, U_BB)
+            #sum from i=0 with H_p
+            + product_by_order(order, H_p_AA, V_AB)
+            + product_by_order(order, U_AA, H_p_AB)
+            + product_by_order(order, H_p_AB, U_BB)
+            + product_by_order(order, H_p_AB)
+            - product_by_order(order, V_AB, H_p_BA, V_AB)
+            - product_by_order(order, V_AB, H_p_BB)
+            # sum from i=1 with H_p
+            + product_by_order(order, U_AA, H_p_AA, V_AB)
+            + product_by_order(order, U_AA, H_p_AB, U_BB)
+            - product_by_order(order, V_AB, H_p_BA, V_AB)
+            - product_by_order(order, V_AB, H_p_BB, U_BB)
+        )
+        V_AB[order] = divide_energies(Y)
+        V_BA[order] = -Dagger(V_AB[order])
+        
+        if sum(order)==1:
+            continue
+        # print('ADDED EXTRA MINUSES HERE')
+        U_AA[order] = (
+            - product_by_order(order, U_AA, U_AA)
+            - product_by_order(order, V_AB, V_BA)
+        )/2
+        U_BB[order] = (
+            - product_by_order(order, U_BB, U_BB)
+            - product_by_order(order, V_BA, V_AB)
+        )/2
+    return U_AA, U_BB, V_AB
+
+
+# ### Testing
+
+def compute_next_orders_old(H_0, H_p, wanted_order, N_A=None):
+    """
+    H_0 : np Hamiltonian in eigenbasis and ordered by eigenenergy.
+    H_p : np Hamiltonian in eigenbasis of H_0
+    wanted_order : int order of perturbation
+    
+    Returns:
+    U_AAn : list of AA block matrices up to order wanted_order
+    U_BBn : list of BB block matrices up to order wanted_order
+    V_ABn : list of AB block matrices up to order wanted_order
+    """
+    N = H_0.shape[0]
+    if N_A is None:
+        N_A = N // 2
+    N_B = N - N_A
+
+    H_0_AA = H_0[:N_A, :N_A]
+    H_0_BB = H_0[N_A:, N_A:]
+    H_p_AA = H_p[:N_A, :N_A]
+    H_p_AB = H_p[:N_A, N_A:]
+    H_p_BB = H_p[N_A:, N_A:]
+
+    # Blocks of U and V
+    # 0th order
+    U_AAn = [np.eye(N_A, dtype=complex)]
+    U_BBn = [np.eye(N_B, dtype=complex)]
+    V_ABn = [np.zeros((N_A, N_B), dtype=complex)]
+    if wanted_order == 0:
+        return U_AAn, U_BBn, V_ABn
+    
+    #1st order
+    E_A = np.diag(H_0)[:N_A]
+    E_B = np.diag(H_0)[N_A:]
+    energy_denominators = 1/(E_A.reshape(-1, 1) - E_B)
+    
+    U_AAn.append(np.zeros((N_A, N_A), dtype=complex))
+    U_BBn.append(np.zeros((N_B, N_B), dtype=complex))
+    V_ABn.append(-H_p_AB * energy_denominators)
+    if wanted_order == 1:
+        return U_AAn, U_BBn, V_ABn
 
     for n in range(2, wanted_order+1):
         U_AA_next = np.zeros((N_A, N_A), dtype=complex)
@@ -156,37 +258,34 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order, di
         Y_next = np.zeros_like(V_ABn[0])
 
         for i in range(n):
-            Y_next = Y_next - (
-                + product_by_order(wanted_order, [U_AAn, H_p_AA, V_ABn])
-                + product_by_order(wanted_order, [U_AAn, H_p_AB, U_BBn])
-                - product_by_order(wanted_order, [V_ABn, Dagger(H_p_AB), V_ABn])
-                - product_by_order(wanted_order, [V_ABn, H_p_BB, U_BBn])
+            Y_next -= (
+                + U_AAn[n-i-1] @ H_p_AA @ V_ABn[i]
+                + U_AAn[n-i-1] @ H_p_AB @ U_BBn[i]
+                - V_ABn[n-i-1] @ H_p_AB.conj().T @ V_ABn[i]
+                - V_ABn[n-i-1] @ H_p_BB @ U_BBn[i]
             )
         for i in range(1, n):
-            Y_next = Y_next - U_AAn[n-i] @ H_0_AA @ V_ABn[i] - V_ABn[n-i] @ H_0_BB @ U_BBn[i]
-            U_AA_next = U_AA_next - (U_AAn[n-i] @ U_AAn[i] + V_ABn[n-i] @ Dagger(V_ABn[i])) / 2
-            U_BB_next = U_BB_next - (U_BBn[n-i] @ U_BBn[i] + Dagger(V_ABn[n-i]) @ V_ABn[i]) / 2
+            Y_next -= U_AAn[n-i] @ H_0_AA @ V_ABn[i] - V_ABn[n-i] @ H_0_BB @ U_BBn[i]
+            U_AA_next -= (U_AAn[n-i] @ U_AAn[i] + V_ABn[n-i] @ V_ABn[i].conj().T) / 2
+            U_BB_next -= (U_BBn[n-i] @ U_BBn[i] + V_ABn[n-i].conj().T @ V_ABn[i]) / 2
 
-        # if isinstance(H_p_AA, np.ndarray):
-        #     if any(not np.all(np.isfinite(mat)) for mat in (U_AA_next, U_BB_next, Y_next)):
-        #         raise RuntimeError(f"Instability encountered in {n}th order.")
+        if any(not np.all(np.isfinite(mat)) for mat in (U_AA_next, U_BB_next, Y_next)):
+            raise RuntimeError(f"Instability encountered in {n}th order.")
         U_AAn.append(U_AA_next)
         U_BBn.append(U_BB_next)
-        V_ABn.append(divide_energies(Y_next))
-
+        V_ABn.append(Y_next * energy_denominators)
+        
     return U_AAn, U_BBn, V_ABn
 
 
-# ### Testing
-
 # +
-wanted_order = 0
 N_A = 2
 N_B = 2
 N = N_A + N_B
 H_0 = np.diag(np.sort(np.random.randn(N)))
 
-N_p = 4
+N_p = 1
+wanted_orders = [ta.array(np.random.randint(0, 3, size=N_p)) for i in range(2)]
 H_ps = []
 for perturbation in range(N_p):
     H_p = np.random.random(size=(N, N)) + 1j * np.random.random(size=(N, N))
@@ -196,36 +295,44 @@ for perturbation in range(N_p):
 H_0_AA = H_0[:N_A, :N_A]
 H_0_BB = H_0[N_A:, N_A:]
 
-
-def l_i():
-    for i in count():
-        yield sympy.Symbol(f"lambda_{i}")
-
-
-coeffs = l_i()
+orders = ta.array(np.eye(N_p))
 H_p_AA = {
-    str(d_i): value[:N_A, :N_A]
-    for d_i, value in zip(l_i(), H_ps)
+    order: value[:N_A, :N_A]
+    for order, value in zip(orders, H_ps)
 }
 
-coeffs = l_i()
 H_p_BB = {
-    str(d_i): value[N_A:, N_A:]
-    for d_i, value in zip(l_i(), H_ps)
+    order: value[N_A:, N_A:]
+    for order, value in zip(orders, H_ps)
 }
 
-coeffs = l_i()
 H_p_AB = {
-    str(d_i): value[:N_A, N_A:]
-    for d_i, value in zip(l_i(), H_ps)
+    order: value[:N_A, N_A:]
+    for order, value in zip(orders, H_ps)
 }
+# -
 
-wanted_order = [ta.array(np.random.randint(0, 4, size=(N_p))) for i in range(4)]
+wanted_orders = [ta.array([3])]
+wanted_order = 3
 
 # +
-U_AAn, U_BBn, V_ABn = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order=wanted_order)
+U_AA, U_BB, V_AB = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
+U_AA_old, U_BB_old, V_AB_old = compute_next_orders_old(H_0, H_p, wanted_order=wanted_order)
 
-# %time U_AAn, U_BBn, V_ABn = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_order=wanted_order)
+# # %time U_AA, U_BB, V_AB = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
+# -
+
+V_AB
+
+V_AB_old
+
+U_AA
+
+U_AA_old # seems good up to 3rd order
+
+U_BB
+
+U_BB_old
 
 # +
 U_n = [np.block([[U_AA, np.zeros((N_A, N_B))], [np.zeros((N_B, N_A)), U_BB]]) for U_AA, U_BB in zip(U_AAn, U_BBn)]
