@@ -95,38 +95,24 @@ sympy.block_collapse(H_tilde_n[3]).blocks[0, 1]
 
 # ### Computing $U_n$ and $V_n$
 
-# +
-def arrays_in_volume(length, total_sum):
-    """ Generate all tinyarrays of a given length that add up to total_sum (int). """
-    if length == 1:
-        yield (total_sum,)
-    else:
-        for value in range(total_sum + 1):
-            for permutation in arrays_in_volume(length - 1, total_sum - value):
-                yield ta.array((value,) + permutation)
+def generate_volume(wanted_orders):
+    """Generate ordered array with tinyarrays in volume of wanted_orders."""
+    wanted_orders = np.array(wanted_orders)
+    N_o, N_p = wanted_orders.shape
+    max_order = np.max(wanted_orders, axis=0)
+    possible_orders = np.array(
+        np.meshgrid(*(np.arange(order+1) for order in max_order))
+    ).reshape(len(max_order), -1)
+    indices = np.any(np.all(possible_orders.reshape(N_p, -1, 1)
+                            <= wanted_orders.T.reshape(N_p, 1, -1), axis=0), axis=1)
+    keep_arrays = possible_orders.T[indices]
+    return sorted(keep_arrays, key=sum)
 
 
-def generate_volume(wanted_order):
-    """ Generate ordered array with all tinyarrays in the volume of wanted_orders. """
-    N_p = len(wanted_order[0])
-    max_order = np.max([sum(order) for order in wanted_order])
-    possible_arrays = [list(arrays_in_volume(N_p, order)) for order in range(max_order+1)]
-    possible_arrays = list(chain(*possible_arrays))
-    id_keep = [np.any(np.all(array <= np.array(wanted_order), axis=1)) for array in possible_arrays]
-    keep_arrays = np.array(possible_arrays)[id_keep]
-    return keep_arrays
-
-
-# +
 # simple test
-wanted_order = [ta.array([2, 1]), ta.array([1, 0]), ta.array([1, 4])]
-for p in wanted_order:
-    print(sum(p))
-    
-generate_volume(wanted_order)
+wanted_orders = np.array([ta.array([1, 1]), ta.array([3, 0]), ta.array([0, 3])])
+generate_volume(wanted_orders)
 
-
-# -
 
 def product_by_order(wanted_order, *polynomials):
     """will write this later"""
