@@ -14,7 +14,6 @@ from sympy import (
     diff, BlockMatrix, BlockDiagMatrix,
     ZeroMatrix, Identity, diag, eye, zeros
 )
-from sympy.physics.quantum.dagger import Dagger
 from sympy.physics.quantum import TensorProduct
 import matplotlib.pyplot as plt
 import tinyarray as ta
@@ -42,7 +41,7 @@ H_BB = MatrixSymbol('H^{BB}_0', M, M)
 H_1_AA = MatrixSymbol('H^{AA}_1', N, N)
 H_1_BB = MatrixSymbol('H^{BB}_1', M, M)
 H_2_AB = MatrixSymbol('H^{AB}_2', N, M)
-H_2_BA = Dagger(H_2_AB)
+H_2_BA = H_2_AB.T.conjugate()
 
 U_AAn = [Identity(N), ZeroMatrix(N, N)]
 U_BBn = [Identity(M), ZeroMatrix(M, M)]
@@ -61,7 +60,7 @@ H_p = BlockMatrix([[H_1_AA, H_2_AB], [H_2_BA, H_1_BB]])
 U_n = [BlockMatrix([[U_AA, ZeroMatrix(N, M)], [ZeroMatrix(M, N), U_BB]])
        for U_AA, U_BB in zip(U_AAn, U_BBn)
       ]
-V_n = [BlockMatrix([[ZeroMatrix(N, N), V_AB], [-Dagger(V_AB), ZeroMatrix(M, M)]])
+V_n = [BlockMatrix([[ZeroMatrix(N, N), V_AB], [-V_AB.T.conjugate(), ZeroMatrix(M, M)]])
        for V_AB in V_ABn
       ]
 
@@ -173,7 +172,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     V_ABn : list of AB block matrices up to order wanted_order
     """
     N_p = len(H_p_AA)
-    H_p_BA = {item[0]: Dagger(item[1]) for item in H_p_AB.items()}
+    H_p_BA = {key: value.conjugate().T for key, value in H_p_AB.items()}
 
     if divide_energies is None:
         E_A = np.diag(H_0_AA)
@@ -211,7 +210,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
         )
         if Y is not zero:
             V_AB[order] = divide_energies(Y)
-            V_BA[order] = -Dagger(V_AB[order])
+            V_BA[order] = - V_AB[order].conjugate().T
 
         new_U_AA = (
             - product_by_order(order, U_AA, U_AA)
@@ -364,6 +363,8 @@ U_AA_old, U_BB_old, V_AB_old = compute_next_orders_old(H_0, H_p, wanted_order=wa
 
 # # %time U_AA, U_BB, V_AB = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
 # -
+
+H_0_AA.conjugate().T
 
 V_AB
 
