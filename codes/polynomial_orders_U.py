@@ -183,7 +183,6 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
             - product_by_order(order, U_AA, H_p_AB)
             - product_by_order(order, H_p_AB, U_BB)
             - product_by_order(order, H_p_AB)
-            + product_by_order(order, V_AB, H_p_BA, V_AB)
             + product_by_order(order, V_AB, H_p_BB)
             # sum from i=1 with H_p
             - product_by_order(order, U_AA, H_p_AA, V_AB)
@@ -310,8 +309,8 @@ H_p_AB = {
 }
 # -
 
-wanted_orders = [ta.array([3])]
-wanted_order = 3
+wanted_orders = [ta.array([4])]
+wanted_order = 4
 
 # +
 U_AA, U_BB, V_AB = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
