@@ -20,6 +20,8 @@ import matplotlib.pyplot as plt
 import tinyarray as ta
 # -
 
+sympy.init_printing()
+
 # ### Obtaining $\tilde{H}^{(n)AB}$
 
 # +
@@ -118,6 +120,23 @@ def generate_volume(wanted_orders):
     return (ta.array(i) for i in sorted(keep_arrays, key=sum) if any(i))
 
 
+# +
+class Zero:
+    """A class that skips itself in additions"""
+    def __add__(self, other):
+        return other
+
+    __radd__ = __rsub__ = __add__
+
+    def __sub__(self, other):
+        return -other
+
+    def __neg__(self):
+        return self
+
+zero = Zero()
+
+
 def product_by_order(order, *terms):
     """
     Compute sum of all product of terms of wanted order.
@@ -131,8 +150,10 @@ def product_by_order(order, *terms):
     for combination in product(*(term.items() for term in terms)):
         if sum(key for key, _ in combination) == order:
             contributing_products.append(reduce(matmul, (value for _, value in combination)))
-    return sum(contributing_products)
+    return sum(contributing_products, start=zero)
 
+
+# -
 
 def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, divide_energies=None):
     """
@@ -148,12 +169,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     U_BBn : list of BB block matrices up to order wanted_order
     V_ABn : list of AB block matrices up to order wanted_order
     """
-    N_A = H_0_AA.shape[0]
-    N_B = H_0_BB.shape[0]
     N_p = len(H_p_AA)
-    assert N_A == H_0_AA.shape[1]  #== H_p_AA.shape[0] == H_p_AA.shape[1] == H_p_AB.shape[0]
-    assert N_B == H_0_BB.shape[1]  #== H_p_BB.shape[0] == H_p_BB.shape[1] == H_p_AB.shape[1]    
-    assert N_p == len(H_p_BB) == len(H_p_AB)
     H_p_BA = {item[0]: Dagger(item[1]) for item in H_p_AB.items()}
 
     if divide_energies is None:
@@ -207,6 +223,28 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
 
 
 # ### Testing
+
+# #### An initial attempt to get a symbolic expression
+
+# +
+one = ta.array([1])
+n = sympy.Symbol('n')
+H_0_AA, H_0_BB, H_p_AA, H_p_AB, H_p_BB = (
+    sympy.MatrixSymbol(expr, n, n) for expr in "H_{AA} H_{BB} H^{(1)}_{AA} H^{(1)}_{AB} H^{(1)}_{BB}".split()
+)
+
+def divide_by_energies(rhs):
+    return sympy.MatrixSymbol(f"Y({rhs})".replace("*", " "), n, n)
+
+U_AA, U_BB, V_AB = compute_next_orders(
+    H_0_AA, H_0_BB, {one: H_p_AA}, {one: H_p_AB}, {one: H_p_BB},
+    wanted_orders=[one*3],
+    divide_energies=divide_by_energies
+)
+V_AB[(3,)]
+
+
+# -
 
 def compute_next_orders_old(H_0, H_p, wanted_order, N_A=None):
     """
