@@ -159,12 +159,12 @@ def product_by_order(order, *terms):
 
 def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, divide_energies=None):
     """
-    H_0_AA : np Hamiltonian A block in eigenbasis and ordered by eigenenergy.
-    H_0_BB : np Hamiltonian B block in eigenbasis and ordered by eigenenergy.
+    H_0_AA : unperturbed Hamiltonian A block in eigenbasis and ordered by eigenenergy.
+    H_0_BB : unperturbed Hamiltonian B block in eigenbasis and ordered by eigenenergy.
     H_p_AA : dictionary of perturbations A blocks in eigenbasis of H_0
     H_p_BB : dictionary of perturbations B blocks in eigenbasis of H_0
     H_p_AB : dictionary of perturbations AB blocks in eigenbasis of H_0
-    wanted_order : int order of perturbation
+    wanted_orders : list of tinyarrays containing the wanted order of each perturbation.
 
     Returns:
     U_AAn : list of AA block matrices up to order wanted_order
@@ -240,18 +240,46 @@ H_0_AA, H_0_BB, H_p_AA, H_p_AB, H_p_BB = (
     sympy.MatrixSymbol(expr, n, n) for expr in "H_{AA} H_{BB} H^{(1)}_{AA} H^{(1)}_{AB} H^{(1)}_{BB}".split()
 )
 
+def solve_sylvester(rhs):
+    prefactor = sympy.Mul(
+        *(
+            factor for factor in rhs.as_ordered_factors()
+            if factor.is_number
+         )
+    )
+    rest = sympy.Mul(
+        *(
+            factor for factor in rhs.as_ordered_factors()
+            if not factor.is_number
+         )
+    )
+    Y = sympy.MatrixSymbol(f"Y({sympy.latex(rest)})".replace("*", " "), n, n)
+    Y.rhs = rest
+    print(prefactor)
+    print(' ')
+    print(rest)
+    print('--')
+    return prefactor * Y
+
+problematic_terms = []
+
 def divide_by_energies(rhs):
-    return sympy.MatrixSymbol(f"Y({sympy.latex(rhs)})".replace("*", " "), n, n)
+            # print(type(rhs))
+            # print([type(term) for term in rhs.expand().as_ordered_terms()])
+            # print(rhs.expand())
+    return sympy.Add(*(solve_sylvester(term) for term in rhs.expand().as_ordered_terms()))
 
 U_AA, U_BB, V_AB = compute_next_orders(
     H_0_AA, H_0_BB, {one: H_p_AA}, {one: H_p_BB}, {one: H_p_AB},
     wanted_orders=[one*3],
     divide_energies=divide_by_energies
 )
+
 V_AB[(3,)]
-
-
 # -
+
+[i.as_ordered_factors() for i in (- H_AA + H_AA**2).as_ordered_terms()]
+
 
 def compute_next_orders_old(H_0, H_p, wanted_order, N_A=None):
     """
@@ -362,66 +390,51 @@ U_AA, U_BB, V_AB = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, w
 U_AA_old, U_BB_old, V_AB_old = compute_next_orders_old(H_0, H_p, wanted_order=wanted_order)
 
 # # %time U_AA, U_BB, V_AB = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
-# -
-
-H_0_AA.conjugate().T
-
-V_AB
-
-V_AB_old
-
-[np.linalg.norm(V_AB_old[key[0]] - value) for key, value in V_AB.items()]
-
-U_AA_old # seems good up to 3rd order
-
-U_BB
-
-U_BB_old
 
 # +
-U_n = [np.block([[U_AA, np.zeros((N_A, N_B))], [np.zeros((N_B, N_A)), U_BB]]) for U_AA, U_BB in zip(U_AAn, U_BBn)]
-V_n = [np.block([[np.zeros((N_A, N_A)), V_AB], [-Dagger(V_AB), np.zeros((N_B, N_B))]]) for V_AB in V_ABn]
+# U_n = [np.block([[U_AA, np.zeros((N_A, N_B))], [np.zeros((N_B, N_A)), U_BB]]) for U_AA, U_BB in zip(U_AAn, U_BBn)]
+# V_n = [np.block([[np.zeros((N_A, N_A)), V_AB], [-Dagger(V_AB), np.zeros((N_B, N_B))]]) for V_AB in V_ABn]
 
-H_tilde_n = H_tilde(H_0, H_p, wanted_order, U_n, V_n)
+# H_tilde_n = H_tilde(H_0, H_p, wanted_order, U_n, V_n)
 
 # +
-for H_tilde_ord in H_tilde_n:
-    non_hermiticity = np.linalg.norm(H_tilde_ord - H_tilde_ord.T.conj())
-    assert non_hermiticity < 1e-10, non_hermiticity
-    assert np.linalg.norm(H_tilde_ord[:N_A, N_A:]) < 1e-10
+# for H_tilde_ord in H_tilde_n:
+#     non_hermiticity = np.linalg.norm(H_tilde_ord - H_tilde_ord.T.conj())
+#     assert non_hermiticity < 1e-10, non_hermiticity
+#     assert np.linalg.norm(H_tilde_ord[:N_A, N_A:]) < 1e-10
 
     
-def unitarity(strength, U_n, V_n):
-    U_tot = sum(
-        (strength**i * (U + V) for i, (U, V) in enumerate(zip(U_n, V_n))),
-        np.zeros_like(U_n[0])
-    )
-    return np.linalg.norm(U_tot.T.conj() @ U_tot - np.identity(U_n[0].shape[0]))
+# def unitarity(strength, U_n, V_n):
+#     U_tot = sum(
+#         (strength**i * (U + V) for i, (U, V) in enumerate(zip(U_n, V_n))),
+#         np.zeros_like(U_n[0])
+#     )
+#     return np.linalg.norm(U_tot.T.conj() @ U_tot - np.identity(U_n[0].shape[0]))
 
 
-def H_pert(strength, H_tilde_n):
-    return sum(
-        (strength**i * H for i, H in enumerate(H_tilde_n)),
-        np.zeros_like(H_tilde_n[0])
-    )
+# def H_pert(strength, H_tilde_n):
+#     return sum(
+#         (strength**i * H for i, H in enumerate(H_tilde_n)),
+#         np.zeros_like(H_tilde_n[0])
+#     )
 
 
-def E_pert(strength, H_tilde_n):
-    return np.linalg.eigvalsh(H_pert(strength, H_tilde_n))
+# def E_pert(strength, H_tilde_n):
+#     return np.linalg.eigvalsh(H_pert(strength, H_tilde_n))
 
 
-def E_exact(strength, H_0, H_p):
-    return np.linalg.eigvalsh(H_0 + strength * H_p)
+# def E_exact(strength, H_0, H_p):
+#     return np.linalg.eigvalsh(H_0 + strength * H_p)
 
 
-strengths = np.logspace(-3, -1)
-pert_energies = np.array([E_pert(strength, H_tilde_n) for strength in strengths])
-exact_energies = np.array([E_exact(strength, H_0, H_p) for strength in strengths])
+# strengths = np.logspace(-3, -1)
+# pert_energies = np.array([E_pert(strength, H_tilde_n) for strength in strengths])
+# exact_energies = np.array([E_exact(strength, H_0, H_p) for strength in strengths])
 
-plt.figure()
-plt.plot(
-    strengths,
-    [unitarity(strength, U_n, V_n) for strength in strengths] / strengths**(wanted_order)
-)
-plt.loglog()
-plt.title("Matrices are unitary to given order");
+# plt.figure()
+# plt.plot(
+#     strengths,
+#     [unitarity(strength, U_n, V_n) for strength in strengths] / strengths**(wanted_order)
+# )
+# plt.loglog()
+# plt.title("Matrices are unitary to given order");
