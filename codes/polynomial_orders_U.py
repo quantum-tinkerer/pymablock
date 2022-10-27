@@ -14,7 +14,7 @@ from sympy import (
     diff, BlockMatrix, BlockDiagMatrix,
     ZeroMatrix, Identity, diag, eye, zeros
 )
-from sympy.physics.quantum import TensorProduct
+from sympy.physics.quantum import TensorProduct, Dagger, Operator, HermitianOperator
 import matplotlib.pyplot as plt
 import tinyarray as ta
 # -
@@ -59,14 +59,15 @@ H_p = BlockMatrix([[H_1_AA, H_2_AB], [H_2_BA, H_1_BB]])
 
 U_n = [BlockMatrix([[U_AA, ZeroMatrix(N, M)], [ZeroMatrix(M, N), U_BB]])
        for U_AA, U_BB in zip(U_AAn, U_BBn)
-      ]
+]
 V_n = [BlockMatrix([[ZeroMatrix(N, N), V_AB], [-V_AB.T.conjugate(), ZeroMatrix(M, M)]])
        for V_AB in V_ABn
-      ]
+]
 
-zero = BlockMatrix([[ZeroMatrix(N, N), ZeroMatrix(N, M)],
-                    [ZeroMatrix(M, N), ZeroMatrix(M, M)]
-                    ])
+zero = BlockMatrix([
+    [ZeroMatrix(N, N), ZeroMatrix(N, M)],
+    [ZeroMatrix(M, N), ZeroMatrix(M, M)]
+])
 
 
 # -
@@ -138,7 +139,6 @@ class Zero:
 
 zero = Zero()
 
-
 def product_by_order(order, *terms):
     """
     Compute sum of all product of terms of wanted order.
@@ -172,7 +172,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     V_ABn : list of AB block matrices up to order wanted_order
     """
     N_p = len(H_p_AA)
-    H_p_BA = {key: value.conjugate().T for key, value in H_p_AB.items()}
+    H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
 
     if divide_energies is None:
         E_A = np.diag(H_0_AA)
@@ -210,7 +210,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
         )
         if Y is not zero:
             V_AB[order] = divide_energies(Y)
-            V_BA[order] = - V_AB[order].conjugate().T
+            V_BA[order] = - Dagger(V_AB[order])
 
         new_U_AA = (
             - product_by_order(order, U_AA, U_AA)
@@ -233,12 +233,20 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
 
 # #### An initial attempt to get a symbolic expression
 
+from IPython.display import display_latex
+
 # +
 one = ta.array([1])
-n = sympy.Symbol('n')
-H_0_AA, H_0_BB, H_p_AA, H_p_AB, H_p_BB = (
-    sympy.MatrixSymbol(expr, n, n) for expr in "H_{AA} H_{BB} H^{(1)}_{AA} H^{(1)}_{AB} H^{(1)}_{BB}".split()
+
+H_0_AA, H_0_BB, H_p_AA, H_p_BB, k, r = (
+    HermitianOperator(expr) for expr in "{H_{AA}} {H_{BB}} {H^{(1)}_{AA}} {H^{(1)}_{BB}} {k} {r}".split()
 )
+
+H_p_AB = Operator("{H^{(1)}_{AB}}")
+sympy.physics.quantum.Operator.__matmul__ = sympy.physics.quantum.Operator.__mul__
+sympy.physics.quantum.Operator.__rmatmul__ = sympy.physics.quantum.Operator.__rmul__
+sympy.core.mul.Mul.__matmul__ = sympy.core.mul.Mul.__mul__
+sympy.core.add.Add.__matmul__ = sympy.core.add.Add.__mul__
 
 def solve_sylvester(rhs):
     prefactor = sympy.Mul(
@@ -250,36 +258,34 @@ def solve_sylvester(rhs):
     rest = sympy.Mul(
         *(
             factor for factor in rhs.as_ordered_factors()
-            if not factor.is_number
+            if not factor.is_number and not (factor.free_symbols & {k, r})
          )
     )
-    Y = sympy.MatrixSymbol(f"Y({sympy.latex(rest)})".replace("*", " "), n, n)
+    rk = sympy.Mul(
+        *(
+            factor for factor in rhs.as_ordered_factors()
+            if factor.free_symbols & {k, r}
+         )
+    )
+    Y = Operator(f"Y({sympy.latex(rest)})".replace("*", " "))
     Y.rhs = rest
-    print(prefactor)
-    print(' ')
-    print(rest)
-    print('--')
-    return prefactor * Y
+    return  prefactor * (rk.simplify() @ Y)
 
 problematic_terms = []
 
 def divide_by_energies(rhs):
-            # print(type(rhs))
-            # print([type(term) for term in rhs.expand().as_ordered_terms()])
-            # print(rhs.expand())
     return sympy.Add(*(solve_sylvester(term) for term in rhs.expand().as_ordered_terms()))
 
 U_AA, U_BB, V_AB = compute_next_orders(
-    H_0_AA, H_0_BB, {one: H_p_AA}, {one: H_p_BB}, {one: H_p_AB},
+    H_0_AA, H_0_BB, {one: H_p_AA}, {one: H_p_BB @ r}, {one: H_p_AB @ k},
     wanted_orders=[one*3],
     divide_energies=divide_by_energies
 )
 
 V_AB[(3,)]
+
+
 # -
-
-[i.as_ordered_factors() for i in (- H_AA + H_AA**2).as_ordered_terms()]
-
 
 def compute_next_orders_old(H_0, H_p, wanted_order, N_A=None):
     """
