@@ -52,19 +52,8 @@ old_Htilde_model = oldLow.effective_model(H_0, {"alpha": H_p}, A_vecs, B_vecs, o
 display(old_Htilde_model["alpha**2"])
 display(scipy.linalg.eigh(H_tilde_old[1])[0])
 
-Diffs = [H_tilde_new[i]-old_Htilde_model[f"alpha**{i}"] for i in range(order)]
+Diffs = [H_tilde_new[i] - old_Htilde_model[f"alpha**{i}"] for i in range(order)]
 display(Diffs)
 [np.linalg.norm(d) for d in Diffs]
 
-display([np.linalg.norm(H) for H in H_tilde_new])
-display([np.linalg.norm(H) for H in H_tilde_old])
-
-# Is there a trfo in between?
-Sylv = []
-for i in range(order):
-    Sylv.append(scipy.linalg.solve_sylvester(-H_tilde_new[i],H_tilde_old[i],np.zeros((N_A,N_A))))
-Sylv
-
-# So are they the same? $\rightarrow$ Sure does not look like it.
-
-
+# So are they the same? $\rightarrow$ yes they are :)
