@@ -43,14 +43,16 @@ for i in range(order):
 display(H_tilde_new[1])
 display(scipy.linalg.eigh(H_tilde_new[1])[0])
 
+oldLow.effective_model(H_0, {"alpha" :H_p}, A_vecs, B_vecs,order=3)
+
+
+
 # Get H_tilde using the old higher_order_lowdin code
-H_tilde_old = []
-for i in range(order):
-    H_tilde_old.append( oldLow.effective_model(H_0, {1:H_p}, A_vecs, B_vecs,order= i)['1'] )
-display(H_tilde_old[1])
+old_Htilde_model = oldLow.effective_model(H_0, {"alpha": H_p}, A_vecs, B_vecs, order=order)
+display(old_Htilde_model["alpha**2"])
 display(scipy.linalg.eigh(H_tilde_old[1])[0])
 
-Diffs = [H_tilde_new[i]-H_tilde_old[i] for i in range(order)]
+Diffs = [H_tilde_new[i]-old_Htilde_model[f"alpha**{i}"] for i in range(order)]
 display(Diffs)
 [np.linalg.norm(d) for d in Diffs]
 
