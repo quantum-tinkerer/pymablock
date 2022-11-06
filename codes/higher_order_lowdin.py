@@ -6,8 +6,8 @@ from math import factorial
 import numpy as np
 import sympy
 
-from perturbationS import Y_i
-from kpm_funcs import greens_function
+from .perturbationS import Y_i
+from .kpm_funcs import greens_function
 from qsymm.model import allclose, Model, _symbol_normalizer
 
 
