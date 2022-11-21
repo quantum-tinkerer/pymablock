@@ -121,8 +121,13 @@ def generate_volume(wanted_orders):
 
 
 # +
-class Zero:
-    """A class that skips itself in additions"""
+class Zero(np.ndarray):
+    """A class that skips itself in additions
+
+    It is derived from a numpy array for its implementation of right addition and subtraction
+    to take priority.
+    """
+
     def __add__(self, other):
         return other
 
@@ -137,7 +142,7 @@ class Zero:
     def __truediv__(self, other):
         return self
 
-zero = Zero()
+zero = Zero(0)
 
 def product_by_order(order, *terms):
     """
