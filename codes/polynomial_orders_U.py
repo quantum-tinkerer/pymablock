@@ -242,9 +242,12 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
 
     for order in needed_orders:
         Y = sum(
-            (-1 if a != "AB" else +1) * product_by_order(order, exp_S[a], H[b], exp_S[c])
-            for a, b, c in indices
-            for H in [H_0, H_p]
+            (
+                (-1 if a != "AB" else +1) * product_by_order(order, exp_S[a], H[b], exp_S[c])
+                for a, b, c in indices
+                for H in [H_0, H_p]
+            ),
+            start=_zero
         )
         if Y is not _zero:
             V_AB[order] = divide_energies(Y)
