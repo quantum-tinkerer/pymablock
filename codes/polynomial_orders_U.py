@@ -142,7 +142,29 @@ class Zero(np.ndarray):
     def __truediv__(self, other):
         return self
 
-zero = Zero(0)
+_zero = Zero(0)
+
+
+class One(np.ndarray):
+    """A class that skips itself in additions
+
+    It is derived from a numpy array for its implementation of right addition and subtraction
+    to take priority.
+    """
+
+    def __add__(self, other):
+        raise NotImplementedError
+
+    __radd__ = __rsub__ = __sub__ = __neg__ = __add__
+
+    def __matmul__(self, other):
+        return other
+
+    __rmatmul__ = __matmul__
+
+
+_one = One(1)
+
 
 def product_by_order(order, *terms):
     """
@@ -157,7 +179,7 @@ def product_by_order(order, *terms):
     for combination in product(*(term.items() for term in terms)):
         if sum(key for key, _ in combination) == order:
             contributing_products.append(reduce(matmul, (value for _, value in combination)))
-    return sum(contributing_products, start=zero)
+    return sum(contributing_products, start=_zero)
 
 
 # -
@@ -178,6 +200,12 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     """
     N_p = len(H_p_AA)
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
+    H_p = {
+        "AA": H_p_AA,
+        "AB": H_p_AB,
+        "BA": H_p_BA,
+        "BB": H_p_BB,
+    }
 
     if divide_energies is None:
         E_A = np.diag(H_0_AA)
@@ -186,49 +214,54 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
 
         def divide_energies(Y):
             return Y * energy_denominators
-        
-    H_0_AA = {ta.array(np.zeros(N_p)): H_0_AA}
-    H_0_BB = {ta.array(np.zeros(N_p)): H_0_BB}
-    
-    U_AA = {}
-    U_BB = {}
+
+    H_0 = {
+        "AA": {ta.zeros([len(wanted_orders[0])]): H_0_AA},
+        "AB": {},
+        "BA": {},
+        "BB": {ta.zeros([len(wanted_orders[0])]): H_0_BB},
+    }
+
+    needed_orders = generate_volume(wanted_orders)
+
+    U_AA = {ta.zeros([len(wanted_orders[0])]): _one}
+    U_BB = {ta.zeros([len(wanted_orders[0])]): _one}
     V_AB = {}
     V_BA = {}
-    needed_orders = generate_volume(wanted_orders)
-    
+    exp_S = {
+        "AA": U_AA,
+        "AB": V_AB,
+        "BA": V_BA,
+        "BB": U_BB,
+    }
+    inner_indices = ["AA", "AB", "BA", "BB"]
+    indices = [
+        ["A" + first, first + second, second + "B"]
+        for first, second in inner_indices
+    ]
+
     for order in needed_orders:
-        Y = (
-            # sum from i=1 with H_0
-            - product_by_order(order, U_AA, H_0_AA, V_AB)
-            + product_by_order(order, V_AB, H_0_BB, U_BB)
-            #sum from i=0 with H_p
-            - product_by_order(order, H_p_AA, V_AB)
-            - product_by_order(order, U_AA, H_p_AB)
-            - product_by_order(order, H_p_AB, U_BB)
-            - product_by_order(order, H_p_AB)
-            + product_by_order(order, V_AB, H_p_BB)
-            # sum from i=1 with H_p
-            - product_by_order(order, U_AA, H_p_AA, V_AB)
-            - product_by_order(order, U_AA, H_p_AB, U_BB)
-            + product_by_order(order, V_AB, H_p_BA, V_AB)
-            + product_by_order(order, V_AB, H_p_BB, U_BB)
+        Y = sum(
+            (-1 if a != "AB" else +1) * product_by_order(order, exp_S[a], H[b], exp_S[c])
+            for a, b, c in indices
+            for H in [H_0, H_p]
         )
-        if Y is not zero:
+        if Y is not _zero:
             V_AB[order] = divide_energies(Y)
-            V_BA[order] = - Dagger(V_AB[order])
+            V_BA[order] = -Dagger(V_AB[order])
 
         new_U_AA = (
             - product_by_order(order, U_AA, U_AA)
             + product_by_order(order, V_AB, V_BA)
         )/2
-        if new_U_AA is not zero:
+        if new_U_AA is not _zero:
             U_AA[order] = new_U_AA
 
         new_U_BB = (
             - product_by_order(order, U_BB, U_BB)
             + product_by_order(order, V_BA, V_AB)
         )/2
-        if new_U_BB is not zero:
+        if new_U_BB is not _zero:
             U_BB[order] = new_U_BB
 
     return U_AA, U_BB, V_AB
@@ -395,6 +428,8 @@ H_p_AB = {
 
 wanted_orders = [ta.array([4])]
 wanted_order = 4
+
+U_AA
 
 # +
 U_AA, U_BB, V_AB = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
