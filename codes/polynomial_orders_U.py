@@ -125,14 +125,6 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     U_BBn : list of BB block matrices up to order wanted_order
     V_ABn : list of AB block matrices up to order wanted_order
     """
-    H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
-    H_p = {
-        "AA": H_p_AA,
-        "AB": H_p_AB,
-        "BA": H_p_BA,
-        "BB": H_p_BB,
-    }
-
     if divide_energies is None:
         E_A = np.diag(H_0_AA)
         E_B = np.diag(H_0_BB)
@@ -141,36 +133,30 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
         def divide_energies(Y):
             return Y * energy_denominators
 
-    H_0 = {
-        "AA": {ta.zeros([len(wanted_orders[0])]): H_0_AA},
-        "AB": {},
-        "BA": {},
-        "BB": {ta.zeros([len(wanted_orders[0])]): H_0_BB},
-    }
+    H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
+    zero_index = ta.zeros([len(wanted_orders[0])])
+    H = [
+        [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
+        [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
+    ]
 
-    U_AA = {ta.zeros([len(wanted_orders[0])]): _one}
-    U_BB = {ta.zeros([len(wanted_orders[0])]): _one}
+    U_AA = {zero_index: _one}
+    U_BB = {zero_index: _one}
     V_AB = {}
     V_BA = {}
-    exp_S = {
-        "AA": U_AA,
-        "AB": V_AB,
-        "BA": V_BA,
-        "BB": U_BB,
-    }
-    inner_indices = ["AA", "AB", "BA", "BB"]
-    indices = [
-        ["A" + first, first + second, second + "B"]
-        for first, second in inner_indices
+    exp_S = [
+        [U_AA, V_AB],
+        [V_BA, U_BB]
     ]
     needed_orders = generate_volume(wanted_orders)
 
     for order in needed_orders:
         Y = sum(
             (
-                (-1 if a != "AB" else +1) * product_by_order(order, exp_S[a], H[b], exp_S[c])
-                for a, b, c in indices
-                for H in [H_0, H_p]
+                -(-1)**i * product_by_order(
+                    order, exp_S[0][i], H[i][j], exp_S[j][1]
+                )
+                for i in (0, 1) for j in (0, 1)
             ),
             start=_zero
         )
@@ -276,70 +262,51 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V
     U_AAn : list of AA block matrices up to order wanted_order
     U_BBn : list of BB block matrices up to order wanted_order
     V_ABn : list of AB block matrices up to order wanted_order
-    
+
     Returns:
     H_AA : dictionary of orders of transformed perturbed Hamiltonian A block
     H_BB : dictionary of orders of transformed perturbed Hamiltonian A block
     """
-    H_0 = {
-    "AA": {ta.zeros([len(wanted_orders[0])]): H_0_AA},
-    "AB": {},
-    "BA": {},
-    "BB": {ta.zeros([len(wanted_orders[0])]): H_0_BB},
-    }
+    zero_index = ta.zeros([len(wanted_orders[0])])
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
-    H_p = {
-        "AA": H_p_AA,
-        "AB": H_p_AB,
-        "BA": H_p_BA,
-        "BB": H_p_BB,
-    }
+    H = [
+        [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
+        [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
+    ]
 
     H_AA = {}
     H_BB = {}
     H_AB = {}
-    V_BA = {}
+    V_BA = {order: -Dagger(value) for order, value in V_AB.items()}
+    exp_S = [
+        [U_AA, V_AB],
+        [V_BA, U_BB]
+    ]
 
-    exp_S = {
-        "AA": U_AA,
-        "AB": V_AB,
-        "BA": V_BA,
-        "BB": U_BB,
-    }
-    inner_indices = ["AA", "AB", "BA", "BB"]
-    indices_AA = [
-        ["A" + first, first + second, second + "A"]
-        for first, second in inner_indices
-    ]
-    indices_BB = [
-        ["B" + first, first + second, second + "B"]
-        for first, second in inner_indices
-    ]
     needed_orders = generate_volume(wanted_orders)
 
     for order in needed_orders:
-        V_BA[order] = - Dagger(V_AB[order])
-        new_H_AA = sum(
+        H_AA[order] = sum(
             (
-                (-1 if a == "AB" else +1) * product_by_order(order, exp_S[a], H[b], exp_S[c])
-                for a, b, c in indices_AA
-                for H in [H_0, H_p]
+                (-1)**i * product_by_order(
+                    order, exp_S[0][i], H[i][j], exp_S[j][0]
+                )
+                for i in (0, 1) for j in (0, 1)
             ),
             start=_zero
         )
-        new_H_BB = sum(
+        H_BB[order] = sum(
             (
-                (-1 if a == "BA" else +1) * product_by_order(order, exp_S[a], H[b], exp_S[c])
-                for a, b, c in indices_BB
-                for H in [H_0, H_p]
+                -(-1)**i * product_by_order(
+                    order, exp_S[1][i], H[i][j], exp_S[j][1]
+                )
+                for i in (0, 1) for j in (0, 1)
             ),
             start=_zero
         )
-            
-        if new_H_AA is not _zero:
-            H_AA[order] = new_H_AA
-        if new_H_BB is not _zero:
-            H_BB[order] = new_H_BB
+
+    H_AA = {order: value for order, value in H_AA.items() if value is not _zero}
+    H_BB = {order: value for order, value in H_BB.items() if value is not _zero}
     return H_AA, H_BB
 
 
