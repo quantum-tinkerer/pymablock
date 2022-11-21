@@ -15,13 +15,14 @@ from sympy import (
     ZeroMatrix, Identity, diag, eye, zeros
 )
 from IPython.display import display_latex
-from sympy.physics.quantum import TensorProduct, Dagger, Operator, HermitianOperator
 import matplotlib.pyplot as plt
 import tinyarray as ta
 # -
 
 sympy.init_printing()
 
+
+# ### Auxiliary classes
 
 # +
 class Zero(np.ndarray):
@@ -181,73 +182,6 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     return U_AA, U_BB, V_AB
 
 
-def compute_next_orders_old(H_0, H_p, wanted_order, N_A=None):
-    """    
-    H_0 : np Hamiltonian in eigenbasis and ordered by eigenenergy.
-    H_p : np Hamiltonian in eigenbasis of H_0
-    wanted_order : int order of perturbation
-    
-    Returns:
-    U_AAn : list of AA block matrices up to order wanted_order
-    U_BBn : list of BB block matrices up to order wanted_order
-    V_ABn : list of AB block matrices up to order wanted_order
-    """
-    N = H_0.shape[0]
-    if N_A is None:
-        N_A = N // 2
-    N_B = N - N_A
-
-    H_0_AA = H_0[:N_A, :N_A]
-    H_0_BB = H_0[N_A:, N_A:]
-    H_p_AA = H_p[:N_A, :N_A]
-    H_p_AB = H_p[:N_A, N_A:]
-    H_p_BB = H_p[N_A:, N_A:]
-
-    # Blocks of U and V
-    # 0th order
-    U_AAn = [np.eye(N_A, dtype=complex)]
-    U_BBn = [np.eye(N_B, dtype=complex)]
-    V_ABn = [np.zeros((N_A, N_B), dtype=complex)]
-    if wanted_order == 0:
-        return U_AAn, U_BBn, V_ABn
-    
-    #1st order
-    E_A = np.diag(H_0)[:N_A]
-    E_B = np.diag(H_0)[N_A:]
-    energy_denominators = 1/(E_A.reshape(-1, 1) - E_B)
-    
-    U_AAn.append(np.zeros((N_A, N_A), dtype=complex))
-    U_BBn.append(np.zeros((N_B, N_B), dtype=complex))
-    V_ABn.append(-H_p_AB * energy_denominators)
-    if wanted_order == 1:
-        return U_AAn, U_BBn, V_ABn
-
-    for n in range(2, wanted_order+1):
-        U_AA_next = np.zeros((N_A, N_A), dtype=complex)
-        U_BB_next = np.zeros((N_B, N_B), dtype=complex)
-        Y_next = np.zeros_like(V_ABn[0])
-
-        for i in range(n):
-            Y_next -= (
-                + U_AAn[n-i-1] @ H_p_AA @ V_ABn[i]
-                + U_AAn[n-i-1] @ H_p_AB @ U_BBn[i]
-                - V_ABn[n-i-1] @ H_p_AB.conj().T @ V_ABn[i]
-                - V_ABn[n-i-1] @ H_p_BB @ U_BBn[i]
-            )
-        for i in range(1, n):
-            Y_next -= U_AAn[n-i] @ H_0_AA @ V_ABn[i] - V_ABn[n-i] @ H_0_BB @ U_BBn[i]
-            U_AA_next -= (U_AAn[n-i] @ U_AAn[i] + V_ABn[n-i] @ V_ABn[i].conj().T) / 2
-            U_BB_next -= (U_BBn[n-i] @ U_BBn[i] + V_ABn[n-i].conj().T @ V_ABn[i]) / 2
-
-        if any(not np.all(np.isfinite(mat)) for mat in (U_AA_next, U_BB_next, Y_next)):
-            raise RuntimeError(f"Instability encountered in {n}th order.")
-        U_AAn.append(U_AA_next)
-        U_BBn.append(U_BB_next)
-        V_ABn.append(Y_next * energy_denominators)
-
-    return U_AAn, U_BBn, V_ABn
-
-
 # + product_by_order(order, V_AB, V_BA)
 def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V_AB):
     """
@@ -310,27 +244,6 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V
     return H_AA, H_BB
 
 
-# + product_by_order(order, V_AB, V_BA)
-def H_tilde_old(H_0, H_p, wanted_order, U_n, V_n):
-    """Returns H tilde to a certain order"""
-    H_tilde_n = []
-
-    for n in range(0, wanted_order+1):
-        if isinstance(V_n[0], BlockMatrix):
-            first_term = zero
-            second_term = zero
-        else:
-            first_term = np.zeros_like(V_n[0])
-            second_term = np.zeros_like(V_n[0])
-
-        for i in range(0, n + 1):
-            first_term += (U_n[n-i] - V_n[n-i]) @ H_0 @ (U_n[i] + V_n[i])
-            if i < n:
-                second_term += (U_n[n-i-1] - V_n[n-i-1]) @ H_p @ (U_n[i] + V_n[i])
-        H_tilde_n.append(first_term + second_term)
-    return H_tilde_n
-
-
 # -
 
 # ### Testing
@@ -372,65 +285,13 @@ H_p_AB = {
 # -
 
 wanted_orders = [ta.array([5])]
-wanted_order = 5
 
 U_AA, U_BB, V_AB = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
-U_AA_old, U_BB_old, V_AB_old = compute_next_orders_old(H_0, H_p, wanted_order=wanted_order)
 
-U_n = [np.block([[U_AA, np.zeros((N_A, N_B))], [np.zeros((N_B, N_A)), U_BB]]) for U_AA, U_BB in zip(U_AA_old, U_BB_old)]
-V_n = [np.block([[np.zeros((N_A, N_A)), V_AB], [-Dagger(V_AB), np.zeros((N_B, N_B))]]) for V_AB in V_AB_old]
+H_AA, H_BB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V_AB)
+
+H_AA
+
+H_BB
 
 
-H_tilde_n_old = H_tilde_old(H_0, H_p, wanted_order, U_n, V_n)
-H_tilde_n_old
-
-H_tilde_n = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V_AB)
-H_tilde_n[0]
-
-# ### Symbolic terms
-
-# +
-N, M = symbols('N M')
-
-U_AA = Symbol('U^{AA}')
-U_AB = Symbol('U^{AB}')
-U_BB = Symbol('U^{BB}')
-
-V_AB = Symbol('V^{AB}')
-
-# +
-wanted_order = 4
-
-H_AA = MatrixSymbol('H^{AA}_0', N, N)
-H_BB = MatrixSymbol('H^{BB}_0', M, M)
-
-H_1_AA = MatrixSymbol('H^{AA}_1', N, N)
-H_1_BB = MatrixSymbol('H^{BB}_1', M, M)
-H_2_AB = MatrixSymbol('H^{AB}_2', N, M)
-H_2_BA = H_2_AB.T.conjugate()
-
-U_AAn = [Identity(N), ZeroMatrix(N, N)]
-U_BBn = [Identity(M), ZeroMatrix(M, M)]
-U_AAn += [MatrixSymbol(f'{U_AA.name}_{{{n}}}', N, N)
-          for n in range(2, wanted_order + 1)]
-U_BBn += [MatrixSymbol(f'{U_BB.name}_{{{n}}}', M, M)
-          for n in range(2, wanted_order + 1)]
-
-V_ABn = [ZeroMatrix(N, M)]
-V_ABn += [MatrixSymbol(V_AB.name + '_{}'.format(n), N, M)
-          for n in range(1, wanted_order + 1)]
-
-H_0 = BlockMatrix([[H_AA, ZeroMatrix(N, M)], [ZeroMatrix(M, N), H_BB]])
-H_p = BlockMatrix([[H_1_AA, H_2_AB], [H_2_BA, H_1_BB]])
-
-U_n = [BlockMatrix([[U_AA, ZeroMatrix(N, M)], [ZeroMatrix(M, N), U_BB]])
-       for U_AA, U_BB in zip(U_AAn, U_BBn)
-]
-V_n = [BlockMatrix([[ZeroMatrix(N, N), V_AB], [-V_AB.T.conjugate(), ZeroMatrix(M, M)]])
-       for V_AB in V_ABn
-]
-
-zero = BlockMatrix([
-    [ZeroMatrix(N, N), ZeroMatrix(N, M)],
-    [ZeroMatrix(M, N), ZeroMatrix(M, M)]
-])
