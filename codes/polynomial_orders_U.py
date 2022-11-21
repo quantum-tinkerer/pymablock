@@ -124,8 +124,8 @@ def generate_volume(wanted_orders):
 class Zero(np.ndarray):
     """A class that skips itself in additions
 
-    It is derived from a numpy array for its implementation of right addition and subtraction
-    to take priority.
+    It is derived from a numpy array for its implementation of right addition
+    and subtraction to take priority.
     """
 
     def __add__(self, other):
@@ -146,10 +146,10 @@ _zero = Zero(0)
 
 
 class One(np.ndarray):
-    """A class that skips itself in additions
+    """A class that skips itself in matrix multiplications
 
-    It is derived from a numpy array for its implementation of right addition and subtraction
-    to take priority.
+    It is derived from a numpy array for its implementation of right
+    multiplication to take priority.
     """
 
     def __add__(self, other):
@@ -169,9 +169,9 @@ _one = One(1)
 def product_by_order(order, *terms):
     """
     Compute sum of all product of terms of wanted order.
-    
+
     wanted_orders : list of tinyarrays containing the wanted order of each perturbation.
-    
+
     Returns:
     Sum of all contributing products.
     """
