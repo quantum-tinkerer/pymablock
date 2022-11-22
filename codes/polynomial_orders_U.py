@@ -207,7 +207,7 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S):
 
     for order in needed_orders:
         for k in (0, 1):
-            H_tilde[order] = sum(
+            H_tilde[k][order] = sum(
                 (
                     (-1)**(i == k) * product_by_order(
                         order, exp_S[k, i], H[i, j], exp_S[j, k]
