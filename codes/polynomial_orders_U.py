@@ -114,7 +114,9 @@ def product_by_order(order, *terms):
     contributing_products = []
     for combination in product(*(term.items() for term in terms)):
         if sum(key for key, _ in combination) == order:
-            contributing_products.append(reduce(matmul, (value for _, value in combination)))
+            contributing_products.append(reduce(
+                matmul, (value for _, value in combination if value is not _one)
+            ))
     return sum(contributing_products, start=_zero)
 
 
