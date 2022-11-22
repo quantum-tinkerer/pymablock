@@ -168,14 +168,11 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
             exp_S[0, 1][order] = divide_energies(Y)
             exp_S[1, 0][order] = -Dagger(exp_S[0, 1][order])
 
-        exp_S[0, 0][order] = (
-            - product_by_order(order, exp_S[0, 0], exp_S[0, 0])
-            + product_by_order(order, exp_S[0, 1], exp_S[1, 0])
-        )/2
-        exp_S[1, 1][order] = (
-            - product_by_order(order, exp_S[1, 1], exp_S[1, 1])
-            + product_by_order(order, exp_S[1, 0], exp_S[0, 1])
-        )/2
+        for i in (0, 1):
+            exp_S[i, i][order] = (
+                - product_by_order(order, exp_S[i, i], exp_S[i, i])
+                + product_by_order(order, exp_S[i, 1-i], exp_S[1-i, i])
+            )/2
 
     return exp_S
 
@@ -204,34 +201,27 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S):
         [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
     ])
 
-    H_AA = {}
-    H_BB = {}
+    H_tilde = ({}, {})
 
     needed_orders = generate_volume(wanted_orders)
 
     for order in needed_orders:
-        H_AA[order] = sum(
-            (
-                (-1)**i * product_by_order(
-                    order, exp_S[0, i], H[i, j], exp_S[j, 0]
-                )
-                for i in (0, 1) for j in (0, 1)
-            ),
-            start=_zero
-        )
-        H_BB[order] = sum(
-            (
-                -(-1)**i * product_by_order(
-                    order, exp_S[1, i], H[i, j], exp_S[j, 1]
-                )
-                for i in (0, 1) for j in (0, 1)
-            ),
-            start=_zero
-        )
+        for k in (0, 1):
+            H_tilde[order] = sum(
+                (
+                    (-1)**(i == k) * product_by_order(
+                        order, exp_S[k, i], H[i, j], exp_S[j, k]
+                    )
+                    for i in (0, 1) for j in (0, 1)
+                ),
+                start=_zero
+            )
 
-    H_AA = {order: value for order, value in H_AA.items() if value is not _zero}
-    H_BB = {order: value for order, value in H_BB.items() if value is not _zero}
-    return H_AA, H_BB
+    H_tilde = tuple(
+        {order: value for order, value in term.items() if value is not _zero}
+        for term in H_tilde
+    )
+    return H_tilde
 
 
 # -
