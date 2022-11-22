@@ -14,6 +14,7 @@ from sympy import (
     diff, BlockMatrix, BlockDiagMatrix,
     ZeroMatrix, Identity, diag, eye, zeros
 )
+from sympy.physics.quantum import Dagger
 from IPython.display import display_latex
 import matplotlib.pyplot as plt
 import tinyarray as ta
@@ -46,6 +47,12 @@ class Zero(np.ndarray):
     def __truediv__(self, other):
         return self
 
+    def __matmul__(self, other):
+        return self
+
+    __rmatmul__ = __matmul__
+
+
 _zero = Zero(0)
 
 
@@ -60,6 +67,7 @@ class One(np.ndarray):
         raise NotImplementedError
 
     __radd__ = __rsub__ = __sub__ = __neg__ = __add__
+    __div__ = __rdiv__ = __mul__ = __rmul__ = __add__
 
     def __matmul__(self, other):
         return other
@@ -76,9 +84,9 @@ _one = One(1)
 def generate_volume(wanted_orders):
     """
     Generate ordered array with tinyarrays in volume of wanted_orders.
-    
+
     wanted_orders : list of tinyarrays containing the wanted order of each perturbation.
-    
+
     Returns:
     List of sorted tinyarrays contained in the volume of required orders to compute the wanted orders.
     """
@@ -119,12 +127,11 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     H_p_AA : dictionary of perturbations A blocks in eigenbasis of H_0
     H_p_BB : dictionary of perturbations B blocks in eigenbasis of H_0
     H_p_AB : dictionary of perturbations AB blocks in eigenbasis of H_0
-    wanted_orders : list of tinyarrays containing the wanted order of each perturbation.
+    wanted_orders : list of tinyarrays containing the wanted order of each perturbation
+    divide_energies : (optional) callable for solving Sylvester equation
 
     Returns:
-    U_AAn : list of AA block matrices up to order wanted_order
-    U_BBn : list of BB block matrices up to order wanted_order
-    V_ABn : list of AB block matrices up to order wanted_order
+    exp_S : 2x2 np.array of dictionaries of transformations
     """
     if divide_energies is None:
         E_A = np.diag(H_0_AA)
@@ -135,87 +142,70 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
             return Y * energy_denominators
 
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
-    zero_index = ta.zeros([len(wanted_orders[0])])
-    H = [
+    zero_index = ta.zeros([len(wanted_orders[0])], int)
+    H = np.array([
         [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
         [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
-    ]
+    ])
 
-    U_AA = {zero_index: _one}
-    U_BB = {zero_index: _one}
-    V_AB = {}
-    V_BA = {}
-    exp_S = [
-        [U_AA, V_AB],
-        [V_BA, U_BB]
-    ]
+    exp_S = np.array([
+        [{zero_index: _one}, {}],
+        [{}, {zero_index: _one}]
+    ])
     needed_orders = generate_volume(wanted_orders)
 
     for order in needed_orders:
         Y = sum(
             (
                 -(-1)**i * product_by_order(
-                    order, exp_S[0][i], H[i][j], exp_S[j][1]
+                    order, exp_S[0, i], H[i, j], exp_S[j, 1]
                 )
                 for i in (0, 1) for j in (0, 1)
             ),
             start=_zero
         )
         if Y is not _zero:
-            V_AB[order] = divide_energies(Y)
-            V_BA[order] = -Dagger(V_AB[order])
+            exp_S[0, 1][order] = divide_energies(Y)
+            exp_S[1, 0][order] = -Dagger(exp_S[0, 1][order])
 
-        new_U_AA = (
-            - product_by_order(order, U_AA, U_AA)
-            + product_by_order(order, V_AB, V_BA)
+        exp_S[0, 0][order] = (
+            - product_by_order(order, exp_S[0, 0], exp_S[0, 0])
+            + product_by_order(order, exp_S[0, 1], exp_S[1, 0])
         )/2
-        if new_U_AA is not _zero:
-            U_AA[order] = new_U_AA
-
-        new_U_BB = (
-            - product_by_order(order, U_BB, U_BB)
-            + product_by_order(order, V_BA, V_AB)
+        exp_S[1, 1][order] = (
+            - product_by_order(order, exp_S[1, 1], exp_S[1, 1])
+            + product_by_order(order, exp_S[1, 0], exp_S[0, 1])
         )/2
-        if new_U_BB is not _zero:
-            U_BB[order] = new_U_BB
 
-    return U_AA, U_BB, V_AB
+    return exp_S
 
 
 # + product_by_order(order, V_AB, V_BA)
-def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V_AB):
+def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S):
     """
     Computes block-diagonal form of Hamiltonian with multivariate perturbation.
-    
+
     H_0_AA : unperturbed Hamiltonian A block in eigenbasis and ordered by eigenenergy.
     H_0_BB : unperturbed Hamiltonian B block in eigenbasis and ordered by eigenenergy.
     H_p_AA : dictionary of perturbations A blocks in eigenbasis of H_0
     H_p_BB : dictionary of perturbations B blocks in eigenbasis of H_0
     H_p_AB : dictionary of perturbations AB blocks in eigenbasis of H_0
     wanted_orders : list of tinyarrays containing the wanted order of each perturbation.
-    U_AAn : list of AA block matrices up to order wanted_order
-    U_BBn : list of BB block matrices up to order wanted_order
-    V_ABn : list of AB block matrices up to order wanted_order
+    exp_S : 2x2 np.array of dictionaries of transformations
 
     Returns:
     H_AA : dictionary of orders of transformed perturbed Hamiltonian A block
     H_BB : dictionary of orders of transformed perturbed Hamiltonian A block
     """
-    zero_index = ta.zeros([len(wanted_orders[0])])
+    zero_index = ta.zeros([len(wanted_orders[0])], int)
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
-    H = [
+    H = np.array([
         [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
         [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
-    ]
+    ])
 
     H_AA = {}
     H_BB = {}
-    H_AB = {}
-    V_BA = {order: -Dagger(value) for order, value in V_AB.items()}
-    exp_S = [
-        [U_AA, V_AB],
-        [V_BA, U_BB]
-    ]
 
     needed_orders = generate_volume(wanted_orders)
 
@@ -223,7 +213,7 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V
         H_AA[order] = sum(
             (
                 (-1)**i * product_by_order(
-                    order, exp_S[0][i], H[i][j], exp_S[j][0]
+                    order, exp_S[0, i], H[i, j], exp_S[j, 0]
                 )
                 for i in (0, 1) for j in (0, 1)
             ),
@@ -232,7 +222,7 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V
         H_BB[order] = sum(
             (
                 -(-1)**i * product_by_order(
-                    order, exp_S[1][i], H[i][j], exp_S[j][1]
+                    order, exp_S[1, i], H[i, j], exp_S[j, 1]
                 )
                 for i in (0, 1) for j in (0, 1)
             ),
@@ -247,8 +237,6 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V
 # -
 
 # ### Testing
-
-# #### An initial attempt to get a symbolic expression
 
 # +
 N_A = 2
@@ -284,11 +272,11 @@ H_p_AB = {
 }
 # -
 
-wanted_orders = [ta.array([5])]
+wanted_orders = [ta.array([5], int)]
 
-U_AA, U_BB, V_AB = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
+exp_S = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
 
-H_AA, H_BB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, U_AA, U_BB, V_AB)
+H_AA, H_BB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S)
 
 H_AA
 
