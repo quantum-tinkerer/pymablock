@@ -102,7 +102,7 @@ def generate_volume(wanted_orders):
     return (ta.array(i) for i in sorted(keep_arrays, key=sum) if any(i))
 
 
-def product_by_order(order, *terms):
+def product_by_order(order, *terms, op=None):
     """
     Compute sum of all product of terms of wanted order.
 
@@ -111,17 +111,19 @@ def product_by_order(order, *terms):
     Returns:
     Sum of all contributing products.
     """
+    if op is None:
+        op = matmul
     contributing_products = []
     for combination in product(*(term.items() for term in terms)):
         if sum(key for key, _ in combination) == order:
             values = [value for _, value in combination if value is not _one]
             if _zero in values:
                 continue
-            contributing_products.append(reduce(matmul, values))
+            contributing_products.append(reduce(op, values))
     return sum(contributing_products, start=_zero)
 
 
-def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, divide_energies=None):
+def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, divide_energies=None, *, op=None):
     """
     Computes transformation to diagonalized Hamiltonian with multivariate perturbation.
 
@@ -132,6 +134,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     H_p_AB : dictionary of perturbations AB blocks in eigenbasis of H_0
     wanted_orders : list of tinyarrays containing the wanted order of each perturbation
     divide_energies : (optional) callable for solving Sylvester equation
+    op: callable
 
     Returns:
     exp_S : 2x2 np.array of dictionaries of transformations
@@ -161,7 +164,8 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
         Y = sum(
             (
                 -(-1)**i * product_by_order(
-                    order, exp_S[0, i], H[i, j], exp_S[j, 1]
+                    order, exp_S[0, i], H[i, j], exp_S[j, 1],
+                    op=op
                 )
                 for i in (0, 1) for j in (0, 1)
             ),
@@ -173,8 +177,8 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
 
         for i in (0, 1):
             exp_S[i, i][order] = (
-                - product_by_order(order, exp_S[i, i], exp_S[i, i])
-                + product_by_order(order, exp_S[i, 1-i], exp_S[1-i, i])
+                - product_by_order(order, exp_S[i, i], exp_S[i, i], op=op)
+                + product_by_order(order, exp_S[i, 1-i], exp_S[1-i, i], op=op)
             )/2
 
     return exp_S
