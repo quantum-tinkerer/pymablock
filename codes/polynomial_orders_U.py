@@ -185,7 +185,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
 
 
 # + product_by_order(order, V_AB, V_BA)
-def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S):
+def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=False):
     """
     Computes block-diagonal form of Hamiltonian with multivariate perturbation.
 
@@ -208,22 +208,25 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S):
         [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
     ])
 
-    H_tilde = ({}, {})
+    if compute_AB:
+        H_tilde = ({}, {}, {}) # AA BB AB
+        indices = ((0, 1, 0), (0, 1, 1), (0, 1, 2))
+    else:
+        H_tilde = ({}, {}) # AA BB
+        indices = ((0, 1), (0, 1), (0, 1))
 
     needed_orders = generate_volume(wanted_orders)
-
     for order in needed_orders:
-        for k in (0, 1):
-            H_tilde[k][order] = sum(
+        for k, l, block in zip(*indices):
+            H_tilde[block][order] = sum(
                 (
-                    (-1)**(i == k) * product_by_order(
-                        order, exp_S[k, i], H[i, j], exp_S[j, k]
+                    (-1)**(i != k) * product_by_order(
+                        order, exp_S[k, i], H[i, j], exp_S[j, l]
                     )
                     for i in (0, 1) for j in (0, 1)
                 ),
                 start=_zero
             )
-
     H_tilde = tuple(
         {order: value for order, value in term.items() if value is not _zero}
         for term in H_tilde
@@ -242,7 +245,7 @@ N = N_A + N_B
 H_0 = np.diag(np.sort(np.random.randn(N)))
 
 N_p = 1
-wanted_orders = [ta.array(np.random.randint(0, 3, size=N_p)) for i in range(2)]
+wanted_orders = [ta.array([5], int)]
 H_ps = []
 for perturbation in range(N_p):
     H_p = np.random.random(size=(N, N)) + 1j * np.random.random(size=(N, N))
@@ -269,14 +272,14 @@ H_p_AB = {
 }
 # -
 
-wanted_orders = [ta.array([5], int)]
-
 exp_S = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
 
-H_AA, H_BB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S)
+H_AA, H_BB, H_AB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True)
+#H_AA, H_BB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S)
 
 H_AA
 
 H_BB
 
-
+for key, values in H_AB.items():
+    assert np.allclose(values, 0, atol=10-8)
