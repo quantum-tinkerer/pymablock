@@ -171,7 +171,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
             ),
             start=_zero
         )
-        if Y is not _zero:
+        if not isinstance(Y, Zero):
             exp_S[0, 1][order] = divide_energies(Y)
             exp_S[1, 0][order] = -Dagger(exp_S[0, 1][order])
 
