@@ -163,11 +163,17 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     for order in needed_orders:
         Y = sum(
             (
-                -(-1)**i * product_by_order(
-                    order, exp_S[0, i], H[i, j], exp_S[j, 1],
-                    op=op
-                )
+                -(-1)**i * product_
                 for i in (0, 1) for j in (0, 1)
+                if not isinstance(
+                    (
+                        product_ := product_by_order(
+                            order, exp_S[0, i], H[i, j], exp_S[j, 1],
+                            op=op
+                        )
+                    ),
+                    Zero
+                )
             ),
             start=_zero
         )
@@ -184,7 +190,6 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     return exp_S
 
 
-# + product_by_order(order, V_AB, V_BA)
 def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=False, precision_tol=1e-8):
     """
     Computes block-diagonal form of Hamiltonian with multivariate perturbation.
@@ -220,10 +225,16 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, comput
         for k, l, block in zip(*indices):
             H_tilde[block][order] = sum(
                 (
-                    (-1)**(i != k) * product_by_order(
-                        order, exp_S[k, i], H[i, j], exp_S[j, l]
-                    )
+                    (-1)**(i != k) * product_
                     for i in (0, 1) for j in (0, 1)
+                    if not isinstance(
+                        (
+                            product_ := product_by_order(
+                                order, exp_S[k, i], H[i, j], exp_S[j, l],
+                            )
+                        ),
+                        Zero
+                    )
                 ),
                 start=_zero
             )
