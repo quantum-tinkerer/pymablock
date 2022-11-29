@@ -180,7 +180,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
                 - product_by_order(order, exp_S[i, i], exp_S[i, i], op=op)
                 + product_by_order(order, exp_S[i, 1-i], exp_S[1-i, i], op=op)
             )/2
-    
+
     return exp_S
 
 
@@ -234,7 +234,7 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, comput
     if compute_AB==True:
         assert np.all([np.allclose(v, 0, atol=precision_tol) for k,v in H_tilde[2].items()]),\
                 "H_AB does not vanish within requested tolerance of {}.".format(precision_tol)
-    
+
     return H_tilde
 
 
@@ -289,7 +289,7 @@ def validate_unitary(exp_S, wanted_orders, dimA, dimB):
                         that block diagonalizes the perturbed Hamiltonian in block-matrix space.
 
     wanted_orders:      list of tiny_arrays
-                        List of orders to which the perturbation should be lifted in the respective 
+                        List of orders to which the perturbation should be lifted in the respective
                         perturbation parameters.
 
     dimA:               int, Float
@@ -298,46 +298,46 @@ def validate_unitary(exp_S, wanted_orders, dimA, dimB):
                         Dimension of subspace B.
 
     RETURNS:
-    all_true:           Boolean 
+    all_true:           Boolean
                         signaling whether complete test passed.
 
     explicit:           dict
-                        with orders as keys and booleans as values 
+                        with orders as keys and booleans as values
                         that give details in case of negative total result.
     """
-    
+
     needed_orders = generate_volume(wanted_orders)
-    
+
     indices = ((0, 1, 0), (0, 1, 1), (0, 1, 2))
     explicit = ({}, {}, {})
-    
+
     for order in needed_orders:
         for k, l, block in zip(*indices):
             explicit[block][order] = sum(
                 (
-                    product_by_order(order, 
-                                     exp_S[k, i], 
+                    product_by_order(order,
+                                     exp_S[k, i],
                                      exp_S[j, l]
                     )
                     for i in (0, 1) for j in (0, 1)
                 ),
                 start=_zero
             )
-            
+
     return explicit
 
-test = [o for o in generate_volume(wanted_orders)][1]
-product_by_order(test,exp_S[0,0],exp_S[0,0])
+# test = [o for o in generate_volume(wanted_orders)][1]
+# product_by_order(test,exp_S[0,0],exp_S[0,0])
 
 #validate_unitary(exp_S, wanted_orders, N_A, N_B)
 # -
 
-H_AA, H_BB, H_AB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True, precision_tol=1e-10)
+# H_AA, H_BB, H_AB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True, precision_tol=1e-10)
 #H_AA, H_BB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S)
 
-H_AA
+# H_AA
 
-H_BB
+# H_BB
 
-for key, values in H_AB.items():
-    assert np.allclose(values, 0, atol=10-8)
+# for key, values in H_AB.items():
+#     assert np.allclose(values, 0, atol=10-8)
