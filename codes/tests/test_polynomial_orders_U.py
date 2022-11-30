@@ -118,8 +118,8 @@ def test_check_unitary():
 
     H_AA, H_BB, H_AB = polynomial_orders_U.H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True)
 
-    test_AA = np.all([np.allclose(v, np.eye(N_A), atol=precision_tol) for k,v in H_AA.items()])
-    test_BB = np.all([np.allclose(v, np.eye(N_B), atol=precision_tol) for k,v in H_BB.items()])
+    test_AA = np.all([np.allclose(v, 0, atol=precision_tol) for k,v in H_AA.items()])
+    test_BB = np.all([np.allclose(v, 0, atol=precision_tol) for k,v in H_BB.items()])
     test_AB = np.all([np.allclose(v, 0, atol=precision_tol) for k,v in H_AB.items()])
 
     assert test_AA, H_AA.items()
