@@ -1,4 +1,4 @@
-image: quantumtinkerer/research
+image: gitlab.kwant-project.org:5005/qt/research-docker
 
 stages:
   # - run analysis
