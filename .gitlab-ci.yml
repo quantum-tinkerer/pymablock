@@ -55,6 +55,8 @@ run tests:
 
 pages:
   extends: .pdf-build
+  variables:
+    CWD: notes
   needs:
     - run tests
   after_script:
