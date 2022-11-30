@@ -190,7 +190,7 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     return exp_S
 
 
-def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=False, precision_tol=1e-8):
+def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=False):
     """
     Computes block-diagonal form of Hamiltonian with multivariate perturbation.
 
@@ -242,9 +242,6 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, comput
         {order: value for order, value in term.items() if value is not _zero}
         for term in H_tilde
     )
-    if compute_AB==True:
-        assert np.all([np.allclose(v, 0, atol=precision_tol) for k,v in H_tilde[2].items()]),\
-                "H_AB does not vanish within requested tolerance of {}.".format(precision_tol)
 
     return H_tilde
 
@@ -289,62 +286,10 @@ H_p_AB = {
 
 exp_S = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
 
-
-# +
-def validate_unitary(exp_S, wanted_orders, dimA, dimB):
-    """
-    Test the previously generated exp_S unitary whether it maps the identity to itself.
-    INPUTS:
-    exp_S:              np.ndarray
-                        2x2 object array containing dicts that encode the full unitary transformation
-                        that block diagonalizes the perturbed Hamiltonian in block-matrix space.
-
-    wanted_orders:      list of tiny_arrays
-                        List of orders to which the perturbation should be lifted in the respective
-                        perturbation parameters.
-
-    dimA:               int, Float
-                        Dimension of subspace A.
-    dimB:               int, Float
-                        Dimension of subspace B.
-
-    RETURNS:
-    all_true:           Boolean
-                        signaling whether complete test passed.
-
-    explicit:           dict
-                        with orders as keys and booleans as values
-                        that give details in case of negative total result.
-    """
-
-    needed_orders = generate_volume(wanted_orders)
-
-    indices = ((0, 1, 0), (0, 1, 1), (0, 1, 2))
-    explicit = ({}, {}, {})
-
-    for order in needed_orders:
-        for k, l, block in zip(*indices):
-            explicit[block][order] = sum(
-                (
-                    product_by_order(order,
-                                     exp_S[k, i],
-                                     exp_S[j, l]
-                    )
-                    for i in (0, 1) for j in (0, 1)
-                ),
-                start=_zero
-            )
-
-    return explicit
-
-# test = [o for o in generate_volume(wanted_orders)][1]
-# product_by_order(test,exp_S[0,0],exp_S[0,0])
-
-#validate_unitary(exp_S, wanted_orders, N_A, N_B)
-# -
+H_AA, H_BB, H_AB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True, precision_tol=1e-10)
 
 # H_AA, H_BB, H_AB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True, precision_tol=1e-10)
-#H_AA, H_BB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S)
+# H_AA, H_BB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S)
 
 # H_AA
 
