@@ -282,18 +282,3 @@ H_p_AB = {
     order: value[:N_A, N_A:]
     for order, value in zip(orders, H_ps)
 }
-# -
-
-exp_S = compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
-
-H_AA, H_BB, H_AB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True, precision_tol=1e-10)
-
-# H_AA, H_BB, H_AB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True, precision_tol=1e-10)
-# H_AA, H_BB = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S)
-
-# H_AA
-
-# H_BB
-
-# for key, values in H_AB.items():
-#     assert np.allclose(values, 0, atol=10-8)
