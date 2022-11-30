@@ -18,47 +18,36 @@ from sympy.physics.quantum import Dagger
 from IPython.display import display_latex
 import matplotlib.pyplot as plt
 import tinyarray as ta
-# -
-
-sympy.init_printing()
 
 
-# ### Auxiliary classes
+# ### Auxiliary functions
 
 # +
-class Zero(np.ndarray):
+class Zero:
     """A class that skips itself in additions
 
     It is derived from a numpy array for its implementation of right addition
     and subtraction to take priority.
     """
+    def __mul__(self, other=None):
+        return self
 
     def __add__(self, other):
         return other
 
-    __radd__ = __rsub__ = __add__
-
-    def __sub__(self, other):
-        return -other
-
-    def __neg__(self):
-        return self
-
-    def __truediv__(self, other):
-        return self
-
-    def __matmul__(self, other):
-        return self
-
-    __rmatmul__ = __matmul__
+    __neg__ = __truediv__ = __rmul__ = __mul__
 
 
-_zero = Zero(0)
+_zero = Zero()
 
 
-# -
+def _zero_sum(terms):
+    """Sum that returns a singleton _zero if empty and omits _zero terms"""
+    return sum(
+        (term for term in terms if not isinstance(term, Zero)),
+        start=_zero
+    )
 
-# ### Computing $U_n$ and $V_n$
 
 def generate_volume(wanted_orders):
     """
@@ -96,10 +85,10 @@ def product_by_order(order, *terms, op=None):
     for combination in product(*(term.items() for term in terms)):
         if sum(key for key, _ in combination) == order:
             values = [value for _, value in combination if value is not None]
-            if _zero in values:
+            if any(isinstance(value, Zero) for value in values):
                 continue
             contributing_products.append(reduce(op, values))
-    return sum(contributing_products, start=_zero)
+    return _zero_sum(contributing_products)
 
 
 def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, divide_energies=None, *, op=None):
@@ -141,31 +130,22 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     needed_orders = generate_volume(wanted_orders)
 
     for order in needed_orders:
-        Y = sum(
-            (
-                -(-1)**i * product_
-                for i in (0, 1) for j in (0, 1)
-                if not isinstance(
-                    (
-                        product_ := product_by_order(
-                            order, exp_S[0, i], H[i, j], exp_S[j, 1],
-                            op=op
-                        )
-                    ),
-                    Zero
-                )
-            ),
-            start=_zero
+        Y = _zero_sum(
+            -(-1)**i * product_by_order(
+                order, exp_S[0, i], H[i, j], exp_S[j, 1],
+                op=op
+            )
+            for i in (0, 1) for j in (0, 1)
         )
         if not isinstance(Y, Zero):
             exp_S[0, 1][order] = divide_energies(Y)
             exp_S[1, 0][order] = -Dagger(exp_S[0, 1][order])
 
         for i in (0, 1):
-            exp_S[i, i][order] = (
-                - product_by_order(order, exp_S[i, i], exp_S[i, i], op=op)
-                + product_by_order(order, exp_S[i, 1-i], exp_S[1-i, i], op=op)
-            )/2
+            exp_S[i, i][order] = _zero_sum((
+                -product_by_order(order, exp_S[i, i], exp_S[i, i], op=op),
+                product_by_order(order, exp_S[i, 1-i], exp_S[1-i, i], op=op)
+            ))/2
 
     return exp_S
 
@@ -203,20 +183,11 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, comput
     needed_orders = generate_volume(wanted_orders)
     for order in needed_orders:
         for k, l, block in zip(*indices):
-            H_tilde[block][order] = sum(
-                (
-                    (-1)**(i != k) * product_
-                    for i in (0, 1) for j in (0, 1)
-                    if not isinstance(
-                        (
-                            product_ := product_by_order(
-                                order, exp_S[k, i], H[i, j], exp_S[j, l],
-                            )
-                        ),
-                        Zero
-                    )
-                ),
-                start=_zero
+            H_tilde[block][order] = _zero_sum(
+                (-1)**(i != k) * product_by_order(
+                    order, exp_S[k, i], H[i, j], exp_S[j, l],
+                )
+                for i in (0, 1) for j in (0, 1)
             )
     H_tilde = tuple(
         {order: value for order, value in term.items() if value is not _zero}
