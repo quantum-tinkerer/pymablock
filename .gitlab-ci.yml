@@ -1,10 +1,5 @@
 image: gitlab.kwant-project.org:5005/qt/research-docker
 
-stages:
-  # - run analysis
-  - build documents
-  - run tests
-
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   EXEC_TIMEOUT: 180
@@ -28,8 +23,6 @@ before_script:
 
 
 .pdf-build:
-  image: gitlab.kwant-project.org:5005/qt/research-docker
-  stage: build documents
   script:
     - cd $CWD
     - if [ -d images ]; then
@@ -52,27 +45,6 @@ before_script:
     -   fi
     - done
 
-pages:
-  extends: .pdf-build
-  variables:
-    CWD: notes
-  after_script:
-    - mkdir public && cp notes/*.pdf public
-  artifacts:
-    paths:
-      - public
-  stage: build documents
-
-build publication:
-  extends: .pdf-build
-  variables:
-    CWD: publication
-  artifacts:
-    paths:
-      - publication/*.pdf
-    expire_in: 1 month
-  stage: build documents
-
 run tests:
   script:
     - pip install pytest-cov
@@ -80,4 +52,15 @@ run tests:
   artifacts:
     paths:
       - htmlcov
-  stage: run tests
+
+pages:
+  extends: .pdf-build
+  dependencies:
+    - run tests
+  after_script:
+    - mkdir public
+    - cp notes/*.pdf public
+    - cp -r htmlcov/* public
+  artifacts:
+    paths:
+      - public
