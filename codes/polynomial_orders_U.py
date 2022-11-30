@@ -56,27 +56,6 @@ class Zero(np.ndarray):
 _zero = Zero(0)
 
 
-class One(np.ndarray):
-    """A class that skips itself in matrix multiplications
-
-    It is derived from a numpy array for its implementation of right
-    multiplication to take priority.
-    """
-
-    def __add__(self, other):
-        raise NotImplementedError
-
-    __radd__ = __rsub__ = __sub__ = __neg__ = __add__
-    __div__ = __rdiv__ = __mul__ = __rmul__ = __add__
-
-    def __matmul__(self, other):
-        return other
-
-    __rmatmul__ = __matmul__
-
-_one = One(1)
-
-
 # -
 
 # ### Computing $U_n$ and $V_n$
@@ -116,7 +95,7 @@ def product_by_order(order, *terms, op=None):
     contributing_products = []
     for combination in product(*(term.items() for term in terms)):
         if sum(key for key, _ in combination) == order:
-            values = [value for _, value in combination if value is not _one]
+            values = [value for _, value in combination if value is not None]
             if _zero in values:
                 continue
             contributing_products.append(reduce(op, values))
@@ -154,9 +133,10 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
         [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
     ])
 
+    # We use None as a placeholder for identity.
     exp_S = np.array([
-        [{zero_index: _one}, {}],
-        [{}, {zero_index: _one}]
+        [{zero_index: None}, {}],
+        [{}, {zero_index: None}]
     ])
     needed_orders = generate_volume(wanted_orders)
 
