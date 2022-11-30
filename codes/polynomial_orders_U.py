@@ -107,16 +107,12 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
     Returns:
     exp_S : 2x2 np.array of dictionaries of transformations
     """
-    if divide_energies is None:
-        E_A = np.diag(H_0_AA)
-        E_B = np.diag(H_0_BB)
-        energy_denominators = 1/(E_A.reshape(-1, 1) - E_B)
 
-        def divide_energies(Y):
-            return Y * energy_denominators
+    zero_index = ta.zeros([len(wanted_orders[0])], int)
+    if any(zero_index in pert for pert in (H_p_AA, H_p_AB, H_p_BB)):
+        raise ValueError("Perturbation terms may not contain zeroth order")
 
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
-    zero_index = ta.zeros([len(wanted_orders[0])], int)
     H = np.array([
         [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
         [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
@@ -127,6 +123,15 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
         [{zero_index: None}, {}],
         [{}, {zero_index: None}]
     ])
+
+    if divide_energies is None:
+        E_A = np.diag(H_0_AA)
+        E_B = np.diag(H_0_BB)
+        energy_denominators = 1/(E_A.reshape(-1, 1) - E_B)
+
+        def divide_energies(Y):
+            return Y * energy_denominators
+
     needed_orders = generate_volume(wanted_orders)
 
     for order in needed_orders:
