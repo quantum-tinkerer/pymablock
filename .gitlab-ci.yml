@@ -55,12 +55,12 @@ run tests:
 
 pages:
   extends: .pdf-build
-  dependencies:
+  needs:
     - run tests
   after_script:
     - mkdir public
     - cp notes/*.pdf public
-    - cp -r htmlcov/* public
+    - cp -r htmlcov public/
   artifacts:
     paths:
       - public
