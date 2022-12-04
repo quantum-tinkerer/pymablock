@@ -4,17 +4,17 @@ import tinyarray as ta
 import sympy
 
 
-def assert_almost_zero(a, tol, extra_msg=""):
+def assert_almost_zero(a, decimal, extra_msg=""):
     """Compare two dictionaries with array-like values."""
     for key, value in a.items():
         np.testing.assert_almost_equal(
-            value, 0, atol=tol, err_msg=f"{key=} {extra_msg}"
+            value, 0, decimal=decimal, err_msg=f"{key=} {extra_msg}"
         )
 
 
 def test_check_AB():
     # initialize randomized parameters
-    precision_tol = 1e-5
+    decimal = 5
 
     N_A = np.random.randint(0,high=10)
     N_B = np.random.randint(0,high=20)
@@ -57,11 +57,11 @@ def test_check_AB():
         H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True
     )[2]
 
-    assert_almost_zero(H_AB, precision_tol)
+    assert_almost_zero(H_AB, decimal)
 
 
 def test_check_unitary():
-    precision_tol = 1e-5
+    decimal = 5
 
     N_A = np.random.randint(0, high=10)
     N_B = np.random.randint(0, high=20)
@@ -108,4 +108,4 @@ def test_check_unitary():
     transformed = H_tilde(np.eye(N_A), np.eye(N_B), {}, {}, {}, wanted_orders, exp_S, compute_AB=True)
 
     for value, block in zip(transformed, "AA BB AB".split()):
-        assert_almost_zero(value, precision_tol, f"{block=}")
+        assert_almost_zero(value, decimal, f"{block=}")
