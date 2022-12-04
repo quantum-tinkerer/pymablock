@@ -1,7 +1,15 @@
-from codes import polynomial_orders_U
+from codes.polynomial_orders_U import compute_next_orders, H_tilde
 import numpy as np
 import tinyarray as ta
 import sympy
+
+
+def assert_almost_zero(a, tol, extra_msg=""):
+    """Compare two dictionaries with array-like values."""
+    for key, value in a.items():
+        np.testing.assert_almost_equal(
+            value, 0, atol=tol, err_msg=f"{key=} {extra_msg}"
+        )
 
 
 def test_check_AB():
@@ -41,12 +49,16 @@ def test_check_AB():
         order: value[:N_A, N_A:]
         for order, value in zip(orders, H_ps)
     }
-    exp_S = polynomial_orders_U.compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
-    
-    H_AB = polynomial_orders_U.H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True)[2]
+    exp_S = compute_next_orders(
+        H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders
+    )
 
-    assert np.all([np.allclose(v, 0, atol=precision_tol) for k,v in H_AB.items()]),\
-            "H_AB does not vanish within requested tolerance of {}.".format(precision_tol)
+    H_AB = H_tilde(
+        H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=True
+    )[2]
+
+    assert_almost_zero(H_AB, precision_tol)
+
 
 def test_check_unitary():
     precision_tol = 1e-5
@@ -56,7 +68,7 @@ def test_check_unitary():
     N = N_A + N_B
 
     #Init randomized Hamiltonian to generate some exp_S
-    
+
     H_0 = np.diag(np.sort(np.random.randn(N)))
 
     N_p = np.random.randint(1, high=5)
@@ -87,16 +99,13 @@ def test_check_unitary():
         for order, value in zip(orders, H_ps)
     }
 
-    exp_S = polynomial_orders_U.compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders)
-    
+    exp_S = compute_next_orders(
+        H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders
+    )
+
     #Check unitarity
 
-    H_AA, H_BB, H_AB = polynomial_orders_U.H_tilde(np.eye(N_A), np.eye(N_B), {}, {}, {}, wanted_orders, exp_S, compute_AB=True)
+    transformed = H_tilde(np.eye(N_A), np.eye(N_B), {}, {}, {}, wanted_orders, exp_S, compute_AB=True)
 
-    test_AA = np.all([np.allclose(value, 0, atol=precision_tol) for key, value in H_AA.items()])
-    test_BB = np.all([np.allclose(value, 0, atol=precision_tol) for key, value in H_BB.items()])
-    test_AB = np.all([np.allclose(value, 0, atol=precision_tol) for key, value in H_AB.items()])
-
-    assert test_AA
-    assert test_BB
-    assert test_AB
+    for value, block in zip(transformed, "AA BB AB".split()):
+        assert_almost_zero(value, precision_tol, f"{block=}")
