@@ -3,6 +3,7 @@ import numpy as np
 import tinyarray as ta
 import sympy
 
+rand_gen = np.random.default_rng(13012023)
 
 def assert_almost_zero(a, decimal, extra_msg=""):
     """Compare two dictionaries with array-like values."""
@@ -16,18 +17,18 @@ def test_check_AB():
     # initialize randomized parameters
     decimal = 5
 
-    N_A = np.random.randint(0,high=10)
-    N_B = np.random.randint(0,high=20)
+    N_A = rand_gen.integers(0,high=10)
+    N_B = rand_gen.integers(0,high=20)
     N = N_A + N_B
 
-    H_0 = np.diag(np.sort(np.random.randn(N)))
+    H_0 = np.diag(np.sort(rand_gen.normal(0, size=12)))
 
-    N_p = np.random.randint(1,high=5)
+    N_p = rand_gen.integers(1,high=5)
 
-    wanted_orders = [ta.array(np.random.randint(0,high=5,size=N_p), int)]
+    wanted_orders = [ta.array(rand_gen.integers(0,high=5,size=N_p), int)]
     H_ps = []
     for perturbation in range(N_p):
-        H_p = np.random.random(size=(N, N)) + 1j * np.random.random(size=(N, N))
+        H_p = rand_gen.normal(size=(N, N)) + 1j * rand_gen.normal(size=(N, N))
         H_p += H_p.conj().T
         H_ps.append(H_p)
 
@@ -63,20 +64,20 @@ def test_check_AB():
 def test_check_unitary():
     decimal = 5
 
-    N_A = np.random.randint(0, high=10)
-    N_B = np.random.randint(0, high=20)
+    N_A = rand_gen.integers(0, high=10)
+    N_B = rand_gen.integers(0, high=20)
     N = N_A + N_B
 
     #Init randomized Hamiltonian to generate some exp_S
 
-    H_0 = np.diag(np.sort(np.random.randn(N)))
+    H_0 = np.diag(np.sort(rand_gen.normal(0, size=N)))
 
-    N_p = np.random.randint(1, high=5)
+    N_p = rand_gen.integers(1, high=5)
 
-    wanted_orders = [ta.array(np.random.randint(1, high=5, size=N_p), int)]
+    wanted_orders = [ta.array(rand_gen.integers(1, high=5, size=N_p), int)]
     H_ps = []
     for perturbation in range(N_p):
-        H_p = np.random.random(size=(N, N)) + 1j * np.random.random(size=(N, N))
+        H_p = rand_gen.normal(size=(N, N)) + 1j * rand_gen.normal(size=(N, N))
         H_p += H_p.conj().T
         H_ps.append(H_p)
 
