@@ -33,7 +33,7 @@ class SumOfOperatorProducts:
         return SumOfOperatorProducts(self.terms + other.terms)
     
     def __matmul__(self, other):
-        return SumOfOperatorProducts([a + b for a, b in itertools.product(self.terms, other.terms)])
+        return SumOfOperatorProducts([a + b for a, b in product(self.terms, other.terms)])
     
     def __truediv__(self, other): # self / other
         return (1/other) * self
@@ -90,13 +90,21 @@ t_list_2 = [[(rnd((4,10)),'AB'),
             [(rnd((10,4)),'BA'),
              (rnd((4,4)),'AA'),
              (rnd((4,10)),'AB')]]
+
+# +
+# test term reduction
+t1 = SumOfOperatorProducts(t_list)
+t2 = SumOfOperatorProducts(t_list_2)
+
+print(t1.terms)
 # -
 
-# test term reduction
-test = SumOfOperatorProducts(t_list)
 
+# Test behaviour on addition
+(t1+t2).terms
 
-test.terms
+# test on multiplication
+t1@t2
 
 
 # +
