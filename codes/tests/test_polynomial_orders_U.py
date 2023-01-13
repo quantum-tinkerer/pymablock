@@ -21,7 +21,7 @@ def test_check_AB():
     N_B = rand_gen.integers(0,high=20)
     N = N_A + N_B
 
-    H_0 = np.diag(np.sort(rand_gen.normal(0, size=12)))
+    H_0 = np.diag(np.sort(rand_gen.normal(0, size=N)))
 
     N_p = rand_gen.integers(1,high=3)
 
@@ -110,3 +110,5 @@ def test_check_unitary():
 
     for value, block in zip(transformed, "AA BB AB".split()):
         assert_almost_zero(value, decimal, f"{block=}")
+
+
