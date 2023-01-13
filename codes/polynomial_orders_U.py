@@ -66,46 +66,6 @@ class SumOfOperatorProducts:
     def evalf(self):
         temp = [self.reduce_sublist(slist, c_flag='A') for slist in self.terms]
         return temp
-    
-
-
-# +
-from numpy.random import random as rnd
-t_list = [[(rnd((4,10)),'AB'),
-           (rnd((10,10)),'BB'),
-           (rnd((10,4)),'BA'),
-           (rnd((4,10)),'AB')],
-          [(rnd((4,10)),'AB'),
-           (rnd((10,10)),'BB')],
-          [(rnd((4,4)),'AA'),
-           (rnd((4,10)),'AB'),
-           (rnd((10,4)),'BA'),
-           (rnd((4,10)),'AB'),
-           (rnd((10,10)),'BB'),
-           (rnd((10,4)),'BA'),
-           (rnd((4,4)),'AA'),
-           (rnd((4,10)),'AB')]]
-
-t_list_2 = [[(rnd((4,10)),'AB'),
-             (rnd((10,10)),'BB')],
-            [(rnd((10,4)),'BA'),
-             (rnd((4,4)),'AA'),
-             (rnd((4,10)),'AB')]]
-
-# +
-# test term reduction
-t1 = SumOfOperatorProducts(t_list)
-t2 = SumOfOperatorProducts(t_list_2)
-
-print(t1.terms)
-# -
-
-
-# Test behaviour on addition
-(t1+t2).terms
-
-# test on multiplication
-t1@t2
 
 
 # +
