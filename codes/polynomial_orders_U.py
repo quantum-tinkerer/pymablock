@@ -73,7 +73,8 @@ class SumOfOperatorProducts:
 from numpy.random import random as rnd
 t_list = [[(rnd((4,10)),'AB'),
            (rnd((10,10)),'BB'),
-           (rnd((10,4)),'BA'),(rnd((4,4)),'AB')],
+           (rnd((10,4)),'BA'),
+           (rnd((4,10)),'AB')],
           [(rnd((4,10)),'AB'),
            (rnd((10,10)),'BB')],
           [(rnd((4,4)),'AA'),
