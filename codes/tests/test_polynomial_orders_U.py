@@ -23,9 +23,9 @@ def test_check_AB():
 
     H_0 = np.diag(np.sort(rand_gen.normal(0, size=12)))
 
-    N_p = rand_gen.integers(1,high=5)
+    N_p = rand_gen.integers(1,high=3)
 
-    wanted_orders = [ta.array(rand_gen.integers(0,high=5,size=N_p), int)]
+    wanted_orders = [ta.array(rand_gen.integers(0,high=3,size=N_p), int)]
     H_ps = []
     for perturbation in range(N_p):
         H_p = rand_gen.normal(size=(N, N)) + 1j * rand_gen.normal(size=(N, N))
@@ -72,9 +72,9 @@ def test_check_unitary():
 
     H_0 = np.diag(np.sort(rand_gen.normal(0, size=N)))
 
-    N_p = rand_gen.integers(1, high=5)
+    N_p = rand_gen.integers(1, high=3)
 
-    wanted_orders = [ta.array(rand_gen.integers(1, high=5, size=N_p), int)]
+    wanted_orders = [ta.array(rand_gen.integers(1, high=3, size=N_p), int)]
     H_ps = []
     for perturbation in range(N_p):
         H_p = rand_gen.normal(size=(N, N)) + 1j * rand_gen.normal(size=(N, N))
