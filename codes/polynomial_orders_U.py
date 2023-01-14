@@ -2,29 +2,16 @@
 #
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
 
-# +
 from itertools import product
 from functools import reduce
 from operator import matmul
 
 import numpy as np
-import sympy
-from sympy import (
-    symbols, Symbol, MatrixSymbol, Matrix,
-    diff, BlockMatrix, BlockDiagMatrix,
-    ZeroMatrix, Identity, diag, eye, zeros
-)
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
-from poly_kpm import SumOfOperatorProducts
 
-
-# ### Auxiliary functions
-# -
-
-
-# +
+### Auxiliary functions
 class Zero:
     """A class that skips itself in additions
 
@@ -214,5 +201,3 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, comput
     )
 
     return H_tilde
-
-
