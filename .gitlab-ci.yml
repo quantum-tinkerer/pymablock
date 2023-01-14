@@ -35,7 +35,7 @@ before_script:
 run tests:
   script:
     - pip install pytest-cov
-    - py.test codes/tests/ --cov=codes --verbose --cov-report html --cov-report term
+    - py.test codes/tests/ --cov-config=.coveragerc --verbose
   artifacts:
     paths:
       - htmlcov
