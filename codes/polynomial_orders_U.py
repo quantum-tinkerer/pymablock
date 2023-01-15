@@ -19,9 +19,6 @@ from IPython.display import display_latex
 import matplotlib.pyplot as plt
 import tinyarray as ta
 
-from poly_kpm import SumOfOperatorProducts
-
-
 # ### Auxiliary functions
 # -
 
