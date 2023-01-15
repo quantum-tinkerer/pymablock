@@ -2,28 +2,17 @@
 #
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
 
-# +
-from itertools import count, product
+from itertools import product
 from functools import reduce
 from operator import matmul
 
 import numpy as np
-import sympy
-from sympy import (
-    symbols, Symbol, MatrixSymbol, Matrix,
-    diff, BlockMatrix, BlockDiagMatrix,
-    ZeroMatrix, Identity, diag, eye, zeros
-)
 from sympy.physics.quantum import Dagger
-from IPython.display import display_latex
-import matplotlib.pyplot as plt
 import tinyarray as ta
 
-# ### Auxiliary functions
-# -
+# - 
 
-
-# +
+### Auxiliary functions
 class Zero:
     """A class that skips itself in additions
 
@@ -71,7 +60,7 @@ def generate_volume(wanted_orders):
     return (ta.array(i) for i in sorted(keep_arrays, key=sum) if any(i))
 
 
-def product_by_order(order, *terms, op=None):
+def product_by_order(order, *terms, op=None, hermitian=False):
     """
     Compute sum of all product of terms of wanted order.
 
@@ -84,12 +73,23 @@ def product_by_order(order, *terms, op=None):
         op = matmul
     contributing_products = []
     for combination in product(*(term.items() for term in terms)):
-        if sum(key for key, _ in combination) == order:
-            values = [value for _, value in combination if value is not None]
-            if any(isinstance(value, Zero) for value in values):
-                continue
-            contributing_products.append(reduce(op, values))
-    return _zero_sum(contributing_products)
+        key, value = zip(*combination)
+        key = tuple(key)
+        value = tuple(v for v in value if v is not None)
+        if (
+            sum(key) != order or not value
+            or any(isinstance(value, Zero) for value in value)
+            or (hermitian and key > tuple(reversed(key)))
+        ):
+            continue
+        result = reduce(op, value)
+        if hermitian and key == tuple(reversed(key)):
+            result /= 2
+        contributing_products.append(result)
+    total = _zero_sum(contributing_products)
+    if hermitian and not isinstance(total, Zero):
+        return total + Dagger(total)
+    return total
 
 
 def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, divide_energies=None, *, op=None):
@@ -149,8 +149,8 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
 
         for i in (0, 1):
             exp_S[i, i][order] = _zero_sum((
-                -product_by_order(order, exp_S[i, i], exp_S[i, i], op=op),
-                product_by_order(order, exp_S[i, 1-i], exp_S[1-i, i], op=op)
+                -product_by_order(order, exp_S[i, i], exp_S[i, i], op=op, hermitian=True),
+                product_by_order(order, exp_S[i, 1-i], exp_S[1-i, i], op=op, hermitian=True)
             ))/2
 
     return exp_S
@@ -192,6 +192,7 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, comput
             H_tilde[block][order] = _zero_sum(
                 (-1)**(i != k) * product_by_order(
                     order, exp_S[k, i], H[i, j], exp_S[j, l],
+                    hermitian=(i == j and k == l)
                 )
                 for i in (0, 1) for j in (0, 1)
             )
@@ -201,5 +202,3 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, comput
     )
 
     return H_tilde
-
-

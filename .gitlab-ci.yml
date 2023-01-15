@@ -9,19 +9,6 @@ before_script:
   - pip install gitlab-ci-tools  # for last-good-build
   - LAST_GOOD_SHA=$(last-good-build || echo '')
 
-# run analysis:
-#   script:
-#     - cd analysis
-#     - for ipynb in *.ipynb; do
-#     -    jupyter nbconvert --to notebook --execute "$ipynb" --output "$ipynb" --ExecutePreprocessor.timeout=$EXEC_TIMEOUT
-#     - done
-#   artifacts:
-#     paths:
-#       - analysis/*.ipynb
-#     expire_in: 1 month
-#   stage: run analysis
-
-
 .pdf-build:
   script:
     - cd $CWD
@@ -48,7 +35,7 @@ before_script:
 run tests:
   script:
     - pip install pytest-cov
-    - py.test codes/tests/ --cov=codes --verbose --cov-report html --cov-report term
+    - py.test codes/tests/ --cov-config=.coveragerc --verbose
   artifacts:
     paths:
       - htmlcov
