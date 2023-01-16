@@ -17,8 +17,15 @@ class SumOfOperatorProducts:
     def __truediv__(self, other): # self / other
         return (1/other) * self
     
-    def __rmul__(self, other):
-        return
+    def __mul__(self, other):
+        temp = []
+        for sublist in self.terms:
+            sublist[0] = (other*sublist[0][0],sublist[0][1])
+            temp.append(sublist)
+        return SumOfOperatorProducts(temp)
+    
+    def __rmul__(self,other):
+        return self * other
     
     def reduce_sublist(self,slist, c_flag='B'):
         # This can be made more efficient by getting rid of the surplus loop
@@ -45,3 +52,31 @@ class SumOfOperatorProducts:
     def evalf(self):
         temp = [self.reduce_sublist(slist, c_flag='A') for slist in self.terms]
         return temp
+
+
+# +
+from numpy.random import random as rnd
+t_list = [[(rnd((4,10)),'AB'),
+           (rnd((10,10)),'BB'),
+           (rnd((10,4)),'BA'),
+           (rnd((4,10)),'AB')],
+          [(rnd((4,10)),'AB'),
+           (rnd((10,10)),'BB')],
+          [(rnd((4,4)),'AA'),
+           (rnd((4,10)),'AB'),
+           (rnd((10,4)),'BA'),
+           (rnd((4,10)),'AB'),
+           (rnd((10,10)),'BB'),
+           (rnd((10,4)),'BA'),
+           (rnd((4,4)),'AA'),
+           (rnd((4,10)),'AB')]]
+
+t_list_2 = [[(rnd((4,10)),'AB'),
+             (rnd((10,10)),'BB')],
+            [(rnd((10,4)),'BA'),
+             (rnd((4,4)),'AA'),
+             (rnd((4,10)),'AB')]]
+
+# -
+
+
