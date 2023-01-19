@@ -1,4 +1,6 @@
 from itertools import product
+from functools import reduce
+import numpy as np
 
 
 
@@ -10,6 +12,13 @@ class SumOfOperatorProducts:
     def __add__(self, other):
         # Actually if AB should add things together;
         return SumOfOperatorProducts(self.terms + other.terms)
+    
+    def __neg__(self):
+        temp = []
+        for sublist in self.terms:
+            sublist[0] = ((-1)*sublist[0][0],sublist[0][1])
+            temp.append(sublist)
+        return SumOfOperatorProducts(temp)
     
     def __matmul__(self, other):
         return SumOfOperatorProducts([a + b for a, b in product(self.terms, other.terms)])
@@ -26,6 +35,14 @@ class SumOfOperatorProducts:
     
     def __rmul__(self,other):
         return self * other
+    
+    def conjugate(self):
+        temp = [[(v[0].conjugate(),v[1]) for v in slist] for slist in self.terms]
+        return SumOfOperatorProducts(temp)
+    
+    def transpose(self):
+        temp = [[(v[0].transpose(),v[1]) for v in slist] for slist in self.terms]
+        return SumOfOperatorProducts(temp)
     
     def reduce_sublist(self,slist, c_flag='B'):
         # This can be made more efficient by getting rid of the surplus loop
@@ -49,10 +66,30 @@ class SumOfOperatorProducts:
         self.terms = nterms
         return
     
-    def evalf(self):
+    def sum_sublist(self,slist,flag):
+        return sum([v[0] for v in slist if v[1]==flag])
+        
+    def evalf(self,flag):
         temp = [self.reduce_sublist(slist, c_flag='A') for slist in self.terms]
-        return temp
+        
+        if flag is None:
+            flags = list(str(v[0]+v[1]) for v in product(['A','B'],['A','B']))
+        else:
+            flags = [flag]
 
+        sec_temp = []
+        for flag in flags:
+            sec_temp.append((sum(map(lambda x:self.sum_sublist(x,flag),temp)),
+                             str(flag)))
+         
+        return sec_temp
+
+def divide_energies(Y, H_0_AA, H_0_BB):
+    E_A = np.diag(H_0_AA.evalf('AA')[0][0])
+    E_B = np.diag(H_0_BB.evalf('BB')[0][0])
+    energy_denoms = 1/(E_A.reshape(-1, 1) - E_B)
+    
+    return Y * energy_denoms
 
 # +
 from numpy.random import random as rnd
