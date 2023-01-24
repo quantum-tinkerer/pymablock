@@ -52,7 +52,7 @@ class SumOfOperatorProducts:
         
         temp = [slist[0]]
         for v in slist[1:]:
-            if temp[-1][1][1] == v[1][0] and v[1][0] == c_flag:
+            if (str(temp[-1][1][0])+str(v[1][1])) in ['AA','AB','BA']:
                     temp[-1] = elmmul(temp[-1],v)
             else:
                 temp.append(v)
@@ -113,6 +113,9 @@ t_list_2 = [[(rnd((4,10)),'AB'),
             [(rnd((10,4)),'BA'),
              (rnd((4,4)),'AA'),
              (rnd((4,10)),'AB')]]
+
+t_list_3 = [[(rnd((10,4)),'BA'),(rnd((4,10)),'AB')],
+            [(rnd((4,4)),'AA')]]
 
 # -
 
