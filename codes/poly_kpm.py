@@ -44,7 +44,7 @@ class SumOfOperatorProducts:
         temp = [[(v[0].transpose(),v[1]) for v in slist] for slist in self.terms]
         return SumOfOperatorProducts(temp)
     
-    def reduce_sublist(self,slist, c_flag='B'):
+    def reduce_sublist(self,slist):
         # This can be made more efficient by getting rid of the surplus loop
         # to check equality
         def elmmul(a,b):
@@ -69,19 +69,14 @@ class SumOfOperatorProducts:
     def sum_sublist(self,slist,flag):
         return sum([v[0] for v in slist if v[1]==flag])
         
-    def evalf(self,flag):
-        temp = [self.reduce_sublist(slist, c_flag='A') for slist in self.terms]
+    def evalf(self,flag=None):
+        temp = [self.reduce_sublist(slist) for slist in self.terms]
         
-        if flag is None:
-            flags = list(str(v[0]+v[1]) for v in product(['A','B'],['A','B']))
-        else:
-            flags = [flag]
-
         sec_temp = []
-        for flag in flags:
-            sec_temp.append((sum(map(lambda x:self.sum_sublist(x,flag),temp)),
-                             str(flag)))
-         
+        if flag is not None:
+            sec_temp.append([v for v in temp if (str(v[0][1][0])+str(v[-1][1][1])) == flag])
+        else:
+            sec_temp = temp
         return sec_temp
 
 def divide_energies(Y, H_0_AA, H_0_BB):
