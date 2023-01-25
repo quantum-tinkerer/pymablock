@@ -10,15 +10,15 @@ import numpy as np
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
-# - 
+# -
 
 ### Auxiliary functions
 class Zero:
-    """A class that skips itself in additions
-
-    It is derived from a numpy array for its implementation of right addition
-    and subtraction to take priority.
     """
+    A class that behaves like zero in all operations.
+    This is used to avoid having to check for zero terms in the sum.
+    """
+
     def __mul__(self, other=None):
         return self
 
@@ -32,11 +32,15 @@ _zero = Zero()
 
 
 def _zero_sum(terms):
-    """Sum that returns a singleton _zero if empty and omits _zero terms"""
-    return sum(
-        (term for term in terms if not isinstance(term, Zero)),
-        start=_zero
-    )
+    """
+    Sum that returns a singleton _zero if empty and omits _zero terms
+
+    terms : iterable of terms to sum.
+
+    Returns:
+    Sum of terms, or _zero if terms is empty.
+    """
+    return sum((term for term in terms if not isinstance(term, Zero)), start=_zero)
 
 
 def generate_volume(wanted_orders):
@@ -52,10 +56,15 @@ def generate_volume(wanted_orders):
     N_o, N_p = wanted_orders.shape
     max_order = np.max(wanted_orders, axis=0)
     possible_orders = np.array(
-        np.meshgrid(*(np.arange(order+1) for order in max_order))
+        np.meshgrid(*(np.arange(order + 1) for order in max_order))
     ).reshape(len(max_order), -1)
-    indices = np.any(np.all(possible_orders.reshape(N_p, -1, 1)
-                            <= wanted_orders.T.reshape(N_p, 1, -1), axis=0), axis=1)
+    indices = np.any(
+        np.all(
+            possible_orders.reshape(N_p, -1, 1) <= wanted_orders.T.reshape(N_p, 1, -1),
+            axis=0,
+        ),
+        axis=1,
+    )
     keep_arrays = possible_orders.T[indices]
     return (ta.array(i) for i in sorted(keep_arrays, key=sum) if any(i))
 
@@ -64,10 +73,13 @@ def product_by_order(order, *terms, op=None, hermitian=False):
     """
     Compute sum of all product of terms of wanted order.
 
-    wanted_orders : list of tinyarrays containing the wanted order of each perturbation.
+    order : int or tinyarray containing the order of the product.
+    terms : list of dictionaries of terms to multiply.
+    op : (optional) callable for multiplying terms.
+    hermitian : (optional) bool for whether to compute hermitian conjugate.
 
     Returns:
-    Sum of all contributing products.
+    Sum of all products of terms of wanted order.
     """
     if op is None:
         op = matmul
@@ -77,7 +89,8 @@ def product_by_order(order, *terms, op=None, hermitian=False):
         key = tuple(key)
         value = tuple(v for v in value if v is not None)
         if (
-            sum(key) != order or not value
+            sum(key) != order
+            or not value
             or any(isinstance(value, Zero) for value in value)
             or (hermitian and key > tuple(reversed(key)))
         ):
@@ -92,21 +105,31 @@ def product_by_order(order, *terms, op=None, hermitian=False):
     return total
 
 
-def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, divide_energies=None, *, op=None):
+def compute_next_orders(
+    H_0_AA,
+    H_0_BB,
+    H_p_AA,
+    H_p_BB,
+    H_p_AB,
+    wanted_orders,
+    divide_energies=None,
+    *,
+    op=None
+):
     """
     Computes transformation to diagonalized Hamiltonian with multivariate perturbation.
 
-    H_0_AA : unperturbed Hamiltonian A block in eigenbasis and ordered by eigenenergy.
-    H_0_BB : unperturbed Hamiltonian B block in eigenbasis and ordered by eigenenergy.
-    H_p_AA : dictionary of perturbations A blocks in eigenbasis of H_0
-    H_p_BB : dictionary of perturbations B blocks in eigenbasis of H_0
-    H_p_AB : dictionary of perturbations AB blocks in eigenbasis of H_0
+    H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
+    H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
+    H_p_AA : dictionary of perturbation terms of subspace AA
+    H_p_BB : dictionary of perturbation terms of subspace BB
+    H_p_AB : dictionary of perturbation terms of subspace AB
     wanted_orders : list of tinyarrays containing the wanted order of each perturbation
     divide_energies : (optional) callable for solving Sylvester equation
-    op: callable
+    op: callable for multiplying terms
 
     Returns:
-    exp_S : 2x2 np.array of dictionaries of transformations
+    exp_S : np.array of the transformation to diagonalized Hamiltonian
     """
 
     zero_index = ta.zeros([len(wanted_orders[0])], int)
@@ -114,21 +137,20 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
         raise ValueError("Perturbation terms may not contain zeroth order")
 
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
-    H = np.array([
-        [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
-        [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
-    ])
+    H = np.array(
+        [
+            [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
+            [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
+        ]
+    )
 
     # We use None as a placeholder for identity.
-    exp_S = np.array([
-        [{zero_index: None}, {}],
-        [{}, {zero_index: None}]
-    ])
+    exp_S = np.array([[{zero_index: None}, {}], [{}, {zero_index: None}]])
 
     if divide_energies is None:
         E_A = np.diag(H_0_AA)
         E_B = np.diag(H_0_BB)
-        energy_denominators = 1/(E_A.reshape(-1, 1) - E_B)
+        energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
 
         def divide_energies(Y):
             return Y * energy_denominators
@@ -137,64 +159,85 @@ def compute_next_orders(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, d
 
     for order in needed_orders:
         Y = _zero_sum(
-            -(-1)**i * product_by_order(
-                order, exp_S[0, i], H[i, j], exp_S[j, 1],
-                op=op
-            )
-            for i in (0, 1) for j in (0, 1)
+            -((-1) ** i)
+            * product_by_order(order, exp_S[0, i], H[i, j], exp_S[j, 1], op=op)
+            for i in (0, 1)
+            for j in (0, 1)
         )
         if not isinstance(Y, Zero):
             exp_S[0, 1][order] = divide_energies(Y)
             exp_S[1, 0][order] = -Dagger(exp_S[0, 1][order])
 
         for i in (0, 1):
-            exp_S[i, i][order] = _zero_sum((
-                -product_by_order(order, exp_S[i, i], exp_S[i, i], op=op, hermitian=True),
-                product_by_order(order, exp_S[i, 1-i], exp_S[1-i, i], op=op, hermitian=True)
-            ))/2
+            exp_S[i, i][order] = (
+                _zero_sum(
+                    (
+                        -product_by_order(
+                            order, exp_S[i, i], exp_S[i, i], op=op, hermitian=True
+                        ),
+                        product_by_order(
+                            order,
+                            exp_S[i, 1 - i],
+                            exp_S[1 - i, i],
+                            op=op,
+                            hermitian=True,
+                        ),
+                    )
+                )
+                / 2
+            )
 
     return exp_S
 
 
-def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=False):
+def H_tilde(
+    H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=False
+):
     """
-    Computes block-diagonal form of Hamiltonian with multivariate perturbation.
+    Computes perturbed Hamiltonian in eigenbasis of unperturbed Hamiltonian.
 
-    H_0_AA : unperturbed Hamiltonian A block in eigenbasis and ordered by eigenenergy.
-    H_0_BB : unperturbed Hamiltonian B block in eigenbasis and ordered by eigenenergy.
-    H_p_AA : dictionary of perturbations A blocks in eigenbasis of H_0
-    H_p_BB : dictionary of perturbations B blocks in eigenbasis of H_0
-    H_p_AB : dictionary of perturbations AB blocks in eigenbasis of H_0
-    wanted_orders : list of tinyarrays containing the wanted order of each perturbation.
-    exp_S : 2x2 np.array of dictionaries of transformations
+    H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
+    H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
+    H_p_AA : dictionary of perturbation terms of subspace AA
+    H_p_BB : dictionary of perturbation terms of subspace BB
+    H_p_AB : dictionary of perturbation terms of subspace AB
+    wanted_orders : list of tinyarrays containing the wanted order of each perturbation
+    exp_S : np.array of the transformation to diagonalized Hamiltonian
+    compute_AB : (optional) bool for whether to compute AB block
 
     Returns:
-    H_AA : dictionary of orders of transformed perturbed Hamiltonian A block
-    H_BB : dictionary of orders of transformed perturbed Hamiltonian A block
+    H_tilde : tuple of dictionaries of perturbation terms in eigenbasis of unperturbed Hamiltonian
     """
     zero_index = ta.zeros([len(wanted_orders[0])], int)
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
-    H = np.array([
-        [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
-        [H_p_BA, {zero_index: H_0_BB, **H_p_BB}]
-    ])
+    H = np.array(
+        [
+            [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
+            [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
+        ]
+    )
 
     if compute_AB:
-        H_tilde = ({}, {}, {}) # AA BB AB
+        H_tilde = ({}, {}, {})  # AA BB AB
         indices = ((0, 1, 0), (0, 1, 1), (0, 1, 2))
     else:
-        H_tilde = ({}, {}) # AA BB
+        H_tilde = ({}, {})  # AA BB
         indices = ((0, 1), (0, 1), (0, 1))
 
     needed_orders = generate_volume(wanted_orders)
     for order in needed_orders:
         for k, l, block in zip(*indices):
             H_tilde[block][order] = _zero_sum(
-                (-1)**(i != k) * product_by_order(
-                    order, exp_S[k, i], H[i, j], exp_S[j, l],
-                    hermitian=(i == j and k == l)
+                (-1) ** (i != k)
+                * product_by_order(
+                    order,
+                    exp_S[k, i],
+                    H[i, j],
+                    exp_S[j, l],
+                    hermitian=(i == j and k == l),
                 )
-                for i in (0, 1) for j in (0, 1)
+                for i in (0, 1)
+                for j in (0, 1)
             )
     H_tilde = tuple(
         {order: value for order, value in term.items() if value is not _zero}
@@ -202,5 +245,3 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, comput
     )
 
     return H_tilde
-
-
