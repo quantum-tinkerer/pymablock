@@ -159,7 +159,7 @@ class SumOfOperatorProducts:
         """
         nterms = [self.reduce_sublist(slist) for slist in self.terms]
         self.terms = nterms
-        return
+        self._add_explicit_terms()
 
     def sum_sublist(self, slist, flag):
         """
@@ -192,6 +192,25 @@ class SumOfOperatorProducts:
         else:
             sec_temp = temp
         return sec_temp
+
+    def _add_explicit_terms(self):
+        """Sum all terms of length 1 inplace
+
+        Because every term of length 1 is a single operator, we can sum them directly
+        """
+        terms = self.terms
+        new_terms = []
+        length1_terms = []
+        for term in terms:
+            if len(term) == 1:
+                length1_terms.append(term)
+            else:
+                new_terms.append(term)
+        if not length1_terms:
+            return
+        summed_value = sum(term[0][0] for term in length1_terms)
+        label = length1_terms[0][0][1]
+        self.terms = new_terms + [[(summed_value, label)]]
 
 
 def divide_energies(Y, H_0_AA, H_0_BB):

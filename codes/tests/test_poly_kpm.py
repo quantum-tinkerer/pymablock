@@ -50,7 +50,9 @@ def test_shape_validation():
     for (space1, term1), (space2, term2) in product(terms.items(), repeat=2):
         # Sums should work if the spaces are the same
         if space1 == space2:
-            term1 + term2  # no error
+            # no error, moreover the result should simplify to a single term
+            term1 + term2
+            assert len(term1.terms) == 1
         else:
             with pytest.raises(ValueError):
                 term1 + term2
