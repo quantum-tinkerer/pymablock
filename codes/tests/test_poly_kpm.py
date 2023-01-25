@@ -24,7 +24,7 @@ def random_term(n, m, length, start, end, rng=None):
     """
     if rng is None:
         rng = np.random.default_rng()
-    spaces = "".join(np.random.choice(a=["A", "B"], size=length - 2))
+    spaces = "".join(np.random.choice(a=["A", "B"], size=length - 1))
     spaces = start + spaces + end
     op_spaces = ["".join(s) for s in zip(spaces[:-1], spaces[1:])]
     op_dims = [
@@ -42,10 +42,10 @@ def test_shape_validation():
     """
     n, m = 4, 10
     terms = {
-        "AA": random_term(n, m, 2, "A", "A"),
-        "AB": random_term(n, m, 2, "A", "B"),
-        "BA": random_term(n, m, 2, "B", "A"),
-        "BB": random_term(n, m, 2, "B", "B"),
+        "AA": random_term(n, m, 1, "A", "A"),
+        "AB": random_term(n, m, 1, "A", "B"),
+        "BA": random_term(n, m, 1, "B", "A"),
+        "BB": random_term(n, m, 1, "B", "B"),
     }
     for (space1, term1), (space2, term2) in product(terms.items(), repeat=2):
         # Sums should work if the spaces are the same
@@ -63,3 +63,13 @@ def test_shape_validation():
         else:
             with pytest.raises(ValueError):
                 term1 @ term2
+
+
+def test_neg():
+    """Test that negation works."""
+    n, m = 4, 10
+    term = random_term(n, m, 1, "A", "A")
+    zero = term + -term
+    # Should have one term with all zeros
+    assert len(zero.terms) == 1
+    np.testing.assert_allclose(zero.terms[0][0][0], 0)
