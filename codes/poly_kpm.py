@@ -1,5 +1,6 @@
 from itertools import product
 from functools import reduce
+
 import numpy as np
 
 
@@ -12,8 +13,23 @@ class SumOfOperatorProducts:
         """
         Initialize a SumOfOperatorProducts object.
 
-        terms : list of lists of tuples with (array, str)
+        terms : list of lists of tuples (array, str)
+            The first element of the tuple is the operator, the second is a string
+            "AA", "AB", "BA", "BB" that specifies the subspaces it couples.
         """
+        # All terms must be nonempty, and should couple the same subspaces.
+        if not all(terms):
+            raise ValueError("Empty term.")
+        starts = (term[0][1][0] for term in terms)
+        ends = (term[0][1][1] for term in terms)
+        if len(set(starts)) > 1 or len(set(ends)) > 1:
+            raise ValueError("Terms couple different subspaces.")
+        # All operators should couple compatible spaces.
+        for term in terms:
+            for op1, op2 in zip(term, term[1:]):
+                if op1[1][1] != op2[1][0]:
+                    raise ValueError("Terms couple incompatible subspaces.")
+
         self.terms = terms
         self.simplify_products()
 
@@ -26,7 +42,6 @@ class SumOfOperatorProducts:
         Returns:
         SumOfOperatorProducts
         """
-        # Actually if AB should add things together;
         return SumOfOperatorProducts(self.terms + other.terms)
 
     def __neg__(self):
