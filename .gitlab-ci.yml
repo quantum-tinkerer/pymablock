@@ -36,6 +36,7 @@ run tests:
   script:
     - pip install pytest-cov pytest-randomly
     - py.test
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     paths:
       - htmlcov
