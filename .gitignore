@@ -155,3 +155,5 @@ notes/*.pdf
 
 # pytest
 .pytest_cache/
+*.xml # report files
+htmlcov/ # html coverage report

@@ -1,4 +1,2 @@
 [run]
 omit = codes/perturbationS.py
-[tool:pytest]
-addopts = --cov=codes --cov-report html
