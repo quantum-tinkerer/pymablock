@@ -85,24 +85,21 @@ def product_by_order(order, *terms, op=None, hermitian=False):
         op = matmul
     contributing_products = []
     for combination in product(*(term.items() for term in terms)):
-        key, value = zip(*combination)
-        key = tuple(key)
-        value = tuple(v for v in value if v is not None)
-        if (
-            sum(key) != order
-            or not value
-            or any(isinstance(value, Zero) for value in value)
-            or (hermitian and key > tuple(reversed(key)))
-        ):
-            continue
-        result = reduce(op, value)
-        if hermitian and key == tuple(reversed(key)):
-            result /= 2
-        contributing_products.append(result)
-    total = _zero_sum(contributing_products)
-    if hermitian and not isinstance(total, Zero):
-        return total + Dagger(total)
-    return total
+        key = tuple(key for key, _ in combination)
+        if sum(key) == order:
+            values = [value for _, value in combination if value is not None]
+            if any(isinstance(value, Zero) for value in values):
+                continue
+            if hermitian and key > tuple(reversed(key)):
+                # exclude half of the reversed partners to prevent double counting
+                continue
+            temp = reduce(op, values)
+            if hermitian and key == tuple(reversed(key)):
+                temp = temp / 2
+            if hermitian and not isinstance(temp, Zero):
+                temp = _zero_sum([temp, Dagger(temp)])
+            contributing_products.append(temp)
+    return _zero_sum(contributing_products)
 
 
 def compute_next_orders(

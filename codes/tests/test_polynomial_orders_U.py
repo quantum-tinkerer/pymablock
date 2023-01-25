@@ -23,9 +23,10 @@ def test_check_AB():
 
     H_0 = np.diag(np.sort(rand_gen.normal(0, size=N)))
 
-    N_p = rand_gen.integers(1,high=3)
+    N_p = rand_gen.integers(2,high=5)
 
-    wanted_orders = [ta.array(rand_gen.integers(0,high=3,size=N_p), int)]
+    wanted_orders = [ta.array(rand_gen.integers(0,high=3,size=N_p), int), 
+                     ta.array([4]+[0 for i in range(N_p-1)])]
     H_ps = []
     for perturbation in range(N_p):
         H_p = rand_gen.normal(size=(N, N)) + 1j * rand_gen.normal(size=(N, N))
@@ -110,5 +111,7 @@ def test_check_unitary():
 
     for value, block in zip(transformed, "AA BB AB".split()):
         assert_almost_zero(value, decimal, f"{block=}")
+
+
 
 
