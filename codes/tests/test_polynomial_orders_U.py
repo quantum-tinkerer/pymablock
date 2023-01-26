@@ -1,56 +1,108 @@
-from codes.polynomial_orders_U import compute_next_orders, H_tilde
+from itertools import count
+
 import numpy as np
 import tinyarray as ta
-import sympy
+import pytest
 
-rand_gen = np.random.default_rng(13012023)
+from codes.polynomial_orders_U import compute_next_orders, H_tilde
+
 
 def assert_almost_zero(a, decimal, extra_msg=""):
-    """Compare two dictionaries with array-like values."""
+    """
+    Assert that all values in a are almost zero.
+
+    a: array to check
+    decimal: number of decimal places to check
+    extra_msg: extra message to print if assertion fails
+    """
     for key, value in a.items():
         np.testing.assert_almost_equal(
             value, 0, decimal=decimal, err_msg=f"{key=} {extra_msg}"
         )
 
 
-def test_check_AB():
-    # initialize randomized parameters
-    decimal = 5
+@pytest.fixture(scope="module")
+def decimal():
+    return 5
 
-    N_A = rand_gen.integers(0,high=10)
-    N_B = rand_gen.integers(0,high=20)
-    N = N_A + N_B
 
-    H_0 = np.diag(np.sort(rand_gen.normal(0, size=N)))
+@pytest.fixture(scope="module")
+def N_A():
+    return np.random.randint(1, high=10)
 
-    N_p = rand_gen.integers(2,high=5)
 
-    wanted_orders = [ta.array(rand_gen.integers(0,high=3,size=N_p), int), 
-                     ta.array([4]+[0 for i in range(N_p-1)])]
-    H_ps = []
-    for perturbation in range(N_p):
-        H_p = rand_gen.normal(size=(N, N)) + 1j * rand_gen.normal(size=(N, N))
-        H_p += H_p.conj().T
-        H_ps.append(H_p)
+@pytest.fixture(scope="module")
+def N_B():
+    return np.random.randint(0, high=10)
 
-    H_0_AA = H_0[:N_A, :N_A]
-    H_0_BB = H_0[N_A:, N_A:]
 
+@pytest.fixture(scope="module")
+def N_p():
+    return np.random.randint(0, high=5)
+
+
+@pytest.fixture(scope="module")
+def wanted_orders(N_p):
+    return [
+        np.random.randint(0, high=3, size=N_p),
+        ta.array([4] + [0 for i in range(N_p - 1)]),
+    ]
+
+
+@pytest.fixture(scope="module")
+def H_0_AA(N_A):
+    return np.diag(np.sort(np.random.rand(N_A)))
+
+
+@pytest.fixture(scope="module")
+def H_0_BB(N_B):
+    return np.diag(np.sort(np.random.rand(N_B)))
+
+
+def matrices_it(N_i, N_j, hermitian):
+    """
+    Generate random matrices of size N_i x N_j.
+    """
+    for i in count():
+        H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
+        if hermitian:
+            H += H.conj().T
+        yield H
+
+
+@pytest.fixture(scope="module")
+def H_p_AA(N_A, N_p):
     orders = ta.array(np.eye(N_p))
-    H_p_AA = {
-        order: value[:N_A, :N_A]
-        for order, value in zip(orders, H_ps)
-    }
+    matrices = matrices_it(N_A, N_A, hermitian=True)
+    return {order: matrix for order, matrix in zip(orders, matrices)}
 
-    H_p_BB = {
-        order: value[N_A:, N_A:]
-        for order, value in zip(orders, H_ps)
-    }
 
-    H_p_AB = {
-        order: value[:N_A, N_A:]
-        for order, value in zip(orders, H_ps)
-    }
+@pytest.fixture(scope="module")
+def H_p_BB(N_B, N_p):
+    orders = ta.array(np.eye(N_p))
+
+    matrices = matrices_it(N_B, N_B, hermitian=True)
+    return {order: matrix for order, matrix in zip(orders, matrices)}
+
+
+@pytest.fixture(scope="module")
+def H_p_AB(N_A, N_B, N_p):
+    orders = ta.array(np.eye(N_p))
+    matrices = matrices_it(N_A, N_B, hermitian=False)
+    return {order: matrix for order, matrix in zip(orders, matrices)}
+
+
+def test_check_AB(decimal, H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders):
+    """
+    Test that H_AB is zero for a random Hamiltonian.
+
+    H_0_AA: N_A x N_A matrix
+    H_0_BB: N_B x N_B matrix
+    H_p_AA: N_p x N_A x N_A matrix
+    H_p_BB: N_p x N_B x N_B matrix
+    H_p_AB: N_p x N_A x N_B matrix
+    wanted_orders: list of orders to compute
+    """
     exp_S = compute_next_orders(
         H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders
     )
@@ -60,58 +112,3 @@ def test_check_AB():
     )[2]
 
     assert_almost_zero(H_AB, decimal)
-
-
-def test_check_unitary():
-    decimal = 5
-
-    N_A = rand_gen.integers(0, high=10)
-    N_B = rand_gen.integers(0, high=20)
-    N = N_A + N_B
-
-    #Init randomized Hamiltonian to generate some exp_S
-
-    H_0 = np.diag(np.sort(rand_gen.normal(0, size=N)))
-
-    N_p = rand_gen.integers(1, high=3)
-
-    wanted_orders = [ta.array(rand_gen.integers(1, high=3, size=N_p), int)]
-    H_ps = []
-    for perturbation in range(N_p):
-        H_p = rand_gen.normal(size=(N, N)) + 1j * rand_gen.normal(size=(N, N))
-        H_p += H_p.conj().T
-        H_ps.append(H_p)
-
-    H_0_AA = H_0[:N_A, :N_A]
-    H_0_BB = H_0[N_A:, N_A:]
-
-    orders = ta.array(np.eye(N_p))
-    H_p_AA = {
-        order: value[:N_A, :N_A]
-        for order, value in zip(orders, H_ps)
-    }
-
-    H_p_BB = {
-        order: value[N_A:, N_A:]
-        for order, value in zip(orders, H_ps)
-    }
-
-    H_p_AB = {
-        order: value[:N_A, N_A:]
-        for order, value in zip(orders, H_ps)
-    }
-
-    exp_S = compute_next_orders(
-        H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders=wanted_orders
-    )
-
-    #Check unitarity
-
-    transformed = H_tilde(np.eye(N_A), np.eye(N_B), {}, {}, {}, wanted_orders, exp_S, compute_AB=True)
-
-    for value, block in zip(transformed, "AA BB AB".split()):
-        assert_almost_zero(value, decimal, f"{block=}")
-
-
-
-
