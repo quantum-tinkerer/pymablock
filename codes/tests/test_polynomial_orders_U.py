@@ -17,16 +17,31 @@ from codes.polynomial_orders_U import compute_next_orders, H_tilde
     ],
 )
 def wanted_orders(request):
+    """
+    Return a list of orders to compute.
+    """
     return request.param
 
 
 @pytest.fixture(scope="module")
 def Ns():
+    """
+    Return a random number of states for each block (A, B).
+    """
     return np.random.randint(1, high=5, size=2)
 
 
 @pytest.fixture(scope="module")
 def hamiltonians(Ns, wanted_orders):
+    """
+    Produce random Hamiltonians to test.
+
+    Ns: dimension of each block (A, B)
+    wanted_orders: list of orders to compute
+
+    Returns:
+    hams: list of Hamiltonians
+    """
     N_p = len(wanted_orders[0])
     orders = ta.array(np.eye(N_p))
     hams = []
@@ -36,6 +51,13 @@ def hamiltonians(Ns, wanted_orders):
     def matrices_it(N_i, N_j, hermitian):
         """
         Generate random matrices of size N_i x N_j.
+
+        N_i: number of rows
+        N_j: number of columns
+        hermitian: if True, the matrix is hermitian
+
+        Returns:
+        generator of random matrices
         """
         for i in count():
             H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
@@ -67,7 +89,7 @@ def test_check_AB(hamiltonians, wanted_orders):
     """
     Test that H_AB is zero for a random Hamiltonian.
 
-    hamiltonians:
+    hamiltonians: list of Hamiltonians
     wanted_orders: list of orders to compute
     """
     exp_S = compute_next_orders(*hamiltonians, wanted_orders=wanted_orders)
@@ -77,21 +99,21 @@ def test_check_AB(hamiltonians, wanted_orders):
     assert_almost_zero(H_AB)
 
 
-def test_check_unitary(Ns, hamiltonians, wanted_orders):
+def test_check_unitary(hamiltonians, wanted_orders):
     """
     Test that the transformation is unitary.
 
-    Ns
-    hamiltonians:
+    hamiltonians : list of Hamiltonians
     wanted_orders: list of orders to compute
     """
-    decimal = 5
+    N_A, N_B = hamiltonians[0].shape
     exp_S = compute_next_orders(*hamiltonians, wanted_orders=wanted_orders)
     transformed = H_tilde(
-        np.eye(Ns[0]), np.eye(Ns[1]), {}, {}, {}, wanted_orders, exp_S, compute_AB=True
+        np.eye(N_A), np.eye(N_B), {}, {}, {}, wanted_orders, exp_S, compute_AB=True
     )
 
     for value, block in zip(transformed, "AA BB AB".split()):
+<<<<<<< HEAD
         assert_almost_zero(value, decimal, f"{block=}")
 
 
@@ -106,3 +128,6 @@ def test_check_diagonal():
             {},
             [[1, 0]],
         )
+=======
+        assert_almost_zero(value, extra_msg=f"{block=}")
+>>>>>>> 405fd37 (clean and add docstring to test)
