@@ -7,13 +7,17 @@ import pytest
 from codes.polynomial_orders_U import compute_next_orders, H_tilde
 
 
-@pytest.fixture(scope="module", params=range(2, 6))
+@pytest.fixture(
+    scope="module",
+    params=[
+        [[3]],
+        [[2, 2]],
+        [[3, 1], [1, 3]],
+        [[2, 2, 2], [3, 0, 0]],
+    ],
+)
 def wanted_orders(request):
-    N_p = 4
-    return [
-        np.random.randint(0, high=5, size=N_p),
-        ta.array([4] + [0 for i in range(N_p - 1)]),
-    ]
+    return request.param
 
 
 @pytest.fixture(scope="module")
