@@ -106,15 +106,15 @@ def test_check_unitary(hamiltonians, wanted_orders):
     hamiltonians : list of Hamiltonians
     wanted_orders: list of orders to compute
     """
-    N_A, N_B = hamiltonians[0].shape
+    N_A = hamiltonians[0].shape[0]
+    N_B = hamiltonians[1].shape[0]
     exp_S = compute_next_orders(*hamiltonians, wanted_orders=wanted_orders)
     transformed = H_tilde(
         np.eye(N_A), np.eye(N_B), {}, {}, {}, wanted_orders, exp_S, compute_AB=True
     )
 
     for value, block in zip(transformed, "AA BB AB".split()):
-<<<<<<< HEAD
-        assert_almost_zero(value, decimal, f"{block=}")
+        assert_almost_zero(value, extra_msg=f"{block=}")
 
 
 def test_check_diagonal():
@@ -128,6 +128,3 @@ def test_check_diagonal():
             {},
             [[1, 0]],
         )
-=======
-        assert_almost_zero(value, extra_msg=f"{block=}")
->>>>>>> 405fd37 (clean and add docstring to test)
