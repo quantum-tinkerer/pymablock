@@ -7,12 +7,11 @@ import pytest
 from codes.polynomial_orders_U import compute_next_orders, H_tilde
 
 
-@pytest.fixture(scope="module", params=range(2, 4))
+@pytest.fixture(scope="module", params=range(2, 6))
 def wanted_orders(request):
     N_p = 4
-    print(request.param)
     return [
-        np.random.randint(0, high=request.param + 3, size=N_p),
+        np.random.randint(0, high=5, size=N_p),
         ta.array([4] + [0 for i in range(N_p - 1)]),
     ]
 
@@ -28,7 +27,7 @@ def hamiltonians(Ns, wanted_orders):
     orders = ta.array(np.eye(N_p))
     hams = []
     for i in range(2):
-        hams.append(np.diag(np.sort(np.random.rand(Ns[i]))) + i)
+        hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
 
     def matrices_it(N_i, N_j, hermitian):
         """
