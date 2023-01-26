@@ -86,21 +86,22 @@ def product_by_order(order, *terms, op=None, hermitian=False):
     contributing_products = []
     for combination in product(*(term.items() for term in terms)):
         key = tuple(key for key, _ in combination)
-        if sum(key) == order:
-            values = [value for _, value in combination if value is not None]
-            if any(isinstance(value, Zero) for value in values):
-                continue
-            if hermitian and key > tuple(reversed(key)):
-                # exclude half of the reversed partners to prevent double counting
-                continue
-            temp = reduce(op, values)
-            if hermitian and key == tuple(reversed(key)):
-                temp = temp / 2
-            if hermitian and not isinstance(temp, Zero):
-                temp = _zero_sum([temp, Dagger(temp)])
-            contributing_products.append(temp)
-    return _zero_sum(contributing_products)
-
+        if sum(key) != order:
+            continue
+        values = [value for _, value in combination if value is not None]
+        if any(isinstance(value, Zero) for value in values):
+            continue
+        if hermitian and key > tuple(reversed(key)):
+            # exclude half of the reversed partners to prevent double counting
+            continue
+        temp = reduce(op, values)
+        if hermitian and key == tuple(reversed(key)):
+            temp /= 2
+        contributing_products.append(temp)
+    result = _zero_sum(contributing_products)
+    if not hermitian or isinstance(result, Zero):
+        return result
+    return result + Dagger(result)
 
 def compute_next_orders(
     H_0_AA,
