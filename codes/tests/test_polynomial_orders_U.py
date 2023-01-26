@@ -33,12 +33,13 @@ def N_A():
 
 @pytest.fixture(scope="module")
 def N_B():
-    return np.random.randint(0, high=10)
+    return np.random.randint(1, high=10)
 
 
 @pytest.fixture(scope="module")
+@pytest.mark.repeat(10, scope="session")
 def N_p():
-    return np.random.randint(0, high=5)
+    return np.random.randint(0, high=6)
 
 
 @pytest.fixture(scope="module")
