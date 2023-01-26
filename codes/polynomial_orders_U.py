@@ -99,9 +99,9 @@ def product_by_order(order, *terms, op=None, hermitian=False):
             temp /= 2
         contributing_products.append(temp)
     result = _zero_sum(contributing_products)
-    if not hermitian or isinstance(result, Zero):
-        return result
-    return result + Dagger(result)
+    if hermitian and not isinstance(result, Zero):
+        result += Dagger(result)
+    return result
 
 def compute_next_orders(
     H_0_AA,
