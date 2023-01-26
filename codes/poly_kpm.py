@@ -21,7 +21,7 @@ class SumOfOperatorProducts:
         if not all(terms):
             raise ValueError("Empty term.")
         starts = (term[0][1][0] for term in terms)
-        ends = (term[0][1][1] for term in terms)
+        ends = (term[-1][1][1] for term in terms)
         if len(set(starts)) > 1 or len(set(ends)) > 1:
             raise ValueError("Terms couple different subspaces.")
         # All operators should couple compatible spaces.
