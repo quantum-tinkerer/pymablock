@@ -89,3 +89,16 @@ def test_check_unitary(Ns, hamiltonians, wanted_orders):
 
     for value, block in zip(transformed, "AA BB AB".split()):
         assert_almost_zero(value, decimal, f"{block=}")
+
+
+def test_check_diagonal():
+    """Test that offdiagonal H_0_AA is not allowed."""
+    with pytest.raises(ValueError):
+        compute_next_orders(
+            np.array([[1, 1], [1, 1]]),
+            np.eye(2),
+            {},
+            {},
+            {},
+            [[1, 0]],
+        )

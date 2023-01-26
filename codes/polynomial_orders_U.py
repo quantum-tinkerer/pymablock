@@ -145,8 +145,13 @@ def compute_next_orders(
     exp_S = np.array([[{zero_index: None}, {}], [{}, {zero_index: None}]])
 
     if divide_energies is None:
+        # The Hamiltonians must already be diagonalized
         E_A = np.diag(H_0_AA)
         E_B = np.diag(H_0_BB)
+        if not np.allclose(H_0_AA, np.diag(E_A)):
+            raise ValueError("H_0_AA must be diagonal")
+        if not np.allclose(H_0_BB, np.diag(E_B)):
+            raise ValueError("H_0_BB must be diagonal")
         energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
 
         def divide_energies(Y):
