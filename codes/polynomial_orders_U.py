@@ -139,11 +139,12 @@ def compute_next_orders(
         [
             [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
             [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
-        ]
+        ],
+        dtype=object,
     )
 
     # We use None as a placeholder for identity.
-    exp_S = np.array([[{zero_index: None}, {}], [{}, {zero_index: None}]])
+    exp_S = np.array([[{zero_index: None}, {}], [{}, {zero_index: None}]], dtype=object)
 
     if divide_energies is None:
         # The Hamiltonians must already be diagonalized
@@ -220,7 +221,8 @@ def H_tilde(
         [
             [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
             [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
-        ]
+        ],
+        dtype=object,
     )
 
     if compute_AB:
