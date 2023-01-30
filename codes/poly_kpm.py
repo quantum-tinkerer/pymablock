@@ -106,8 +106,7 @@ class SumOfOperatorProducts:
         Returns:
         SumOfOperatorProducts
         """
-        temp = [[(v[0].conjugate(), v[1]) for v in slist] for slist in self.terms]
-        return SumOfOperatorProducts(temp)
+        return SumOfOperatorProducts([[(v[0].conjugate(), v[1]) for v in slist] for slist in self.terms])
 
     def transpose(self):
         """
@@ -116,8 +115,7 @@ class SumOfOperatorProducts:
         Returns:
         SumOfOperatorProducts
         """
-        temp = [[(v[0].transpose(), v[1]) for v in slist] for slist in self.terms]
-        return SumOfOperatorProducts(temp)
+        return SumOfOperatorProducts([[(v[0].transpose(), v[1]) for v in slist] for slist in self.terms])
 
     def reduce_sublist(self, slist):
         """
