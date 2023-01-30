@@ -51,11 +51,7 @@ class SumOfOperatorProducts:
         Returns:
         SumOfOperatorProducts
         """
-        temp = []
-        for sublist in self.terms:
-            sublist[0] = ((-1) * sublist[0][0], sublist[0][1])
-            temp.append(sublist)
-        return SumOfOperatorProducts(temp)
+        return SumOfOperatorProducts([[((-1) * sublist[0][0], sublist[0][1])] + sublist[1:] for sublist in self.terms])
 
     def __matmul__(self, other):
         """
