@@ -48,14 +48,12 @@ splus = pauli.SigmaPlus()
 
 H_0_AA = wr * Dagger(a) * a + (1 / 2) * wq
 H_0_BB = wr * Dagger(a) * a - (1 / 2) * wq
-H_p_AB = g * a
-H_p_BA = g * Dagger(a)
+H_p_AB = g * Dagger(a)
+H_p_BA = g * a
 H_p_AB = {ta.array([1]): H_p_AB}
 H_p_BA = {ta.array([1]): H_p_BA}
 H_p_AA = {}
 H_p_BB = {}
-
-H_0_AA
 
 
 # +
@@ -127,15 +125,13 @@ H_eff_AA, H_eff_BB = polynomial_orders_U.H_tilde(
 # +
 for value in H_eff_AA.values():
     H_AA = value
-    H_AA = sp.nsimplify(normal_ordered_form((H_AA).expand()).simplify())
+    H_AA = normal_ordered_form(sp.nsimplify(H_AA).expand()).factor().simplify()
 
 for value in H_eff_BB.values():
     H_BB = value
-    H_BB = sp.nsimplify(normal_ordered_form((H_BB).expand()).simplify())
+    H_BB = normal_ordered_form(sp.nsimplify(H_BB).expand()).factor().simplify()
 # -
 
-H_AA
+H_AA.factor()
 
-H_BB
-
-
+H_BB.factor()
