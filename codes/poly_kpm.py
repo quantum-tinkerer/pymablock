@@ -201,6 +201,16 @@ class SumOfOperatorProducts:
         summed_value = sum(term[0][0] for term in length1_terms)
         label = length1_terms[0][0][1]
         self.terms = new_terms + [[(summed_value, label)]]
+    
+    def to_array(self):
+        terms = self.evalf()
+        #check flags are equal
+        starts = list(term[0][1][0] for term in terms)
+        ends = list(term[0][1][-1] for term in terms)
+        assert np.all([s == starts[0] for s in starts])
+        assert np.all([e == ends[0] for e in ends])
+        return np.array(sum([term[0][0] for term in terms]))
+        
 
 
 def divide_energies(Y, H_0_AA, H_0_BB):
@@ -214,6 +224,9 @@ def divide_energies(Y, H_0_AA, H_0_BB):
     Returns:
     Y divided by the energy denominators
     """
+    
+    #THIS NEEDS MORE WORK REGARDING SHAPES AND STUFF
+    
     E_A = np.diag(H_0_AA.evalf("AA")[0][0])
     E_B = np.diag(H_0_BB.evalf("BB")[0][0])
     energy_denoms = 1 / (E_A.reshape(-1, 1) - E_B)
