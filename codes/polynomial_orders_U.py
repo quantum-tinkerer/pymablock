@@ -194,7 +194,8 @@ def compute_next_orders(
 
 
 def H_tilde(
-    H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=False
+    H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=False,
+    op=None
 ):
     """
     Computes perturbed Hamiltonian in eigenbasis of unperturbed Hamiltonian.
@@ -211,6 +212,8 @@ def H_tilde(
     Returns:
     H_tilde : tuple of dictionaries of perturbation terms in eigenbasis of unperturbed Hamiltonian
     """
+    if op is None:
+        op = matmul
     zero_index = ta.zeros([len(wanted_orders[0])], int)
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
     H = np.array(
@@ -238,6 +241,7 @@ def H_tilde(
                     H[i, j],
                     exp_S[j, l],
                     hermitian=(i == j and k == l),
+                    op=op
                 )
                 for i in (0, 1)
                 for j in (0, 1)
