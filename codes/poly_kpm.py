@@ -115,7 +115,10 @@ class SumOfOperatorProducts:
         Returns:
         SumOfOperatorProducts
         """
-        return SumOfOperatorProducts([[(v[0].transpose(), v[1]) for v in slist] for slist in self.terms])
+        return SumOfOperatorProducts(
+            [[(v[0].transpose(), v[1][::-1]) for v in reversed(slist)]
+             for slist in self.terms]
+        )
 
     def reduce_sublist(self, slist):
         """
@@ -210,6 +213,9 @@ class SumOfOperatorProducts:
         assert np.all([s == starts[0] for s in starts])
         assert np.all([e == ends[0] for e in ends])
         return np.array(sum([term[0][0] for term in terms]))
+    
+    def flag(self):
+        return self.evalf()[0][1]
         
 
 
@@ -227,8 +233,8 @@ def divide_energies(Y, H_0_AA, H_0_BB):
     
     #THIS NEEDS MORE WORK REGARDING SHAPES AND STUFF
     
-    E_A = np.diag(H_0_AA.evalf("AA")[0][0])
-    E_B = np.diag(H_0_BB.evalf("BB")[0][0])
+    E_A = np.diag(H_0_AA.to_array())
+    E_B = np.diag(H_0_BB.to_array())
     energy_denoms = 1 / (E_A.reshape(-1, 1) - E_B)
 
     return Y * energy_denoms
