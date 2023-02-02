@@ -43,6 +43,11 @@ class SumOfOperatorProducts:
         SumOfOperatorProducts
         """
         return SumOfOperatorProducts(self.terms + other.terms)
+    
+    def __sub__(self,other):
+        if isinstance(other,type(self)):
+            return self + (-other)
+        
 
     def __neg__(self):
         """
@@ -150,8 +155,7 @@ class SumOfOperatorProducts:
         Returns:
         SumOfOperatorProducts
         """
-        nterms = [self.reduce_sublist(slist) for slist in self.terms]
-        self.terms = nterms
+        self.terms = [self.reduce_sublist(slist) for slist in self.terms]
         self._add_explicit_terms()
 
     def sum_sublist(self, slist, flag):
@@ -165,26 +169,6 @@ class SumOfOperatorProducts:
         SumOfOperatorProducts
         """
         return sum([v[0] for v in slist if v[1] == flag])
-
-    def evalf(self, flag=None):
-        """
-        Evaluate a SumOfOperatorProducts object.
-
-        flag : str (AA, AB, BA, BB)
-
-        Returns:
-        SumOfOperatorProducts
-        """
-        temp = [self.reduce_sublist(slist) for slist in self.terms]
-
-        sec_temp = []
-        if flag is not None:
-            sec_temp.append(
-                [v for v in temp if (str(v[0][1][0]) + str(v[-1][1][1])) == flag]
-            )
-        else:
-            sec_temp = temp
-        return sec_temp
 
     def _add_explicit_terms(self):
         """Sum all terms of length 1 inplace
@@ -206,13 +190,13 @@ class SumOfOperatorProducts:
         self.terms = new_terms + [[(summed_value, label)]]
     
     def to_array(self):
-        terms = self.evalf()
         #check flags are equal
         starts = list(term[0][1][0] for term in terms)
         ends = list(term[0][1][-1] for term in terms)
         assert np.all([s == starts[0] for s in starts])
         assert np.all([e == ends[0] for e in ends])
         return np.array(sum([term[0][0] for term in terms]))
+    # this just sums regardless of flag. for bb this gives wrong results
     
     def flag(self):
         return self.evalf()[0][1]
@@ -231,7 +215,8 @@ def divide_energies(Y, H_0_AA, H_0_BB):
     Y divided by the energy denominators
     """
     
-    #THIS NEEDS MORE WORK REGARDING SHAPES AND STUFF
+    assert len(Y.terms) == 1
+    assert len(Y.terms[0]) ==1
     
     E_A = np.diag(H_0_AA.to_array())
     E_B = np.diag(H_0_BB.to_array())
