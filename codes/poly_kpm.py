@@ -158,18 +158,6 @@ class SumOfOperatorProducts:
         self.terms = [self.reduce_sublist(slist) for slist in self.terms]
         self._add_explicit_terms()
 
-    def sum_sublist(self, slist, flag):
-        """
-        Sum a sublist of a SumOfOperatorProducts object.
-
-        slist : list of tuples with (array, str)
-        flag : str (AA, AB, BA, BB)
-
-        Returns:
-        SumOfOperatorProducts
-        """
-        return sum([v[0] for v in slist if v[1] == flag])
-
     def _add_explicit_terms(self):
         """Sum all terms of length 1 inplace
 
@@ -191,11 +179,11 @@ class SumOfOperatorProducts:
     
     def to_array(self):
         #check flags are equal
-        starts = list(term[0][1][0] for term in terms)
-        ends = list(term[0][1][-1] for term in terms)
+        starts = list(term[0][1][0] for term in self.terms)
+        ends = list(term[0][1][-1] for term in self.terms)
         assert np.all([s == starts[0] for s in starts])
         assert np.all([e == ends[0] for e in ends])
-        return np.array(sum([term[0][0] for term in terms]))
+        return np.array(sum([term[0][0] for term in self.terms]))
     # this just sums regardless of flag. for bb this gives wrong results
     
     def flag(self):
