@@ -209,36 +209,19 @@ def divide_energies(Y, H_0_AA, H_0_BB):
     return Y * energy_denoms
 
 
-# +
-class h_0_op(LinearOperator):
-    def __init__(self, h_0):
-        self.h_0 = h_0
-        self.shape = h_0.shape
-        self.dtype = complex
+def get_bb_action(h_0, vec_A):
+    p = vec_A.conj().T @ vec_A
 
-    def _matvec(self,v):
-        return np.dot(self.h_0, v)
-
-    def _matmat(self,V):
-        return np.dot(self.h_0, V)
-
-    def _adjoint(self):
-        return h_0_op(self.h_0)
-
-class p_b_op(LinearOperator):
-    def __init__(self,vec_A):
-        self.vec_A = vec_A
-        self.shape = (vec_A.shape[0],vec_A.shape[0])
-        self.dtype = complex
-        
-    def _matvec(self,v):
-        p = self.vec_A.conj().T @ self.vec_A
-        v1 = v[:p.shape[-1]] - p @ v[:p.shape[-1]]
-        v2 = v[p.shape[-1]:]
-        return np.concatenate((v1,v2),axis=0)
-        
-    def _adjoint(self):
-        return p_b(self.vec_A)
+    def matvec(v):
+        temp = (h_0 @ np.concatenate((v[:p.shape[-1]] - p @ v[:p.shape[-1]],
+                            v[p.shape[-1]:]),
+                           axis=0))
+        return np.concatenate((temp[:p.shape[-1]] - p @ temp[:p.shape[-1]],
+                            temp[p.shape[-1]:]),
+                           axis=0)
+    
+    return LinearOperator(shape=h_0.shape,
+                          matvec=matvec)
 
 
 # +
