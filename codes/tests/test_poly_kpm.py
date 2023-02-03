@@ -3,8 +3,9 @@ from itertools import product, count
 import pytest
 import numpy as np
 import tinyarray as ta
+from scipy.linalg import eigh
 
-from codes.poly_kpm import SumOfOperatorProducts, divide_energies
+from codes.poly_kpm import SumOfOperatorProducts, divide_energies, get_bb_action
 from codes.polynomial_orders_U import compute_next_orders
 
 @pytest.fixture(
@@ -215,3 +216,21 @@ def test_array_vs_sop(hamiltonians, wanted_orders):
 
 
 
+def test_does_bb_do_what_bb_do(hamiltonians):
+    h0 = hamiltonians[0]
+    h1 = hamiltonians[1]
+    
+    assert h0.shape[0] == h0.shape[1]
+    assert h1.shape[0] == h1.shape[1]
+    
+    h_0_1 = np.concatenate((h0,np.zeros(shape=(h0.shape[0],h1.shape[1]))),axis=1)
+    h_0_2 = np.concatenate((np.zeros(shape=(h1.shape[0],h0.shape[1])),h1),axis=1)
+    h_0 = np.concatenate((h_0_1,h_0_2),axis=0)
+    
+    assert h_0.shape[0] == h_0.shape[1]
+    
+    vec_A = eigh(h_0)[1][:,:h0.shape[0]]
+    
+    proj = get_bb_action(h_0, vec_A)
+    
+    assert np.all(h1 == (proj @ np.eye(h_0.shape[0]))[h0.shape[0]:,h0.shape[1]:])
