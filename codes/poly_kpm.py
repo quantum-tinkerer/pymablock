@@ -1,4 +1,4 @@
-from itertools import product
+from itertools import product, count
 from functools import reduce
 
 import numpy as np
@@ -125,7 +125,7 @@ class SumOfOperatorProducts:
              for slist in self.terms]
         )
 
-    def reduce_sublist(self, slist):
+    def reduce_sublist(self, slist, flag=["AA", "AB", "BA"]):
         """
         Reduce a sublist of a SumOfOperatorProducts object.
 
@@ -139,7 +139,7 @@ class SumOfOperatorProducts:
 
         temp = [slist[0]]
         for v in slist[1:]:
-            if (str(temp[-1][1][0]) + str(v[1][1])) in ["AA", "AB", "BA"]:
+            if (str(temp[-1][1][0]) + str(v[1][1])) in flag:
                 temp[-1] = elmmul(temp[-1], v)
             else:
                 temp.append(v)
@@ -179,12 +179,8 @@ class SumOfOperatorProducts:
     
     def to_array(self):
         #check flags are equal
-        starts = list(term[0][1][0] for term in self.terms)
-        ends = list(term[0][1][-1] for term in self.terms)
-        assert np.all([s == starts[0] for s in starts])
-        assert np.all([e == ends[0] for e in ends])
-        return np.array(sum([term[0][0] for term in self.terms]))
-    # this just sums regardless of flag. for bb this gives wrong results
+        temp = [self.reduce_sublist(slist,flag=['AA','BA','AB','BB']) for slist in self.terms]
+        return np.array(sum([term[0][0] for term in temp]))
     
     def flag(self):
         return self.evalf()[0][1]
