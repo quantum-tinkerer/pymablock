@@ -1,9 +1,74 @@
-from itertools import product
+from itertools import product, count
 
 import pytest
 import numpy as np
+import tinyarray as ta
 
-from codes.poly_kpm import SumOfOperatorProducts
+from codes.poly_kpm import SumOfOperatorProducts, divide_energies
+from codes.polynomial_orders_U import compute_next_orders
+
+@pytest.fixture(
+    scope="module",
+    params=[
+        [[3]],
+        [[2, 2]],
+        [[3, 1], [1, 3]],
+        [[2, 2, 2], [3, 0, 0]],
+    ],
+)
+def wanted_orders(request):
+    """
+    Return a list of orders to compute.
+    """
+    return request.param
+
+
+@pytest.fixture(scope="module")
+def Ns():
+    """
+    Return a random number of states for each block (A, B).
+    """
+    return np.random.randint(1, high=5, size=2)
+
+
+@pytest.fixture(scope="module")
+def hamiltonians(Ns, wanted_orders):
+    """
+    Produce random Hamiltonians to test.
+
+    Ns: dimension of each block (A, B)
+    wanted_orders: list of orders to compute
+
+    Returns:
+    hams: list of Hamiltonians
+    """
+    N_p = len(wanted_orders[0])
+    orders = ta.array(np.eye(N_p))
+    hams = []
+    for i in range(2):
+        hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
+
+    def matrices_it(N_i, N_j, hermitian):
+        """
+        Generate random matrices of size N_i x N_j.
+
+        N_i: number of rows
+        N_j: number of columns
+        hermitian: if True, the matrix is hermitian
+
+        Returns:
+        generator of random matrices
+        """
+        for i in count():
+            H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
+            if hermitian:
+                H += H.conj().T
+            yield H
+
+    for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
+        matrices = matrices_it(Ns[i], Ns[j], hermitian)
+        hams.append({order: matrix for order, matrix in zip(orders, matrices)})
+    return hams
 
 
 def random_term(n, m, length, start, end, rng=None):
@@ -33,6 +98,20 @@ def random_term(n, m, length, start, end, rng=None):
     ops = [rng.random(size=dim) for dim in op_dims]
     return SumOfOperatorProducts([[(op, space) for op, space in zip(ops, op_spaces)]])
 
+def assert_almost_zero(a, decimal=5, extra_msg=""):
+    """
+    Assert that all values in a are almost zero.
+
+    a: array to check
+    decimal: number of decimal places to check
+    extra_msg: extra message to print if assertion fails
+    """
+    for key, value in a.items():
+        np.testing.assert_almost_equal(
+            value, 0, decimal=decimal, err_msg=f"{key=} {extra_msg}"
+        )
+
+# ############################################################################################
 
 def test_shape_validation():
     """Test that only terms of compatible shapes are accepted.
@@ -64,7 +143,6 @@ def test_shape_validation():
             with pytest.raises(ValueError):
                 term1 @ term2
 
-
 def test_neg():
     """Test that negation works."""
     n, m = 4, 10
@@ -73,3 +151,67 @@ def test_neg():
     # Should have one term with all zeros
     assert len(zero.terms) == 1
     np.testing.assert_allclose(zero.terms[0][0][0], 0)
+
+
+# test if arrays and SumOfOperatorProducts generates the ame terms
+def test_array_vs_sop(hamiltonians, wanted_orders):
+    n_a, n_b = hamiltonians[0].shape[0], hamiltonians[1].shape[0]
+
+    H_0 = np.diag(np.sort(np.random.random(n_a+n_b)))
+
+    # initialize arrays
+    H_0_AA_arr = hamiltonians[0]
+    H_0_BB_arr = hamiltonians[1]
+
+    H_p_AA_arr = hamiltonians[2]
+    H_p_AB_arr = hamiltonians[4]
+    H_p_BB_arr = hamiltonians[3]
+
+    exp_S_arr = compute_next_orders(H_0_AA_arr,
+                                    H_0_BB_arr,
+                                    H_p_AA_arr,
+                                    H_p_BB_arr,
+                                    H_p_AB_arr,
+                                    wanted_orders=wanted_orders
+                                    )
+
+    # initialize SumOfOps
+    H_0_AA_sop = SumOfOperatorProducts([[(H_0_AA_arr,'AA')]])
+    H_0_BB_sop = SumOfOperatorProducts([[(H_0_BB_arr,'BB')]])
+
+    H_p_AA_sop = {key:SumOfOperatorProducts([[(val,'AA')]]) for key,val in H_p_AA_arr.items()}
+    H_p_AB_sop = {key:SumOfOperatorProducts([[(val,'AB')]]) for key,val in H_p_AB_arr.items()}
+    H_p_BB_sop = {key:SumOfOperatorProducts([[(val,'BB')]]) for key,val in H_p_BB_arr.items()}
+
+    exp_S_sop = compute_next_orders(H_0_AA_sop,
+                                    H_0_BB_sop,
+                                    H_p_AA_sop,
+                                    H_p_BB_sop,
+                                    H_p_AB_sop,
+                                    wanted_orders=wanted_orders,
+                                    divide_energies=lambda Y:divide_energies(Y, H_0_AA_sop, H_0_BB_sop)
+                                    )
+    
+    # make all SOPs matrices
+    for i in (0,1):
+        for j in (0,1):
+            exp_S_sop[i,j] = {k:v.to_array() for k,v in exp_S_sop[i,j].items() if isinstance(v,SumOfOperatorProducts)}
+            
+    # subttract two results
+    exp_S_diff = np.zeros_like(exp_S_arr)
+    
+    for i in (0,1):
+        for j in (0,1):
+            temp = {}
+            for key,val in exp_S_arr[i,j].items():
+                if isinstance(val,np.ndarray):
+                    if not val.shape == exp_S_sop[i,j][key].shape:
+                        print('hier')
+                    temp[key]=val-exp_S_sop[i,j][key]
+            exp_S_diff[i,j] = temp
+    exp_S_diff = [exp_S_diff[0,0], exp_S_diff[1,1], exp_S_diff[0,1]]      
+    for value, block in zip(exp_S_diff, "AA BB AB".split()):
+        assert_almost_zero(value, 6, extra_msg=f"{block=}")
+
+
+
