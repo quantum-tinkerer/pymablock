@@ -209,19 +209,22 @@ def divide_energies(Y, H_0_AA, H_0_BB):
     return Y * energy_denoms
 
 
-def get_bb_action(h_0, vec_A):
+def get_bb_action(op, vec_A):
     p = vec_A.conj().T @ vec_A
 
     def matvec(v):
-        temp = (h_0 @ np.concatenate((v[:p.shape[-1]] - p @ v[:p.shape[-1]],
+        temp = (op @ np.concatenate((v[:p.shape[-1]] - p @ v[:p.shape[-1]],
                             v[p.shape[-1]:]),
                            axis=0))
         return np.concatenate((temp[:p.shape[-1]] - p @ temp[:p.shape[-1]],
                             temp[p.shape[-1]:]),
                            axis=0)
     
-    return LinearOperator(shape=h_0.shape,
+    return LinearOperator(shape=op.shape,
                           matvec=matvec)
+
+
+
 
 
 # +
