@@ -1,7 +1,8 @@
-from itertools import product, count
+from itertools import product
 from functools import reduce
 
 import numpy as np
+from scipy.sparse.linalg import LinearOperator
 
 
 class SumOfOperatorProducts:
@@ -184,7 +185,6 @@ class SumOfOperatorProducts:
     
     def flag(self):
         return self.evalf()[0][1]
-        
 
 
 def divide_energies(Y, H_0_AA, H_0_BB):
@@ -207,6 +207,38 @@ def divide_energies(Y, H_0_AA, H_0_BB):
     energy_denoms = 1 / (E_A.reshape(-1, 1) - E_B)
 
     return Y * energy_denoms
+
+
+# +
+class h_0_op(LinearOperator):
+    def __init__(self, h_0):
+        self.h_0 = h_0
+        self.shape = h_0.shape
+        self.dtype = complex
+
+    def _matvec(self,v):
+        return np.dot(self.h_0, v)
+
+    def _matmat(self,V):
+        return np.dot(self.h_0, V)
+
+    def _adjoint(self):
+        return h_0_op(self.h_0)
+
+class p_b_op(LinearOperator):
+    def __init__(self,vec_A):
+        self.vec_A = vec_A
+        self.shape = (vec_A.shape[0],vec_A.shape[0])
+        self.dtype = complex
+        
+    def _matvec(self,v):
+        p = self.vec_A.conj().T @ self.vec_A
+        v1 = v[:p.shape[-1]] - p @ v[:p.shape[-1]]
+        v2 = v[p.shape[-1]:]
+        return np.concatenate((v1,v2),axis=0)
+        
+    def _adjoint(self):
+        return p_b(self.vec_A)
 
 
 # +
