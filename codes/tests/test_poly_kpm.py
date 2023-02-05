@@ -229,7 +229,9 @@ def test_does_bb_do_what_bb_do(hamiltonians):
     
     assert h_0.shape[0] == h_0.shape[1]
     
-    vec_A = eigh(h_0)[1][:,:h0.shape[0]]
+    eigs, vecs = eigh(h_0)
+    inds = np.array([np.where(e==eigs) for e in np.diag(h0)]).flatten()
+    vec_A = vecs[:,inds]
     
     proj = get_bb_action(h_0, vec_A)
     

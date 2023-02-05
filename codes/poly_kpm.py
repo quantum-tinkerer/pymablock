@@ -1,9 +1,24 @@
+# ---
+# jupyter:
+#   jupytext:
+#     text_representation:
+#       extension: .py
+#       format_name: light
+#       format_version: '1.5'
+#       jupytext_version: 1.14.4
+#   kernelspec:
+#     display_name: Python 3 (ipykernel)
+#     language: python
+#     name: python3
+# ---
+
 from itertools import product
 from functools import reduce
 
 import numpy as np
 from scipy.sparse.linalg import LinearOperator
 from scipy.linalg import block_diag
+from numpy.linalg import multi_dot
 
 
 class SumOfOperatorProducts:
@@ -211,28 +226,18 @@ def divide_energies(Y, H_0_AA, H_0_BB):
 
 
 def get_bb_action(op, vec_A):
-    p = vec_A.conj().T @ vec_A
-    
     def matvec(v):
-        temp = (op @ np.concatenate((v[:p.shape[-1]] - p @ v[:p.shape[-1]],
-                            v[p.shape[-1]:]),
-                           axis=0))
-        return np.concatenate((temp[:p.shape[-1]] - p @ temp[:p.shape[-1]],
-                            temp[p.shape[-1]:]),
-                           axis=0)
-
-        
+        temp = op @ (v - vec_A @ (vec_A.conj().T @ v) )
+        return temp - vec_A @ (vec_A.conj().T @ temp)
+    
     def matmat(V):
-        temp = op @ block_diag((V[:p.shape[0],:p.shape[0]] - p @ V[:p.shape[0],:p.shape[0]]),
-                            V[p.shape[0]:,p.shape[0]:]
-                               )
-        return block_diag((temp[:p.shape[0],:p.shape[0]] - p @ temp[:p.shape[0],:p.shape[0]]),
-                            temp[p.shape[0]:,p.shape[0]:]
-                         )
+        temp = op @ (V - vec_A @ (vec_A.conj().T @ V))
+        return temp - vec_A @ (vec_A.conj().T @ temp)
     
     return LinearOperator(shape=op.shape,
                           matvec=matvec,
                           matmat=matmat)
+
 
 # +
 from numpy.random import random as rnd
