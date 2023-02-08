@@ -14,6 +14,7 @@
 
 from itertools import product
 from functools import reduce
+from operator import add
 
 import numpy as np
 from scipy.sparse.linalg import LinearOperator
@@ -190,7 +191,7 @@ class SumOfOperatorProducts:
                 new_terms.append(term)
         if not length1_terms:
             return
-        summed_value = sum(term[0][0] for term in length1_terms)
+        summed_value = reduce(add, (term[0][0] for term in length1_terms))
         label = length1_terms[0][0][1]
         self.terms = new_terms + [[(summed_value, label)]]
     
@@ -263,8 +264,11 @@ t_list = [
 ]
 
 t_list_2 = [
-    [(rnd((4, 10)), "AB"), (rnd((10, 10)), "BB")],
+    [(rnd((10, 4)),'BA'), (rnd((4, 10)), "AB"), (rnd((10, 10)), "BB")],
     [(rnd((10, 4)), "BA"), (rnd((4, 4)), "AA"), (rnd((4, 10)), "AB")],
 ]
 
 t_list_3 = [[(rnd((10, 4)), "BA"), (rnd((4, 10)), "AB")], [(rnd((4, 4)), "AA")]]
+# -
+
+
