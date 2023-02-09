@@ -3,7 +3,7 @@ from itertools import product, count
 import pytest
 import numpy as np
 import tinyarray as ta
-from scipy.linalg import eigh
+from scipy.linalg import eigh, block_diag
 
 from codes.poly_kpm import SumOfOperatorProducts, divide_energies, get_bb_action
 from codes.polynomial_orders_U import compute_next_orders
@@ -236,3 +236,85 @@ def test_does_bb_do_what_bb_do(hamiltonians):
     proj = get_bb_action(h_0, vec_A)
     
     assert np.all(h1 == (proj @ np.eye(h_0.shape[0]))[h0.shape[0]:,h0.shape[1]:])
+    
+def test_array_vs_proj(hamiltonians, wanted_orders):
+    n_a, n_b = hamiltonians[0].shape[0], hamiltonians[1].shape[0]
+
+    # initialize arrays
+    H_0_AA_arr = hamiltonians[0]
+    H_0_BB_arr = hamiltonians[1]
+
+    H_p_AA_arr = hamiltonians[2]
+    H_p_AB_arr = hamiltonians[4]
+    H_p_BB_arr = hamiltonians[3]
+
+    exp_S_arr = compute_next_orders(H_0_AA_arr,
+                                    H_0_BB_arr,
+                                    H_p_AA_arr,
+                                    H_p_BB_arr,
+                                    H_p_AB_arr,
+                                    wanted_orders=wanted_orders
+                                    )
+
+    # initialize SOP with bookkeeping such that B is A+B
+    
+    # AB -> A, A+B
+    h_ab = {A[0]:np.hstack((B[0],B[1])) for A,B in zip(product(hamiltonians[2].keys(),
+                                                              hamiltonians[4].keys()),
+                                                      product(hamiltonians[2].values(),
+                                                              hamiltonians[4].values())
+                                                      ) if A[0]==A[1] }
+    
+    # BB -> A+B, A+B
+    h_bb = {A[0]:np.block([[B[0],B[2]],[B[2].conj().T,B[1]]]) for A,B in zip(product(hamiltonians[2].keys(),
+                                                                                      hamiltonians[3].keys(),
+                                                                                      hamiltonians[4].keys()),
+                                                                              product(hamiltonians[2].values(),
+                                                                                      hamiltonians[3].values(),
+                                                                                      hamiltonians[4].values()))
+                                                                                       if (A[0]==A[1] and 
+                                                                                           A[0]==A[2])}
+    
+    
+    H_0_AA_sop = SumOfOperatorProducts([[(hamiltonians[0],'AA')]])
+    H_0_BB_sop = SumOfOperatorProducts([[(get_bb_action(block_diag(hamiltonians[0],hamiltonians[1]), np.eye(n_a+n_b)[:,:n_a]), 'BB')]])
+
+    H_p_AA_sop = {key:SumOfOperatorProducts([[(val,'AA')]]) for key,val in hamiltonians[2].items()}
+    H_p_AB_sop = {key:SumOfOperatorProducts([[(val,'AB')]]) for key,val in h_ab.items()}
+    H_p_BB_sop = {key:SumOfOperatorProducts([[(val,'BB')]]) for key,val in h_bb.items()}
+
+    exp_S_sop = compute_next_orders(H_0_AA_sop,
+                                    H_0_BB_sop,
+                                    H_p_AA_sop,
+                                    H_p_BB_sop,
+                                    H_p_AB_sop,
+                                    wanted_orders=wanted_orders,
+                                    divide_energies=lambda Y:divide_energies(Y, H_0_AA_sop, H_0_BB_sop, mode='op')
+                                    )
+    
+    # make all SOPs matrices
+    for i in (0,1):
+        for j in (0,1):
+            if (i == 0 and j == 0):
+                exp_S_sop[i,j] = {k:v.to_array() for k,v in exp_S_sop[i,j].items() if isinstance(v,SumOfOperatorProducts)}
+            if (i == 0 and j == 1):
+                exp_S_sop[i,j] = {k:v.to_array()[:,n_a:] for k,v in exp_S_sop[i,j].items() if isinstance(v,SumOfOperatorProducts)}
+            if (i == 1 and j == 0):
+                exp_S_sop[i,j] = {k:v.to_array()[n_a:,:] for k,v in exp_S_sop[i,j].items() if isinstance(v,SumOfOperatorProducts)}
+            if (i == 1 and j == 1):
+                exp_S_sop[i,j] = {k:v.to_array()[n_a:,n_a:] for k,v in exp_S_sop[i,j].items() if isinstance(v,SumOfOperatorProducts)}
+            
+    # subttract two results
+    exp_S_diff = np.zeros_like(exp_S_arr)
+    
+    for i in (0,1):
+        for j in (0,1):
+            temp = {}
+            for key,val in exp_S_arr[i,j].items():
+                if isinstance(val,np.ndarray):
+                    temp[key]=val-exp_S_sop[i,j][key]
+            exp_S_diff[i,j] = temp
+    exp_S_diff = [exp_S_diff[0,0], exp_S_diff[1,1], exp_S_diff[0,1]]      
+    for value, block in zip(exp_S_diff, "AA BB AB".split()):
+        assert_almost_zero(value, 6, extra_msg=f"{block=}")
+
