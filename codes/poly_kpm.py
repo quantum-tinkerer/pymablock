@@ -14,6 +14,7 @@
 
 from itertools import product
 from functools import reduce
+from operator import add
 
 import numpy as np
 from scipy.sparse.linalg import LinearOperator
@@ -190,20 +191,21 @@ class SumOfOperatorProducts:
                 new_terms.append(term)
         if not length1_terms:
             return
-        summed_value = sum(term[0][0] for term in length1_terms)
+        #summed_value = sum(term[0][0] for term in length1_terms)
+        summed_value = reduce(add, (term[0][0] for term in length1_terms))
         label = length1_terms[0][0][1]
         self.terms = new_terms + [[(summed_value, label)]]
     
     def to_array(self):
         #check flags are equal
         temp = [self.reduce_sublist(slist,flag=['AA','BA','AB','BB']) for slist in self.terms]
-        return np.array(sum([term[0][0] for term in temp]))
+        return reduce(add,(term[0][0] for term in temp))
     
     def flag(self):
         return self.evalf()[0][1]
 
 
-def divide_energies(Y, H_0_AA, H_0_BB):
+def divide_energies(Y, H_0_AA, H_0_BB, mode='arr'):
     """
     Divide the right hand side of the equation by the energy denominators.
 
@@ -218,26 +220,59 @@ def divide_energies(Y, H_0_AA, H_0_BB):
     assert len(Y.terms) == 1
     assert len(Y.terms[0]) ==1
     
-    E_A = np.diag(H_0_AA.to_array())
-    E_B = np.diag(H_0_BB.to_array())
+    if mode == 'arr':
+        E_A = np.diag(H_0_AA.to_array())
+        E_B = np.diag(H_0_BB.to_array())
+    
+    if mode == 'op':
+        E_A = np.diag(H_0_AA.to_array())
+        E_B = np.diag(H_0_BB.to_array() @ np.eye(H_0_BB.to_array().shape[0]))
+        # E_B is secretly E_A+A_B
+        #E_B = np.concatenate((E_A, E_B[np.where(E_B != 0)[0]]))
+        E_B = E_B
+
     energy_denoms = 1 / (E_A.reshape(-1, 1) - E_B)
+    energy_denoms[:,np.where(E_B == 0)[0]] = 0
 
     return Y * energy_denoms
 
 
-def get_bb_action(op, vec_A):
-    def matvec(v):
-        temp = op @ (v - vec_A @ (vec_A.conj().T @ v) )
-        return temp - vec_A @ (vec_A.conj().T @ temp)
+class get_bb_action(LinearOperator):
+    def __init__(self, op, vec_A):
+       self.shape = op.shape
+       self.op = op
+       self.vec_A = vec_A
+       self.dtype = complex
+       
+    def _matvec(self, v):
+        temp = self.op @ (v - self.vec_A @ (self.vec_A.conj().T @ v) )
+        return (temp - self.vec_A @ (self.vec_A.conj().T @ temp))
     
-    def matmat(V):
-        temp = op @ (V - vec_A @ (vec_A.conj().T @ V))
-        return temp - vec_A @ (vec_A.conj().T @ temp)
+    def _matmat(self, V):
+        temp = self.op @ (V - self.vec_A @ (self.vec_A.conj().T @ V))
+        return (temp - self.vec_A @ (self.vec_A.conj().T @ temp))
     
-    return LinearOperator(shape=op.shape,
-                          matvec=matvec,
-                          matmat=matmat)
+    def _rmatvec(self, v):
+        temp = (v - (v @ self.vec_A) @ self.vec_A.conj().T) @ self.op
+        return (temp - (temp @ self.vec_A) @ self.vec_A.conj().T)
+    
+    def _rmatmat(self, V):
+        temp = (V - (V @ self.vec_A) @ self.vec_A.conj().T) @ self.op
+        return (temp - (temp @ self.vec_A) @ self.vec_A.conj().T)
 
+    def _adjoint(self):
+        return get_bb_action(self.op, self.vec_A)
+    
+    def __rmatmul__(self,other):
+        try: 
+            res = self._rmatmat(other)
+        except:
+            res = self._matvec(other)
+        return res
+    
+    __array_ufunc__ = None
+    
+        
 
 # +
 from numpy.random import random as rnd
