@@ -203,6 +203,27 @@ class SumOfOperatorProducts:
     def flag(self):
         return self.evalf()[0][1]
 
+def create_div_energs(H_0_AA, H_0_BB):
+
+    H_A = H_0_AA.to_array()
+    n_a = H_A.shape[0]
+    H_B = H_0_BB.to_array()
+        
+    H_0 = block_diag((H_A, H_B))
+    
+    e_a = scipy.linalg.eigh(H_A,eigvals_only=True)
+    e_b = scipy.linalg.eigh(H_B,eigvals_only=True)
+    all_eig = np.concatenate((e_a, e_b))
+    eigs, vecs = scipy.linalg.eigh(H_0)
+    order = np.where(eigs==all_eig)[0]
+    eigs, vecs = eigs[order], vecs[:,order]
+    
+    e_div = vecs.conj().T @ 1/(all_eig.reshape(-1,1)-all_eig) @ vecs
+    
+    def divide_energies(Y):
+        return e_div[:n_a,n_a:]
+        
+    return divide_energies(Y)
 
 def divide_energies(Y, H_0_AA, H_0_BB, mode='arr'):
     """
@@ -270,7 +291,7 @@ class get_bb_action(LinearOperator):
         return res
     
     __array_ufunc__ = None
-    
+
         
 
 # +
