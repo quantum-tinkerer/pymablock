@@ -4,7 +4,7 @@ import numpy as np
 import tinyarray as ta
 import pytest
 
-from codes.polynomial_orders_U import compute_next_orders, H_tilde
+from lowdin.polynomial_orders_U import compute_next_orders, H_tilde
 
 
 @pytest.fixture(

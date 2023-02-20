@@ -5,8 +5,8 @@ import numpy as np
 import tinyarray as ta
 from scipy.linalg import eigh, block_diag
 
-from codes.poly_kpm import SumOfOperatorProducts, divide_energies, get_bb_action, create_div_energs
-from codes.polynomial_orders_U import compute_next_orders
+from lowdin.poly_kpm import SumOfOperatorProducts, divide_energies, get_bb_action, create_div_energs
+from lowdin.polynomial_orders_U import compute_next_orders
 
 @pytest.fixture(
     scope="module",
