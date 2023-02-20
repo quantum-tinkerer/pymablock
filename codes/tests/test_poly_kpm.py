@@ -5,7 +5,7 @@ import numpy as np
 import tinyarray as ta
 from scipy.linalg import eigh, block_diag
 
-from codes.poly_kpm import SumOfOperatorProducts, divide_energies, get_bb_action
+from codes.poly_kpm import SumOfOperatorProducts, divide_energies, get_bb_action, create_div_energs
 from codes.polynomial_orders_U import compute_next_orders
 
 @pytest.fixture(
@@ -190,7 +190,7 @@ def test_array_vs_sop(hamiltonians, wanted_orders):
                                     H_p_BB_sop,
                                     H_p_AB_sop,
                                     wanted_orders=wanted_orders,
-                                    divide_energies=lambda Y:divide_energies(Y, H_0_AA_sop, H_0_BB_sop)
+                                    divide_energies=lambda Y:divide_energies(Y, H_0_AA_sop, H_0_BB_sop, mode='op')
                                     )
     
     # make all SOPs matrices
@@ -236,7 +236,7 @@ def test_does_bb_do_what_bb_do(hamiltonians):
     proj = get_bb_action(h_0, vec_A)
     
     assert np.all(h1 == (proj @ np.eye(h_0.shape[0]))[h0.shape[0]:,h0.shape[1]:])
-    
+
 def test_array_vs_proj(hamiltonians, wanted_orders):
     n_a, n_b = hamiltonians[0].shape[0], hamiltonians[1].shape[0]
 
@@ -281,7 +281,7 @@ def test_array_vs_proj(hamiltonians, wanted_orders):
 
     H_p_AA_sop = {key:SumOfOperatorProducts([[(val,'AA')]]) for key,val in hamiltonians[2].items()}
     H_p_AB_sop = {key:SumOfOperatorProducts([[(val,'AB')]]) for key,val in h_ab.items()}
-    H_p_BB_sop = {key:SumOfOperatorProducts([[(val,'BB')]]) for key,val in h_bb.items()}
+    H_p_BB_sop = {key:SumOfOperatorProducts([[(get_bb_action(val, np.eye(n_a+n_b)[:,:n_a]),'BB')]]) for key,val in h_bb.items()}
 
     exp_S_sop = compute_next_orders(H_0_AA_sop,
                                     H_0_BB_sop,
@@ -289,9 +289,8 @@ def test_array_vs_proj(hamiltonians, wanted_orders):
                                     H_p_BB_sop,
                                     H_p_AB_sop,
                                     wanted_orders=wanted_orders,
-                                    divide_energies=lambda Y:divide_energies(Y, H_0_AA_sop, H_0_BB_sop, mode='op')
+                                    divide_energies=create_div_energs(H_0_AA_sop, H_0_BB_sop, mode='op')
                                     )
-    
     # make all SOPs matrices
     for i in (0,1):
         for j in (0,1):

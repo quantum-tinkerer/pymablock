@@ -18,7 +18,7 @@ from operator import add
 
 import numpy as np
 from scipy.sparse.linalg import LinearOperator
-from scipy.linalg import block_diag
+from scipy.linalg import block_diag, eigh
 from numpy.linalg import multi_dot
 
 
@@ -203,27 +203,40 @@ class SumOfOperatorProducts:
     def flag(self):
         return self.evalf()[0][1]
 
-def create_div_energs(H_0_AA, H_0_BB):
+def create_div_energs(H_0_AA, H_0_BB, mode='arr'):
 
-    H_A = H_0_AA.to_array()
-    n_a = H_A.shape[0]
-    H_B = H_0_BB.to_array()
-        
-    H_0 = block_diag((H_A, H_B))
+    if mode=='op':
+        H_A = H_0_AA.to_array()
+        n_a = H_A.shape[0]
+        H_B = (H_0_BB.to_array() @ np.eye(H_0_BB.to_array().shape[0]))[n_a:,n_a:]
+    else:
+        H_A = H_0_AA
+        n_a = H_0_AA.shape[0]
+        H_B = H_0_BB
+
+    H_0 = block_diag(H_A, H_B)
     
-    e_a = scipy.linalg.eigh(H_A,eigvals_only=True)
-    e_b = scipy.linalg.eigh(H_B,eigvals_only=True)
+    e_a = eigh(H_A,eigvals_only=True)
+    e_b = eigh(H_B,eigvals_only=True)
+    
     all_eig = np.concatenate((e_a, e_b))
-    eigs, vecs = scipy.linalg.eigh(H_0)
-    order = np.where(eigs==all_eig)[0]
+    eigs, vecs = eigh(H_0)
+    order = np.concatenate([np.where(np.isclose(all_eig[i],eigs))[0]
+                            for i in range(len(all_eig))
+                            if not np.any(all_eig[i]==all_eig[:i])])
     eigs, vecs = eigs[order], vecs[:,order]
+    assert np.allclose(all_eig, eigs)
     
-    e_div = vecs.conj().T @ 1/(all_eig.reshape(-1,1)-all_eig) @ vecs
+    e_div = 1/(all_eig.reshape(-1,1)-all_eig)
+    for i in range(len(all_eig)):
+        e_div[i,i] = 0
+    e_div = vecs.conj().T @ e_div @ vecs
+    e_div[:,:n_a] = 0
     
     def divide_energies(Y):
-        return e_div[:n_a,n_a:]
+        return Y * e_div[:n_a,:]
         
-    return divide_energies(Y)
+    return divide_energies
 
 def divide_energies(Y, H_0_AA, H_0_BB, mode='arr'):
     """
@@ -323,6 +336,3 @@ t_list_2 = [
 ]
 
 t_list_3 = [[(rnd((10, 4)), "BA"), (rnd((4, 10)), "AB")], [(rnd((4, 4)), "AA")]]
-# -
-
-
