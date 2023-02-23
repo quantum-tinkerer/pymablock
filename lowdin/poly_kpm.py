@@ -15,6 +15,7 @@
 from itertools import product
 from functools import reduce
 from operator import add
+import pdb
 
 import numpy as np
 from scipy.sparse.linalg import LinearOperator
@@ -121,6 +122,17 @@ class SumOfOperatorProducts:
         SumOfOperatorProducts
         """
         return self * other
+    
+    def adjoint(self):
+        """
+        Adjoint of a SumOfProductOperators object.
+        
+        Returns:
+        SumOfOperatorProducts
+        """
+        return SumOfOperatorProducts([[(v[0].conjugate().T, v[1][::-1]) if isinstance(v[0],np.ndarray) else (v[0].adjoint(), v[1][::-1]) for v in reversed(slist)]
+                                       for slist in self.terms])
+        
 
     def conjugate(self):
         """
@@ -230,11 +242,19 @@ def create_div_energs(H_0_AA, H_0_BB, mode='arr'):
     e_div = 1/(all_eig.reshape(-1,1)-all_eig)
     for i in range(len(all_eig)):
         e_div[i,i] = 0
-    e_div = vecs.conj().T @ e_div @ vecs
     e_div[:,:n_a] = 0
+    e_div = e_div[:n_a,:]
+    to_base = SumOfOperatorProducts([[(vecs.conj().T,'BB')]])
+    from_base = SumOfOperatorProducts([[(vecs,'BB')]])
+    #A+B -> U -> e_div -> U: must have A,A+B again
+    # the coeffs should be more magled
+    # the Us msut be applied via matrix products
     
     def divide_energies(Y):
-        return Y * e_div[:n_a,:]
+        Y = Y @ to_base
+        Y = Y * e_div
+        Y = Y @ from_base
+        return Y
         
     return divide_energies
 
@@ -271,6 +291,10 @@ def divide_energies(Y, H_0_AA, H_0_BB, mode='arr'):
 
 
 class get_bb_action(LinearOperator):
+    """ 
+    Need adjoint() that can distinguish the content of the arrays.
+    """
+    
     def __init__(self, op, vec_A):
        self.shape = op.shape
        self.op = op
@@ -294,6 +318,9 @@ class get_bb_action(LinearOperator):
         return (temp - (temp @ self.vec_A) @ self.vec_A.conj().T)
 
     def _adjoint(self):
+        return get_bb_action(self.op, self.vec_A)
+    
+    def conjugate(self):
         return get_bb_action(self.op, self.vec_A)
     
     def __rmatmul__(self,other):
