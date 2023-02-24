@@ -219,7 +219,7 @@ def create_div_energs(e_a, v_a, H_0_BB):
     if isinstance(H_0_BB, get_bb_action):
         H_0_BB = H_0_BB @ np.eye(H_0_BB.shape[0])
     if not isinstance(H_0_BB,np.ndarray):
-        H_0_BB.toarray() @ np.eye(H_0_BB_to_array().shape[0])
+        H_0_BB = H_0_BB.to_array() @ np.eye(H_0_BB.to_array().shape[0])
         
     a_eigs = e_a
     b_eigs, b_vecs = eigh(H_0_BB)
@@ -236,9 +236,15 @@ def create_div_energs(e_a, v_a, H_0_BB):
     e_div[:,a_inds] = 0
 
     def divide_energies(Y):
+        t_flag = False
+        if not isinstance(Y,np.ndarray):
+            Y = Y.to_array()
+            t_flag = True
         Y = Y @ b_vecs
         Y = Y * e_div
         Y = Y @ b_vecs.conj().T
+        if t_flag:
+            Y = SumOfOperatorProducts([[(Y,'AB')]])
         return Y
     
     return divide_energies

@@ -256,9 +256,9 @@ h_0 = h_0 + h_0.conj().T
 
 eigs, vecs = eigh(h_0)
 
-h_aa = np.diag(eigs[:n_a])
+h_aa = SumOfOperatorProducts([[(np.diag(eigs[:n_a]),'AA')]])
 v_aa = vecs[:,:n_a]
-h_bb = get_bb_action(h_0,v_aa)
+h_bb = SumOfOperatorProducts([[(get_bb_action(h_0,v_aa),'BB')]])
 
 
 h_p = np.random.random((n_a+n_b,n_a+n_b)) + 1j * np.random.random((n_a+n_b,n_a+n_b))
@@ -271,9 +271,9 @@ h_p2 = (h_p2 + h_p2.conj().T)
 
 h_p = h_p|{ta.array([0,1]):h_p2}
 
-h_p_aa = {k:v[:n_a,:n_a] for k,v in h_p.items()}
-h_p_bb = {k:get_bb_action(v,v_aa) for k,v in h_p.items()}
-h_p_ab = {k:v[:n_a,:] for k,v in h_p.items()}
+h_p_aa = {k:SumOfOperatorProducts([[(v[:n_a,:n_a],'AA')]]) for k,v in h_p.items()}
+h_p_bb = {k:SumOfOperatorProducts([[(get_bb_action(v,v_aa),'BB')]]) for k,v in h_p.items()}
+h_p_ab = {k:SumOfOperatorProducts([[(v[:n_a,:],'AB')]]) for k,v in h_p.items()}
 
 
 exp_S = compute_next_orders(h_aa,
