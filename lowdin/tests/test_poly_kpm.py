@@ -1,3 +1,4 @@
+
 from itertools import product, count
 
 import pytest

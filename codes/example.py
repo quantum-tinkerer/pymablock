@@ -282,7 +282,7 @@ exp_S = compute_next_orders(h_aa,
                             h_p_bb,
                             h_p_ab,
                             [ta.array([1,1])],
-                            divide_energies=create_div_energs(np.diag(h_aa), v_aa, h_bb))
+                            divide_energies=create_div_energs(np.diag(h_aa.to_array()), v_aa, h_bb))
     
 H_t = H_tilde(h_aa,
                 h_bb,
@@ -293,7 +293,7 @@ H_t = H_tilde(h_aa,
                exp_S=exp_S,
               compute_AB=True)
 
-{k:np.round(v,decimals=15) for k,v in H_t[2].items()}
+{k:np.round(v.to_array(),decimals=15) for k,v in H_t[2].items()}
 # -
 
 

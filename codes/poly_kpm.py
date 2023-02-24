@@ -236,9 +236,15 @@ def create_div_energs(e_a, v_a, H_0_BB):
     e_div[:,a_inds] = 0
 
     def divide_energies(Y):
+        t_flag = False
+        if not isinstance(Y,np.ndarray):
+            Y = Y.to_array()
+            t_flag = True
         Y = Y @ b_vecs
         Y = Y * e_div
         Y = Y @ b_vecs.conj().T
+        if t_flag:
+            Y = SumOfOperatorProducts([(Y,'AB')])
         return Y
     
     return divide_energies
