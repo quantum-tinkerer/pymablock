@@ -220,29 +220,23 @@ def create_div_energs(e_a, v_a, H_0_BB):
         H_0_BB = H_0_BB @ np.eye(H_0_BB.shape[0])
     if not isinstance(H_0_BB,np.ndarray):
         H_0_BB = H_0_BB.to_array() @ np.eye(H_0_BB.to_array().shape[0])
-        
+    n_a = len(e_a)
     a_eigs = e_a
     b_eigs, b_vecs = eigh(H_0_BB)
-    
-    #find out where the A-subspace is
-    a_inds = np.argmax(np.abs(v_a.conj().T @ b_vecs),axis=-1)
-    
-    all_eigs = b_eigs
-    all_eigs[a_inds] = a_eigs
-    
-    #e_div = np.array([[1/(a-b) if a!=b else 0 for a in all_eigs] for b in all_eigs])
-    
-    e_div = 1/(a_eigs.reshape(-1,1) - b_eigs)
-    e_div[:,a_inds] = 0
-
+    # find out where the A-subspace is
+    a_inds = np.argmax(np.abs(v_a.conj().T @ b_vecs), axis=-1)
+    b_eigs = np.delete(b_eigs, a_inds)
+    b_vecs = np.delete(b_vecs, a_inds, axis=1)
+    e_div = 1/(a_eigs.reshape(-1, 1) - b_eigs)
+    full_vecs = np.hstack((v_a, b_vecs))
     def divide_energies(Y):
         t_flag = False
-        if not isinstance(Y,np.ndarray):
+        if not isinstance(Y, np.ndarray):
             Y = Y.to_array()
             t_flag = True
-        Y = Y @ b_vecs
-        Y = Y * e_div
-        Y = Y @ b_vecs.conj().T
+        V = (Y @ full_vecs)
+        V[:, n_a:] = V[:, n_a:] * e_div
+        Y = V @ full_vecs.T.conj()
         if t_flag:
             Y = SumOfOperatorProducts([[(Y,'AB')]])
         return Y
