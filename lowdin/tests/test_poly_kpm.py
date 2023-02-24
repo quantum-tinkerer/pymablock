@@ -243,6 +243,11 @@ def test_array_vs_proj(hamiltonians, wanted_orders):
     # initialize arrays
     H_0_AA_arr = hamiltonians[0]
     H_0_BB_arr = hamiltonians[1]
+    
+    eigs_a = np.diag(H_0_AA_arr)
+    egs, vcs = eigh(block_diag(H_0_AA_arr,H_0_BB_arr))
+    
+    vecs_a = vcs[:,[np.where(np.isclose(e,egs))[0][0] for e in eigs_a]]
 
     H_p_AA_arr = hamiltonians[2]
     H_p_AB_arr = hamiltonians[4]
@@ -289,7 +294,7 @@ def test_array_vs_proj(hamiltonians, wanted_orders):
                                     H_p_BB_sop,
                                     H_p_AB_sop,
                                     wanted_orders=wanted_orders,
-                                    divide_energies=create_div_energs(H_0_AA_sop, H_0_BB_sop, mode='op')
+                                    divide_energies=lambda Y:divide_energies(Y, H_0_AA_sop, H_0_BB_sop, mode='op')
                                     )
     # make all SOPs matrices
     for i in (0,1):
