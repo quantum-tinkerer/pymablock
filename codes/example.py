@@ -206,89 +206,28 @@ assert np.allclose(eigs1,np.diag(h_0))
 
 h_0
 
-t_op = get_bb_action(h_u,u[:,:n_a])
-tb = t_op @ np.eye(n_a+n_b)
-ta = get_bb_action(h_u,u[:,n_a:]) @ np.eye(n_a+n_b)
-assert np.allclose(h_u,ta+tb)
-
-# +
-import tinyarray as ta
-n_a, n_b = 2,4
-
-h_0 = np.random.random((n_a+n_b,n_a+n_b)) + 1j * np.random.random((n_a+n_b,n_a+n_b))
-h_0 = h_0 + h_0.conj().T
-
-eigs, vecs = eigh(h_0)
-
-h_aa = np.diag(eigs[:n_a])
-v_aa = vecs[:,:n_a]
-# h_bb = get_bb_action(h_0,v_aa)
-h_bb = np.diag(eigs[n_a:])
-
-h_p = np.random.random((n_a+n_b,n_a+n_b)) + 1j * np.random.random((n_a+n_b,n_a+n_b))
-h_p = (h_p + h_p.conj().T)
-
-h_p = {ta.array([1]):h_p}
-
-h_p_aa = {k:v[:n_a,:n_a] for k,v in h_p.items()}
-h_p_bb = {k:v[n_a:,n_a:] for k,v in h_p.items()}
-h_p_ab = {k:v[:n_a, n_a:] for k,v in h_p.items()}
-
-exp_S = compute_next_orders(h_aa,
-                            h_bb,
-                            h_p_aa,
-                            h_p_bb,
-                            h_p_ab,
-                            [ta.array([2])],
-                            divide_energies=lambda Y:divide_energies(Y, h_aa, h_bb, mode='arr'))
-    
-H_t = H_tilde(h_aa,
-                h_bb,
-                h_p_aa,
-                h_p_bb,
-                h_p_ab,
-               wanted_orders=[ta.array([2])],
-               exp_S=exp_S,
-              compute_AB=True)
-H_t[2]
-# -
-
-# %debug
-
-h_bb
-
-np.round(v_aa@v_aa.T.conj(), 1)
-
-
-
-
-
-
-
 # +
 n_a, n_b = 2,4
 
 h_0 = np.random.random((n_a+n_b,n_a+n_b)) + 1j * np.random.random((n_a+n_b,n_a+n_b))
 h_0 = h_0 + h_0.conj().T
 
-eigs, vecs = eigh(h_0)
-
 h_p = np.random.random((n_a+n_b,n_a+n_b)) + 1j * np.random.random((n_a+n_b,n_a+n_b))
 h_p = (h_p + h_p.conj().T)
-
-h_aa = SumOfOperatorProducts([[(np.diag(eigs[:n_a]),'AA')]])
-
-v_aa = vecs[:,:n_a]
-h_bb = SumOfOperatorProducts([[(get_bb_action(h_0,v_aa),'BB')]])
-
-
-
-h_p = {ta.array([1,0]):h_p}
 
 h_p2 = np.random.random((n_a+n_b,n_a+n_b)) + 1j * np.random.random((n_a+n_b,n_a+n_b))
 h_p2 = (h_p2 + h_p2.conj().T)
 
+h_p = {ta.array([1,0]):h_p}
 h_p = h_p|{ta.array([0,1]):h_p2}
+
+
+eigs, vecs = eigh(h_0)
+h_aa = SumOfOperatorProducts([[(np.diag(eigs[:n_a]),'AA')]])
+v_aa = vecs[:,:n_a]
+
+h_bb = SumOfOperatorProducts([[(get_bb_action(h_0,v_aa),'BB')]])
+
 
 h_p_op = {k:v @ (np.eye(n_a+n_b) - (v_aa @ v_aa.conj().T) ) for k,v in h_p.items()}
 
@@ -314,16 +253,16 @@ H_t = H_tilde(h_aa,
                exp_S=exp_S,
               compute_AB=True)
 
-{k:np.round(v.to_array(),decimals=15) for k,v in H_t[0].items()}
+{k:eigh(v.to_array())[0] for k,v in H_t[0].items()}
 # +
 h_aa = SumOfOperatorProducts([[(np.diag(eigs[:n_a]),'AA')]])
 
 v_aa = vecs[:,:n_a]
-h_bb = SumOfOperatorProducts([[(np.diag(eigs[n_a:]),'BB')]])
+h_bb = SumOfOperatorProducts([[(get_bb_action(np.diag(eigs),v_aa),'BB')]])
 
 h_p_aa = {k:SumOfOperatorProducts([[(v[:n_a,:n_a],'AA')]]) for k,v in h_p.items()}
-h_p_bb = {k:SumOfOperatorProducts([[(v[n_a:,n_a:],'BB')]]) for k,v in h_p.items()}
-h_p_ab = {k:SumOfOperatorProducts([[(v[:n_a,n_a:],'AB')]]) for k,v in h_p.items()}
+h_p_bb = {k:SumOfOperatorProducts([[(get_bb_action(v,v_aa),'BB')]]) for k,v in h_p.items()}
+h_p_ab = {k:SumOfOperatorProducts([[(v[:n_a,:],'AB')]]) for k,v in h_p.items()}
 
 
 exp_S = compute_next_orders(h_aa,
@@ -332,7 +271,7 @@ exp_S = compute_next_orders(h_aa,
                             h_p_bb,
                             h_p_ab,
                             [ta.array([1,1])],
-                            divide_energies=create_div_energs(np.diag(h_aa.to_array()),v_aa,h_bb))
+                            divide_energies=lambda Y:divide_energies(Y,h_aa,h_bb,mode='op'))
     
 H_t = H_tilde(h_aa,
                 h_bb,
@@ -343,23 +282,36 @@ H_t = H_tilde(h_aa,
                exp_S=exp_S,
               compute_AB=True)
 
-{k:np.round(v.to_array(),decimals=15) for k,v in H_t[0].items()}
+{k:eigh(v.to_array())[0] for k,v in H_t[0].items()}
+
+# +
+h_aa = np.diag(eigs[:n_a])
+
+v_aa = vecs[:,:n_a]
+h_bb = np.diag(eigs[n_a:])
+
+h_p_aa = {k:v[:n_a,:n_a] for k,v in h_p.items()}
+h_p_bb = {k:v[n_a:,n_a:] for k,v in h_p.items()}
+h_p_ab = {k:v[:n_a,n_a:] for k,v in h_p.items()}
+
+
+exp_S = compute_next_orders(h_aa,
+                            h_bb,
+                            h_p_aa,
+                            h_p_bb,
+                            h_p_ab,
+                            [ta.array([1,1])])
+    
+H_t = H_tilde(h_aa,
+                h_bb,
+                h_p_aa,
+                h_p_bb,
+                h_p_ab,
+               wanted_orders=[ta.array([1,1])],
+               exp_S=exp_S,
+              compute_AB=True)
+
+{k:eigh(v)[0] for k,v in H_t[0].items()}
 # -
-
-np.round(h_bb.to_array()@np.eye(6), 1)
-
-
-H_t[2][0, 1].to_array()
-
-H_t[2][1, 0].to_array()
-
-H_t[2][1, 1].to_array()
-
-
-
-p = np.ones((6, 2)) 
-q = 2*np.ones((6, 4))
-
-np.hstack((p, q))
 
 
