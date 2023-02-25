@@ -244,19 +244,15 @@ n_a, n_b = 2, 4
 
 h_0 = np.random.random((n_a+n_b, n_a+n_b)) + 1j * np.random.random((n_a+n_b, n_a+n_b))
 h_0 = h_0 + h_0.conj().T
+eigs, vecs = eigh(h_0)
+v_aa = vecs[:, :n_a]
 
+# This is in A, B basis.
 h_p = np.random.random((n_a+n_b, n_a+n_b)) + 1j * np.random.random((n_a+n_b, n_a+n_b))
 h_p = (h_p + h_p.conj().T)
-
-h_p2 = np.random.random((n_a+n_b, n_a+n_b)) + 1j * np.random.random((n_a+n_b, n_a+n_b))
-h_p2 = (h_p2 + h_p2.conj().T)
-
 h_p = {ta.array([1]):h_p}
 
 wanted_orders = [ta.array([3])]
-
-eigs, vecs = eigh(h_0)
-v_aa = vecs[:, :n_a]
 # -
 # #### Approach 1: without kpm
 
@@ -267,7 +263,6 @@ h_bb = np.diag(eigs[n_a:])
 h_p_aa = {k: v[:n_a, :n_a] for k, v in h_p.items()}
 h_p_bb = {k: v[n_a:, n_a:] for k, v in h_p.items()}
 h_p_ab = {k: v[:n_a, n_a:] for k, v in h_p.items()}
-
 
 exp_S = compute_next_orders(h_aa, h_bb, h_p_aa, h_p_bb, h_p_ab, wanted_orders)
 
@@ -282,27 +277,38 @@ H_t = H_tilde(
     compute_AB=True,
 )
 # -
-H_tilde_AA = H_t[0]
-{k: eigh(v)[0] for k, v in H_tilde_AA.items()}
-H_tilde_AB = H_t[2]
-sum(H_tilde_AB.values())
+# ###### Inputs
+
 h_aa
 
 
 # The eigenvalues of h_bb do not agree with the ones in the other approaches
 h_bb
 
-# #### Approach 2: using kpm (?) -> whatever we left friday in io, **working**
+# Trace of h_p
+np.sum(eigh(h_p_aa[(1,)])[0]) + np.sum(eigh(h_p_bb[(1,)])[0])
+
+# ###### Outputs
+
+H_tilde_AA = H_t[0]
+{k: eigh(v)[0] for k, v in H_tilde_AA.items()}
+H_tilde_BB = H_t[1]
+{k: eigh(v)[0] for k, v in H_tilde_BB.items()}
+H_tilde_AB = H_t[2]
+sum(H_tilde_AB.values())
+# #### Approach 2: using projections -> whatever we left friday in io, **working H_AB=0**
 
 # +
+v_aa_occ_basis = np.vstack((np.eye(2), np.zeros((4, 2))))
+
 h_aa = SumOfOperatorProducts([[(np.diag(eigs[:n_a]), "AA")]])
-h_bb = SumOfOperatorProducts([[(get_bb_action(h_0, v_aa), "BB")]])
+h_bb = SumOfOperatorProducts([[(get_bb_action(np.diag(eigs), v_aa_occ_basis), "BB")]])
 
 
-h_p_op = {k: v @ (np.eye(n_a + n_b) - (v_aa @ v_aa.conj().T)) for k, v in h_p.items()}
+h_p_op = {k: v @ (np.eye(n_a + n_b) - (v_aa_occ_basis @ v_aa_occ_basis.conj().T)) for k, v in h_p.items()}
 
-h_p_aa = {k: SumOfOperatorProducts([[(v[:n_a, :n_a], "AA")]]) for k, v in h_p_op.items()}
-h_p_bb = {k: SumOfOperatorProducts([[(get_bb_action(v, v_aa), "BB")]])for k, v in h_p_op.items()}
+h_p_aa = {k: SumOfOperatorProducts([[(v[:n_a, :n_a], "AA")]]) for k, v in h_p.items()}
+h_p_bb = {k: SumOfOperatorProducts([[(get_bb_action(v, v_aa_occ_basis), "BB")]]) for k, v in h_p.items()}
 h_p_ab = {k: SumOfOperatorProducts([[(v[:n_a, :], "AB")]]) for k, v in h_p_op.items()}
 
 
@@ -313,7 +319,7 @@ exp_S = compute_next_orders(
     h_p_bb,
     h_p_ab,
     wanted_orders,
-    divide_energies=create_div_energs(np.diag(h_aa.to_array()), v_aa, h_bb),
+    divide_energies=create_div_energs(np.diag(h_aa.to_array()), v_aa_occ_basis, h_bb),
 )
 
 H_t = H_tilde(
@@ -328,88 +334,24 @@ H_t = H_tilde(
 )
 # -
 
-H_tilde_AA = H_t[0]
-{k: eigh(v.to_array())[0] for k, v in H_tilde_AA.items()}
+# ###### Inputs
+
+# Agrees with inputs of Approach 1
 h_aa.to_array()
 
-# The eigenvalues of h_bb agree with the inputs of Approach 1
+# Agrees with inputs of Approach 1
 np.round(np.linalg.eigh(h_bb.to_array() @ np.eye(6))[0], 3)
 
-# AB NOT ZERO!
-H_tilde_AB = H_t[2]
-sum(value.to_array() for value in H_tilde_AB.values())
-# #### Approach 3: using kpm -> warning: does not work
+# Does agree with inputs of Approach 1, it should be the same as trace h_p in previous approach
+np.sum(eigh(h_p_aa[(1,)].to_array())[0]) + np.sum(eigh(h_p_bb[(1,)].to_array() @ np.eye(6))[0])
 
-# +
-h_aa = np.diag(eigs[:n_a])
-h_bb = get_bb_action(h_0, v_aa)
+# ###### Outputs
 
-h_p_op = {k: v @ (np.eye(n_a + n_b) - (v_aa @ v_aa.conj().T)) for k, v in h_p.items()}
-h_p_aa = {k: v[:n_a, :n_a] for k, v in h_p_op.items()}
-h_p_bb = {k: get_bb_action(v, v_aa) for k, v in h_p_op.items()}
-h_p_ab = {k: v[:n_a, :] for k, v in h_p_op.items()}
-
-
-exp_S = compute_next_orders(
-    h_aa,
-    h_bb,
-    h_p_aa,
-    h_p_bb,
-    h_p_ab,
-    wanted_orders,
-    divide_energies=create_div_energs(np.diag(h_aa), v_aa, h_bb),
-)
-
-H_t = H_tilde(
-    h_aa,
-    h_bb,
-    h_p_aa,
-    h_p_bb,
-    h_p_ab,
-    wanted_orders=wanted_orders,
-    exp_S=exp_S,
-    compute_AB=True,
-)
-# -
-H_tilde_AA = H_t[0]
-{k: eigh(v)[0] for k, v in H_tilde_AA.items()}
-h_aa
-
-# The eigenvalues of h_bb do not agree with the ones in the other approaches
-np.round(np.linalg.eigh(h_bb @ np.eye(6))[0], 3)
-
-# AB NOT ZERO!
-H_tilde_AB = H_t[2]
-sum(H_tilde_AB.values())
-# #### Approach 4: using kpm (?) -> does not work
-
-# +
-h_aa = SumOfOperatorProducts([[(np.diag(eigs[:n_a]), 'AA')]])
-h_bb = SumOfOperatorProducts([[(get_bb_action(np.diag(eigs), v_aa), 'BB')]])
-
-h_p_aa = {k: SumOfOperatorProducts([[(v[:n_a, :n_a], 'AA')]]) for k, v in h_p.items()}
-h_p_bb = {k: SumOfOperatorProducts([[(get_bb_action(v, v_aa), 'BB')]]) for k, v in h_p.items()}
-h_p_ab = {k: SumOfOperatorProducts([[(v[:n_a, :], 'AB')]]) for k, v in h_p.items()}
-
-
-exp_S = compute_next_orders(h_aa,
-                            h_bb,
-                            h_p_aa,
-                            h_p_bb,
-                            h_p_ab,
-                            wanted_orders,
-                            divide_energies=lambda Y: divide_energies(Y, h_aa, h_bb, mode='op'))
-
-H_t = H_tilde(h_aa, h_bb, h_p_aa, h_p_bb, h_p_ab, wanted_orders=wanted_orders, exp_S=exp_S, compute_AB=True)
-# -
-
+# These match approach 1!!
 H_tilde_AA = H_t[0]
 {k: eigh(v.to_array())[0] for k, v in H_tilde_AA.items()}
-
-# AB NOT ZERO!
+H_tilde_BB = H_t[1]
+{k: np.round(eigh(v.to_array()@np.eye(6))[0], 2) for k, v in H_tilde_BB.items()}
+# AB IS ZERO :)
 H_tilde_AB = H_t[2]
 sum(value.to_array() for value in H_tilde_AB.values())
-h_aa.to_array()
-
-# The eigenvalues of h_bb do not agree with the ones in the other approaches
-np.round(np.linalg.eigh(h_bb.to_array() @ np.eye(6))[0], 3)
