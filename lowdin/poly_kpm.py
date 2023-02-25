@@ -15,12 +15,10 @@
 from itertools import product
 from functools import reduce
 from operator import add
-import pdb
 
 import numpy as np
 from scipy.sparse.linalg import LinearOperator
-from scipy.linalg import block_diag, eigh
-from numpy.linalg import multi_dot
+from scipy.linalg import eigh
 
 
 class SumOfOperatorProducts:
