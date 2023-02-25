@@ -320,35 +320,3 @@ class get_bb_action(LinearOperator):
         return 1/other * self
     
     __array_ufunc__ = None
-
-        
-
-# +
-from numpy.random import random as rnd
-
-t_list = [
-    [
-        (rnd((4, 10)), "AB"),
-        (rnd((10, 10)), "BB"),
-        (rnd((10, 4)), "BA"),
-        (rnd((4, 10)), "AB"),
-    ],
-    [(rnd((4, 10)), "AB"), (rnd((10, 10)), "BB")],
-    [
-        (rnd((4, 4)), "AA"),
-        (rnd((4, 10)), "AB"),
-        (rnd((10, 4)), "BA"),
-        (rnd((4, 10)), "AB"),
-        (rnd((10, 10)), "BB"),
-        (rnd((10, 4)), "BA"),
-        (rnd((4, 4)), "AA"),
-        (rnd((4, 10)), "AB"),
-    ],
-]
-
-t_list_2 = [
-    [(rnd((10, 4)),'BA'), (rnd((4, 10)), "AB"), (rnd((10, 10)), "BB")],
-    [(rnd((10, 4)), "BA"), (rnd((4, 4)), "AA"), (rnd((4, 10)), "AB")],
-]
-
-t_list_3 = [[(rnd((10, 4)), "BA"), (rnd((4, 10)), "AB")], [(rnd((4, 4)), "AA")]]
