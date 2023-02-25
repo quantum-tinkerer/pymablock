@@ -9,8 +9,11 @@ from scipy.stats import unitary_group
 
 import sys
 sys.path.append('../lowdin/')
+sys.path.append('../codes/')
 from poly_kpm import SumOfOperatorProducts, divide_energies, get_bb_action, create_div_energs
 from polynomial_orders_U import compute_next_orders, H_tilde
+
+# ## Utils
 
 def Ns():
     """
@@ -98,14 +101,14 @@ def assert_almost_zero(a, decimal=5, extra_msg=""):
             value, 0, decimal=decimal, err_msg=f"{key=} {extra_msg}"
         )
 
-# ############################################################################################
+# ## Tests
 
 def test_array_vs_non_diag_proj(hamiltonians, wanted_orders):
     n_a, n_b = hamiltonians[0].shape[0], hamiltonians[1].shape[0]
     # initialize arrays
     H_0_AA_arr = hamiltonians[0]
     H_0_BB_arr = hamiltonians[1]
-    
+
     h_arr = block_diag(H_0_AA_arr,H_0_BB_arr)
 
     # Perform unitary trafo on H_0 such that it is not diagonal anymore
@@ -120,7 +123,7 @@ def test_array_vs_non_diag_proj(hamiltonians, wanted_orders):
                                                                                       hamiltonians[4].values()))
                                                                                        if (A[0]==A[1] and 
                                                                                            A[0]==A[2])}
-    
+
     # now all hamiltonians are in u basis
     # get eigenvectors with eigh
     eigs_a = np.diag(H_0_AA_arr)
@@ -128,8 +131,8 @@ def test_array_vs_non_diag_proj(hamiltonians, wanted_orders):
     order = [np.where(np.isclose(e,eigs))[0][0] for e in eigs_a]
     a_eigs, a_vecs =eigs[order], vecs[:,order]
     assert np.allclose(np.sort(eigs_a),np.sort(a_eigs))
-    
-    
+
+
     # initialize SOP with bookkeeping such that B is A+B
     # AB -> A, A+B
     h_ab = {A[0]:np.hstack((B[0],B[1])) for A,B in zip(product(hamiltonians[2].keys(),
@@ -137,7 +140,7 @@ def test_array_vs_non_diag_proj(hamiltonians, wanted_orders):
                                                       product(hamiltonians[2].values(),
                                                               hamiltonians[4].values())
                                                       ) if A[0]==A[1] }
-    
+
     # BB -> A+B, A+B
     h_bb = {A[0]:np.block([[B[0],B[2]],[B[2].conj().T,B[1]]]) for A,B in zip(product(hamiltonians[2].keys(),
                                                                                       hamiltonians[3].keys(),
@@ -175,7 +178,7 @@ def test_array_vs_non_diag_proj(hamiltonians, wanted_orders):
     H_AB = H_tilde(*ham, wanted_orders, exp_S_sop, compute_AB=True)[2]
     assert_almost_zero(H_AB, 6)
 
-
+# ### Something else
 
 # +
 hams = hamiltonians(Ns(), [ta.array([1,1,0])])
@@ -206,6 +209,10 @@ assert np.allclose(eigs1,np.diag(h_0))
 
 h_0
 
+# ### Test consistency of approaches
+
+# #### Common inputs
+
 # +
 n_a, n_b = 2,4
 
@@ -220,8 +227,10 @@ h_p2 = (h_p2 + h_p2.conj().T)
 
 h_p = {ta.array([1]):h_p}
 #h_p = h_p|{ta.array([0,1]):h_p2}
+# -
+# #### Approach 1
 
-
+# +
 eigs, vecs = eigh(h_0)
 h_aa = np.diag(eigs[:n_a])
 v_aa = vecs[:,:n_a]
@@ -229,11 +238,11 @@ v_aa = vecs[:,:n_a]
 h_bb = get_bb_action(h_0,v_aa)
 
 
-h_p_op = {k:v @ (np.eye(n_a+n_b) - (v_aa @ v_aa.conj().T) ) for k,v in h_p.items()}
+h_p_op = {k: v @ (np.eye(n_a+n_b) - (v_aa @ v_aa.conj().T) ) for k, v in h_p.items()}
 
-h_p_aa = {k:v[:n_a,:n_a] for k,v in h_p_op.items()}
-h_p_bb = {k:get_bb_action(v,v_aa) for k,v in h_p_op.items()}
-h_p_ab = {k:v[:n_a,:] for k,v in h_p_op.items()}
+h_p_aa = {k: v[:n_a, :n_a] for k, v in h_p_op.items()}
+h_p_bb = {k: get_bb_action(v, v_aa) for k, v in h_p_op.items()}
+h_p_ab = {k: v[:n_a, :] for k, v in h_p_op.items()}
 
 
 exp_S = compute_next_orders(h_aa,
@@ -243,7 +252,7 @@ exp_S = compute_next_orders(h_aa,
                             h_p_ab,
                             [ta.array([3])],
                             divide_energies=create_div_energs(np.diag(h_aa), v_aa, h_bb))
-    
+
 H_t = H_tilde(h_aa,
                 h_bb,
                 h_p_aa,
@@ -253,16 +262,25 @@ H_t = H_tilde(h_aa,
                exp_S=exp_S,
               compute_AB=True)
 
-{k:eigh(v)[0] for k,v in H_t[0].items()}
+H_tilde_AA = H_t[0]
+{k: eigh(v)[0] for k, v in H_tilde_AA.items()}
+# -
+h_aa
+
+# The eigenvalues of h_bb do not agree with the ones in the other approaches
+np.round(np.linalg.eigh(h_bb @ np.eye(6))[0], 3)
+
+# #### Approach 2
+
 # +
-h_aa = SumOfOperatorProducts([[(np.diag(eigs[:n_a]),'AA')]])
+h_aa = SumOfOperatorProducts([[(np.diag(eigs[:n_a]), 'AA')]])
 
-v_aa = vecs[:,:n_a]
-h_bb = SumOfOperatorProducts([[(get_bb_action(np.diag(eigs),v_aa),'BB')]])
+v_aa = vecs[:, :n_a]
+h_bb = SumOfOperatorProducts([[(get_bb_action(np.diag(eigs), v_aa), 'BB')]])
 
-h_p_aa = {k:SumOfOperatorProducts([[(v[:n_a,:n_a],'AA')]]) for k,v in h_p.items()}
-h_p_bb = {k:SumOfOperatorProducts([[(get_bb_action(v,v_aa),'BB')]]) for k,v in h_p.items()}
-h_p_ab = {k:SumOfOperatorProducts([[(v[:n_a,:],'AB')]]) for k,v in h_p.items()}
+h_p_aa = {k: SumOfOperatorProducts([[(v[:n_a, :n_a], 'AA')]]) for k, v in h_p.items()}
+h_p_bb = {k: SumOfOperatorProducts([[(get_bb_action(v, v_aa), 'BB')]]) for k, v in h_p.items()}
+h_p_ab = {k: SumOfOperatorProducts([[(v[:n_a, :], 'AB')]]) for k, v in h_p.items()}
 
 
 exp_S = compute_next_orders(h_aa,
@@ -271,28 +289,30 @@ exp_S = compute_next_orders(h_aa,
                             h_p_bb,
                             h_p_ab,
                             [ta.array([3])],
-                            divide_energies=lambda Y:divide_energies(Y,h_aa,h_bb,mode='op'))
-    
-H_t = H_tilde(h_aa,
-                h_bb,
-                h_p_aa,
-                h_p_bb,
-                h_p_ab,
-               wanted_orders=[ta.array([3])],
-               exp_S=exp_S,
-              compute_AB=True)
+                            divide_energies=lambda Y: divide_energies(Y, h_aa, h_bb, mode='op'))
 
-{k:eigh(v.to_array())[0] for k,v in H_t[0].items()}
+H_t = H_tilde(h_aa, h_bb, h_p_aa, h_p_bb, h_p_ab, wanted_orders=[ta.array([3])], exp_S=exp_S, compute_AB=True)
+
+H_tilde_AA = H_t[0]
+{k: eigh(v.to_array())[0] for k, v in H_tilde_AA.items()}
+# -
+
+h_aa.to_array()
+
+# The eigenvalues of h_bb do not agree with the ones in the other approaches
+np.round(np.linalg.eigh(h_bb.to_array() @ np.eye(6))[0], 3)
+
+# #### Approach 3
 
 # +
 h_aa = np.diag(eigs[:n_a])
 
-v_aa = vecs[:,:n_a]
+v_aa = vecs[:, :n_a]
 h_bb = np.diag(eigs[n_a:])
 
-h_p_aa = {k:v[:n_a,:n_a] for k,v in h_p.items()}
-h_p_bb = {k:v[n_a:,n_a:] for k,v in h_p.items()}
-h_p_ab = {k:v[:n_a,n_a:] for k,v in h_p.items()}
+h_p_aa = {k: v[:n_a, :n_a] for k, v in h_p.items()}
+h_p_bb = {k: v[n_a:, n_a:] for k, v in h_p.items()}
+h_p_ab = {k: v[:n_a, n_a:] for k, v in h_p.items()}
 
 
 exp_S = compute_next_orders(h_aa,
@@ -301,7 +321,7 @@ exp_S = compute_next_orders(h_aa,
                             h_p_bb,
                             h_p_ab,
                             [ta.array([3])])
-    
+
 H_t = H_tilde(h_aa,
                 h_bb,
                 h_p_aa,
@@ -311,7 +331,11 @@ H_t = H_tilde(h_aa,
                exp_S=exp_S,
               compute_AB=True)
 
-{k:eigh(v)[0] for k,v in H_t[0].items()}
+H_tilde_AA = H_t[0]
+{k: eigh(v)[0] for k, v in H_tilde_AA.items()}
 # -
+h_aa
 
 
+# The eigenvalues of h_bb do not agree with the ones in the other approaches
+h_bb
