@@ -1,50 +1,58 @@
-from scipy.sparse.linalg import LinearOperator as ScipyLinearOperator
-from scipy.sparse.linalg import aslinearoperator
+import numpy as np
+from scipy.sparse.linalg import LinearOperator, aslinearoperator
+from scipy.sparse.linalg.interface import _ProductLinearOperator, _ScaledLinearOperator
 
+# Monkey-patch LinearOperator to support right multiplication
+# TODO: Remove this when https://github.com/scipy/scipy/pull/18061
+# is merged and released
+try:
+    _ = np.eye(3) @ aslinearoperator(np.eye(3))
+except ValueError:
 
-class LinearOperator(ScipyLinearOperator):
-    __array_ufunc__ = None
-    def __init__(self, operator):
-        """Wrapper around scipy.sparse.linalg.LinearOperator
+    def __rmul__(self, x):
+        if np.isscalar(x):
+            return _ScaledLinearOperator(self, x)
+        else:
+            return self._rdot(x)
 
-        Disables __array_ufunc__ to allow right multiplication with numpy arrays
+    def _rdot(self, x):
+        """Matrix-matrix or matrix-vector multiplication from the right.
 
         Parameters
         ----------
-        operator : scipy.sparse.linalg.LinearOperator
+        x : array_like
+            1-d or 2-d array, representing a vector or matrix.
+
+        Returns
+        -------
+        xA : array
+            1-d or 2-d array (depending on the shape of x) that represents
+            the result of applying this linear operator on x from the right.
+
+        Notes
+        -----
+        This is copied from dot to implement right multiplication.
         """
-        super().__init__(
-            dtype=operator.dtype,
-            shape=operator.shape,
-        )
-        self._operator = operator
+        if isinstance(x, LinearOperator):
+            return _ProductLinearOperator(x, self)
+        elif np.isscalar(x):
+            return _ScaledLinearOperator(self, x)
+        else:
+            x = np.asarray(x)
 
-    def _matvec(self, x):
-        return self._operator._matvec(x)
+            if x.ndim == 1 or x.ndim == 2 and x.shape[0] == 1:
+                return self.rmatvec(x.T.conj()).T.conj()
+            elif x.ndim == 2:
+                return self.rmatmat(x.T.conj()).T.conj()
+            else:
+                raise ValueError("expected 1-d or 2-d array or matrix, got %r" % x)
 
-    def _matmat(self, x):
-        return self._operator._matmat(x)
-
-    def _rmatvec(self, x):
-        return self._operator._rmatvec(x)
-
-    def _rmatmat(self, x):
-        return self._operator._rmatmat(x)
-
-    def _adjoint(self):
-        return self.__class__(self._operator._adjoint())
-
-    def conjugate(self):
-        return self.__class__(self._operator.conjugate())
-
-    def __rmatmul__(self, other):
-        try:
-            return self._rmatvec(other)
-        except ValueError:
-            return self._rmatmat(other)
+    LinearOperator.__rmul__ = __rmul__
+    LinearOperator._rdot = _rdot
+    LinearOperator.__array_ufunc__ = None
 
 
-class ComplementProjector(ScipyLinearOperator):
+class ComplementProjector(LinearOperator):
     def __init__(self, vec_A):
         """Projector on the complement of the span of vec_A"""
         self.shape = (vec_A.shape[1], vec_A.shape[1])
@@ -56,7 +64,7 @@ class ComplementProjector(ScipyLinearOperator):
     def _matvec(self, v):
         return v - self._vec_A.conj().T @ (self._vec_A @ v)
 
-    _matmat = _matvec
+    _matmat = _rmatvec = _rmatmat = _matvec
 
     def _adjoint(self):
         return self
@@ -71,4 +79,4 @@ def complement_projected(operator, vec_A):
     """Project operator on the complement of the span of vec_A"""
     projector = ComplementProjector(vec_A)
     operator = aslinearoperator(operator)
-    return LinearOperator(projector @ operator @ projector)
+    return projector @ operator @ projector
