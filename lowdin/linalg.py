@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.sparse.linalg import LinearOperator, aslinearoperator
-from scipy.sparse.linalg.interface import _ProductLinearOperator, _ScaledLinearOperator
+from scipy.sparse.linalg._interface import _ProductLinearOperator, _ScaledLinearOperator
 
 # Monkey-patch LinearOperator to support right multiplication
 # TODO: Remove this when https://github.com/scipy/scipy/pull/18061
