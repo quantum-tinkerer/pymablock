@@ -1,13 +1,16 @@
 import numpy as np
 from scipy.sparse.linalg import LinearOperator, aslinearoperator
-from scipy.sparse.linalg._interface import _ProductLinearOperator, _ScaledLinearOperator
 
 # Monkey-patch LinearOperator to support right multiplication
 # TODO: Remove this when https://github.com/scipy/scipy/pull/18061
 # is merged and released
 try:
-    _ = np.eye(3) @ aslinearoperator(np.eye(3))
+    np.eye(3) @ aslinearoperator(np.eye(3))
 except ValueError:
+    from scipy.sparse.linalg._interface import (
+        _ProductLinearOperator,
+        _ScaledLinearOperator,
+    )
 
     def __rmul__(self, x):
         if np.isscalar(x):
@@ -50,19 +53,20 @@ except ValueError:
     LinearOperator.__rmul__ = __rmul__
     LinearOperator._rdot = _rdot
     LinearOperator.__array_ufunc__ = None
+    del __rmul__, _rdot
 
 
 class ComplementProjector(LinearOperator):
-    def __init__(self, vec_A):
-        """Projector on the complement of the span of vec_A"""
-        self.shape = (vec_A.shape[1], vec_A.shape[1])
-        self._vec_A = vec_A
-        self.dtype = vec_A.dtype
+    def __init__(self, vecs):
+        """Projector on the complement of the span of vecs"""
+        self.shape = (vecs.shape[1], vecs.shape[1])
+        self._vecs = vecs
+        self.dtype = vecs.dtype
 
     __array_ufunc__ = None
 
     def _matvec(self, v):
-        return v - self._vec_A.conj().T @ (self._vec_A @ v)
+        return v - self._vecs.conj().T @ (self._vecs @ v)
 
     _matmat = _rmatvec = _rmatmat = _matvec
 
@@ -70,13 +74,14 @@ class ComplementProjector(LinearOperator):
         return self
 
     def conjugate(self):
-        return self.__class__(vec_A=self._vec_A.conj())
+        return self.__class__(vecs=self._vecs.conj())
 
     _transpose = conjugate
 
 
-def complement_projected(operator, vec_A):
-    """Project operator on the complement of the span of vec_A"""
-    projector = ComplementProjector(vec_A)
+def complement_projected(operator, vecs):
+    """Project operator on the complement of the span of vecs"""
+    projector = ComplementProjector(vecs)
+    # Wrap to avoid immediate evaluation
     operator = aslinearoperator(operator)
     return projector @ operator @ projector
