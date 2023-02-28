@@ -194,7 +194,7 @@ def product_by_order(order, *terms, op=None, hermitian=False):
             continue
         temp = reduce(op, values)
         if hermitian and key == tuple(reversed(key)):
-            temp /= 2
+            temp = temp/2
         contributing_products.append(temp)
     result = _zero_sum(contributing_products)
     if hermitian and not isinstance(result, Zero):
@@ -236,8 +236,8 @@ def compute_next_orders(
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
     H = np.array(
         [
-            [{zero_index: np.array(H_0_AA, dtype=complex), **H_p_AA}, H_p_AB],
-            [H_p_BA, {zero_index: np.array(H_0_BB, dtype=complex), **H_p_BB}],
+            [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
+            [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
         ],
         dtype=object,
     )
@@ -311,8 +311,8 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
         H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
         H = np.array(
             [
-                [{zero_index: np.array(H_0_AA, dtype=complex), **H_p_AA}, H_p_AB],
-                [H_p_BA, {zero_index: np.array(H_0_BB, dtype=complex), **H_p_BB}],
+                [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
+                [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
             ],
             dtype=object,
         )
@@ -360,3 +360,7 @@ H_t = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S)
 # %%
 H_tilde_AA_1 = H_t.evaluated[0, 0, 0]
 H_tilde_AA_1
+
+# %%
+
+# %%
