@@ -306,8 +306,8 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
             n_infinite = len(list(H_p_AB.keys())[0])
 
     def eval(entry):
-        order = ta.array(entry[-n_infinite:])
-        zero_index = ta.zeros([len(order)], int)
+        wanted_order = ta.array(entry[-n_infinite:])
+        zero_index = ta.zeros([len(wanted_order)], int)
         H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
         H = np.array(
             [
@@ -321,7 +321,7 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
         return _zero_sum(
             (-1) ** (i != k)
             * product_by_order(
-                order,
+                wanted_order,
                 exp_S[k, i],
                 H[i, j],
                 exp_S[j, l],
@@ -335,14 +335,14 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
     H_tilde = BlockOperatorSeries(eval, shape=(2, 2), n_infinite=n_infinite)
     return H_tilde
 # %%
-H_0_AA = np.diag([1, 2, 3])
-H_0_BB = np.diag([4, 5, 6])
+H_0_AA = np.diag([2, 2, 4])
+H_0_BB = np.diag([7, 5, 6])
 
 H_p_AA = {ta.array([1]): np.ones((3, 3))}
 H_p_BB = {ta.array([1]): np.ones((3, 3))}
 H_p_AB = {ta.array([1]): np.ones((3, 3))}
 
-wanted_orders = [ta.array([2])]
+wanted_orders = [ta.array([3])]
 
 exp_S = compute_next_orders(
     H_0_AA,
@@ -350,17 +350,110 @@ exp_S = compute_next_orders(
     H_p_AA,
     H_p_BB,
     H_p_AB,
-    wanted_orders,
-    divide_energies=None,
-    op=None
+    wanted_orders
 )
 # %%
 H_t = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S)
 
 # %%
-H_tilde_AA_1 = H_t.evaluated[0, 0, 0]
-H_tilde_AA_1
+H_tilde_AA_3 = H_t.evaluated[0, 0, 3]
+H_tilde_AA_3
+
 
 # %%
+# FAILED ATTEMPT
+def U(
+    H_0_AA,
+    H_0_BB,
+    H_p_AA,
+    H_p_BB,
+    H_p_AB,
+    wanted_orders,
+    divide_energies=None,
+    *,
+    op=None
+):
+    if op is None:
+        op = matmul
+
+    if divide_energies is None:
+        # The Hamiltonians must already be diagonalized
+        E_A = np.diag(H_0_AA)
+        E_B = np.diag(H_0_BB)
+        if not np.allclose(H_0_AA, np.diag(E_A)):
+            raise ValueError("H_0_AA must be diagonal")
+        if not np.allclose(H_0_BB, np.diag(E_B)):
+            raise ValueError("H_0_BB must be diagonal")
+        energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
+
+        def divide_energies(Y):
+            return Y * energy_denominators
+
+    try:
+        n_infinite = len(list(H_p_AA.keys())[0])
+    except IndexError:
+        try:
+            n_infinite = len(list(H_p_BB.keys())[0])
+        except IndexError:
+            n_infinite = len(list(H_p_AB.keys())[0])
+
+    def eval(entry):
+        order = ta.array(entry[-n_infinite:])
+        zero_index = ta.zeros([len(order)], int)
+        if any(zero_index in pert for pert in (H_p_AA, H_p_AB, H_p_BB)):
+            raise ValueError("Perturbation terms may not contain zeroth order")
+
+        H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
+        H = np.array(
+            [
+                [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
+                [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
+            ],
+            dtype=object,
+        )
+
+        k, l = entry[:-n_infinite]
+        if (k, l) == (0, 1):
+            if order == zero_index:
+                return _zero
+            Y = _zero_sum(
+                -((-1) ** i)
+                * product_by_order(
+                    order, U.evaluated[0, i, :], H[i, j], U.evaluated[j, 1, :], op=op
+                )
+                for i in (0, 1)
+                for j in (0, 1)
+            )
+            if not isinstance(Y, Zero):
+                return divide_energies(Y)
+        elif k == l:
+            if order == zero_index:
+                return None
+            return (
+                _zero_sum(
+                    (
+                        -product_by_order(
+                            order,
+                            U.evaluated[k, k, :],
+                            U.evaluated[k, k, :],
+                            op=op,
+                            hermitian=True,
+                        ),
+                        product_by_order(
+                            order,
+                            U.evaluated[k, 1 - k, :],
+                            U.evaluated[1 - k, k, :],
+                            op=op,
+                            hermitian=True,
+                        ),
+                    )
+                )
+                / 2
+            )
+
+        return exp_S
+
+    U = BlockOperatorSeries(eval, shape=(2, 2), n_infinite=n_infinite)
+    return U
 
 # %%
