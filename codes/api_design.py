@@ -236,8 +236,8 @@ def compute_next_orders(
     H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
     H = np.array(
         [
-            [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
-            [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
+            [{zero_index: np.array(H_0_AA, dtype=complex), **H_p_AA}, H_p_AB],
+            [H_p_BA, {zero_index: np.array(H_0_BB, dtype=complex), **H_p_BB}],
         ],
         dtype=object,
     )
@@ -311,8 +311,8 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
         H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
         H = np.array(
             [
-                [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
-                [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
+                [{zero_index: np.array(H_0_AA, dtype=complex), **H_p_AA}, H_p_AB],
+                [H_p_BA, {zero_index: np.array(H_0_BB, dtype=complex), **H_p_BB}],
             ],
             dtype=object,
         )
@@ -335,7 +335,7 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
     H_tilde = BlockOperatorSeries(eval, shape=(2, 2), n_infinite=n_infinite)
     return H_tilde
 # %%
-H_0_AA = np.diag([1, 2, 3.2])
+H_0_AA = np.diag([1, 2, 3])
 H_0_BB = np.diag([4, 5, 6])
 
 H_p_AA = {ta.array([1]): np.ones((3, 3))}
@@ -355,8 +355,8 @@ exp_S = compute_next_orders(
     op=None
 )
 # %%
-H_tilde = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S)
+H_t = H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S)
 
 # %%
-H_tilde_AA_1 = H_tilde.evaluated[0, 0, 0]
+H_tilde_AA_1 = H_t.evaluated[0, 0, 0]
 H_tilde_AA_1
