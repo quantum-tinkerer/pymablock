@@ -11,6 +11,7 @@ pytest.skip("This test is not yet ready for new api", allow_module_level=True)
 
 from lowdin.poly_kpm import SumOfOperatorProducts, divide_energies, get_bb_action, create_div_energs
 from lowdin.polynomial_orders_U import compute_next_orders
+from lowdin.linalg import ComplementProjector
 
 
 @pytest.fixture(
@@ -328,3 +329,27 @@ def test_array_vs_proj(hamiltonians, wanted_orders):
     for value, block in zip(exp_S_diff, "AA BB AB".split()):
         assert_almost_zero(value, 6, extra_msg=f"{block=}")
 
+def test_create_div_energs_kpm(hamiltonians):
+    n_a = hamiltonians[0].shape[0]
+    n_b = hamiltonians[1].shape[0]
+    h_0 = block_diag(hamiltonians[0],hamiltonians[1])
+    eigs, vecs = eigh(h_0)
+    eigs_a, vecs_a = eigs[:n_a], vecs[:,:n_a]
+    eigs_b, vecs_b = eigs[n_a:], vecs[:,n_a:]
+    
+    Y = []
+    for _ in range(5):
+        h_ab = np.random.random((n_a+n_b,n_a+n_b)) + 1j * np.random.random((n_a+n_b, n_a+n_b))
+        h_ab += h_ab.conj().T
+        Y.append(vecs_a.conj().T @ h_ab @ ComplementProjector(vecs_a))
+    
+    de_kpm_func =lambda Y: create_div_energs(h_0, vecs_a, eigs_a, kpm_params = dict(num_moments=1000))(Y)
+    de_exact_func =lambda Y: create_div_energs(h_0, vecs_a, eigs_a, vecs_b, eigs_b)(Y)
+    
+    #apply h_ab from left -> Y.conj() since G_0 is hermitian
+    applied_exact = [de_exact_func(y.conj()) for y in Y]
+    applied_kpm = [de_kpm_func(y.conj()) for y in Y]
+    
+    diff_approach = {i:np.abs(applied_exact[i] - applied_kpm[i]) for i in range(len(Y))}
+    
+    assert_almost_zero(diff_approach, decimal=1, extra_msg="")

@@ -59,14 +59,14 @@ except ValueError:
 class ComplementProjector(LinearOperator):
     def __init__(self, vecs):
         """Projector on the complement of the span of vecs"""
-        self.shape = (vecs.shape[1], vecs.shape[1])
+        self.shape = (vecs.shape[0], vecs.shape[0])
         self._vecs = vecs
         self.dtype = vecs.dtype
 
     __array_ufunc__ = None
 
     def _matvec(self, v):
-        return v - self._vecs.conj().T @ (self._vecs @ v)
+        return v - self._vecs @ (self._vecs.conj().T @ v)
 
     _matmat = _rmatvec = _rmatmat = _matvec
 
