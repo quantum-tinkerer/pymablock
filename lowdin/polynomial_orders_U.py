@@ -2,6 +2,7 @@
 #
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
 
+# +
 from itertools import product
 from functools import reduce
 from operator import matmul
@@ -9,6 +10,11 @@ from operator import matmul
 import numpy as np
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
+
+from lowdin.series import BlockOperatorSeries
+
+
+# -
 
 # -
 
@@ -194,10 +200,7 @@ def compute_next_orders(
     return exp_S
 
 
-def H_tilde(
-    H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, wanted_orders, exp_S, compute_AB=False,
-    op=None
-):
+def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
     """
     Computes perturbed Hamiltonian in eigenbasis of unperturbed Hamiltonian.
 
@@ -208,49 +211,42 @@ def H_tilde(
     H_p_AB : dictionary of perturbation terms of subspace AB
     wanted_orders : list of tinyarrays containing the wanted order of each perturbation
     exp_S : np.array of the transformation to diagonalized Hamiltonian
-    compute_AB : (optional) bool for whether to compute AB block
 
     Returns:
-    H_tilde : tuple of dictionaries of perturbation terms in eigenbasis of unperturbed Hamiltonian
+    H_tilde : BlockOperatorSeries
     """
+
     if op is None:
         op = matmul
-    zero_index = ta.zeros([len(wanted_orders[0])], int)
-    H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
-    H = np.array(
-        [
-            [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
-            [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
-        ],
-        dtype=object,
-    )
 
-    if compute_AB:
-        H_tilde = ({}, {}, {})  # AA BB AB
-        indices = ((0, 1, 0), (0, 1, 1), (0, 1, 2))
-    else:
-        H_tilde = ({}, {})  # AA BB
-        indices = ((0, 1), (0, 1), (0, 1))
+    n_infinite = len(list(exp_S[0, 0].keys())[0])
 
-    needed_orders = generate_volume(wanted_orders)
-    for order in needed_orders:
-        for k, l, block in zip(*indices):
-            H_tilde[block][order] = _zero_sum(
-                (-1) ** (i != k)
-                * product_by_order(
-                    order,
-                    exp_S[k, i],
-                    H[i, j],
-                    exp_S[j, l],
-                    hermitian=(i == j and k == l),
-                    op=op
-                )
-                for i in (0, 1)
-                for j in (0, 1)
+    def eval(entry):
+        wanted_order = ta.array(entry[-n_infinite:])
+        zero_index = ta.zeros([len(wanted_order)], int)
+        H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
+        H = np.array(
+            [
+                [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
+                [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
+            ],
+            dtype=object,
+        )
+        k, l = entry[:-n_infinite]
+
+        return _zero_sum(
+            (-1) ** (i != k)
+            * product_by_order(
+                wanted_order,
+                exp_S[k, i],
+                H[i, j],
+                exp_S[j, l],
+                hermitian=(i == j and k == l),
+                op=op,
             )
-    H_tilde = tuple(
-        {order: value for order, value in term.items() if value is not _zero}
-        for term in H_tilde
-    )
+            for i in (0, 1)
+            for j in (0, 1)
+        )
 
+    H_tilde = BlockOperatorSeries(eval, shape=(2, 2), n_infinite=n_infinite)
     return H_tilde
