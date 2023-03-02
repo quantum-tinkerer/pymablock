@@ -19,6 +19,9 @@ class Zero:
 
     def __add__(self, other):
         return other
+    
+    def adjoint(self):
+        return self
 
     __neg__ = __truediv__ = __rmul__ = __mul__
 
