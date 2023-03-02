@@ -75,7 +75,7 @@ def assert_almost_zero(a, decimal=5, extra_msg=""):
     """
     Assert that all values in a are almost zero.
 
-    a: array to check
+    a: dict to check
     decimal: number of decimal places to check
     extra_msg: extra message to print if assertion fails
     """
@@ -93,10 +93,10 @@ def test_check_AB(hamiltonians, wanted_orders):
     wanted_orders: list of orders to compute
     """
     exp_S = compute_next_orders(*hamiltonians, wanted_orders=wanted_orders)
-
-    H_AB = H_tilde(*hamiltonians, wanted_orders, exp_S, compute_AB=True)[2]
-
-    assert_almost_zero(H_AB)
+    H = H_tilde(*hamiltonians, exp_S)
+    for order in wanted_orders:
+        order = tuple([0, 1] + order)
+        np.testing.assert_allclose(H.evaluated[order], 0, atol=10**-8)
 
 
 def test_check_unitary(hamiltonians, wanted_orders):
@@ -109,12 +109,10 @@ def test_check_unitary(hamiltonians, wanted_orders):
     N_A = hamiltonians[0].shape[0]
     N_B = hamiltonians[1].shape[0]
     exp_S = compute_next_orders(*hamiltonians, wanted_orders=wanted_orders)
-    transformed = H_tilde(
-        np.eye(N_A), np.eye(N_B), {}, {}, {}, wanted_orders, exp_S, compute_AB=True
-    )
-
-    for value, block in zip(transformed, "AA BB AB".split()):
-        assert_almost_zero(value, extra_msg=f"{block=}")
+    transformed = H_tilde(np.eye(N_A), np.eye(N_B), {}, {}, {}, exp_S)
+    for order in wanted_orders:
+        order = tuple([0, 0] + order)
+        np.testing.assert_allclose(transformed.evaluated[order], 0, atol=10**-8)
 
 
 def test_check_diagonal():
