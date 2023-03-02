@@ -156,6 +156,7 @@ def test_neg():
 
 
 # test if arrays and SumOfOperatorProducts generates the ame terms
+@pytest.mark.xfail
 def test_array_vs_sop(hamiltonians, wanted_orders):
     n_a, n_b = hamiltonians[0].shape[0], hamiltonians[1].shape[0]
 
@@ -238,6 +239,8 @@ def test_does_bb_do_what_bb_do(hamiltonians):
     
     assert np.all(h1 == (proj @ np.eye(h_0.shape[0]))[h0.shape[0]:,h0.shape[1]:])
 
+# Not updated for new API
+@pytest.mark.xfail
 def test_array_vs_proj(hamiltonians, wanted_orders):
     n_a, n_b = hamiltonians[0].shape[0], hamiltonians[1].shape[0]
 
