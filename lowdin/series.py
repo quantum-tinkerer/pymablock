@@ -69,6 +69,7 @@ class _Evaluated:
         data = self.original.data
         for entry in zip(*np.where(trial)):
             if entry not in data:
+                data[entry] = _zero  # avoid recursion
                 data[entry] = self.original.eval(entry)
             trial[entry] = data[entry]
         return trial[item]
