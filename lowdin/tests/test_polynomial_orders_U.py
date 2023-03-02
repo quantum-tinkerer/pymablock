@@ -92,7 +92,7 @@ def test_check_AB(hamiltonians, wanted_orders):
     hamiltonians: list of Hamiltonians
     wanted_orders: list of orders to compute
     """
-    exp_S = compute_next_orders(*hamiltonians, wanted_orders=wanted_orders)
+    exp_S = compute_next_orders(*hamiltonians)
     H = H_tilde(*hamiltonians, exp_S)
     for order in wanted_orders:
         np.testing.assert_allclose(H.evaluated[tuple([0, 1] + order)], 0, atol=10**-5)
@@ -107,7 +107,7 @@ def test_check_unitary(hamiltonians, wanted_orders):
     """
     N_A = hamiltonians[0].shape[0]
     N_B = hamiltonians[1].shape[0]
-    exp_S = compute_next_orders(*hamiltonians, wanted_orders=wanted_orders)
+    exp_S = compute_next_orders(*hamiltonians)
     transformed = H_tilde(np.eye(N_A), np.eye(N_B), {}, {}, {}, exp_S)
     for order in wanted_orders:
         for block in [[0, 0], [1, 1], [0, 1]]:
@@ -123,5 +123,4 @@ def test_check_diagonal():
             {},
             {},
             {},
-            [[1, 0]],
         )
