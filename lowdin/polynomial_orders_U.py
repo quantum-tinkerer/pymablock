@@ -16,9 +16,6 @@ from lowdin.series import BlockOperatorSeries
 
 # -
 
-# -
-
-### Auxiliary functions
 class Zero:
     """
     A class that behaves like zero in all operations.
@@ -209,7 +206,6 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
     H_p_AA : dictionary of perturbation terms of subspace AA
     H_p_BB : dictionary of perturbation terms of subspace BB
     H_p_AB : dictionary of perturbation terms of subspace AB
-    wanted_orders : list of tinyarrays containing the wanted order of each perturbation
     exp_S : np.array of the transformation to diagonalized Hamiltonian
 
     Returns:
