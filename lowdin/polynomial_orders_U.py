@@ -11,39 +11,10 @@ import numpy as np
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
-from lowdin.series import BlockOperatorSeries
+from lowdin.series import BlockOperatorSeries, Zero, _zero_sum, _zero, cauchy_dot_product
 
 
 # -
-
-class Zero:
-    """
-    A class that behaves like zero in all operations.
-    This is used to avoid having to check for zero terms in the sum.
-    """
-
-    def __mul__(self, other=None):
-        return self
-
-    def __add__(self, other):
-        return other
-
-    __neg__ = __truediv__ = __rmul__ = __mul__
-
-
-_zero = Zero()
-
-
-def _zero_sum(terms):
-    """
-    Sum that returns a singleton _zero if empty and omits _zero terms
-
-    terms : iterable of terms to sum.
-
-    Returns:
-    Sum of terms, or _zero if terms is empty.
-    """
-    return sum((term for term in terms if not isinstance(term, Zero)), start=_zero)
 
 
 def generate_volume(wanted_orders):
@@ -216,33 +187,62 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
         op = matmul
 
     n_infinite = len(list(exp_S[0, 0].keys())[0])
+    zeroth_order = (0,) * n_infinite
+    H = BlockOperatorSeries.from_dict(
+        {
+            **{
+                (0, 0) + zeroth_order: H_0_AA,
+            },
+            **{
+                (1, 1) + zeroth_order: H_0_BB,
+            },
+            **{
+                (0, 0) + tuple(key): value
+                for key, value in H_p_AA.items()
+            },
+            **{
+                (0, 1) + tuple(key): value
+                for key, value in H_p_AB.items()
+            },
+            **{
+                (1, 0) + tuple(key): Dagger(value)
+                for key, value in H_p_AB.items()
+            },
+            **{
+                (1, 1) + tuple(key): value
+                for key, value in H_p_BB.items()
+            },
+        },
+        shape=(2, 2), n_infinite=n_infinite
+    )
 
-    def eval(entry):
-        wanted_order = ta.array(entry[-n_infinite:])
-        zero_index = ta.zeros([len(wanted_order)], int)
-        H_p_BA = {key: Dagger(value) for key, value in H_p_AB.items()}
-        H = np.array(
-            [
-                [{zero_index: H_0_AA, **H_p_AA}, H_p_AB],
-                [H_p_BA, {zero_index: H_0_BB, **H_p_BB}],
-            ],
-            dtype=object,
-        )
-        k, l = entry[:-n_infinite]
+    exp_S = BlockOperatorSeries.from_dict(
+        {
+            **{
+                (0, 0) + tuple(key): value
+                for key, value in exp_S[0, 0].items()
+            },
+            **{
+                (0, 1) + tuple(key): value 
+                for key, value in exp_S[0, 1].items()
+            },
+            **{
+                (1, 0) + tuple(key): -Dagger(value) 
+                for key, value in exp_S[0, 1].items()
+            },
+            **{
+                (1, 1) + tuple(key): value
+                for key, value in exp_S[1, 1].items()
+            },
+        },
+        shape=(2, 2), n_infinite=n_infinite
+    )
+    exp_S_dagger = BlockOperatorSeries(
+        eval=(
+            lambda entry: exp_S.evaluated[entry] if entry[0] == entry[1] else -exp_S.evaluated[entry]
+        ),
+        shape=(2, 2),
+        n_infinite=n_infinite,
+    )
 
-        return _zero_sum(
-            (-1) ** (i != k)
-            * product_by_order(
-                wanted_order,
-                exp_S[k, i],
-                H[i, j],
-                exp_S[j, l],
-                hermitian=(i == j and k == l),
-                op=op,
-            )
-            for i in (0, 1)
-            for j in (0, 1)
-        )
-
-    H_tilde = BlockOperatorSeries(eval, shape=(2, 2), n_infinite=n_infinite)
-    return H_tilde
+    return cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True)
