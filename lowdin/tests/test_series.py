@@ -30,7 +30,7 @@ shapes = [
 
 for key, shape in zip(possible_keys, shapes):
     try:
-        a = BlockOperatorSeries(lambda x: x, shape=(5,), n_infinite=2)
+        a = BlockOperatorSeries(lambda x: x, data=None, shape=(5,), n_infinite=2)
         assert shape == a.evaluated[key].shape
     except Exception as e:
         assert type(e) == shape

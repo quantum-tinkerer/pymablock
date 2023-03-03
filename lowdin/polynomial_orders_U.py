@@ -11,19 +11,18 @@ import numpy as np
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
-from lowdin.series import BlockOperatorSeries, Zero, _zero_sum, _zero, cauchy_dot_product
+from lowdin.series import (
+    BlockOperatorSeries,
+    Zero,
+    _zero_sum,
+    _zero,
+    cauchy_dot_product,
+)
 
 
 # -
 def compute_next_orders(
-    H_0_AA,
-    H_0_BB,
-    H_p_AA,
-    H_p_BB,
-    H_p_AB,
-    divide_energies=None,
-    *,
-    op=None
+    H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, divide_energies=None, *, op=None
 ):
     """
     Computes transformation to diagonalized Hamiltonian with multivariate perturbation.
@@ -39,51 +38,50 @@ def compute_next_orders(
     Returns:
     exp_S : BlockOperatorSeries of the transformation to diagonalized Hamiltonian
     """
-    keys = [key for hamiltonian in [H_p_AA, H_p_AB, H_p_BB] for key in hamiltonian.keys()]
+    keys = [
+        key for hamiltonian in [H_p_AA, H_p_AB, H_p_BB] for key in hamiltonian.keys()
+    ]
     if len(keys) == 0:
         n_infinite = 0
     else:
         n_infinite = len(next(iter(keys)))
-    zero_index = (0, ) * n_infinite
+    zero_index = (0,) * n_infinite
     if any(zero_index in pert for pert in (H_p_AA, H_p_AB, H_p_BB)):
         raise ValueError("Perturbation terms may not contain zeroth order")
     H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
 
-    # We use None as a placeholder for identity.
-    exp_S = BlockOperatorSeries.from_dict(
-            {
-                **{
-                    (0, 0) + zero_index: np.eye(H_0_AA.shape[0])
-                },
-                **{
-                    (1, 1) + zero_index: np.eye(H_0_BB.shape[0])
-                },
-                **{
-                    (0, 0) + key: np.zeros_like(H_0_AA)
-                    for key in permutations([1]+[0]*(n_infinite-1), n_infinite)
-                },
-                **{
-                    (1, 1) + key: np.zeros_like(H_0_BB)
-                    for key in permutations([1]+[0]*(n_infinite-1), n_infinite)
-                },
-                **{
-                    (0, 1) + zero_index: np.zeros(shape=(H_0_AA.shape[0], H_0_BB.shape[0]))
-                },
-                **{
-                    (1, 0) + zero_index: np.zeros(shape=(H_0_BB.shape[0], H_0_AA.shape[0]))
-                },
+    exp_S = BlockOperatorSeries(
+        eval=lambda _: _zero,
+        data=
+        {
+            **{(0, 0) + zero_index: np.eye(H_0_AA.shape[0])},
+            **{(1, 1) + zero_index: np.eye(H_0_BB.shape[0])},
+            **{
+                (0, 0) + key: np.zeros_like(H_0_AA)
+                for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
             },
-            shape=(2, 2), n_infinite=n_infinite
-        )
-
-    exp_S_dagger = BlockOperatorSeries(
-        eval=(
-            lambda entry: exp_S.evaluated[entry] if entry[0] == entry[1] else -exp_S.evaluated[entry]
-        ),
+            **{
+                (1, 1) + key: np.zeros_like(H_0_BB)
+                for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
+            },
+            **{(0, 1) + zero_index: np.zeros(shape=(H_0_AA.shape[0], H_0_BB.shape[0]))},
+            **{(1, 0) + zero_index: np.zeros(shape=(H_0_BB.shape[0], H_0_AA.shape[0]))},
+        },
         shape=(2, 2),
         n_infinite=n_infinite,
     )
-    identity = cauchy_dot_product(exp_S_dagger, exp_S, op=op)
+    exp_S_dagger = BlockOperatorSeries(
+        eval=(
+            lambda entry: exp_S.evaluated[entry]
+            if entry[0] == entry[1]
+            else -exp_S.evaluated[entry]
+        ),
+        data=None,
+        shape=(2, 2),
+        n_infinite=n_infinite,
+    )
+
+    identity = cauchy_dot_product(exp_S_dagger, exp_S, op=op, hermitian=True)
     H_tilde = cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True)
 
     if divide_energies is None:
@@ -100,13 +98,12 @@ def compute_next_orders(
             return Y * energy_denominators
 
     def eval(index):
-        if index[0] == index[1]: # U
+        if index[0] == index[1]:  # U
             return -identity.evaluated[index] / 2
-        elif index[:2] == (0, 1): # V
+        elif index[:2] == (0, 1):  # V
             return -divide_energies(H_tilde.evaluated[index])
-        elif index[:2] == (1, 0): # V
-            return -Dagger(exp_S.evaluated[(0, 1) +  tuple(index[2:])])
-        
+        elif index[:2] == (1, 0):  # V
+            return -Dagger(exp_S.evaluated[(0, 1) + tuple(index[2:])])
     exp_S.eval = eval
     return exp_S
 
@@ -131,15 +128,16 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
 
     n_infinite = exp_S.n_infinite
     H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
-
     exp_S_dagger = BlockOperatorSeries(
         eval=(
-            lambda entry: exp_S.evaluated[entry] if entry[0] == entry[1] else -exp_S.evaluated[entry]
+            lambda entry: exp_S.evaluated[entry]
+            if entry[0] == entry[1]
+            else -exp_S.evaluated[entry]
         ),
+        data=None,
         shape=(2, 2),
         n_infinite=n_infinite,
     )
-
     return cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True)
 
 
@@ -158,31 +156,41 @@ def H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
     H : BlockOperatorSeries
     """
     zeroth_order = (0,) * n_infinite
-    H = BlockOperatorSeries.from_dict(
-            {
-                **{
-                    (0, 0) + zeroth_order: H_0_AA,
-                },
-                **{
-                    (1, 1) + zeroth_order: H_0_BB,
-                },
-                **{
-                    (0, 0) + tuple(key): value
-                    for key, value in H_p_AA.items()
-                },
-                **{
-                    (0, 1) + tuple(key): value
-                    for key, value in H_p_AB.items()
-                },
-                **{
-                    (1, 0) + tuple(key): Dagger(value)
-                    for key, value in H_p_AB.items()
-                },
-                **{
-                    (1, 1) + tuple(key): value
-                    for key, value in H_p_BB.items()
-                },
-            },
-            shape=(2, 2), n_infinite=n_infinite
-        )
+    H = BlockOperatorSeries(
+        eval=lambda _: _zero,
+        data={
+            **{(0, 0) + zeroth_order: H_0_AA},
+            **{(1, 1) + zeroth_order: H_0_BB},
+            **{(0, 0) + tuple(key): value for key, value in H_p_AA.items()},
+            **{(0, 1) + tuple(key): value for key, value in H_p_AB.items()},
+            **{(1, 0) + tuple(key): Dagger(value) for key, value in H_p_AB.items()},
+            **{(1, 1) + tuple(key): value for key, value in H_p_BB.items()},
+        },
+        shape=(2, 2),
+        n_infinite=n_infinite,
+    )
     return H
+
+def exp_S_initialize(H_0_AA, H_0_BB, n_infinite=1):
+    zero_index = (0,) * n_infinite
+    exp_S = BlockOperatorSeries(
+        eval=lambda _: _zero,
+        data=
+        {
+            **{(0, 0) + zero_index: np.eye(H_0_AA.shape[0])},
+            **{(1, 1) + zero_index: np.eye(H_0_BB.shape[0])},
+            **{
+                (0, 0) + key: np.zeros_like(H_0_AA)
+                for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
+            },
+            **{
+                (1, 1) + key: np.zeros_like(H_0_BB)
+                for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
+            },
+            **{(0, 1) + zero_index: np.zeros(shape=(H_0_AA.shape[0], H_0_BB.shape[0]))},
+            **{(1, 0) + zero_index: np.zeros(shape=(H_0_BB.shape[0], H_0_AA.shape[0]))},
+        },
+        shape=(2, 2),
+        n_infinite=n_infinite,
+    )
+    return exp_S

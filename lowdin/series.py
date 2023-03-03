@@ -90,7 +90,7 @@ class _Evaluated:
 
 
 class BlockOperatorSeries:
-    def __init__(self, eval, shape=(), n_infinite=1):
+    def __init__(self, eval=None, data=None, shape=(), n_infinite=1):
         """An infinite series that caches its items.
 
         Parameters
@@ -102,23 +102,11 @@ class BlockOperatorSeries:
         n_infinite : int
             The number of infinite dimensions.
         """
-        self.eval = eval
+        self.eval = (lambda _:_zero) if eval is None else eval
         self.evaluated = _Evaluated(self)
-        self.data = {}
+        self.data = data or {}
         self.shape = shape
         self.n_infinite = n_infinite
-
-    @classmethod
-    def from_dict(cls, data, shape=(), n_infinite=1):
-        """
-
-        data : dict with integer tuple keys
-
-        """
-        # TODO: data keys are all of correct format
-        result = cls((lambda _: _zero), shape, n_infinite)
-        result.data = data
-        return result
 
 
 def cauchy_dot_product(*series, op=None, hermitian=False):
@@ -143,11 +131,9 @@ def cauchy_dot_product(*series, op=None, hermitian=False):
 
     if len(set(factor.n_infinite for factor in series)) > 1:
         raise ValueError("Factors must have equal number of infinite dimensions.")
-
-    def eval(index):            
+    def eval(index):
         return product_by_order(index, *series, op=op, hermitian=hermitian)
-
-    return BlockOperatorSeries(eval, shape=(start, end), n_infinite=series[0].n_infinite)
+    return BlockOperatorSeries(eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite)
 
 
 # %%
@@ -163,14 +149,15 @@ def product_by_order(index, *series, op=None, hermitian=False):
     Returns:
     Sum of all products of terms of wanted order.
     """
-    hermitian = hermitian and index[0] == index[1]
     if op is None:
         op = matmul
-    n_infinite = series[0].n_infinite
+    hermitian = hermitian and index[0] == index[1]
 
+    n_infinite = series[0].n_infinite
     order = index[-n_infinite:]
     lower_orders = tuple(slice(None, dim+1) for dim in order)
     all_blocks = (slice(None), slice(None))
+    
     #TODO: start and end only need 1 index
     data = [factor.evaluated[all_blocks + lower_orders] for factor in series]
     contributing_products = []
@@ -201,6 +188,3 @@ def product_by_order(index, *series, op=None, hermitian=False):
     if hermitian and not isinstance(result, Zero):
         result += Dagger(result)
     return result
-
-
-# %%
