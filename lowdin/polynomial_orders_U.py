@@ -152,26 +152,27 @@ def H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
     )
     return H
 
-def exp_S_initialize(H_0_AA, H_0_BB, n_infinite=1):
+def exp_S_initialize(N_A, N_B, n_infinite=1):
     zero_index = (0,) * n_infinite
     exp_S = BlockOperatorSeries(
         eval=lambda _: _zero,
         data=
         {
-            **{(0, 0) + zero_index: np.eye(H_0_AA.shape[0])},
-            **{(1, 1) + zero_index: np.eye(H_0_BB.shape[0])},
+            **{(0, 0) + zero_index: np.eye(N_A)},
+            **{(1, 1) + zero_index: np.eye(N_B)},
             **{
-                (0, 0) + key: np.zeros_like(H_0_AA)
+                (0, 0) + key: _zero
                 for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
             },
             **{
-                (1, 1) + key: np.zeros_like(H_0_BB)
+                (1, 1) + key: _zero
                 for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
             },
-            **{(0, 1) + zero_index: np.zeros(shape=(H_0_AA.shape[0], H_0_BB.shape[0]))},
-            **{(1, 0) + zero_index: np.zeros(shape=(H_0_BB.shape[0], H_0_AA.shape[0]))},
+            **{(0, 1) + zero_index: _zero},
+            **{(1, 0) + zero_index: _zero},
         },
         shape=(2, 2),
         n_infinite=n_infinite,
     )
     return exp_S
+
