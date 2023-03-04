@@ -4,6 +4,7 @@ from functools import reduce
 from operator import matmul
 
 import numpy as np
+import numpy.ma as ma
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
@@ -160,8 +161,14 @@ def product_by_order(index, *series, op=None, hermitian=False):
     
     #TODO: start and end only need 1 index
     data = [factor.evaluated[all_blocks + lower_orders] for factor in series]
+    def mask(x):
+        mask = np.zeros_like(x)
+        for i, val in np.ndenumerate(x):
+            mask[i] = isinstance(val, Zero)
+        return mask
+    data = [ma.masked_array(factor, mask=mask(factor)) for factor in data]
     contributing_products = []
-    for combination in product(*(np.ndenumerate(factor) for factor in data)):
+    for combination in product(*(ma.ndenumerate(factor, ) for factor in data)):
         combination = list(combination)
         matrix_indices = tuple(key[:-n_infinite] for key, _ in combination)
         starts, ends = zip(*(indices for indices in matrix_indices))
