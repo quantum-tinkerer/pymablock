@@ -50,26 +50,7 @@ def compute_next_orders(
         raise ValueError("Perturbation terms may not contain zeroth order")
     H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
 
-    exp_S = BlockOperatorSeries(
-        eval=lambda _: _zero,
-        data=
-        {
-            **{(0, 0) + zero_index: np.eye(H_0_AA.shape[0])},
-            **{(1, 1) + zero_index: np.eye(H_0_BB.shape[0])},
-            **{
-                (0, 0) + key: np.zeros_like(H_0_AA)
-                for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
-            },
-            **{
-                (1, 1) + key: np.zeros_like(H_0_BB)
-                for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
-            },
-            **{(0, 1) + zero_index: np.zeros(shape=(H_0_AA.shape[0], H_0_BB.shape[0]))},
-            **{(1, 0) + zero_index: np.zeros(shape=(H_0_BB.shape[0], H_0_AA.shape[0]))},
-        },
-        shape=(2, 2),
-        n_infinite=n_infinite,
-    )
+    exp_S = exp_S_initialize(H_0_AA.shape[0], H_0_BB.shape[1], n_infinite)
     exp_S_dagger = BlockOperatorSeries(
         eval=(
             lambda entry: exp_S.evaluated[entry]
