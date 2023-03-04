@@ -5,6 +5,7 @@ import tinyarray as ta
 import pytest
 
 from lowdin.polynomial_orders_U import compute_next_orders, H_tilde
+from lowdin.series import Zero
 
 
 @pytest.fixture(
@@ -111,6 +112,8 @@ def test_check_unitary(hamiltonians, wanted_orders):
     transformed = H_tilde(np.eye(N_A), np.eye(N_B), {}, {}, {}, exp_S)
     for order in wanted_orders:
         for block in [[0, 0], [1, 1], [0, 1]]:
+            if isinstance(transformed.evaluated[tuple(block + order)], Zero):
+                continue
             np.testing.assert_allclose(transformed.evaluated[tuple(block + order)], 0, atol=10**-5)
 
 
