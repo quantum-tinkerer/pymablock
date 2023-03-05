@@ -65,6 +65,7 @@ class _Evaluated:
             ]
         )
         trial = np.zeros(trial_shape, dtype=object)
+        one_entry = np.isscalar(trial[item])
         trial[item] = 1
 
         data = self.original.data
@@ -73,14 +74,10 @@ class _Evaluated:
                 data[entry] = _zero  # avoid recursion
                 data[entry] = self.original.eval(entry)
             trial[entry] = data[entry]
-        
-        if isinstance(item[-self.original.n_infinite], np.ndarray):
-            def mask(x):
-                mask = np.zeros_like(x)
-                for i, value in np.ndenumerate(x):
-                    mask[i] = isinstance(value, Zero)
-                return mask
-            return ma.masked_array(trial[item], mask=mask(trial[item]))
+
+        result = trial[item]
+        if not one_entry:
+            return ma.masked_where((lambda x: isinstance(x, Zero)), result)
         return trial[item] # return one item
 
     def check_finite(self, item):
