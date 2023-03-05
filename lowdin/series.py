@@ -9,7 +9,7 @@ from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
 indent = 0
-
+out = open("out.txt", "w")
 
 # %%
 class Zero:
@@ -35,14 +35,12 @@ _zero = Zero()
 
 def pprint(item):
     return (
-        "["
-        + ", ".join(
+        ", ".join(
             str(key)
             if not isinstance(key, slice)
             else ":" + str(key.stop) * (key.stop is not None)
             for key in item
         )
-        + "]"
     )
 
 
@@ -85,7 +83,8 @@ class _Evaluated:
         )
         global indent
         print(
-            f"{' ' * indent}Getting {pprint(item)} of {getattr(self.original, 'name')}"
+            f"{' ' * indent}{indent // 2}. {getattr(self.original, 'name')}[{pprint(item)}]: getting",
+            file=out,
         )
         indent += 2
         trial = np.zeros(trial_shape, dtype=object)
@@ -96,14 +95,25 @@ class _Evaluated:
         for entry in zip(*np.where(trial)):
             if entry not in data:
                 data[entry] = _zero  # avoid recursion
-                print(f"{' ' * indent}Evaluating {pprint(entry)} of {getattr(self.original, 'name')}")
+                print(
+                    f"{' ' * indent}{indent // 2}. {getattr(self.original, 'name')}[{pprint(entry)}]: evaluating",
+                    file=out,
+                )
+                indent += 2
                 data[entry] = self.original.eval(entry)
+                indent -= 2
+            if _zero != data[entry]:
+                print(
+                    f"{' ' * indent}{indent // 2}. {getattr(self.original, 'name')}[{pprint(entry)}] != 0",
+                    file=out,
+                )
             trial[entry] = data[entry]
 
         result = trial[item]
         indent -= 2
         print(
-            f"{' ' * indent}Finished {pprint(item)} of {getattr(self.original, 'name')}"
+            f"{' ' * indent}{indent // 2}. {getattr(self.original, 'name')}[{pprint(item)}]: done",
+            file=out,
         )
         if not one_entry:
             return ma.masked_where((lambda x: _zero == x), result)
