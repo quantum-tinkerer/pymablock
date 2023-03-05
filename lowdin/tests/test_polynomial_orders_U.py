@@ -11,10 +11,10 @@ from lowdin.series import _zero
 @pytest.fixture(
     scope="module",
     params=[
-        [[1]],
-        # [[2, 2]],
-        # [[3, 1], [1, 3]],
-        # [[2, 2, 2], [3, 0, 0]],
+        [[3]],
+        [[2, 2]],
+        [[3, 1], [1, 3]],
+        [[2, 2, 2], [3, 0, 0]],
     ],
 )
 def wanted_orders(request):
@@ -97,9 +97,7 @@ def test_check_AB(hamiltonians, wanted_orders):
     H = H_tilde(*hamiltonians, exp_S)
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in H.evaluated[(0, 1) + order].flat:
-            if _zero == block:
-                continue
+        for block in H.evaluated[(0, 1) + order].compressed():
             np.testing.assert_allclose(block, 0, atol=10**-5)
 
 
@@ -117,10 +115,8 @@ def test_check_unitary(hamiltonians, wanted_orders):
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in ((0, 0), (1, 1), (0, 1)):
-            result = transformed.evaluated[tuple(block + order)].flat
-            for block in result:
-                if _zero == block:
-                    continue
+            result = transformed.evaluated[tuple(block + order)]
+            for block in result.compressed():
                 np.testing.assert_allclose(block, 0, atol=10**-5)
 
 
