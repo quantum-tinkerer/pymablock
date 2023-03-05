@@ -116,8 +116,13 @@ def test_check_unitary(hamiltonians, wanted_orders):
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in ((0, 0), (1, 1), (0, 1)):
             result = transformed.evaluated[tuple(block + order)]
-            for block in result.compressed():
-                np.testing.assert_allclose(block, 0, atol=10**-5)
+            for index, block in np.ma.ndenumerate(result):
+                if not any(index):
+                    # Zeroth order is not zero.
+                    continue
+                np.testing.assert_allclose(
+                    block, 0, atol=10**-5, err_msg=f"{block=}, {index=}"
+                )
 
 
 def test_check_diagonal():
