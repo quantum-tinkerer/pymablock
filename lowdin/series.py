@@ -30,6 +30,11 @@ class Zero:
 _zero = Zero()
 
 
+@np.vectorize
+def _mask(entry):
+    return isinstance(entry, Zero)
+
+
 def _zero_sum(terms):
     """
     Sum that returns a singleton _zero if empty and omits _zero terms
@@ -80,7 +85,7 @@ class _Evaluated:
 
         result = trial[item]
         if not one_entry:
-            return ma.masked_where((lambda x: _zero == x), result)
+            return ma.masked_where(_mask(result), result)
         return trial[item]  # return one item
 
     def check_finite(self, item):
