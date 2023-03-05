@@ -157,25 +157,26 @@ def product_by_order(index, *series, op=None, hermitian=False):
     """
     if op is None:
         op = matmul
-    hermitian = hermitian and index[0] == index[1]
+    start, end, *order = index
+    hermitian = hermitian and start == end
 
     n_infinite = series[0].n_infinite
-    order = index[-n_infinite:]
-    lower_orders = tuple(slice(None, dim+1) for dim in order)
-    all_blocks = (slice(None), slice(None))
-    
-    #TODO: start and end only need 1 index
-    data = [factor.evaluated[all_blocks + lower_orders] for factor in series]
+    lower_orders = tuple(slice(None, dim + 1) for dim in order)
+    all_blocks = (
+        (([start], slice(None)),)
+        + ((slice(None), slice(None)),) * (len(series) - 2)
+        + ((slice(None), [end]),)
+    )
+
+    data = [
+        factor.evaluated[matrix_block + lower_orders]
+        for matrix_block, factor in zip(all_blocks, series)
+    ]
     contributing_products = []
     for combination in product(*(ma.ndenumerate(factor) for factor in data)):
         combination = list(combination)
-        matrix_indices = tuple(key[:-n_infinite] for key, _ in combination)
-        starts, ends = zip(*(indices for indices in matrix_indices))
-        start, *rest_starts = starts
-        *rest_ends, end = ends
-        if rest_starts != rest_ends:
-            continue
-        if (start, end) != index[:2]:
+        starts, ends = zip(*(key[:-n_infinite] for key, _ in combination))
+        if starts[1:] != ends[:-1]:
             continue
         key = tuple(ta.array(key[-n_infinite:]) for key, _ in combination)
         if sum(key) != order:
