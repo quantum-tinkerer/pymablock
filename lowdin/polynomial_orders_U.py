@@ -162,16 +162,8 @@ def exp_S_initialize(N_A, N_B, n_infinite=1):
     exp_S = BlockOperatorSeries(
         data=
         {
-            **{(0, 0) + zero_index: np.eye(N_A)},
-            **{(1, 1) + zero_index: np.eye(N_B)},
-            **{
-                (0, 0) + key: _zero
-                for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
-            },
-            **{
-                (1, 1) + key: _zero
-                for key in permutations([1] + [0] * (n_infinite - 1), n_infinite)
-            },
+            **{(0, 0) + zero_index: None},
+            **{(1, 1) + zero_index: None},
             **{(0, 1) + zero_index: _zero},
             **{(1, 0) + zero_index: _zero},
         },
