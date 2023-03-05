@@ -8,6 +8,9 @@ import numpy.ma as ma
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
+indent = 0
+
+
 # %%
 class Zero:
     """
@@ -29,6 +32,20 @@ class Zero:
 
 _zero = Zero()
 
+
+def pprint(item):
+    return (
+        "["
+        + ", ".join(
+            str(key)
+            if not isinstance(key, slice)
+            else ":" + str(key.stop) * (key.stop is not None)
+            for key in item
+        )
+        + "]"
+    )
+
+
 def _zero_sum(terms):
     """
     Sum that returns a singleton _zero if empty and omits _zero terms
@@ -39,6 +56,8 @@ def _zero_sum(terms):
     Sum of terms, or _zero if terms is empty.
     """
     return sum((term for term in terms if _zero != term), start=_zero)
+
+
 # %%
 class _Evaluated:
     def __init__(self, original):
@@ -64,6 +83,11 @@ class _Evaluated:
                 for order in item[-self.original.n_infinite :]
             ]
         )
+        global indent
+        print(
+            f"{' ' * indent}Getting {pprint(item)} of {getattr(self.original, 'name')}"
+        )
+        indent += 2
         trial = np.zeros(trial_shape, dtype=object)
         one_entry = np.isscalar(trial[item])
         trial[item] = 1
@@ -72,13 +96,18 @@ class _Evaluated:
         for entry in zip(*np.where(trial)):
             if entry not in data:
                 data[entry] = _zero  # avoid recursion
+                print(f"{' ' * indent}Evaluating {pprint(entry)} of {getattr(self.original, 'name')}")
                 data[entry] = self.original.eval(entry)
             trial[entry] = data[entry]
 
         result = trial[item]
+        indent -= 2
+        print(
+            f"{' ' * indent}Finished {pprint(item)} of {getattr(self.original, 'name')}"
+        )
         if not one_entry:
             return ma.masked_where((lambda x: _zero == x), result)
-        return trial[item] # return one item
+        return trial[item]  # return one item
 
     def check_finite(self, item):
         """Check that the indices of the infinite dimension are finite and positive."""
@@ -108,7 +137,7 @@ class BlockOperatorSeries:
         n_infinite : int
             The number of infinite dimensions.
         """
-        self.eval = (lambda _:_zero) if eval is None else eval
+        self.eval = (lambda _: _zero) if eval is None else eval
         self.evaluated = _Evaluated(self)
         self.data = data or {}
         self.shape = shape
@@ -133,13 +162,19 @@ def cauchy_dot_product(*series, op=None, hermitian=False):
     start, *rest_starts = starts
     *rest_ends, end = ends
     if rest_starts != rest_ends:
-        raise ValueError("Factors must have finite dimensions compatible with dot product.")
+        raise ValueError(
+            "Factors must have finite dimensions compatible with dot product."
+        )
 
     if len(set(factor.n_infinite for factor in series)) > 1:
         raise ValueError("Factors must have equal number of infinite dimensions.")
+
     def eval(index):
         return product_by_order(index, *series, op=op, hermitian=hermitian)
-    return BlockOperatorSeries(eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite)
+
+    return BlockOperatorSeries(
+        eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite
+    )
 
 
 # %%

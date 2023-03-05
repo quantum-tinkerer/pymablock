@@ -46,8 +46,10 @@ def compute_next_orders(
     if any(zero_index in pert for pert in (H_p_AA, H_p_AB, H_p_BB)):
         raise ValueError("Perturbation terms may not contain zeroth order")
     H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
+    H.name = "H"
 
     exp_S = exp_S_initialize(H_0_AA.shape[0], H_0_BB.shape[1], n_infinite)
+    exp_S.name = "exp_S"
     exp_S_dagger = BlockOperatorSeries(
         eval=(
             lambda entry: exp_S.evaluated[entry]
@@ -58,9 +60,12 @@ def compute_next_orders(
         shape=(2, 2),
         n_infinite=n_infinite,
     )
+    exp_S_dagger.name = "exp_S_dagger"
 
     identity = cauchy_dot_product(exp_S_dagger, exp_S, op=op, hermitian=True)
+    identity.name = "I"
     H_tilde = cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True)
+    H_tilde.name = "Y"
 
     if divide_energies is None:
         # The Hamiltonians must already be diagonalized
@@ -106,6 +111,7 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
 
     n_infinite = exp_S.n_infinite
     H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
+    H.name = "H"
     exp_S_dagger = BlockOperatorSeries(
         eval=(
             lambda entry: exp_S.evaluated[entry]
@@ -116,7 +122,10 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
         shape=(2, 2),
         n_infinite=n_infinite,
     )
-    return cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True)
+    exp_S_dagger.name = "exp_S_dagger"
+    result = cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True)
+    result.name = "H_tilde"
+    return result
 
 
 def H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
@@ -169,5 +178,6 @@ def exp_S_initialize(N_A, N_B, n_infinite=1):
         shape=(2, 2),
         n_infinite=n_infinite,
     )
+    exp_S.name = "exp_S"
     return exp_S
 
