@@ -73,7 +73,15 @@ class _Evaluated:
                 data[entry] = _zero  # avoid recursion
                 data[entry] = self.original.eval(entry)
             trial[entry] = data[entry]
-        return trial[item]
+        
+        if isinstance(item[-self.original.n_infinite], np.ndarray):
+            def mask(x):
+                mask = np.zeros_like(x)
+                for i, value in np.ndenumerate(x):
+                    mask[i] = isinstance(value, Zero)
+                return mask
+            return ma.masked_array(trial[item], mask=mask(trial[item]))
+        return trial[item] # return one item
 
     def check_finite(self, item):
         """Check that the indices of the infinite dimension are finite and positive."""
@@ -161,14 +169,8 @@ def product_by_order(index, *series, op=None, hermitian=False):
     
     #TODO: start and end only need 1 index
     data = [factor.evaluated[all_blocks + lower_orders] for factor in series]
-    def mask(x):
-        mask = np.zeros_like(x)
-        for i, val in np.ndenumerate(x):
-            mask[i] = isinstance(val, Zero)
-        return mask
-    data = [ma.masked_array(factor, mask=mask(factor)) for factor in data]
     contributing_products = []
-    for combination in product(*(ma.ndenumerate(factor, ) for factor in data)):
+    for combination in product(*(ma.ndenumerate(factor) for factor in data)):
         combination = list(combination)
         matrix_indices = tuple(key[:-n_infinite] for key, _ in combination)
         starts, ends = zip(*(indices for indices in matrix_indices))
@@ -184,6 +186,7 @@ def product_by_order(index, *series, op=None, hermitian=False):
         values = [value for _, value in combination if value is not None]
         if any(isinstance(value, Zero) for value in values):
             continue
+        # TODO: figure out why this doesn't work
         if hermitian and key > tuple(reversed(key)):
             # exclude half of the reversed partners to prevent double counting
             continue

@@ -2,12 +2,13 @@
 #
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
 
-# +
+# %%
 from itertools import product, permutations
 from functools import reduce
 from operator import matmul
 
 import numpy as np
+import numpy.ma as ma
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
@@ -84,6 +85,8 @@ def compute_next_orders(
         elif index[:2] == (0, 1):  # V
             return -divide_energies(H_tilde.evaluated[index])
         elif index[:2] == (1, 0):  # V
+            if isinstance(exp_S.evaluated[(0, 1) + tuple(index[2:])], Zero):
+                return _zero
             return -Dagger(exp_S.evaluated[(0, 1) + tuple(index[2:])])
     exp_S.eval = eval
     return exp_S
