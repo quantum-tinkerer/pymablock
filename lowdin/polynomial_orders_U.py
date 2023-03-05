@@ -3,19 +3,15 @@
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
 
 # %%
-from itertools import product, permutations
-from functools import reduce
+from itertools import permutations
 from operator import matmul
 
 import numpy as np
-import numpy.ma as ma
 from sympy.physics.quantum import Dagger
-import tinyarray as ta
 
 from lowdin.series import (
     BlockOperatorSeries,
     Zero,
-    _zero_sum,
     _zero,
     cauchy_dot_product,
 )
@@ -85,8 +81,6 @@ def compute_next_orders(
         elif index[:2] == (0, 1):  # V
             return -divide_energies(H_tilde.evaluated[index])
         elif index[:2] == (1, 0):  # V
-            if isinstance(exp_S.evaluated[(0, 1) + tuple(index[2:])], Zero):
-                return _zero
             return -Dagger(exp_S.evaluated[(0, 1) + tuple(index[2:])])
     exp_S.eval = eval
     return exp_S
@@ -141,7 +135,6 @@ def H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
     """
     zeroth_order = (0,) * n_infinite
     H = BlockOperatorSeries(
-        eval=lambda _: _zero,
         data={
             **{(0, 0) + zeroth_order: H_0_AA},
             **{(1, 1) + zeroth_order: H_0_BB},
@@ -158,7 +151,6 @@ def H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
 def exp_S_initialize(N_A, N_B, n_infinite=1):
     zero_index = (0,) * n_infinite
     exp_S = BlockOperatorSeries(
-        eval=lambda _: _zero,
         data=
         {
             **{(0, 0) + zero_index: np.eye(N_A)},

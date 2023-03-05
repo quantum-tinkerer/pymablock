@@ -20,11 +20,11 @@ class Zero:
 
     def __add__(self, other):
         return other
-    
-    def adjoint(self):
-        return self
 
-    __neg__ = __truediv__ = __rmul__ = __mul__
+    adjoint = conjugate = __neg__ = __truediv__ = __rmul__ = __mul__
+
+    def __eq__(self, other):
+        return isinstance(other, Zero)
 
 
 _zero = Zero()
@@ -38,7 +38,7 @@ def _zero_sum(terms):
     Returns:
     Sum of terms, or _zero if terms is empty.
     """
-    return sum((term for term in terms if not isinstance(term, Zero)), start=_zero)
+    return sum((term for term in terms if _zero != term), start=_zero)
 # %%
 class _Evaluated:
     def __init__(self, original):
@@ -77,7 +77,7 @@ class _Evaluated:
 
         result = trial[item]
         if not one_entry:
-            return ma.masked_where((lambda x: isinstance(x, Zero)), result)
+            return ma.masked_where((lambda x: _zero == x), result)
         return trial[item] # return one item
 
     def check_finite(self, item):
@@ -181,8 +181,6 @@ def product_by_order(index, *series, op=None, hermitian=False):
         if sum(key) != order:
             continue
         values = [value for _, value in combination if value is not None]
-        if any(isinstance(value, Zero) for value in values):
-            continue
         # TODO: figure out why this doesn't work
         if hermitian and key > tuple(reversed(key)):
             # exclude half of the reversed partners to prevent double counting
@@ -192,6 +190,6 @@ def product_by_order(index, *series, op=None, hermitian=False):
             temp /= 2
         contributing_products.append(temp)
     result = _zero_sum(contributing_products)
-    if hermitian and not isinstance(result, Zero):
+    if hermitian and _zero != result:
         result += Dagger(result)
     return result
