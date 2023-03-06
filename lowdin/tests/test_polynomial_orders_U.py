@@ -1,8 +1,9 @@
-from itertools import count
+from itertools import count, permutations
 
 import numpy as np
 import tinyarray as ta
 import pytest
+from sympy.physics.quantum import Dagger
 
 from lowdin.polynomial_orders_U import compute_next_orders, H_tilde
 from lowdin.series import _zero
@@ -98,7 +99,7 @@ def test_check_AB(hamiltonians, wanted_orders):
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H.evaluated[(0, 1) + order].compressed():
-            np.testing.assert_allclose(block, 0, atol=10**-5)
+            np.testing.assert_allclose(block, 0, atol=10**-5,  err_msg=f"{block=}, {order=}")
 
 
 def test_check_unitary(hamiltonians, wanted_orders):
@@ -123,6 +124,58 @@ def test_check_unitary(hamiltonians, wanted_orders):
                 np.testing.assert_allclose(
                     block, 0, atol=10**-5, err_msg=f"{block=}, {index=}"
                 )
+
+def compute_first_order(H_p_AA, order):
+    return H_p_AA[order]
+
+def test_first_order_H_tilde(hamiltonians, wanted_orders):
+    """Test that the first order is computed correctly.
+
+    hamiltonians: list of Hamiltonians
+    wanted_orders: list of orders to compute
+    """
+    exp_S = compute_next_orders(*hamiltonians)
+    H = H_tilde(*hamiltonians, exp_S)
+    Np = len(wanted_orders[0])
+    for order in permutations((0,) * (Np - 1) + (1,)):
+        result = H.evaluated[(0, 0) + order]
+        expected = compute_first_order(hamiltonians[2], order)
+        if _zero == result:
+            np.testing.assert_allclose(
+                0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
+            )
+        np.testing.assert_allclose(
+            result, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
+        )
+
+def compute_second_order(H_0_AA, H_0_BB, H_p_AB, order):
+    order = ta.array(order) / 2
+    E_A = np.diag(H_0_AA)
+    E_B = np.diag(H_0_BB)
+    energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
+    V1 = -H_p_AB[order] * energy_denominators
+    return -(V1 @ Dagger(H_p_AB[order]) + H_p_AB[order] @ Dagger(V1)) / 2
+
+def test_second_order_H_tilde(hamiltonians, wanted_orders):
+    """Test that the second order is computed correctly.
+
+    hamiltonians: list of Hamiltonians
+    wanted_orders: list of orders to compute
+    """
+    exp_S = compute_next_orders(*hamiltonians)
+    H = H_tilde(*hamiltonians, exp_S)
+    Np = len(wanted_orders[0])
+    for order in permutations((0,) * (Np - 1) + (2,)):
+        result = H.evaluated[(0, 0) + order]
+        H_0_AA, H_0_BB, H_p_AB = hamiltonians[0], hamiltonians[1], hamiltonians[4]
+        expected = compute_second_order(H_0_AA, H_0_BB, H_p_AB, order)
+        if _zero == result:
+            np.testing.assert_allclose(
+                0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
+            )
+        np.testing.assert_allclose(
+            result, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
+        )
 
 
 def test_check_diagonal():
