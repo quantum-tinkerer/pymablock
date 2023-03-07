@@ -352,6 +352,16 @@ def create_div_energs(
     divide_by_energies: callable
                         Function that applies divide by energies to the RHS of the Sylvester equation.
     """
+    
+    """
+    MAke this interface for low-level Lowdin
+    h is dict with symbols and sparse arrays
+    does separation into aa,ab,bb
+    and initialize lowdin classes
+    target format is the {ta.array,something}
+    
+    """
+    
     if vecs_b is None:
         vecs_b = np.empty((vecs_a.shape[0], 0))
     if eigs_b is None and vecs_b is not None:
