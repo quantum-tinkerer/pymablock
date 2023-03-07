@@ -6,13 +6,12 @@ import numpy as np
 import tinyarray as ta
 from scipy.linalg import eigh, block_diag
 
-pytest.skip("This test is not yet ready for new api", allow_module_level=True)
-
-
-from lowdin.poly_kpm import SumOfOperatorProducts, divide_energies, get_bb_action, create_div_energs
+from lowdin.poly_kpm import SumOfOperatorProducts, divide_energies, create_div_energs
 from lowdin.polynomial_orders_U import compute_next_orders
 from lowdin.linalg import ComplementProjector
 
+
+pytest.skip("This test is not yet ready for new api", allow_module_level=True)
 
 @pytest.fixture(
     scope="module",
@@ -221,28 +220,6 @@ def test_array_vs_sop(hamiltonians, wanted_orders):
     for value, block in zip(exp_S_diff, "AA BB AB".split()):
         assert_almost_zero(value, 6, extra_msg=f"{block=}")
 
-
-
-def test_does_bb_do_what_bb_do(hamiltonians):
-    h0 = hamiltonians[0]
-    h1 = hamiltonians[1]
-    
-    assert h0.shape[0] == h0.shape[1]
-    assert h1.shape[0] == h1.shape[1]
-    
-    h_0_1 = np.concatenate((h0,np.zeros(shape=(h0.shape[0],h1.shape[1]))),axis=1)
-    h_0_2 = np.concatenate((np.zeros(shape=(h1.shape[0],h0.shape[1])),h1),axis=1)
-    h_0 = np.concatenate((h_0_1,h_0_2),axis=0)
-    
-    assert h_0.shape[0] == h_0.shape[1]
-    
-    eigs, vecs = eigh(h_0)
-    inds = np.array([np.where(e==eigs) for e in np.diag(h0)]).flatten()
-    vec_A = vecs[:,inds]
-    
-    proj = get_bb_action(h_0, vec_A)
-    
-    assert np.all(h1 == (proj @ np.eye(h_0.shape[0]))[h0.shape[0]:,h0.shape[1]:])
 
 def test_array_vs_proj(hamiltonians, wanted_orders):
     n_a, n_b = hamiltonians[0].shape[0], hamiltonians[1].shape[0]

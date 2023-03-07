@@ -241,52 +241,6 @@ class SumOfOperatorProducts:
         return self.evalf()[0][1]
 
 
-class get_bb_action(LinearOperator):
-    """
-    Need adjoint() that can distinguish the content of the arrays.
-    """
-
-    def __init__(self, op, vec_A):
-        self.shape = op.shape
-        self.op = op
-        self.vec_A = vec_A
-        self.dtype = complex
-
-    def _matvec(self, v):
-        temp = self.op @ (v - self.vec_A @ (self.vec_A.conj().T @ v))
-        return temp - self.vec_A @ (self.vec_A.conj().T @ temp)
-
-    def _matmat(self, V):
-        temp = self.op @ (V - self.vec_A @ (self.vec_A.conj().T @ V))
-        return temp - self.vec_A @ (self.vec_A.conj().T @ temp)
-
-    def _rmatvec(self, v):
-        temp = (v - (v @ self.vec_A) @ self.vec_A.conj().T) @ self.op
-        return temp - (temp @ self.vec_A) @ self.vec_A.conj().T
-
-    def _rmatmat(self, V):
-        temp = (V - (V @ self.vec_A) @ self.vec_A.conj().T) @ self.op
-        return temp - (temp @ self.vec_A) @ self.vec_A.conj().T
-
-    def _adjoint(self):
-        return get_bb_action(self.op, self.vec_A)
-
-    def conjugate(self):
-        return get_bb_action(self.op, self.vec_A)
-
-    def __rmatmul__(self, other):
-        try:
-            res = self._rmatmat(other)
-        except:
-            res = self._matvec(other)
-        return res
-
-    def __truediv__(self, other):
-        return 1 / other * self
-
-    __array_ufunc__ = None
-
-
 def create_div_energs_old(e_a, v_a, H_0_BB):
     if isinstance(H_0_BB, get_bb_action):
         H_0_BB = H_0_BB @ np.eye(H_0_BB.shape[0])
