@@ -19,8 +19,9 @@ from operator import add
 import numpy as np
 from scipy.sparse.linalg import LinearOperator
 from scipy.linalg import eigh
-from lowdin.linalg import ComplementProjector, complement_projected
-from lowdin.kpm_funcs import greens_function
+from linalg import ComplementProjector, complement_projected
+from kpm_funcs import greens_function
+from misc import sym_to_ta, ta_to_symb
 
 
 class SumOfOperatorProducts:
@@ -281,7 +282,7 @@ def create_div_energs_old(e_a, v_a, H_0_BB):
 
 
 def create_div_energs(
-    h_0, vecs_a, eigs_a, vecs_b=None, eigs_b=None, kpm_params=dict(), precalculate_moments=False
+    h_0, vecs_a, eigs_a, vecs_b=None, eigs_b=None, kpm_params=None, precalculate_moments=False
 ):
     """
     h_0        : np.ndarray/ scipy.sparse.coo_matrix
@@ -385,3 +386,35 @@ def divide_energies(Y, H_0_AA, H_0_BB, mode="arr"):
     energy_denoms[:, np.where(E_B == 0)[0]] = 0
 
     return Y * energy_denoms
+
+
+# + tags=[]
+def LowdinKPM(h, vecs_a, eigs_a, vecs_b=None, eigs_b=None, kpm_params=None, precalculate_moments=False):
+    hn, key_map = sym_to_ta(h)
+    
+    n_symbols = len(key_map)
+    
+    n = hn[ta.zeros(n_symbols)].shape[0]
+    n_a = vecs_a.shape[-1] 
+    n_b = n - n_a
+    
+    p_b = ComplementProjector(vecs_a)
+    
+    
+    # h_0
+    H_0_AA = SumOfOperatorProducts([[(hn[ta.zeros(n_symbols)][:n_a,:n_a], 'AA')]]) 
+    H_0_BB = SumOfOperatorPoducts([[(complement_projected(hn[ta.zeros(n_symbols)], vecs_a), 'BB')]]) 
+    
+    # h_p
+    h_p = hn.pop(ta.zeros(n_symbols))
+    H_p_AA = {k, SumOfOperatorProducts([[(vecs_a.conj().T @ v @ vecs_a, 'AA')]]) for k,v in h_p.items()}
+    H_p_BB = {k, SumOfOperatorProducts([[(complement_projected(v,vecs_a) , 'BB')]]) for k,v in h_p.items()}
+    H_p_AB = {k, SumOfOperatorProducts([[( vecs_a.conj().T @ v @ p_b, 'AB')]]) for k,v in h_p.items()}
+    
+    # callable
+    div_energs = create_divide_energies(hn[ta.zeros(n_symbols)], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments)
+
+    return H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, div_energs
+# -
+
+

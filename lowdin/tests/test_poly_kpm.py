@@ -1,4 +1,3 @@
-
 from itertools import product, count
 
 import pytest
@@ -8,7 +7,7 @@ from scipy.linalg import eigh, block_diag
 
 from lowdin.poly_kpm import SumOfOperatorProducts, divide_energies, create_div_energs
 from lowdin.polynomial_orders_U import compute_next_orders
-from lowdin.linalg import ComplementProjector
+from lowdin.linalg import ComplementProjector, complement_projected
 
 
 pytest.skip("This test is not yet ready for new api", allow_module_level=True)
@@ -266,11 +265,11 @@ def test_array_vs_proj(hamiltonians, wanted_orders):
     
     
     H_0_AA_sop = SumOfOperatorProducts([[(hamiltonians[0],'AA')]])
-    H_0_BB_sop = SumOfOperatorProducts([[(get_bb_action(block_diag(hamiltonians[0],hamiltonians[1]), np.eye(n_a+n_b)[:,:n_a]), 'BB')]])
+    H_0_BB_sop = SumOfOperatorProducts([[(complement_projected(block_diag(hamiltonians[0],hamiltonians[1]), np.eye(n_a+n_b)[:,:n_a]), 'BB')]])
 
     H_p_AA_sop = {key:SumOfOperatorProducts([[(val,'AA')]]) for key,val in hamiltonians[2].items()}
     H_p_AB_sop = {key:SumOfOperatorProducts([[(val,'AB')]]) for key,val in h_ab.items()}
-    H_p_BB_sop = {key:SumOfOperatorProducts([[(get_bb_action(val, np.eye(n_a+n_b)[:,:n_a]),'BB')]]) for key,val in h_bb.items()}
+    H_p_BB_sop = {key:SumOfOperatorProducts([[(complement_projected(val, np.eye(n_a+n_b)[:,:n_a]),'BB')]]) for key,val in h_bb.items()}
 
     exp_S_sop = compute_next_orders(H_0_AA_sop,
                                     H_0_BB_sop,
