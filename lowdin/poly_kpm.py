@@ -19,9 +19,9 @@ from operator import add
 import numpy as np
 from scipy.sparse.linalg import LinearOperator
 from scipy.linalg import eigh
-from linalg import ComplementProjector, complement_projected
-from kpm_funcs import greens_function
-from misc import sym_to_ta, ta_to_symb
+from lowdin.linalg import ComplementProjector, complement_projected
+from lowdin.kpm_funcs import greens_function
+from lowdin.misc import sym_to_ta, ta_to_symb
 
 
 class SumOfOperatorProducts:
@@ -407,9 +407,9 @@ def LowdinKPM(h, vecs_a, eigs_a, vecs_b=None, eigs_b=None, kpm_params=None, prec
     
     # h_p
     h_p = hn.pop(ta.zeros(n_symbols))
-    H_p_AA = {k, SumOfOperatorProducts([[(vecs_a.conj().T @ v @ vecs_a, 'AA')]]) for k,v in h_p.items()}
-    H_p_BB = {k, SumOfOperatorProducts([[(complement_projected(v,vecs_a) , 'BB')]]) for k,v in h_p.items()}
-    H_p_AB = {k, SumOfOperatorProducts([[( vecs_a.conj().T @ v @ p_b, 'AB')]]) for k,v in h_p.items()}
+    H_p_AA = {k: SumOfOperatorProducts([[(vecs_a.conj().T @ v @ vecs_a, 'AA')]]) for k,v in h_p.items()}
+    H_p_BB = {k: SumOfOperatorProducts([[(complement_projected(v,vecs_a) , 'BB')]]) for k,v in h_p.items()}
+    H_p_AB = {k: SumOfOperatorProducts([[( vecs_a.conj().T @ v @ p_b, 'AB')]]) for k,v in h_p.items()}
     
     # callable
     div_energs = create_divide_energies(hn[ta.zeros(n_symbols)], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments)
