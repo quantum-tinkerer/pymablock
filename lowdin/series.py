@@ -23,10 +23,10 @@ class Zero:
     def __add__(self, other):
         return other
 
-    adjoint = conjugate = __neg__ = __truediv__ = __rmul__ = __mul__
-
     def __eq__(self, other):
         return isinstance(other, Zero)
+
+    adjoint = conjugate = __neg__ = __truediv__ = __rmul__ = __mul__
 
 
 _zero = Zero()
@@ -55,7 +55,7 @@ class _Evaluated:
         self.original = original
 
     def __getitem__(self, item):
-        """Evaluate the series at the given index.
+        """Evaluate the series at the given index, following numpy's indexing rules.
 
         Parameters
         ----------
@@ -63,11 +63,12 @@ class _Evaluated:
 
         Returns
         -------
-        The item at the given index.
+        The item or items at the given index.
         """
-        self.check_finite(item[-self.original.n_infinite:])
+        self.check_finite(item[-self.original.n_infinite :])
         self.check_number_perturbations(item)
 
+        # Create trial array to use for indexing
         trial_shape = self.original.shape + tuple(
             [
                 order.stop if isinstance(order, slice) else np.max(order, initial=0) + 1
@@ -90,7 +91,7 @@ class _Evaluated:
         result = trial[item]
         if not one_entry:
             return ma.masked_where(_mask(result), result)
-        return result # return one item
+        return result  # return one item
 
     def check_finite(self, item):
         """Check that the indices of the infinite dimension are finite and positive."""
@@ -113,11 +114,14 @@ class _Evaluated:
 class BlockOperatorSeries:
     def __init__(self, eval=None, data=None, shape=(), n_infinite=1):
         """An infinite series that caches its items.
+        The series has finite and infinite dimensions.
 
         Parameters
         ----------
         eval : callable
             A function that takes an index and returns the corresponding item.
+        data : dict
+            A dictionary of items so start with. The keys should be tuples of indices.
         shape : tuple of int
             The shape of the finite dimensions.
         n_infinite : int
@@ -132,11 +136,12 @@ class BlockOperatorSeries:
 
 def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
     """
-    Product of series with no finite dimensions.
+    Block product of series using Cauchy's formula.
 
     series : (BlockOperatorSeries) series to be multiplied.
     op : (optional) callable for multiplying terms.
-    hermitian : (optional) bool for whether to compute hermitian conjugate.
+    hermitian : (optional) bool for whether to use hermiticity.
+    recursive : (optional) bool for whether to use recursive algorithm.
 
     Returns:
     (BlockOperatorSeries) Product of series.
@@ -158,7 +163,9 @@ def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
         raise ValueError("Factors must have equal number of infinite dimensions.")
 
     def eval(index):
-        return product_by_order(index, *series, op=op, hermitian=hermitian, recursive=recursive)
+        return product_by_order(
+            index, *series, op=op, hermitian=hermitian, recursive=recursive
+        )
 
     return BlockOperatorSeries(
         eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite
@@ -170,13 +177,14 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
     """
     Compute sum of all product of terms of wanted order.
 
-    order : int or tinyarray containing the order of the product.
+    index : (tuple) index of wanted order.
     series : (BlockOperatorSeries) series to be multiplied.
     op : (optional) callable for multiplying terms.
-    hermitian : (optional) bool for whether to compute hermitian conjugate.
-
+    hermitian : (optional) bool for whether to use hermiticity.
+    recursive : (optional) bool for whether to use recursive algorithm.
+    
     Returns:
-    Sum of all products of terms of wanted order.
+    Sum of all products that contribute to the wanted order.
     """
     if op is None:
         op = matmul
@@ -200,13 +208,13 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
 
     data = (
         [generate_orders(order, start=start)]
-        + [generate_orders(order)] * (len(series) - 2) # Actually wrong
+        + [generate_orders(order)] * (len(series) - 2)  # Actually wrong
         + [generate_orders(order, end=end)]
     )
 
     for item, factor in zip(data, series):
         item[ma.where(item)] = factor.evaluated[ma.where(item)]
-  
+
     contributing_products = []
     for combination in product(*(ma.ndenumerate(factor) for factor in data)):
         combination = list(combination)
