@@ -70,7 +70,7 @@ class _Evaluated:
 
         trial_shape = self.original.shape + tuple(
             [
-                order.stop if isinstance(order, slice) else np.max(order, 0) + 1
+                order.stop if isinstance(order, slice) else np.max(order, initial=0) + 1
                 for order in item[-self.original.n_infinite:]
             ]
         )
