@@ -104,7 +104,10 @@ class _Evaluated:
     def check_number_perturbations(self, item):
         """Check that the number of indices is correct."""
         if len(item) != len(self.original.shape) + self.original.n_infinite:
-            raise IndexError("Wrong number of indices")
+            raise IndexError(
+                "Wrong number of indices",
+                (len(item), len(self.original.shape), self.original.n_infinite),
+            )
 
 
 class BlockOperatorSeries:
@@ -138,6 +141,8 @@ def cauchy_dot_product(*series, op=None, hermitian=False):
     Returns:
     (BlockOperatorSeries) Product of series.
     """
+    if len(series) < 2:
+        raise ValueError("Must have at least two series to multiply.")
     if op is None:
         op = matmul
 
