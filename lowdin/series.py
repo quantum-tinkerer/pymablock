@@ -79,14 +79,16 @@ class _Evaluated:
         data = self.original.data
         for entry in zip(*np.where(trial)):
             if entry not in data:
-                data[entry] = _zero  # avoid recursion
-                data[entry] = self.original.eval(entry)
+                data[entry] = PENDING
+                if (result := self.original.eval(entry)) is PENDING:
+                    raise RuntimeError("Recursion detected")
+                data[entry] = result
             trial[entry] = data[entry]
 
         result = trial[item]
         if not one_entry:
             return ma.masked_where(_mask(result), result)
-        return trial[item]  # return one item
+        return result # return one item
 
     def check_finite(self, item):
         """Check that the indices of the infinite dimension are finite and positive."""
