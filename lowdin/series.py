@@ -130,7 +130,7 @@ class BlockOperatorSeries:
         self.n_infinite = n_infinite
 
 
-def cauchy_dot_product(*series, op=None, hermitian=False):
+def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
     """
     Product of series with no finite dimensions.
 
@@ -158,7 +158,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False):
         raise ValueError("Factors must have equal number of infinite dimensions.")
 
     def eval(index):
-        return product_by_order(index, *series, op=op, hermitian=hermitian)
+        return product_by_order(index, *series, op=op, hermitian=hermitian, recursive=recursive)
 
     return BlockOperatorSeries(
         eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite
@@ -166,7 +166,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False):
 
 
 # %%
-def product_by_order(index, *series, op=None, hermitian=False):
+def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
     """
     Compute sum of all product of terms of wanted order.
 
@@ -184,17 +184,29 @@ def product_by_order(index, *series, op=None, hermitian=False):
     hermitian = hermitian and start == end
 
     n_infinite = series[0].n_infinite
-    lower_orders = tuple(slice(None, dim + 1) for dim in order)
-    all_blocks = (
-        (([start], slice(None)),)
-        + ((slice(None), slice(None)),) * (len(series) - 2)
-        + ((slice(None), [end]),)
+
+    def generate_orders(order, start=None, end=None):
+        mask = (slice(None), slice(None)) + (-1,) * len(order)
+        trial = ma.ones((2, 2) + tuple([dim + 1 for dim in order]), dtype=object)
+        if start is not None:
+            if recursive:
+                trial[mask] = ma.masked
+            trial[int(not start)] = ma.masked
+        elif end is not None:
+            if recursive:
+                trial[mask] = ma.masked
+            trial[:, int(not end)] = ma.masked
+        return trial
+
+    data = (
+        [generate_orders(order, start=start)]
+        + [generate_orders(order)] * (len(series) - 2) # Actually wrong
+        + [generate_orders(order, end=end)]
     )
 
-    data = [
-        factor.evaluated[matrix_block + lower_orders]
-        for matrix_block, factor in zip(all_blocks, series)
-    ]
+    for item, factor in zip(data, series):
+        item[ma.where(item)] = factor.evaluated[ma.where(item)]
+  
     contributing_products = []
     for combination in product(*(ma.ndenumerate(factor) for factor in data)):
         combination = list(combination)
