@@ -3,7 +3,6 @@
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
 
 # %%
-from itertools import permutations
 from operator import matmul
 
 import numpy as np
@@ -59,8 +58,8 @@ def compute_next_orders(
         n_infinite=n_infinite,
     )
 
-    identity = cauchy_dot_product(exp_S_dagger, exp_S, op=op, hermitian=True)
-    H_tilde = cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True)
+    identity = cauchy_dot_product(exp_S_dagger, exp_S, op=op, hermitian=True, recursive=True)
+    H_tilde = cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True, recursive=True)
 
     if divide_energies is None:
         # The Hamiltonians must already be diagonalized
