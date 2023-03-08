@@ -65,13 +65,13 @@ class _Evaluated:
         -------
         The item at the given index.
         """
-        self.check_finite(item[-self.original.n_infinite :])
+        self.check_finite(item[-self.original.n_infinite:])
         self.check_number_perturbations(item)
 
         trial_shape = self.original.shape + tuple(
             [
-                order.stop if isinstance(order, slice) else np.max(order) + 1
-                for order in item[-self.original.n_infinite :]
+                order.stop if isinstance(order, slice) else np.max(order, 0) + 1
+                for order in item[-self.original.n_infinite:]
             ]
         )
         trial = np.zeros(trial_shape, dtype=object)
@@ -217,9 +217,7 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
         if sum(key) != order:
             continue
         values = [value for _, value in combination if value is not None]
-        # TODO: figure out why this doesn't work
         if hermitian and key > tuple(reversed(key)):
-            # exclude half of the reversed partners to prevent double counting
             continue
         temp = reduce(op, values)
         if hermitian and key == tuple(reversed(key)):
