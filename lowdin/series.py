@@ -8,6 +8,8 @@ import numpy.ma as ma
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
+PENDING = object()
+
 # %%
 class Zero:
     """
