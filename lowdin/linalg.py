@@ -1,12 +1,11 @@
+from packaging.version import parse
 import numpy as np
+from scipy import __version__ as scipy_version
 from scipy.sparse.linalg import LinearOperator, aslinearoperator
 
 # Monkey-patch LinearOperator to support right multiplication
-# TODO: Remove this when https://github.com/scipy/scipy/pull/18061
-# is merged and released
-try:
-    np.eye(3) @ aslinearoperator(np.eye(3))
-except ValueError:
+# TODO: Remove this when we depend on scipy >= 1.11
+if parse(scipy_version) < parse("1.11"):
     from scipy.sparse.linalg._interface import (
         _ProductLinearOperator,
         _ScaledLinearOperator,
