@@ -21,6 +21,8 @@ def block_diagonalize(H, divide_energies=None, *, op=None):
     Computes the block diagonalization of a BlockOperatorSeries.
 
     H : BlockOperatorSeries
+    divide_energies : (optional) function to use for dividing energies
+    op : (optional) function to use for matrix multiplication
 
     Returns:
     H_tilde : BlockOperatorSeries
@@ -33,8 +35,7 @@ def block_diagonalize(H, divide_energies=None, *, op=None):
     if divide_energies is None:
         divide_energies = _divide_energies(H)
 
-    n_infinite = H.n_infinite
-    U = initialize_U(n_infinite)
+    U = initialize_U(H.n_infinite)
     U_adjoint = BlockOperatorSeries(
         eval=(
             lambda index: U.evaluated[index]
@@ -43,9 +44,10 @@ def block_diagonalize(H, divide_energies=None, *, op=None):
         ),
         data=None,
         shape=(2, 2),
-        n_infinite=n_infinite,
+        n_infinite=H.n_infinite,
     )
 
+    # Identity and temporary H_tilde for the recursion
     identity = cauchy_dot_product(U_adjoint, U, op=op, hermitian=True, recursive=True)
     H_tilde_rec = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, recursive=True)
 
@@ -58,12 +60,20 @@ def block_diagonalize(H, divide_energies=None, *, op=None):
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
 
     U.eval = eval
-
+    
     H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, recursive=False)
     return H_tilde, U, U_adjoint
 
 
 def _divide_energies(H):
+    """
+    Returns a function that divides a matrix by the difference of its diagonal elements.
+
+    H : BlockOperatorSeries
+
+    Returns:
+    divide_energies : function
+    """
     H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
     H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
 

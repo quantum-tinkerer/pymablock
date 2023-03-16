@@ -118,11 +118,21 @@ def test_check_unitary(H, wanted_orders):
 
 
 def compute_first_order(H, order):
+    """
+    Compute the first order correction to the Hamiltonian.
+    
+    H: BlockOperatorSeries of the Hamiltonian
+    order: tuple of orders to compute
+
+    Returns:
+    BlockOperatorSeries of the first order correction obtained explicitly
+    """
     return H.evaluated[(0, 0) + order]
 
 
 def test_first_order_H_tilde(H, wanted_orders):
-    """Test that the first order is computed correctly.
+    """
+    Test that the first order is computed correctly.
 
     hamiltonians: list of Hamiltonians
     wanted_orders: list of orders to compute
@@ -142,6 +152,15 @@ def test_first_order_H_tilde(H, wanted_orders):
 
 
 def compute_second_order(H, order):
+    """
+    Compute the second order correction to the Hamiltonian.
+    
+    H: BlockOperatorSeries of the Hamiltonian
+    order: tuple of orders to compute
+
+    Returns:
+    BlockOperatorSeries of the second order correction obtained explicitly
+    """
     n_infinite = H.n_infinite
     order = tuple(value//2 for value in order)
     H_0_AA, H_0_BB, H_p_AB = (
