@@ -5,8 +5,8 @@ import tinyarray as ta
 import pytest
 from sympy.physics.quantum import Dagger
 
-from lowdin.polynomial_orders_U import compute_next_orders, H_tilde
-from lowdin.series import _zero
+from lowdin.polynomial_orders_U import block_diagonalize, to_BlockOperatorSeries
+from lowdin.series import BlockOperatorSeries, cauchy_dot_product, _zero
 
 
 @pytest.fixture(
@@ -34,7 +34,7 @@ def Ns():
 
 
 @pytest.fixture(scope="module")
-def hamiltonians(Ns, wanted_orders):
+def H(Ns, wanted_orders):
     """
     Produce random Hamiltonians to test.
 
@@ -42,10 +42,10 @@ def hamiltonians(Ns, wanted_orders):
     wanted_orders: list of orders to compute
 
     Returns:
-    hams: list of Hamiltonians
+    BlockOperatorSeries of the Hamiltonian
     """
-    N_p = len(wanted_orders[0])
-    orders = ta.array(np.eye(N_p))
+    n_infinite = len(wanted_orders[0])
+    orders = ta.array(np.eye(n_infinite))
     hams = []
     for i in range(2):
         hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
@@ -70,37 +70,40 @@ def hamiltonians(Ns, wanted_orders):
     for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
         hams.append({order: matrix for order, matrix in zip(orders, matrices)})
-    return hams
+
+    return to_BlockOperatorSeries(*hams, n_infinite)
 
 
-def test_check_AB(hamiltonians, wanted_orders):
+def test_check_AB(H, wanted_orders):
     """
     Test that H_AB is zero for a random Hamiltonian.
 
-    hamiltonians: list of Hamiltonians
+    H: BlockOperatorSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
-    exp_S = compute_next_orders(*hamiltonians)
-    H = H_tilde(*hamiltonians, exp_S)
+    H_tilde = block_diagonalize(H)[0]
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in H.evaluated[(0, 1) + order].compressed():
+        for block in H_tilde.evaluated[(0, 1) + order].compressed():
             np.testing.assert_allclose(
                 block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
             )
 
 
-def test_check_unitary(hamiltonians, wanted_orders):
+def test_check_unitary(H, wanted_orders):
     """
     Test that the transformation is unitary.
 
-    hamiltonians : list of Hamiltonians
+    H: BlockOperatorSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
-    N_A = hamiltonians[0].shape[0]
-    N_B = hamiltonians[1].shape[0]
-    exp_S = compute_next_orders(*hamiltonians)
-    transformed = H_tilde(np.eye(N_A), np.eye(N_B), {}, {}, {}, exp_S)
+    zero_order = (0,) * len(wanted_orders[0])
+    N_A, N_B = H.evaluated[(0, 0) + zero_order].shape[0], H.evaluated[(1, 1) + zero_order].shape[0]
+    n_infinite = H.n_infinite
+    identity = to_BlockOperatorSeries(np.eye(N_A), np.eye(N_B), {}, {}, {}, n_infinite)
+    _, U, U_adjoint = block_diagonalize(H)
+    transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
+
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in ((0, 0), (1, 1), (0, 1)):
@@ -114,22 +117,21 @@ def test_check_unitary(hamiltonians, wanted_orders):
                 )
 
 
-def compute_first_order(H_p_AA, order):
-    return H_p_AA[order]
+def compute_first_order(H, order):
+    return H.evaluated[(0, 0) + order]
 
 
-def test_first_order_H_tilde(hamiltonians, wanted_orders):
+def test_first_order_H_tilde(H, wanted_orders):
     """Test that the first order is computed correctly.
 
     hamiltonians: list of Hamiltonians
     wanted_orders: list of orders to compute
     """
-    exp_S = compute_next_orders(*hamiltonians)
-    H = H_tilde(*hamiltonians, exp_S)
+    H_tilde = block_diagonalize(H)[0]
     Np = len(wanted_orders[0])
     for order in permutations((0,) * (Np - 1) + (1,)):
-        result = H.evaluated[(0, 0) + order]
-        expected = compute_first_order(hamiltonians[2], order)
+        result = H_tilde.evaluated[(0, 0) + order]
+        expected = compute_first_order(H, order)
         if _zero == result:
             np.testing.assert_allclose(
                 0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
@@ -139,28 +141,34 @@ def test_first_order_H_tilde(hamiltonians, wanted_orders):
         )
 
 
-def compute_second_order(H_0_AA, H_0_BB, H_p_AB, order):
-    order = ta.array(order) / 2
+def compute_second_order(H, order):
+    n_infinite = H.n_infinite
+    order = tuple(value//2 for value in order)
+    H_0_AA, H_0_BB, H_p_AB = (
+        H.evaluated[(0, 0) + (0,) * n_infinite],
+        H.evaluated[(1, 1) + (0,) * n_infinite],
+        H.evaluated[(0, 1) + order],
+    )
+
     E_A = np.diag(H_0_AA)
     E_B = np.diag(H_0_BB)
     energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
-    V1 = -H_p_AB[order] * energy_denominators
-    return -(V1 @ Dagger(H_p_AB[order]) + H_p_AB[order] @ Dagger(V1)) / 2
+    V1 = -H_p_AB * energy_denominators
+    return -(V1 @ Dagger(H_p_AB) + H_p_AB @ Dagger(V1)) / 2
 
 
-def test_second_order_H_tilde(hamiltonians, wanted_orders):
+def test_second_order_H_tilde(H, wanted_orders):
     """Test that the second order is computed correctly.
 
     hamiltonians: list of Hamiltonians
     wanted_orders: list of orders to compute
     """
-    exp_S = compute_next_orders(*hamiltonians)
-    H = H_tilde(*hamiltonians, exp_S)
-    Np = len(wanted_orders[0])
-    for order in permutations((0,) * (Np - 1) + (2,)):
-        result = H.evaluated[(0, 0) + order]
-        H_0_AA, H_0_BB, H_p_AB = hamiltonians[0], hamiltonians[1], hamiltonians[4]
-        expected = compute_second_order(H_0_AA, H_0_BB, H_p_AB, order)
+    H_tilde = block_diagonalize(H)[0]
+    n_infinite = H.n_infinite
+
+    for order in permutations((0,) * (n_infinite - 1) + (2,)):
+        result = H_tilde.evaluated[(0, 0) + order]
+        expected = compute_second_order(H, order)
         if _zero == result:
             np.testing.assert_allclose(
                 0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
@@ -173,10 +181,11 @@ def test_second_order_H_tilde(hamiltonians, wanted_orders):
 def test_check_diagonal():
     """Test that offdiagonal H_0_AA is not allowed if divide_by_energies is not provided."""
     with pytest.raises(ValueError):
-        compute_next_orders(
+        H = to_BlockOperatorSeries(
             np.array([[1, 1], [1, 1]]),
             np.eye(2),
             {},
             {},
             {},
         )
+        block_diagonalize(H)
