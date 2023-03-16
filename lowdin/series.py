@@ -211,8 +211,8 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
         + [generate_orders(orders, end=end)]
     )
 
-    for item, factor in zip(data, series):
-        item[ma.where(item)] = factor.evaluated[ma.where(item)]
+    for indices, factor in zip(data, series):
+        indices[ma.where(indices)] = factor.evaluated[ma.where(indices)]
 
     contributing_products = []
     for combination in product(*(ma.ndenumerate(factor) for factor in data)):

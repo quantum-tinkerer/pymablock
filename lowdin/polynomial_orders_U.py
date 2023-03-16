@@ -40,17 +40,17 @@ def compute_next_orders(
         n_infinite = 0
     else:
         n_infinite = len(next(iter(keys)))
-    zero_index = (0,) * n_infinite
-    if any(zero_index in pert for pert in (H_p_AA, H_p_AB, H_p_BB)):
+    zero_order = (0,) * n_infinite
+    if any(zero_order in pert for pert in (H_p_AA, H_p_AB, H_p_BB)):
         raise ValueError("Perturbation terms may not contain zeroth order")
     H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
 
     exp_S = exp_S_initialize(n_infinite)
     exp_S_dagger = BlockOperatorSeries(
         eval=(
-            lambda entry: exp_S.evaluated[entry]
-            if entry[0] == entry[1]
-            else -exp_S.evaluated[entry]
+            lambda index: exp_S.evaluated[index]
+            if index[0] == index[1]
+            else -exp_S.evaluated[index]
         ),
         data=None,
         shape=(2, 2),
@@ -112,9 +112,9 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
     H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
     exp_S_dagger = BlockOperatorSeries(
         eval=(
-            lambda entry: exp_S.evaluated[entry]
-            if entry[0] == entry[1]
-            else -exp_S.evaluated[entry]
+            lambda index: exp_S.evaluated[index]
+            if index[0] == index[1]
+            else -exp_S.evaluated[index]
         ),
         data=None,
         shape=(2, 2),
@@ -163,13 +163,13 @@ def exp_S_initialize(n_infinite=1):
     Returns:
     exp_S : BlockOperatorSeries
     """
-    zero_index = (0,) * n_infinite
+    zero_order = (0,) * n_infinite
     exp_S = BlockOperatorSeries(
         data={
-            **{(0, 0) + zero_index: None},
-            **{(1, 1) + zero_index: None},
-            **{(0, 1) + zero_index: _zero},
-            **{(1, 0) + zero_index: _zero},
+            **{(0, 0) + zero_order: None},
+            **{(1, 1) + zero_order: None},
+            **{(0, 1) + zero_order: _zero},
+            **{(1, 0) + zero_order: _zero},
         },
         shape=(2, 2),
         n_infinite=n_infinite,
