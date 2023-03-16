@@ -31,7 +31,6 @@ class Zero:
 
 _zero = Zero()
 
-
 @np.vectorize
 def _mask(entry):
     return isinstance(entry, Zero)
@@ -72,7 +71,7 @@ class _Evaluated:
         trial_shape = self.original.shape + tuple(
             [
                 order.stop if isinstance(order, slice) else np.max(order, initial=0) + 1
-                for order in item[-self.original.n_infinite:]
+                for order in item[-self.original.n_infinite :]
             ]
         )
         trial = np.zeros(trial_shape, dtype=object)
@@ -80,22 +79,22 @@ class _Evaluated:
         trial[item] = 1
 
         data = self.original.data
-        for entry in zip(*np.where(trial)):
-            if entry not in data:
-                data[entry] = PENDING
-                if (result := self.original.eval(entry)) is PENDING:
+        for index in zip(*np.where(trial)):
+            if index not in data:
+                data[index] = PENDING
+                if (result := self.original.eval(index)) is PENDING:
                     raise RuntimeError("Recursion detected")
-                data[entry] = result
-            trial[entry] = data[entry]
+                data[index] = result
+            trial[index] = data[index]
 
         result = trial[item]
         if not one_entry:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
 
-    def check_finite(self, item):
+    def check_finite(self, orders):
         """Check that the indices of the infinite dimension are finite and positive."""
-        for order in item:
+        for order in orders:
             if isinstance(order, slice):
                 if order.stop is None:
                     raise IndexError("Cannot evaluate infinite series")
@@ -139,7 +138,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
     Block product of series using Cauchy's formula.
 
     series : (BlockOperatorSeries) series to be multiplied.
-    op : (optional) callable for multiplying terms.
+    op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
     recursive : (optional) bool for whether to use recursive algorithm.
 
@@ -175,27 +174,27 @@ def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
 # %%
 def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
     """
-    Compute sum of all product of terms of wanted order.
+    Compute sum of all product of factors of wanted order.
 
     index : (tuple) index of wanted order.
     series : (BlockOperatorSeries) series to be multiplied.
-    op : (optional) callable for multiplying terms.
+    op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
     recursive : (optional) bool for whether to use recursive algorithm.
-    
+
     Returns:
     Sum of all products that contribute to the wanted order.
     """
     if op is None:
         op = matmul
-    start, end, *order = index
+    start, end, *orders = index
     hermitian = hermitian and start == end
 
     n_infinite = series[0].n_infinite
 
-    def generate_orders(order, start=None, end=None):
-        mask = (slice(None), slice(None)) + (-1,) * len(order)
-        trial = ma.ones((2, 2) + tuple([dim + 1 for dim in order]), dtype=object)
+    def generate_orders(orders, start=None, end=None):
+        mask = (slice(None), slice(None)) + (-1,) * len(orders)
+        trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
         if start is not None:
             if recursive:
                 trial[mask] = ma.masked
@@ -207,9 +206,9 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
         return trial
 
     data = (
-        [generate_orders(order, start=start)]
-        + [generate_orders(order)] * (len(series) - 2)  # Actually wrong
-        + [generate_orders(order, end=end)]
+        [generate_orders(orders, start=start)]
+        + [generate_orders(orders)] * (len(series) - 2)  # Actually wrong
+        + [generate_orders(orders, end=end)]
     )
 
     for item, factor in zip(data, series):
@@ -222,7 +221,7 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
         if starts[1:] != ends[:-1]:
             continue
         key = tuple(ta.array(key[-n_infinite:]) for key, _ in combination)
-        if sum(key) != order:
+        if sum(key) != orders:
             continue
         values = [value for _, value in combination if value is not None]
         if hermitian and key > tuple(reversed(key)):
