@@ -207,7 +207,7 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
 
     data = (
         [generate_orders(orders, start=start)]
-        + [generate_orders(orders)] * (len(series) - 2)  # Actually wrong
+        + [generate_orders(orders)] * (len(series) - 2)  # TODO: fix this, actually wrong
         + [generate_orders(orders, end=end)]
     )
 

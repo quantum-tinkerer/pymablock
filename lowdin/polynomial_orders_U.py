@@ -1,3 +1,4 @@
+# %%
 # # The polynomial alternative to Lowdin perturbation theory
 #
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
@@ -15,116 +16,98 @@ from lowdin.series import (
 )
 
 
-# -
-def compute_next_orders(
-    H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, divide_energies=None, *, op=None
-):
+def block_diagonalize(H, divide_energies=None, *, op=None):
     """
-    Computes transformation to diagonalized Hamiltonian with multivariate perturbation.
+    Computes the block diagonalization of a BlockOperatorSeries.
 
-    H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
-    H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
-    H_p_AA : dictionary of perturbation terms of subspace AA
-    H_p_BB : dictionary of perturbation terms of subspace BB
-    H_p_AB : dictionary of perturbation terms of subspace AB
-    divide_energies : (optional) callable for solving Sylvester equation
-    op : callable for multiplying terms
-
-    Returns:
-    exp_S : BlockOperatorSeries of the transformation to diagonalized Hamiltonian
-    """
-    keys = [
-        key for hamiltonian in [H_p_AA, H_p_AB, H_p_BB] for key in hamiltonian.keys()
-    ]
-    if len(keys) == 0:
-        n_infinite = 0
-    else:
-        n_infinite = len(next(iter(keys)))
-    zero_order = (0,) * n_infinite
-    if any(zero_order in pert for pert in (H_p_AA, H_p_AB, H_p_BB)):
-        raise ValueError("Perturbation terms may not contain zeroth order")
-    H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
-
-    exp_S = exp_S_initialize(n_infinite)
-    exp_S_dagger = BlockOperatorSeries(
-        eval=(
-            lambda index: exp_S.evaluated[index]
-            if index[0] == index[1]
-            else -exp_S.evaluated[index]
-        ),
-        data=None,
-        shape=(2, 2),
-        n_infinite=n_infinite,
-    )
-
-    identity = cauchy_dot_product(
-        exp_S_dagger, exp_S, op=op, hermitian=True, recursive=True
-    )
-    H_tilde = cauchy_dot_product(
-        exp_S_dagger, H, exp_S, op=op, hermitian=True, recursive=True
-    )
-
-    if divide_energies is None:
-        # The Hamiltonians must already be diagonalized
-        E_A = np.diag(H_0_AA)
-        E_B = np.diag(H_0_BB)
-        if not np.allclose(H_0_AA, np.diag(E_A)):
-            raise ValueError("H_0_AA must be diagonal")
-        if not np.allclose(H_0_BB, np.diag(E_B)):
-            raise ValueError("H_0_BB must be diagonal")
-        energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
-
-        def divide_energies(Y):
-            return Y * energy_denominators
-
-    def eval(index):
-        if index[0] == index[1]:  # U
-            return -identity.evaluated[index] / 2
-        elif index[:2] == (0, 1):  # V
-            return -divide_energies(H_tilde.evaluated[index])
-        elif index[:2] == (1, 0):  # V
-            return -Dagger(exp_S.evaluated[(0, 1) + tuple(index[2:])])
-
-    exp_S.eval = eval
-    return exp_S
-
-
-def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
-    """
-    Computes perturbed Hamiltonian in eigenbasis of unperturbed Hamiltonian.
-
-    H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
-    H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
-    H_p_AA : dictionary of perturbation terms of subspace AA
-    H_p_BB : dictionary of perturbation terms of subspace BB
-    H_p_AB : dictionary of perturbation terms of subspace AB
-    exp_S : BlockOperatorSeries of the transformation to diagonalized Hamiltonian
-    op : callable for multiplying terms
+    H : BlockOperatorSeries
 
     Returns:
     H_tilde : BlockOperatorSeries
+    U : BlockOperatorSeries
+    U_adjoint : BlockOperatorSeries
     """
-
     if op is None:
         op = matmul
 
-    n_infinite = exp_S.n_infinite
-    H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
-    exp_S_dagger = BlockOperatorSeries(
+    if divide_energies is None:
+        divide_energies = _divide_energies(H)
+
+    n_infinite = H.n_infinite
+    U = initialize_U(n_infinite)
+    U_adjoint = BlockOperatorSeries(
         eval=(
-            lambda index: exp_S.evaluated[index]
+            lambda index: U.evaluated[index]
             if index[0] == index[1]
-            else -exp_S.evaluated[index]
+            else -U.evaluated[index]
         ),
         data=None,
         shape=(2, 2),
         n_infinite=n_infinite,
     )
-    result = cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True)
-    return result
+
+    identity = cauchy_dot_product(U_adjoint, U, op=op, hermitian=True, recursive=True)
+    H_tilde_rec = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, recursive=True)
+
+    def eval(index):
+        if index[0] == index[1]:  # diagonal block
+            return -identity.evaluated[index] / 2
+        elif index[:2] == (0, 1):  # off-diagonal block
+            return -divide_energies(H_tilde_rec.evaluated[index])
+        elif index[:2] == (1, 0):  # off-diagonal block
+            return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
+
+    U.eval = eval
+
+    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, recursive=False)
+    return H_tilde, U, U_adjoint
 
 
-def H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
+def _divide_energies(H):
+    H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+    H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+
+    E_A = np.diag(H_0_AA)
+    E_B = np.diag(H_0_BB)
+
+    # The Hamiltonians must already be diagonalized
+    if not np.allclose(H_0_AA, np.diag(E_A)):
+        raise ValueError("H_0_AA must be diagonal")
+    if not np.allclose(H_0_BB, np.diag(E_B)):
+        raise ValueError("H_0_BB must be diagonal")
+
+    energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
+
+    def divide_energies(Y):
+        return Y * energy_denominators
+
+    return divide_energies
+
+
+def initialize_U(n_infinite=1):
+    """
+    Initializes the BlockOperatorSeries for the transformation to diagonalized Hamiltonian.
+
+    n_infinite : (optional) number of infinite indices
+
+    Returns:
+    U : BlockOperatorSeries
+    """
+    zero_order = (0,) * n_infinite
+    U = BlockOperatorSeries(
+        data={
+            **{(0, 0) + zero_order: None},
+            **{(1, 1) + zero_order: None},
+            **{(0, 1) + zero_order: _zero},
+            **{(1, 0) + zero_order: _zero},
+        },
+        shape=(2, 2),
+        n_infinite=n_infinite,
+    )
+    return U
+
+
+def to_BlockOperatorSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
     """
     Creates a BlockOperatorSeries from a dictionary of perturbation terms.
 
@@ -153,25 +136,4 @@ def H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
     )
     return H
 
-
-def exp_S_initialize(n_infinite=1):
-    """
-    Initializes the BlockOperatorSeries for the transformation to diagonalized Hamiltonian.
-
-    n_infinite : (optional) number of infinite indices
-
-    Returns:
-    exp_S : BlockOperatorSeries
-    """
-    zero_order = (0,) * n_infinite
-    exp_S = BlockOperatorSeries(
-        data={
-            **{(0, 0) + zero_order: None},
-            **{(1, 1) + zero_order: None},
-            **{(0, 1) + zero_order: _zero},
-            **{(1, 0) + zero_order: _zero},
-        },
-        shape=(2, 2),
-        n_infinite=n_infinite,
-    )
-    return exp_S
+# %%
