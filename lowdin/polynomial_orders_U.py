@@ -10,7 +10,6 @@ from sympy.physics.quantum import Dagger
 
 from lowdin.series import (
     BlockOperatorSeries,
-    Zero,
     _zero,
     cauchy_dot_product,
 )
@@ -29,7 +28,7 @@ def compute_next_orders(
     H_p_BB : dictionary of perturbation terms of subspace BB
     H_p_AB : dictionary of perturbation terms of subspace AB
     divide_energies : (optional) callable for solving Sylvester equation
-    op: callable for multiplying terms
+    op : callable for multiplying terms
 
     Returns:
     exp_S : BlockOperatorSeries of the transformation to diagonalized Hamiltonian
@@ -46,7 +45,7 @@ def compute_next_orders(
         raise ValueError("Perturbation terms may not contain zeroth order")
     H = H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
 
-    exp_S = exp_S_initialize(H_0_AA.shape[0], H_0_BB.shape[1], n_infinite)
+    exp_S = exp_S_initialize(n_infinite)
     exp_S_dagger = BlockOperatorSeries(
         eval=(
             lambda entry: exp_S.evaluated[entry]
@@ -58,8 +57,12 @@ def compute_next_orders(
         n_infinite=n_infinite,
     )
 
-    identity = cauchy_dot_product(exp_S_dagger, exp_S, op=op, hermitian=True, recursive=True)
-    H_tilde = cauchy_dot_product(exp_S_dagger, H, exp_S, op=op, hermitian=True, recursive=True)
+    identity = cauchy_dot_product(
+        exp_S_dagger, exp_S, op=op, hermitian=True, recursive=True
+    )
+    H_tilde = cauchy_dot_product(
+        exp_S_dagger, H, exp_S, op=op, hermitian=True, recursive=True
+    )
 
     if divide_energies is None:
         # The Hamiltonians must already be diagonalized
@@ -81,6 +84,7 @@ def compute_next_orders(
             return -divide_energies(H_tilde.evaluated[index])
         elif index[:2] == (1, 0):  # V
             return -Dagger(exp_S.evaluated[(0, 1) + tuple(index[2:])])
+
     exp_S.eval = eval
     return exp_S
 
@@ -95,6 +99,7 @@ def H_tilde(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, exp_S, op=None):
     H_p_BB : dictionary of perturbation terms of subspace BB
     H_p_AB : dictionary of perturbation terms of subspace AB
     exp_S : BlockOperatorSeries of the transformation to diagonalized Hamiltonian
+    op : callable for multiplying terms
 
     Returns:
     H_tilde : BlockOperatorSeries
@@ -148,11 +153,19 @@ def H_from_dict(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
     )
     return H
 
-def exp_S_initialize(N_A, N_B, n_infinite=1):
+
+def exp_S_initialize(n_infinite=1):
+    """
+    Initializes the BlockOperatorSeries for the transformation to diagonalized Hamiltonian.
+
+    n_infinite : (optional) number of infinite indices
+
+    Returns:
+    exp_S : BlockOperatorSeries
+    """
     zero_index = (0,) * n_infinite
     exp_S = BlockOperatorSeries(
-        data=
-        {
+        data={
             **{(0, 0) + zero_index: None},
             **{(1, 1) + zero_index: None},
             **{(0, 1) + zero_index: _zero},
@@ -162,4 +175,3 @@ def exp_S_initialize(N_A, N_B, n_infinite=1):
         n_infinite=n_infinite,
     )
     return exp_S
-
