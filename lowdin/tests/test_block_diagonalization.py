@@ -5,7 +5,7 @@ import tinyarray as ta
 import pytest
 from sympy.physics.quantum import Dagger
 
-from lowdin.polynomial_orders_U import block_diagonalize, to_BlockOperatorSeries
+from lowdin.block_diagonalization import general, to_BlockOperatorSeries
 from lowdin.series import BlockOperatorSeries, cauchy_dot_product, _zero
 
 
@@ -81,7 +81,7 @@ def test_check_AB(H, wanted_orders):
     H: BlockOperatorSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
-    H_tilde = block_diagonalize(H)[0]
+    H_tilde = general(H)[0]
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde.evaluated[(0, 1) + order].compressed():
@@ -101,7 +101,7 @@ def test_check_unitary(H, wanted_orders):
     N_A, N_B = H.evaluated[(0, 0) + zero_order].shape[0], H.evaluated[(1, 1) + zero_order].shape[0]
     n_infinite = H.n_infinite
     identity = to_BlockOperatorSeries(np.eye(N_A), np.eye(N_B), {}, {}, {}, n_infinite)
-    _, U, U_adjoint = block_diagonalize(H)
+    _, U, U_adjoint = general(H)
     transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
 
     for order in wanted_orders:
@@ -137,7 +137,7 @@ def test_first_order_H_tilde(H, wanted_orders):
     hamiltonians: list of Hamiltonians
     wanted_orders: list of orders to compute
     """
-    H_tilde = block_diagonalize(H)[0]
+    H_tilde = general(H)[0]
     Np = len(wanted_orders[0])
     for order in permutations((0,) * (Np - 1) + (1,)):
         result = H_tilde.evaluated[(0, 0) + order]
@@ -182,7 +182,7 @@ def test_second_order_H_tilde(H, wanted_orders):
     hamiltonians: list of Hamiltonians
     wanted_orders: list of orders to compute
     """
-    H_tilde = block_diagonalize(H)[0]
+    H_tilde = general(H)[0]
     n_infinite = H.n_infinite
 
     for order in permutations((0,) * (n_infinite - 1) + (2,)):
@@ -207,4 +207,4 @@ def test_check_diagonal():
             {},
             {},
         )
-        block_diagonalize(H)
+        general(H)

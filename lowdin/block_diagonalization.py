@@ -16,7 +16,7 @@ from lowdin.series import (
 )
 
 
-def block_diagonalize(H, divide_energies=None, *, op=None):
+def general(H, divide_energies=None, *, op=None):
     """
     Computes the block diagonalization of a BlockOperatorSeries.
 
