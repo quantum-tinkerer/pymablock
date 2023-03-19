@@ -28,7 +28,6 @@ class Zero:
 
     adjoint = conjugate = __neg__ = __truediv__ = __rmul__ = __mul__
 
-
 _zero = Zero()
 
 @np.vectorize
@@ -170,7 +169,19 @@ def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
         eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite
     )
 
-
+def generate_orders(orders, start=None, end=None, recursive=False):
+    mask = (slice(None), slice(None)) + (-1,) * len(orders)
+    trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
+    if start is not None:
+        if recursive:
+            trial[mask] = ma.masked
+        trial[int(not start)] = ma.masked
+    if end is not None:
+        if recursive:
+            trial[mask] = ma.masked
+        trial[:, int(not end)] = ma.masked
+    return trial
+    
 # %%
 def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
     """
@@ -192,23 +203,10 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
 
     n_infinite = series[0].n_infinite
 
-    def generate_orders(orders, start=None, end=None):
-        mask = (slice(None), slice(None)) + (-1,) * len(orders)
-        trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
-        if start is not None:
-            if recursive:
-                trial[mask] = ma.masked
-            trial[int(not start)] = ma.masked
-        elif end is not None:
-            if recursive:
-                trial[mask] = ma.masked
-            trial[:, int(not end)] = ma.masked
-        return trial
-
     data = (
-        [generate_orders(orders, start=start)]
-        + [generate_orders(orders)] * (len(series) - 2)  # TODO: fix this, actually wrong
-        + [generate_orders(orders, end=end)]
+        [generate_orders(orders, start=start, recursive=recursive)]
+        + [generate_orders(orders, recursive=recursive)] * (len(series) - 2)  # TODO: fix this, actually wrong
+        + [generate_orders(orders, end=end, recursive=recursive)]
     )
 
     for indices, factor in zip(data, series):
