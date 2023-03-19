@@ -125,7 +125,7 @@ def initialize_U(n_infinite=1):
     return U
 
 
-def to_BlockOperatorSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1):
+def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H_p_AB=None, n_infinite=1):
     """
     Creates a BlockOperatorSeries from a dictionary of perturbation terms.
 
@@ -139,6 +139,17 @@ def to_BlockOperatorSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite=1)
     Returns:
     H : BlockOperatorSeries
     """
+    if H_0_AA is None:
+        H_0_AA = _zero
+    if H_0_BB is None:
+        H_0_BB = _zero
+    if H_p_AA is None:
+        H_p_AA = {}
+    if H_p_BB is None:
+        H_p_BB = {}
+    if H_p_AB is None:
+        H_p_AB = {}
+
     zeroth_order = (0,) * n_infinite
     H = BlockOperatorSeries(
         data={
