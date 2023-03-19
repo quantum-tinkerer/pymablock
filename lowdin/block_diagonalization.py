@@ -53,7 +53,9 @@ def general(H, divide_energies=None, *, op=None):
 
     # Identity and temporary H_tilde for the recursion
     identity = cauchy_dot_product(U_adjoint, U, op=op, hermitian=True, recursive=True)
-    H_tilde_rec = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, recursive=True)
+    H_tilde_rec = cauchy_dot_product(
+        U_adjoint, H, U, op=op, hermitian=True, recursive=True
+    )
 
     def eval(index):
         if index[0] == index[1]:  # diagonal block
@@ -64,8 +66,10 @@ def general(H, divide_energies=None, *, op=None):
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
 
     U.eval = eval
-    
-    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, recursive=False)
+
+    H_tilde = cauchy_dot_product(
+        U_adjoint, H, U, op=op, hermitian=True, recursive=False
+    )
     return H_tilde, U, U_adjoint
 
 
