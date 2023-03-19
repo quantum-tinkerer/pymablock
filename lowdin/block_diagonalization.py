@@ -165,4 +165,161 @@ def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H
     )
     return H
 
-# %%
+
+def get_order(Y):
+    """
+    Extracts the order of the term using the subscript of the operator.
+
+    Y : sympy expression
+
+    Returns:
+    order : tuple of integers
+    """
+    orders = []
+    term = Y.as_ordered_terms()[0]
+    for factor in term.as_ordered_factors():
+        if not factor.is_number:
+            name = factor.__str__()
+            subscript = name.split("_")[1].split("}")[0][2:-2]
+            orders.append(
+                ta.array([int(value) for value in subscript.split(",")])
+            )
+    order = sum(tuple([order for order in orders]))
+    return tuple(value for value in order)
+
+
+class EnergyDivider:
+    def __init__(self, H):
+        self.H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        self.H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        self.operator = BlockOperatorSeries(data={(0, 1) + (0,) * H.n_infinite: _zero}, shape=H.shape, n_infinite=H.n_infinite)
+
+    def __call__(self, Y):
+        order = get_order(Y)
+
+        def eval(index):
+            if index[0] == index[1]:
+                return _zero # Y is off-diagonal
+            elif index[:2] == (0, 1):
+                lower_indices = generate_orders(index[2:], 0, 1, True)
+                data = self.operator.evaluated[ma.where(lower_indices)]
+                new_Y = Y
+                for i in range(np.max(index[2:])):
+                    new_Y = sympy.expand(
+                        new_Y.subs(
+                            {
+                                self.H_0_AA * Operator(f"V_{{{key}}}"):
+                                rhs + Operator(f"V_{{{key}}}") * self.H_0_BB
+                                for key, rhs in np.ndenumerate(data)
+                            }
+                        )
+                    )
+                    new_Y = sympy.expand(
+                        new_Y.subs(
+                            {
+                                self.H_0_BB * Dagger(Operator(f"V_{{{key}}}")):
+                                - Dagger(rhs) + Dagger(Operator(f"V_{{{key}}}")) * self.H_0_AA
+                                for key, rhs in np.ndenumerate(data)
+                            }
+                        )
+                    )  # H_0_BB to right
+                return new_Y.expand()
+            elif index[:2] == (1, 0):
+                return -Dagger(self.operator.evaluated[(0, 1) + tuple(index[2:])])
+
+        self.operator.eval = eval
+        self.operator.evaluated[(0, 1) + order]
+
+        return Operator(f"V_{{{order}}}")
+
+
+def symbolic(H, divide_energies=None, *, op=None):
+    """
+    Computes the block diagonalization of a BlockOperatorSeries.
+
+    H : BlockOperatorSeries
+    divide_energies : (optional) function to use for dividing energies
+    op : (optional) function to use for matrix multiplication
+
+    Returns:
+    H_tilde : BlockOperatorSeries
+    U : BlockOperatorSeries
+    U_adjoint : BlockOperatorSeries
+    """
+    if op is None:
+        op = matmul
+
+    if divide_energies is None:
+        divide_energies = _divide_energies(H)
+
+    H_0_AA_s = HermitianOperator("{H_{(0,)}^{AA}}")
+    H_0_BB_s = HermitianOperator("{H_{(0,)}^{BB}}")
+
+    H_p_AA_s = {}
+    H_p_BB_s = {}
+    H_p_AB_s = {}
+
+    H_p_AA_s[(1,)] = HermitianOperator("{H_{(1,)}^{AA}}")
+    H_p_BB_s[(1,)] = HermitianOperator("{H_{(1,)}^{BB}}")
+    H_p_AB_s[(1,)] = Operator("{H_{(1,)}^{AB}}")
+
+    H_s = to_BlockOperatorSeries(
+        H_0_AA_s, H_0_BB_s, H_p_AA_s, H_p_BB_s, H_p_AB_s, n_infinite=H.n_infinite
+    )
+
+    divider = EnergyDivider(H_s)
+    H_tilde_s, U_s, U_adjoint_s = general(H_s, divider, op=mul)
+    Y_s = divider.operator
+
+    def eval(index):
+        new_H = H_tilde_s.evaluated[index]
+        lower_indices = generate_orders(index[2:], 0, 1, True)
+        if not np.alltrue(lower_indices.mask):
+            data = Y_s.evaluated[ma.where(lower_indices)]
+            for i in range(np.max(index[2:])):
+                new_H = sympy.expand(
+                    new_H.subs(
+                        {
+                            H_0_AA_s * Operator(f"V_{{{key}}}"):
+                            rhs + Operator(f"V_{{{key}}}") * H_0_BB_s
+                            for key, rhs in np.ndenumerate(data)
+                        }
+                    )
+                )
+                new_H = sympy.expand(
+                    new_H.subs(
+                        {
+                            H_0_BB_s * Dagger(Operator(f"V_{{{key}}}")):
+                            - Dagger(rhs) + Dagger(Operator(f"V_{{{key}}}")) * H_0_AA_s
+                            for key, rhs in np.ndenumerate(data)
+                        }
+                    )
+                )  # H_0_BB to right
+        return new_H.expand()
+
+
+    H_tilde = BlockOperatorSeries(shape=H.shape, n_infinite=H.n_infinite)
+    H_tilde.eval = eval
+
+    # divider.data = simplify_recursively(H_0_AA_s, H_0_BB_s, divider.data, divider.data)
+    # H_tilde_s_data = simplify_recursively(H_0_AA_s, H_0_BB_s, H_tilde_s, divider.data)
+    # H_tilde_s2 = BlockOperatorSeries(data=H_tilde_s_data, shape=H_tilde_s.shape, n_infinite=H_tilde_s.n_infinite)
+
+    # i = 1
+    # for v, rhs in divider.data.items():
+    #     rhs = sympy.expand(rhs.subs({key: value for key, value in Vs.items()}))
+    #     rhs = sympy.expand(rhs.subs({H_p_AA_s[(1,)]: H.evaluated[0, 0, 1], H_p_BB_s[(1,)]: H.evaluated[1, 1, 1], H_p_AB_s[(1,)]: H.evaluated[0, 1, 1]}))
+    #     divider.data.update({v: rhs})
+    #     i += 1
+
+    # i = 1
+    # for order, H in H_tilde_AA_s.items():    Y_s = divider.operator
+
+    #     H = sympy.expand(H.subs({key: divide_by_energies(value) for key, value in divider.data.items()}))
+    #     H = sympy.expand(H.subs({H_p_AA_s[(1,)]: N(0), H_p_BB_s[(1,)]: N(0), H_p_AB_s[(1,)]: H_p_AB_term}))
+    #     H = H.simplify().factor().simplify()
+    #     H_tilde_AA_s.update({order: H})
+    #     i += 1
+
+    # H_tilde = BlockOperatorSeries(eval, H.shape, H.n_infinite)
+    return H_tilde, Y_s
