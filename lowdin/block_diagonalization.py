@@ -186,39 +186,38 @@ def get_order(Y):
     order = sum(tuple([order for order in orders]))
     return tuple(value for value in order)
 
-def _commute_H0_away(expr, H_0_AA, H_0_BB, data, n_times):
+def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data, n_times):
     """
-    Simplify by commmuting H_0 and V.
+    Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
 
+    expr : sympy expression to simplify
     H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
     H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
-    expr : sympy expression
-    data : np.array of the perturbation terms
-    n_times : number of times to commute H_0 and V
+    Y_data : np.array of the Y perturbation terms
+    n_times : number of times to commute H_0 and V such that H_0 disappears
 
     Returns:
-    new_expr : sympy expression
+    expr : sympy expression
     """
-    new_expr = expr
-    if not _zero==new_expr:
+    if not _zero==expr:
         for _ in range(n_times):
-            new_expr = sympy.expand(
-                new_expr.subs(
+            expr = sympy.expand(
+                expr.subs(
                     {
-                        H_0_AA * V: rhs + V * H_0_BB
-                        for V, rhs in data.items()
+                        H_0_AA * V: rhs + V * H_0_BB # Sylvester's Equation
+                        for V, rhs in Y_data.items()
                     }
                 )
             )
-            new_expr = sympy.expand(
-                new_expr.subs(
+            expr = sympy.expand(
+                expr.subs(
                     {
                         H_0_BB * Dagger(V): - Dagger(rhs) + Dagger(V) * H_0_AA
-                        for V, rhs in data.items()
+                        for V, rhs in Y_data.items()
                     }
                 )
             )
-    return new_expr
+    return expr
 
 def general_symbolic(n_infinite=1):
     """
