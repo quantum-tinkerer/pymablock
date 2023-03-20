@@ -186,7 +186,7 @@ def get_order(Y):
     order = sum(tuple([order for order in orders]))
     return tuple(value for value in order)
 
-def simplify(expr, H_0_AA, H_0_BB, data, n_times):
+def _commute_H0_away(expr, H_0_AA, H_0_BB, data, n_times):
     """
     Simplify by commmuting H_0 and V.
 
@@ -220,7 +220,7 @@ def simplify(expr, H_0_AA, H_0_BB, data, n_times):
     return new_expr.expand()
 
 
-def symbolic(H, divide_energies=None, *, op=None):
+def general_symbolic(n_infinite=1):
     """
     Computes the block diagonalization of a BlockOperatorSeries.
 
@@ -256,14 +256,14 @@ def symbolic(H, divide_energies=None, *, op=None):
     def U_eval(index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
-            Y_data[V] = simplify(old_U_eval(index), H_0_AA_s, H_0_BB_s, Y_data, np.max(index[2:]))
+            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
             return V
         return old_U_eval(index)
     U_s.eval = U_eval
 
     def H_eval(index):
         new_H = H_tilde_s.evaluated[index]
-        return simplify(new_H, H_0_AA_s, H_0_BB_s, Y_data, np.max(index[2:]))
+        return _commute_H0_away(new_H, H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
 
     H_tilde = BlockOperatorSeries(shape=H.shape, n_infinite=H.n_infinite)
     H_tilde.eval = H_eval
