@@ -186,7 +186,7 @@ def get_order(Y):
     order = sum(tuple([order for order in orders]))
     return tuple(value for value in order)
 
-def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data, n_times):
+def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
     """
     Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
 
@@ -194,29 +194,25 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data, n_times):
     H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
     H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
     Y_data : np.array of the Y perturbation terms
-    n_times : number of times to commute H_0 and V such that H_0 disappears
 
     Returns:
     expr : sympy expression
     """
-    if not _zero==expr:
-        for _ in range(n_times):
-            expr = sympy.expand(
-                expr.subs(
-                    {
-                        H_0_AA * V: rhs + V * H_0_BB # Sylvester's Equation
-                        for V, rhs in Y_data.items()
-                    }
-                )
-            )
-            expr = sympy.expand(
-                expr.subs(
-                    {
-                        H_0_BB * Dagger(V): - Dagger(rhs) + Dagger(V) * H_0_AA
-                        for V, rhs in Y_data.items()
-                    }
-                )
-            )
+    subs = {
+        **{
+            H_0_AA * V: rhs + V * H_0_BB
+            for V, rhs in Y_data.items()
+        },
+        **{
+            H_0_BB * Dagger(V): - Dagger(rhs) + Dagger(V) * H_0_AA
+            for V, rhs in Y_data.items()
+        },
+    }
+    if _zero == expr:
+        return expr
+
+    while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)):
+        expr = sympy.expand(expr.subs(subs))
     return expr
 
 def general_symbolic(n_infinite=1):
@@ -247,14 +243,14 @@ def general_symbolic(n_infinite=1):
     def U_eval(index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
-            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
+            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data)
             return V
         return old_U_eval(index)
     U.eval = U_eval
 
     old_H_tilde_eval = H_tilde.eval
     def H_eval(index):
-        return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
+        return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data)
     H_tilde.eval = H_eval
 
     return H_tilde, U, U_adjoint
