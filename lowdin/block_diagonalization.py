@@ -240,10 +240,11 @@ def general_symbolic(n_infinite=1):
         H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite
     )
 
-    H_tilde_s, U, U_adjoint = general(H, divide_energies=(lambda x: x), op=mul)
+    H_tilde, U, U_adjoint = general(H, divide_energies=(lambda x: x), op=mul)
+
+    Y_data = {}
 
     old_U_eval = U.eval
-    Y_data = {}
     def U_eval(index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
@@ -252,12 +253,10 @@ def general_symbolic(n_infinite=1):
         return old_U_eval(index)
     U.eval = U_eval
 
+    old_H_tilde_eval = H_tilde.eval
     def H_eval(index):
-        new_H = H_tilde_s.evaluated[index]
-        return _commute_H0_away(new_H, H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
-
-    H_tilde = BlockOperatorSeries(shape=H.shape, n_infinite=H.n_infinite)
-    H_tilde.eval = H_eval 
+        return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
+    H_tilde.eval = H_eval
 
     return H_tilde, U, U_adjoint
 
