@@ -200,25 +200,25 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, data, n_times):
     new_expr : sympy expression
     """
     new_expr = expr
-    for _ in range(n_times):
-        new_expr = sympy.expand(
-            new_expr.subs(
-                {
-                    H_0_AA * V: rhs + V * H_0_BB
-                    for V, rhs in data.items()
-                }
+    if not _zero==new_expr:
+        for _ in range(n_times):
+            new_expr = sympy.expand(
+                new_expr.subs(
+                    {
+                        H_0_AA * V: rhs + V * H_0_BB
+                        for V, rhs in data.items()
+                    }
+                )
             )
-        )
-        new_expr = sympy.expand(
-            new_expr.subs(
-                {
-                    H_0_BB * Dagger(V): - Dagger(rhs) + Dagger(V) * H_0_AA
-                    for V, rhs in data.items()
-                }
+            new_expr = sympy.expand(
+                new_expr.subs(
+                    {
+                        H_0_BB * Dagger(V): - Dagger(rhs) + Dagger(V) * H_0_AA
+                        for V, rhs in data.items()
+                    }
+                )
             )
-        )
-    return new_expr.expand()
-
+    return new_expr
 
 def general_symbolic(n_infinite=1):
     """
