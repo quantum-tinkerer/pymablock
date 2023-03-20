@@ -205,44 +205,20 @@ def simplify(expr, H_0_AA, H_0_BB, data, n_times):
         new_expr = sympy.expand(
             new_expr.subs(
                 {
-                    H_0_AA * Operator(f"V_{{{key}}}"): rhs + Operator(f"V_{{{key}}}") * H_0_BB
-                    for key, rhs in np.ndenumerate(data)
+                    H_0_AA * V: rhs + V * H_0_BB
+                    for V, rhs in data.items()
                 }
             )
         )
         new_expr = sympy.expand(
             new_expr.subs(
                 {
-                    H_0_BB * Dagger(Operator(f"V_{{{key}}}")): - Dagger(rhs) + Dagger(Operator(f"V_{{{key}}}")) * H_0_AA
-                    for key, rhs in np.ndenumerate(data)
+                    H_0_BB * Dagger(V): - Dagger(rhs) + Dagger(V) * H_0_AA
+                    for V, rhs in data.items()
                 }
             )
         )
     return new_expr.expand()
-
-class EnergyDivider:
-    def __init__(self, H):
-        self.H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        self.H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        self.operator = BlockOperatorSeries(data={(0, 1) + (0,) * H.n_infinite: _zero}, shape=H.shape, n_infinite=H.n_infinite)
-
-    def __call__(self, Y):
-        order = get_order(Y)
-
-        def eval(index):
-            if index[0] == index[1]:
-                return _zero # Y is off-diagonal
-            elif index[:2] == (0, 1):
-                lower_indices = generate_orders(index[2:], 0, 1, True)
-                data = self.operator.evaluated[ma.where(lower_indices)]
-                return simplify(Y, self.H_0_AA, self.H_0_BB, data, np.max(index[2:]))
-            elif index[:2] == (1, 0):
-                return -Dagger(self.operator.evaluated[(0, 1) + tuple(index[2:])])
-
-        self.operator.eval = eval
-        self.operator.evaluated[(0, 1) + order]
-
-        return Operator(f"V_{{{order}}}")
 
 
 def symbolic(H, divide_energies=None, *, op=None):
@@ -275,22 +251,23 @@ def symbolic(H, divide_energies=None, *, op=None):
         H_0_AA_s, H_0_BB_s, H_p_AA_s, H_p_BB_s, H_p_AB_s, n_infinite=H.n_infinite
     )
 
-    divider = EnergyDivider(H_s)
-    H_tilde_s, U_s, U_adjoint_s = general(H_s, divider, op=mul)
-    Y_s = divider.operator
+    H_tilde_s, U_s, U_adjoint_s = general(H_s, divide_energies=(lambda x: x), op=mul)
+    old_U_eval = U_s.eval
+    Y_data = {}
+    def U_eval(index):
+        if index[:2] == (0, 1):
+            V = Operator(f"V_{{{index[2:]}}}")
+            Y_data[V] = simplify(old_U_eval(index), H_0_AA_s, H_0_BB_s, Y_data, np.max(index[2:]))
+            return V
+        return old_U_eval(index)
+    U_s.eval = U_eval
 
-    def eval(index):
+    def H_eval(index):
         new_H = H_tilde_s.evaluated[index]
-        lower_indices = generate_orders(index[2:], 0, 1, True)
-        data = Y_s.evaluated[ma.where(lower_indices)]
-        return simplify(new_H, H_0_AA_s, H_0_BB_s, data, np.max(index[2:]))
+        return simplify(new_H, H_0_AA_s, H_0_BB_s, Y_data, np.max(index[2:]))
 
     H_tilde = BlockOperatorSeries(shape=H.shape, n_infinite=H.n_infinite)
-    H_tilde.eval = eval
-
-    # divider.data = simplify_recursively(H_0_AA_s, H_0_BB_s, divider.data, divider.data)
-    # H_tilde_s_data = simplify_recursively(H_0_AA_s, H_0_BB_s, H_tilde_s, divider.data)
-    # H_tilde_s2 = BlockOperatorSeries(data=H_tilde_s_data, shape=H_tilde_s.shape, n_infinite=H_tilde_s.n_infinite)
+    H_tilde.eval = H_eval
 
     # i = 1
     # for v, rhs in divider.data.items():
@@ -309,4 +286,7 @@ def symbolic(H, divide_energies=None, *, op=None):
     #     i += 1
 
     # H_tilde = BlockOperatorSeries(eval, H.shape, H.n_infinite)
-    return H_tilde, Y_s
+    return H_tilde, Y_data
+
+# %%
+
