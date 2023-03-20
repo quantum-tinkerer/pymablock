@@ -222,6 +222,47 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, data, n_times):
 
 def general_symbolic(n_infinite=1):
     """
+    General symbolic algorithm for diagonalizing a Hamiltonian.
+
+    Returns:
+    H_tilde_s : BlockOperatorSeries
+    U_s : BlockOperatorSeries
+    U_adjoint_s : BlockOperatorSeries
+    """
+    H_0_AA = HermitianOperator("{H_{(0,)}^{AA}}")
+    H_0_BB = HermitianOperator("{H_{(0,)}^{BB}}")
+
+    H_p_BB = {(1,): HermitianOperator("{H_{(1,)}^{BB}}")}
+    H_p_AA = {(1,): HermitianOperator("{H_{(1,)}^{AA}}")}
+    H_p_AB = {(1,): Operator("{H_{(1,)}^{AB}}")}
+
+    H = to_BlockOperatorSeries(
+        H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite
+    )
+
+    H_tilde_s, U, U_adjoint = general(H, divide_energies=(lambda x: x), op=mul)
+
+    old_U_eval = U.eval
+    Y_data = {}
+    def U_eval(index):
+        if index[:2] == (0, 1):
+            V = Operator(f"V_{{{index[2:]}}}")
+            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
+            return V
+        return old_U_eval(index)
+    U.eval = U_eval
+
+    def H_eval(index):
+        new_H = H_tilde_s.evaluated[index]
+        return _commute_H0_away(new_H, H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
+
+    H_tilde = BlockOperatorSeries(shape=H.shape, n_infinite=H.n_infinite)
+    H_tilde.eval = H_eval 
+
+    return H_tilde, U, U_adjoint
+
+def expand(H, divide_energies=None, *, op=None):
+    """
     Computes the block diagonalization of a BlockOperatorSeries.
 
     H : BlockOperatorSeries
@@ -239,41 +280,15 @@ def general_symbolic(n_infinite=1):
     if divide_energies is None:
         divide_energies = _divide_energies(H)
 
-    H_0_AA_s = HermitianOperator("{H_{(0,)}^{AA}}")
-    H_0_BB_s = HermitianOperator("{H_{(0,)}^{BB}}")
+    # Solve completely symbolic problem first
+    H_tilde, U, U_adjoint = general_symbolic(H.n_infinite)
 
-    H_p_AA_s = {(1,): HermitianOperator("{H_{(1,)}^{AA}}")}
-    H_p_BB_s = {(1,): HermitianOperator("{H_{(1,)}^{BB}}")}
-    H_p_AB_s = {(1,): Operator("{H_{(1,)}^{AB}}")}
-
-    H_s = to_BlockOperatorSeries(
-        H_0_AA_s, H_0_BB_s, H_p_AA_s, H_p_BB_s, H_p_AB_s, n_infinite=H.n_infinite
-    )
-
-    H_tilde_s, U_s, U_adjoint_s = general(H_s, divide_energies=(lambda x: x), op=mul)
-    old_U_eval = U_s.eval
-    Y_data = {}
-    def U_eval(index):
-        if index[:2] == (0, 1):
-            V = Operator(f"V_{{{index[2:]}}}")
-            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
-            return V
-        return old_U_eval(index)
-    U_s.eval = U_eval
-
-    def H_eval(index):
-        new_H = H_tilde_s.evaluated[index]
-        return _commute_H0_away(new_H, H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
-
-    H_tilde = BlockOperatorSeries(shape=H.shape, n_infinite=H.n_infinite)
-    H_tilde.eval = H_eval
-
-    # i = 1
-    # for v, rhs in divider.data.items():
-    #     rhs = sympy.expand(rhs.subs({key: value for key, value in Vs.items()}))
-    #     rhs = sympy.expand(rhs.subs({H_p_AA_s[(1,)]: H.evaluated[0, 0, 1], H_p_BB_s[(1,)]: H.evaluated[1, 1, 1], H_p_AB_s[(1,)]: H.evaluated[0, 1, 1]}))
-    #     divider.data.update({v: rhs})
-    #     i += 1
+    i = 1
+    for v, rhs in divider.data.items():
+        rhs = sympy.expand(rhs.subs({key: value for key, value in Vs.items()}))
+        rhs = sympy.expand(rhs.subs({H_p_AA_s[(1,)]: H.evaluated[0, 0, 1], H_p_BB_s[(1,)]: H.evaluated[1, 1, 1], H_p_AB_s[(1,)]: H.evaluated[0, 1, 1]}))
+        divider.data.update({v: rhs})
+        i += 1
 
     # i = 1
     # for order, H in H_tilde_AA_s.items():    Y_s = divider.operator
@@ -285,7 +300,7 @@ def general_symbolic(n_infinite=1):
     #     i += 1
 
     # H_tilde = BlockOperatorSeries(eval, H.shape, H.n_infinite)
-    return H_tilde, Y_data
+    return H_tilde, U_s, U_adjoint_s
 
 # %%
 
