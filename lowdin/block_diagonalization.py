@@ -187,6 +187,38 @@ def get_order(Y):
     order = sum(tuple([order for order in orders]))
     return tuple(value for value in order)
 
+def simplify(expr, H_0_AA, H_0_BB, data, n_times):
+    """
+    Simplify by commmuting H_0 and V.
+
+    H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
+    H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
+    expr : sympy expression
+    data : np.array of the perturbation terms
+    n_times : number of times to commute H_0 and V
+
+    Returns:
+    new_expr : sympy expression
+    """
+    new_expr = expr
+    for _ in range(n_times):
+        new_expr = sympy.expand(
+            new_expr.subs(
+                {
+                    H_0_AA * Operator(f"V_{{{key}}}"): rhs + Operator(f"V_{{{key}}}") * H_0_BB
+                    for key, rhs in np.ndenumerate(data)
+                }
+            )
+        )
+        new_expr = sympy.expand(
+            new_expr.subs(
+                {
+                    H_0_BB * Dagger(Operator(f"V_{{{key}}}")): - Dagger(rhs) + Dagger(Operator(f"V_{{{key}}}")) * H_0_AA
+                    for key, rhs in np.ndenumerate(data)
+                }
+            )
+        )
+    return new_expr.expand()
 
 class EnergyDivider:
     def __init__(self, H):
@@ -203,27 +235,7 @@ class EnergyDivider:
             elif index[:2] == (0, 1):
                 lower_indices = generate_orders(index[2:], 0, 1, True)
                 data = self.operator.evaluated[ma.where(lower_indices)]
-                new_Y = Y
-                for i in range(np.max(index[2:])):
-                    new_Y = sympy.expand(
-                        new_Y.subs(
-                            {
-                                self.H_0_AA * Operator(f"V_{{{key}}}"):
-                                rhs + Operator(f"V_{{{key}}}") * self.H_0_BB
-                                for key, rhs in np.ndenumerate(data)
-                            }
-                        )
-                    )
-                    new_Y = sympy.expand(
-                        new_Y.subs(
-                            {
-                                self.H_0_BB * Dagger(Operator(f"V_{{{key}}}")):
-                                - Dagger(rhs) + Dagger(Operator(f"V_{{{key}}}")) * self.H_0_AA
-                                for key, rhs in np.ndenumerate(data)
-                            }
-                        )
-                    )  # H_0_BB to right
-                return new_Y.expand()
+                return simplify(Y, self.H_0_AA, self.H_0_BB, data, np.max(index[2:]))
             elif index[:2] == (1, 0):
                 return -Dagger(self.operator.evaluated[(0, 1) + tuple(index[2:])])
 
@@ -255,13 +267,9 @@ def symbolic(H, divide_energies=None, *, op=None):
     H_0_AA_s = HermitianOperator("{H_{(0,)}^{AA}}")
     H_0_BB_s = HermitianOperator("{H_{(0,)}^{BB}}")
 
-    H_p_AA_s = {}
-    H_p_BB_s = {}
-    H_p_AB_s = {}
-
-    H_p_AA_s[(1,)] = HermitianOperator("{H_{(1,)}^{AA}}")
-    H_p_BB_s[(1,)] = HermitianOperator("{H_{(1,)}^{BB}}")
-    H_p_AB_s[(1,)] = Operator("{H_{(1,)}^{AB}}")
+    H_p_AA_s = {(1,): HermitianOperator("{H_{(1,)}^{AA}}")}
+    H_p_BB_s = {(1,): HermitianOperator("{H_{(1,)}^{BB}}")}
+    H_p_AB_s = {(1,): Operator("{H_{(1,)}^{AB}}")}
 
     H_s = to_BlockOperatorSeries(
         H_0_AA_s, H_0_BB_s, H_p_AA_s, H_p_BB_s, H_p_AB_s, n_infinite=H.n_infinite
@@ -274,29 +282,8 @@ def symbolic(H, divide_energies=None, *, op=None):
     def eval(index):
         new_H = H_tilde_s.evaluated[index]
         lower_indices = generate_orders(index[2:], 0, 1, True)
-        if not np.alltrue(lower_indices.mask):
-            data = Y_s.evaluated[ma.where(lower_indices)]
-            for i in range(np.max(index[2:])):
-                new_H = sympy.expand(
-                    new_H.subs(
-                        {
-                            H_0_AA_s * Operator(f"V_{{{key}}}"):
-                            rhs + Operator(f"V_{{{key}}}") * H_0_BB_s
-                            for key, rhs in np.ndenumerate(data)
-                        }
-                    )
-                )
-                new_H = sympy.expand(
-                    new_H.subs(
-                        {
-                            H_0_BB_s * Dagger(Operator(f"V_{{{key}}}")):
-                            - Dagger(rhs) + Dagger(Operator(f"V_{{{key}}}")) * H_0_AA_s
-                            for key, rhs in np.ndenumerate(data)
-                        }
-                    )
-                )  # H_0_BB to right
-        return new_H.expand()
-
+        data = Y_s.evaluated[ma.where(lower_indices)]
+        return simplify(new_H, H_0_AA_s, H_0_BB_s, data, np.max(index[2:]))
 
     H_tilde = BlockOperatorSeries(shape=H.shape, n_infinite=H.n_infinite)
     H_tilde.eval = eval
