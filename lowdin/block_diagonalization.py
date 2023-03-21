@@ -16,6 +16,7 @@ from lowdin.series import (
     BlockOperatorSeries,
     _zero,
     cauchy_dot_product,
+    generate_orders,
 )
 
 
@@ -70,6 +71,7 @@ def general(H, divide_energies=None, *, op=None):
         U_adjoint, H, U, op=op, hermitian=True, recursive=False
     )
     return H_tilde, U, U_adjoint
+
 
 
 def _divide_energies(H):
@@ -165,27 +167,6 @@ def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H
     return H
 
 
-def get_order(Y):
-    """
-    Extracts the order of the term using the subscript of the operator.
-
-    Y : sympy expression
-
-    Returns:
-    order : tuple of integers
-    """
-    orders = []
-    term = Y.as_ordered_terms()[0]
-    for factor in term.as_ordered_factors():
-        if not factor.is_number:
-            name = factor.__str__()
-            subscript = name.split("_")[1].split("}")[0][2:-2]
-            orders.append(
-                ta.array([int(value) for value in subscript.split(",")])
-            )
-    order = sum(tuple([order for order in orders]))
-    return tuple(value for value in order)
-
 def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
     """
     Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
@@ -253,11 +234,11 @@ def general_symbolic(n_infinite=1):
         return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data)
     H_tilde.eval = H_eval
 
-    return H_tilde, U, U_adjoint
+    return H_tilde, U, U_adjoint, Y_data, H
 
 def expand(H, divide_energies=None, *, op=None):
     """
-    Computes the block diagonalization of a BlockOperatorSeries.
+    Replace specifics of the Hamiltonian in the general symbolic algorithm.
 
     H : BlockOperatorSeries
     divide_energies : (optional) function to use for dividing energies
@@ -274,27 +255,26 @@ def expand(H, divide_energies=None, *, op=None):
     if divide_energies is None:
         divide_energies = _divide_energies(H)
 
+    #
+    zero_orders = list(H.data.keys())
     # Solve completely symbolic problem first
-    H_tilde, U, U_adjoint = general_symbolic(H.n_infinite)
+    H_tilde_s, U_s, U_adjoint_s, Y_data_s, H_s = general_symbolic(H.n_infinite)
+    H_tilde, U, U_adjoint = general(H, divide_energies=divide_energies, op=op)
 
-    i = 1
-    for v, rhs in divider.data.items():
-        rhs = sympy.expand(rhs.subs({key: value for key, value in Vs.items()}))
-        rhs = sympy.expand(rhs.subs({H_p_AA_s[(1,)]: H.evaluated[0, 0, 1], H_p_BB_s[(1,)]: H.evaluated[1, 1, 1], H_p_AB_s[(1,)]: H.evaluated[0, 1, 1]}))
-        divider.data.update({v: rhs})
-        i += 1
 
-    # i = 1
-    # for order, H in H_tilde_AA_s.items():    Y_s = divider.operator
+    old_H_tilde_s_eval = H_tilde_s.eval
+    def H_tilde_s_eval(index):
+        value = old_H_tilde_s_eval(index)
 
-    #     H = sympy.expand(H.subs({key: divide_by_energies(value) for key, value in divider.data.items()}))
-    #     H = sympy.expand(H.subs({H_p_AA_s[(1,)]: N(0), H_p_BB_s[(1,)]: N(0), H_p_AB_s[(1,)]: H_p_AB_term}))
-    #     H = H.simplify().factor().simplify()
-    #     H_tilde_AA_s.update({order: H})
-    #     i += 1
+        # for V, rhs in Y_data_s.items():
+        #     rhs = sympy.expand(rhs.subs({key: value for key, value in Vs.items()}))
+        #     rhs = rhs.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
+        #     Y_data_s.update({V: rhs})
+   
+        value = value.subs({V: divide_energies(rhs) for V, rhs in Y_data_s.items()}).expand()
+        value = value.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
+        return value#.expand()
+    H_tilde_s.eval = H_tilde_s_eval
 
-    # H_tilde = BlockOperatorSeries(eval, H.shape, H.n_infinite)
-    return H_tilde, U_s, U_adjoint_s
-
-# %%
+    return H_tilde_s, U, U_adjoint
 

@@ -11,7 +11,7 @@ from sympy import MatrixSymbol, N
 from sympy.physics.quantum.dagger import Dagger
 from sympy.physics.quantum import Operator
 
-from polynomial_orders_U import compute_next_orders, H_tilde
+# from polynomial_orders_U import compute_next_orders, H_tilde
 
 
 # %%
@@ -104,9 +104,34 @@ Hs = [sympy.sympify(data, locals=sympy.physics.quantum.__dict__) for data in Hs.
 
 
 # %%
+
+# %%
+n = 2
+sympy.Equality(Operator(f'Y_{n+1}'), Ys[n].expand()) # 20/8
+
+
+# %%
+n = 4
+sympy.Equality(Operator(f'Y_{n+1}'), Ys[n].expand()) # 20/8
+
+
+# %%
+n = 2
+sympy.Equality(Operator(f'H_{n+1}'), Hs[n].expand()) # 20/8
+
+
+# %%
 n = 3
 sympy.Equality(Operator(f'H_{n+1}'), Hs[n].expand()) # 20/8
 
+
+# %%
+
+# %%
+from itertools import permutations
+
+# %%
+permutations([4, 5, 6])
 
 # %%
 all_pairs = set()
