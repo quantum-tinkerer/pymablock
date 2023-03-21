@@ -12,7 +12,8 @@ import tinyarray as ta
 import tinyarray as ta
 import jupyterpost
 
-from polynomial_orders_U import compute_next_orders, H_tilde
+from lowdin.block_diagonalization import general, to_BlockOperatorSeries
+from lowdin.series import _zero
 # -
 
 os.environ["JPY_API_TOKEN"] = "d0797e84f32243aebbb3711203615dab"
@@ -62,8 +63,8 @@ H_p_AB_term = g * Dagger(a)
 H_p_BA_term = g * a
 H_p_AB = {ta.array([1]): H_p_AB_term}
 H_p_BA = {ta.array([1]): H_p_BA_term}
-H_p_AA = {}
-H_p_BB = {}
+H_p_AA = {ta.array([1]): + (1 / 2) * wq}
+H_p_BB = {ta.array([1]): + (1 / 2) * wq}
 
 
 # +
@@ -84,36 +85,37 @@ for i in [0, 1]:
 
 def divide_by_energies(rhs, basis=basis, H_0_AA=H_0_AA, H_0_BB=H_0_BB):
     V_AB = 0
-    terms = rhs.as_ordered_terms()
-    for v in basis:
-        E = exp_value(v, H_0_AA)
-        for term in terms:
-            v_term = qapply(term * v).doit()
-            v_norm = norm(v_term)
-            if v_norm != 0:
-                v_term_norm = 0
-                for v_i in v_term.as_ordered_terms():
-                    v_term_norm += v_i.as_ordered_factors()[-1]
-                v_term_norm = v_term_norm.as_ordered_factors()[-1]
-                E_term = exp_value(v_term_norm, H_0_BB)
-                denominator = (E_term - E).simplify()
-                V_AB += (term / denominator).simplify()
+    if rhs is not _zero:
+        terms = rhs.as_ordered_terms()
+        for v in basis:
+            E = exp_value(v, H_0_AA)
+            for term in terms:
+                v_term = qapply(term * v).doit()
+                v_norm = norm(v_term)
+                if v_norm != 0:
+                    v_term_norm = 0
+                    for v_i in v_term.as_ordered_terms():
+                        v_term_norm += v_i.as_ordered_factors()[-1]
+                    v_term_norm = v_term_norm.as_ordered_factors()[-1]
+                    E_term = exp_value(v_term_norm, H_0_BB)
+                    denominator = (E_term - E).simplify()
+                    V_AB += (term / denominator).simplify()
     return V_AB/2#.simplify()
 
 
-# +
-wanted_orders = [ta.array([4])]
-
-exp_S = compute_next_orders(
+H_tilde, U, U_adjoint = general(to_BlockOperatorSeries(
     H_0_AA,
     H_0_BB,
     H_p_AA,
     H_p_BB,
-    H_p_AB,
-    wanted_orders=wanted_orders,
+    H_p_AB),
     divide_energies=divide_by_energies,
     op=mul
 )
+
+H_tilde.evaluated[1, 1, 2]
+
+U.evaluated[1, 1, 2]
 
 # +
 # H_eff_AA, H_eff_BB = H_tilde(
