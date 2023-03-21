@@ -260,33 +260,17 @@ def expand(H, divide_energies=None, *, op=None):
     H_tilde_s, U_s, U_adjoint_s, Y_data_s, H_s = general_symbolic(H.n_infinite)
     H_tilde, U, U_adjoint = general(H, divide_energies=divide_energies, op=op)
 
-    old_U_s_eval = U_s.eval
-    def U_s_eval(index):
-        old_U_s_eval(index)
-        if index[:2] == (0, 1):
-            print('a')
-            # V = Operator(f"V_{{{index[2:]}}}")
-            # rhs = Y_data_s[V]
-            # rhs = sympy.expand(rhs.subs({V: U.evaluated[index]}))
-            # rhs = rhs.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
-            # Y_data_s.update({V: rhs})
-            return U.evaluated[index]
-        return old_U_s_eval(index)
-    U_s.eval = U_s_eval
+    def H_tilde_eval(index):
+        H_tilde = H_tilde_s.evaluated[index]
+        while any(V in H_tilde.free_symbols for V in Y_data_s.keys()):
+            H_tilde = H_tilde.subs(
+                {V: divide_energies(rhs) for V, rhs in Y_data_s.items()}
+            ).expand()
+        H_tilde = H_tilde.subs(
+            {H_s.evaluated[id]: H.evaluated[id] for id in zero_orders}
+        )
+        return H_tilde
 
+    H_tilde.eval = H_tilde_eval
 
-    old_H_tilde_s_eval = H_tilde_s.eval
-    def H_tilde_s_eval(index):
-        value = old_H_tilde_s_eval(index)
-
-        # for V, rhs in Y_data_s.items():
-        #     rhs = sympy.expand(rhs.subs({key: value for key, value in Vs.items()}))
-        #     rhs = rhs.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
-        #     Y_data_s.update({V: rhs})
-   
-        value = value.subs({V: divide_energies(rhs) for V, rhs in Y_data_s.items()}).expand()
-        value = value.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
-        return value#.expand()
-    H_tilde_s.eval = H_tilde_s_eval
-
-    return H_tilde_s, U, U_adjoint
+    return H_tilde, U, U_adjoint
