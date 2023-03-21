@@ -167,7 +167,7 @@ def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H
     return H
 
 
-def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
+def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data, n_times):
     """
     Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
 
@@ -179,22 +179,25 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
     Returns:
     expr : sympy expression
     """
-    subs = {
-        **{
-            H_0_AA * V: rhs + V * H_0_BB
-            for V, rhs in Y_data.items()
-        },
-        **{
-            H_0_BB * Dagger(V): - Dagger(rhs) + Dagger(V) * H_0_AA
-            for V, rhs in Y_data.items()
-        },
-    }
-    if _zero == expr:
-        return expr
+    if not _zero==expr:
+        for _ in range(n_times):
+            expr = sympy.expand(
+                expr.subs(
+                    {
+                        H_0_AA * V: rhs + V * H_0_BB # Sylvester's Equation
+                        for V, rhs in Y_data.items()
+                    }
+                )
+            )
+            expr = sympy.expand(
+                expr.subs(
+                    {
+                        H_0_BB * Dagger(V): - Dagger(rhs) + Dagger(V) * H_0_AA
+                        for V, rhs in Y_data.items()
+                    }
+                )
+            )
 
-    while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)):
-        expr = sympy.expand(expr.subs(subs))
-    return expr
 
 def general_symbolic(n_infinite=1):
     """
@@ -224,14 +227,14 @@ def general_symbolic(n_infinite=1):
     def U_eval(index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
-            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data)
+            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
             return V
         return old_U_eval(index)
     U.eval = U_eval
 
     old_H_tilde_eval = H_tilde.eval
     def H_eval(index):
-        return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data)
+        return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
     H_tilde.eval = H_eval
 
     return H_tilde, U, U_adjoint, Y_data, H
@@ -261,6 +264,20 @@ def expand(H, divide_energies=None, *, op=None):
     H_tilde_s, U_s, U_adjoint_s, Y_data_s, H_s = general_symbolic(H.n_infinite)
     H_tilde, U, U_adjoint = general(H, divide_energies=divide_energies, op=op)
 
+    old_U_s_eval = U_s.eval
+    def U_s_eval(index):
+        old_U_s_eval(index)
+        if index[:2] == (0, 1):
+            print('a')
+            # V = Operator(f"V_{{{index[2:]}}}")
+            # rhs = Y_data_s[V]
+            # rhs = sympy.expand(rhs.subs({V: U.evaluated[index]}))
+            # rhs = rhs.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
+            # Y_data_s.update({V: rhs})
+            return U.evaluated[index]
+        return old_U_s_eval(index)
+    U_s.eval = U_s_eval
+
 
     old_H_tilde_s_eval = H_tilde_s.eval
     def H_tilde_s_eval(index):
@@ -277,4 +294,3 @@ def expand(H, divide_energies=None, *, op=None):
     H_tilde_s.eval = H_tilde_s_eval
 
     return H_tilde_s, U, U_adjoint
-
