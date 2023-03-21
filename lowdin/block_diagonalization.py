@@ -73,7 +73,6 @@ def general(H, divide_energies=None, *, op=None):
     return H_tilde, U, U_adjoint
 
 
-
 def _divide_energies(H):
     """
     Returns a function that divides a matrix by the difference of its diagonal elements.
@@ -179,24 +178,19 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data, n_times):
     Returns:
     expr : sympy expression
     """
-    if not _zero==expr:
-        for _ in range(n_times):
-            expr = sympy.expand(
-                expr.subs(
-                    {
-                        H_0_AA * V: rhs + V * H_0_BB # Sylvester's Equation
-                        for V, rhs in Y_data.items()
-                    }
-                )
-            )
-            expr = sympy.expand(
-                expr.subs(
-                    {
-                        H_0_BB * Dagger(V): - Dagger(rhs) + Dagger(V) * H_0_AA
-                        for V, rhs in Y_data.items()
-                    }
-                )
-            )
+    subs = {
+        **{H_0_AA * V: rhs + V * H_0_BB for V, rhs in Y_data.items()},
+        **{
+            H_0_BB * Dagger(V): -Dagger(rhs) + Dagger(V) * H_0_AA
+            for V, rhs in Y_data.items()
+        },
+    }
+    if _zero == expr:
+        return expr
+
+    while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)):
+        expr = sympy.expand(expr.subs(subs))
+    return expr
 
 
 def general_symbolic(n_infinite=1):
@@ -215,29 +209,32 @@ def general_symbolic(n_infinite=1):
     H_p_AA = {(1,): HermitianOperator("{H_{(1,)}^{AA}}")}
     H_p_AB = {(1,): Operator("{H_{(1,)}^{AB}}")}
 
-    H = to_BlockOperatorSeries(
-        H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite
-    )
+    H = to_BlockOperatorSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
 
     H_tilde, U, U_adjoint = general(H, divide_energies=(lambda x: x), op=mul)
 
     Y_data = {}
 
     old_U_eval = U.eval
+
     def U_eval(index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
             Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
             return V
         return old_U_eval(index)
+
     U.eval = U_eval
 
     old_H_tilde_eval = H_tilde.eval
+
     def H_eval(index):
         return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
+
     H_tilde.eval = H_eval
 
     return H_tilde, U, U_adjoint, Y_data, H
+
 
 def expand(H, divide_energies=None, *, op=None):
     """
@@ -258,7 +255,6 @@ def expand(H, divide_energies=None, *, op=None):
     if divide_energies is None:
         divide_energies = _divide_energies(H)
 
-    #
     zero_orders = list(H.data.keys())
     # Solve completely symbolic problem first
     H_tilde_s, U_s, U_adjoint_s, Y_data_s, H_s = general_symbolic(H.n_infinite)
