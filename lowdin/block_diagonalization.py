@@ -257,19 +257,18 @@ def expand(H, divide_energies=None, *, op=None):
 
     zero_orders = list(H.data.keys())
     # Solve completely symbolic problem first
-    H_tilde_s, U_s, U_adjoint_s, Y_data_s, H_s = general_symbolic(H.n_infinite)
+    H_tilde_s, U_s, U_adjoint_s, Y_data, H_s = general_symbolic(H.n_infinite)
     H_tilde, U, U_adjoint = general(H, divide_energies=divide_energies, op=op)
 
     def H_tilde_eval(index):
         H_tilde = H_tilde_s.evaluated[index]
-        while any(V in H_tilde.free_symbols for V in Y_data_s.keys()):
-            H_tilde = H_tilde.subs(
-                {V: divide_energies(rhs) for V, rhs in Y_data_s.items()}
-            ).expand()
-        H_tilde = H_tilde.subs(
-            {H_s.evaluated[id]: H.evaluated[id] for id in zero_orders}
-        )
-        return H_tilde
+        for V, rhs in Y_data.items():
+            while any(V in rhs.free_symbols for V in Y_data.keys()):
+                rhs = rhs.subs({key: divide_energies(value) for key, value in Y_data.items()}).expand()
+                Y_data.update({V: rhs})
+        H_tilde = H_tilde.subs({V: divide_energies(rhs) for V, rhs in Y_data.items()})
+        H_tilde = H_tilde.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
+        return H_tilde.expand()
 
     H_tilde.eval = H_tilde_eval
 
