@@ -12,7 +12,7 @@ import tinyarray as ta
 import tinyarray as ta
 import jupyterpost
 
-from lowdin.block_diagonalization import general, to_BlockOperatorSeries
+from lowdin.block_diagonalization import general, to_BlockOperatorSeries, expand
 from lowdin.series import _zero
 # -
 
@@ -60,8 +60,8 @@ H_p_AB_term = g * Dagger(a)
 H_p_BA_term = g * a
 H_p_AB = {ta.array([1]): H_p_AB_term}
 H_p_BA = {ta.array([1]): H_p_BA_term}
-H_p_AA = {ta.array([1]): + (1 / 2) * wq}
-H_p_BB = {ta.array([1]): + (1 / 2) * wq}
+H_p_AA = {}
+H_p_BB = {}
 
 
 # +
@@ -81,7 +81,7 @@ for i in [0, 1]:
 
 
 def divide_by_energies(rhs, basis=basis, H_0_AA=H_0_AA, H_0_BB=H_0_BB):
-    V_AB = 0
+    V_AB = sympy.Rational(0)
     if rhs is not _zero:
         terms = rhs.as_ordered_terms()
         for v in basis:
@@ -100,14 +100,14 @@ def divide_by_energies(rhs, basis=basis, H_0_AA=H_0_AA, H_0_BB=H_0_BB):
     return V_AB/2#.simplify()
 
 
-H_tilde, U, U_adjoint = general(to_BlockOperatorSeries(
+H_tilde, U, U_adjoint = expand(to_BlockOperatorSeries(
     H_0_AA,
     H_0_BB,
     H_p_AA,
     H_p_BB,
     H_p_AB),
-    divide_energies=divide_by_energies,
+    divide_by_energies=divide_by_energies,
     op=mul
 )
 
-H_tilde.evaluated[0, 1, 2]
+H_tilde.evaluated[0, 0, 4]
