@@ -5,6 +5,7 @@ from operator import matmul
 
 import numpy as np
 import numpy.ma as ma
+import sympy
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
@@ -44,7 +45,12 @@ def _zero_sum(terms):
     Returns:
     Sum of terms, or _zero if terms is empty.
     """
-    return sum((term for term in terms if _zero != term), start=_zero)
+    result = sum((term for term in terms if _zero != term), start=_zero)
+    if result == 0:
+        return _zero
+    elif isinstance(result, sympy.core.numbers.Zero):
+        return _zero
+    return result
 
 
 # %%
