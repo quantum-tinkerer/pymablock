@@ -61,8 +61,10 @@ def general(H, divide_energies=None, *, op=None):
         if index[0] == index[1]:  # diagonal block
             return -identity.evaluated[index] / 2
         elif index[:2] == (0, 1):  # off-diagonal block
-            if -divide_energies(H_tilde_rec.evaluated[index]) == 0: # Dagger fails on 0
-                return _zero
+            result = -divide_energies(H_tilde_rec.evaluated[index])
+            if isinstance(result.all(), int) or isinstance(result.all(), float):
+                if result == 0: # Dagger fails on 0
+                    return _zero
             return -divide_energies(H_tilde_rec.evaluated[index])
         elif index[:2] == (1, 0):  # off-diagonal block
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])

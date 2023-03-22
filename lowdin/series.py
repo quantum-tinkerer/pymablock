@@ -27,7 +27,7 @@ class Zero:
     def __eq__(self, other):
         return isinstance(other, Zero)
 
-    adjoint = conjugate = __neg__ = __truediv__ = __rmul__ = __mul__
+    adjoint = conjugate = all = __neg__ = __truediv__ = __rmul__ = __mul__
 
 _zero = Zero()
 
@@ -46,10 +46,9 @@ def _zero_sum(terms):
     Sum of terms, or _zero if terms is empty.
     """
     result = sum((term for term in terms if _zero != term), start=_zero)
-    if result == 0:
-        return _zero
-    elif isinstance(result, sympy.core.numbers.Zero):
-        return _zero
+    if isinstance(result.all(), int) or isinstance(result.all(), float):
+        if result == 0:
+            return _zero
     return result
 
 
