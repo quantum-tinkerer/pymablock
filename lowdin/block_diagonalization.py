@@ -19,12 +19,12 @@ from lowdin.series import (
 )
 
 
-def general(H, divide_by_energies=None, *, op=None):
+def general(H, solve_sylvester=None, *, op=None):
     """
     Computes the block diagonalization of a BlockOperatorSeries.
 
     H : BlockOperatorSeries
-    divide_by_energies : (optional) function to use for dividing energies
+    solve_sylvester : (optional) function to use for dividing energies
     op : (optional) function to use for matrix multiplication
 
     Returns:
@@ -35,8 +35,8 @@ def general(H, divide_by_energies=None, *, op=None):
     if op is None:
         op = matmul
 
-    if divide_by_energies is None:
-        divide_by_energies = _default_divide_by_energies(H)
+    if solve_sylvester is None:
+        solve_sylvester = _default_solve_sylvester(H)
 
     U = initialize_U(H.n_infinite)
     U_adjoint = BlockOperatorSeries(
@@ -60,7 +60,7 @@ def general(H, divide_by_energies=None, *, op=None):
         if index[0] == index[1]:  # diagonal block
             return -identity.evaluated[index] / 2
         elif index[:2] == (0, 1):  # off-diagonal block
-            return -divide_by_energies(H_tilde_rec.evaluated[index])
+            return -solve_sylvester(H_tilde_rec.evaluated[index])
         elif index[:2] == (1, 0):  # off-diagonal block
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
 
@@ -72,14 +72,14 @@ def general(H, divide_by_energies=None, *, op=None):
     return H_tilde, U, U_adjoint
 
 
-def _default_divide_by_energies(H):
+def _default_solve_sylvester(H):
     """
     Returns a function that divides a matrix by the difference of its diagonal elements.
 
     H : BlockOperatorSeries
 
     Returns:
-    divide_by_energies : function
+    solve_sylvester : function
     """
     H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
     H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
@@ -95,10 +95,10 @@ def _default_divide_by_energies(H):
 
     energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
 
-    def divide_by_energies(Y):
+    def solve_sylvester(Y):
         return Y * energy_denominators
 
-    return divide_by_energies
+    return solve_sylvester
 
 
 def initialize_U(n_infinite=1):
@@ -140,9 +140,9 @@ def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H
     H : BlockOperatorSeries
     """
     if H_0_AA is None:
-        H_0_AA = _zero
+        raise ValueError("H_0_AA must be specified")
     if H_0_BB is None:
-        H_0_BB = _zero
+        raise ValueError("H_0_BB must be specified")
     if H_p_AA is None:
         H_p_AA = {}
     if H_p_BB is None:
@@ -211,7 +211,7 @@ def general_symbolic(n_infinite=1):
 
     H = to_BlockOperatorSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
 
-    H_tilde, U, U_adjoint = general(H, divide_by_energies=(lambda x: x), op=mul)
+    H_tilde, U, U_adjoint = general(H, solve_sylvester=(lambda x: x), op=mul)
 
     Y_data = {}
 
@@ -236,12 +236,12 @@ def general_symbolic(n_infinite=1):
     return H_tilde, U, U_adjoint, Y_data, H
 
 
-def expand(H, divide_by_energies=None, *, op=None):
+def expand(H, solve_sylvester=None, *, op=None):
     """
     Replace specifics of the Hamiltonian in the general symbolic algorithm.
 
     H : BlockOperatorSeries
-    divide_by_energies : (optional) function to use for dividing energies
+    solve_sylvester : (optional) function to use for dividing energies
     op : (optional) function to use for matrix multiplication
 
     Returns:
@@ -252,21 +252,21 @@ def expand(H, divide_by_energies=None, *, op=None):
     if op is None:
         op = matmul
 
-    if divide_by_energies is None:
-        divide_by_energies = _default_divide_by_energies(H)
+    if solve_sylvester is None:
+        solve_sylvester = _default_solve_sylvester(H)
 
     initial_orders = list(H.data.keys())
     # Solve completely symbolic problem first
     H_tilde_s, U_s, U_adjoint_s, Y_data, H_s = general_symbolic(H.n_infinite)
-    H_tilde, U, U_adjoint = general(H, divide_by_energies=divide_by_energies, op=op)
+    H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
 
     def eval(index):
         H_tilde = H_tilde_s.evaluated[index]
         for V, rhs in Y_data.items():
             while any(V in rhs.free_symbols for V in Y_data.keys()):
-                rhs = rhs.subs({key: divide_by_energies(value) for key, value in Y_data.items()}).expand()
+                rhs = rhs.subs({key: solve_sylvester(value) for key, value in Y_data.items()}).expand()
                 Y_data.update({V: rhs})
-        H_tilde = H_tilde.subs({V: divide_by_energies(rhs) for V, rhs in Y_data.items()})
+        H_tilde = H_tilde.subs({V: solve_sylvester(rhs) for V, rhs in Y_data.items()})
         H_tilde = H_tilde.subs({H_s.evaluated[key]: H.evaluated[key] for key in initial_orders})
         H_tilde = H_tilde.subs(
             {H_s.evaluated[key]: sympy.Rational(0) for key in H_s.data.keys() if H_s.evaluated[key] != _zero}
