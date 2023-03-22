@@ -131,6 +131,7 @@ def initialize_U(n_infinite=1):
 
 def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H_p_AB=None, n_infinite=1):
     """
+    TEMPORARY, WILL DELETE WHEN USER API IS READY
     Creates a BlockOperatorSeries from a dictionary of perturbation terms.
 
     H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
