@@ -37,7 +37,7 @@ def general(H, divide_energies=None, *, op=None):
         op = matmul
 
     if divide_energies is None:
-        divide_energies = _divide_energies(H)
+        divide_energies = _default_divide_energies(H)
 
     U = initialize_U(H.n_infinite)
     U_adjoint = BlockOperatorSeries(
@@ -77,7 +77,7 @@ def general(H, divide_energies=None, *, op=None):
     return H_tilde, U, U_adjoint
 
 
-def _divide_energies(H):
+def _default_divide_energies(H):
     """
     Returns a function that divides a matrix by the difference of its diagonal elements.
 
@@ -257,7 +257,7 @@ def expand(H, divide_energies=None, *, op=None):
         op = matmul
 
     if divide_energies is None:
-        divide_energies = _divide_energies(H)
+        divide_energies = _default_divide_energies(H)
 
     zero_orders = list(H.data.keys())
     # Solve completely symbolic problem first
