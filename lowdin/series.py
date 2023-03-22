@@ -176,6 +176,18 @@ def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
     )
 
 def generate_orders(orders, start=None, end=None, recursive=False):
+    """
+    Generate array of lower orders to be used in product_by_order.
+
+    orders : (tuple) maximum orders of each infinite dimension.
+    start : (optional) 0 or 1 to choose row index of block.
+    end : (optional) 0 or 1 to choose column index of block.
+    recursive : (optional) bool for whether to use mask "orders" itself.
+        This is useful to avoid recursion errors.
+
+    Returns:
+    (numpy.ma.MaskedArray) Array of orders.
+    """
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
     trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
     if start is not None:
