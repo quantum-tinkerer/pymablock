@@ -45,9 +45,6 @@ def _zero_sum(terms):
     Sum of terms, or _zero if terms is empty.
     """
     result = sum((term for term in terms if _zero != term), start=_zero)
-    if isinstance(result.all(), int) or isinstance(result.all(), float):
-        if result == 0:
-            return _zero
     return result
 
 
