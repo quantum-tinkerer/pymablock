@@ -262,7 +262,7 @@ def expand(H, divide_energies=None, *, op=None):
     H_tilde_s, U_s, U_adjoint_s, Y_data, H_s = general_symbolic(H.n_infinite)
     H_tilde, U, U_adjoint = general(H, divide_energies=divide_energies, op=op)
 
-    def H_tilde_eval(index):
+    def eval(index):
         H_tilde = H_tilde_s.evaluated[index]
         for V, rhs in Y_data.items():
             while any(V in rhs.free_symbols for V in Y_data.keys()):
@@ -272,6 +272,6 @@ def expand(H, divide_energies=None, *, op=None):
         H_tilde = H_tilde.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
         return H_tilde.expand()
 
-    H_tilde.eval = H_tilde_eval
+    H_tilde.eval = eval
 
     return H_tilde, U, U_adjoint
