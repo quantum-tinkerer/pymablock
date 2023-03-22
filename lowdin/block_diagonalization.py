@@ -16,7 +16,6 @@ from lowdin.series import (
     BlockOperatorSeries,
     _zero,
     cauchy_dot_product,
-    generate_orders,
 )
 
 

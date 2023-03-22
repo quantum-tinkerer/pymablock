@@ -5,7 +5,6 @@ from operator import matmul
 
 import numpy as np
 import numpy.ma as ma
-import sympy
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
