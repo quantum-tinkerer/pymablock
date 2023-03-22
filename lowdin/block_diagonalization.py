@@ -255,7 +255,7 @@ def expand(H, divide_by_energies=None, *, op=None):
     if divide_by_energies is None:
         divide_by_energies = _default_divide_by_energies(H)
 
-    zero_orders = list(H.data.keys())
+    initial_orders = list(H.data.keys())
     # Solve completely symbolic problem first
     H_tilde_s, U_s, U_adjoint_s, Y_data, H_s = general_symbolic(H.n_infinite)
     H_tilde, U, U_adjoint = general(H, divide_by_energies=divide_by_energies, op=op)
@@ -267,7 +267,10 @@ def expand(H, divide_by_energies=None, *, op=None):
                 rhs = rhs.subs({key: divide_by_energies(value) for key, value in Y_data.items()}).expand()
                 Y_data.update({V: rhs})
         H_tilde = H_tilde.subs({V: divide_by_energies(rhs) for V, rhs in Y_data.items()})
-        H_tilde = H_tilde.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
+        H_tilde = H_tilde.subs({H_s.evaluated[key]: H.evaluated[key] for key in initial_orders})
+        H_tilde = H_tilde.subs(
+            {H_s.evaluated[key]: sympy.Rational(0) for key in H_s.data.keys() if H_s.evaluated[key] != _zero}
+            )
         return H_tilde.expand()
 
     H_tilde.eval = eval
