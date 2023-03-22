@@ -20,12 +20,12 @@ from lowdin.series import (
 )
 
 
-def general(H, divide_energies=None, *, op=None):
+def general(H, divide_by_energies=None, *, op=None):
     """
     Computes the block diagonalization of a BlockOperatorSeries.
 
     H : BlockOperatorSeries
-    divide_energies : (optional) function to use for dividing energies
+    divide_by_energies : (optional) function to use for dividing energies
     op : (optional) function to use for matrix multiplication
 
     Returns:
@@ -36,8 +36,8 @@ def general(H, divide_energies=None, *, op=None):
     if op is None:
         op = matmul
 
-    if divide_energies is None:
-        divide_energies = _default_divide_energies(H)
+    if divide_by_energies is None:
+        divide_by_energies = _default_divide_by_energies(H)
 
     U = initialize_U(H.n_infinite)
     U_adjoint = BlockOperatorSeries(
@@ -61,11 +61,11 @@ def general(H, divide_energies=None, *, op=None):
         if index[0] == index[1]:  # diagonal block
             return -identity.evaluated[index] / 2
         elif index[:2] == (0, 1):  # off-diagonal block
-            result = -divide_energies(H_tilde_rec.evaluated[index])
+            result = -divide_by_energies(H_tilde_rec.evaluated[index])
             if isinstance(result.all(), int) or isinstance(result.all(), float):
                 if result == 0: # Dagger fails on 0
                     return _zero
-            return -divide_energies(H_tilde_rec.evaluated[index])
+            return -divide_by_energies(H_tilde_rec.evaluated[index])
         elif index[:2] == (1, 0):  # off-diagonal block
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
 
@@ -77,14 +77,14 @@ def general(H, divide_energies=None, *, op=None):
     return H_tilde, U, U_adjoint
 
 
-def _default_divide_energies(H):
+def _default_divide_by_energies(H):
     """
     Returns a function that divides a matrix by the difference of its diagonal elements.
 
     H : BlockOperatorSeries
 
     Returns:
-    divide_energies : function
+    divide_by_energies : function
     """
     H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
     H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
@@ -100,10 +100,10 @@ def _default_divide_energies(H):
 
     energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
 
-    def divide_energies(Y):
+    def divide_by_energies(Y):
         return Y * energy_denominators
 
-    return divide_energies
+    return divide_by_energies
 
 
 def initialize_U(n_infinite=1):
@@ -216,7 +216,7 @@ def general_symbolic(n_infinite=1):
 
     H = to_BlockOperatorSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
 
-    H_tilde, U, U_adjoint = general(H, divide_energies=(lambda x: x), op=mul)
+    H_tilde, U, U_adjoint = general(H, divide_by_energies=(lambda x: x), op=mul)
 
     Y_data = {}
 
@@ -241,12 +241,12 @@ def general_symbolic(n_infinite=1):
     return H_tilde, U, U_adjoint, Y_data, H
 
 
-def expand(H, divide_energies=None, *, op=None):
+def expand(H, divide_by_energies=None, *, op=None):
     """
     Replace specifics of the Hamiltonian in the general symbolic algorithm.
 
     H : BlockOperatorSeries
-    divide_energies : (optional) function to use for dividing energies
+    divide_by_energies : (optional) function to use for dividing energies
     op : (optional) function to use for matrix multiplication
 
     Returns:
@@ -257,21 +257,21 @@ def expand(H, divide_energies=None, *, op=None):
     if op is None:
         op = matmul
 
-    if divide_energies is None:
-        divide_energies = _default_divide_energies(H)
+    if divide_by_energies is None:
+        divide_by_energies = _default_divide_by_energies(H)
 
     zero_orders = list(H.data.keys())
     # Solve completely symbolic problem first
     H_tilde_s, U_s, U_adjoint_s, Y_data, H_s = general_symbolic(H.n_infinite)
-    H_tilde, U, U_adjoint = general(H, divide_energies=divide_energies, op=op)
+    H_tilde, U, U_adjoint = general(H, divide_by_energies=divide_by_energies, op=op)
 
     def eval(index):
         H_tilde = H_tilde_s.evaluated[index]
         for V, rhs in Y_data.items():
             while any(V in rhs.free_symbols for V in Y_data.keys()):
-                rhs = rhs.subs({key: divide_energies(value) for key, value in Y_data.items()}).expand()
+                rhs = rhs.subs({key: divide_by_energies(value) for key, value in Y_data.items()}).expand()
                 Y_data.update({V: rhs})
-        H_tilde = H_tilde.subs({V: divide_energies(rhs) for V, rhs in Y_data.items()})
+        H_tilde = H_tilde.subs({V: divide_by_energies(rhs) for V, rhs in Y_data.items()})
         H_tilde = H_tilde.subs({H_s.evaluated[id]: H.evaluated[id] for id in zero_orders})
         return H_tilde.expand()
 
