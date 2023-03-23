@@ -133,14 +133,14 @@ class BlockOperatorSeries:
         self.n_infinite = n_infinite
 
 
-def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
+def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
     """
     Block product of series using Cauchy's formula.
 
     series : (BlockOperatorSeries) series to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
-    recursive : (optional) bool for whether to use recursive algorithm.
+    exclude_last : (optional) bool or list of bools on whether to exclude last order on each term.
 
     Returns:
     (BlockOperatorSeries) Product of series.
@@ -163,28 +163,28 @@ def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
 
     def eval(index):
         return product_by_order(
-            index, *series, op=op, hermitian=hermitian, recursive=recursive
+            index, *series, op=op, hermitian=hermitian, exclude_lasts=exclude_lasts
         )
 
     return BlockOperatorSeries(
         eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite
     )
 
-def generate_orders(orders, start=None, end=None, recursive=False):
+def generate_orders(orders, start=None, end=None, exclude_last=False):
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
     trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
     if start is not None:
-        if recursive:
+        if exclude_last:
             trial[mask] = ma.masked
         trial[int(not start)] = ma.masked
     if end is not None:
-        if recursive:
+        if exclude_last:
             trial[mask] = ma.masked
         trial[:, int(not end)] = ma.masked
     return trial
     
 # %%
-def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
+def product_by_order(index, *series, op=None, hermitian=False, exclude_lasts=False):
     """
     Compute sum of all product of factors of wanted order.
 
@@ -192,7 +192,7 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
     series : (BlockOperatorSeries) series to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
-    recursive : (optional) bool for whether to use recursive algorithm.
+    exclude_last : (optional) bool or list of bools on whether to exclude last order on each series.
 
     Returns:
     Sum of all products that contribute to the wanted order.
@@ -204,11 +204,14 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
 
     n_infinite = series[0].n_infinite
 
-    data = (
-        [generate_orders(orders, start=start, recursive=recursive)]
-        + [generate_orders(orders, recursive=recursive)] * (len(series) - 2)  # TODO: fix this, actually wrong
-        + [generate_orders(orders, end=end, recursive=recursive)]
-    )
+    if not isinstance(exclude_lasts, list):
+        exclude_lasts = [exclude_lasts] * len(series)
+    starts = [start] + [None] * (len(series) - 1)
+    ends = [None] * (len(series) - 1) + [end]
+    data = [
+            generate_orders(orders, start=start, end=end, exclude_last=exclude_last)
+            for start, end, exclude_last in zip(starts, ends, exclude_lasts)
+            ]
 
     for indices, factor in zip(data, series):
         indices[ma.where(indices)] = factor.evaluated[ma.where(indices)]
