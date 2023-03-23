@@ -172,7 +172,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
         eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite
     )
 
-def generate_orders(orders, start=None, end=None, exclude_last=False):
+def _generate_orders(orders, start=None, end=None, exclude_last=False):
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
     trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
     if start is not None:
@@ -211,7 +211,7 @@ def product_by_order(index, *series, op=None, hermitian=False, exclude_lasts=Fal
     starts = [start] + [None] * (len(series) - 1)
     ends = [None] * (len(series) - 1) + [end]
     data = [
-            generate_orders(orders, start=start, end=end, exclude_last=exclude_last)
+            _generate_orders(orders, start=start, end=end, exclude_last=exclude_last)
             for start, end, exclude_last in zip(starts, ends, exclude_lasts)
             ]
 
