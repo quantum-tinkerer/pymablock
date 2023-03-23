@@ -198,7 +198,7 @@ def test_second_order_H_tilde(H, wanted_orders):
 
 
 def test_check_diagonal():
-    """Test that offdiagonal H_0_AA is not allowed if divide_by_energies is not provided."""
+    """Test that offdiagonal H_0_AA is not allowed if solve_sylvester is not provided."""
     with pytest.raises(ValueError):
         H = to_BlockOperatorSeries(
             np.array([[1, 1], [1, 1]]),

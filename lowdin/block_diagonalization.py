@@ -20,12 +20,12 @@ from lowdin.series import (
 )
 
 
-def general(H, divide_energies=None, *, op=None):
+def general(H, solve_sylvester=None, *, op=None):
     """
     Computes the block diagonalization of a BlockOperatorSeries.
 
     H : BlockOperatorSeries
-    divide_energies : (optional) function to use for dividing energies
+    solve_sylvester : (optional) function to use for dividing energies
     op : (optional) function to use for matrix multiplication
 
     Returns:
@@ -36,8 +36,8 @@ def general(H, divide_energies=None, *, op=None):
     if op is None:
         op = matmul
 
-    if divide_energies is None:
-        divide_energies = _divide_energies(H)
+    if solve_sylvester is None:
+        solve_sylvester = _default_solve_sylvester(H)
 
     U = initialize_U(H.n_infinite)
     U_adjoint = BlockOperatorSeries(
@@ -61,7 +61,7 @@ def general(H, divide_energies=None, *, op=None):
         if index[0] == index[1]:  # diagonal block
             return -identity.evaluated[index] / 2
         elif index[:2] == (0, 1):  # off-diagonal block
-            return -divide_energies(H_tilde_rec.evaluated[index])
+            return -solve_sylvester(H_tilde_rec.evaluated[index])
         elif index[:2] == (1, 0):  # off-diagonal block
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
 
@@ -73,14 +73,14 @@ def general(H, divide_energies=None, *, op=None):
     return H_tilde, U, U_adjoint
 
 
-def _divide_energies(H):
+def _default_solve_sylvester(H):
     """
     Returns a function that divides a matrix by the difference of its diagonal elements.
 
     H : BlockOperatorSeries
 
     Returns:
-    divide_energies : function
+    solve_sylvester : function
     """
     H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
     H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
@@ -96,10 +96,10 @@ def _divide_energies(H):
 
     energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
 
-    def divide_energies(Y):
+    def solve_sylvester(Y):
         return Y * energy_denominators
 
-    return divide_energies
+    return solve_sylvester
 
 
 def initialize_U(n_infinite=1):
