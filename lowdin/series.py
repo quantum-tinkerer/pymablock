@@ -178,13 +178,11 @@ def _generate_orders(orders, start=None, end=None, last=True):
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
     trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
     if start is not None:
-        if not last:
-            trial[mask] = ma.masked
         trial[int(not start)] = ma.masked
     if end is not None:
-        if not last:
-            trial[mask] = ma.masked
         trial[:, int(not end)] = ma.masked
+    if not last:
+        trial[mask] = ma.masked
     return trial
 
 
