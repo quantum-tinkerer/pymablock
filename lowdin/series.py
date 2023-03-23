@@ -80,6 +80,8 @@ class _Evaluated:
         data = self.original.data
         for index in zip(*np.where(trial)):
             if index not in data:
+                # Calling eval gives control away; mark that this value is evaluated
+                # To be able to catch recursion and data corruption.
                 data[index] = PENDING
                 data[index] = self.original.eval(index)
             if data[index] is PENDING:
