@@ -148,7 +148,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
     (BlockSeries) Product of series.
     """
     if len(series) < 2:
-        raise ValueError("Must have at least two series to multiply.")
+        return series[0] if series else None
     if op is None:
         op = matmul
 
