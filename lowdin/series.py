@@ -163,14 +163,15 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
     if len(set(factor.n_infinite for factor in series)) > 1:
         raise ValueError("Factors must have equal number of infinite dimensions.")
 
-    def eval(index):
-        return product_by_order(
-            index, *series, op=op, hermitian=hermitian, exclude_lasts=exclude_lasts
-        )
-
     return BlockSeries(
-        eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite
+        eval=lambda index: product_by_order(
+            index, *series, op=op, hermitian=hermitian, exclude_lasts=exclude_lasts
+        ),
+        data=None,
+        shape=(start, end),
+        n_infinite=series[0].n_infinite,
     )
+
 
 def _generate_orders(orders, start=None, end=None, exclude_last=False):
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
