@@ -12,7 +12,7 @@ from sympy.physics.quantum import Dagger
 
 from lowdin.series import (
     BlockOperatorSeries,
-    _zero,
+    zero,
     cauchy_dot_product,
 )
 
@@ -111,8 +111,8 @@ def initialize_U(n_infinite=1):
         data={
             **{(0, 0) + zero_order: None},
             **{(1, 1) + zero_order: None},
-            **{(0, 1) + zero_order: _zero},
-            **{(1, 0) + zero_order: _zero},
+            **{(0, 1) + zero_order: zero},
+            **{(1, 0) + zero_order: zero},
         },
         shape=(2, 2),
         n_infinite=n_infinite,
@@ -135,9 +135,9 @@ def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H
     H : BlockOperatorSeries
     """
     if H_0_AA is None:
-        H_0_AA = _zero
+        H_0_AA = zero
     if H_0_BB is None:
-        H_0_BB = _zero
+        H_0_BB = zero
     if H_p_AA is None:
         H_p_AA = {}
     if H_p_BB is None:

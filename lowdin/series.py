@@ -28,7 +28,7 @@ class Zero:
 
     adjoint = conjugate = __neg__ = __truediv__ = __rmul__ = __mul__
 
-_zero = Zero()
+zero = Zero()
 
 @np.vectorize
 def _mask(entry):
@@ -37,14 +37,14 @@ def _mask(entry):
 
 def _zero_sum(terms):
     """
-    Sum that returns a singleton _zero if empty and omits _zero terms
+    Sum that returns a singleton zero if empty and omits zero terms
 
     terms : iterable of terms to sum.
 
     Returns:
-    Sum of terms, or _zero if terms is empty.
+    Sum of terms, or zero if terms is empty.
     """
-    return sum((term for term in terms if _zero != term), start=_zero)
+    return sum((term for term in terms if zero != term), start=zero)
 
 
 # %%
@@ -126,7 +126,7 @@ class BlockOperatorSeries:
         n_infinite : int
             The number of infinite dimensions.
         """
-        self.eval = (lambda _: _zero) if eval is None else eval
+        self.eval = (lambda _: zero) if eval is None else eval
         self.evaluated = _Evaluated(self)
         self.data = data or {}
         self.shape = shape
@@ -233,6 +233,6 @@ def product_by_order(index, *series, op=None, hermitian=False, exclude_lasts=Fal
             temp /= 2
         contributing_products.append(temp)
     result = _zero_sum(contributing_products)
-    if hermitian and _zero != result:
+    if hermitian and zero != result:
         result += Dagger(result)
     return result

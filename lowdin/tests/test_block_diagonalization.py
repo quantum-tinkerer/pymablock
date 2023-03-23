@@ -6,7 +6,7 @@ import pytest
 from sympy.physics.quantum import Dagger
 
 from lowdin.block_diagonalization import general, to_BlockOperatorSeries
-from lowdin.series import BlockOperatorSeries, cauchy_dot_product, _zero
+from lowdin.series import cauchy_dot_product, zero
 
 
 @pytest.fixture(
@@ -142,7 +142,7 @@ def test_first_order_H_tilde(H, wanted_orders):
     for order in permutations((0,) * (Np - 1) + (1,)):
         result = H_tilde.evaluated[(0, 0) + order]
         expected = compute_first_order(H, order)
-        if _zero == result:
+        if zero == result:
             np.testing.assert_allclose(
                 0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
             )
@@ -188,7 +188,7 @@ def test_second_order_H_tilde(H, wanted_orders):
     for order in permutations((0,) * (n_infinite - 1) + (2,)):
         result = H_tilde.evaluated[(0, 0) + order]
         expected = compute_second_order(H, order)
-        if _zero == result:
+        if zero == result:
             np.testing.assert_allclose(
                 0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
             )
