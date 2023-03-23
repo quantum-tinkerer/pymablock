@@ -81,10 +81,11 @@ class _Evaluated:
         for index in zip(*np.where(trial)):
             if index not in data:
                 data[index] = PENDING
-                if (result := self.original.eval(index)) is PENDING:
-                    raise RuntimeError("Recursion detected")
-                data[index] = result
+                data[index] = self.original.eval(index)
+            if data[index] is PENDING:
+                raise RuntimeError("Recursion detected")
             trial[index] = data[index]
+
 
         result = trial[item]
         if not one_entry:
