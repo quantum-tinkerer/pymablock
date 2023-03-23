@@ -4,19 +4,16 @@
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
 
 # %%
-from operator import matmul, mul
+from operator import matmul
 
 import numpy as np
 import numpy.ma as ma
-import sympy
-from sympy.physics.quantum import Dagger, Operator, HermitianOperator
-import tinyarray as ta
+from sympy.physics.quantum import Dagger
 
 from lowdin.series import (
     BlockOperatorSeries,
     _zero,
     cauchy_dot_product,
-    generate_orders,
 )
 
 
