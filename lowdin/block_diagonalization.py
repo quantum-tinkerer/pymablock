@@ -11,7 +11,7 @@ import numpy.ma as ma
 from sympy.physics.quantum import Dagger
 
 from lowdin.series import (
-    BlockOperatorSeries,
+    BlockSeries,
     zero,
     cauchy_dot_product,
 )
@@ -19,16 +19,16 @@ from lowdin.series import (
 
 def general(H, solve_sylvester=None, *, op=None):
     """
-    Computes the block diagonalization of a BlockOperatorSeries.
+    Computes the block diagonalization of a BlockSeries.
 
-    H : BlockOperatorSeries
+    H : BlockSeries
     solve_sylvester : (optional) function to use for dividing energies
     op : (optional) function to use for matrix multiplication
 
     Returns:
-    H_tilde : BlockOperatorSeries
-    U : BlockOperatorSeries
-    U_adjoint : BlockOperatorSeries
+    H_tilde : BlockSeries
+    U : BlockSeries
+    U_adjoint : BlockSeries
     """
     if op is None:
         op = matmul
@@ -37,7 +37,7 @@ def general(H, solve_sylvester=None, *, op=None):
         solve_sylvester = _default_solve_sylvester(H)
 
     U = initialize_U(H.n_infinite)
-    U_adjoint = BlockOperatorSeries(
+    U_adjoint = BlockSeries(
         eval=(
             lambda index: U.evaluated[index]
             if index[0] == index[1]
@@ -72,7 +72,7 @@ def _default_solve_sylvester(H):
     """
     Returns a function that divides a matrix by the difference of its diagonal elements.
 
-    H : BlockOperatorSeries
+    H : BlockSeries
 
     Returns:
     solve_sylvester : function
@@ -99,15 +99,15 @@ def _default_solve_sylvester(H):
 
 def initialize_U(n_infinite=1):
     """
-    Initializes the BlockOperatorSeries for the transformation to diagonalized Hamiltonian.
+    Initializes the BlockSeries for the transformation to diagonalized Hamiltonian.
 
     n_infinite : (optional) number of infinite indices
 
     Returns:
-    U : BlockOperatorSeries
+    U : BlockSeries
     """
     zero_order = (0,) * n_infinite
-    U = BlockOperatorSeries(
+    U = BlockSeries(
         data={
             **{(0, 0) + zero_order: None},
             **{(1, 1) + zero_order: None},
@@ -120,9 +120,9 @@ def initialize_U(n_infinite=1):
     return U
 
 
-def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H_p_AB=None, n_infinite=1):
+def to_BlockSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H_p_AB=None, n_infinite=1):
     """
-    Creates a BlockOperatorSeries from a dictionary of perturbation terms.
+    Creates a BlockSeries from a dictionary of perturbation terms.
 
     H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
     H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
@@ -132,7 +132,7 @@ def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H
     n_infinite : (optional) number of infinite indices
 
     Returns:
-    H : BlockOperatorSeries
+    H : BlockSeries
     """
     if H_0_AA is None:
         H_0_AA = zero
@@ -146,7 +146,7 @@ def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H
         H_p_AB = {}
 
     zeroth_order = (0,) * n_infinite
-    H = BlockOperatorSeries(
+    H = BlockSeries(
         data={
             **{(0, 0) + zeroth_order: H_0_AA},
             **{(1, 1) + zeroth_order: H_0_BB},

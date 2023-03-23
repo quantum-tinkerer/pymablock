@@ -110,7 +110,7 @@ class _Evaluated:
             )
 
 
-class BlockOperatorSeries:
+class BlockSeries:
     def __init__(self, eval=None, data=None, shape=(), n_infinite=1):
         """An infinite series that caches its items.
         The series has finite and infinite dimensions.
@@ -137,13 +137,13 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
     """
     Block product of series using Cauchy's formula.
 
-    series : (BlockOperatorSeries) series to be multiplied.
+    series : (BlockSeries) series to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
     exclude_last : (optional) bool or list of bools on whether to exclude last order on each term.
 
     Returns:
-    (BlockOperatorSeries) Product of series.
+    (BlockSeries) Product of series.
     """
     if len(series) < 2:
         raise ValueError("Must have at least two series to multiply.")
@@ -166,7 +166,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
             index, *series, op=op, hermitian=hermitian, exclude_lasts=exclude_lasts
         )
 
-    return BlockOperatorSeries(
+    return BlockSeries(
         eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite
     )
 
@@ -189,7 +189,7 @@ def product_by_order(index, *series, op=None, hermitian=False, exclude_lasts=Fal
     Compute sum of all product of factors of wanted order.
 
     index : (tuple) index of wanted order.
-    series : (BlockOperatorSeries) series to be multiplied.
+    series : (BlockSeries) series to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
     exclude_last : (optional) bool or list of bools on whether to exclude last order on each series.

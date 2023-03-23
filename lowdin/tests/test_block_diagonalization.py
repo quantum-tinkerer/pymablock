@@ -5,7 +5,7 @@ import tinyarray as ta
 import pytest
 from sympy.physics.quantum import Dagger
 
-from lowdin.block_diagonalization import general, to_BlockOperatorSeries
+from lowdin.block_diagonalization import general, to_BlockSeries
 from lowdin.series import cauchy_dot_product, zero
 
 
@@ -71,7 +71,7 @@ def H(Ns, wanted_orders):
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
         hams.append({order: matrix for order, matrix in zip(orders, matrices)})
 
-    return to_BlockOperatorSeries(*hams, n_infinite)
+    return to_BlockSeries(*hams, n_infinite)
 
 
 def test_check_AB(H, wanted_orders):
@@ -100,7 +100,7 @@ def test_check_unitary(H, wanted_orders):
     zero_order = (0,) * len(wanted_orders[0])
     N_A, N_B = H.evaluated[(0, 0) + zero_order].shape[0], H.evaluated[(1, 1) + zero_order].shape[0]
     n_infinite = H.n_infinite
-    identity = to_BlockOperatorSeries(np.eye(N_A), np.eye(N_B), {}, {}, {}, n_infinite)
+    identity = to_BlockSeries(np.eye(N_A), np.eye(N_B), {}, {}, {}, n_infinite)
     _, U, U_adjoint = general(H)
     transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
 
@@ -200,7 +200,7 @@ def test_second_order_H_tilde(H, wanted_orders):
 def test_check_diagonal():
     """Test that offdiagonal H_0_AA is not allowed if solve_sylvester is not provided."""
     with pytest.raises(ValueError):
-        H = to_BlockOperatorSeries(
+        H = to_BlockSeries(
             np.array([[1, 1], [1, 1]]),
             np.eye(2),
             {},

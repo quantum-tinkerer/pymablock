@@ -1,7 +1,7 @@
 # +
 import numpy as np
 
-from lowdin.series import BlockOperatorSeries
+from lowdin.series import BlockSeries
 
 # +
 # First dimension is finite and of size 5, the second two infinite
@@ -30,7 +30,7 @@ shapes = [
 
 for key, shape in zip(possible_keys, shapes):
     try:
-        a = BlockOperatorSeries(lambda x: x, data=None, shape=(5,), n_infinite=2)
+        a = BlockSeries(lambda x: x, data=None, shape=(5,), n_infinite=2)
         assert shape == a.evaluated[key].shape
     except Exception as e:
         assert type(e) == shape
