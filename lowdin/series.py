@@ -9,6 +9,7 @@ from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
 PENDING = object()
+one = object()
 
 # %%
 class Zero:
@@ -148,7 +149,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
     (BlockSeries) Product of series.
     """
     if len(series) < 2:
-        return series[0] if series else None
+        return series[0] if series else one
     if op is None:
         op = matmul
 
@@ -228,7 +229,7 @@ def product_by_order(index, *series, op=None, hermitian=False, exclude_lasts=Fal
         key = tuple(ta.array(key[-n_infinite:]) for key, _ in combination)
         if sum(key) != orders:
             continue
-        values = [value for _, value in combination if value is not None]
+        values = [value for _, value in combination if value is not one]
         if hermitian and key > tuple(reversed(key)):
             continue
         temp = reduce(op, values)

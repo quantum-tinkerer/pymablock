@@ -13,6 +13,7 @@ from sympy.physics.quantum import Dagger
 from lowdin.series import (
     BlockSeries,
     zero,
+    one,
     cauchy_dot_product,
 )
 
@@ -109,8 +110,8 @@ def initialize_U(n_infinite=1):
     zero_order = (0,) * n_infinite
     U = BlockSeries(
         data={
-            **{(0, 0) + zero_order: None},
-            **{(1, 1) + zero_order: None},
+            **{(0, 0) + zero_order: one},
+            **{(1, 1) + zero_order: one},
             **{(0, 1) + zero_order: zero},
             **{(1, 0) + zero_order: zero},
         },
