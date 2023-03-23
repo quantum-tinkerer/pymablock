@@ -256,21 +256,29 @@ def expand(H, solve_sylvester=None, *, op=None):
         solve_sylvester = _default_solve_sylvester(H)
 
     initial_orders = list(H.data.keys())
-    # Solve completely symbolic problem first
+    
     H_tilde_s, U_s, U_adjoint_s, Y_data, H_s = general_symbolic(H.n_infinite)
     H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
+
+    V_data = {} # Stores V's solutions from Sylvester's equation
 
     def eval(index):
         H_tilde = H_tilde_s.evaluated[index]
         for V, rhs in Y_data.items():
-            while any(V in rhs.free_symbols for V in Y_data.keys()):
-                rhs = rhs.subs({key: solve_sylvester(value) for key, value in Y_data.items()}).expand()
-                Y_data.update({V: rhs})
-        H_tilde = H_tilde.subs({V: solve_sylvester(rhs) for V, rhs in Y_data.items()})
+            if V not in V_data:
+                # Replace symbolic H before solving Sylvester's equation
+                rhs = rhs.subs({H_s.evaluated[key]: H.evaluated[key] for key in initial_orders})
+                rhs = rhs.subs({H_s.evaluated[key]: sympy.Rational(0) for key in H_s.data.keys()})
+                # Replace symbolic V's with their solutions
+                rhs = rhs.subs({V_symbolic: V_solution for V_symbolic, V_solution in V_data.items()}).expand()
+                Y_data.update({V: rhs}) # NOT SURE THIS IS NEEDED OR GOOD IDEA
+                # Solve Sylvester's equation for new element of Vs
+                V_data.update({V: solve_sylvester(rhs)})
+
         H_tilde = H_tilde.subs({H_s.evaluated[key]: H.evaluated[key] for key in initial_orders})
-        H_tilde = H_tilde.subs(
-            {H_s.evaluated[key]: sympy.Rational(0) for key in H_s.data.keys() if H_s.evaluated[key] != _zero}
-            )
+        H_tilde = H_tilde.subs({H_s.evaluated[key]: sympy.Rational(0) for key in H_s.data.keys() if H_s.evaluated[key]})
+        H_tilde = H_tilde.subs({V_symbolic: V_solution for V_symbolic, V_solution in V_data.items()})
+
         return H_tilde.expand()
 
     H_tilde.eval = eval
