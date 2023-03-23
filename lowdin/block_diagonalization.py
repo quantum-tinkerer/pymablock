@@ -50,9 +50,9 @@ def general(H, solve_sylvester=None, *, op=None):
     )
 
     # Identity and temporary H_tilde for the recursion
-    identity = cauchy_dot_product(U_adjoint, U, op=op, hermitian=True, exclude_lasts=[True, True])
+    identity = cauchy_dot_product(U_adjoint, U, op=op, hermitian=True, exclude_last=[True, True])
     H_tilde_rec = cauchy_dot_product(
-        U_adjoint, H, U, op=op, hermitian=True, exclude_lasts=[True, False, True]
+        U_adjoint, H, U, op=op, hermitian=True, exclude_last=[True, False, True]
     )
 
     def eval(index):
@@ -65,7 +65,7 @@ def general(H, solve_sylvester=None, *, op=None):
 
     U.eval = eval
 
-    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, exclude_lasts=[False, False, False])
+    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, exclude_last=[False, False, False])
     return H_tilde, U, U_adjoint
 
 

@@ -136,7 +136,7 @@ class BlockSeries:
         self.n_infinite = n_infinite
 
 
-def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
+def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
     """
     Block product of series using Cauchy's formula.
 
@@ -166,7 +166,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
 
     return BlockSeries(
         eval=lambda index: product_by_order(
-            index, *series, op=op, hermitian=hermitian, exclude_lasts=exclude_lasts
+            index, *series, op=op, hermitian=hermitian, exclude_last=exclude_last
         ),
         data=None,
         shape=(start, end),
@@ -174,21 +174,22 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_lasts=False):
     )
 
 
-def _generate_orders(orders, start=None, end=None, exclude_last=False):
+def _generate_orders(orders, start=None, end=None, last=True):
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
     trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
     if start is not None:
-        if exclude_last:
+        if not last:
             trial[mask] = ma.masked
         trial[int(not start)] = ma.masked
     if end is not None:
-        if exclude_last:
+        if not last:
             trial[mask] = ma.masked
         trial[:, int(not end)] = ma.masked
     return trial
-    
+
+
 # %%
-def product_by_order(index, *series, op=None, hermitian=False, exclude_lasts=False):
+def product_by_order(index, *series, op=None, hermitian=False, exclude_last=None):
     """
     Compute sum of all product of factors of wanted order.
 
@@ -208,14 +209,14 @@ def product_by_order(index, *series, op=None, hermitian=False, exclude_lasts=Fal
 
     n_infinite = series[0].n_infinite
 
-    if not isinstance(exclude_lasts, list):
-        exclude_lasts = [exclude_lasts] * len(series)
+    if exclude_last is None:
+        exclude_last = [False] * len(series)
     starts = [start] + [None] * (len(series) - 1)
     ends = [None] * (len(series) - 1) + [end]
     data = [
-            _generate_orders(orders, start=start, end=end, exclude_last=exclude_last)
-            for start, end, exclude_last in zip(starts, ends, exclude_lasts)
-            ]
+        _generate_orders(orders, start=start, end=end, last=not(last))
+        for start, end, last in zip(starts, ends, exclude_last)
+    ]
 
     for indices, factor in zip(data, series):
         indices[ma.where(indices)] = factor.evaluated[ma.where(indices)]
