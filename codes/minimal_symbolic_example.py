@@ -54,12 +54,10 @@ sminus = pauli.SigmaMinus()
 sympylus = pauli.SigmaPlus()
 # -
 
-H_0_AA = wr * Dagger(a) * a + (1 / 2) * wq
-H_0_BB = wr * Dagger(a) * a - (1 / 2) * wq
-H_p_AB_term = g * Dagger(a)
-H_p_BA_term = g * a
-H_p_AB = {ta.array([1]): H_p_AB_term}
-H_p_BA = {ta.array([1]): H_p_BA_term}
+H_0_AA = wr * Dagger(a) * a + sympy.Rational(1 / 2) * wq
+H_0_BB = wr * Dagger(a) * a - sympy.Rational(1 / 2) * wq
+H_p_AB = {(1,): g *  a}
+H_p_BA = {(1,): g * Dagger(a)}
 H_p_AA = {}
 H_p_BB = {}
 
@@ -83,14 +81,15 @@ for i in [0, 1]:
 def divide_by_energies(rhs, basis=basis, H_0_AA=H_0_AA, H_0_BB=H_0_BB):
     V_AB = sympy.Rational(0)
     if rhs is not _zero:
+        rhs = rhs.expand()
         terms = rhs.as_ordered_terms()
         for v in basis:
             E = exp_value(v, H_0_AA)
             for term in terms:
                 v_term = qapply(term * v).doit()
                 v_norm = norm(v_term)
-                if v_norm != 0:
-                    v_term_norm = 0
+                if not isinstance(v_norm, sympy.core.numbers.Zero):
+                    v_term_norm = sympy.Rational(0)
                     for v_i in v_term.as_ordered_terms():
                         v_term_norm += v_i.as_ordered_factors()[-1]
                     v_term_norm = v_term_norm.as_ordered_factors()[-1]
@@ -106,8 +105,12 @@ H_tilde, U, U_adjoint = expand(to_BlockOperatorSeries(
     H_p_AA,
     H_p_BB,
     H_p_AB),
-    divide_by_energies=divide_by_energies,
+    solve_sylvester=divide_by_energies,
     op=mul
 )
 
-H_tilde.evaluated[0, 0, 4]
+H_tilde.evaluated[0, 0, 8].simplify()
+
+H_tilde.evaluated[1, 1, 4].simplify()
+
+
