@@ -85,7 +85,7 @@ class _Evaluated:
                 data[index] = PENDING
                 data[index] = self.original.eval(index)
             if data[index] is PENDING:
-                raise RuntimeError("Recursion detected")
+                raise RuntimeError("Infinite recursion loop detected")
             trial[index] = data[index]
 
 
