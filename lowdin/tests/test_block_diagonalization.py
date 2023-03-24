@@ -5,7 +5,7 @@ import tinyarray as ta
 import pytest
 from sympy.physics.quantum import Dagger
 
-from lowdin.block_diagonalization import general, to_BlockSeries
+from lowdin.block_diagonalization import general, expanded, to_BlockSeries
 from lowdin.series import cauchy_dot_product, zero
 
 
@@ -45,7 +45,7 @@ def H(Ns, wanted_orders):
     BlockSeries of the Hamiltonian
     """
     n_infinite = len(wanted_orders[0])
-    orders = ta.array(np.eye(n_infinite))
+    orders = ta.array(np.eye(n_infinite, dtype=int))
     hams = []
     for i in range(2):
         hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
@@ -208,3 +208,20 @@ def test_check_diagonal():
             {},
         )
         general(H)
+
+@pytest.mark.skip(reason="Not working yet")
+def test_equivalence_general_expanded(H, wanted_orders):
+    """Test that the general and expanded methods give the same results."""
+    H_tilde_general, _, _ = general(H)
+    H_tilde_expanded, _, _ = expanded(H)
+    for order in wanted_orders:
+        order = tuple(slice(None, dim_order + 1) for dim_order in order)
+        for block in ((0, 0), (1, 1), (0, 1)):
+            result_general = H_tilde_general.evaluated[tuple(block + order)]
+            result_expanded = H_tilde_expanded.evaluated[tuple(block + order)]
+            if zero == result_general:
+                assert zero == result_expanded
+            else:
+                np.testing.assert_allclose(
+                    np.array(result_general).real, np.array(result_expanded).real, atol=10**-2, err_msg=f"{order=}"
+                )
