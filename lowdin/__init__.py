@@ -1,5 +1,6 @@
 "Lowdin perturbation theory"
 
-from .polynomial_orders_U import compute_next_orders, H_tilde
+from .block_diagonalization import general, to_BlockSeries
+from . import series
 
-__all__ = ["compute_next_orders", "H_tilde"]
+__all__ = ["general", "to_BlockSeries", "series"]
