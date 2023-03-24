@@ -23,7 +23,7 @@ def general(H, solve_sylvester=None, *, op=None):
     Computes the block diagonalization of a BlockSeries.
 
     H : BlockSeries
-    solve_sylvester : (optional) function to use for dividing energies
+    solve_sylvester : (optional) function that solves the Sylvester equation
     op : (optional) function to use for matrix multiplication
 
     Returns:
@@ -71,8 +71,8 @@ def general(H, solve_sylvester=None, *, op=None):
 
 def _default_solve_sylvester(H):
     """
-    Returns a function that divides a matrix by the difference of its diagonal elements.
-
+    Returns a function that divides a matrix by the difference of a diagonal unperturbed Hamiltonian.
+    
     H : BlockSeries
 
     Returns:
@@ -163,7 +163,7 @@ def to_BlockSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H_p_AB=No
     return H
 
 
-def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data, n_times):
+def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
     """
     Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
 
@@ -194,10 +194,14 @@ def general_symbolic(n_infinite=1):
     """
     General symbolic algorithm for diagonalizing a Hamiltonian.
 
+    n_infinite : (optional) number of perturbative orders.
+
     Returns:
-    H_tilde_s : BlockSeries
-    U_s : BlockSeries
-    U_adjoint_s : BlockSeries
+    H_tilde_s : BlockSeries of the diagonalized Hamiltonian
+    U_s : BlockSeries of the transformation to the diagonalized Hamiltonian
+    U_adjoint_s : BlockSeries of the adjoint of U_s
+    Y_data : dictionary of the right hand side of Sylvester Equation
+    H : BlockSeries of the original Hamiltonian
     """
     H_0_AA = HermitianOperator("{H_{(0,)}^{AA}}")
     H_0_BB = HermitianOperator("{H_{(0,)}^{BB}}")
@@ -217,7 +221,7 @@ def general_symbolic(n_infinite=1):
     def U_eval(index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
-            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
+            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data)
             return V
         return old_U_eval(index)
 
@@ -226,25 +230,25 @@ def general_symbolic(n_infinite=1):
     old_H_tilde_eval = H_tilde.eval
 
     def H_eval(index):
-        return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data, np.max(index[2:]))
+        return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data)
 
     H_tilde.eval = H_eval
 
-    return H_tilde, U, U_adjoint, Y_data, H
+    return H_tilde, U, U_adjoint, Y_data, H # TODO: get rid of H in return
 
 
 def expand(H, solve_sylvester=None, *, op=None):
     """
     Replace specifics of the Hamiltonian in the general symbolic algorithm.
 
-    H : BlockSeries
-    solve_sylvester : (optional) function to use for dividing energies
+    H : BlockSeries of the Hamiltonian
+    solve_sylvester : (optional) function to use for solving Sylvester's equation
     op : (optional) function to use for matrix multiplication
 
     Returns:
-    H_tilde : BlockSeries
-    U : BlockSeries
-    U_adjoint : BlockSeries
+    H_tilde : BlockSeries of the diagonalized Hamiltonian
+    U : BlockSeries of the transformation to the diagonalized Hamiltonian
+    U_adjoint : BlockSeries of the adjoint of U
     """
     if op is None:
         op = matmul
