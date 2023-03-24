@@ -5,6 +5,8 @@
 
 # %%
 from operator import matmul, mul
+from functools import reduce
+from copy import copy
 
 import numpy as np
 import sympy
@@ -15,6 +17,8 @@ from lowdin.series import (
     zero,
     one,
     cauchy_dot_product,
+    _zero_sum,
+    Zero
 )
 
 
@@ -22,7 +26,7 @@ def general(H, solve_sylvester=None, *, op=None):
     """
     Computes the block diagonalization of a BlockSeries.
 
-    H : BlockSeries
+    H : BlockSeries of original Hamiltonian
     solve_sylvester : (optional) function that solves the Sylvester equation
     op : (optional) function to use for matrix multiplication
 
@@ -65,7 +69,7 @@ def general(H, solve_sylvester=None, *, op=None):
 
     U.eval = eval
 
-    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, exclude_last=[False, False, False])
+    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True)
     return H_tilde, U, U_adjoint
 
 
@@ -73,7 +77,7 @@ def _default_solve_sylvester(H):
     """
     Returns a function that divides a matrix by the difference of a diagonal unperturbed Hamiltonian.
     
-    H : BlockSeries
+    H : BlockSeries of original Hamiltonian
 
     Returns:
     solve_sylvester : function
@@ -134,7 +138,7 @@ def to_BlockSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H_p_AB=No
     n_infinite : (optional) number of infinite indices
 
     Returns:
-    H : BlockSeries
+    H : BlockSeries of the Hamiltonian
     """
     if H_0_AA is None:
         raise ValueError("H_0_AA must be specified")
@@ -173,7 +177,7 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
     Y_data : np.array of the Y perturbation terms
 
     Returns:
-    expr : sympy expression
+    expr : sympy expression without H_0 in it.
     """
     subs = {
         **{H_0_AA * V: rhs + V * H_0_BB for V, rhs in Y_data.items()},
@@ -186,15 +190,15 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
         return expr
     
     while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)) and len(expr.free_symbols) > 1:
-        expr = sympy.expand(expr.subs(subs))
+        expr = expr.subs(subs).expand()
     return expr
 
 
-def general_symbolic(n_infinite=1):
+def general_symbolic(initial_indices):
     """
     General symbolic algorithm for diagonalizing a Hamiltonian.
 
-    n_infinite : (optional) number of perturbative orders.
+    initial_indices : list of tuples of the indices of the nonzero terms of the Hamiltonian.
 
     Returns:
     H_tilde_s : BlockSeries of the diagonalized Hamiltonian
@@ -203,14 +207,18 @@ def general_symbolic(n_infinite=1):
     Y_data : dictionary of the right hand side of Sylvester Equation
     H : BlockSeries of the original Hamiltonian
     """
-    H_0_AA = HermitianOperator("{H_{(0,)}^{AA}}")
-    H_0_BB = HermitianOperator("{H_{(0,)}^{BB}}")
-
-    H_p_BB = {(1,): HermitianOperator("{H_{(1,)}^{BB}}")}
-    H_p_AA = {(1,): HermitianOperator("{H_{(1,)}^{AA}}")}
-    H_p_AB = {(1,): Operator("{H_{(1,)}^{AB}}")}
-
-    H = to_BlockSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
+    initial_indices = tuple(initial_indices)
+    H = BlockSeries(
+        data={
+            **{index: HermitianOperator(f"H_{index}") for index in initial_indices if index[0] == index[1]},
+            **{index: Operator(f"H_{index}") for index in initial_indices if index[0] != index[1]},
+        },
+        shape=(2, 2),
+        n_infinite=len(initial_indices[0]) - 2,
+    )
+    H_symbols = copy(H.data)
+    H_0_AA = H_symbols[(0, 0) + (0,) * H.n_infinite]
+    H_0_BB = H_symbols[(1, 1) + (0,) * H.n_infinite]
 
     H_tilde, U, U_adjoint = general(H, solve_sylvester=(lambda x: x), op=mul)
 
@@ -234,10 +242,10 @@ def general_symbolic(n_infinite=1):
 
     H_tilde.eval = H_eval
 
-    return H_tilde, U, U_adjoint, Y_data, H # TODO: get rid of H in return
+    return H_tilde, U, U_adjoint, Y_data, H_symbols
 
 
-def expand(H, solve_sylvester=None, *, op=None):
+def expanded(H, solve_sylvester=None, *, op=None):
     """
     Replace specifics of the Hamiltonian in the general symbolic algorithm.
 
@@ -255,33 +263,56 @@ def expand(H, solve_sylvester=None, *, op=None):
 
     if solve_sylvester is None:
         solve_sylvester = _default_solve_sylvester(H)
-
-    initial_orders = list(H.data.keys())
     
-    H_tilde_s, U_s, U_adjoint_s, Y_data, H_s = general_symbolic(H.n_infinite)
+    H_tilde_s, U_s, U_adjoint_s, Y_data, H_symbols = general_symbolic(H.data.keys())
     H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
 
-    V_data = {} # Stores V's solutions from Sylvester's equation
+    subs = {symbol: H.evaluated[index] for index, symbol in H_symbols.items()}
 
     def eval(index):
         H_tilde = H_tilde_s.evaluated[index]
         for V, rhs in Y_data.items():
-            if V not in V_data:
-                # Replace symbolic H before solving Sylvester's equation
-                rhs = rhs.subs({H_s.evaluated[key]: H.evaluated[key] for key in initial_orders})
-                rhs = rhs.subs({H_s.evaluated[key]: sympy.Rational(0) for key in H_s.data.keys()})
-                # Replace symbolic V's with their solutions
-                rhs = rhs.subs({V_symbolic: V_solution for V_symbolic, V_solution in V_data.items()}).expand()
-                Y_data.update({V: rhs}) # NOT SURE THIS IS NEEDED OR GOOD IDEA
-                # Solve Sylvester's equation for new element of Vs
-                V_data.update({V: solve_sylvester(rhs)})
+            if V not in subs:
+                rhs = replace(rhs, subs, op) # No general symbols left
+                subs[V] = solve_sylvester(rhs)
 
-        H_tilde = H_tilde.subs({H_s.evaluated[key]: H.evaluated[key] for key in initial_orders})
-        H_tilde = H_tilde.subs({H_s.evaluated[key]: sympy.Rational(0) for key in H_s.data.keys() if H_s.evaluated[key]})
-        H_tilde = H_tilde.subs({V_symbolic: V_solution for V_symbolic, V_solution in V_data.items()})
-
-        return H_tilde.expand()
+        H_tilde = replace(H_tilde, subs, op)
+        return H_tilde
 
     H_tilde.eval = eval
 
     return H_tilde, U, U_adjoint
+
+def replace(expr, subs, op=matmul):
+    """
+    Replace matrix multiplication in an expression with a different function for elements in subs.
+    Numerical prefactors are factored out of the matrix multiplication.
+
+    expr : sympy expression to replace
+    subs : dictionary of substitutions to make
+    op : function to use for matrix multiplication
+
+    Return:
+    result : TODO
+    """
+    if expr is zero:
+        return expr
+    subs = {
+        **subs,
+        **{Dagger(symbol): Dagger(expression) for symbol, expression in subs.items()},
+    }
+    
+    result = []
+    for term in expr.as_ordered_terms():
+        if term.is_Mul:
+            prefactor, term = term.as_coeff_Mul()
+            numerator, denominator = sympy.fraction(prefactor)
+        else:
+            numerator = denominator = 1
+        substituted_factors = [subs[factor] for factor in term.as_ordered_factors()]
+        if any(isinstance(factor, Zero) for factor in substituted_factors):
+            result.append(zero)
+        else:
+            print(substituted_factors)
+            result.append(int(numerator) * reduce(op, substituted_factors) / int(denominator))
+    return _zero_sum(result)
