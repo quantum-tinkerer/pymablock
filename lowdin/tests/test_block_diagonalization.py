@@ -5,8 +5,8 @@ import tinyarray as ta
 import pytest
 from sympy.physics.quantum import Dagger
 
-from lowdin.block_diagonalization import general, to_BlockOperatorSeries
-from lowdin.series import cauchy_dot_product, _zero
+from lowdin.block_diagonalization import general, to_BlockSeries
+from lowdin.series import cauchy_dot_product, zero
 
 
 @pytest.fixture(
@@ -42,7 +42,7 @@ def H(Ns, wanted_orders):
     wanted_orders: list of orders to compute
 
     Returns:
-    BlockOperatorSeries of the Hamiltonian
+    BlockSeries of the Hamiltonian
     """
     n_infinite = len(wanted_orders[0])
     orders = ta.array(np.eye(n_infinite))
@@ -71,14 +71,14 @@ def H(Ns, wanted_orders):
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
         hams.append({order: matrix for order, matrix in zip(orders, matrices)})
 
-    return to_BlockOperatorSeries(*hams, n_infinite)
+    return to_BlockSeries(*hams, n_infinite)
 
 
 def test_check_AB(H, wanted_orders):
     """
     Test that H_AB is zero for a random Hamiltonian.
 
-    H: BlockOperatorSeries of the Hamiltonian
+    H: BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
     H_tilde = general(H)[0]
@@ -94,13 +94,13 @@ def test_check_unitary(H, wanted_orders):
     """
     Test that the transformation is unitary.
 
-    H: BlockOperatorSeries of the Hamiltonian
+    H: BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
     zero_order = (0,) * len(wanted_orders[0])
     N_A, N_B = H.evaluated[(0, 0) + zero_order].shape[0], H.evaluated[(1, 1) + zero_order].shape[0]
     n_infinite = H.n_infinite
-    identity = to_BlockOperatorSeries(np.eye(N_A), np.eye(N_B), {}, {}, {}, n_infinite)
+    identity = to_BlockSeries(np.eye(N_A), np.eye(N_B), {}, {}, {}, n_infinite)
     _, U, U_adjoint = general(H)
     transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
 
@@ -121,11 +121,11 @@ def compute_first_order(H, order):
     """
     Compute the first order correction to the Hamiltonian.
     
-    H: BlockOperatorSeries of the Hamiltonian
+    H: BlockSeries of the Hamiltonian
     order: tuple of orders to compute
 
     Returns:
-    BlockOperatorSeries of the first order correction obtained explicitly
+    BlockSeries of the first order correction obtained explicitly
     """
     return H.evaluated[(0, 0) + order]
 
@@ -142,7 +142,7 @@ def test_first_order_H_tilde(H, wanted_orders):
     for order in permutations((0,) * (Np - 1) + (1,)):
         result = H_tilde.evaluated[(0, 0) + order]
         expected = compute_first_order(H, order)
-        if _zero == result:
+        if zero == result:
             np.testing.assert_allclose(
                 0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
             )
@@ -155,11 +155,11 @@ def compute_second_order(H, order):
     """
     Compute the second order correction to the Hamiltonian.
     
-    H: BlockOperatorSeries of the Hamiltonian
+    H: BlockSeries of the Hamiltonian
     order: tuple of orders to compute
 
     Returns:
-    BlockOperatorSeries of the second order correction obtained explicitly
+    BlockSeries of the second order correction obtained explicitly
     """
     n_infinite = H.n_infinite
     order = tuple(value//2 for value in order)
@@ -188,7 +188,7 @@ def test_second_order_H_tilde(H, wanted_orders):
     for order in permutations((0,) * (n_infinite - 1) + (2,)):
         result = H_tilde.evaluated[(0, 0) + order]
         expected = compute_second_order(H, order)
-        if _zero == result:
+        if zero == result:
             np.testing.assert_allclose(
                 0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
             )
@@ -200,7 +200,7 @@ def test_second_order_H_tilde(H, wanted_orders):
 def test_check_diagonal():
     """Test that offdiagonal H_0_AA is not allowed if solve_sylvester is not provided."""
     with pytest.raises(ValueError):
-        H = to_BlockOperatorSeries(
+        H = to_BlockSeries(
             np.array([[1, 1], [1, 1]]),
             np.eye(2),
             {},

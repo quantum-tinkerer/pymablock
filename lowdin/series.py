@@ -9,6 +9,7 @@ from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
 PENDING = object()
+one = object()
 
 # %%
 class Zero:
@@ -31,7 +32,7 @@ class Zero:
 
     adjoint = conjugate = all = __neg__ = __truediv__ = __rmul__ = __mul__
 
-_zero = Zero()
+zero = Zero()
 
 @np.vectorize
 def _mask(entry):
@@ -40,15 +41,14 @@ def _mask(entry):
 
 def _zero_sum(terms):
     """
-    Sum that returns a singleton _zero if empty and omits _zero terms
+    Sum that returns a singleton zero if empty and omits zero terms
 
     terms : iterable of terms to sum.
 
     Returns:
-    Sum of terms, or _zero if terms is empty.
+    Sum of terms, or zero if terms is empty.
     """
-    result = sum((term for term in terms if _zero != term), start=_zero)
-    return result
+    return sum((term for term in terms if zero != term), start=zero)
 
 
 class _Evaluated:
@@ -83,11 +83,14 @@ class _Evaluated:
         data = self.original.data
         for index in zip(*np.where(trial)):
             if index not in data:
+                # Calling eval gives control away; mark that this value is evaluated
+                # To be able to catch recursion and data corruption.
                 data[index] = PENDING
                 data[index] = self.original.eval(index)
             if data[index] is PENDING:
-                raise RuntimeError("Recursion detected")
+                raise RuntimeError("Infinite recursion loop detected")
             trial[index] = data[index]
+
 
         result = trial[item]
         if not one_entry:
@@ -112,7 +115,7 @@ class _Evaluated:
             )
 
 
-class BlockOperatorSeries:
+class BlockSeries:
     def __init__(self, eval=None, data=None, shape=(), n_infinite=1):
         """An infinite series that caches its items.
         The series has finite and infinite dimensions.
@@ -128,27 +131,27 @@ class BlockOperatorSeries:
         n_infinite : int
             The number of infinite dimensions.
         """
-        self.eval = (lambda _: _zero) if eval is None else eval
+        self.eval = (lambda _: zero) if eval is None else eval
         self.evaluated = _Evaluated(self)
         self.data = data or {}
         self.shape = shape
         self.n_infinite = n_infinite
 
 
-def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
+def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
     """
     Block product of series using Cauchy's formula.
 
-    series : (BlockOperatorSeries) series to be multiplied.
+    series : (BlockSeries) series to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
-    recursive : (optional) bool for whether to use recursive algorithm.
+    exclude_last : (optional) bool or list of bools on whether to exclude last order on each term.
 
     Returns:
-    (BlockOperatorSeries) Product of series.
+    (BlockSeries) Product of series.
     """
     if len(series) < 2:
-        raise ValueError("Must have at least two series to multiply.")
+        return series[0] if series else one
     if op is None:
         op = matmul
 
@@ -163,23 +166,24 @@ def cauchy_dot_product(*series, op=None, hermitian=False, recursive=False):
     if len(set(factor.n_infinite for factor in series)) > 1:
         raise ValueError("Factors must have equal number of infinite dimensions.")
 
-    def eval(index):
-        return product_by_order(
-            index, *series, op=op, hermitian=hermitian, recursive=recursive
-        )
-
-    return BlockOperatorSeries(
-        eval=eval, data=None, shape=(start, end), n_infinite=series[0].n_infinite
+    return BlockSeries(
+        eval=lambda index: product_by_order(
+            index, *series, op=op, hermitian=hermitian, exclude_last=exclude_last
+        ),
+        data=None,
+        shape=(start, end),
+        n_infinite=series[0].n_infinite,
     )
 
-def generate_orders(orders, start=None, end=None, recursive=False):
+
+def _generate_orders(orders, start=None, end=None, last=True):
     """
     Generate array of lower orders to be used in product_by_order.
 
     orders : (tuple) maximum orders of each infinite dimension.
     start : (optional) 0 or 1 to choose row index of block.
     end : (optional) 0 or 1 to choose column index of block.
-    recursive : (optional) bool for whether to use mask "orders" itself.
+    last : (optional) bool for whether to keep last order.
         This is useful to avoid recursion errors.
 
     Returns:
@@ -188,25 +192,24 @@ def generate_orders(orders, start=None, end=None, recursive=False):
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
     trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
     if start is not None:
-        if recursive:
-            trial[mask] = ma.masked
         trial[int(not start)] = ma.masked
     if end is not None:
-        if recursive:
-            trial[mask] = ma.masked
         trial[:, int(not end)] = ma.masked
+    if not last:
+        trial[mask] = ma.masked
     return trial
-    
+
+
 # %%
-def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
+def product_by_order(index, *series, op=None, hermitian=False, exclude_last=None):
     """
     Compute sum of all product of factors of wanted order.
 
     index : (tuple) index of wanted order.
-    series : (BlockOperatorSeries) series to be multiplied.
+    series : (BlockSeries) series to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
-    recursive : (optional) bool for whether to use recursive algorithm.
+    exclude_last : (optional) bool or list of bools on whether to exclude last order on each series.
 
     Returns:
     Sum of all products that contribute to the wanted order.
@@ -218,11 +221,14 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
 
     n_infinite = series[0].n_infinite
 
-    data = (
-        [generate_orders(orders, start=start, recursive=recursive)]
-        + [generate_orders(orders, recursive=recursive)] * (len(series) - 2)  # TODO: fix this, actually wrong
-        + [generate_orders(orders, end=end, recursive=recursive)]
-    )
+    if exclude_last is None:
+        exclude_last = [False] * len(series)
+    starts = [start] + [None] * (len(series) - 1)
+    ends = [None] * (len(series) - 1) + [end]
+    data = [
+        _generate_orders(orders, start=start, end=end, last=not(last))
+        for start, end, last in zip(starts, ends, exclude_last)
+    ]
 
     for indices, factor in zip(data, series):
         indices[ma.where(indices)] = factor.evaluated[ma.where(indices)]
@@ -236,7 +242,7 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
         key = tuple(ta.array(key[-n_infinite:]) for key, _ in combination)
         if sum(key) != orders:
             continue
-        values = [value for _, value in combination if value is not None]
+        values = [value for _, value in combination if value is not one]
         if hermitian and key > tuple(reversed(key)):
             continue
         temp = reduce(op, values)
@@ -244,6 +250,6 @@ def product_by_order(index, *series, op=None, hermitian=False, recursive=False):
             temp /= 2
         contributing_products.append(temp)
     result = _zero_sum(contributing_products)
-    if hermitian and _zero != result:
+    if hermitian and zero != result:
         result += Dagger(result)
     return result

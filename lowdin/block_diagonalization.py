@@ -7,30 +7,29 @@
 from operator import matmul, mul
 
 import numpy as np
-import numpy.ma as ma
 import sympy
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
-import tinyarray as ta
 
 from lowdin.series import (
-    BlockOperatorSeries,
-    _zero,
+    BlockSeries,
+    zero,
+    one,
     cauchy_dot_product,
 )
 
 
 def general(H, solve_sylvester=None, *, op=None):
     """
-    Computes the block diagonalization of a BlockOperatorSeries.
+    Computes the block diagonalization of a BlockSeries.
 
-    H : BlockOperatorSeries
+    H : BlockSeries
     solve_sylvester : (optional) function to use for dividing energies
     op : (optional) function to use for matrix multiplication
 
     Returns:
-    H_tilde : BlockOperatorSeries
-    U : BlockOperatorSeries
-    U_adjoint : BlockOperatorSeries
+    H_tilde : BlockSeries
+    U : BlockSeries
+    U_adjoint : BlockSeries
     """
     if op is None:
         op = matmul
@@ -39,7 +38,7 @@ def general(H, solve_sylvester=None, *, op=None):
         solve_sylvester = _default_solve_sylvester(H)
 
     U = initialize_U(H.n_infinite)
-    U_adjoint = BlockOperatorSeries(
+    U_adjoint = BlockSeries(
         eval=(
             lambda index: U.evaluated[index]
             if index[0] == index[1]
@@ -51,9 +50,9 @@ def general(H, solve_sylvester=None, *, op=None):
     )
 
     # Identity and temporary H_tilde for the recursion
-    identity = cauchy_dot_product(U_adjoint, U, op=op, hermitian=True, recursive=True)
+    identity = cauchy_dot_product(U_adjoint, U, op=op, hermitian=True, exclude_last=[True, True])
     H_tilde_rec = cauchy_dot_product(
-        U_adjoint, H, U, op=op, hermitian=True, recursive=True
+        U_adjoint, H, U, op=op, hermitian=True, exclude_last=[True, False, True]
     )
 
     def eval(index):
@@ -66,9 +65,7 @@ def general(H, solve_sylvester=None, *, op=None):
 
     U.eval = eval
 
-    H_tilde = cauchy_dot_product(
-        U_adjoint, H, U, op=op, hermitian=True, recursive=False
-    )
+    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, exclude_last=[False, False, False])
     return H_tilde, U, U_adjoint
 
 
@@ -76,7 +73,7 @@ def _default_solve_sylvester(H):
     """
     Returns a function that divides a matrix by the difference of its diagonal elements.
 
-    H : BlockOperatorSeries
+    H : BlockSeries
 
     Returns:
     solve_sylvester : function
@@ -103,20 +100,20 @@ def _default_solve_sylvester(H):
 
 def initialize_U(n_infinite=1):
     """
-    Initializes the BlockOperatorSeries for the transformation to diagonalized Hamiltonian.
+    Initializes the BlockSeries for the transformation to diagonalized Hamiltonian.
 
     n_infinite : (optional) number of infinite indices
 
     Returns:
-    U : BlockOperatorSeries
+    U : BlockSeries
     """
     zero_order = (0,) * n_infinite
-    U = BlockOperatorSeries(
+    U = BlockSeries(
         data={
-            **{(0, 0) + zero_order: None},
-            **{(1, 1) + zero_order: None},
-            **{(0, 1) + zero_order: _zero},
-            **{(1, 0) + zero_order: _zero},
+            **{(0, 0) + zero_order: one},
+            **{(1, 1) + zero_order: one},
+            **{(0, 1) + zero_order: zero},
+            **{(1, 0) + zero_order: zero},
         },
         shape=(2, 2),
         n_infinite=n_infinite,
@@ -124,10 +121,10 @@ def initialize_U(n_infinite=1):
     return U
 
 
-def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H_p_AB=None, n_infinite=1):
+def to_BlockSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H_p_AB=None, n_infinite=1):
     """
     TEMPORARY, WILL DELETE WHEN USER API IS READY
-    Creates a BlockOperatorSeries from a dictionary of perturbation terms.
+    Creates a BlockSeries from a dictionary of perturbation terms.
 
     H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
     H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
@@ -137,7 +134,7 @@ def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H
     n_infinite : (optional) number of infinite indices
 
     Returns:
-    H : BlockOperatorSeries
+    H : BlockSeries
     """
     if H_0_AA is None:
         raise ValueError("H_0_AA must be specified")
@@ -151,7 +148,7 @@ def to_BlockOperatorSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H
         H_p_AB = {}
 
     zeroth_order = (0,) * n_infinite
-    H = BlockOperatorSeries(
+    H = BlockSeries(
         data={
             **{(0, 0) + zeroth_order: H_0_AA},
             **{(1, 1) + zeroth_order: H_0_BB},
@@ -185,7 +182,7 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data, n_times):
             for V, rhs in Y_data.items()
         },
     }
-    if _zero == expr:
+    if zero == expr:
         return expr
     
     while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)) and len(expr.free_symbols) > 1:
@@ -198,9 +195,9 @@ def general_symbolic(n_infinite=1):
     General symbolic algorithm for diagonalizing a Hamiltonian.
 
     Returns:
-    H_tilde_s : BlockOperatorSeries
-    U_s : BlockOperatorSeries
-    U_adjoint_s : BlockOperatorSeries
+    H_tilde_s : BlockSeries
+    U_s : BlockSeries
+    U_adjoint_s : BlockSeries
     """
     H_0_AA = HermitianOperator("{H_{(0,)}^{AA}}")
     H_0_BB = HermitianOperator("{H_{(0,)}^{BB}}")
@@ -209,7 +206,7 @@ def general_symbolic(n_infinite=1):
     H_p_AA = {(1,): HermitianOperator("{H_{(1,)}^{AA}}")}
     H_p_AB = {(1,): Operator("{H_{(1,)}^{AB}}")}
 
-    H = to_BlockOperatorSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
+    H = to_BlockSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, n_infinite)
 
     H_tilde, U, U_adjoint = general(H, solve_sylvester=(lambda x: x), op=mul)
 
@@ -240,14 +237,14 @@ def expand(H, solve_sylvester=None, *, op=None):
     """
     Replace specifics of the Hamiltonian in the general symbolic algorithm.
 
-    H : BlockOperatorSeries
+    H : BlockSeries
     solve_sylvester : (optional) function to use for dividing energies
     op : (optional) function to use for matrix multiplication
 
     Returns:
-    H_tilde : BlockOperatorSeries
-    U : BlockOperatorSeries
-    U_adjoint : BlockOperatorSeries
+    H_tilde : BlockSeries
+    U : BlockSeries
+    U_adjoint : BlockSeries
     """
     if op is None:
         op = matmul
