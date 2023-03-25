@@ -143,7 +143,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
     series : list of BlockSeries to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
-    exclude_last : (optional) bool or list of bools on whether to exclude last order on each term.
+    exclude_last : (optional) list of bool for whether to exclude the last order in each factor.
 
     Returns:
     (BlockSeries) Product of series.
@@ -152,6 +152,8 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
         return series[0] if series else one
     if op is None:
         op = matmul
+    if exclude_last is None:
+        exclude_last = [False] * len(series)
 
     starts, ends = zip(*(factor.shape for factor in series))
     start, *rest_starts = starts

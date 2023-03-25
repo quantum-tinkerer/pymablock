@@ -57,23 +57,28 @@ def general(H, solve_sylvester=None, *, op=None):
         n_infinite=H.n_infinite,
     )
 
-    # Identity and temporary H_tilde for the recursion
-    identity = cauchy_dot_product(U_adjoint, U, op=op, hermitian=True, exclude_last=[True, True])
+    # Uncorrected identity and H_tilde to compute U
+    identity = cauchy_dot_product(
+        U_adjoint, U, op=op, hermitian=True, exclude_last=[True, True]
+    )
     H_tilde_rec = cauchy_dot_product(
         U_adjoint, H, U, op=op, hermitian=True, exclude_last=[True, False, True]
     )
 
     def eval(index):
-        if index[0] == index[1]:  # diagonal block
+        if index[0] == index[1]:
+            # diagonal is constrained by unitarity
             return -identity.evaluated[index] / 2
-        elif index[:2] == (0, 1):  # off-diagonal block
+        elif index[:2] == (0, 1):
+            # off-diagonal block nullifies the off-diagonal part of H_tilde
             return -solve_sylvester(H_tilde_rec.evaluated[index])
-        elif index[:2] == (1, 0):  # off-diagonal block
+        elif index[:2] == (1, 0):
+            # off-diagonal of U is anti-Hermitian
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
 
     U.eval = eval
 
-    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True, exclude_last=[False, False, False])
+    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True)
     return H_tilde, U, U_adjoint
 
 
