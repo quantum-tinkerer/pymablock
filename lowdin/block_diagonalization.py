@@ -37,7 +37,15 @@ def general(H, solve_sylvester=None, *, op=None):
     if solve_sylvester is None:
         solve_sylvester = _default_solve_sylvester(H)
 
-    U = initialize_U(H.n_infinite)
+    # Initialize the transformation as the identity operator
+    U = BlockSeries(
+        data={
+            block + (0,) * H.n_infinite: one
+            for block in ((0, 0), (1, 1))
+        },
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+    )
     U_adjoint = BlockSeries(
         eval=(
             lambda index: U.evaluated[index]
@@ -96,29 +104,6 @@ def _default_solve_sylvester(H):
         return Y * energy_denominators
 
     return solve_sylvester
-
-
-def initialize_U(n_infinite=1):
-    """
-    Initializes the BlockSeries for the transformation to diagonalized Hamiltonian.
-
-    n_infinite : (optional) number of infinite indices
-
-    Returns:
-    U : BlockSeries
-    """
-    zero_order = (0,) * n_infinite
-    U = BlockSeries(
-        data={
-            **{(0, 0) + zero_order: one},
-            **{(1, 1) + zero_order: one},
-            **{(0, 1) + zero_order: zero},
-            **{(1, 0) + zero_order: zero},
-        },
-        shape=(2, 2),
-        n_infinite=n_infinite,
-    )
-    return U
 
 
 def to_BlockSeries(H_0_AA=None, H_0_BB=None, H_p_AA=None, H_p_BB=None, H_p_AB=None, n_infinite=1):

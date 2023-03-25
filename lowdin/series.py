@@ -30,10 +30,7 @@ class Zero:
     adjoint = conjugate = __neg__ = __truediv__ = __rmul__ = __mul__
 
 zero = Zero()
-
-@np.vectorize
-def _mask(entry):
-    return isinstance(entry, Zero)
+_mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[np.bool])
 
 
 def _zero_sum(terms):
