@@ -8,8 +8,8 @@ import numpy.ma as ma
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
-PENDING = object()
-one = object()
+PENDING = object()  # sentinel value for pending evaluation
+one = object()   # singleton for identity operator
 
 # %%
 class Zero:
@@ -135,9 +135,12 @@ class BlockSeries:
 
 def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
     """
-    Block product of series using Cauchy's formula.
+    Multivariate Cauchy product of block operator series
 
-    series : (BlockSeries) series to be multiplied.
+    Notes:
+    This treats a singleton `one` as the identity operator.
+
+    series : list of BlockSeries to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
     exclude_last : (optional) bool or list of bools on whether to exclude last order on each term.
