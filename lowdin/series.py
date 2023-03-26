@@ -8,8 +8,8 @@ import numpy.ma as ma
 from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
-PENDING = object()
-one = object()
+PENDING = object()  # sentinel value for pending evaluation
+one = object()   # singleton for identity operator
 
 # %%
 class Zero:
@@ -30,10 +30,7 @@ class Zero:
     adjoint = conjugate = __neg__ = __truediv__ = __rmul__ = __mul__
 
 zero = Zero()
-
-@np.vectorize
-def _mask(entry):
-    return isinstance(entry, Zero)
+_mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[np.bool])
 
 
 def _zero_sum(terms):
@@ -138,12 +135,15 @@ class BlockSeries:
 
 def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
     """
-    Block product of series using Cauchy's formula.
+    Multivariate Cauchy product of block operator series
 
-    series : (BlockSeries) series to be multiplied.
+    Notes:
+    This treats a singleton `one` as the identity operator.
+
+    series : list of BlockSeries to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
-    exclude_last : (optional) bool or list of bools on whether to exclude last order on each term.
+    exclude_last : (optional) list of bool for whether to exclude the last order in each factor.
 
     Returns:
     (BlockSeries) Product of series.
@@ -152,6 +152,8 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
         return series[0] if series else one
     if op is None:
         op = matmul
+    if exclude_last is None:
+        exclude_last = [False] * len(series)
 
     starts, ends = zip(*(factor.shape for factor in series))
     start, *rest_starts = starts
