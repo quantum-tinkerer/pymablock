@@ -191,6 +191,9 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
     
     while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)) and len(expr.free_symbols) > 1:
         expr = expr.subs(subs).expand()
+
+    if isinstance(expr, sympy.core.numbers.Zero):
+        return zero
     return expr
 
 
@@ -275,7 +278,6 @@ def expanded(H, solve_sylvester=None, *, op=None):
             if V not in subs:
                 rhs = replace(rhs, subs, op) # No general symbols left
                 subs[V] = solve_sylvester(rhs)
-
         H_tilde = replace(H_tilde, subs, op)
         return H_tilde
 
@@ -293,9 +295,9 @@ def replace(expr, subs, op=matmul):
     op : function to use for matrix multiplication
 
     Return:
-    result : TODO
+    result : sympy expression with replacements such that general symbols are not present
     """
-    if expr is zero:
+    if expr == zero:
         return expr
     subs = {
         **subs,
@@ -313,6 +315,5 @@ def replace(expr, subs, op=matmul):
         if any(isinstance(factor, Zero) for factor in substituted_factors):
             result.append(zero)
         else:
-            print(substituted_factors)
             result.append(int(numerator) * reduce(op, substituted_factors) / int(denominator))
     return _zero_sum(result)
