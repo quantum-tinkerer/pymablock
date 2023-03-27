@@ -168,6 +168,9 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
     Returns:
     expr : zero or sympy expression without H_0 in it.
     """
+    if zero == expr:
+        return expr
+
     subs = {
         **{H_0_AA * V: rhs + V * H_0_BB for V, rhs in Y_data.items()},
         **{
@@ -175,8 +178,6 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
             for V, rhs in Y_data.items()
         },
     }
-    if zero == expr:
-        return expr
     
     while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)) and len(expr.free_symbols) > 1:
         expr = expr.subs(subs).expand()
