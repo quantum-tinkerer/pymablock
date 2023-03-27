@@ -184,7 +184,7 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
 
     if isinstance(expr, sympy.core.numbers.Zero):
         return zero
-    return expr
+    return expr or zero
 
 
 def general_symbolic(initial_indices):
