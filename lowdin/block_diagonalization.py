@@ -258,11 +258,10 @@ def expanded(H, solve_sylvester=None, *, op=None):
         solve_sylvester = _default_solve_sylvester(H)
     
     H_tilde_s, U_s, U_adjoint_s, Y_data, H_symbols = general_symbolic(H.data.keys())
-    H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
 
     subs = {symbol: H.evaluated[index] for index, symbol in H_symbols.items()}
 
-    def eval(index):
+    def _H_tilde_eval(index):
         H_tilde = H_tilde_s.evaluated[index]
         for V, rhs in Y_data.items():
             if V not in subs:
