@@ -275,7 +275,7 @@ def expanded(H, solve_sylvester=None, *, op=None):
 
     return H_tilde, U, U_adjoint
 
-def replace(expr, subs, op=matmul):
+def replace(expr, subs, op):
     """
     Replace matrix multiplication in an expression with a different function for elements in subs.
     Numerical prefactors are factored out of the matrix multiplication.
