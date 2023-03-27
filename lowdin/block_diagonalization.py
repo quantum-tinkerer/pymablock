@@ -160,13 +160,13 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
     """
     Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
 
-    expr : sympy expression to simplify
+    expr : zero or sympy expression to simplify
     H_0_AA : np.array of the unperturbed Hamiltonian of subspace AA
     H_0_BB : np.array of the unperturbed Hamiltonian of subspace BB
     Y_data : np.array of the Y perturbation terms
 
     Returns:
-    expr : sympy expression without H_0 in it.
+    expr : zero or sympy expression without H_0 in it.
     """
     subs = {
         **{H_0_AA * V: rhs + V * H_0_BB for V, rhs in Y_data.items()},
