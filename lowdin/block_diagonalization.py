@@ -270,7 +270,29 @@ def expanded(H, solve_sylvester=None, *, op=None):
         H_tilde = replace(H_tilde, subs, op)
         return H_tilde
 
-    H_tilde.eval = eval
+    H_tilde = BlockSeries(eval=_H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
+
+    def _U_eval(index):
+        U = U_s.evaluated[index].expand()
+        for V, rhs in Y_data.items():
+            if V not in subs:
+                rhs = replace(rhs, subs, op)
+                subs[V] = solve_sylvester(rhs)
+        U = replace(U, subs, op)
+        return U
+
+    U = BlockSeries(eval=_U_eval, shape=(2, 2), n_infinite=H.n_infinite)
+
+    U_adjoint = BlockSeries(
+        eval=(
+            lambda index: U.evaluated[index]
+            if index[0] == index[1]
+            else -U.evaluated[index]
+        ),
+        data=None,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+    )
 
     return H_tilde, U, U_adjoint
 
