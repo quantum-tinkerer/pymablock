@@ -303,7 +303,7 @@ def replace(expr, subs, op):
             numerator = denominator = 1
         substituted_factors = [subs[factor] for factor in term.as_ordered_factors()]
         if any(zero == factor for factor in substituted_factors):
-            result.append(zero)
-        else:
-            result.append(int(numerator) * reduce(op, substituted_factors) / int(denominator))
+            continue
+        result.append(int(numerator) * reduce(op, substituted_factors) / int(denominator))
+
     return _zero_sum(result)
