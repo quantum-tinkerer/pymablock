@@ -27,8 +27,6 @@ class Zero:
     def __eq__(self, other):
         return isinstance(other, Zero)
 
-    def __hash__(self):
-        return super().__hash__()
 
     adjoint = conjugate = all = __neg__ = __truediv__ = __rmul__ = __mul__
 
