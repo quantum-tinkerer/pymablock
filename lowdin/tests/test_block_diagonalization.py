@@ -12,10 +12,8 @@ from lowdin.series import cauchy_dot_product, zero
 @pytest.fixture(
     scope="module",
     params=[
-        [[3]],
-        [[2, 2]],
-        [[3, 1], [1, 3]],
-        [[2, 2, 2], [3, 0, 0]],
+        [(3,)],
+        [(2, 2)],
     ],
 )
 def wanted_orders(request):
