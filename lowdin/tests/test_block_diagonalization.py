@@ -207,19 +207,21 @@ def test_check_diagonal():
         )
         general(H)
 
-@pytest.mark.skip(reason="Not working yet")
 def test_equivalence_general_expanded(H, wanted_orders):
     """Test that the general and expanded methods give the same results."""
     H_tilde_general, _, _ = general(H)
     H_tilde_expanded, _, _ = expanded(H)
     for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in ((0, 0), (1, 1), (0, 1)):
-            result_general = H_tilde_general.evaluated[tuple(block + order)]
-            result_expanded = H_tilde_expanded.evaluated[tuple(block + order)]
+            result_general = H_tilde_general.evaluated[block + order]
+            result_expanded = H_tilde_expanded.evaluated[block + order]
             if zero == result_general:
                 assert zero == result_expanded
+            elif zero == result_expanded:
+                np.testing.assert_allclose(
+                    0, result_general, atol=10**-5, err_msg=f"{order=}"
+                )
             else:
                 np.testing.assert_allclose(
-                    np.array(result_general).real, np.array(result_expanded).real, atol=10**-2, err_msg=f"{order=}"
+                    result_general, result_expanded, atol=10**-5, err_msg=f"{order=}"
                 )
