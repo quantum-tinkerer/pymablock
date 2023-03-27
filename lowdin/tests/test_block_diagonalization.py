@@ -132,7 +132,7 @@ def test_first_order_H_tilde(H, wanted_orders):
     """
     Test that the first order is computed correctly.
 
-    hamiltonians: list of Hamiltonians
+    H : BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
     H_tilde = general(H)[0]
@@ -177,7 +177,7 @@ def compute_second_order(H, order):
 def test_second_order_H_tilde(H, wanted_orders):
     """Test that the second order is computed correctly.
 
-    hamiltonians: list of Hamiltonians
+    H : BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
     H_tilde = general(H)[0]
@@ -208,7 +208,12 @@ def test_check_diagonal():
         general(H)
 
 def test_equivalence_general_expanded(H, wanted_orders):
-    """Test that the general and expanded methods give the same results."""
+    """
+    Test that the general and expanded methods give the same results.
+    
+    H: BlockSeries of the Hamiltonian
+    wanted_orders: list of orders to compute
+    """
     H_tilde_general, _, _ = general(H)
     H_tilde_expanded, _, _ = expanded(H)
     for order in wanted_orders:
