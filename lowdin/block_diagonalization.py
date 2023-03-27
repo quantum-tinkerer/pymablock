@@ -68,7 +68,7 @@ def general(H, solve_sylvester=None, *, op=None):
         U_adjoint, H, U, op=op, hermitian=True, exclude_last=[True, False, True]
     )
 
-    def eval(index):
+    def _eval(index):
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
             return -identity.evaluated[index] / 2
@@ -79,7 +79,7 @@ def general(H, solve_sylvester=None, *, op=None):
             # off-diagonal of U is anti-Hermitian
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
 
-    U.eval = eval
+    U.eval = _eval
 
     H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True)
     return H_tilde, U, U_adjoint
@@ -219,21 +219,21 @@ def general_symbolic(initial_indices):
 
     old_U_eval = U.eval
 
-    def U_eval(index):
+    def _U_eval(index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
             Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data)
             return V
         return old_U_eval(index)
 
-    U.eval = U_eval
+    U.eval = _U_eval
 
     old_H_tilde_eval = H_tilde.eval
 
-    def H_eval(index):
+    def _H_tilde_eval(index):
         return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data)
 
-    H_tilde.eval = H_eval
+    H_tilde.eval = _H_tilde_eval
 
     return H_tilde, U, U_adjoint, Y_data, H_symbols
 
