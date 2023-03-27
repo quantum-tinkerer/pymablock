@@ -297,7 +297,7 @@ def replace(expr, subs, op=matmul):
     Return:
     result : sympy expression with replacements such that general symbols are not present
     """
-    if expr == zero:
+    if zero == expr:
         return expr
     subs = {
         **subs,
@@ -312,7 +312,7 @@ def replace(expr, subs, op=matmul):
         else:
             numerator = denominator = 1
         substituted_factors = [subs[factor] for factor in term.as_ordered_factors()]
-        if any(isinstance(factor, Zero) for factor in substituted_factors):
+        if any(zero == factor for factor in substituted_factors):
             result.append(zero)
         else:
             result.append(int(numerator) * reduce(op, substituted_factors) / int(denominator))
