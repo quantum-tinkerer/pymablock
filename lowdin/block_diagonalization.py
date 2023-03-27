@@ -277,15 +277,15 @@ def expanded(H, solve_sylvester=None, *, op=None):
 
 def replace(expr, subs, op):
     """
-    Replace matrix multiplication in an expression with a different function for elements in subs.
+    Substitute terms in an expression and multiply them accordingly.
     Numerical prefactors are factored out of the matrix multiplication.
 
     expr : sympy expression to replace
     subs : dictionary of substitutions to make
-    op : function to use for matrix multiplication
+    op : function to use to multiply the substituted terms
 
     Return:
-    result : sympy expression with replacements such that general symbols are not present
+    result : zero or sympy expression with replacements such that general symbols are not present
     """
     if zero == expr:
         return expr
