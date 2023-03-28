@@ -257,7 +257,8 @@ def expanded(H, solve_sylvester=None, *, op=None):
     if solve_sylvester is None:
         solve_sylvester = _default_solve_sylvester(H)
     
-    H_tilde_s, U_s, U_adjoint_s, Y_data, H_symbols = general_symbolic(H.data.keys())
+    H_tilde_s, U_s, _, Y_data, H_symbols = general_symbolic(H.data.keys())
+    _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
 
     subs = {symbol: H.evaluated[index] for index, symbol in H_symbols.items()}
 
@@ -272,27 +273,17 @@ def expanded(H, solve_sylvester=None, *, op=None):
 
     H_tilde = BlockSeries(eval=_H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
 
+    old_U_eval = U.eval
     def _U_eval(index):
-        U = U_s.evaluated[index].expand()
-        for V, rhs in Y_data.items():
-            if V not in subs:
-                rhs = replace(rhs, subs, op)
-                subs[V] = solve_sylvester(rhs)
-        U = replace(U, subs, op)
-        return U
-
-    U = BlockSeries(eval=_U_eval, shape=(2, 2), n_infinite=H.n_infinite)
-
-    U_adjoint = BlockSeries(
-        eval=(
-            lambda index: U.evaluated[index]
-            if index[0] == index[1]
-            else -U.evaluated[index]
-        ),
-        data=None,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-    )
+        if index[:2] == (0, 1):
+            symbolic_U = U_s.evaluated[index] # Update Y_data
+            for V, rhs in Y_data.items():
+                if V not in subs:
+                    rhs = replace(rhs, subs, op) # No general symbols left
+                    subs[V] = solve_sylvester(rhs)
+            return subs[Operator(f"V_{{{index[2:]}}}")]
+        return old_U_eval(index)
+    U.eval = _U_eval
 
     return H_tilde, U, U_adjoint
 
