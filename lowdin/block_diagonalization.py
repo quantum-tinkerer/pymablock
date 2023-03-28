@@ -182,8 +182,8 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
     while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)) and len(expr.free_symbols) > 1:
         expr = expr.subs(subs).expand()
 
-    if isinstance(expr, sympy.core.numbers.Zero):
-        return zero
+    # if isinstance(expr, sympy.core.numbers.Zero):
+    #     return zero
     return expr or zero
 
 
