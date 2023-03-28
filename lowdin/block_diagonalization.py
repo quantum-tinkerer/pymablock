@@ -264,12 +264,8 @@ def expanded(H, solve_sylvester=None, *, op=None):
 
     def H_tilde_eval(index):
         H_tilde = H_tilde_s.evaluated[index]
-        for V, rhs in Y_data.items():
-            if V not in subs:
-                rhs = _replace(rhs, subs, op) # No general symbols left
-                subs[V] = solve_sylvester(rhs)
-        H_tilde = _replace(H_tilde, subs, op)
-        return H_tilde
+        _update_subs(Y_data, subs, solve_sylvester, op)
+        return _replace(H_tilde, subs, op)
 
     H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
 
@@ -277,15 +273,26 @@ def expanded(H, solve_sylvester=None, *, op=None):
     def U_eval(index):
         if index[:2] == (0, 1):
             symbolic_U = U_s.evaluated[index] # Update Y_data
-            for V, rhs in Y_data.items():
-                if V not in subs:
-                    rhs = _replace(rhs, subs, op) # No general symbols left
-                    subs[V] = solve_sylvester(rhs)
+            _update_subs(Y_data, subs, solve_sylvester, op)
             return subs[Operator(f"V_{{{index[2:]}}}")]
         return old_U_eval(index)
     U.eval = U_eval
 
     return H_tilde, U, U_adjoint
+
+def _update_subs(Y_data, subs, solve_sylvester, op):
+    """
+    Update the solutions to the Sylvester equation in subs.
+
+    Y_data : dictionary of the right hand side of Sylvester Equation
+    subs : dictionary of substitutions to make
+    solve_sylvester : function to use for solving Sylvester's equation
+    op : function to use for matrix multiplication
+    """
+    for V, rhs in Y_data.items():
+        if V not in subs:
+            rhs = _replace(rhs, subs, op) # No general symbols left
+            subs[V] = solve_sylvester(rhs)
 
 def _replace(expr, subs, op):
     """
