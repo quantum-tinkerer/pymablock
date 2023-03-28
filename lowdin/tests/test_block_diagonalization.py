@@ -207,6 +207,24 @@ def test_check_diagonal():
         )
         general(H)
 
+def double_orders(data):
+    """
+    Double the orders of the keys in a dictionary.
+
+    data: dictionary of the form {(block, order): value}
+
+    Returns:
+    dictionary of the form {(block, 2*order): value}    
+    """
+    new_data = {}
+    for key, value in data.items():
+        if zero == value:
+            continue
+        block = key[:2]
+        order = tuple(2*ta.array(key[2:]))
+        new_data[block + order] = value
+    return new_data
+
 def test_equivalence_general_expanded(H, wanted_orders):
     """
     Test that the general and expanded methods give the same results.
@@ -214,22 +232,27 @@ def test_equivalence_general_expanded(H, wanted_orders):
     H: BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
-    H_tilde_general, U_general, _ = general(H)
-    H_tilde_expanded, U_expanded, _ = expanded(H)
-    for order in wanted_orders:
-        for block in ((0, 0), (1, 1), (0, 1)):
-            for operator_general, operator_expanded in zip(
-                (H_tilde_general, U_general), (H_tilde_expanded, U_expanded)
-            ):
-                result_general = operator_general.evaluated[block + order]
-                result_expanded = operator_expanded.evaluated[block + order]
-                if zero == result_general:
-                    assert zero == result_expanded
-                elif zero == result_expanded:
-                    np.testing.assert_allclose(
-                        0, result_general, atol=10**-5, err_msg=f"{order=}"
-                    )
-                else:
-                    np.testing.assert_allclose(
-                        result_general, result_expanded, atol=10**-5, err_msg=f"{order=}"
-                    )
+    H_doubled = H
+    H_doubled.data = double_orders(H.data)
+
+    Hs = [H, H_doubled]
+    for H_i in Hs:
+        H_tilde_general, U_general, _ = general(H_i)
+        H_tilde_expanded, U_expanded, _ = expanded(H_i)
+        for order in wanted_orders:
+            for block in ((0, 0), (1, 1), (0, 1)):
+                for operator_general, operator_expanded in zip(
+                    (H_tilde_general, U_general), (H_tilde_expanded, U_expanded)
+                ):
+                    result_general = operator_general.evaluated[block + order]
+                    result_expanded = operator_expanded.evaluated[block + order]
+                    if zero == result_general:
+                        assert zero == result_expanded
+                    elif zero == result_expanded:
+                        np.testing.assert_allclose(
+                            0, result_general, atol=10**-5, err_msg=f"{order=}"
+                        )
+                    else:
+                        np.testing.assert_allclose(
+                            result_general, result_expanded, atol=10**-5, err_msg=f"{order=}"
+                        )
