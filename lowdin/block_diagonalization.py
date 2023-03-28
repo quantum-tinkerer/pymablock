@@ -68,7 +68,7 @@ def general(H, solve_sylvester=None, *, op=None):
         U_adjoint, H, U, op=op, hermitian=True, exclude_last=[True, False, True]
     )
 
-    def _eval(index):
+    def eval(index):
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
             return -identity.evaluated[index] / 2
@@ -79,7 +79,7 @@ def general(H, solve_sylvester=None, *, op=None):
             # off-diagonal of U is anti-Hermitian
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
 
-    U.eval = _eval
+    U.eval = eval
 
     H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True)
     return H_tilde, U, U_adjoint
@@ -219,21 +219,21 @@ def general_symbolic(initial_indices):
 
     old_U_eval = U.eval
 
-    def _U_eval(index):
+    def U_eval(index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
             Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data)
             return V
         return old_U_eval(index)
 
-    U.eval = _U_eval
+    U.eval = U_eval
 
     old_H_tilde_eval = H_tilde.eval
 
-    def _H_tilde_eval(index):
+    def H_tilde_eval(index):
         return _commute_H0_away(old_H_tilde_eval(index), H_0_AA, H_0_BB, Y_data)
 
-    H_tilde.eval = _H_tilde_eval
+    H_tilde.eval = H_tilde_eval
 
     return H_tilde, U, U_adjoint, Y_data, H_symbols
 
@@ -262,32 +262,32 @@ def expanded(H, solve_sylvester=None, *, op=None):
 
     subs = {symbol: H.evaluated[index] for index, symbol in H_symbols.items()}
 
-    def _H_tilde_eval(index):
+    def H_tilde_eval(index):
         H_tilde = H_tilde_s.evaluated[index]
         for V, rhs in Y_data.items():
             if V not in subs:
-                rhs = replace(rhs, subs, op) # No general symbols left
+                rhs = _replace(rhs, subs, op) # No general symbols left
                 subs[V] = solve_sylvester(rhs)
-        H_tilde = replace(H_tilde, subs, op)
+        H_tilde = _replace(H_tilde, subs, op)
         return H_tilde
 
-    H_tilde = BlockSeries(eval=_H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
+    H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
 
     old_U_eval = U.eval
-    def _U_eval(index):
+    def U_eval(index):
         if index[:2] == (0, 1):
             symbolic_U = U_s.evaluated[index] # Update Y_data
             for V, rhs in Y_data.items():
                 if V not in subs:
-                    rhs = replace(rhs, subs, op) # No general symbols left
+                    rhs = _replace(rhs, subs, op) # No general symbols left
                     subs[V] = solve_sylvester(rhs)
             return subs[Operator(f"V_{{{index[2:]}}}")]
         return old_U_eval(index)
-    U.eval = _U_eval
+    U.eval = U_eval
 
     return H_tilde, U, U_adjoint
 
-def replace(expr, subs, op):
+def _replace(expr, subs, op):
     """
     Substitute terms in an expression and multiply them accordingly.
     Numerical prefactors are factored out of the matrix multiplication.
