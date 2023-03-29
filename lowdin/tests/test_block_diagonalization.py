@@ -6,7 +6,7 @@ import pytest
 from sympy.physics.quantum import Dagger
 
 from lowdin.block_diagonalization import general, expanded, to_BlockSeries
-from lowdin.series import BlockSeries, cauchy_dot_product, zero
+from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
 
 
 @pytest.fixture(
@@ -266,16 +266,20 @@ def test_doubled_orders(algorithm, H, wanted_orders):
     data = H.data
     H_doubled = BlockSeries(data=double_orders(data), shape=H.shape, n_infinite=H.n_infinite)
 
-    H_tilde, _, _ = algorithm(H)
-    H_tilde_doubled, _, _ = algorithm(H_doubled)
+    H_tilde, U, _ = algorithm(H)
+    H_tilde_doubled, U_doubled, _ = algorithm(H_doubled)
 
     for wanted_order in wanted_orders:
         blocks = np.index_exp[:2, :2]
         orders = tuple(slice(None, order+1, None) for order in wanted_order)
         doubled_orders = tuple(slice(None, 2*(order+1), None) for order in wanted_order)
 
-        result = H_tilde.evaluated[blocks + orders].compressed()
-        result_doubled = H_tilde_doubled.evaluated[blocks + doubled_orders].compressed()
-        assert len(result) == len(result_doubled)
-        for result, result_doubled in zip(result, result_doubled):
-            np.testing.assert_allclose(result, result_doubled, atol=10**-5)
+        for operator, operator_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
+            result = operator.evaluated[blocks + orders].compressed()
+            result_doubled = operator_doubled.evaluated[blocks + doubled_orders].compressed()
+            assert len(result) == len(result_doubled)
+            for result, result_doubled in zip(result, result_doubled):
+                if isinstance(result, object):
+                    assert isinstance(result_doubled, object)
+                    continue
+                np.testing.assert_allclose(result, result_doubled, atol=10**-5)
