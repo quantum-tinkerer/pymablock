@@ -267,22 +267,15 @@ def test_doubled_orders(algorithm, H, wanted_orders):
     H_doubled = BlockSeries(data=double_orders(data), shape=H.shape, n_infinite=H.n_infinite)
 
     H_tilde, _, _ = algorithm(H)
-    H_tilde_doubled, _, _ = algorithm(H)
+    H_tilde_doubled, _, _ = algorithm(H_doubled)
 
-    for order in wanted_orders:
-        doubled_order = order#tuple(2*ta.array(order))
-        for block in ((0, 0), (1, 1), (0, 1)):
-            result = H_tilde.evaluated[block + order]
-            result_doubled = H_tilde_doubled.evaluated[block + doubled_order]
-            if zero == result:
-                print(result)
-                print(result_doubled)
-                assert zero == result_doubled
-            elif zero == result_doubled:
-                np.testing.assert_allclose(
-                    0, result, atol=10**-5, err_msg=f"{order=}"
-                )
-            else:
-                np.testing.assert_allclose(
-                    result, result_doubled, atol=10**-5, err_msg=f"{order=}"
-                )
+    for wanted_order in wanted_orders:
+        blocks = np.index_exp[:2, :2]
+        orders = tuple(slice(None, order+1, None) for order in wanted_order)
+        doubled_orders = tuple(slice(None, 2*(order+1), None) for order in wanted_order)
+
+        result = H_tilde.evaluated[blocks + orders].compressed()
+        result_doubled = H_tilde_doubled.evaluated[blocks + doubled_orders].compressed()
+        assert len(result) == len(result_doubled)
+        for result, result_doubled in zip(result, result_doubled):
+            np.testing.assert_allclose(result, result_doubled, atol=10**-5)
