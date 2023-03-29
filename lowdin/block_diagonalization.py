@@ -220,7 +220,10 @@ def general_symbolic(initial_indices):
     def U_eval(index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
-            Y_data[V] = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data)
+            Y = _commute_H0_away(old_U_eval(index), H_0_AA, H_0_BB, Y_data)
+            if Y == zero:
+                return zero
+            Y_data[V] = Y
             return V
         return old_U_eval(index)
 
