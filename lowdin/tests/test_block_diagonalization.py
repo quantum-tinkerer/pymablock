@@ -96,7 +96,8 @@ def test_check_unitary(H, wanted_orders):
     wanted_orders: list of orders to compute
     """
     zero_order = (0,) * len(wanted_orders[0])
-    N_A, N_B = H.evaluated[(0, 0) + zero_order].shape[0], H.evaluated[(1, 1) + zero_order].shape[0]
+    N_A = H.evaluated[(0, 0) + zero_order].shape[0]
+    N_B = H.evaluated[(1, 1) + zero_order].shape[0]
     n_infinite = H.n_infinite
     identity = to_BlockSeries(np.eye(N_A), np.eye(N_B), {}, {}, {}, n_infinite)
     _, U, U_adjoint = general(H)
@@ -196,7 +197,7 @@ def test_second_order_H_tilde(H, wanted_orders):
 
 
 def test_check_diagonal():
-    """Test that offdiagonal H_0_AA is not allowed if solve_sylvester is not provided."""
+    """Test that offdiagonal H_0_AA requires solve_sylvester."""
     with pytest.raises(ValueError):
         H = to_BlockSeries(
             np.array([[1, 1], [1, 1]]),
@@ -219,11 +220,11 @@ def test_equivalence_general_expanded(H, wanted_orders):
     H_tilde_expanded, U_expanded, _ = expanded(H)
     for order in wanted_orders:
         for block in ((0, 0), (1, 1), (0, 1)):
-            for operator_general, operator_expanded in zip(
+            for op_general, op_expanded in zip(
                 (H_tilde_general, U_general), (H_tilde_expanded, U_expanded)
             ):
-                result_general = operator_general.evaluated[block + order]
-                result_expanded = operator_expanded.evaluated[block + order]
+                result_general = op_general.evaluated[block + order]
+                result_expanded = op_expanded.evaluated[block + order]
                 if zero == result_general:
                     assert zero == result_expanded
                 elif zero == result_expanded:
@@ -232,7 +233,8 @@ def test_equivalence_general_expanded(H, wanted_orders):
                     )
                 else:
                     np.testing.assert_allclose(
-                        result_general, result_expanded, atol=10**-5, err_msg=f"{order=}"
+                        result_general, result_expanded, atol=10**-5,
+                        err_msg=f"{order=}"
                     )
 
 
@@ -264,7 +266,11 @@ def test_doubled_orders(algorithm, H, wanted_orders):
     """
 
     data = H.data
-    H_doubled = BlockSeries(data=double_orders(data), shape=H.shape, n_infinite=H.n_infinite)
+    H_doubled = BlockSeries(
+        data=double_orders(data),
+        shape=H.shape,
+        n_infinite=H.n_infinite
+    )
 
     H_tilde, U, _ = algorithm(H)
     H_tilde_doubled, U_doubled, _ = algorithm(H_doubled)
@@ -274,9 +280,9 @@ def test_doubled_orders(algorithm, H, wanted_orders):
         orders = tuple(slice(None, order+1, None) for order in wanted_order)
         doubled_orders = tuple(slice(None, 2*(order+1), None) for order in wanted_order)
 
-        for operator, operator_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
-            result = operator.evaluated[blocks + orders].compressed()
-            result_doubled = operator_doubled.evaluated[blocks + doubled_orders].compressed()
+        for op, op_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
+            result = op.evaluated[blocks + orders].compressed()
+            result_doubled = op_doubled.evaluated[blocks + doubled_orders].compressed()
             assert len(result) == len(result_doubled)
             for result, result_doubled in zip(result, result_doubled):
                 if isinstance(result, object):

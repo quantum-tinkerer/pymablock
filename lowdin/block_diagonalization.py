@@ -1,7 +1,8 @@
 # %%
 # # The polynomial alternative to Lowdin perturbation theory
 #
-# See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view) for the motivation and the expressions
+# See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view)
+# for the motivation and the expressions
 
 # %%
 from operator import matmul, mul
@@ -87,7 +88,8 @@ def general(H, solve_sylvester=None, *, op=None):
 
 def _default_solve_sylvester(H):
     """
-    Returns a function that divides a matrix by the difference of a diagonal unperturbed Hamiltonian.
+    Returns a function that divides a matrix by the difference
+    of a diagonal unperturbed Hamiltonian.
 
     H : BlockSeries of original Hamiltonian
 
@@ -189,7 +191,7 @@ def general_symbolic(initial_indices):
     """
     General symbolic algorithm for diagonalizing a Hamiltonian.
 
-    initial_indices : list of tuples of the indices of the nonzero terms of the Hamiltonian.
+    initial_indices : list of tuples of the indices of nonzero terms of the Hamiltonian.
 
     Returns:
     H_tilde_s : BlockSeries of the diagonalized Hamiltonian
@@ -201,8 +203,14 @@ def general_symbolic(initial_indices):
     initial_indices = tuple(initial_indices)
     H = BlockSeries(
         data={
-            **{index: HermitianOperator(f"H_{index}") for index in initial_indices if index[0] == index[1]},
-            **{index: Operator(f"H_{index}") for index in initial_indices if index[0] != index[1]},
+            **{
+                index: HermitianOperator(f"H_{index}")
+                for index in initial_indices if index[0] == index[1]
+            },
+            **{
+                index: Operator(f"H_{index}")
+                for index in initial_indices if index[0] != index[1]
+            },
         },
         shape=(2, 2),
         n_infinite=len(initial_indices[0]) - 2,
@@ -305,7 +313,8 @@ def _replace(expr, subs, op):
     op : function to use to multiply the substituted terms
 
     Return:
-    result : zero or sympy expression with replacements such that general symbols are not present
+    result : zero or sympy expression with replacements such that
+        general symbols are not present
     """
     if zero == expr:
         return expr
