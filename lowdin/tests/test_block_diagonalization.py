@@ -196,12 +196,25 @@ def test_second_order_H_tilde(H, wanted_orders):
         )
 
 
-def test_check_diagonal():
+def test_check_diagonal_H_0_AA():
     """Test that offdiagonal H_0_AA requires solve_sylvester."""
     with pytest.raises(ValueError):
         H = to_BlockSeries(
             np.array([[1, 1], [1, 1]]),
             np.eye(2),
+            {},
+            {},
+            {},
+        )
+        general(H)
+
+
+def test_check_diagonal_H_0_BB():
+    """Test that offdiagonal H_0_BB requires solve_sylvester."""
+    with pytest.raises(ValueError):
+        H = to_BlockSeries(
+            np.eye(2),
+            np.array([[1, 1], [1, 1]]),
             {},
             {},
             {},
