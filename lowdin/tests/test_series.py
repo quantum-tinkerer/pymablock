@@ -32,7 +32,17 @@ def test_indexing(possible_keys_and_errors):
     """
     key, shape = possible_keys_and_errors
     try:
-        a = BlockSeries(lambda x: x, data=None, shape=(5,), n_infinite=2)
+        a = BlockSeries(lambda *x: x, data=None, shape=(5,), n_infinite=2)
         assert shape == a.evaluated[key].shape
     except Exception as e:
         assert type(e) == shape
+
+
+def test_fibonacci_series():
+    F = BlockSeries(
+        eval=lambda x: F.evaluated[x-2] + F.evaluated[x-1],
+        data={(0,): 0, (1,): 1},
+        shape=(), n_infinite=1,
+    )
+
+    np.testing.assert_allclose(8, F.evaluated[6])
