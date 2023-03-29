@@ -275,7 +275,7 @@ def expanded(H, solve_sylvester=None, *, op=None):
         if index[:2] == (0, 1):
             symbolic_U = U_s.evaluated[index] # Update Y_data
             _update_subs(Y_data, subs, solve_sylvester, op)
-            return subs[Operator(f"V_{{{index[2:]}}}")]
+            return subs.get(Operator(f"V_{{{index[2:]}}}"), zero)
         return old_U_eval(index)
     U.eval = U_eval
 
