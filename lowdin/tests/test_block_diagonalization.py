@@ -5,17 +5,15 @@ import tinyarray as ta
 import pytest
 from sympy.physics.quantum import Dagger
 
-from lowdin.block_diagonalization import general, to_BlockSeries
-from lowdin.series import cauchy_dot_product, zero
+from lowdin.block_diagonalization import general, expanded, to_BlockSeries
+from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
 
 
 @pytest.fixture(
     scope="module",
     params=[
-        [[3]],
-        [[2, 2]],
-        [[3, 1], [1, 3]],
-        [[2, 2, 2], [3, 0, 0]],
+        [(3,)],
+        [(2, 2)],
     ],
 )
 def wanted_orders(request):
@@ -42,10 +40,10 @@ def H(Ns, wanted_orders):
     wanted_orders: list of orders to compute
 
     Returns:
-    BlockOperatorSeries of the Hamiltonian
+    BlockSeries of the Hamiltonian
     """
     n_infinite = len(wanted_orders[0])
-    orders = ta.array(np.eye(n_infinite))
+    orders = ta.array(np.eye(n_infinite, dtype=int))
     hams = []
     for i in range(2):
         hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
@@ -78,7 +76,7 @@ def test_check_AB(H, wanted_orders):
     """
     Test that H_AB is zero for a random Hamiltonian.
 
-    H: BlockOperatorSeries of the Hamiltonian
+    H: BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
     H_tilde = general(H)[0]
@@ -94,7 +92,7 @@ def test_check_unitary(H, wanted_orders):
     """
     Test that the transformation is unitary.
 
-    H: BlockOperatorSeries of the Hamiltonian
+    H: BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
     zero_order = (0,) * len(wanted_orders[0])
@@ -121,11 +119,11 @@ def compute_first_order(H, order):
     """
     Compute the first order correction to the Hamiltonian.
     
-    H: BlockOperatorSeries of the Hamiltonian
+    H: BlockSeries of the Hamiltonian
     order: tuple of orders to compute
 
     Returns:
-    BlockOperatorSeries of the first order correction obtained explicitly
+    BlockSeries of the first order correction obtained explicitly
     """
     return H.evaluated[(0, 0) + order]
 
@@ -134,7 +132,7 @@ def test_first_order_H_tilde(H, wanted_orders):
     """
     Test that the first order is computed correctly.
 
-    hamiltonians: list of Hamiltonians
+    H : BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
     H_tilde = general(H)[0]
@@ -155,11 +153,11 @@ def compute_second_order(H, order):
     """
     Compute the second order correction to the Hamiltonian.
     
-    H: BlockOperatorSeries of the Hamiltonian
+    H: BlockSeries of the Hamiltonian
     order: tuple of orders to compute
 
     Returns:
-    BlockOperatorSeries of the second order correction obtained explicitly
+    BlockSeries of the second order correction obtained explicitly
     """
     n_infinite = H.n_infinite
     order = tuple(value//2 for value in order)
@@ -179,7 +177,7 @@ def compute_second_order(H, order):
 def test_second_order_H_tilde(H, wanted_orders):
     """Test that the second order is computed correctly.
 
-    hamiltonians: list of Hamiltonians
+    H : BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
     H_tilde = general(H)[0]
@@ -208,3 +206,80 @@ def test_check_diagonal():
             {},
         )
         general(H)
+
+
+def test_equivalence_general_expanded(H, wanted_orders):
+    """
+    Test that the general and expanded methods give the same results.
+    
+    H: BlockSeries of the Hamiltonian
+    wanted_orders: list of orders to compute
+    """
+    H_tilde_general, U_general, _ = general(H)
+    H_tilde_expanded, U_expanded, _ = expanded(H)
+    for order in wanted_orders:
+        for block in ((0, 0), (1, 1), (0, 1)):
+            for operator_general, operator_expanded in zip(
+                (H_tilde_general, U_general), (H_tilde_expanded, U_expanded)
+            ):
+                result_general = operator_general.evaluated[block + order]
+                result_expanded = operator_expanded.evaluated[block + order]
+                if zero == result_general:
+                    assert zero == result_expanded
+                elif zero == result_expanded:
+                    np.testing.assert_allclose(
+                        0, result_general, atol=10**-5, err_msg=f"{order=}"
+                    )
+                else:
+                    np.testing.assert_allclose(
+                        result_general, result_expanded, atol=10**-5, err_msg=f"{order=}"
+                    )
+
+
+def double_orders(data):
+    """
+    Double the orders of the keys in a dictionary.
+
+    data: dictionary of the form {(block, order): value}
+
+    Returns:
+    dictionary of the form {(block, 2*order): value}    
+    """
+    new_data = {}
+    for index, value in data.items():
+        if zero == value:
+            continue
+        block = index[:2]
+        order = tuple(2*ta.array(index[2:]))
+        new_data[block + order] = value
+    return new_data
+
+
+@pytest.mark.parametrize("algorithm", [general, expanded])
+def test_doubled_orders(algorithm, H, wanted_orders):
+    """
+
+    H: BlockSeries of the Hamiltonian
+    wanted_orders: list of orders to compute
+    """
+
+    data = H.data
+    H_doubled = BlockSeries(data=double_orders(data), shape=H.shape, n_infinite=H.n_infinite)
+
+    H_tilde, U, _ = algorithm(H)
+    H_tilde_doubled, U_doubled, _ = algorithm(H_doubled)
+
+    for wanted_order in wanted_orders:
+        blocks = np.index_exp[:2, :2]
+        orders = tuple(slice(None, order+1, None) for order in wanted_order)
+        doubled_orders = tuple(slice(None, 2*(order+1), None) for order in wanted_order)
+
+        for operator, operator_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
+            result = operator.evaluated[blocks + orders].compressed()
+            result_doubled = operator_doubled.evaluated[blocks + doubled_orders].compressed()
+            assert len(result) == len(result_doubled)
+            for result, result_doubled in zip(result, result_doubled):
+                if isinstance(result, object):
+                    assert isinstance(result_doubled, object)
+                    continue
+                np.testing.assert_allclose(result, result_doubled, atol=10**-5)

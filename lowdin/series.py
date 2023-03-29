@@ -27,7 +27,8 @@ class Zero:
     def __eq__(self, other):
         return isinstance(other, Zero)
 
-    adjoint = conjugate = __neg__ = __truediv__ = __rmul__ = __mul__
+
+    adjoint = conjugate = all = __neg__ = __truediv__ = __rmul__ = __mul__
 
 zero = Zero()
 _mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[np.bool])
@@ -45,7 +46,6 @@ def _zero_sum(terms):
     return sum((term for term in terms if zero != term), start=zero)
 
 
-# %%
 class _Evaluated:
     def __init__(self, original):
         self.original = original
@@ -143,7 +143,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
     series : list of BlockSeries to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
-    exclude_last : (optional) list of bool for whether to exclude the last order in each factor.
+    exclude_last : (optional) None or list of bools on whether to exclude last order on each term.
 
     Returns:
     (BlockSeries) Product of series.
@@ -177,6 +177,18 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
 
 
 def _generate_orders(orders, start=None, end=None, last=True):
+    """
+    Generate array of lower orders to be used in product_by_order.
+
+    orders : (tuple) maximum orders of each infinite dimension.
+    start : (optional) 0 or 1 to choose row index of block.
+    end : (optional) 0 or 1 to choose column index of block.
+    last : (optional) bool for whether to keep last order.
+        This is useful to avoid recursion errors.
+
+    Returns:
+    (numpy.ma.MaskedArray) Array of orders.
+    """
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
     trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
     if start is not None:
@@ -197,7 +209,7 @@ def product_by_order(index, *series, op=None, hermitian=False, exclude_last=None
     series : (BlockSeries) series to be multiplied.
     op : (optional) callable for multiplying factors.
     hermitian : (optional) bool for whether to use hermiticity.
-    exclude_last : (optional) bool or list of bools on whether to exclude last order on each series.
+    exclude_last : (optional) None or list of bools on whether to exclude last order on each series.
 
     Returns:
     Sum of all products that contribute to the wanted order.
