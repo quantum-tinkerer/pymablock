@@ -118,7 +118,7 @@ def test_check_unitary(H, wanted_orders):
 def compute_first_order(H, order):
     """
     Compute the first order correction to the Hamiltonian.
-    
+
     H: BlockSeries of the Hamiltonian
     order: tuple of orders to compute
 
@@ -152,7 +152,7 @@ def test_first_order_H_tilde(H, wanted_orders):
 def compute_second_order(H, order):
     """
     Compute the second order correction to the Hamiltonian.
-    
+
     H: BlockSeries of the Hamiltonian
     order: tuple of orders to compute
 
@@ -211,7 +211,7 @@ def test_check_diagonal():
 def test_equivalence_general_expanded(H, wanted_orders):
     """
     Test that the general and expanded methods give the same results.
-    
+
     H: BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
@@ -243,7 +243,7 @@ def double_orders(data):
     data: dictionary of the form {(block, order): value}
 
     Returns:
-    dictionary of the form {(block, 2*order): value}    
+    dictionary of the form {(block, 2*order): value}
     """
     new_data = {}
     for index, value in data.items():

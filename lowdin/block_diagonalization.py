@@ -88,7 +88,7 @@ def general(H, solve_sylvester=None, *, op=None):
 def _default_solve_sylvester(H):
     """
     Returns a function that divides a matrix by the difference of a diagonal unperturbed Hamiltonian.
-    
+
     H : BlockSeries of original Hamiltonian
 
     Returns:
@@ -178,7 +178,7 @@ def _commute_H0_away(expr, H_0_AA, H_0_BB, Y_data):
             for V, rhs in Y_data.items()
         },
     }
-    
+
     while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)) and len(expr.free_symbols) > 1:
         expr = expr.subs(subs).expand()
 
@@ -257,7 +257,7 @@ def expanded(H, solve_sylvester=None, *, op=None):
 
     if solve_sylvester is None:
         solve_sylvester = _default_solve_sylvester(H)
-    
+
     H_tilde_s, U_s, _, Y_data, H_symbols = general_symbolic(H.data.keys())
     _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
 
@@ -313,7 +313,7 @@ def _replace(expr, subs, op):
         **subs,
         **{Dagger(symbol): Dagger(expression) for symbol, expression in subs.items()},
     }
-    
+
     result = []
     for term in expr.as_ordered_terms():
         if term.is_Mul:
