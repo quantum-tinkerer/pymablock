@@ -61,6 +61,9 @@ class _Evaluated:
         -------
         The item or items at the given index.
         """
+        if not isinstance(item, tuple):
+            item = (item,)
+
         self.check_finite(item[-self.original.n_infinite :])
         self.check_number_perturbations(item)
 
@@ -81,7 +84,7 @@ class _Evaluated:
                 # Calling eval gives control away; mark that this value is evaluated
                 # To be able to catch recursion and data corruption.
                 data[index] = PENDING
-                data[index] = self.original.eval(index)
+                data[index] = self.original.eval(*index)
             if data[index] is PENDING:
                 raise RuntimeError("Infinite recursion loop detected")
             trial[index] = data[index]
@@ -126,7 +129,7 @@ class BlockSeries:
         n_infinite : int
             The number of infinite dimensions.
         """
-        self.eval = (lambda _: zero) if eval is None else eval
+        self.eval = (lambda *_: zero) if eval is None else eval
         self.evaluated = _Evaluated(self)
         self.data = data or {}
         self.shape = shape
@@ -168,7 +171,7 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
         raise ValueError("Factors must have equal number of infinite dimensions.")
 
     return BlockSeries(
-        eval=lambda index: product_by_order(
+        eval=lambda *index: product_by_order(
             index, *series, op=op, hermitian=hermitian, exclude_last=exclude_last
         ),
         data=None,
