@@ -18,11 +18,18 @@ from lowdin.series import BlockSeries
         [np.index_exp[6, 3, 3], IndexError],  # Should raise an error
     ],
 )
+
+
 def possible_keys_and_errors(request):
     return request.param
 
 
-def test_indices(possible_keys_and_errors):
+def test_indexing(possible_keys_and_errors):
+    """
+    Test that indexing works like in numpy arrays.
+
+    possible_keys_and_errors: tuple of (key, shape)
+    """
     key, shape = possible_keys_and_errors
     try:
         a = BlockSeries(lambda x: x, data=None, shape=(5,), n_infinite=2)
