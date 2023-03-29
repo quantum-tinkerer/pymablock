@@ -6,7 +6,7 @@ import pytest
 from sympy.physics.quantum import Dagger
 
 from lowdin.block_diagonalization import general, expanded, to_BlockSeries
-from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
+from lowdin.series import BlockSeries, cauchy_dot_product, zero
 
 
 @pytest.fixture(
