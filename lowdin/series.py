@@ -2,7 +2,7 @@
 from itertools import product
 from functools import reduce
 from operator import matmul
-from typing import Any, Optional, Callable, Tuple, List, Dict
+from typing import Any, Optional, Callable
 
 import numpy as np
 import numpy.ma as ma
@@ -32,10 +32,10 @@ class Zero:
 
 
 zero = Zero()
-_mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[np.bool])
+_mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[bool])
 
 
-def _zero_sum(terms: List[Any]) -> Any:
+def _zero_sum(terms: list[Any]) -> Any:
     """
     Sum that returns a singleton zero if empty and omits zero terms
 
@@ -48,11 +48,11 @@ def _zero_sum(terms: List[Any]) -> Any:
 
 
 class _Evaluated:
-    def __init__(self, original: "BlockSeries"):
+    def __init__(self, original: "BlockSeries") -> None:
         self.original = original
 
     def __getitem__(
-        self, item: int | slice | Tuple[int | slice]
+        self, item: int | slice | tuple[int | slice, ...] 
     ) -> ma.MaskedArray[Any] | Any:
         """
         Evaluate the series at the given index, following numpy's indexing rules.
@@ -98,7 +98,7 @@ class _Evaluated:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
 
-    def check_finite(self, orders: Tuple[int | slice]):
+    def check_finite(self, orders: tuple[int | slice, ...]):
         """
         Check that the indices of the infinite dimension are finite and positive.
 
@@ -111,7 +111,7 @@ class _Evaluated:
                 elif isinstance(order.start, int) and order.start < 0:
                     raise IndexError("Cannot evaluate negative order")
 
-    def check_number_perturbations(self, item: Tuple[int | slice]):
+    def check_number_perturbations(self, item: tuple[int | slice, ...]):
         """
         Check that the number of indices is correct.
 
@@ -127,9 +127,9 @@ class _Evaluated:
 class BlockSeries:
     def __init__(
         self,
-        eval: Optional[Callable[[Tuple[int]], Any]] = None,
-        data: Optional[Dict[Tuple[int], Any]] = None,
-        shape: Tuple[Optional[int]] = (),
+        eval: Optional[Callable[[tuple[int, ...]], Any]] = None,
+        data: Optional[dict[tuple[int, ...], Any]] = None,
+        shape: tuple[int, ...] = (),
         n_infinite: int = 1,
     ) -> None:
         """An infinite series that caches its items.
@@ -153,7 +153,7 @@ def cauchy_dot_product(
     *series: BlockSeries,
     op: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: Optional[List[bool]] = None
+    exclude_last: Optional[list[bool]] = None
 ):
     """
     Multivariate Cauchy product of BlockSeries.
@@ -200,7 +200,7 @@ def cauchy_dot_product(
 
 
 def _generate_orders(
-    orders: Tuple[int], start: Optional[int] = None, end: Optional[int] = None, last: bool = True
+    orders: tuple[int, ...], start: Optional[int] = None, end: Optional[int] = None, last: bool = True
 ) -> ma.MaskedArray:
     """
     Generate array of lower orders to be used in product_by_order.
@@ -227,11 +227,11 @@ def _generate_orders(
 
 # %%
 def product_by_order(
-    index: Tuple[int],
+    index: tuple[int, ...],
     *series: BlockSeries,
     op: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: Optional[List[bool]] = None
+    exclude_last: Optional[list[bool]] = None
 ) -> Any:
     """
     Compute sum of all product of factors of a wanted order.

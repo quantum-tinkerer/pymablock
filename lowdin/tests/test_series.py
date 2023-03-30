@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any
 
 import numpy as np
 import pytest
@@ -26,7 +26,7 @@ def possible_keys_and_errors(request):
     return request.param
 
 
-def test_indexing(possible_keys_and_errors: Tuple[Tuple[Tuple[int]], Any]) -> None:
+def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) -> None:
     """
     Test that indexing works like in numpy arrays.
 
