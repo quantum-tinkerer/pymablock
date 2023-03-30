@@ -26,7 +26,7 @@ def possible_keys_and_errors(request):
     return request.param
 
 
-def test_indexing(possible_keys_and_errors: Tuple[Tuple[Tuple(int)], Any]) -> None:
+def test_indexing(possible_keys_and_errors: Tuple[Tuple[Tuple[int]], Any]) -> None:
     """
     Test that indexing works like in numpy arrays.
 
