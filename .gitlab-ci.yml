@@ -34,7 +34,7 @@ before_script:
 
 run tests:
   script:
-    - pip install pytest-cov pytest-randomly pytest-repeat
+    - pip install pytest-cov pytest-randomly pytest-repeat pytest-mypy
     - py.test
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
