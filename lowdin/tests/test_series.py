@@ -1,3 +1,5 @@
+from typing import Any, Tuple
+
 import numpy as np
 import pytest
 
@@ -24,7 +26,7 @@ def possible_keys_and_errors(request):
     return request.param
 
 
-def test_indexing(possible_keys_and_errors):
+def test_indexing(possible_keys_and_errors: Tuple[Tuple[Tuple(int)], Any]) -> None:
     """
     Test that indexing works like in numpy arrays.
 
@@ -38,7 +40,7 @@ def test_indexing(possible_keys_and_errors):
         assert type(e) == shape
 
 
-def test_fibonacci_series():
+def test_fibonacci_series() -> None:
     F = BlockSeries(
         eval=lambda x: F.evaluated[x-2] + F.evaluated[x-1],
         data={(0,): 0, (1,): 1},

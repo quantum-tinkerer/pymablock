@@ -39,7 +39,7 @@ def general(
 
     Returns:
     H_tilde : Block diagonalized Hamiltonian.
-    U : Unitary transformation matrix such that H_tilde = U^H H U.
+    U : Unitary transformation that block diagonalizes H such that H_tilde = U^H H U.
     U_adjoint : Adjoint of U.
     """
     if op is None:
@@ -213,7 +213,8 @@ def general_symbolic(
 
     Returns:
     H_tilde_s : Symbolic diagonalized Hamiltonian.
-    U_s : Symbolic unitary matrix that diagonalizes H such that U_s * H * U_s^H = H_tilde_s.
+    U_s : Symbolic unitary matrix that block diagonalizes H such that
+        U_s * H * U_s^H = H_tilde_s.
     U_adjoint_s : Symbolic adjoint of U_s.
     Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
     H : Symbolic initial Hamiltonian, unperturbed and perturbation.
@@ -274,7 +275,8 @@ def expanded(
     op: Optional[Callable] = None,
 ) -> Tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    Diagonalize a Hamiltonian using the general_symbolic algorithm and replacing the inputs.
+    Diagonalize a Hamiltonian using the general_symbolic algorithm and
+    replacing the inputs.
 
     H : Initial Hamiltonian, unperturbed and perturbation.
     solve_sylvester : (optional) function to use for solving Sylvester's equation.
@@ -282,7 +284,7 @@ def expanded(
 
     Returns:
     H_tilde : Diagonalized Hamiltonian.
-    U : Unitary matrix that diagonalizes H such that U * H * U^H = H_tilde.
+    U : Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
     U_adjoint : Adjoint of U.
     """
     if op is None:
