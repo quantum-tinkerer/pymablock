@@ -2,7 +2,7 @@
 from itertools import product
 from functools import reduce
 from operator import matmul
-from typing import Any, Optional, Callable, Tuple, List
+from typing import Any, Optional, Callable, Tuple, List, Dict
 
 import numpy as np
 import numpy.ma as ma
@@ -128,7 +128,7 @@ class BlockSeries:
     def __init__(
         self,
         eval: Optional[Callable[[Tuple[int]], Any]] = None,
-        data: Optional[dict] = None,
+        data: Optional[Dict[Tuple[int], Any]] = None,
         shape: Tuple[Optional[int]] = (),
         n_infinite: int = 1,
     ) -> None:

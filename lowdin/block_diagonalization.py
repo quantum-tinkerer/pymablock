@@ -8,7 +8,7 @@
 from operator import matmul, mul
 from functools import reduce
 from copy import copy
-from typing import Any, Optional, Callable, Tuple, List
+from typing import Any, Optional, Callable, Tuple, List, Dict
 
 import numpy as np
 import sympy
@@ -127,9 +127,9 @@ def _default_solve_sylvester(H: BlockSeries) -> Callable:
 def to_BlockSeries(
     H_0_AA: Any,
     H_0_BB: Any,
-    H_p_AA: Optional[dict[Tuple, Any]] = None,
-    H_p_BB: Optional[dict[Tuple, Any]] = None,
-    H_p_AB: Optional[dict[Tuple, Any]] = None,
+    H_p_AA: Optional[Dict[Tuple[int], Any]] = None,
+    H_p_BB: Optional[Dict[Tuple[int], Any]] = None,
+    H_p_AB: Optional[Dict[Tuple[int], Any]] = None,
     n_infinite: int = 1,
 ) -> BlockSeries:
     """
@@ -170,7 +170,7 @@ def to_BlockSeries(
 
 
 def _commute_H0_away(
-    expr: Any, H_0_AA: Any, H_0_BB: Any, Y_data: dict[Operator, Any]
+    expr: Any, H_0_AA: Any, H_0_BB: Any, Y_data: Dict[Operator, Any]
 ) -> Any:
     """
     Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
@@ -205,7 +205,7 @@ def _commute_H0_away(
 
 def general_symbolic(
     initial_indices: List[Tuple[int]],
-) -> Tuple[BlockSeries, BlockSeries, BlockSeries, dict[Operator, Any], BlockSeries]:
+) -> Tuple[BlockSeries, BlockSeries, BlockSeries, Dict[Operator, Any], BlockSeries]:
     """
     General symbolic algorithm for diagonalizing a Hamiltonian.
 
@@ -318,8 +318,8 @@ def expanded(
 
 
 def _update_subs(
-    Y_data: dict[Operator, Any],
-    subs: dict[Operator | HermitianOperator, Any],
+    Y_data: Dict[Operator, Any],
+    subs: Dict[Operator | HermitianOperator, Any],
     solve_sylvester: Callable,
     op: Callable,
 ) -> None:
@@ -338,7 +338,7 @@ def _update_subs(
 
 
 def _replace(
-    expr: Any, subs: dict[Operator | HermitianOperator, Any], op: Callable
+    expr: Any, subs: Dict[Operator | HermitianOperator, Any], op: Callable
 ) -> Any:
     """
     Substitute terms in an expression and multiply them accordingly.
