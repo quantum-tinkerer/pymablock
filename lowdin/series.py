@@ -2,7 +2,7 @@
 from itertools import product
 from functools import reduce
 from operator import matmul
-from typing import Any
+from typing import Any, Optional, Callable, Tuple, List
 
 import numpy as np
 import numpy.ma as ma
@@ -35,7 +35,7 @@ zero = Zero()
 _mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[np.bool])
 
 
-def _zero_sum(terms: list[Any]) -> Any:
+def _zero_sum(terms: List[Any]) -> Any:
     """
     Sum that returns a singleton zero if empty and omits zero terms
 
@@ -52,7 +52,7 @@ class _Evaluated:
         self.original = original
 
     def __getitem__(
-        self, item: int | slice | tuple[int | slice]
+        self, item: int | slice | Tuple[int | slice]
     ) -> ma.MaskedArray[Any] | Any:
         """
         Evaluate the series at the given index, following numpy's indexing rules.
@@ -98,7 +98,7 @@ class _Evaluated:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
 
-    def check_finite(self, orders: tuple[int | slice]):
+    def check_finite(self, orders: Tuple[int | slice]):
         """
         Check that the indices of the infinite dimension are finite and positive.
 
@@ -111,7 +111,7 @@ class _Evaluated:
                 elif isinstance(order.start, int) and order.start < 0:
                     raise IndexError("Cannot evaluate negative order")
 
-    def check_number_perturbations(self, item: tuple[int | slice]):
+    def check_number_perturbations(self, item: Tuple[int | slice]):
         """
         Check that the number of indices is correct.
 
@@ -127,9 +127,9 @@ class _Evaluated:
 class BlockSeries:
     def __init__(
         self,
-        eval: callable | None = None,
-        data: dict | None = None,
-        shape: tuple[int | None] = (),
+        eval: Optional[Callable[[Tuple[int]], Any]] = None,
+        data: Optional[dict] = None,
+        shape: Tuple[Optional[int]] = (),
         n_infinite: int = 1,
     ) -> None:
         """An infinite series that caches its items.
@@ -151,9 +151,9 @@ class BlockSeries:
 
 def cauchy_dot_product(
     *series: BlockSeries,
-    op: callable | None = None,
+    op: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: list[bool] | None = None
+    exclude_last: Optional[List[bool]] = None
 ):
     """
     Multivariate Cauchy product of BlockSeries.
@@ -162,7 +162,8 @@ def cauchy_dot_product(
     This treats a singleton `one` as the identity operator.
 
     series : Series to multiply using their block structure.
-    op : (optional) callable for multiplying elements of the series.
+    op : (optional) Function for multiplying elements of the series.
+        Default is matrix multiplication matmul.
     hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
     exclude_last : (optional) whether to exclude last order on each term.
         This is useful to avoid infinite recursion on some algorithms.
@@ -199,7 +200,7 @@ def cauchy_dot_product(
 
 
 def _generate_orders(
-    orders: tuple, start: int | None = None, end: int | None = None, last: bool = True
+    orders: Tuple[int], start: Optional[int] = None, end: Optional[int] = None, last: bool = True
 ) -> ma.MaskedArray:
     """
     Generate array of lower orders to be used in product_by_order.
@@ -226,18 +227,19 @@ def _generate_orders(
 
 # %%
 def product_by_order(
-    index: tuple[int],
+    index: Tuple[int],
     *series: BlockSeries,
-    op: callable | None = None,
+    op: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: list[bool] | None = None
+    exclude_last: Optional[List[bool]] = None
 ) -> Any:
     """
     Compute sum of all product of factors of a wanted order.
 
     index : Index of the wanted order.
     series : Series to multiply using their block structure.
-    op : (optional) callable for multiplying elements of the series.
+    op : (optional) Function for multiplying elements of the series.
+        Default is matrix multiplication matmul.
     hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
     exclude_last : (optional) whether to exclude last order on each term.
         This is useful to avoid infinite recursion on some algorithms.

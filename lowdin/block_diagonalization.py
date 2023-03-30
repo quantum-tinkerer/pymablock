@@ -8,7 +8,7 @@
 from operator import matmul, mul
 from functools import reduce
 from copy import copy
-from typing import Any
+from typing import Any, Optional, Callable, Tuple, List
 
 import numpy as np
 import sympy
@@ -25,10 +25,10 @@ from lowdin.series import (
 
 def general(
     H: BlockSeries,
-    solve_sylvester: callable | None = None,
+    solve_sylvester: Optional[Callable] = None,
     *,
-    op: callable | None = None,
-) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
+    op: Optional[Callable] = None,
+) -> Tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Computes the block diagonalization of a Hamiltonian.
 
@@ -94,7 +94,7 @@ def general(
     return H_tilde, U, U_adjoint
 
 
-def _default_solve_sylvester(H: BlockSeries) -> callable:
+def _default_solve_sylvester(H: BlockSeries) -> Callable:
     """
     Returns a function that divides a matrix by the difference
     of a numerical diagonal unperturbed Hamiltonian.
@@ -118,7 +118,7 @@ def _default_solve_sylvester(H: BlockSeries) -> callable:
 
     energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
 
-    def solve_sylvester(Y):
+    def solve_sylvester(Y: Any) -> Any:
         return Y * energy_denominators
 
     return solve_sylvester
@@ -127,9 +127,9 @@ def _default_solve_sylvester(H: BlockSeries) -> callable:
 def to_BlockSeries(
     H_0_AA: Any,
     H_0_BB: Any,
-    H_p_AA: dict[tuple, Any] | None = None,
-    H_p_BB: dict[tuple, Any] | None = None,
-    H_p_AB: dict[tuple, Any] | None = None,
+    H_p_AA: Optional[dict[Tuple, Any]] = None,
+    H_p_BB: Optional[dict[Tuple, Any]] = None,
+    H_p_AB: Optional[dict[Tuple, Any]] = None,
     n_infinite: int = 1,
 ) -> BlockSeries:
     """
@@ -204,8 +204,8 @@ def _commute_H0_away(
 
 
 def general_symbolic(
-    initial_indices: list[tuple[int]],
-) -> tuple[BlockSeries, BlockSeries, BlockSeries, dict[Operator, Any], BlockSeries]:
+    initial_indices: List[Tuple[int]],
+) -> Tuple[BlockSeries, BlockSeries, BlockSeries, dict[Operator, Any], BlockSeries]:
     """
     General symbolic algorithm for diagonalizing a Hamiltonian.
 
@@ -269,10 +269,10 @@ def general_symbolic(
 
 def expanded(
     H: BlockSeries,
-    solve_sylvester: callable | None = None,
+    solve_sylvester: Optional[Callable] = None,
     *,
-    op: callable | None = None,
-) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
+    op: Optional[Callable] = None,
+) -> Tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Diagonalize a Hamiltonian using the general_symbolic algorithm and replacing the inputs.
 
@@ -320,8 +320,8 @@ def expanded(
 def _update_subs(
     Y_data: dict[Operator, Any],
     subs: dict[Operator | HermitianOperator, Any],
-    solve_sylvester: callable,
-    op: callable,
+    solve_sylvester: Callable,
+    op: Callable,
 ) -> None:
     """
     Store the solutions to the Sylvester equation in subs.
@@ -338,7 +338,7 @@ def _update_subs(
 
 
 def _replace(
-    expr: Any, subs: dict[Operator | HermitianOperator, Any], op: callable
+    expr: Any, subs: dict[Operator | HermitianOperator, Any], op: Callable
 ) -> Any:
     """
     Substitute terms in an expression and multiply them accordingly.
