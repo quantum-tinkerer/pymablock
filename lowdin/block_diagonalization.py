@@ -23,7 +23,12 @@ from lowdin.series import (
 )
 
 
-def general(H: BlockSeries, solve_sylvester: callable = None, *, op: callable = None) -> tuple:
+def general(
+    H: BlockSeries,
+    solve_sylvester: callable | None = None,
+    *,
+    op: callable | None = None,
+) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Computes the block diagonalization of a Hamiltonian.
 
@@ -55,9 +60,9 @@ def general(H: BlockSeries, solve_sylvester: callable = None, *, op: callable = 
 
     U_adjoint = BlockSeries(
         eval=(
-            lambda *index: U.evaluated[index] # diagonal block is Hermitian
+            lambda *index: U.evaluated[index]  # diagonal block is Hermitian
             if index[0] == index[1]
-            else -U.evaluated[index] # off-diagonal block is anti-Hermitian
+            else -U.evaluated[index]  # off-diagonal block is anti-Hermitian
         ),
         data=None,
         shape=(2, 2),
@@ -119,10 +124,14 @@ def _default_solve_sylvester(H: BlockSeries) -> callable:
     return solve_sylvester
 
 
-def to_BlockSeries(H_0_AA: np.array = None, H_0_BB: np.array = None,
-                   H_p_AA: dict = None, H_p_BB: dict = None, H_p_AB: dict = None,
-                   n_infinite: int = 1
-                   ) -> BlockSeries:
+def to_BlockSeries(
+    H_0_AA: Any,
+    H_0_BB: Any,
+    H_p_AA: dict[tuple, Any] | None = None,
+    H_p_BB: dict[tuple, Any] | None = None,
+    H_p_AB: dict[tuple, Any] | None = None,
+    n_infinite: int = 1,
+) -> BlockSeries:
     """
     TEMPORARY, WILL DELETE WHEN USER API IS READY
     Creates a BlockSeries from a dictionary of perturbation terms.
@@ -137,10 +146,6 @@ def to_BlockSeries(H_0_AA: np.array = None, H_0_BB: np.array = None,
     Returns:
     H : BlockSeries of the Hamiltonian
     """
-    if H_0_AA is None:
-        raise ValueError("H_0_AA must be specified")
-    if H_0_BB is None:
-        raise ValueError("H_0_BB must be specified")
     if H_p_AA is None:
         H_p_AA = {}
     if H_p_BB is None:
@@ -164,7 +169,9 @@ def to_BlockSeries(H_0_AA: np.array = None, H_0_BB: np.array = None,
     return H
 
 
-def _commute_H0_away(expr: Any, H_0_AA: Any, H_0_BB: Any, Y_data: dict) -> Any:
+def _commute_H0_away(
+    expr: Any, H_0_AA: Any, H_0_BB: Any, Y_data: dict[Operator, Any]
+) -> Any:
     """
     Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
 
@@ -187,17 +194,22 @@ def _commute_H0_away(expr: Any, H_0_AA: Any, H_0_BB: Any, Y_data: dict) -> Any:
         },
     }
 
-    while any(H in expr.free_symbols for H in (H_0_AA, H_0_BB)) and len(expr.free_symbols) > 1:
+    while (
+        any(H in expr.free_symbols for H in (H_0_AA, H_0_BB))
+        and len(expr.free_symbols) > 1
+    ):
         expr = expr.subs(subs).expand()
 
     return expr or zero
 
 
-def general_symbolic(initial_indices: list) -> tuple:
+def general_symbolic(
+    initial_indices: list[tuple[int]],
+) -> tuple[BlockSeries, BlockSeries, BlockSeries, dict[Operator, Any], BlockSeries]:
     """
     General symbolic algorithm for diagonalizing a Hamiltonian.
 
-    initial_indices : list of tuples of the indices of nonzero terms of the Hamiltonian.
+    initial_indices : indices of nonzero terms of the Hamiltonian to be diagonalized.
 
     Returns:
     H_tilde_s : Symbolic diagonalized Hamiltonian.
@@ -211,11 +223,13 @@ def general_symbolic(initial_indices: list) -> tuple:
         data={
             **{
                 index: HermitianOperator(f"H_{index}")
-                for index in initial_indices if index[0] == index[1]
+                for index in initial_indices
+                if index[0] == index[1]
             },
             **{
                 index: Operator(f"H_{index}")
-                for index in initial_indices if index[0] != index[1]
+                for index in initial_indices
+                if index[0] != index[1]
             },
         },
         shape=(2, 2),
@@ -253,7 +267,12 @@ def general_symbolic(initial_indices: list) -> tuple:
     return H_tilde, U, U_adjoint, Y_data, H_symbols
 
 
-def expanded(H: BlockSeries, solve_sylvester: callable = None, *, op: callable = None) -> tuple:
+def expanded(
+    H: BlockSeries,
+    solve_sylvester: callable | None = None,
+    *,
+    op: callable | None = None,
+) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Diagonalize a Hamiltonian using the general_symbolic algorithm and replacing the inputs.
 
@@ -285,18 +304,25 @@ def expanded(H: BlockSeries, solve_sylvester: callable = None, *, op: callable =
     H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
 
     old_U_eval = U.eval
+
     def U_eval(*index):
         if index[:2] == (0, 1):
-            U_s.evaluated[index] # Update Y_data
+            U_s.evaluated[index]  # Update Y_data
             _update_subs(Y_data, subs, solve_sylvester, op)
             return subs.get(Operator(f"V_{{{index[2:]}}}"), zero)
         return old_U_eval(*index)
+
     U.eval = U_eval
 
     return H_tilde, U, U_adjoint
 
 
-def _update_subs(Y_data: dict, subs: dict, solve_sylvester: callable, op: callable) -> None:
+def _update_subs(
+    Y_data: dict[Operator, Any],
+    subs: dict[Operator | HermitianOperator, Any],
+    solve_sylvester: callable,
+    op: callable,
+) -> None:
     """
     Store the solutions to the Sylvester equation in subs.
 
@@ -307,11 +333,13 @@ def _update_subs(Y_data: dict, subs: dict, solve_sylvester: callable, op: callab
     """
     for V, rhs in Y_data.items():
         if V not in subs:
-            rhs = _replace(rhs, subs, op) # No general symbols left
+            rhs = _replace(rhs, subs, op)  # No general symbols left
             subs[V] = solve_sylvester(rhs)
 
 
-def _replace(expr: Any, subs: dict, op: callable) -> Any:
+def _replace(
+    expr: Any, subs: dict[Operator | HermitianOperator, Any], op: callable
+) -> Any:
     """
     Substitute terms in an expression and multiply them accordingly.
     Numerical prefactors are factored out of the matrix multiplication.
@@ -340,6 +368,8 @@ def _replace(expr: Any, subs: dict, op: callable) -> Any:
         substituted_factors = [subs[factor] for factor in term.as_ordered_factors()]
         if any(zero == factor for factor in substituted_factors):
             continue
-        result.append(int(numerator) * reduce(op, substituted_factors) / int(denominator))
+        result.append(
+            int(numerator) * reduce(op, substituted_factors) / int(denominator)
+        )
 
     return _zero_sum(result)

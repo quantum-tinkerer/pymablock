@@ -2,6 +2,7 @@
 from itertools import product
 from functools import reduce
 from operator import matmul
+from typing import Any
 
 import numpy as np
 import numpy.ma as ma
@@ -9,7 +10,7 @@ from sympy.physics.quantum import Dagger
 import tinyarray as ta
 
 PENDING = object()  # sentinel value for pending evaluation
-one = object()   # singleton for identity operator
+one = object()  # singleton for identity operator
 
 # %%
 class Zero:
@@ -18,27 +19,27 @@ class Zero:
     This is used to avoid having to check for zero terms in the sum.
     """
 
-    def __mul__(self, other=None):
+    def __mul__(self, other: Any = None) -> "Zero":
         return self
 
-    def __add__(self, other):
+    def __add__(self, other: Any) -> Any:
         return other
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return isinstance(other, Zero)
 
-
     adjoint = conjugate = all = __neg__ = __truediv__ = __rmul__ = __mul__
+
 
 zero = Zero()
 _mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[np.bool])
 
 
-def _zero_sum(terms):
+def _zero_sum(terms: list[Any]) -> Any:
     """
     Sum that returns a singleton zero if empty and omits zero terms
 
-    terms : iterable of terms to sum.
+    terms : Terms to sum over with zero as default value.
 
     Returns:
     Sum of terms, or zero if terms is empty.
@@ -47,21 +48,24 @@ def _zero_sum(terms):
 
 
 class _Evaluated:
-    def __init__(self, original):
+    def __init__(self, original: "BlockSeries"):
         self.original = original
 
-    def __getitem__(self, item):
-        """Evaluate the series at the given index, following numpy's indexing rules.
+    def __getitem__(
+        self, item: int | slice | tuple[int | slice]
+    ) -> ma.MaskedArray[Any] | Any:
+        """
+        Evaluate the series at the given index, following numpy's indexing rules.
 
         Parameters
         ----------
-        item : tuple of int or slice
+        item : index at which to evaluate the series.
 
         Returns
         -------
         The item or items at the given index.
         """
-        if not isinstance(item, tuple):
+        if not isinstance(item, tuple):  # Allow indexing with integer
             item = (item,)
 
         self.check_finite(item[-self.original.n_infinite :])
@@ -89,14 +93,17 @@ class _Evaluated:
                 raise RuntimeError("Infinite recursion loop detected")
             trial[index] = data[index]
 
-
         result = trial[item]
         if not one_entry:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
 
-    def check_finite(self, orders):
-        """Check that the indices of the infinite dimension are finite and positive."""
+    def check_finite(self, orders: tuple[int | slice]):
+        """
+        Check that the indices of the infinite dimension are finite and positive.
+
+        orders : indices of the infinite dimension.
+        """
         for order in orders:
             if isinstance(order, slice):
                 if order.stop is None:
@@ -104,8 +111,12 @@ class _Evaluated:
                 elif isinstance(order.start, int) and order.start < 0:
                     raise IndexError("Cannot evaluate negative order")
 
-    def check_number_perturbations(self, item):
-        """Check that the number of indices is correct."""
+    def check_number_perturbations(self, item: tuple[int | slice]):
+        """
+        Check that the number of indices is correct.
+
+        item : indices to check.
+        """
         if len(item) != len(self.original.shape) + self.original.n_infinite:
             raise IndexError(
                 "Wrong number of indices",
@@ -114,20 +125,22 @@ class _Evaluated:
 
 
 class BlockSeries:
-    def __init__(self, eval=None, data=None, shape=(), n_infinite=1):
+    def __init__(
+        self,
+        eval: callable | None = None,
+        data: dict | None = None,
+        shape: tuple[int | None] = (),
+        n_infinite: int = 1,
+    ) -> None:
         """An infinite series that caches its items.
         The series has finite and infinite dimensions.
 
         Parameters
         ----------
-        eval : callable
-            A function that takes an index and returns the corresponding item.
-        data : dict
-            A dictionary of items so start with. The keys should be tuples of indices.
-        shape : tuple of int
-            The shape of the finite dimensions.
-        n_infinite : int
-            The number of infinite dimensions.
+        eval : Function that takes an index and returns the corresponding item.
+        data : Dictionary {index: value} to start with.
+        shape : Shape of the finite dimensions.
+        n_infinite : Number of infinite dimensions.
         """
         self.eval = (lambda *_: zero) if eval is None else eval
         self.evaluated = _Evaluated(self)
@@ -136,21 +149,26 @@ class BlockSeries:
         self.n_infinite = n_infinite
 
 
-def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
+def cauchy_dot_product(
+    *series: BlockSeries,
+    op: callable | None = None,
+    hermitian: bool = False,
+    exclude_last: list[bool] | None = None
+):
     """
-    Multivariate Cauchy product of block operator series
+    Multivariate Cauchy product of BlockSeries.
 
     Notes:
     This treats a singleton `one` as the identity operator.
 
-    series : list of BlockSeries to be multiplied.
-    op : (optional) callable for multiplying factors.
-    hermitian : (optional) bool for whether to use hermiticity.
-    exclude_last : (optional) None or list of bools on whether
-        to exclude last order on each term.
+    series : Series to multiply using their block structure.
+    op : (optional) callable for multiplying elements of the series.
+    hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
+    exclude_last : (optional) whether to exclude last order on each term.
+        This is useful to avoid infinite recursion on some algorithms.
 
     Returns:
-    (BlockSeries) Product of series.
+    A new series that is the Cauchy dot product of the given series.
     """
     if len(series) < 2:
         return series[0] if series else one
@@ -180,18 +198,20 @@ def cauchy_dot_product(*series, op=None, hermitian=False, exclude_last=None):
     )
 
 
-def _generate_orders(orders, start=None, end=None, last=True):
+def _generate_orders(
+    orders: tuple, start: int | None = None, end: int | None = None, last: bool = True
+) -> ma.MaskedArray:
     """
     Generate array of lower orders to be used in product_by_order.
 
-    orders : (tuple) maximum orders of each infinite dimension.
-    start : (optional) 0 or 1 to choose row index of block.
-    end : (optional) 0 or 1 to choose column index of block.
+    orders : maximum orders of each infinite dimension.
+    start : (optional) 0 or 1 row index of block.
+    end : (optional) 0 or 1 column index of block.
     last : (optional) bool for whether to keep last order.
         This is useful to avoid recursion errors.
 
     Returns:
-    (numpy.ma.MaskedArray) Array of orders.
+    Array of lower orders to be used in product_by_order.
     """
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
     trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
@@ -205,16 +225,22 @@ def _generate_orders(orders, start=None, end=None, last=True):
 
 
 # %%
-def product_by_order(index, *series, op=None, hermitian=False, exclude_last=None):
+def product_by_order(
+    index: tuple[int],
+    *series: BlockSeries,
+    op: callable | None = None,
+    hermitian: bool = False,
+    exclude_last: list[bool] | None = None
+) -> Any:
     """
-    Compute sum of all product of factors of wanted order.
+    Compute sum of all product of factors of a wanted order.
 
-    index : (tuple) index of wanted order.
-    series : (BlockSeries) series to be multiplied.
-    op : (optional) callable for multiplying factors.
-    hermitian : (optional) bool for whether to use hermiticity.
-    exclude_last : (optional) None or list of bools on whether
-        to exclude last order on each series.
+    index : Index of the wanted order.
+    series : Series to multiply using their block structure.
+    op : (optional) callable for multiplying elements of the series.
+    hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
+    exclude_last : (optional) whether to exclude last order on each term.
+        This is useful to avoid infinite recursion on some algorithms.
 
     Returns:
     Sum of all products that contribute to the wanted order.
@@ -231,7 +257,7 @@ def product_by_order(index, *series, op=None, hermitian=False, exclude_last=None
     starts = [start] + [None] * (len(series) - 1)
     ends = [None] * (len(series) - 1) + [end]
     data = [
-        _generate_orders(orders, start=start, end=end, last=not(last))
+        _generate_orders(orders, start=start, end=end, last=not (last))
         for start, end, last in zip(starts, ends, exclude_last)
     ]
 
