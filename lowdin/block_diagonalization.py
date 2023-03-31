@@ -217,6 +217,7 @@ def general_symbolic(
         U_s * H * U_s^H = H_tilde_s.
     U_adjoint_s : Symbolic adjoint of U_s.
     Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+        It is updated whenever new terms of `H_tilde_s` or `U_s` are evaluated.
     H : Symbolic initial Hamiltonian, unperturbed and perturbation.
     """
     initial_indices = tuple(initial_indices)
