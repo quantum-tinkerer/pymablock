@@ -1,4 +1,5 @@
 from itertools import count, permutations
+from typing import Any, Callable
 
 import numpy as np
 import tinyarray as ta
@@ -32,7 +33,7 @@ def Ns():
 
 
 @pytest.fixture(scope="module")
-def H(Ns, wanted_orders):
+def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     """
     Produce random Hamiltonians to test.
 
@@ -72,7 +73,7 @@ def H(Ns, wanted_orders):
     return to_BlockSeries(*hams, n_infinite)
 
 
-def test_check_AB(H, wanted_orders):
+def test_check_AB(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian.
 
@@ -88,7 +89,7 @@ def test_check_AB(H, wanted_orders):
             )
 
 
-def test_check_unitary(H, wanted_orders):
+def test_check_unitary(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
     """
     Test that the transformation is unitary.
 
@@ -116,7 +117,7 @@ def test_check_unitary(H, wanted_orders):
                 )
 
 
-def compute_first_order(H, order):
+def compute_first_order(H: BlockSeries, order: tuple[int, ...]):
     """
     Compute the first order correction to the Hamiltonian.
 
@@ -129,7 +130,9 @@ def compute_first_order(H, order):
     return H.evaluated[(0, 0) + order]
 
 
-def test_first_order_H_tilde(H, wanted_orders):
+def test_first_order_H_tilde(
+    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+) -> None:
     """
     Test that the first order is computed correctly.
 
@@ -150,7 +153,7 @@ def test_first_order_H_tilde(H, wanted_orders):
         )
 
 
-def compute_second_order(H, order):
+def compute_second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     """
     Compute the second order correction to the Hamiltonian.
 
@@ -161,7 +164,7 @@ def compute_second_order(H, order):
     BlockSeries of the second order correction obtained explicitly
     """
     n_infinite = H.n_infinite
-    order = tuple(value//2 for value in order)
+    order = tuple(value // 2 for value in order)
     H_0_AA, H_0_BB, H_p_AB = (
         H.evaluated[(0, 0) + (0,) * n_infinite],
         H.evaluated[(1, 1) + (0,) * n_infinite],
@@ -175,7 +178,9 @@ def compute_second_order(H, order):
     return -(V1 @ Dagger(H_p_AB) + H_p_AB @ Dagger(V1)) / 2
 
 
-def test_second_order_H_tilde(H, wanted_orders):
+def test_second_order_H_tilde(
+    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+) -> None:
     """Test that the second order is computed correctly.
 
     H : BlockSeries of the Hamiltonian
@@ -196,7 +201,7 @@ def test_second_order_H_tilde(H, wanted_orders):
         )
 
 
-def test_check_diagonal_H_0_AA():
+def test_check_diagonal_H_0_AA() -> None:
     """Test that offdiagonal H_0_AA requires solve_sylvester."""
     with pytest.raises(ValueError):
         H = to_BlockSeries(
@@ -209,7 +214,7 @@ def test_check_diagonal_H_0_AA():
         general(H)
 
 
-def test_check_diagonal_H_0_BB():
+def test_check_diagonal_H_0_BB() -> None:
     """Test that offdiagonal H_0_BB requires solve_sylvester."""
     with pytest.raises(ValueError):
         H = to_BlockSeries(
@@ -222,7 +227,9 @@ def test_check_diagonal_H_0_BB():
         general(H)
 
 
-def test_equivalence_general_expanded(H, wanted_orders):
+def test_equivalence_general_expanded(
+    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+) -> None:
     """
     Test that the general and expanded methods give the same results.
 
@@ -246,12 +253,14 @@ def test_equivalence_general_expanded(H, wanted_orders):
                     )
                 else:
                     np.testing.assert_allclose(
-                        result_general, result_expanded, atol=10**-5,
-                        err_msg=f"{order=}"
+                        result_general,
+                        result_expanded,
+                        atol=10**-5,
+                        err_msg=f"{order=}",
                     )
 
 
-def double_orders(data):
+def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any]:
     """
     Double the orders of the keys in a dictionary.
 
@@ -265,13 +274,15 @@ def double_orders(data):
         if zero == value:
             continue
         block = index[:2]
-        order = tuple(2*ta.array(index[2:]))
+        order = tuple(2 * ta.array(index[2:]))
         new_data[block + order] = value
     return new_data
 
 
 @pytest.mark.parametrize("algorithm", [general, expanded])
-def test_doubled_orders(algorithm, H, wanted_orders):
+def test_doubled_orders(
+    algorithm: Callable, H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+) -> None:
     """
 
     H: BlockSeries of the Hamiltonian
@@ -280,9 +291,7 @@ def test_doubled_orders(algorithm, H, wanted_orders):
 
     data = H.data
     H_doubled = BlockSeries(
-        data=double_orders(data),
-        shape=H.shape,
-        n_infinite=H.n_infinite
+        data=double_orders(data), shape=H.shape, n_infinite=H.n_infinite
     )
 
     H_tilde, U, _ = algorithm(H)
@@ -290,8 +299,10 @@ def test_doubled_orders(algorithm, H, wanted_orders):
 
     for wanted_order in wanted_orders:
         blocks = np.index_exp[:2, :2]
-        orders = tuple(slice(None, order+1, None) for order in wanted_order)
-        doubled_orders = tuple(slice(None, 2*(order+1), None) for order in wanted_order)
+        orders = tuple(slice(None, order + 1, None) for order in wanted_order)
+        doubled_orders = tuple(
+            slice(None, 2 * (order + 1), None) for order in wanted_order
+        )
 
         for op, op_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
             result = op.evaluated[blocks + orders].compressed()
