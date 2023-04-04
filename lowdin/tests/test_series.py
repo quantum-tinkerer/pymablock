@@ -9,15 +9,15 @@ from lowdin.series import BlockSeries
 @pytest.fixture(
     scope="module",
     params=[
-        [np.index_exp[1, 2, 3], AttributeError],  # ()
-        [np.index_exp[:, 2, 3], (5,)],  # (5,)
-        [np.index_exp[1, :, 3], IndexError],  # Should raise an error
-        [np.index_exp[:3, [1, 2], 3], (3, 2)],  # (3, 2)
-        [np.index_exp[1, 2, 3, 4], IndexError],  # Should raise an error
-        [np.index_exp[:, [1, 2], [3, 4]], (5, 2)],  # (5, 2)
-        [np.index_exp[:, [1, 2], :3], (5, 2, 3)],  # (5, 2, 3)
-        [np.index_exp[0, :5, :3], (5, 3)],  # (5, 3)
-        [np.index_exp[6, 3, 3], IndexError],  # Should raise an error
+        [np.index_exp[1, 2, 3], AttributeError],
+        [np.index_exp[:, 2, 3], (5,)],
+        [np.index_exp[1, :, 3], IndexError],
+        [np.index_exp[:3, [1, 2], 3], (3, 2)],
+        [np.index_exp[1, 2, 3, 4], IndexError],
+        [np.index_exp[:, [1, 2], [3, 4]], (5, 2)],
+        [np.index_exp[:, [1, 2], :3], (5, 2, 3)],
+        [np.index_exp[0, :5, :3], (5, 3)],
+        [np.index_exp[6, 3, 3], IndexError],
     ],
 )
 
@@ -41,10 +41,11 @@ def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) 
 
 
 def test_fibonacci_series() -> None:
+    """Test that we can implement the Fibonacci series."""
     F = BlockSeries(
         eval=lambda x: F.evaluated[x-2] + F.evaluated[x-1],
         data={(0,): 0, (1,): 1},
         shape=(), n_infinite=1,
     )
 
-    np.testing.assert_allclose(8, F.evaluated[6])
+    assert F.evaluated[6] == 8
