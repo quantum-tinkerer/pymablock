@@ -390,6 +390,69 @@ def divide_energies(Y, H_0_AA, H_0_BB, mode="arr"):
 
 # + tags=[]
 def LowdinKPM(h, vecs_a, eigs_a, vecs_b=None, eigs_b=None, kpm_params=None, precalculate_moments=False):
+    """
+    Interface to utilize KPM for perturbative expansion of a Hamiltonian depending on multiple parameters.
+
+    INPUTS:
+    h                      : dict of np.ndarray/ scipy.sparse matrices
+                            Hamiltonian of the system. The structure of the dictionary is such that h[1] containes H_0 
+                            while all other entries correspond to perturbation terms with their repsective parameters
+                            as keys
+
+    vecs_a                 : list of np.ndarray or np.ndarray
+                            Eigenvectors of H over the subspace of interest.
+
+    eigs_a                 : list of float/ complex or np.array of those types
+                            Eigenvalues of H over the subspace of interest.
+
+    vecs_b                 : (optional) list of np.ndarray or np.ndarray
+                            (some) eigenvectors of H corresponding to the explicit parts of the auxilliary subspace.
+                            Including some states from the B subspace explicitly can enhance the precision of the
+                            method. Particularly including states close to the subspace of interest, or generally
+                            those with stronger coupling to it might significantly improve accuracy.
+
+    eigs_b                 : (optional) list of float/ complex or np.array of those types
+                            (some) eigenvalues of H from the auxilliary subspace.
+    
+    kpm_params             : (optional) dict, optional
+                            Dictionary containing the parameters to pass to the `~kwant.kpm`
+                            module. 'num_vectors' will be overwritten to match the number
+                            of vectors, and 'operator' key will be deleted.
+
+    precalculate_moments   : (optional) bool, default False
+                            Whether to precalculate and store all the KPM moments of `vectors`.
+                            This is useful if the Green's function is evaluated at a large
+                            number of energies, but uses a large amount of memory.
+                            If False, the KPM expansion is performed every time the Green's
+                            function is called, which minimizes memory use.
+
+    RETURNS:
+    H_0_AA     : dict of poly_kpm.SumOfOperatorProducts
+                dict keys have been replaced by adequate ta.arrays (see docstring of sym_to_ta) and 
+                explicit matrices have been cast as SumOfOperatorProducts. H_0_AA thereby refers to
+                solely the effective basis subspace of the full H_0 (formerly h[1]).
+
+    H_0_BB     : dict of poly_kpm.SumOfOperatorProducts
+                Full h[1] cast to SumOfOperatorProducts. The bookkeeping is elaborated in the documentation
+
+    H_p_AA     : dict of poly_kpm.SumOfOperatorProducts
+                Effective subspace of h \ h[1]
+    
+    H_p_BB     : dict of poly_kpm.SumOfOperatorProducts
+                Full subspace of h \ h[1]
+
+    H_p_AB     : dict of poly_kpm.SumOfOperatorProducts
+                A x Full block of h \ h[1]
+
+    div_energs : callable depending on (h_0, 
+                                        vecs_a, 
+                                        eigs_a, 
+                                        vecs_b, 
+                                        eigs_b, 
+                                        kpm_params, 
+                                        precalculate_moments)
+                Callable that realizes the energy division occurring in solving the Sylvester equation
+    """
     hn, key_map = sym_to_ta(h)
     
     n_symbols = len(key_map)
