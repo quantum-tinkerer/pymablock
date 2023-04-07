@@ -16,12 +16,17 @@ from itertools import product
 from functools import reduce
 from operator import add
 
+import pdb
+
 import numpy as np
+import tinyarray as ta
 from scipy.sparse.linalg import LinearOperator
 from scipy.linalg import eigh
 from lowdin.linalg import ComplementProjector, complement_projected
 from lowdin.kpm_funcs import greens_function
 from lowdin.misc import sym_to_ta, ta_to_symb
+from lowdin.block_diagonalization import general, expanded
+from lowdin.series import BlockSeries
 
 
 class SumOfOperatorProducts:
@@ -52,6 +57,7 @@ class SumOfOperatorProducts:
 
         self.terms = terms
         self.simplify_products()
+        self.shape = (self.terms[0][0][0].shape[0], self.terms[-1][-1][0].shape[-1])
 
     def __add__(self, other):
         """
@@ -242,45 +248,6 @@ class SumOfOperatorProducts:
         return self.evalf()[0][1]
 
 
-def create_div_energs_old(e_a, v_a, H_0_BB):
-    if isinstance(H_0_BB, get_bb_action):
-        H_0_BB = H_0_BB @ np.eye(H_0_BB.shape[0])
-    if isinstance(H_0_BB,SumOfOperatorProducts):
-        H_0_BB = H_0_BB.to_array() @ np.eye(H_0_BB.to_array().shape[0])
-
-    n_a = len(e_a)
-    a_eigs = e_a
-
-    b_eigs, b_vecs = eigh(H_0_BB @ np.eye(H_0_BB.shape[0]))
-    # find out where the A-subspace is
-    a_inds = np.argmax(
-        np.abs(v_a.conj().T @ b_vecs), axis=-1
-    )  # this needs uniqueness check
-    b_eigs = np.delete(b_eigs, a_inds)
-    b_vecs = np.delete(b_vecs, a_inds, axis=1)
-
-    e_div = 1 / (a_eigs.reshape(-1, 1) - b_eigs)
-    full_vecs = np.hstack((v_a, b_vecs))
-
-    def divide_energies(Y):
-        type_flag = isinstance(Y, SumOfOperatorProducts)
-
-        if  type_flag:
-            Y = Y.to_array()
-            type_flag = True
-
-        V = Y @ full_vecs
-        V[:, n_a:] = V[:, n_a:] * e_div
-        Y = V @ full_vecs.T.conj()
-        
-        if type_flag:
-            Y = SumOfOperatorProducts([[(Y, "AB")]])
-        
-        return Y
-
-    return divide_energies
-
-
 def create_div_energs(
     h_0, vecs_a, eigs_a, vecs_b=None, eigs_b=None, kpm_params=None, precalculate_moments=False
 ):
@@ -327,157 +294,106 @@ def create_div_energs(
     def divide_by_energies(Y):
         if len(eigs_a) + len(eigs_b) < h_0.shape[0]:
             # KPM section
-            Y_KPM = (
-                Y
-                - Y.dot(vecs_a).dot(vecs_a.T.conj())
-                - Y.dot(vecs_b).dot(vecs_b.T.conj())
-            )
-            # This way we do all vectors for all energies, uses a bit more RAM than
-            # absolutely necessary, but makes the code simpler.
+            Y_KPM = Y @ SumOfOperatorProducts([[(ComplementProjector(np.concatenate((vecs_a, vecs_b), axis=-1)), 'BB')]])
+
             vec_G_Y = greens_function(
                 h_0,
                 params=None,
-                vectors=Y_KPM.conj(),
+                vectors=Y_KPM.to_array().conj(),
                 kpm_params=kpm_params,
                 precalculate_moments=precalculate_moments,
             )(eigs_a)
-            res = np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
+            res = SumOfOperatorProducts([[(np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))]), 'AB')]])
 
         else:
             # standard section
-            res = np.zeros(Y.shape, dtype=complex)
+            res = SumOfOperatorProducts([[(np.zeros(Y.shape, dtype=complex),'AB')]])
 
-        Y_ml = Y.dot(vecs_b)
+        Y_ml = Y @ SumOfOperatorProducts([[(vecs_b, 'BA')]])
         G_ml = 1 / (np.array([eigs_a]).reshape(-1, 1) - eigs_b)
-        res += (Y_ml * G_ml).dot(vecs_b.T.conj())
+        res += (Y_ml * G_ml)@SumOfOperatorProducts([[(vecs_b.conjugate().transpose(), 'AB')]])
         return res
 
     return divide_by_energies
 
 
-def divide_energies(Y, H_0_AA, H_0_BB, mode="arr"):
+def numerical(h: dict, 
+              vecs_a: np.ndarray, 
+              eigs_a: np.ndarray, 
+              vecs_b: np.ndarray = None, 
+              eigs_b: np.ndarray = None, 
+              kpm_params: dict = None, 
+              precalculate_moments: bool = False):
     """
-    Divide the right hand side of the equation by the energy denominators.
-
-    Y : np.array of shape (n, m) right hand side of the equation
-    H_0_AA : SumOfOperatorProducts object
-    H_0_BB : SumOfOperatorProducts object
-
-    Returns:
-    Y divided by the energy denominators
+    assume h is dict with {1 : h_0, p_0 : h_p_0, ...}
     """
-
-    if mode == "arr":
-        E_A = np.diag(H_0_AA.to_array())
-        E_B = np.diag(H_0_BB.to_array())
-
-    if mode == "op":
-        if isinstance(H_0_AA, np.ndarray):
-            E_A = np.diag(H_0_AA)
-            E_B = np.diag(H_0_BB @ np.eye(H_0_BB.shape[0]))
-        else:
-            E_A = np.diag(H_0_AA.to_array())
-            E_B = np.diag(H_0_BB.to_array() @ np.eye(H_0_BB.to_array().shape[0]))
-        # E_B is secretly E_A+A_B
-        # E_B = np.concatenate((E_A, E_B[np.where(E_B != 0)[0]]))
-        E_B = E_B
-
-    energy_denoms = 1 / (E_A.reshape(-1, 1) - E_B)
-    energy_denoms[:, np.where(E_B == 0)[0]] = 0
-
-    return Y * energy_denoms
-
-
-# + tags=[]
-def LowdinKPM(h, vecs_a, eigs_a, vecs_b=None, eigs_b=None, kpm_params=None, precalculate_moments=False):
-    """
-    Interface to utilize KPM for perturbative expansion of a Hamiltonian depending on multiple parameters.
-
-    INPUTS:
-    h                      : dict of np.ndarray/ scipy.sparse matrices
-                            Hamiltonian of the system. The structure of the dictionary is such that h[1] containes H_0 
-                            while all other entries correspond to perturbation terms with their repsective parameters
-                            as keys
-
-    vecs_a                 : list of np.ndarray or np.ndarray
-                            Eigenvectors of H over the subspace of interest.
-
-    eigs_a                 : list of float/ complex or np.array of those types
-                            Eigenvalues of H over the subspace of interest.
-
-    vecs_b                 : (optional) list of np.ndarray or np.ndarray
-                            (some) eigenvectors of H corresponding to the explicit parts of the auxilliary subspace.
-                            Including some states from the B subspace explicitly can enhance the precision of the
-                            method. Particularly including states close to the subspace of interest, or generally
-                            those with stronger coupling to it might significantly improve accuracy.
-
-    eigs_b                 : (optional) list of float/ complex or np.array of those types
-                            (some) eigenvalues of H from the auxilliary subspace.
-    
-    kpm_params             : (optional) dict, optional
-                            Dictionary containing the parameters to pass to the `~kwant.kpm`
-                            module. 'num_vectors' will be overwritten to match the number
-                            of vectors, and 'operator' key will be deleted.
-
-    precalculate_moments   : (optional) bool, default False
-                            Whether to precalculate and store all the KPM moments of `vectors`.
-                            This is useful if the Green's function is evaluated at a large
-                            number of energies, but uses a large amount of memory.
-                            If False, the KPM expansion is performed every time the Green's
-                            function is called, which minimizes memory use.
-
-    RETURNS:
-    H_0_AA     : dict of poly_kpm.SumOfOperatorProducts
-                dict keys have been replaced by adequate ta.arrays (see docstring of sym_to_ta) and 
-                explicit matrices have been cast as SumOfOperatorProducts. H_0_AA thereby refers to
-                solely the effective basis subspace of the full H_0 (formerly h[1]).
-
-    H_0_BB     : dict of poly_kpm.SumOfOperatorProducts
-                Full h[1] cast to SumOfOperatorProducts. The bookkeeping is elaborated in the documentation
-
-    H_p_AA     : dict of poly_kpm.SumOfOperatorProducts
-                Effective subspace of h \ h[1]
-    
-    H_p_BB     : dict of poly_kpm.SumOfOperatorProducts
-                Full subspace of h \ h[1]
-
-    H_p_AB     : dict of poly_kpm.SumOfOperatorProducts
-                A x Full block of h \ h[1]
-
-    div_energs : callable depending on (h_0, 
-                                        vecs_a, 
-                                        eigs_a, 
-                                        vecs_b, 
-                                        eigs_b, 
-                                        kpm_params, 
-                                        precalculate_moments)
-                Callable that realizes the energy division occurring in solving the Sylvester equation
-    """
-    hn, key_map = sym_to_ta(h)
-    
-    n_symbols = len(key_map)
-    
-    n = hn[ta.zeros(n_symbols)].shape[0]
+    hn, key_map = sym_to_ta(h) 
+    n_infinite = len(key_map) 
+    zero_index = ta.zeros(n_infinite)
+    n = hn[ta.zeros(n_infinite)].shape[0]
     n_a = vecs_a.shape[-1] 
-    n_b = n - n_a
     
     p_b = ComplementProjector(vecs_a)
     
-    
     # h_0
-    H_0_AA = SumOfOperatorProducts([[(hn[ta.zeros(n_symbols)][:n_a,:n_a], 'AA')]]) 
-    H_0_BB = SumOfOperatorPoducts([[(complement_projected(hn[ta.zeros(n_symbols)], vecs_a), 'BB')]]) 
+    
+    """
+    The separation needs to be changed to accomodate the situation when the spectrum not not ordered or the relevant subspace
+    is not directly following each other
+    """
+    
+    H_0_AA = SumOfOperatorProducts([[(hn[zero_index][:n_a,:n_a], 'AA')]]) 
+    H_0_BB = SumOfOperatorProducts([[(complement_projected(hn[zero_index], vecs_a), 'BB')]]) 
     
     # h_p
-    h_p = hn.pop(ta.zeros(n_symbols))
-    H_p_AA = {k: SumOfOperatorProducts([[(vecs_a.conj().T @ v @ vecs_a, 'AA')]]) for k,v in h_p.items()}
-    H_p_BB = {k: SumOfOperatorProducts([[(complement_projected(v,vecs_a) , 'BB')]]) for k,v in h_p.items()}
-    H_p_AB = {k: SumOfOperatorProducts([[( vecs_a.conj().T @ v @ p_b, 'AB')]]) for k,v in h_p.items()}
+    H_p_AA = {k: SumOfOperatorProducts([[(vecs_a.conj().T @ v @ vecs_a, 'AA')]]) for k,v in hn.items() if k != zero_index}
+    H_p_BB = {k: SumOfOperatorProducts([[(complement_projected(v,vecs_a) , 'BB')]]) for k,v in hn.items() if k != zero_index}
+    H_p_AB = {k: SumOfOperatorProducts([[( vecs_a.conj().T @ v @ p_b, 'AB')]]) for k,v in hn.items() if k != zero_index}
     
-    # callable
-    div_energs = create_divide_energies(hn[ta.zeros(n_symbols)], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments)
+    H = BlockSeries(
+        data={
+            **{(0, 0) + zero_index: H_0_AA},
+            **{(1, 1) + zero_index: H_0_BB},
+            **{(0, 0) + tuple(key): value for key, value in H_p_AA.items()},
+            **{(0, 1) + tuple(key): value for key, value in H_p_AB.items()},
+            **{(1, 0) + tuple(key): value.conjugate().transpose() for key, value in H_p_AB.items()},
+            **{(1, 1) + tuple(key): value for key, value in H_p_BB.items()},
+        },
+        shape=(2, 2),
+        n_infinite=n_infinite,
+    )
+    
+    div_energs = create_div_energs(hn[zero_index], 
+                                    vecs_a, 
+                                    eigs_a, 
+                                    vecs_b, 
+                                    eigs_b, 
+                                    kpm_params, 
+                                    precalculate_moments)
+    
+    # use general algo
+    h_tilde, u, u_ad = general(H, 
+                               solve_sylvester = div_energs)
+    
+    #postprocessing
+    def h_tilde_eval(*index):
+        if index[:2] in [[0,0],[0,1],[1,0]]:
+            return h_tilde.evaluated[index].to_array()
+        else:
+            return h_tilde.evaluated[index]
+    
+    def u_eval(*index):
+        if index[:2] in [[0,0],[0,1],[1,0]]:
+            return u.evaluated[index].to_array()
+        else:
+            return u.evaluated[index]
+    
+    h_t_return = BlockSeries(eval=h_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
+    u_return = BlockSeries(eval = u_eval, shape=(2, 2), n_infinite=H.n_infinite)
+    u_adj_return = BlockSeries(eval = lambda index: u_eval(*index).conjugate().transpose(), shape=(2, 2), n_infinite=H.n_infinite)
+    
+    return h_t_return, u_return, u_adj_return
 
-    return H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB, div_energs
-# -
+
 
 
