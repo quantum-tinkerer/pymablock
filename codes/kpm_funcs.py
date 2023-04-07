@@ -105,7 +105,7 @@ def greens_function(ham, vectors, params=None, kpm_params=dict(),
 
 
 def _kpm_vectors(ham, vectors, max_moments):
-    """Generator of KPM vectors
+    r"""Generator of KPM vectors
 
     This generator yields vectors as
     .. math::
