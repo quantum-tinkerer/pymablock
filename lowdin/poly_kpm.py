@@ -281,23 +281,25 @@ def create_div_energs(
     does separation into aa,ab,bb
     and initialize lowdin classes
     target format is the {ta.array,something}
-    
     """
-    
     if vecs_b is None:
         vecs_b = np.empty((vecs_a.shape[0], 0))
-    if eigs_b is None and vecs_b is not None:
+    if eigs_b is None:
         eigs_b = np.diag(vecs_b.conj().T @ h_0 @ vecs_b)
     if kpm_params is None:
         kpm_params = dict()
 
-    def divide_by_energies(Y):
-        #pdb.set_trace()
-        Y = Y.to_array()
-        if len(eigs_a) + len(eigs_b) < h_0.shape[0]:
-            # KPM section
-            Y_KPM = Y @ ComplementProjector(np.concatenate((vecs_a, vecs_b), axis=-1))
+    need_kpm = len(eigs_a) + len(eigs_b) < h_0.shape[0]
+    need_explicit = bool(len(eigs_b))
+    if not any((need_kpm, need_explicit)):
+        # B subspace is empty
+        return lambda Y: Y
 
+    if need_kpm:
+        kpm_projector = ComplementProjector(np.concatenate((vecs_a, vecs_b), axis=-1))
+
+        def sylvester_kpm(Y):
+            Y_KPM = Y @ kpm_projector
             vec_G_Y = greens_function(
                 h_0,
                 params=None,
@@ -305,18 +307,26 @@ def create_div_energs(
                 kpm_params=kpm_params,
                 precalculate_moments=precalculate_moments,
             )(eigs_a)
-            res = np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
+            return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
 
-        else:
-            # standard section
-            res = np.zeros(Y.shape, dtype=complex)
-        #pdb.set_trace()
-        Y_ml = (Y @ ComplementProjector(vecs_a)) @ vecs_b
-        G_ml = 1 / (np.array([eigs_a]).reshape(-1, 1) - eigs_b)
-        res += (Y_ml * G_ml)@vecs_b.conjugate().transpose()
-        return SumOfOperatorProducts([[(res, 'AB')]])
+    if need_explicit:
+        G_ml = 1 / (eigs_a[:, None] - eigs_b[None, :])
 
-    return divide_by_energies
+        def sylvester_explicit(Y):
+            return ((Y @ vecs_b) * G_ml) @ vecs_b.conj().T
+
+    def solve_sylvester(Y):
+        Y = Y.to_array()
+        if need_kpm and need_explicit:
+            result = sylvester_kpm(Y) + sylvester_explicit(Y)
+        elif need_kpm:
+            result = sylvester_kpm(Y)
+        elif need_explicit:
+            result = sylvester_explicit(Y)
+
+        return SumOfOperatorProducts([[(result, "AB")]])
+
+    return solve_sylvester
 
 
 def numerical(h: dict, 
