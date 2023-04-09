@@ -293,27 +293,28 @@ def create_div_energs(
 
     def divide_by_energies(Y):
         #pdb.set_trace()
+        Y = Y.to_array()
         if len(eigs_a) + len(eigs_b) < h_0.shape[0]:
             # KPM section
-            Y_KPM = Y @ SumOfOperatorProducts([[(ComplementProjector(np.concatenate((vecs_a, vecs_b), axis=-1)), 'BB')]])
+            Y_KPM = Y @ ComplementProjector(np.concatenate((vecs_a, vecs_b), axis=-1))
 
             vec_G_Y = greens_function(
                 h_0,
                 params=None,
-                vectors=Y_KPM.to_array().conj(),
+                vectors=Y_KPM.conj(),
                 kpm_params=kpm_params,
                 precalculate_moments=precalculate_moments,
             )(eigs_a)
-            res = SumOfOperatorProducts([[(np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))]), 'AB')]]) 
+            res = np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
 
         else:
             # standard section
-            res = SumOfOperatorProducts([[(np.zeros(Y.shape, dtype=complex),'AB')]])
-
-        Y_ml = Y @ SumOfOperatorProducts([[(vecs_b, 'BB')]])
+            res = np.zeros(Y.shape, dtype=complex)
+        #pdb.set_trace()
+        Y_ml = (Y @ ComplementProjector(vecs_a)) @ vecs_b
         G_ml = 1 / (np.array([eigs_a]).reshape(-1, 1) - eigs_b)
-        res += (Y_ml * G_ml)@SumOfOperatorProducts([[(vecs_b.conjugate().transpose(), 'BB')]])
-        return res
+        res += (Y_ml * G_ml)@vecs_b.conjugate().transpose()
+        return SumOfOperatorProducts([[(res, 'AB')]])
 
     return divide_by_energies
 
@@ -347,10 +348,10 @@ def numerical(h: dict,
     H_0_BB = SumOfOperatorProducts([[(complement_projected(hn[zero_index], vecs_a), 'BB')]]) 
     
     # h_p
-    H_p_AA = {k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ vecs_a)[:n_a, :n_a] , 'AA')]]) for k,v in hn.items() if k != zero_index}
+    H_p_AA = {k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ vecs_a) , 'AA')]]) for k,v in hn.items() if k != zero_index}
     H_p_BB = {k: SumOfOperatorProducts([[(complement_projected(v, vecs_a) , 'BB')]]) for k,v in hn.items() if k != zero_index}
-    H_p_AB = {k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @p_b)[:n_a, :], 'AB')]]) for k,v in hn.items() if k != zero_index}
-    
+    H_p_AB = {k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ p_b), 'AB')]]) for k,v in hn.items() if k != zero_index}
+
     H = BlockSeries(
         data={
             **{(0, 0) + zero_index: H_0_AA},
@@ -363,7 +364,7 @@ def numerical(h: dict,
         shape=(2, 2),
         n_infinite=n_infinite,
     )
-    
+
     div_energs = create_div_energs(hn[zero_index], 
                                     vecs_a, 
                                     eigs_a, 
@@ -371,11 +372,11 @@ def numerical(h: dict,
                                     eigs_b, 
                                     kpm_params, 
                                     precalculate_moments)
-    
+
     # use general algo
     h_tilde, u, u_ad = general(H, 
                                solve_sylvester = div_energs)
-    
+
     #postprocessing
     """
     def h_tilde_eval(*index):
@@ -383,13 +384,13 @@ def numerical(h: dict,
             return h_tilde.evaluated[index].to_array()
         else:
             return h_tilde.evaluated[index]
-    
+
     def u_eval(*index):
         if index[:2] in [[0,0],[0,1],[1,0]]:
             return u.evaluated[index].to_array()
         else:
             return u.evaluated[index]
-    
+
     h_t_return = BlockSeries(eval=h_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
     u_return = BlockSeries(eval = u_eval, shape=(2, 2), n_infinite=H.n_infinite)
     u_adj_return = BlockSeries(eval = lambda index: u_eval(*index).conjugate().transpose(), shape=(2, 2), n_infinite=H.n_infinite)
