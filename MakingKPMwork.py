@@ -170,11 +170,11 @@ np.round(scipy.linalg.eigh(h_p_book)[0],3)
 #
 # The note is actually not true
 
-h_tilde, u, u_adj = poly_kpm.numerical(h, vecs_a, eigs_a)
+h_tilde, u, u_adj = poly_kpm.numerical(h, vecs_a, eigs_a, kpm_params={'num_moments':10000})
 
 np.round(vecs_a.conj().T @ h_0 @ vecs_a,3)
 
-h_tilde.evaluated[0,1,1].to_array()
+np.linalg.norm(h_tilde.evaluated[0,1,6].to_array())
 
 a = np.array([1,2,3,4,5,56,6,7])
 b = np.array([3,5,6])

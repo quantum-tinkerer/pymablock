@@ -338,10 +338,10 @@ def numerical(h: dict,
               precalculate_moments: bool = False):
     """
     assume h is dict with {1 : h_0, p_0 : h_p_0, ...}
-    """
+    """ 
     hn, key_map = sym_to_ta(h) 
     n_infinite = len(key_map) 
-    zero_index = ta.zeros(n_infinite)
+    zero_index = (0, ) * n_infinite
 
     p_b = ComplementProjector(vecs_a)
 
