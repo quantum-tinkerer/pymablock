@@ -342,50 +342,50 @@ def numerical(h: dict,
     hn, key_map = sym_to_ta(h) 
     n_infinite = len(key_map) 
     zero_index = ta.zeros(n_infinite)
-    n = hn[ta.zeros(n_infinite)].shape[0]
-    n_a = vecs_a.shape[-1] 
-    
+
     p_b = ComplementProjector(vecs_a)
-    
-    # h_0
-    
-    """
-    The separation needs to be changed to accomodate the situation when the spectrum not not ordered or the relevant subspace
-    is not directly following each other
-    """
-    
-    H_0_AA = SumOfOperatorProducts([[(np.diag(eigs_a), 'AA')]]) 
+
+    H_0_AA = SumOfOperatorProducts([[(np.diag(eigs_a), 'AA')]])
     H_0_BB = SumOfOperatorProducts([[(complement_projected(hn[zero_index], vecs_a), 'BB')]]) 
-    
-    # h_p
-    H_p_AA = {k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ vecs_a) , 'AA')]]) for k,v in hn.items() if k != zero_index}
-    H_p_BB = {k: SumOfOperatorProducts([[(complement_projected(v, vecs_a) , 'BB')]]) for k,v in hn.items() if k != zero_index}
-    H_p_AB = {k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ p_b), 'AB')]]) for k,v in hn.items() if k != zero_index}
+
+    H_p_AA = {
+        k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ vecs_a) , 'AA')]])
+        for k, v in hn.items() if any(k)
+    }
+    H_p_BB = {
+        k: SumOfOperatorProducts([[(complement_projected(v, vecs_a) , 'BB')]])
+        for k, v in hn.items() if any(k)
+    }
+    H_p_AB = {
+        k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ p_b), 'AB')]])
+        for k, v in hn.items() if any(k)
+    }
 
     H = BlockSeries(
         data={
-            **{(0, 0) + zero_index: H_0_AA},
-            **{(1, 1) + zero_index: H_0_BB},
+            (0, 0) + n_infinite * (0,): H_0_AA,
+            (1, 1) + n_infinite * (0,): H_0_BB,
             **{(0, 0) + tuple(key): value for key, value in H_p_AA.items()},
             **{(0, 1) + tuple(key): value for key, value in H_p_AB.items()},
-            **{(1, 0) + tuple(key): value.conjugate().transpose() for key, value in H_p_AB.items()},
+            **{(1, 0) + tuple(key): value.conjugate().T for key, value in H_p_AB.items()},
             **{(1, 1) + tuple(key): value for key, value in H_p_BB.items()},
         },
         shape=(2, 2),
         n_infinite=n_infinite,
     )
 
-    div_energs = create_div_energs(hn[zero_index], 
-                                    vecs_a, 
-                                    eigs_a, 
-                                    vecs_b, 
-                                    eigs_b, 
-                                    kpm_params, 
-                                    precalculate_moments)
+    div_energs = create_div_energs(
+        hn[zero_index],
+        vecs_a,
+        eigs_a,
+        vecs_b,
+        eigs_b,
+        kpm_params,
+        precalculate_moments
+    )
 
     # use general algo
-    h_tilde, u, u_ad = general(H, 
-                               solve_sylvester = div_energs)
+    h_tilde, u, u_ad = general(H, solve_sylvester = div_energs)
 
     #postprocessing
     """
