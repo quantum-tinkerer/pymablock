@@ -1,5 +1,6 @@
 import sympy
 import numpy as np
+import tinyarray as ta
 
 def sym_to_ta(h):
     """
@@ -14,10 +15,10 @@ def sym_to_ta(h):
     all_keys    : list of all symbols contained in h with order representing the map 
                 on ta.array entries
     """
-    all_keys = list(sum(hp.keys()).free_symbols)
+    all_keys = list(sum(h.keys()).free_symbols)
     # generate keys
     hpn = {}
-    for k, v in hp.items():
+    for k, v in h.items():
         # generate key array
         nkey = np.zeros_like(all_keys)
 
