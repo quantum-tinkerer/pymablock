@@ -4,12 +4,13 @@ import pytest
 import numpy as np
 import tinyarray as ta
 from scipy.linalg import eigh, block_diag
+from sympy import symbols
 
-from lowdin.poly_kpm import SumOfOperatorProducts, create_div_energs
+from lowdin.poly_kpm import SumOfOperatorProducts, create_div_energs, numerical
 from lowdin.linalg import ComplementProjector, complement_projected
 
 
-#pytest.skip("This test is not yet ready for new api", allow_module_level=True)
+# pytest.skip("This test is not yet ready for new api", allow_module_level=True)
 
 
 @pytest.fixture(
@@ -208,9 +209,16 @@ def test_create_div_energs_kpm(hamiltonians):
             (n_a + n_b, n_a + n_b)
         )
         h_ab += h_ab.conj().T
+        """
         Y.append(
             SumOfOperatorProducts(
                 [[(vecs_a.conj().T @ h_ab @ ComplementProjector(vecs_a), "AB")]]
+            )
+        )
+        """
+        Y.append(
+            SumOfOperatorProducts(
+                [[( ( h_ab @ ComplementProjector(vecs_a) )[:n_a,:] , "AB")]]
             )
         )
 
@@ -224,7 +232,28 @@ def test_create_div_energs_kpm(hamiltonians):
     applied_kpm = [de_kpm_func(y.conjugate()) for y in Y]
 
     diff_approach = {
-        i: np.abs(applied_exact[i].to_array() - applied_kpm[i].to_array()) for i in range(len(Y))
+        i: np.abs(applied_exact[i].to_array() - applied_kpm[i].to_array())
+        for i in range(len(Y))
     }
 
     assert_almost_zero(diff_approach, decimal=1, extra_msg="")
+
+
+def test_ab_is_zero():
+    max_ord = 4
+    n_dim = np.random.randint(low=20, high=100)
+    n_a = np.random.randint(low=0, high=int(n_dim/2))
+    h_0 = np.diag(np.sort(np.random.random(n_dim)))
+    eigs_a = np.diag(h_0)[:n_a]
+    vecs_a = np.eye(n_dim)[:,:n_a]
+    
+    h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+    h_p += h_p.conjugate().transpose()
+    
+    ham = {1:h_0, symbols('p_1'): h_p}
+    
+    h_t, u, t_adj = numerical(ham, vecs_a, eigs_a, kpm_params={'num_moments': 1000})
+    
+    ab_s = h_t.evaluated[0,1,:max_ord]
+    
+    assert_almost_zero(ab_s, decimal=1, extra_msg="")
