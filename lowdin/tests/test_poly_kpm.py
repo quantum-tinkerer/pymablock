@@ -10,9 +10,6 @@ from lowdin.poly_kpm import SumOfOperatorProducts, create_div_energs, numerical
 from lowdin.linalg import ComplementProjector, complement_projected
 
 
-pytest.skip("This test is not yet ready for new api", allow_module_level=True)
-
-
 @pytest.fixture(
     scope="module",
     params=[
@@ -218,7 +215,7 @@ def test_create_div_energs_kpm(hamiltonians):
         """
         Y.append(
             SumOfOperatorProducts(
-                [[( ( h_ab @ ComplementProjector(vecs_a) )[:n_a,:] , "AB")]]
+                [[((h_ab @ ComplementProjector(vecs_a))[:n_a, :], "AB")]]
             )
         )
 
@@ -242,18 +239,23 @@ def test_create_div_energs_kpm(hamiltonians):
 def test_ab_is_zero():
     max_ord = 4
     n_dim = np.random.randint(low=20, high=100)
-    n_a = np.random.randint(low=0, high=int(n_dim/2))
+    n_a = np.random.randint(low=0, high=int(n_dim / 2))
     h_0 = np.diag(np.sort(np.random.random(n_dim)))
+    h_0[n_a:, n_a:] = 15 * h_0[n_a:, n_a:] # increase gap for test to succeed in more cases
     eigs_a = np.diag(h_0)[:n_a]
-    vecs_a = np.eye(n_dim)[:,:n_a]
-    
+    vecs_a = np.eye(n_dim)[:, :n_a]
+
     h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
     h_p += h_p.conjugate().transpose()
-    
-    ham = {1:h_0, symbols('p_1'): h_p}
-    
-    h_t, u, t_adj = numerical(ham, vecs_a, eigs_a, kpm_params={'num_moments': 1000})
-    
-    ab_s = h_t.evaluated[0,1,:max_ord]
-    
+
+    ham = {1: h_0, symbols("p_1"): h_p}
+
+    h_t, u, u_adj, key_map = numerical(
+        ham, vecs_a, eigs_a, kpm_params={"num_moments": 10000}
+    )
+
+    ab_s = h_t.evaluated[0, 1, :max_ord]
+    ab_s = list(ab_s[~ab_s.mask].data)
+    ab_s = {i: ab_s[i] for i in range(len(ab_s))}
+
     assert_almost_zero(ab_s, decimal=1, extra_msg="")

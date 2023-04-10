@@ -1,32 +1,16 @@
-# ---
-# jupyter:
-#   jupytext:
-#     text_representation:
-#       extension: .py
-#       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.14.4
-#   kernelspec:
-#     display_name: Python 3 (ipykernel)
-#     language: python
-#     name: python3
-# ---
-
 from itertools import product
 from functools import reduce
 from operator import add
 
-import pdb
-
 import numpy as np
 import tinyarray as ta
-from scipy.sparse.linalg import LinearOperator
-from scipy.linalg import eigh
+
 from lowdin.linalg import ComplementProjector, complement_projected
 from lowdin.kpm_funcs import greens_function
 from lowdin.misc import sym_to_ta, ta_to_symb
 from lowdin.block_diagonalization import general, expanded
 from lowdin.series import BlockSeries
+from lowdin.series import Zero
 
 
 class SumOfOperatorProducts:
@@ -249,7 +233,13 @@ class SumOfOperatorProducts:
 
 
 def create_div_energs(
-    h_0, vecs_a, eigs_a, vecs_b=None, eigs_b=None, kpm_params=None, precalculate_moments=False
+    h_0,
+    vecs_a,
+    eigs_a,
+    vecs_b=None,
+    eigs_b=None,
+    kpm_params=None,
+    precalculate_moments=False,
 ):
     """
     h_0        : np.ndarray/ scipy.sparse.coo_matrix
@@ -273,14 +263,6 @@ def create_div_energs(
     Returns:
     divide_by_energies: callable
                         Function that applies divide by energies to the RHS of the Sylvester equation.
-    """
-    
-    """
-    MAke this interface for low-level Lowdin
-    h is dict with symbols and sparse arrays
-    does separation into aa,ab,bb
-    and initialize lowdin classes
-    target format is the {ta.array,something}
     """
     if vecs_b is None:
         vecs_b = np.empty((vecs_a.shape[0], 0))
@@ -329,36 +311,95 @@ def create_div_energs(
     return solve_sylvester
 
 
-def numerical(h: dict, 
-              vecs_a: np.ndarray, 
-              eigs_a: np.ndarray, 
-              vecs_b: np.ndarray = None, 
-              eigs_b: np.ndarray = None, 
-              kpm_params: dict = None, 
-              precalculate_moments: bool = False):
+def numerical(
+    h: dict,
+    vecs_a: np.ndarray,
+    eigs_a: np.ndarray,
+    vecs_b: np.ndarray = None,
+    eigs_b: np.ndarray = None,
+    kpm_params: dict = None,
+    precalculate_moments: bool = False,
+):
     """
     assume h is dict with {1 : h_0, p_0 : h_p_0, ...}
-    """ 
-    hn, key_map = sym_to_ta(h) 
-    n_infinite = len(key_map) 
-    zero_index = (0, ) * n_infinite
+
+    INPUTS:
+    h                  : dict of np.ndarray or scipy.sparse matrices
+                        Full Hamiltonian of the system with h[1] = H_0 and the perturbing
+                        terms encoded along the symbols of the perturbation in the keys
+                        and their associated matrices in the values
+                        (e.g.: h[sympy.symbols('p_1')] = np.random.random((dim, dim)))
+
+    vecs_a             : np.ndarray or scipy.sparse matrix
+                        eigenvectors of the A (effective) subspace of H_0 (h[1])
+
+    eigs_a             : np.ndarray
+                        eigenvalues to the aforementioned eigenvectors
+
+    vecs_b             : np.ndarray or scipy.sparse matrix, optional
+                        Explicit parts of the B (auxilliary) space. Need to be eigenvectors
+                        to H_0 (h[1])
+
+    eigs_b             : np.ndarray, optional
+                        eigenvectors to the aforementioned explicit B space eigenvectors
+
+    kpm_params         : dict, optional
+                        Dictionary containing the parameters to pass to the `~kwant.kpm`
+                        module. 'num_vectors' will be overwritten to match the number
+                        of vectors, and 'operator' key will be deleted.
+    precalculate_moments: bool, default False
+                        Whether to precalculate and store all the KPM moments of `vectors`.
+                        This is useful if the Green's function is evaluated at a large
+                        number of energies, but uses a large amount of memory.
+                        If False, the KPM expansion is performed every time the Green's
+                        function is called, which minimizes memory use.
+
+
+    RETURNS:
+    h_t_return         : BlockSeries (see block_diagonalization.py)
+                        Full block diagonalized Hamiltonian of the problem. The explict
+                        entries are called via var_name.evaluated[x, y, order] where
+                        x, y refer to the sub-space index (A, B).
+                        E.g.: var_name.evaluated[0,1,3] returns the AB entry of
+                        var_name to third order in a single perturbation parameter.
+
+    u_return           : BlockSeries (see block_diagonalization.py)
+                        Unitary transformation that block diagonalizes the initial perturbed
+                        Hamiltonian. Entries are accessed the same way as h_t_return
+
+    u_adj_return       : BlockSeries (see block_diagonalization.py)
+                        Adjoint of u_return.
+
+    key_map            : list of sympy.symbols
+                        List of symbols that show how the internal substitution function
+                        mapped the symbols to entries in the indices with which respective
+                        orders are called.
+    """
+    hn, key_map = sym_to_ta(h)
+    n_infinite = len(key_map)
+    zero_index = (0,) * n_infinite
 
     p_b = ComplementProjector(vecs_a)
 
-    H_0_AA = SumOfOperatorProducts([[(np.diag(eigs_a), 'AA')]])
-    H_0_BB = SumOfOperatorProducts([[(complement_projected(hn[zero_index], vecs_a), 'BB')]]) 
+    H_0_AA = SumOfOperatorProducts([[(np.diag(eigs_a), "AA")]])
+    H_0_BB = SumOfOperatorProducts(
+        [[(complement_projected(hn[zero_index], vecs_a), "BB")]]
+    )
 
     H_p_AA = {
-        k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ vecs_a) , 'AA')]])
-        for k, v in hn.items() if any(k)
+        k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ vecs_a), "AA")]])
+        for k, v in hn.items()
+        if any(k)
     }
     H_p_BB = {
-        k: SumOfOperatorProducts([[(complement_projected(v, vecs_a) , 'BB')]])
-        for k, v in hn.items() if any(k)
+        k: SumOfOperatorProducts([[(complement_projected(v, vecs_a), "BB")]])
+        for k, v in hn.items()
+        if any(k)
     }
     H_p_AB = {
-        k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ p_b), 'AB')]])
-        for k, v in hn.items() if any(k)
+        k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ p_b), "AB")]])
+        for k, v in hn.items()
+        if any(k)
     }
 
     H = BlockSeries(
@@ -367,7 +408,10 @@ def numerical(h: dict,
             (1, 1) + n_infinite * (0,): H_0_BB,
             **{(0, 0) + tuple(key): value for key, value in H_p_AA.items()},
             **{(0, 1) + tuple(key): value for key, value in H_p_AB.items()},
-            **{(1, 0) + tuple(key): value.conjugate().T for key, value in H_p_AB.items()},
+            **{
+                (1, 0) + tuple(key): value.conjugate().transpose()
+                for key, value in H_p_AB.items()
+            },
             **{(1, 1) + tuple(key): value for key, value in H_p_BB.items()},
         },
         shape=(2, 2),
@@ -375,38 +419,35 @@ def numerical(h: dict,
     )
 
     div_energs = create_div_energs(
-        hn[zero_index],
-        vecs_a,
-        eigs_a,
-        vecs_b,
-        eigs_b,
-        kpm_params,
-        precalculate_moments
+        hn[zero_index], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
     )
 
-    # use general algo
-    h_tilde, u, u_ad = general(H, solve_sylvester = div_energs)
+    h_tilde, u, u_ad = general(H, solve_sylvester=div_energs)
 
-    #postprocessing
-    """
     def h_tilde_eval(*index):
-        if index[:2] in [[0,0],[0,1],[1,0]]:
-            return h_tilde.evaluated[index].to_array()
+        res = h_tilde.evaluated[index]
+        if isinstance(res, Zero):
+            return res
+        elif index[:2] in [(0, 0), (0, 1), (1, 0)]:
+            return res.to_array()
         else:
-            return h_tilde.evaluated[index]
+            return res
 
     def u_eval(*index):
-        if index[:2] in [[0,0],[0,1],[1,0]]:
-            return u.evaluated[index].to_array()
+        res = u.evaluated[index]
+        if isinstance(res, Zero):
+            return res
+        elif index[:2] in [(0, 0), (0, 1), (1, 0)]:
+            return res.to_array()
         else:
-            return u.evaluated[index]
+            return res
 
     h_t_return = BlockSeries(eval=h_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
-    u_return = BlockSeries(eval = u_eval, shape=(2, 2), n_infinite=H.n_infinite)
-    u_adj_return = BlockSeries(eval = lambda index: u_eval(*index).conjugate().transpose(), shape=(2, 2), n_infinite=H.n_infinite)
-    """
-    return h_tilde, u, u_ad
+    u_return = BlockSeries(eval=u_eval, shape=(2, 2), n_infinite=H.n_infinite)
+    u_adj_return = BlockSeries(
+        eval=lambda index: u_eval(*index).conjugate().transpose(),
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+    )
 
-
-
-
+    return h_t_return, u_return, u_adj_return, key_map
