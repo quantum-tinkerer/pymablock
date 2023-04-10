@@ -12,6 +12,7 @@
 *.o
 *.so
 *.pyc
+*.pyo
 *.aux
 
 # Packages #
@@ -157,3 +158,6 @@ notes/*.pdf
 .pytest_cache/
 *.xml # report files
 htmlcov/ # html coverage report
+junit.xml # junit report file
+coverage.xml # coverage report file
+coverage/ # coverage report files
