@@ -4,10 +4,9 @@ import pytest
 import numpy as np
 import tinyarray as ta
 from scipy.linalg import eigh, block_diag
-from sympy import symbols
 
 from lowdin.poly_kpm import SumOfOperatorProducts, create_div_energs, numerical
-from lowdin.linalg import ComplementProjector, complement_projected
+from lowdin.linalg import ComplementProjector
 
 
 @pytest.fixture(
@@ -248,9 +247,9 @@ def test_ab_is_zero():
     h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
     h_p += h_p.conjugate().transpose()
 
-    ham = {1: h_0, symbols("p_1"): h_p}
+    ham = {(0,): h_0, (1,): h_p}
 
-    h_t, u, u_adj, key_map = numerical(
+    h_t, u, u_adj = numerical(
         ham, vecs_a, eigs_a, kpm_params={"num_moments": 10000}
     )
 

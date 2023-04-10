@@ -3,12 +3,10 @@ from functools import reduce
 from operator import add
 
 import numpy as np
-import tinyarray as ta
 
 from lowdin.linalg import ComplementProjector, complement_projected
 from lowdin.kpm_funcs import greens_function
-from lowdin.misc import sym_to_ta, ta_to_symb
-from lowdin.block_diagonalization import general, expanded
+from lowdin.block_diagonalization import general
 from lowdin.series import BlockSeries
 from lowdin.series import Zero
 
@@ -321,84 +319,70 @@ def numerical(
     precalculate_moments: bool = False,
 ):
     """
-    assume h is dict with {1 : h_0, p_0 : h_p_0, ...}
 
-    INPUTS:
-    h                  : dict of np.ndarray or scipy.sparse matrices
-                        Full Hamiltonian of the system with h[1] = H_0 and the perturbing
-                        terms encoded along the symbols of the perturbation in the keys
-                        and their associated matrices in the values
-                        (e.g.: h[sympy.symbols('p_1')] = np.random.random((dim, dim)))
-
-    vecs_a             : np.ndarray or scipy.sparse matrix
-                        eigenvectors of the A (effective) subspace of H_0 (h[1])
-
-    eigs_a             : np.ndarray
-                        eigenvalues to the aforementioned eigenvectors
-
-    vecs_b             : np.ndarray or scipy.sparse matrix, optional
-                        Explicit parts of the B (auxilliary) space. Need to be eigenvectors
-                        to H_0 (h[1])
-
-    eigs_b             : np.ndarray, optional
-                        eigenvectors to the aforementioned explicit B space eigenvectors
-
-    kpm_params         : dict, optional
-                        Dictionary containing the parameters to pass to the `~kwant.kpm`
-                        module. 'num_vectors' will be overwritten to match the number
-                        of vectors, and 'operator' key will be deleted.
+    Parameters:
+    -----------
+    h : dict of np.ndarray or scipy.sparse matrices
+        Full Hamiltonian of the system with keys corresponding to the order of
+        the perturbation series
+    vecs_a : np.ndarray or scipy.sparse matrix
+        eigenvectors of the A (effective) subspace of H_0 (h[1])
+    eigs_a : np.ndarray
+        eigenvalues to the aforementioned eigenvectors
+    vecs_b : np.ndarray or scipy.sparse matrix, optional
+        Explicit parts of the B (auxilliary) space. Need to be eigenvectors
+        to H_0 (h[1])
+    eigs_b : np.ndarray, optional
+        eigenvectors to the aforementioned explicit B space eigenvectors
+    kpm_params : dict, optional
+        Dictionary containing the parameters to pass to the `~kwant.kpm`
+        module. 'num_vectors' will be overwritten to match the number
+        of vectors, and 'operator' key will be deleted.
     precalculate_moments: bool, default False
-                        Whether to precalculate and store all the KPM moments of `vectors`.
-                        This is useful if the Green's function is evaluated at a large
-                        number of energies, but uses a large amount of memory.
-                        If False, the KPM expansion is performed every time the Green's
-                        function is called, which minimizes memory use.
+        Whether to precalculate and store all the KPM moments of `vectors`.
+        This is useful if the Green's function is evaluated at a large
+        number of energies, but uses a large amount of memory.
+        If False, the KPM expansion is performed every time the Green's
+        function is called, which minimizes memory use.
 
 
-    RETURNS:
-    h_t_return         : BlockSeries (see block_diagonalization.py)
-                        Full block diagonalized Hamiltonian of the problem. The explict
-                        entries are called via var_name.evaluated[x, y, order] where
-                        x, y refer to the sub-space index (A, B).
-                        E.g.: var_name.evaluated[0,1,3] returns the AB entry of
-                        var_name to third order in a single perturbation parameter.
-
-    u_return           : BlockSeries (see block_diagonalization.py)
-                        Unitary transformation that block diagonalizes the initial perturbed
-                        Hamiltonian. Entries are accessed the same way as h_t_return
-
-    u_adj_return       : BlockSeries (see block_diagonalization.py)
-                        Adjoint of u_return.
-
-    key_map            : list of sympy.symbols
-                        List of symbols that show how the internal substitution function
-                        mapped the symbols to entries in the indices with which respective
-                        orders are called.
+    Returns:
+    --------
+    h_t : BlockSeries
+        Full block diagonalized Hamiltonian of the problem. The explict
+        entries are called via var_name.evaluated[x, y, order] where
+        x, y refer to the sub-space index (A, B).
+        E.g.: var_name.evaluated[0,1,3] returns the AB entry of
+        var_name to third order in a single perturbation parameter.
+    u : BlockSeries
+        Unitary transformation that block diagonalizes the initial perturbed
+        Hamiltonian. Entries are accessed the same way as h_t
+    u_adj : BlockSeries
+        Adjoint of u.
     """
-    hn, key_map = sym_to_ta(h)
-    n_infinite = len(key_map)
+    n_infinite = len(next(iter(h)))
     zero_index = (0,) * n_infinite
 
     p_b = ComplementProjector(vecs_a)
 
     H_0_AA = SumOfOperatorProducts([[(np.diag(eigs_a), "AA")]])
     H_0_BB = SumOfOperatorProducts(
-        [[(complement_projected(hn[zero_index], vecs_a), "BB")]]
+        [[(complement_projected(h[zero_index], vecs_a), "BB")]]
     )
 
     H_p_AA = {
         k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ vecs_a), "AA")]])
-        for k, v in hn.items()
+        for k, v in h.items()
         if any(k)
     }
     H_p_BB = {
         k: SumOfOperatorProducts([[(complement_projected(v, vecs_a), "BB")]])
-        for k, v in hn.items()
+        for k, v in h.items()
         if any(k)
     }
     H_p_AB = {
         k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ p_b), "AB")]])
-        for k, v in hn.items()
+        for k, v in h.items()
         if any(k)
     }
 
@@ -419,35 +403,29 @@ def numerical(
     )
 
     div_energs = create_div_energs(
-        hn[zero_index], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
+        h[zero_index], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
     )
 
-    h_tilde, u, u_ad = general(H, solve_sylvester=div_energs)
+    h_tilde, u, _ = general(H, solve_sylvester=div_energs)
 
     def h_tilde_eval(*index):
         res = h_tilde.evaluated[index]
-        if isinstance(res, Zero):
-            return res
-        elif index[:2] in [(0, 0), (0, 1), (1, 0)]:
+        if not all(index[:2]) and not isinstance(res, Zero):
             return res.to_array()
-        else:
-            return res
+        return res
 
     def u_eval(*index):
         res = u.evaluated[index]
-        if isinstance(res, Zero):
-            return res
-        elif index[:2] in [(0, 0), (0, 1), (1, 0)]:
+        if not all(index[:2]) and not isinstance(res, Zero):
             return res.to_array()
-        else:
-            return res
+        return res
 
     h_t_return = BlockSeries(eval=h_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
     u_return = BlockSeries(eval=u_eval, shape=(2, 2), n_infinite=H.n_infinite)
     u_adj_return = BlockSeries(
-        eval=lambda index: u_eval(*index).conjugate().transpose(),
+        eval=lambda index: (-1)**(index[0] != index[1]) * u.evaluated[index],
         shape=(2, 2),
         n_infinite=H.n_infinite,
     )
 
-    return h_t_return, u_return, u_adj_return, key_map
+    return h_t_return, u_return, u_adj_return
