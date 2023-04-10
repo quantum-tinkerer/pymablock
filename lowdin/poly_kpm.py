@@ -406,26 +406,15 @@ def numerical(
         h[zero_index], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
     )
 
-    h_tilde, u, _ = general(H, solve_sylvester=div_energs)
+    def unpacked(original: BlockSeries) -> BlockSeries:
+        """Unpack the blocks of the series that are stored as explicit matrices"""
+        def unpacked_eval(*index):
+            res = original.evaluated[index]
+            if not all(index[:2]) and not isinstance(res, Zero):
+                return res.to_array()
+            return res
+        return BlockSeries(
+            eval=unpacked_eval, shape=(2, 2), n_infinite=original.n_infinite
+        )
 
-    def h_tilde_eval(*index):
-        res = h_tilde.evaluated[index]
-        if not all(index[:2]) and not isinstance(res, Zero):
-            return res.to_array()
-        return res
-
-    def u_eval(*index):
-        res = u.evaluated[index]
-        if not all(index[:2]) and not isinstance(res, Zero):
-            return res.to_array()
-        return res
-
-    h_t_return = BlockSeries(eval=h_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
-    u_return = BlockSeries(eval=u_eval, shape=(2, 2), n_infinite=H.n_infinite)
-    u_adj_return = BlockSeries(
-        eval=lambda index: (-1)**(index[0] != index[1]) * u.evaluated[index],
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-    )
-
-    return h_t_return, u_return, u_adj_return
+    return tuple(unpacked(series) for series in general(H, solve_sylvester=div_energs))
