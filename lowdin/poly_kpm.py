@@ -7,9 +7,7 @@ import numpy as np
 from lowdin.linalg import ComplementProjector, complement_projected
 from lowdin.kpm_funcs import greens_function
 from lowdin.block_diagonalization import general
-from lowdin.series import BlockSeries
-from lowdin.series import Zero
-
+from lowdin.series import BlockSeries, zero
 
 class SumOfOperatorProducts:
     """
