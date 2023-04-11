@@ -408,7 +408,7 @@ def numerical(
         """Unpack the blocks of the series that are stored as explicit matrices"""
         def unpacked_eval(*index):
             res = original.evaluated[index]
-            if not all(index[:2]) and not isinstance(res, Zero):
+            if not all(index[:2]) and zero != res:
                 return res.to_array()
             return res
         return BlockSeries(
