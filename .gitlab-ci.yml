@@ -47,7 +47,7 @@ run docs:
     - cd ..
   artifacts:
     paths:
-      - public
+      - docs/build
 
 pages:
   extends: .pdf-build
