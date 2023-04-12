@@ -42,7 +42,7 @@ run docs:
     - pip install sphinx sphinx_rtd_theme myst-parser
     - cd docs
     - sphinx-apidoc -f -o source/documentation ../lowdin/
-    - make html sphinx-apidoc
+    - make html
     - cd ..
   artifacts:
     paths:
