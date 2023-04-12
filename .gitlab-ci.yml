@@ -60,6 +60,7 @@ pages:
     - mkdir public
     - cp notes/*.pdf public
     - cp -r htmlcov public/
+    - cp -r docs/build public/
   artifacts:
     paths:
       - public
