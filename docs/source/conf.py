@@ -13,7 +13,7 @@
 import os
 import sys
 
-package_path = os.path.abspath("../..")
+package_path = os.path.abspath("../lowdin")
 sys.path.insert(0, package_path)
 
 
@@ -33,7 +33,8 @@ release = '.'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'myst_parser',
+    # 'myst_parser',
+    'sphinx_mdinclude',
 ]
 
 
