@@ -6,8 +6,6 @@ variables:
 
 before_script:
   - shopt -s nullglob  # sane behaviour when globs do not match
-  - pip install gitlab-ci-tools  # for last-good-build
-  - LAST_GOOD_SHA=$(last-good-build || echo '')
 
 .pdf-build:
   script:
@@ -22,13 +20,6 @@ before_script:
     - for tex in *.tex; do
     -   if grep "documentclass" $tex >/dev/null; then
     -     latexmk -pdf $tex
-    -     DIFF="$(git diff $LAST_GOOD_SHA -- $tex || echo '')"
-    -     if [ "$LAST_GOOD_SHA" ] && [ "$DIFF" ]; then
-    -       git show $LAST_GOOD_SHA:$CWD/$tex > old_$tex
-    -       latexdiff old_$tex $tex > diff_$tex
-    -       rm old_$tex
-    -       latexmk -pdf diff_$tex
-    -     fi
     -   fi
     - done
 
