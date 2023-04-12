@@ -37,6 +37,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autodoc.typehints',
     'myst_parser',
+    'nbsphinx',
 ]
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
