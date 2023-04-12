@@ -40,7 +40,7 @@ run tests:
 run docs:
   script:
     - pip install sphinx sphinx_rtd_theme myst-parser
-    - cd docs & make html & cd ..
+    - cd docs && make html && cd ..
   artifacts:
     paths:
       - docs/build
