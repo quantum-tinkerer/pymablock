@@ -6,6 +6,5 @@
 :caption: Reference documentation
 
 lowdin.rst
-lowdin.tests.rst
 modules.rst
 ```
