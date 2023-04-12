@@ -5,7 +5,7 @@ import numpy as np
 import tinyarray as ta
 from scipy.linalg import eigh, block_diag
 
-from lowdin.poly_kpm import SumOfOperatorProducts, create_div_energs, numerical
+from lowdin.poly_kpm import create_div_energs, numerical
 from lowdin.linalg import ComplementProjector
 
 
@@ -73,34 +73,6 @@ def hamiltonians(Ns, wanted_orders):
     return hams
 
 
-def random_term(n, m, length, start, end, rng=None):
-    """Generate a random term.
-
-    Parameters
-    ----------
-    n : int
-        Size of "A" space
-    m : int
-        Size of "B" space
-    length : int
-        Number of operators in the term
-    start, end : str
-        Start and end spaces of the term (A or B)
-    rng : np.random.Generator
-        Random number generator
-    """
-    if rng is None:
-        rng = np.random.default_rng()
-    spaces = "".join(np.random.choice(a=["A", "B"], size=length - 1))
-    spaces = start + spaces + end
-    op_spaces = ["".join(s) for s in zip(spaces[:-1], spaces[1:])]
-    op_dims = [
-        (n if dim[0] == "A" else m, m if dim[1] == "B" else n) for dim in op_spaces
-    ]
-    ops = [rng.random(size=dim) for dim in op_dims]
-    return SumOfOperatorProducts([[(op, space) for op, space in zip(ops, op_spaces)]])
-
-
 def assert_almost_zero(a, decimal=5, extra_msg=""):
     """
     Assert that all values in a are almost zero.
@@ -115,49 +87,7 @@ def assert_almost_zero(a, decimal=5, extra_msg=""):
         )
 
 
-# ############################################################################################
-
-
-def test_shape_validation():
-    """Test that only terms of compatible shapes are accepted.
-
-    Instead of providing terms manually we rely on SumOfOperatorProducts
-    creating new instances of itself on addition and multiplication.
-    """
-    n, m = 4, 10
-    terms = {
-        "AA": random_term(n, m, 1, "A", "A"),
-        "AB": random_term(n, m, 1, "A", "B"),
-        "BA": random_term(n, m, 1, "B", "A"),
-        "BB": random_term(n, m, 1, "B", "B"),
-    }
-    for (space1, term1), (space2, term2) in product(terms.items(), repeat=2):
-        # Sums should work if the spaces are the same
-        if space1 == space2:
-            # no error, moreover the result should simplify to a single term
-            term1 + term2
-            assert len(term1.terms) == 1
-        else:
-            with pytest.raises(ValueError):
-                term1 + term2
-
-        # Matmuls should work if start space of term2 matches end space of term1
-        if space1[1] == space2[0]:
-            term1 @ term2
-        else:
-            with pytest.raises(ValueError):
-                term1 @ term2
-
-
-def test_neg():
-    """Test that negation works."""
-    n, m = 4, 10
-    term = random_term(n, m, 1, "A", "A")
-    zero = term + -term
-    # Should have one term with all zeros
-    assert len(zero.terms) == 1
-    np.testing.assert_allclose(zero.terms[0][0][0], 0)
-
+#############################################################################################
 
 def test_create_div_energs_kpm(hamiltonians):
     n_a = hamiltonians[0].shape[0]
@@ -186,50 +116,6 @@ def test_create_div_energs_kpm(hamiltonians):
 
     diff_approach = {
         i: np.abs(applied_exact[i] - applied_kpm[i]) for i in range(len(Y))
-    }
-
-    assert_almost_zero(diff_approach, decimal=1, extra_msg="")
-
-
-def test_create_div_energs_kpm(hamiltonians):
-    n_a = hamiltonians[0].shape[0]
-    n_b = hamiltonians[1].shape[0]
-    h_0 = block_diag(hamiltonians[0], hamiltonians[1])
-    eigs, vecs = eigh(h_0)
-    eigs_a, vecs_a = eigs[:n_a], vecs[:, :n_a]
-    eigs_b, vecs_b = eigs[n_a:], vecs[:, n_a:]
-
-    Y = []
-    for _ in range(5):
-        h_ab = np.random.random((n_a + n_b, n_a + n_b)) + 1j * np.random.random(
-            (n_a + n_b, n_a + n_b)
-        )
-        h_ab += h_ab.conj().T
-        """
-        Y.append(
-            SumOfOperatorProducts(
-                [[(vecs_a.conj().T @ h_ab @ ComplementProjector(vecs_a), "AB")]]
-            )
-        )
-        """
-        Y.append(
-            SumOfOperatorProducts(
-                [[((h_ab @ ComplementProjector(vecs_a))[:n_a, :], "AB")]]
-            )
-        )
-
-    de_kpm_func = lambda Y: create_div_energs(
-        h_0, vecs_a, eigs_a, kpm_params=dict(num_moments=1000)
-    )(Y)
-    de_exact_func = lambda Y: create_div_energs(h_0, vecs_a, eigs_a, vecs_b, eigs_b)(Y)
-
-    # apply h_ab from left -> Y.conj() since G_0 is hermitian
-    applied_exact = [de_exact_func(y.conjugate()) for y in Y]
-    applied_kpm = [de_kpm_func(y.conjugate()) for y in Y]
-
-    diff_approach = {
-        i: np.abs(applied_exact[i].to_array() - applied_kpm[i].to_array())
-        for i in range(len(Y))
     }
 
     assert_almost_zero(diff_approach, decimal=1, extra_msg="")
