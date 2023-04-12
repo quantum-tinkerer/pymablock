@@ -39,11 +39,13 @@ def _zero_sum(terms: list[Any]) -> Any:
     """
     Sum that returns a singleton zero if empty and omits zero terms
 
-    Args:
-        terms : Terms to sum over with zero as default value.
+    Parameters
+    ----------
+    terms : Terms to sum over with zero as default value.
 
-    Returns:
-        Sum of terms, or zero if terms is empty.
+    Returns
+    -------
+    Sum of terms, or zero if terms is empty.
     """
     return sum((term for term in terms if zero != term), start=zero)
 
@@ -58,11 +60,13 @@ class _Evaluated:
         """
         Evaluate the series at the given index, following numpy's indexing rules.
 
-        Args:
-            item : index at which to evaluate the series.
+        Parameters
+        ----------
+        item : index at which to evaluate the series.
 
-        Returns:
-            The item or items at the given index.
+        Returns
+        -------
+        The item or items at the given index.
         """
         if not isinstance(item, tuple):  # Allow indexing with integer
             item = (item,)
@@ -101,8 +105,9 @@ class _Evaluated:
         """
         Check that the indices of the infinite dimension are finite and positive.
 
-        Args:
-            orders : indices of the infinite dimension.
+        Parameters
+        ----------
+        orders : indices of the infinite dimension.
         """
         for order in orders:
             if isinstance(order, slice):
@@ -115,6 +120,8 @@ class _Evaluated:
         """
         Check that the number of indices is correct.
 
+        Parameters
+        ----------
         item : indices to check.
         """
         if len(item) != len(self.original.shape) + self.original.n_infinite:
@@ -135,11 +142,12 @@ class BlockSeries:
         """An infinite series that caches its items.
         The series has finite and infinite dimensions.
 
-        Args:
-            eval : Function that takes an index and returns the corresponding item.
-            data : Dictionary {index: value} to start with.
-            shape : Shape of the finite dimensions.
-            n_infinite : Number of infinite dimensions.
+        Parameters
+        ----------
+        eval : Function that takes an index and returns the corresponding item.
+        data : Dictionary {index: value} to start with.
+        shape : Shape of the finite dimensions.
+        n_infinite : Number of infinite dimensions.
         """
         self.eval = (lambda *_: zero) if eval is None else eval
         self.evaluated = _Evaluated(self)
@@ -160,16 +168,18 @@ def cauchy_dot_product(
     Notes:
     This treats a singleton `one` as the identity operator.
 
-    Args:
-        series : Series to multiply using their block structure.
-        op : (optional) Function for multiplying elements of the series.
-            Default is matrix multiplication matmul.
-        hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
-        exclude_last : (optional) whether to exclude last order on each term.
-            This is useful to avoid infinite recursion on some algorithms.
+    Parameters
+    ----------
+    series : Series to multiply using their block structure.
+    op : (optional) Function for multiplying elements of the series.
+        Default is matrix multiplication matmul.
+    hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
+    exclude_last : (optional) whether to exclude last order on each term.
+        This is useful to avoid infinite recursion on some algorithms.
 
-    Returns:
-        A new series that is the Cauchy dot product of the given series.
+    Returns
+    -------
+    A new series that is the Cauchy dot product of the given series.
     """
     if len(series) < 2:
         return series[0] if series else one
@@ -200,20 +210,25 @@ def cauchy_dot_product(
 
 
 def _generate_orders(
-    orders: tuple[int, ...], start: Optional[int] = None, end: Optional[int] = None, last: bool = True
+    orders: tuple[int, ...],
+    start: Optional[int] = None,
+    end: Optional[int] = None,
+    last: bool = True
 ) -> ma.MaskedArray:
     """
     Generate array of lower orders to be used in product_by_order.
 
-    Args:
-        orders : maximum orders of each infinite dimension.
-        start : (optional) 0 or 1 row index of block.
-        end : (optional) 0 or 1 column index of block.
-        last : (optional) bool for whether to keep last order.
-            This is useful to avoid recursion errors.
+    Parameters
+    ----------
+    orders : maximum orders of each infinite dimension.
+    start : (optional) 0 or 1 row index of block.
+    end : (optional) 0 or 1 column index of block.
+    last : (optional) bool for whether to keep last order.
+        This is useful to avoid recursion errors.
 
-    Returns:
-        Array of lower orders to be used in product_by_order.
+    Returns
+    -------
+    Array of lower orders to be used in product_by_order.
     """
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
     trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
@@ -237,17 +252,19 @@ def product_by_order(
     """
     Compute sum of all product of factors of a wanted order.
 
-    Args:
-        index : Index of the wanted order.
-        series : Series to multiply using their block structure.
-        op : (optional) Function for multiplying elements of the series.
-            Default is matrix multiplication matmul.
-        hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
-        exclude_last : (optional) whether to exclude last order on each term.
-            This is useful to avoid infinite recursion on some algorithms.
+    Parameters
+    ----------
+    index : Index of the wanted order.
+    series : Series to multiply using their block structure.
+    op : (optional) Function for multiplying elements of the series.
+        Default is matrix multiplication matmul.
+    hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
+    exclude_last : (optional) whether to exclude last order on each term.
+        This is useful to avoid infinite recursion on some algorithms.
 
-    Returns:
-        Sum of all products that contribute to the wanted order.
+    Returns
+    -------
+    Sum of all products that contribute to the wanted order.
     """
     if op is None:
         op = matmul
