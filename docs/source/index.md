@@ -1,17 +1,18 @@
-.. lowdin documentation master file, created by
-   sphinx-quickstart on Tue Apr 11 16:05:11 2023.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+# Welcome to lowdin's documentation!
 
-.. mdinclude:: ../../README.md
 
-Welcome to lowdin's documentation!
-==================================
+```{toctree}
+:hidden:
+:caption: Contents
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Contents:
-   
-   CITING
-   CHANGELOG
-   tutorial/tutorial
+tutorial/tutorial.md
+algorithm/algorithm.md
+CITING.md
+CHANGELOG.md
+```
+
+This is the initial page, we should explain:
+- Goal of the package
+- Overall idea mentioning main algorithms (details somewhere else)
+- How to install it
+- Where to find docs
