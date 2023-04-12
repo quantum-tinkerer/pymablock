@@ -89,6 +89,7 @@ def assert_almost_zero(a, decimal=5, extra_msg=""):
 
 #############################################################################################
 
+
 def test_create_div_energs_kpm(hamiltonians):
     n_a = hamiltonians[0].shape[0]
     n_b = hamiltonians[1].shape[0]
@@ -115,7 +116,11 @@ def test_create_div_energs_kpm(hamiltonians):
     applied_kpm = [de_kpm_func(y.conj()) for y in Y]
 
     diff_approach = {
-        i: np.abs(applied_exact[i] - applied_kpm[i]) for i in range(len(Y))
+        i: np.abs(
+            applied_exact[i] @ np.eye(applied_exact[i].shape[-1])
+            - applied_kpm[i] @ np.eye(applied_kpm[i].shape[-1])
+        )
+        for i in range(len(Y))
     }
 
     assert_almost_zero(diff_approach, decimal=1, extra_msg="")
@@ -126,7 +131,9 @@ def test_ab_is_zero():
     n_dim = np.random.randint(low=20, high=100)
     n_a = np.random.randint(low=0, high=int(n_dim / 2))
     h_0 = np.diag(np.sort(np.random.random(n_dim)))
-    h_0[n_a:, n_a:] = 15 * h_0[n_a:, n_a:] # increase gap for test to succeed in more cases
+    h_0[n_a:, n_a:] = (
+        15 * h_0[n_a:, n_a:]
+    )  # increase gap for test to succeed in more cases
     eigs_a = np.diag(h_0)[:n_a]
     vecs_a = np.eye(n_dim)[:, :n_a]
 
@@ -135,9 +142,7 @@ def test_ab_is_zero():
 
     ham = {(0,): h_0, (1,): h_p}
 
-    h_t, u, u_adj = numerical(
-        ham, vecs_a, eigs_a, kpm_params={"num_moments": 10000}
-    )
+    h_t, u, u_adj = numerical(ham, vecs_a, eigs_a, kpm_params={"num_moments": 10000})
 
     ab_s = h_t.evaluated[0, 1, :max_ord]
     ab_s = list(ab_s[~ab_s.mask].data)

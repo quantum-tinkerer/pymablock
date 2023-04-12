@@ -3,6 +3,9 @@ from functools import reduce
 from operator import add
 
 import numpy as np
+from scipy.sparse.linalg import aslinearoperator
+
+import pdb
 
 from lowdin.linalg import ComplementProjector, complement_projected
 from lowdin.kpm_funcs import greens_function
@@ -75,7 +78,8 @@ def create_div_energs(
             return ((Y @ vecs_b) * G_ml) @ vecs_b.conj().T
 
     def solve_sylvester(Y):
-        Y = Y.to_array()
+        #pdb.set_trace()
+        Y = Y @ np.eye(Y.shape[-1])
         if need_kpm and need_explicit:
             result = sylvester_kpm(Y) + sylvester_explicit(Y)
         elif need_kpm:
@@ -83,7 +87,7 @@ def create_div_energs(
         elif need_explicit:
             result = sylvester_explicit(Y)
 
-        return SumOfOperatorProducts([[(result, "AB")]])
+        return aslinearoperator(result)
 
     return solve_sylvester
 
@@ -144,38 +148,24 @@ def numerical(
 
     p_b = ComplementProjector(vecs_a)
 
-    H_0_AA = SumOfOperatorProducts([[(np.diag(eigs_a), "AA")]])
-    H_0_BB = SumOfOperatorProducts(
-        [[(complement_projected(h[zero_index], vecs_a), "BB")]]
-    )
+    h_0_aa = aslinearoperator(np.diag(eigs_a))
+    h_0_bb = complement_projected(h[zero_index], vecs_a)
 
-    H_p_AA = {
-        k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ vecs_a), "AA")]])
-        for k, v in h.items()
-        if any(k)
-    }
-    H_p_BB = {
-        k: SumOfOperatorProducts([[(complement_projected(v, vecs_a), "BB")]])
-        for k, v in h.items()
-        if any(k)
-    }
-    H_p_AB = {
-        k: SumOfOperatorProducts([[((vecs_a.conj().T @ v @ p_b), "AB")]])
-        for k, v in h.items()
-        if any(k)
-    }
+    h_p_aa = {k: aslinearoperator(vecs_a.conj().T @ v @ vecs_a)for k, v in h.items()if any(k)}
+    h_p_bb = {k: complement_projected(v, vecs_a)for k, v in h.items() if any(k)}
+    h_p_ab = {k: aslinearoperator(vecs_a.conj().T @ v @ p_b) for k, v in h.items() if any(k)}
 
     H = BlockSeries(
         data={
-            (0, 0) + n_infinite * (0,): H_0_AA,
-            (1, 1) + n_infinite * (0,): H_0_BB,
-            **{(0, 0) + tuple(key): value for key, value in H_p_AA.items()},
-            **{(0, 1) + tuple(key): value for key, value in H_p_AB.items()},
+            (0, 0) + n_infinite * (0,): h_0_aa,
+            (1, 1) + n_infinite * (0,): h_0_bb,
+            **{(0, 0) + tuple(key): value for key, value in h_p_aa.items()},
+            **{(0, 1) + tuple(key): value for key, value in h_p_ab.items()},
             **{
-                (1, 0) + tuple(key): value.conjugate().transpose()
-                for key, value in H_p_AB.items()
+                (1, 0) + tuple(key): value.adjoint()
+                for key, value in h_p_ab.items()
             },
-            **{(1, 1) + tuple(key): value for key, value in H_p_BB.items()},
+            **{(1, 1) + tuple(key): value for key, value in h_p_bb.items()},
         },
         shape=(2, 2),
         n_infinite=n_infinite,
@@ -190,7 +180,7 @@ def numerical(
         def unpacked_eval(*index):
             res = original.evaluated[index]
             if not all(index[:2]) and zero != res:
-                return res.to_array()
+                return res @ np.eye(res.shape[-1])
             return res
         return BlockSeries(
             eval=unpacked_eval, shape=(2, 2), n_infinite=original.n_infinite
