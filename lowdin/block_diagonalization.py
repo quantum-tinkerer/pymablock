@@ -89,7 +89,10 @@ def general(
     def eval(*index: tuple[int, ...]) -> Any:
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
-            return -identity.evaluated[index] / 2
+            try:
+                return -identity.evaluated[index] / 2 
+            except TypeError:
+                return 1/2 * -identity.evaluated[index]
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
             Y = H_tilde_rec.evaluated[index]
