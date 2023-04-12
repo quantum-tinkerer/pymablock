@@ -5,6 +5,8 @@ kernelspec:
 ---
 # Jaynes-Cummings model
 
+**TODO: Write intro about JC Hamiltonian**
+
 ```{code-cell}
 from operator import mul
 
@@ -24,6 +26,10 @@ wr, wq, g = sympy.symbols(r"\omega_r, \omega_q, g", real=True)
 a = BosonOp("a")
 ```
 
+We define the initial Hamiltonian by specifying the perturbation and unperturbed
+Hamiltonian in the different subspaces, occupied (AA), unoccupied (BB), and mixing
+terms (AB/BA).
+
 ```{code-cell}
 H_0_AA = wr * Dagger(a) * a + sympy.Rational(1 / 2) * wq
 H_0_BB = wr * Dagger(a) * a - sympy.Rational(1 / 2) * wq
@@ -34,6 +40,16 @@ H_p_BB = {}
 
 H = to_BlockSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB)
 ```
+
+To use Lowdin we need to solve Sylvester's Equation
+$$
+H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1}.
+$$
+Therefore, we define a custom function that takes $Y$ and returns $V$ such that
+$$
+(V_{n+1}^{AB})_{x,y} = (Y_{n+1})_{x,y} / (E_x - E_y).
+$$
+We solve Sylvester's Equation using `sympy` bosonic operators as follows:
 
 ```{code-cell}
 n = sympy.symbols("n", integer=True, positive=True)
@@ -69,10 +85,16 @@ def solve_sylvester(rhs):
     return sum(V)
 ```
 
+We define the block-diagonalization of `H` by defining,
 ```{code-cell}
 H_tilde, U, U_adjoint = expanded(H, solve_sylvester=solve_sylvester, op=mul)
 ```
+where `H_tilde` is the transformed Hamiltonian, `U` is the unitary transformation, and
+`U_adjoint` it the conjugate transpose of `U`.
+
+For example, to request the 2nd order correction to the occupied subspace of the
+Hamiltonian, you may execute:
 
 ```{code-cell}
-H_tilde.evaluated[0, 0, 4].expand().simplify()
+H_tilde.evaluated[0, 0, 2].expand().simplify()
 ```
