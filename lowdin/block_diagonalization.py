@@ -23,6 +23,13 @@ from lowdin.series import (
 )
 
 
+def safe_divide(numerator, denominator):
+    try:
+        return numerator / denominator
+    except TypeError:
+        return (1 / denominator) * numerator
+
+
 def general(
     H: BlockSeries,
     solve_sylvester: Optional[Callable] = None,
@@ -89,10 +96,7 @@ def general(
     def eval(*index: tuple[int, ...]) -> Any:
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
-            try:
-                return -identity.evaluated[index] / 2 
-            except TypeError:
-                return 1/2 * -identity.evaluated[index]
+            return safe_divide(-identity.evaluated[index], 2)
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
             Y = H_tilde_rec.evaluated[index]
@@ -424,7 +428,9 @@ def _replace(
         if any(zero == factor for factor in substituted_factors):
             continue
         result.append(
-            int(numerator) * reduce(op, substituted_factors) / int(denominator)
+            safe_divide(
+                int(numerator) * reduce(op, substituted_factors), int(denominator)
+            )
         )
 
     return _zero_sum(result)

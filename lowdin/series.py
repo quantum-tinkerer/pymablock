@@ -12,6 +12,7 @@ import tinyarray as ta
 PENDING = object()  # sentinel value for pending evaluation
 one = object()  # singleton for identity operator
 
+
 # %%
 class Zero:
     """
@@ -50,12 +51,19 @@ def _zero_sum(terms: list[Any]) -> Any:
     return sum((term for term in terms if zero != term), start=zero)
 
 
+def safe_divide(numerator, denominator):
+    try:
+        return numerator / denominator
+    except TypeError:
+        return (1 / denominator) * numerator
+
+
 class _Evaluated:
     def __init__(self, original: "BlockSeries") -> None:
         self.original = original
 
     def __getitem__(
-        self, item: int | slice | tuple[int | slice, ...] 
+        self, item: int | slice | tuple[int | slice, ...]
     ) -> ma.MaskedArray[Any] | Any:
         """
         Evaluate the series at the given index, following numpy's indexing rules.
@@ -218,7 +226,7 @@ def _generate_orders(
     orders: tuple[int, ...],
     start: Optional[int] = None,
     end: Optional[int] = None,
-    last: bool = True
+    last: bool = True,
 ) -> ma.MaskedArray:
     """
     Generate array of lower orders to be used in product_by_order.
@@ -310,10 +318,7 @@ def product_by_order(
             continue
         temp = reduce(op, values)
         if hermitian and key == tuple(reversed(key)):
-            try:
-                temp / 2 
-            except TypeError:
-                1/2 * temp
+            temp = safe_divide(temp, 2)
         contributing_products.append(temp)
     result = _zero_sum(contributing_products)
     if hermitian and zero != result:
