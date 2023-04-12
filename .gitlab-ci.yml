@@ -39,12 +39,8 @@ run tests:
 
 run docs:
   script:
-    - pip install sphinx
-    - pip install sphinx_rtd_theme
-    - pip install myst-parser
-    - cd docs
-    - make html
-    - cd ..
+    - pip install sphinx sphinx_rtd_theme myst-parser
+    - cd docs & make html & cd ..
   artifacts:
     paths:
       - docs/build
