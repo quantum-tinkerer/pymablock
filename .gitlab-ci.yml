@@ -39,10 +39,10 @@ run tests:
 
 run docs:
   script:
-    - pip install sphinx sphinx_rtd_theme myst-parser
+    - pip install sphinx furo myst-parser
     - pip install --editable .
     - cd docs
-    - sphinx-apidoc -f -o source/documentation ../lowdin/ . ../lowdin/tests/
+    - sphinx-apidoc -f -o source/documentation ../lowdin/
     - make html
     - cd ..
   artifacts:
