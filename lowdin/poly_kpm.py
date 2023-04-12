@@ -1,16 +1,18 @@
-from itertools import product
-from functools import reduce
-from operator import add
-
 import numpy as np
-from scipy.sparse.linalg import aslinearoperator
-
-import pdb
+from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 
 from lowdin.linalg import ComplementProjector, complement_projected
 from lowdin.kpm_funcs import greens_function
 from lowdin.block_diagonalization import general
-from lowdin.series import BlockSeries, zero
+from lowdin.series import BlockSeries, cauchy_dot_product, safe_divide, one, zero
+
+
+def aslinearoperator(A):
+    """Same as scipy.sparse.linalg.aslinearoperator, but with passthrough."""
+    if zero == A or A is one:
+        return A
+    return scipy_aslinearoperator(A)
+
 
 def create_div_energs(
     h_0,
@@ -87,7 +89,7 @@ def create_div_energs(
         elif need_explicit:
             result = sylvester_explicit(Y)
 
-        return aslinearoperator(result)
+        return result
 
     return solve_sylvester
 
@@ -148,12 +150,12 @@ def numerical(
 
     p_b = ComplementProjector(vecs_a)
 
-    h_0_aa = aslinearoperator(np.diag(eigs_a))
+    h_0_aa = np.diag(eigs_a)
     h_0_bb = complement_projected(h[zero_index], vecs_a)
 
-    h_p_aa = {k: aslinearoperator(vecs_a.conj().T @ v @ vecs_a)for k, v in h.items()if any(k)}
-    h_p_bb = {k: complement_projected(v, vecs_a)for k, v in h.items() if any(k)}
-    h_p_ab = {k: aslinearoperator(vecs_a.conj().T @ v @ p_b) for k, v in h.items() if any(k)}
+    h_p_aa = {k: vecs_a.conj().T @ v @ vecs_a for k, v in h.items()if any(k)}
+    h_p_bb = {k: complement_projected(v, vecs_a) for k, v in h.items() if any(k)}
+    h_p_ab = {k: vecs_a.conj().T @ v @ p_b for k, v in h.items() if any(k)}
 
     H = BlockSeries(
         data={
@@ -162,7 +164,7 @@ def numerical(
             **{(0, 0) + tuple(key): value for key, value in h_p_aa.items()},
             **{(0, 1) + tuple(key): value for key, value in h_p_ab.items()},
             **{
-                (1, 0) + tuple(key): value.adjoint()
+                (1, 0) + tuple(key): value.conjugate().T
                 for key, value in h_p_ab.items()
             },
             **{(1, 1) + tuple(key): value for key, value in h_p_bb.items()},
@@ -174,16 +176,24 @@ def numerical(
     div_energs = create_div_energs(
         h[zero_index], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
     )
-
-    def unpacked(original: BlockSeries) -> BlockSeries:
-        """Unpack the blocks of the series that are stored as explicit matrices"""
-        def unpacked_eval(*index):
-            res = original.evaluated[index]
-            if not all(index[:2]) and zero != res:
-                return res @ np.eye(res.shape[-1])
-            return res
-        return BlockSeries(
-            eval=unpacked_eval, shape=(2, 2), n_infinite=original.n_infinite
+    H, U, U_adjoint = general(H, solve_sylvester=div_energs)
+    # Create series wrapped in linear operators to avoid forming explicit matrices
+    U_operator, U_adjoint_operator = (
+        BlockSeries(
+            eval=lambda *index: aslinearoperator(original[index]),
+            shape=(2, 2),
+            n_infinite=n_infinite,
         )
+        for original in (U.evaluated, U_adjoint.evaluated)
+    )
+    identity_operator = cauchy_dot_product(
+        U_operator, U_adjoint_operator, hermitian=True, exclude_last=[True, True]
+    )
+    old_U_eval = U.eval
+    def operator_eval(*index):
+        if index[:2] == (1, 1):
+            return safe_divide(-identity_operator.evaluated[index], 2)
+        return old_U_eval(*index)
+    U.eval = operator_eval
 
-    return tuple(unpacked(series) for series in general(H, solve_sylvester=div_energs))
+    return H, U, U_adjoint
