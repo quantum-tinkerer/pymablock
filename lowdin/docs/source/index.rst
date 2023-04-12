@@ -3,6 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. mdinclude:: ../../README.md
+
 Welcome to lowdin's documentation!
 ==================================
 
@@ -10,13 +12,6 @@ Welcome to lowdin's documentation!
    :maxdepth: 2
    :caption: Contents:
    
+   CITING
+   CHANGELOG
    tutorial/tutorial
-
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
