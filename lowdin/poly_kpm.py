@@ -186,13 +186,13 @@ def numerical(
         )
         for original in (U.evaluated, U_adjoint.evaluated)
     )
-    identity_operator = cauchy_dot_product(
+    identity = cauchy_dot_product(
         U_operator, U_adjoint_operator, hermitian=True, exclude_last=[True, True]
     )
     old_U_eval = U.eval
     def operator_eval(*index):
         if index[:2] == (1, 1):
-            return safe_divide(-identity_operator.evaluated[index], 2)
+            return safe_divide(-identity.evaluated[index], 2)
         return old_U_eval(*index)
     U.eval = operator_eval
 

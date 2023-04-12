@@ -1,7 +1,8 @@
 import numpy as np
 from numpy.testing import assert_allclose
-from lowdin import linalg
 from scipy.sparse.linalg import aslinearoperator
+
+from lowdin import linalg
 
 
 def test_linear_operator_rmatmul_patched():
