@@ -34,8 +34,8 @@ a = BosonOp("a")
 ```
 
 We define the initial Hamiltonian by specifying the perturbation and unperturbed
-Hamiltonian in the different subspaces, occupied (AA), unoccupied (BB), and mixing
-terms (AB/BA).
+Hamiltonian in the different subspaces, occupied ({math}`AA`), unoccupied ({math}`BB`), and mixing
+terms ({math}`AB`/{math}`BA`).
 
 ```{code-cell} ipython3
 H_0_AA = wr * Dagger(a) * a + wq / 2
@@ -49,13 +49,16 @@ H = to_BlockSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB)
 ```
 
 To use Lowdin we need to solve Sylvester's Equation
-$$
+
+```{math}
 H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1}.
-$$
-Therefore, we define a custom function that takes $Y$ and returns $V$ such that
-$$
+```
+
+Therefore, we define a custom function that takes {math}`Y` and returns {math}`V` such that
+
+```{math}
 (V_{n+1}^{AB})_{x,y} = (Y_{n+1})_{x,y} / (E_x - E_y).
-$$
+```
 We solve Sylvester's Equation using `sympy` bosonic operators as follows:
 
 ```{code-cell} ipython3
