@@ -13,6 +13,8 @@
 import os
 import sys
 
+import lowdin  # noqa: F401
+
 package_path = os.path.abspath("../lowdin")
 sys.path.insert(0, package_path)
 
@@ -33,14 +35,17 @@ release = '.'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.napoleon',
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autodoc.typehints',
-    'myst_parser',
-    'nbsphinx',
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.viewcode",
+    "myst_nb",
 ]
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
+
+default_role = "autolink"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

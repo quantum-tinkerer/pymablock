@@ -306,11 +306,11 @@ def expanded(
 
     Returns
     -------
-    H_tilde : BlockSeries
+    H_tilde : `~lowdin.series.BlockSeries`
         Diagonalized Hamiltonian.
-    U : BlockSeries
+    U : `~lowdin.series.BlockSeries`
         Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
-    U_adjoint : BlockSeries
+    U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of U.
     """
     if op is None:

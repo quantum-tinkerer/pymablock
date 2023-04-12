@@ -39,7 +39,7 @@ run tests:
 
 run docs:
   script:
-    - pip install sphinx furo myst-parser nbsphinx
+    - pip install sphinx furo myst-nb nbsphinx
     - pip install --editable .
     - cd docs
     - sphinx-apidoc -f -o source/documentation ../lowdin/ . ../lowdin/tests/
