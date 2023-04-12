@@ -32,15 +32,16 @@ def general(
     """
     Computes the block diagonalization of a Hamiltonian.
 
-    H : Initial Hamiltonian, unperturbed and perturbation.
-    solve_sylvester : (optional) function that solves the Sylvester equation.
-        Defaults to a function that works for numerical diagonal unperturbed Hamiltonians.
-    op : (optional) function to use for matrix multiplication. Defaults to matmul.
+    Args:
+        H : Initial Hamiltonian, unperturbed and perturbation.
+        solve_sylvester : (optional) function that solves the Sylvester equation.
+            Defaults to a function that works for numerical diagonal unperturbed Hamiltonians.
+        op : (optional) function to use for matrix multiplication. Defaults to matmul.
 
     Returns:
-    H_tilde : Block diagonalized Hamiltonian.
-    U : Unitary transformation that block diagonalizes H such that H_tilde = U^H H U.
-    U_adjoint : Adjoint of U.
+        H_tilde : Block diagonalized Hamiltonian.
+        U : Unitary transformation that block diagonalizes H such that H_tilde = U^H H U.
+        U_adjoint : Adjoint of U.
     """
     if op is None:
         op = matmul
@@ -100,10 +101,11 @@ def _default_solve_sylvester(H: BlockSeries) -> Callable:
     Returns a function that divides a matrix by the difference
     of a numerical diagonal unperturbed Hamiltonian.
 
-    H : Initial Hamiltonian, unperturbed and perturbation.
+    Args:
+        H : Initial Hamiltonian, unperturbed and perturbation.
 
     Returns:
-    solve_sylvester : Function that solves the Sylvester equation.
+        solve_sylvester : Function that solves the Sylvester equation.
     """
     H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
     H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
@@ -137,15 +139,16 @@ def to_BlockSeries(
     TEMPORARY, WILL DELETE WHEN USER API IS READY
     Creates a BlockSeries from a dictionary of perturbation terms.
 
-    H_0_AA : Unperturbed Hamiltonian of subspace AA
-    H_0_BB : Unperturbed Hamiltonian of subspace BB
-    H_p_AA : dictionary of perturbation terms of subspace AA
-    H_p_BB : dictionary of perturbation terms of subspace BB
-    H_p_AB : dictionary of perturbation terms of subspace AB
-    n_infinite : (optional) number of infinite indices
+    Args:
+        H_0_AA : Unperturbed Hamiltonian of subspace AA
+        H_0_BB : Unperturbed Hamiltonian of subspace BB
+        H_p_AA : dictionary of perturbation terms of subspace AA
+        H_p_BB : dictionary of perturbation terms of subspace BB
+        H_p_AB : dictionary of perturbation terms of subspace AB
+        n_infinite : (optional) number of infinite indices
 
     Returns:
-    H : BlockSeries of the Hamiltonian
+        H : BlockSeries of the Hamiltonian
     """
     if H_p_AA is None:
         H_p_AA = {}
@@ -176,13 +179,14 @@ def _commute_H0_away(
     """
     Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
 
-    expr : (zero or sympy) expression to simplify.
-    H_0_AA : Unperturbed Hamiltonian in subspace AA.
-    H_0_BB : Unperturbed Hamiltonian in subspace BB.
-    Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+    Args:
+        expr : (zero or sympy) expression to simplify.
+        H_0_AA : Unperturbed Hamiltonian in subspace AA.
+        H_0_BB : Unperturbed Hamiltonian in subspace BB.
+        Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
 
     Returns:
-    expr : (zero or sympy) expression without H_0_AA or H_0_BB in it.
+        expr : (zero or sympy) expression without H_0_AA or H_0_BB in it.
     """
     if zero == expr:
         return expr
@@ -210,16 +214,17 @@ def general_symbolic(
     """
     General symbolic algorithm for diagonalizing a Hamiltonian.
 
-    initial_indices : indices of nonzero terms of the Hamiltonian to be diagonalized.
+    Args:
+        initial_indices : indices of nonzero terms of the Hamiltonian to be diagonalized.
 
     Returns:
-    H_tilde_s : Symbolic diagonalized Hamiltonian.
-    U_s : Symbolic unitary matrix that block diagonalizes H such that
-        U_s * H * U_s^H = H_tilde_s.
-    U_adjoint_s : Symbolic adjoint of U_s.
-    Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
-        It is updated whenever new terms of `H_tilde_s` or `U_s` are evaluated.
-    H : Symbolic initial Hamiltonian, unperturbed and perturbation.
+        H_tilde_s : Symbolic diagonalized Hamiltonian.
+        U_s : Symbolic unitary matrix that block diagonalizes H such that
+            U_s * H * U_s^H = H_tilde_s.
+        U_adjoint_s : Symbolic adjoint of U_s.
+        Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+            It is updated whenever new terms of `H_tilde_s` or `U_s` are evaluated.
+        H : Symbolic initial Hamiltonian, unperturbed and perturbation.
     """
     initial_indices = tuple(initial_indices)
     H = BlockSeries(
@@ -280,14 +285,15 @@ def expanded(
     Diagonalize a Hamiltonian using the general_symbolic algorithm and
     replacing the inputs.
 
-    H : Initial Hamiltonian, unperturbed and perturbation.
-    solve_sylvester : (optional) function to use for solving Sylvester's equation.
-    op : (optional) function to use for matrix multiplication.
+    Args:
+        H : Initial Hamiltonian, unperturbed and perturbation.
+        solve_sylvester : (optional) function to use for solving Sylvester's equation.
+        op : (optional) function to use for matrix multiplication.
 
     Returns:
-    H_tilde : Diagonalized Hamiltonian.
-    U : Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
-    U_adjoint : Adjoint of U.
+        H_tilde : Diagonalized Hamiltonian.
+        U : Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
+        U_adjoint : Adjoint of U.
     """
     if op is None:
         op = matmul
@@ -330,10 +336,11 @@ def _update_subs(
     """
     Store the solutions to the Sylvester equation in subs.
 
-    Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
-    subs : dictionary of substitutions to make.
-    solve_sylvester : function to use for solving Sylvester's equation.
-    op : function to use for matrix multiplication.
+    Args:
+        Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+        subs : dictionary of substitutions to make.
+        solve_sylvester : function to use for solving Sylvester's equation.
+        op : function to use for matrix multiplication.
     """
     for V, rhs in Y_data.items():
         if V not in subs:
@@ -348,12 +355,13 @@ def _replace(
     Substitute terms in an expression and multiply them accordingly.
     Numerical prefactors are factored out of the matrix multiplication.
 
-    expr : (zero or sympy) expression in which to replace general symbols.
-    subs : dictionary {symbol: value} of substitutions to make.
-    op : function to use to multiply the substituted terms.
+    Args:
+        expr : (zero or sympy) expression in which to replace general symbols.
+        subs : dictionary {symbol: value} of substitutions to make.
+        op : function to use to multiply the substituted terms.
 
     Return:
-    zero or expr with replacements such that general symbols are not present
+        zero or expr with replacements such that general symbols are not present.
     """
     if zero == expr:
         return expr
