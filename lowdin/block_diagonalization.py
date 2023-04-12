@@ -297,15 +297,21 @@ def expanded(
 
     Parameters
     ----------
-    H : Initial Hamiltonian, unperturbed and perturbation.
-    solve_sylvester : (optional) function to use for solving Sylvester's equation.
-    op : (optional) function to use for matrix multiplication.
+    H :
+        Initial Hamiltonian, unperturbed and perturbation.
+    solve_sylvester :
+        Function to use for solving Sylvester's equation.
+    op :
+        Function to use for matrix multiplication.
 
     Returns
     -------
-    H_tilde : Diagonalized Hamiltonian.
-    U : Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
-    U_adjoint : Adjoint of U.
+    H_tilde : BlockSeries
+        Diagonalized Hamiltonian.
+    U : BlockSeries
+        Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
+    U_adjoint : BlockSeries
+        Adjoint of U.
     """
     if op is None:
         op = matmul
