@@ -43,7 +43,6 @@ run docs:
     - pip install --editable .
     - cd docs
     - sphinx-apidoc -f -o source/documentation ../lowdin/ . ../lowdin/tests/
-    - jupytext --to notebook source/tutorial/*.py 
     - make html
     - cd ..
   artifacts:

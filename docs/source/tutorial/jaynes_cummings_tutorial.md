@@ -1,7 +1,11 @@
-# %% [markdown]
-# # Jaynes-Cummings model
+---
+file_format: mystnb
+kernelspec:
+  name: python3
+---
+# Jaynes-Cummings model
 
-# %%
+```{code-cell}
 from operator import mul
 
 import sympy
@@ -10,35 +14,17 @@ from sympy.physics.quantum import qapply, Dagger
 
 from lowdin.block_diagonalization import to_BlockSeries, expanded
 from lowdin.series import zero
+```
 
-# %%
-# resonator frequency
-wr = sympy.Symbol(
-    r"{\omega_r}",
-    real=True,
-    commute=True,
-    positive=True
-)
+```{code-cell}
+# resonator frequency, qubit frequency, Rabi coupling
+wr, wq, g = sympy.symbols(r"\omega_r, \omega_q, g", real=True)
 
-# qubit frequency
-wq = sympy.Symbol(
-    r"{\omega_q}",
-    real=True,
-    commute=True,
-    positive=True
-)
+# resonator photon annihilation operator
+a = BosonOp("a")
+```
 
-# Rabi coupling
-g = sympy.Symbol(
-    "g",
-    real=True,
-    commute=True,
-    positive=True
-)
-
-a = BosonOp("a")  # resonator photon annihilation operator
-
-# %%
+```{code-cell}
 H_0_AA = wr * Dagger(a) * a + sympy.Rational(1 / 2) * wq
 H_0_BB = wr * Dagger(a) * a - sympy.Rational(1 / 2) * wq
 H_p_AB = {(1,): g * Dagger(a)}
@@ -47,8 +33,9 @@ H_p_AA = {}
 H_p_BB = {}
 
 H = to_BlockSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB)
+```
 
-# %%
+```{code-cell}
 n = sympy.symbols("n", integer=True, positive=True)
 basis_ket = BosonFockKet(n)
 
@@ -80,10 +67,12 @@ def solve_sylvester(rhs):
             E_j = expectation_value(normalized_ket, H_0_BB)
             V.append(term / (E_j - E_i))
     return sum(V)
+```
 
-
-# %%
+```{code-cell}
 H_tilde, U, U_adjoint = expanded(H, solve_sylvester=solve_sylvester, op=mul)
+```
 
-# %%
+```{code-cell}
 H_tilde.evaluated[0, 0, 4].expand().simplify()
+```
