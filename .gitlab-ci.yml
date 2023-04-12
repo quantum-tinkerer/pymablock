@@ -37,12 +37,25 @@ run tests:
         coverage_format: cobertura
         path: coverage.xml
 
+run docs:
+  script:
+    - pip install sphinx
+    - pip install sphinx_rtd_theme
+    - pip install myst-parser
+    - cd docs
+    - make html
+    - cd ..
+  artifacts:
+    paths:
+      - public
+
 pages:
   extends: .pdf-build
   variables:
     CWD: notes
   needs:
     - run tests
+    - run docs
   after_script:
     - mkdir public
     - cp notes/*.pdf public
