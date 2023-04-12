@@ -156,8 +156,9 @@ notes/*.pdf
 
 # pytest
 .pytest_cache/
-*.xml # report files
-htmlcov/ # html coverage report
-junit.xml # junit report file
-coverage.xml # coverage report file
-coverage/ # coverage report files
+*.xml
+htmlcov/
+coverage/
+
+# docs
+docs/build/
