@@ -65,9 +65,6 @@ def solve_sylvester(rhs):
     Returns:
     V : zero or sympy expression for off-diagonal block of unitary transformation
     """
-    if zero == rhs:
-        return rhs
-
     E_i = expectation_value(basis_ket, H_0_AA)
     V = []
     for term in rhs.expand().as_ordered_terms():

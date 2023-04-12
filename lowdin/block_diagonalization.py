@@ -83,7 +83,8 @@ def general(
             return -identity.evaluated[index] / 2
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
-            return -solve_sylvester(H_tilde_rec.evaluated[index])
+            Y = H_tilde_rec.evaluated[index]
+            return -solve_sylvester(Y) if zero != Y else zero
         elif index[:2] == (1, 0):
             # off-diagonal of U is anti-Hermitian
             return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
