@@ -4,6 +4,7 @@
 
 tutorial/tutorial.md
 algorithm/algorithm.md
+documentation/documentation.md
 CITING.md
 CHANGELOG.md
 ```
