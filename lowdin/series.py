@@ -310,7 +310,7 @@ def product_by_order(
             continue
         temp = reduce(op, values)
         if hermitian and key == tuple(reversed(key)):
-            temp /= 2
+            temp = 1/2 * temp
         contributing_products.append(temp)
     result = _zero_sum(contributing_products)
     if hermitian and zero != result:
