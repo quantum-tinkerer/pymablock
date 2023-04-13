@@ -1,3 +1,5 @@
+# Algorithms
+
 ```{toctree}
 :hidden:
 :caption: Algorithms
@@ -6,7 +8,6 @@ general.md
 expanded.md
 kpm.md
 ```
-# Algorithms
 
 Lowdin block-diagonalizes Hamiltonians perturbatively by applying three different
 algorithms, [general](general.md), [expanded](expanded.md), and [KPM](kpm.md).
