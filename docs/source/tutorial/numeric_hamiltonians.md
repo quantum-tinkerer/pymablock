@@ -18,7 +18,7 @@ Here we demonstrate how to use Lowdin on numerical inputs.
 ## Minimal example
 
 The most minimal example is a diagonal Hamiltonian with two subspaces
-{math}`A` (occupied states) and {math}`B` (unoccupied states), coupled by a perturbation.
+{math}`AA` (occupied states) and {math}`BB` (unoccupied states), coupled by a perturbation.
 Let's start by defining these.
 
 ```{code-cell} ipython3
@@ -28,9 +28,9 @@ import numpy as np
 H_0 = np.diag([-1., -1., 1., 1.]) # shape (4, 4)
 
 # Random Hermitian matrix as a perturbation
-H_p = np.random.random((4, 4)) + 1j * np.random.random((4, 4))
-H_p += H_p.conj().T
-H_p = 0.2 * H_p
+H_1 = np.random.random((4, 4)) + 1j * np.random.random((4, 4))
+H_1 += H_1.conj().T
+H_1 = 0.2 * H_1
 ```
 
 Let's now plot the Hamiltonians to visualize the subspaces,
@@ -44,12 +44,12 @@ ax_0.set_title(r'Unperturbed Hamiltonian $H_0$')
 ax_0.set_xticks([])
 ax_0.set_yticks([])
 
-ax_1.imshow(H_p.real, cmap='seismic', vmin=-2, vmax=2)
-ax_1.set_title(r'Perturbation $H_p$')
+ax_1.imshow(H_1.real, cmap='seismic', vmin=-2, vmax=2)
+ax_1.set_title(r'Perturbation $H_1$')
 ax_1.set_xticks([])
 ax_1.set_yticks([]);
 ```
-Here we see that while {math}`H_0` has subspaces clearly separated in energy, {math}`H_p`
+Here we see that while {math}`H_0` has subspaces clearly separated in energy, {math}`H_1`
 couples these.
 
 ```{important}
@@ -64,9 +64,9 @@ H_0_BB = H_0[2:, :2] # unoccupied subspace
 ```
 and the respective blocks of the perturbation
 ```{code-cell} ipython3
-H_p_AA = {(1, ): H_p[:2, :2]}
-H_p_BB = {(1, ): H_p[2:, 2:]}
-H_p_AB = {(1, ): H_p[:2, 2:]} # mixes subspaces
+H_p_AA = {(1, ): H_1[:2, :2]}
+H_p_BB = {(1, ): H_1[2:, 2:]}
+H_p_AB = {(1, ): H_1[:2, 2:]} # mixes subspaces
 ```
 Here we use `(1, )` to indicate that this is a first order perturbation.
 
@@ -98,7 +98,7 @@ and obtain a second order correction to the occupied subspace as
 H_tilde.evaluated[0, 0, 2]
 ```
 
-All corrections to 2th order can be computed like
+All corrections to the occupied subspace to 2th order can be computed like
 ```{code-cell} ipython3
 H_tilde.evaluated[0, 0, :3]
 ```
@@ -120,3 +120,42 @@ ax_2.set_title(r'Transformed Hamiltonian $\tilde{H}$')
 ax_2.set_xticks([])
 ax_2.set_yticks([]);
 ```
+
+## A non-diagonal Hamiltonian
+
+In general, we do not have {math}`H_0` in its eigenbasis, and if this is the case, we have
+several options.
+One option is to bring {math}`H_0` and {math}`H_1` to the eigenbasis of {math}`H_0` by
+numerically diagonalizing {math}`H_0` and applying the transformation to {math}`H_1`.
+Another option is to provide a customized function to solve Sylvester's Equation.
+
+Let's initialize a random Hamiltonian and a perturbation
+```{code-cell} ipython3
+# Define a random Hamiltonian
+H_0 = np.random.random((4, 4)) + 1j * np.random.random((4, 4))
+H_0 += H_0.conj().T
+
+# Define a random.random perturbation
+H_1 = np.random.random((4, 4)) + 1j * np.random.random((4, 4))
+H_1 += H_1.conj().T
+H_1 = 0.2 * H_1
+```
+
+This time, {math}`H_0` is not in its eigenbasis
+```{code-cell} ipython3
+import matplotlib.pyplot as plt
+
+fig, (ax_0, ax_1) = plt.subplots(ncols=2)
+
+ax_0.imshow(H_0.real, cmap='seismic', vmin=-2, vmax=2)
+ax_0.set_title(r'Unperturbed Hamiltonian $H_0$')
+ax_0.set_xticks([])
+ax_0.set_yticks([])
+
+ax_1.imshow(H_1.real, cmap='seismic', vmin=-2, vmax=2)
+ax_1.set_title(r'Perturbation $H_1$')
+ax_1.set_xticks([])
+ax_1.set_yticks([]);
+```
+
+## Multivariate perturbations
