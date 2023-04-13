@@ -1,5 +1,5 @@
-lowdin
-======
+Reference documentation
+=======================
 
 .. toctree::
    :maxdepth: 4

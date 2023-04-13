@@ -1,4 +1,4 @@
-lowdin package
+Lowdin package
 ==============
 
 Submodules
