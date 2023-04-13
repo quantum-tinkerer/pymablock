@@ -134,7 +134,7 @@ This gives us the full step by step algorithm for determining {math}`U_n` and {m
 Here's how it goes.
 1. Keep track of all previously computed {math}`U_n` and {math}`V_n` up to a certain order
 {math}`n` in a block form (so {math}`U_n^{AA}`, {math}`U_n^{BB}`, and {math}`V_n^{AB}`).
-2. Compute $U_{n+1}$ using the unitarity condition.
+2. Compute {math}`U_{n+1}` using the unitarity condition.
 3. Gather all the terms into {math}`Y_{n+1}` (that's {math}`\mathcal{O}(n)` terms).
 4. Solve {math}`H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1}` for
 {math}`V_{n+1}^{AB}`, namely set {math}`(V_{n+1}^{AB})_{x,y} = (Y_{n+1})_{x,y} / (E_x - E_y)`,
