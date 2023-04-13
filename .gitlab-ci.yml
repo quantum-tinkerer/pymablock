@@ -45,6 +45,8 @@ run docs:
   artifacts:
     paths:
       - docs/build
+  only:
+    - main
 
 pages:
   extends: .pdf-build
