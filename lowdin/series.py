@@ -39,9 +39,12 @@ def _zero_sum(terms: list[Any]) -> Any:
     """
     Sum that returns a singleton zero if empty and omits zero terms
 
+    Parameters
+    ----------
     terms : Terms to sum over with zero as default value.
 
-    Returns:
+    Returns
+    -------
     Sum of terms, or zero if terms is empty.
     """
     return sum((term for term in terms if zero != term), start=zero)
@@ -102,6 +105,8 @@ class _Evaluated:
         """
         Check that the indices of the infinite dimension are finite and positive.
 
+        Parameters
+        ----------
         orders : indices of the infinite dimension.
         """
         for order in orders:
@@ -115,6 +120,8 @@ class _Evaluated:
         """
         Check that the number of indices is correct.
 
+        Parameters
+        ----------
         item : indices to check.
         """
         if len(item) != len(self.original.shape) + self.original.n_infinite:
@@ -161,15 +168,23 @@ def cauchy_dot_product(
     Notes:
     This treats a singleton `one` as the identity operator.
 
-    series : Series to multiply using their block structure.
-    op : (optional) Function for multiplying elements of the series.
+    Parameters
+    ----------
+    series :
+        Series to multiply using their block structure.
+    op :
+        (optional) Function for multiplying elements of the series.
         Default is matrix multiplication matmul.
-    hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
-    exclude_last : (optional) whether to exclude last order on each term.
+    hermitian :
+        (optional) if True, hermiticity is used to reduce computations to 1/2.
+    exclude_last :
+        (optional) whether to exclude last order on each term.
         This is useful to avoid infinite recursion on some algorithms.
 
-    Returns:
-    A new series that is the Cauchy dot product of the given series.
+    Returns
+    -------
+    `~lowdin.series.BlockSeries`
+        A new series that is the Cauchy dot product of the given series.
     """
     if len(series) < 2:
         return series[0] if series else one
@@ -200,18 +215,24 @@ def cauchy_dot_product(
 
 
 def _generate_orders(
-    orders: tuple[int, ...], start: Optional[int] = None, end: Optional[int] = None, last: bool = True
+    orders: tuple[int, ...],
+    start: Optional[int] = None,
+    end: Optional[int] = None,
+    last: bool = True
 ) -> ma.MaskedArray:
     """
     Generate array of lower orders to be used in product_by_order.
 
+    Parameters
+    ----------
     orders : maximum orders of each infinite dimension.
     start : (optional) 0 or 1 row index of block.
     end : (optional) 0 or 1 column index of block.
-    last : (optional) bool for whether to keep last order.
+    last : Whether to keep last order, True by default.
         This is useful to avoid recursion errors.
 
-    Returns:
+    Returns
+    -------
     Array of lower orders to be used in product_by_order.
     """
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
@@ -236,16 +257,25 @@ def product_by_order(
     """
     Compute sum of all product of factors of a wanted order.
 
-    index : Index of the wanted order.
-    series : Series to multiply using their block structure.
-    op : (optional) Function for multiplying elements of the series.
+    Parameters
+    ----------
+    index :
+        Index of the wanted order.
+    series :
+        Series to multiply using their block structure.
+    op :
+        Function for multiplying elements of the series.
         Default is matrix multiplication matmul.
-    hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
-    exclude_last : (optional) whether to exclude last order on each term.
+    hermitian :
+        if True, hermiticity is used to reduce computations to 1/2.
+    exclude_last :
+        whether to exclude last order on each term.
         This is useful to avoid infinite recursion on some algorithms.
 
-    Returns:
-    Sum of all products that contribute to the wanted order.
+    Returns
+    -------
+    Any
+        Sum of all products that contribute to the wanted order.
     """
     if op is None:
         op = matmul

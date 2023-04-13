@@ -1,1 +1,0 @@
-# Citing Lowdin

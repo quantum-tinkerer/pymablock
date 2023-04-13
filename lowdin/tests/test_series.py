@@ -30,6 +30,8 @@ def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) 
     """
     Test that indexing works like in numpy arrays.
 
+    Parameters
+    ----------
     possible_keys_and_errors: tuple of (key, shape)
     """
     key, shape = possible_keys_and_errors

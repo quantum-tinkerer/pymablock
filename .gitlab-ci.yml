@@ -37,16 +37,27 @@ run tests:
         coverage_format: cobertura
         path: coverage.xml
 
+run docs:
+  script:
+    - pip install sphinx sphinx-book-theme myst-nb
+    - pip install --editable .
+    - make -C docs/ html
+  artifacts:
+    paths:
+      - docs/build
+
 pages:
   extends: .pdf-build
   variables:
     CWD: notes
   needs:
     - run tests
+    - run docs
   after_script:
     - mkdir public
     - cp notes/*.pdf public
     - cp -r htmlcov public/
+    - cp -r docs/build public/
   artifacts:
     paths:
       - public

@@ -37,10 +37,13 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     """
     Produce random Hamiltonians to test.
 
+    Parameters
+    ----------
     Ns: dimension of each block (A, B)
     wanted_orders: list of orders to compute
 
-    Returns:
+    Returns
+    -------
     BlockSeries of the Hamiltonian
     """
     n_infinite = len(wanted_orders[0])
@@ -53,11 +56,14 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
         """
         Generate random matrices of size N_i x N_j.
 
+        Parameters
+        ----------
         N_i: number of rows
         N_j: number of columns
         hermitian: if True, the matrix is hermitian
 
-        Returns:
+        Returns
+        -------
         generator of random matrices
         """
         for i in count():
@@ -77,7 +83,9 @@ def test_check_AB(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian.
 
-    H: BlockSeries of the Hamiltonian
+    Parameters
+    ----------
+    H: Hamiltonian
     wanted_orders: list of orders to compute
     """
     H_tilde = general(H)[0]
@@ -93,7 +101,9 @@ def test_check_unitary(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> 
     """
     Test that the transformation is unitary.
 
-    H: BlockSeries of the Hamiltonian
+    Parameters
+    ----------
+    H: Hamiltonian
     wanted_orders: list of orders to compute
     """
     zero_order = (0,) * len(wanted_orders[0])
@@ -117,15 +127,18 @@ def test_check_unitary(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> 
                 )
 
 
-def compute_first_order(H: BlockSeries, order: tuple[int, ...]):
+def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     """
     Compute the first order correction to the Hamiltonian.
 
-    H: BlockSeries of the Hamiltonian
+    Parameters
+    ----------
+    H: Hamiltonian
     order: tuple of orders to compute
 
-    Returns:
-    BlockSeries of the first order correction obtained explicitly
+    Returns
+    -------
+    First order correction obtained explicitly
     """
     return H.evaluated[(0, 0) + order]
 
@@ -136,7 +149,9 @@ def test_first_order_H_tilde(
     """
     Test that the first order is computed correctly.
 
-    H : BlockSeries of the Hamiltonian
+    Parameters
+    ----------
+    H : Hamiltonian
     wanted_orders: list of orders to compute
     """
     H_tilde = general(H)[0]
@@ -157,10 +172,13 @@ def compute_second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     """
     Compute the second order correction to the Hamiltonian.
 
-    H: BlockSeries of the Hamiltonian
+    Parameters
+    ----------
+    H: Hamiltonian
     order: tuple of orders to compute
 
-    Returns:
+    Returns
+    -------
     BlockSeries of the second order correction obtained explicitly
     """
     n_infinite = H.n_infinite
@@ -183,7 +201,9 @@ def test_second_order_H_tilde(
 ) -> None:
     """Test that the second order is computed correctly.
 
-    H : BlockSeries of the Hamiltonian
+    Parameters
+    ----------
+    H : Hamiltonian
     wanted_orders: list of orders to compute
     """
     H_tilde = general(H)[0]
@@ -233,6 +253,8 @@ def test_equivalence_general_expanded(
     """
     Test that the general and expanded methods give the same results.
 
+    Parameters
+    ----------
     H: BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
@@ -264,9 +286,12 @@ def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any
     """
     Double the orders of the keys in a dictionary.
 
+    Parameters
+    ----------
     data: dictionary of the form {(block, order): value}
 
-    Returns:
+    Returns
+    -------
     dictionary of the form {(block, 2*order): value}
     """
     new_data = {}
@@ -284,7 +309,12 @@ def test_doubled_orders(
     algorithm: Callable, H: BlockSeries, wanted_orders: list[tuple[int, ...]]
 ) -> None:
     """
+    Test that doubling the order of the inputs produces the same results on
+    the corresponding doubled orders of the outputs.
+    This is a consistency check for the algorithm.
 
+    Parameters
+    ----------
     H: BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """

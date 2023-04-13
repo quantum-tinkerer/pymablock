@@ -13,7 +13,9 @@
 import os
 import sys
 
-package_path = os.path.abspath("../..")
+import lowdin  # noqa: F401
+
+package_path = os.path.abspath("../lowdin")
 sys.path.insert(0, package_path)
 
 
@@ -22,6 +24,7 @@ sys.path.insert(0, package_path)
 project = 'lowdin'
 copyright = '2023, .'
 author = '.'
+gitlab_url = 'https://gitlab.kwant-project.org/qt/lowdin'
 
 # The full version, including alpha/beta/rc tags
 release = '.'
@@ -33,9 +36,17 @@ release = '.'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'myst_parser',
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.viewcode",
+    "myst_nb",
 ]
+autodoc_typehints = "description"
+autodoc_typehints_format = "short"
 
+default_role = "autolink"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -51,9 +62,21 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'pydata_sphinx_theme'
+html_theme = 'sphinx_book_theme'
+
+html_theme_options = {
+    'repository_url': 'https://gitlab.kwant-project.org/qt/lowdin',
+    'use_repository_button': True,
+    'use_issues_button': True,
+    'use_edit_page_button': True,
+    'path_to_docs': 'docs/source',
+    'repository_branch': 'main',
+    'use_download_button': True,
+    'home_page_in_toc': True,
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ['_build/html/_static']
+html_css_files = ['css/custom.css']
