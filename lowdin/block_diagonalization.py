@@ -34,16 +34,22 @@ def general(
 
     Parameters
     ----------
-    H : Initial Hamiltonian, unperturbed and perturbation.
-    solve_sylvester : (optional) function that solves the Sylvester equation.
+    H :
+        Initial Hamiltonian, unperturbed and perturbation.
+    solve_sylvester :
+        (optional) function that solves the Sylvester equation.
         Defaults to a function that works for numerical diagonal unperturbed Hamiltonians.
-    op : (optional) function to use for matrix multiplication. Defaults to matmul.
+    op :
+        (optional) function to use for matrix multiplication. Defaults to matmul.
 
     Returns
     -------
-    H_tilde : Block diagonalized Hamiltonian.
-    U : Unitary transformation that block diagonalizes H such that H_tilde = U^H H U.
-    U_adjoint : Adjoint of U.
+    H_tilde : `~lowdin.series.BlockSeries`
+        Block diagonalized Hamiltonian.
+    U : `~lowdin.series.BlockSeries`
+        Unitary transformation that block diagonalizes H such that H_tilde = U^H H U.
+    U_adjoint : `~lowdin.series.BlockSeries`
+        Adjoint of U.
     """
     if op is None:
         op = matmul
@@ -145,16 +151,23 @@ def to_BlockSeries(
 
     Parameters
     ----------
-    H_0_AA : Unperturbed Hamiltonian of subspace AA
-    H_0_BB : Unperturbed Hamiltonian of subspace BB
-    H_p_AA : dictionary of perturbation terms of subspace AA
-    H_p_BB : dictionary of perturbation terms of subspace BB
-    H_p_AB : dictionary of perturbation terms of subspace AB
-    n_infinite : (optional) number of infinite indices
+    H_0_AA :
+        Unperturbed Hamiltonian of subspace AA
+    H_0_BB :
+        Unperturbed Hamiltonian of subspace BB
+    H_p_AA :
+        dictionary of perturbation terms of subspace AA
+    H_p_BB :
+        dictionary of perturbation terms of subspace BB
+    H_p_AB :
+        dictionary of perturbation terms of subspace AB
+    n_infinite :
+        (optional) number of infinite indices
 
     Returns
     -------
-    H : BlockSeries of the Hamiltonian
+    H : `~lowdin.series.BlockSeries`
+        BlockSeries of the Hamiltonian
     """
     if H_p_AA is None:
         H_p_AA = {}
@@ -224,17 +237,23 @@ def general_symbolic(
 
     Parameters
     ----------
-    initial_indices : indices of nonzero terms of the Hamiltonian to be diagonalized.
+    initial_indices :
+        indices of nonzero terms of the Hamiltonian to be diagonalized.
 
     Returns
     -------
-    H_tilde_s : Symbolic diagonalized Hamiltonian.
-    U_s : Symbolic unitary matrix that block diagonalizes H such that
+    H_tilde_s : `~lowdin.series.BlockSeries`
+        Symbolic diagonalized Hamiltonian.
+    U_s : `~lowdin.series.BlockSeries`
+        Symbolic unitary matrix that block diagonalizes H such that
         U_s * H * U_s^H = H_tilde_s.
-    U_adjoint_s : Symbolic adjoint of U_s.
-    Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+    U_adjoint_s : `~lowdin.series.BlockSeries`
+        Symbolic adjoint of U_s.
+    Y_data : dict
+        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
         It is updated whenever new terms of `H_tilde_s` or `U_s` are evaluated.
-    H : Symbolic initial Hamiltonian, unperturbed and perturbation.
+    H : `~lowdin.series.BlockSeries`
+        Symbolic initial Hamiltonian, unperturbed and perturbation.
     """
     initial_indices = tuple(initial_indices)
     H = BlockSeries(

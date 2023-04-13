@@ -170,16 +170,21 @@ def cauchy_dot_product(
 
     Parameters
     ----------
-    series : Series to multiply using their block structure.
-    op : (optional) Function for multiplying elements of the series.
+    series :
+        Series to multiply using their block structure.
+    op :
+        (optional) Function for multiplying elements of the series.
         Default is matrix multiplication matmul.
-    hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
-    exclude_last : (optional) whether to exclude last order on each term.
+    hermitian :
+        (optional) if True, hermiticity is used to reduce computations to 1/2.
+    exclude_last :
+        (optional) whether to exclude last order on each term.
         This is useful to avoid infinite recursion on some algorithms.
 
     Returns
     -------
-    A new series that is the Cauchy dot product of the given series.
+    `~lowdin.series.BlockSeries`
+        A new series that is the Cauchy dot product of the given series.
     """
     if len(series) < 2:
         return series[0] if series else one
@@ -223,7 +228,7 @@ def _generate_orders(
     orders : maximum orders of each infinite dimension.
     start : (optional) 0 or 1 row index of block.
     end : (optional) 0 or 1 column index of block.
-    last : (optional) bool for whether to keep last order.
+    last : Whether to keep last order, True by default.
         This is useful to avoid recursion errors.
 
     Returns
@@ -254,17 +259,23 @@ def product_by_order(
 
     Parameters
     ----------
-    index : Index of the wanted order.
-    series : Series to multiply using their block structure.
-    op : (optional) Function for multiplying elements of the series.
+    index :
+        Index of the wanted order.
+    series :
+        Series to multiply using their block structure.
+    op :
+        Function for multiplying elements of the series.
         Default is matrix multiplication matmul.
-    hermitian : (optional) if True, hermiticity is used to reduce computations to 1/2.
-    exclude_last : (optional) whether to exclude last order on each term.
+    hermitian :
+        if True, hermiticity is used to reduce computations to 1/2.
+    exclude_last :
+        whether to exclude last order on each term.
         This is useful to avoid infinite recursion on some algorithms.
 
     Returns
     -------
-    Sum of all products that contribute to the wanted order.
+    Any
+        Sum of all products that contribute to the wanted order.
     """
     if op is None:
         op = matmul
