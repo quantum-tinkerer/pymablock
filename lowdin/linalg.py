@@ -1,7 +1,10 @@
 from packaging.version import parse
 import numpy as np
 from scipy import __version__ as scipy_version
-from scipy.sparse.linalg import LinearOperator, aslinearoperator
+from scipy.sparse.linalg import LinearOperator
+from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
+
+from lowdin.series import zero, one
 
 # Monkey-patch LinearOperator to support right multiplication
 # TODO: Remove this when we depend on scipy >= 1.11
@@ -84,3 +87,10 @@ def complement_projected(operator, vecs):
     # Wrap to avoid immediate evaluation
     operator = aslinearoperator(operator)
     return projector @ operator @ projector
+
+
+def aslinearoperator(A):
+    """Same as scipy.sparse.linalg.aslinearoperator, but with passthrough."""
+    if zero == A or A is one:
+        return A
+    return scipy_aslinearoperator(A)

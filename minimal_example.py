@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 import sympy
 import tinyarray as ta
-from lowdin import linalg, block_diagonalization, poly_kpm
+from lowdin import linalg, block_diagonalization
 from lowdin.tests import test_block_diagonalization
 from lowdin.linalg import complement_projected, ComplementProjector
 
@@ -33,7 +33,9 @@ for i in range(n):
     h[ta.array(index)] = h_p
 # -
 
-h_tilde, u, u_adj = poly_kpm.numerical(h, vecs_a, eigs_a, kpm_params={'num_moments':1000})
+h_tilde, u, u_adj = block_diagonalization.numerical(h, vecs_a, eigs_a, kpm_params={'num_moments':1000})
+
+h_tilde.evaluated[0,0,4]
 
 h_tilde.evaluated[1,1,3]
 
