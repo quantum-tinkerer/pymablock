@@ -22,7 +22,7 @@ from lowdin.series import (
     one,
     cauchy_dot_product,
     _zero_sum,
-    safe_divide
+    safe_divide,
 )
 
 
@@ -375,31 +375,30 @@ def numerical(
     eigs_b: np.ndarray = None,
     kpm_params: dict = None,
     precalculate_moments: bool = False,
-):
+) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
 
     Parameters:
     -----------
     h : Full Hamiltonian of the system with keys corresponding to the order of
         the perturbation series
-        
+
     vecs_a : eigenvectors of the A (effective) subspace of H_0 (h[1])
-    
+
     eigs_a : eigenvalues to the aforementioned eigenvectors
     vecs_b : Explicit parts of the B (auxilliary) space. Need to be eigenvectors
         to H_0 (h[1])
     eigs_b : eigenvectors to the aforementioned explicit B space eigenvectors
-    
+
     kpm_params : Dictionary containing the parameters to pass to the `~kwant.kpm`
         module. 'num_vectors' will be overwritten to match the number
         of vectors, and 'operator' key will be deleted.
-        
-    precalculate_moments: bool, default False
-        Whether to precalculate and store all the KPM moments of `vectors`.
-        This is useful if the Green's function is evaluated at a large
-        number of energies, but uses a large amount of memory.
-        If False, the KPM expansion is performed every time the Green's
-        function is called, which minimizes memory use.
+
+    precalculate_moments:   Whether to precalculate and store all the KPM moments of `vectors`.
+                            This is useful if the Green's function is evaluated at a large
+                            number of energies, but uses a large amount of memory.
+                            If False, the KPM expansion is performed every time the Green's
+                            function is called, which minimizes memory use.
 
 
     Returns:
@@ -424,7 +423,7 @@ def numerical(
     h_0_aa = np.diag(eigs_a)
     h_0_bb = complement_projected(h[zero_index], vecs_a)
 
-    h_p_aa = {k: vecs_a.conj().T @ v @ vecs_a for k, v in h.items()if any(k)}
+    h_p_aa = {k: vecs_a.conj().T @ v @ vecs_a for k, v in h.items() if any(k)}
     h_p_bb = {k: complement_projected(v, vecs_a) for k, v in h.items() if any(k)}
     h_p_ab = {k: vecs_a.conj().T @ v @ p_b for k, v in h.items() if any(k)}
 
@@ -447,7 +446,7 @@ def numerical(
     div_energs = solve_sylvester_KPM(
         h[zero_index], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
     )
-    H, U, U_adjoint = general(H, solve_sylvester=div_energs)
+    H_tilde, U, U_adjoint = general(H, solve_sylvester=div_energs)
     # Create series wrapped in linear operators to avoid forming explicit matrices
     U_operator, U_adjoint_operator = (
         BlockSeries(
@@ -461,24 +460,26 @@ def numerical(
         U_operator, U_adjoint_operator, hermitian=True, exclude_last=[True, True]
     )
     old_U_eval = U.eval
+
     def operator_eval(*index):
         if index[:2] == (1, 1):
             return safe_divide(-identity.evaluated[index], 2)
         return old_U_eval(*index)
+
     U.eval = operator_eval
 
-    return H, U, U_adjoint
+    return H_tilde, U, U_adjoint
 
 
 def solve_sylvester_KPM(
-    h_0,
-    vecs_a,
-    eigs_a,
-    vecs_b=None,
-    eigs_b=None,
-    kpm_params=None,
-    precalculate_moments=False,
-):
+    h_0: np.ndarray,
+    vecs_a: np.ndarray,
+    eigs_a: np.ndarray,
+    vecs_b: np.ndarray = None,
+    eigs_b: np.ndarray = None,
+    kpm_params: dict = None,
+    precalculate_moments: bool = False,
+) -> Callable:
     """
     h_0        : Rest hamiltonian of the system
 
@@ -531,7 +532,7 @@ def solve_sylvester_KPM(
             return ((Y @ vecs_b) * G_ml) @ vecs_b.conj().T
 
     def solve_sylvester(Y):
-        #pdb.set_trace()
+        # pdb.set_trace()
         Y = Y @ np.eye(Y.shape[-1])
         if need_kpm and need_explicit:
             result = sylvester_kpm(Y) + sylvester_explicit(Y)
