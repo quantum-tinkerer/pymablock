@@ -12,7 +12,7 @@ kernelspec:
 mystnb:
     execution_mode: 'inline'
 ---
-# Get started with numerical Hamiltonians
+# Getting started
 
 Here we demonstrate how to use Lowdin on numerical inputs.
 ## Minimal example
@@ -123,6 +123,12 @@ ax_2.set_yticks([]);
 
 ## A non-diagonal Hamiltonian
 
+**TODO: Finish this section**
+
+**Important aspects:**
+* Show alternatives: diagonalize first, provide `solve_sylvester`, use KPM
+* Show that one can use different algorithms
+
 In general, we do not have {math}`H_0` in its eigenbasis, and if this is the case, we have
 several options.
 One option is to bring {math}`H_0` and {math}`H_1` to the eigenbasis of {math}`H_0` by
@@ -157,5 +163,3 @@ ax_1.set_title(r'Perturbation $H_1$')
 ax_1.set_xticks([])
 ax_1.set_yticks([]);
 ```
-
-## Multivariate perturbations

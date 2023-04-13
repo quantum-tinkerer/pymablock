@@ -57,8 +57,8 @@ This yields {math}`U_0 = 1`, {math}`V_0 = 0`, ands
 
 Here to get to the second identity we added the Hermitian conjugate of the equation to
 itself.
-In other words, the Hermitian part $U_n$ of the basis transformation is completely fixed
-by lower orders, but the anti-Hermitian part $V_n$ is free for us to choose.
+In other words, the Hermitian part {math}`U_n` of the basis transformation is completely fixed
+by lower orders, but the anti-Hermitian part {math}`V_n` is free for us to choose.
 We compute {math}`n`-th order of the expansion of the transformed Hamiltonian as
 
 ```{math}

@@ -15,6 +15,10 @@ kernelspec:
 
 **TODO: Write intro about JC Hamiltonian**
 
+**Important aspects:**
+* Demonstrate how the package applies to any input that can be added and multiplied
+* Demonstrate usefulness of package
+
 ```{code-cell} ipython3
 from operator import mul
 
