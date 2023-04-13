@@ -4,7 +4,7 @@
 
 tutorial/tutorial.md
 algorithm/algorithm.md
-documentation/modules.rst
+documentation/lowdin.rst
 CITING.md
 CHANGELOG.md
 ```
