@@ -24,6 +24,7 @@ sys.path.insert(0, package_path)
 project = 'lowdin'
 copyright = '2023, .'
 author = '.'
+gitlab_url = 'https://gitlab.kwant-project.org/qt/lowdin'
 
 # The full version, including alpha/beta/rc tags
 release = '.'
