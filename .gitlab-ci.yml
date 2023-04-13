@@ -41,7 +41,7 @@ run docs:
   script:
     - pip install sphinx sphinx-book-theme myst-nb
     - pip install --editable .
-    - cd docs && make html && cd ..
+    - make -C doc html
   artifacts:
     paths:
       - docs/build
