@@ -6,5 +6,5 @@
 
 numeric_hamiltonians.md
 symbolic_hamiltonians.md
-jaynes_cummings_tutorial
+jaynes_cummings_tutorial.md
 ```
