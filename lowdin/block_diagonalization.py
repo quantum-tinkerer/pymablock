@@ -377,38 +377,40 @@ def numerical(
     precalculate_moments: bool = False,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
+    Diagonalize a Hamiltonian using the hybrid KPM algorithm.
 
-    Parameters:
-    -----------
-    h : Full Hamiltonian of the system with keys corresponding to the order of
+    Parameters
+    ----------
+    h :
+        Full Hamiltonian of the system with keys corresponding to the order of
         the perturbation series
+    vecs_a :
+        eigenvectors of the A (effective) subspace of H_0 (h[1])
+    eigs_a :
+        eigenvalues to the aforementioned eigenvectors
+    vecs_b :
+        Explicit parts of the B (auxilliary) space. Need to be eigenvectors to
+        H_0 (h[1])
+    eigs_b :
+        eigenvectors to the aforementioned explicit B space eigenvectors
+    kpm_params :
+        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
+        'num_vectors' will be overwritten to match the number of vectors, and
+        'operator' key will be deleted.
+    precalculate_moments :
+        Whether to precalculate and store all the KPM moments of `vectors`. This
+        is useful if the Green's function is evaluated at a large number of
+        energies, but uses a large amount of memory. If False, the KPM expansion
+        is performed every time the Green's function is called, which minimizes
+        memory use.
 
-    vecs_a : eigenvectors of the A (effective) subspace of H_0 (h[1])
-
-    eigs_a : eigenvalues to the aforementioned eigenvectors
-    vecs_b : Explicit parts of the B (auxilliary) space. Need to be eigenvectors
-        to H_0 (h[1])
-    eigs_b : eigenvectors to the aforementioned explicit B space eigenvectors
-
-    kpm_params : Dictionary containing the parameters to pass to the `~kwant.kpm`
-        module. 'num_vectors' will be overwritten to match the number
-        of vectors, and 'operator' key will be deleted.
-
-    precalculate_moments:   Whether to precalculate and store all the KPM moments of `vectors`.
-                            This is useful if the Green's function is evaluated at a large
-                            number of energies, but uses a large amount of memory.
-                            If False, the KPM expansion is performed every time the Green's
-                            function is called, which minimizes memory use.
-
-
-    Returns:
-    --------
+    Returns
+    -------
     h_t : BlockSeries
-        Full block diagonalized Hamiltonian of the problem. The explict
-        entries are called via var_name.evaluated[x, y, order] where
-        x, y refer to the sub-space index (A, B).
-        E.g.: var_name.evaluated[0,1,3] returns the AB entry of
-        var_name to third order in a single perturbation parameter.
+        Full block diagonalized Hamiltonian of the problem. The explict entries
+        are called via var_name.evaluated[x, y, order] where x, y refer to the
+        sub-space index (A, B). E.g.: var_name.evaluated[0,1,3] returns the AB
+        entry of var_name to third order in a single perturbation parameter.
     u : BlockSeries
         Unitary transformation that block diagonalizes the initial perturbed
         Hamiltonian. Entries are accessed the same way as h_t
