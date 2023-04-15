@@ -2,7 +2,6 @@ from itertools import count, permutations
 from typing import Any, Callable
 
 import numpy as np
-import tinyarray as ta
 import pytest
 from sympy.physics.quantum import Dagger
 
@@ -47,7 +46,7 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     BlockSeries of the Hamiltonian
     """
     n_infinite = len(wanted_orders[0])
-    orders = ta.array(np.eye(n_infinite, dtype=int))
+    orders = np.array(np.eye(n_infinite, dtype=int))
     hams = []
     for i in range(2):
         hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
@@ -74,7 +73,7 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
 
     for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
-        hams.append({order: matrix for order, matrix in zip(orders, matrices)})
+        hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
 
     return to_BlockSeries(*hams, n_infinite)
 
@@ -299,7 +298,7 @@ def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any
         if zero == value:
             continue
         block = index[:2]
-        order = tuple(2 * ta.array(index[2:]))
+        order = tuple(2 * np.array(index[2:]))
         new_data[block + order] = value
     return new_data
 

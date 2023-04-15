@@ -49,7 +49,7 @@ def hamiltonians(Ns, wanted_orders):
     hams: list of Hamiltonians
     """
     N_p = len(wanted_orders[0])
-    orders = ta.array(np.eye(N_p))
+    orders = np.array(np.eye(N_p))
     hams = []
     for i in range(2):
         hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
@@ -73,7 +73,7 @@ def hamiltonians(Ns, wanted_orders):
 
     for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
-        hams.append({order: matrix for order, matrix in zip(orders, matrices)})
+        hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
     return hams
 
 

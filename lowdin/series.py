@@ -7,10 +7,10 @@ from typing import Any, Optional, Callable
 import numpy as np
 import numpy.ma as ma
 from sympy.physics.quantum import Dagger
-import tinyarray as ta
 
 PENDING = object()  # sentinel value for pending evaluation
 one = object()  # singleton for identity operator
+
 
 # %%
 class Zero:
@@ -302,8 +302,8 @@ def product_by_order(
         starts, ends = zip(*(key[:-n_infinite] for key, _ in combination))
         if starts[1:] != ends[:-1]:
             continue
-        key = tuple(ta.array(key[-n_infinite:]) for key, _ in combination)
-        if sum(key) != orders:
+        key = tuple(key[-n_infinite:] for key, _ in combination)
+        if list(map(sum, zip(*key))) != orders:  # Vector sum of key
             continue
         values = [value for _, value in combination if value is not one]
         if hermitian and key > tuple(reversed(key)):
