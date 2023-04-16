@@ -70,7 +70,7 @@ class _Evaluated:
         self.original = original
 
     def __getitem__(
-        self, item: int | slice | tuple[int | slice, ...] 
+        self, item: int | slice | tuple[int | slice, ...]
     ) -> ma.MaskedArray[Any] | Any:
         """
         Evaluate the series at the given index, following numpy's indexing rules.
@@ -175,7 +175,7 @@ def cauchy_dot_product(
     *series: BlockSeries,
     op: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: Optional[list[bool]] = None
+    exclude_last: Optional[list[bool]] = None,
 ):
     """
     Multivariate Cauchy product of BlockSeries.
@@ -233,7 +233,7 @@ def _generate_orders(
     orders: tuple[int, ...],
     start: Optional[int] = None,
     end: Optional[int] = None,
-    last: bool = True
+    last: bool = True,
 ) -> ma.MaskedArray:
     """
     Generate array of lower orders to be used in product_by_order.
@@ -261,13 +261,92 @@ def _generate_orders(
     return trial
 
 
+def _cauchy_dot_indices(
+    *keys: list[np.ndarray[int]], orders: tuple[int, ...]
+):
+    """
+    Generate indices for Cauchy dot product.
+
+    Parameters
+    ----------
+    keys :
+        Indices appearing in the factors. Each key is a list of tuples, (start,
+        end, *orders).
+    orders :
+        Series order of the requested block.
+
+    Yields
+    ------
+    index : tuple[tuple[int, ...]]
+        Index of the resulting series.
+    """
+    if not all(len(key) for key in keys):
+        # No valid combinations.
+        return
+    starts = [key[:, 0] for key in keys]
+    ends = [key[:, 1] for key in keys]
+    key_orders = [key[:, 2:] for key in keys]
+    # We perform a depth-first search of the keys, checking that the second
+    # index of a key is equal to the first index of the next one, as required by
+    # the dot product, and that the order of the resulting term is not
+    # exceeded.
+    current = [0]  # Current index.
+    factor = 0  # Current factor (always equal to len(current) - 1).
+    backtracking = False
+    order_sum = np.zeros(len(orders), dtype=int)
+    while True:
+        if (
+            backtracking  # We are backtracking.
+            or (
+                factor
+                and (
+                    ends[factor - 1][current[-2]]
+                    != starts[factor][current[-1]]
+                )
+            )  # Incompatible indices.
+            or np.any(
+                order_sum + key_orders[factor][current[-1]] > orders
+            )  # Order exceeded.
+        ):
+            # Move to the next item.
+            backtracking = False
+            # Did we check all items at the current level?
+            if current[-1] < len(keys[factor]) - 1:
+                current[-1] += 1
+                continue
+            # Go back to the previous level.
+            if not factor:
+                # We are done.
+                break
+            current.pop()
+            factor -= 1
+            order_sum -= key_orders[factor][current[-1]]
+            backtracking = True
+            continue
+
+        # We are at a valid item.
+        order_sum += key_orders[factor][current[-1]]
+        if len(current) < len(keys):
+            # Move to the next level.
+            current.append(0)
+            factor += 1
+            continue
+
+        if np.array_equal(order_sum, orders):
+            yield tuple(current)
+
+        order_sum -= key_orders[factor][current[-1]]
+        backtracking = True
+
+
+
 # %%
 def product_by_order(
     index: tuple[int, ...],
     *series: BlockSeries,
     op: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: Optional[list[bool]] = None
+    exclude_last: Optional[list[bool]] = None,
 ) -> Any:
     """
     Compute sum of all product of factors of a wanted order.
@@ -297,8 +376,6 @@ def product_by_order(
     start, end, *orders = index
     hermitian = hermitian and start == end
 
-    n_infinite = series[0].n_infinite
-
     if exclude_last is None:
         exclude_last = [False] * len(series)
     starts = [start] + [None] * (len(series) - 1)
@@ -311,19 +388,20 @@ def product_by_order(
     for indices, factor in zip(data, series):
         indices[ma.where(indices)] = factor.evaluated[ma.where(indices)]
 
+    keys = [np.array(np.where(~factor.mask)).T for factor in data]
+    values = [factor.data[~factor.mask] for factor in data]
     contributing_products = []
-    for combination in product(*(ma.ndenumerate(factor) for factor in data)):
-        combination = list(combination)
-        starts, ends = zip(*(key[:-n_infinite] for key, _ in combination))
-        if starts[1:] != ends[:-1]:
-            continue
-        key = tuple(key[-n_infinite:] for key, _ in combination)
-        if list(map(sum, zip(*key))) != orders:  # Vector sum of key
-            continue
-        values = [value for _, value in combination if value is not one]
+    for item in _cauchy_dot_indices(*keys, orders=orders):
+        key = tuple(tuple(key[i]) for key, i in zip(keys, item))
         if hermitian and key > tuple(reversed(key)):
             continue
-        temp = reduce(op, values)
+        values_2 = [
+            value[i] for i, value in zip(item, values)
+            if value[i] is not one
+        ]
+        if any(zero == v for v in values_2):
+            continue
+        temp = reduce(op, values_2)
         if hermitian and key == tuple(reversed(key)):
             temp /= 2
         contributing_products.append(temp)
