@@ -8,8 +8,21 @@ import numpy as np
 import numpy.ma as ma
 from sympy.physics.quantum import Dagger
 
-PENDING = object()  # sentinel value for pending evaluation
-one = object()  # singleton for identity operator
+class Pending:
+    """Sentinel value representing a pending evaluation."""
+    def __repr__(self) -> str:
+        return "pending"
+
+PENDING = Pending()
+del Pending
+
+class One:
+    """Sentinel value representing the identity operator."""
+    def __repr__(self) -> str:
+        return "one"
+
+one = One()
+del One
 
 
 # %%
