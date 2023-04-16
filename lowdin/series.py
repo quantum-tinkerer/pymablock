@@ -219,14 +219,21 @@ def cauchy_dot_product(
     if len(set(factor.n_infinite for factor in series)) > 1:
         raise ValueError("Factors must have equal number of infinite dimensions.")
 
-    return BlockSeries(
-        eval=lambda *index: product_by_order(
-            index, *series, op=op, hermitian=hermitian, exclude_last=exclude_last
-        ),
+    product = BlockSeries(
         data=None,
         shape=(start, end),
         n_infinite=series[0].n_infinite,
     )
+
+    def eval(*index):
+        if index[0] < index[1] and hermitian:
+            return Dagger(product.evaluated[(index[1], index[0], *index[2:])])
+        return product_by_order(
+            index, *series, op=op, hermitian=hermitian, exclude_last=exclude_last
+        )
+
+    product.eval = eval
+    return product
 
 
 def _generate_orders(
