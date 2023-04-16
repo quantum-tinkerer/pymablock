@@ -8,6 +8,8 @@ import numpy as np
 import numpy.ma as ma
 from sympy.physics.quantum import Dagger
 
+__all__ = ["BlockSeries", "cauchy_dot_product", "one", "zero"]
+
 class Pending:
     """Sentinel value representing a pending evaluation."""
     def __repr__(self) -> str:

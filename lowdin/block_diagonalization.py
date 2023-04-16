@@ -22,6 +22,8 @@ from lowdin.series import (
     _zero_sum,
 )
 
+__all__ = ["general", "expanded", "general_symbolic", "to_BlockSeries"]
+
 
 def general(
     H: BlockSeries,
