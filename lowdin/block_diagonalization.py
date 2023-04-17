@@ -417,50 +417,30 @@ def numerical(
     u_adj : BlockSeries
         Adjoint of u.
     """
-    n_infinite = H.n_infinite
+    H_input = H
+    n_infinite = H_input.n_infinite
     zero_index = (0,) * n_infinite
 
     p_b = ComplementProjector(vecs_a)
-    
-    old_H_input_eval = H.eval
-    
-    def H_input_eval(index):
-        if index[:2] == (0,0):
-            return vecs_a.conjugate().transpose() @ old_H_input_eval(*index) @ vecs_a
-        if index[:2] == (0,1):
-            return vecs_a.conjugate().transpose() @ old_H_input_eval(*index) @ p_b
-        if index[:2] == (1,0):
-            return (vecs_a.conjugate().transpose() @ old_H_input_eval(*index) @ p_b).conjugate().transpose()
-        if index[:2] == (1,1):
-            return complement_projected(old_H_input_eval(*index), vecs_a)
-    
-    H.eval = H_input_eval
-    """
-    h_0_aa = np.diag(eigs_a)
-    h_0_bb = complement_projected(h[zero_index], vecs_a)
 
-    h_p_aa = {k: vecs_a.conj().T @ v @ vecs_a for k, v in h.items() if any(k)}
-    h_p_bb = {k: complement_projected(v, vecs_a) for k, v in h.items() if any(k)}
-    h_p_ab = {k: vecs_a.conj().T @ v @ p_b for k, v in h.items() if any(k)}
+    def new_eval(*index):
+        new_index = ((0,0) + tuple(index[2:]))
+        try:
+            if index[:2] == (0,0):
+                return (vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ vecs_a)
+            if index[:2] == (0,1):
+                return (vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ p_b)
+            if index[:2] == (1,0):
+                return (vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ p_b).conjugate().transpose()
+            if index[:2] == (1,1):
+                return complement_projected(H_input.evaluated[new_index], vecs_a)
+        except:
+            return zero
+    
+    H = BlockSeries(eval=new_eval, shape=(2,2), n_infinite=H_input.n_infinite)
 
-    H = BlockSeries(
-        data={
-            (0, 0) + n_infinite * (0,): h_0_aa,
-            (1, 1) + n_infinite * (0,): h_0_bb,
-            **{(0, 0) + tuple(key): value for key, value in h_p_aa.items()},
-            **{(0, 1) + tuple(key): value for key, value in h_p_ab.items()},
-            **{
-                (1, 0) + tuple(key): value.conjugate().T
-                for key, value in h_p_ab.items()
-            },
-            **{(1, 1) + tuple(key): value for key, value in h_p_bb.items()},
-        },
-        shape=(2, 2),
-        n_infinite=n_infinite,
-    )
-    """
     div_energs = solve_sylvester_KPM(
-        h[zero_index], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
+        H_input.evaluated[0,0,0], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
     )
     H_tilde, U, U_adjoint = general(H, solve_sylvester=div_energs)
     # Create series wrapped in linear operators to avoid forming explicit matrices
