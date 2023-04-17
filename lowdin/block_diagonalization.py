@@ -368,7 +368,7 @@ def expanded(
 
 
 def numerical(
-    h: dict,
+    H: BlockSeries,
     vecs_a: np.ndarray,
     eigs_a: np.ndarray,
     vecs_b: np.ndarray = None,
@@ -381,7 +381,7 @@ def numerical(
 
     Parameters
     ----------
-    h :
+    H :
         Full Hamiltonian of the system with keys corresponding to the order of
         the perturbation series
     vecs_a :
@@ -417,11 +417,25 @@ def numerical(
     u_adj : BlockSeries
         Adjoint of u.
     """
-    n_infinite = len(next(iter(h)))
+    n_infinite = H.n_infinite
     zero_index = (0,) * n_infinite
 
     p_b = ComplementProjector(vecs_a)
-
+    
+    old_H_input_eval = H.eval
+    
+    def H_input_eval(index):
+        if index[:2] == (0,0):
+            return vecs_a.conjugate().transpose() @ old_H_input_eval(*index) @ vecs_a
+        if index[:2] == (0,1):
+            return vecs_a.conjugate().transpose() @ old_H_input_eval(*index) @ p_b
+        if index[:2] == (1,0):
+            return (vecs_a.conjugate().transpose() @ old_H_input_eval(*index) @ p_b).conjugate().transpose()
+        if index[:2] == (1,1):
+            return complement_projected(old_H_input_eval(*index), vecs_a)
+    
+    H.eval = H_input_eval
+    """
     h_0_aa = np.diag(eigs_a)
     h_0_bb = complement_projected(h[zero_index], vecs_a)
 
@@ -444,31 +458,38 @@ def numerical(
         shape=(2, 2),
         n_infinite=n_infinite,
     )
-
+    """
     div_energs = solve_sylvester_KPM(
         h[zero_index], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
     )
     H_tilde, U, U_adjoint = general(H, solve_sylvester=div_energs)
     # Create series wrapped in linear operators to avoid forming explicit matrices
-    U_operator, U_adjoint_operator = (
+    H_tilde_operator, U_operator, U_adjoint_operator = (
         BlockSeries(
             eval=lambda *index: aslinearoperator(original[index]),
             shape=(2, 2),
             n_infinite=n_infinite,
         )
-        for original in (U.evaluated, U_adjoint.evaluated)
+        for original in (H_tilde.evaluated, U.evaluated, U_adjoint.evaluated)
     )
     identity = cauchy_dot_product(
         U_operator, U_adjoint_operator, hermitian=True, exclude_last=[True, True]
     )
     old_U_eval = U.eval
+    old_H_tilde_eval = H_tilde.eval
 
     def operator_eval(*index):
         if index[:2] == (1, 1):
             return safe_divide(-identity.evaluated[index], 2)
         return old_U_eval(*index)
+    
+    def h_tilde_eval(*index):
+        if index[:2] == (1, 1):
+            return H_tilde_operator.evaluated[index]
+        return old_H_tilde_eval(*index)
 
     U.eval = operator_eval
+    H_tilde.eval = h_tilde_eval
 
     return H_tilde, U, U_adjoint
 
