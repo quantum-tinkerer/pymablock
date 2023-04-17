@@ -424,23 +424,43 @@ def numerical(
     p_b = ComplementProjector(vecs_a)
 
     def new_eval(*index):
-        new_index = ((0,0) + tuple(index[2:]))
+        new_index = (0, 0) + tuple(index[2:])
         try:
-            if index[:2] == (0,0):
-                return (vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ vecs_a)
-            if index[:2] == (0,1):
-                return (vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ p_b)
-            if index[:2] == (1,0):
-                return (vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ p_b).conjugate().transpose()
-            if index[:2] == (1,1):
+            if index[:2] == (0, 0):
+                return (
+                    vecs_a.conjugate().transpose()
+                    @ H_input.evaluated[new_index]
+                    @ vecs_a
+                )
+            if index[:2] == (0, 1):
+                return (
+                    vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ p_b
+                )
+            if index[:2] == (1, 0):
+                return (
+                    (
+                        vecs_a.conjugate().transpose()
+                        @ H_input.evaluated[new_index]
+                        @ p_b
+                    )
+                    .conjugate()
+                    .transpose()
+                )
+            if index[:2] == (1, 1):
                 return complement_projected(H_input.evaluated[new_index], vecs_a)
         except:
             return zero
-    
-    H = BlockSeries(eval=new_eval, shape=(2,2), n_infinite=H_input.n_infinite)
+
+    H = BlockSeries(eval=new_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
 
     div_energs = solve_sylvester_KPM(
-        H_input.evaluated[0,0,0], vecs_a, eigs_a, vecs_b, eigs_b, kpm_params, precalculate_moments
+        H_input.evaluated[(0, 0, zero_index)],
+        vecs_a,
+        eigs_a,
+        vecs_b,
+        eigs_b,
+        kpm_params,
+        precalculate_moments,
     )
     H_tilde, U, U_adjoint = general(H, solve_sylvester=div_energs)
     # Create series wrapped in linear operators to avoid forming explicit matrices
@@ -462,7 +482,7 @@ def numerical(
         if index[:2] == (1, 1):
             return safe_divide(-identity.evaluated[index], 2)
         return old_U_eval(*index)
-    
+
     def h_tilde_eval(*index):
         if index[:2] == (1, 1):
             return H_tilde_operator.evaluated[index]
