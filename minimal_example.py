@@ -57,10 +57,11 @@ def test_solve_sylvester():
     h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
     eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
     eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
-    print("min energy difference of A and B is {}".format(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b))))
+    print("relative energy difference of A and B is {}".format(np.min(np.abs([[(a-b)/a for a in eigs_a] for b in eigs_b]))))
+    print("absolute energy difference of A and B is {}".format(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b))))
     
     divide_energies_full_b = block_diagonalization.solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
-    divide_energies_half_b = block_diagonalization.solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b[:,b_indices[:int(np.floor(len(b_indices)/2))]], eigs_b[b_indices[:int(np.floor(len(b_indices)/2))]], kpm_params = {'num_moments':10000})
+    divide_energies_half_b = block_diagonalization.solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b[:,b_indices[:int(np.floor(len(b_indices)/2))]], eigs_b[b_indices[:int(np.floor(len(b_indices)/2))]], kpm_params = {'num_moments':1000})
     divide_energies_kpm = block_diagonalization.solve_sylvester_KPM(h_0, vecs_a, eigs_a, kpm_params={'num_moments': 20000})
     
     for _ in range(n_trial):
