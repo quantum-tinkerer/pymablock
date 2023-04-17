@@ -41,6 +41,60 @@ h_t, u, u_adj = block_diagonalization.numerical(H, vecs_a, eigs_a, vecs_b, eigs_
 h_t.evaluated[0,1,6]
 
 
+def test_solve_sylvester():
+    n_trial = np.random.randint(low=3, high=10)
+    n_dim = np.random.randint(low=5, high=100)
+    a_dim = np.random.randint(low=1, high=int(n_dim/2))
+    a_indices = np.random.randint(low=0, high=n_dim, size=a_dim)
+    b_dim = n_dim-a_dim
+    b_indices = np.delete(np.arange(0, n_dim), a_indices)
+    
+    h_0 = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+    h_0 += h_0.conjugate().transpose()
+    
+    eigs, vecs = scipy.linalg.eigh(h_0)
+    eigs = 100 * np.random.random(1) * eigs
+    h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+    eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
+    eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
+    print("min energy difference of A and B is {}".format(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b))))
+    
+    divide_energies_full_b = block_diagonalization.solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
+    divide_energies_half_b = block_diagonalization.solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b[:,b_indices[:int(np.floor(len(b_indices)/2))]], eigs_b[b_indices[:int(np.floor(len(b_indices)/2))]], kpm_params = {'num_moments':10000})
+    divide_energies_kpm = block_diagonalization.solve_sylvester_KPM(h_0, vecs_a, eigs_a, kpm_params={'num_moments': 20000})
+    
+    for _ in range(n_trial):
+        y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+        y_trial += y_trial.conjugate().transpose()
+        y_trial = y_trial[:len(eigs_a), :]
+        
+        y_full_b = np.abs(divide_energies_full_b(y_trial))
+        y_half_b = np.abs(divide_energies_half_b(y_trial))
+        y_kpm = np.abs(divide_energies_kpm(y_trial))
+        
+        diff_full_half = y_full_b - y_half_b 
+        diff_full_kpm = y_full_b - y_kpm
+        
+        try: 
+            np.testing.assert_allclose(diff_full_half, 0, atol=1e-2, err_msg="fail in full/half at max val {}".format(np.max(diff_full_half)))
+        except Exception as e:
+            print(e)
+        try:
+            np.testing.assert_allclose(diff_full_kpm, 0, atol=1e-2, err_msg="fail in full/kpm at max val {}".format(np.max(diff_full_kpm))) 
+        except Exception as e:
+            print(e)
+
+
+for _ in range(10):
+    print('############')
+    try:
+        test_solve_sylvester()
+    except Exception as e:
+        print(e)
+        continue
+print('finished')
+
+
 def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian.
@@ -65,11 +119,12 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
 
         eigs, vecs = scipy.linalg.eigh(h_0)
         eigs = 1000 * eigs
-        print(np.min(np.diff(eigs)))
         h_0 =  vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
         
         eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
         eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
+        print(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b)))
+        
         
         H_input = BlockSeries(data={(0,0,0):h_0} )
         
@@ -109,5 +164,6 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
                     block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
                 )
 
-
 test_check_AB_KPM([(3,)])
+
+
