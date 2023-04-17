@@ -10,6 +10,8 @@ from functools import reduce
 from copy import copy
 from typing import Any, Optional, Callable
 
+import pdb
+
 import numpy as np
 import sympy
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
@@ -454,7 +456,7 @@ def numerical(
     H = BlockSeries(eval=new_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
 
     div_energs = solve_sylvester_KPM(
-        H_input.evaluated[(0, 0, zero_index)],
+        H_input.evaluated[(0, 0, *zero_index)],
         vecs_a,
         eigs_a,
         vecs_b,
@@ -524,7 +526,7 @@ def solve_sylvester_KPM(
     if vecs_b is None:
         vecs_b = np.empty((vecs_a.shape[0], 0))
     if eigs_b is None:
-        eigs_b = np.diag(vecs_b.conj().T @ h_0 @ vecs_b)
+        eigs_b = np.diag(vecs_b.conjugate().transpose() @ h_0 @ vecs_b)
     if kpm_params is None:
         kpm_params = dict()
 
