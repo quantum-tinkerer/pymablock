@@ -4,10 +4,18 @@ from typing import Any, Callable
 import numpy as np
 import tinyarray as ta
 import pytest
+import scipy
 from sympy.physics.quantum import Dagger
 
-from lowdin.block_diagonalization import general, expanded, to_BlockSeries, numerical, solve_sylvester_KPM
+from lowdin.block_diagonalization import (
+    general,
+    expanded,
+    to_BlockSeries,
+    numerical,
+    solve_sylvester_KPM,
+)
 from lowdin.series import BlockSeries, cauchy_dot_product, zero
+from lowdin.linalg import ComplementProjector, complement_projected
 
 
 @pytest.fixture(
@@ -343,3 +351,197 @@ def test_doubled_orders(
                     assert isinstance(result_doubled, object)
                     continue
                 np.testing.assert_allclose(result, result_doubled, atol=10**-5)
+
+
+def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
+    """
+    Test that H_AB is zero for a random Hamiltonian.
+
+    Parameters
+    ----------
+    H: Hamiltonian
+    wanted_orders: list of orders to compute
+    """
+    for order in wanted_orders:
+        n_pert = len(order)
+        n_dim = 20
+        a_dim = 3
+        b_dim = n_dim - a_dim
+        a_indices = slice(None, a_dim)
+        b_indices = slice(a_dim, None)
+
+        h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+        h_0 += h_0.conjugate().transpose()
+
+        eigs, vecs = scipy.linalg.eigh(h_0)
+        eigs[a_indices] -= 10.0  # introduce an energy gap
+        h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+        eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
+        eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
+
+        H_input = BlockSeries(data={(0, 0, *((0,) * n_pert)): h_0})
+
+        for i in range(n_pert):
+            h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random(
+                (n_dim, n_dim)
+            )
+            h_p += h_p.conjugate().transpose()
+            index = np.zeros(n_pert, int)
+            index[i] = 1
+            H_input.data[(0, 0, *tuple(index))] = h_p
+
+        H_input.shape = (1, 1)
+        H_input.n_infinite = n_pert
+
+        H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
+        H_tilde_half_b = numerical(
+            H_input,
+            vecs_a,
+            eigs_a,
+            vecs_b[:, : b_dim // 2],
+            eigs_b[: b_dim // 2],
+            kpm_params={"num_moments": 5000},
+        )[0]
+        H_tilde_kpm = numerical(
+            H_input, vecs_a, eigs_a, kpm_params={"num_moments": 10000}
+        )[0]
+
+        # full b
+        for order in wanted_orders:
+            order = tuple(slice(None, dim_order + 1) for dim_order in order)
+            for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
+                np.testing.assert_allclose(
+                    block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
+                )
+        # half b
+        for order in wanted_orders:
+            order = tuple(slice(None, dim_order + 1) for dim_order in order)
+            for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
+                np.testing.assert_allclose(
+                    block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+                )
+        # KPM
+        for order in wanted_orders:
+            order = tuple(slice(None, dim_order + 1) for dim_order in order)
+            for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
+                np.testing.assert_allclose(
+                    block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+                )
+
+
+def test_solve_sylvester():
+    n_dim = np.random.randint(low=20, high=100)
+    a_dim = np.random.randint(low=1, high=n_dim // 2)
+    b_dim = n_dim - a_dim
+    a_indices = slice(None, a_dim)
+    b_indices = slice(a_dim, None)
+
+    h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+    h_0 += h_0.conjugate().transpose()
+
+    eigs, vecs = scipy.linalg.eigh(h_0)
+    eigs[a_indices] -= 10.0  # introduce an energy gap
+    h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+    eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
+    eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
+    # print("min energy difference of A and B is {}".format(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b))))
+
+    divide_energies_full_b = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
+    divide_energies_half_b = solve_sylvester_KPM(
+        h_0,
+        vecs_a,
+        eigs_a,
+        vecs_b[:, : b_dim // 2],
+        eigs_b[: b_dim // 2],
+        kpm_params={"num_moments": 10000},
+    )
+    divide_energies_kpm = solve_sylvester_KPM(
+        h_0, vecs_a, eigs_a, kpm_params={"num_moments": 20000}
+    )
+
+    y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+    y_trial += y_trial.conjugate().transpose()
+    y_trial = vecs_a.conjugate().transpose() @ y_trial @ ComplementProjector(vecs_a)
+
+    y_full_b = np.abs(divide_energies_full_b(y_trial))
+    y_half_b = np.abs(divide_energies_half_b(y_trial))
+    y_kpm = np.abs(divide_energies_kpm(y_trial))
+
+    diff_full_half = y_full_b - y_half_b
+    diff_full_kpm = y_full_b - y_kpm
+
+    np.testing.assert_allclose(
+        diff_full_half,
+        0,
+        atol=1e-2,
+        err_msg="fail in full/half at max val {}".format(np.max(diff_full_half)),
+    )
+    np.testing.assert_allclose(
+        diff_full_kpm,
+        0,
+        atol=1e-2,
+        err_msg="fail in full/kpm at max val {}".format(np.max(diff_full_kpm)),
+    )
+
+
+def test_check_AB_numerical_random_spectrum(wanted_orders: list[tuple[int, ...]]) -> None:
+    """
+    Test that H_AB is zero for a random Hamiltonian.
+
+    Parameters
+    ----------
+    H: Hamiltonian
+    wanted_orders: list of orders to compute
+    """
+    for order in wanted_orders:
+        n_pert = len(order)
+        n_dim = np.random.randint(low=20, high=100)
+        a_dim = np.random.randint(low=1, high=n_dim // 2)
+        b_dim = n_dim - a_dim
+        a_indices = np.unique(np.random.randint(low=0, high=n_dim, size=2 * n_dim))[
+            :a_dim
+        ]
+        b_indices = np.delete(np.arange(0, n_dim), a_indices)
+
+        assert (a_dim + b_dim) == n_dim
+        assert len(a_indices) == a_dim
+        assert not bool(set(a_indices) & set(b_indices))
+        assert (len(a_indices) + len(b_indices)) == n_dim
+        assert np.allclose(
+            np.sort(np.concatenate((a_indices, b_indices))), np.arange(0, n_dim)
+        )
+
+        h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+        h_0 += h_0.conjugate().transpose()
+
+        eigs, vecs = scipy.linalg.eigh(h_0)
+        eigs[a_indices] -= 10.0  # introduce an energy gap
+        h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+        eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
+        eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
+
+        H_input = BlockSeries(data={(0, 0, *((0,) * n_pert)): h_0})
+
+        for i in range(n_pert):
+            h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random(
+                (n_dim, n_dim)
+            )
+            h_p += h_p.conjugate().transpose()
+            index = np.zeros(n_pert, int)
+            index[i] = 1
+            H_input.data[(0, 0, *tuple(index))] = h_p
+
+        H_input.shape = (1, 1)
+        H_input.n_infinite = n_pert
+
+        H_tilde_full_b = numerical(
+            H_input, vecs_a, eigs_a, vecs_b, eigs_b
+        )[0]
+
+        # full b
+        for order in wanted_orders:
+            order = tuple(slice(None, dim_order + 1) for dim_order in order)
+            for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
+                np.testing.assert_allclose(
+                    block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
+                )
