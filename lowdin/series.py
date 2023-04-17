@@ -318,7 +318,8 @@ def product_by_order(
     for indices, factor in zip(data, series):
         indices[ma.where(indices)] = factor.evaluated[ma.where(indices)]
 
-    contributing_products = []
+    terms = []
+    daggered_terms = []
     for combination in product(*(ma.ndenumerate(factor) for factor in data)):
         combination = list(combination)
         starts, ends = zip(*(key[:-n_infinite] for key, _ in combination))
@@ -330,11 +331,13 @@ def product_by_order(
         values = [value for _, value in combination if value is not one]
         if hermitian and key > tuple(reversed(key)):
             continue
-        temp = reduce(op, values)
-        if hermitian and key == tuple(reversed(key)):
-            temp /= 2
-        contributing_products.append(temp)
-    result = _zero_sum(contributing_products)
-    if hermitian and zero != result:
-        result += Dagger(result)
+        term = reduce(op, values)
+        if not hermitian or key == tuple(reversed(key)):
+            terms.append(term)
+        else:
+            daggered_terms.append(term)
+    result = _zero_sum(daggered_terms)
+    if hermitian:
+        result = _zero_sum((result, Dagger(result)))
+    result = _zero_sum(terms + [result])
     return result
