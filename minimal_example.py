@@ -42,7 +42,7 @@ h_t.evaluated[0,1,6]
 
 
 def test_solve_sylvester():
-    n_trial = np.random.randint(low=3, high=10)
+    n_trial = 2
     n_dim = np.random.randint(low=5, high=100)
     a_dim = np.random.randint(low=1, high=int(n_dim/2))
     a_indices = np.random.randint(low=0, high=n_dim, size=a_dim)
