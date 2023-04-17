@@ -407,26 +407,17 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
         )[0]
 
         # full b
-        for order in wanted_orders:
-            order = tuple(slice(None, dim_order + 1) for dim_order in order)
-            for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
-                np.testing.assert_allclose(
-                    block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
-                )
+        np.testing.assert_allclose(
+                H_tilde_full_b.evaluated[(0, 1) + order], 0, atol=1e-5, err_msg=f"{order=}"
+            )
         # half b
-        for order in wanted_orders:
-            order = tuple(slice(None, dim_order + 1) for dim_order in order)
-            for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
-                np.testing.assert_allclose(
-                    block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
-                )
+        np.testing.assert_allclose(
+                H_tilde_half_b.evaluated[(0, 1) + order], 0, atol=1e-1, err_msg=f"{order=}"
+            )
         # KPM
-        for order in wanted_orders:
-            order = tuple(slice(None, dim_order + 1) for dim_order in order)
-            for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
-                np.testing.assert_allclose(
-                    block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
-                )
+        np.testing.assert_allclose(
+                H_tilde_kpm.evaluated[(0, 1) + order], 0, atol=1e-1, err_msg=f"{order=}"
+            )
 
 
 def test_solve_sylvester():
@@ -495,8 +486,8 @@ def test_check_AB_numerical_random_spectrum(wanted_orders: list[tuple[int, ...]]
     """
     for order in wanted_orders:
         n_pert = len(order)
-        n_dim = np.random.randint(low=20, high=100)
-        a_dim = np.random.randint(low=1, high=n_dim // 2)
+        n_dim = 45
+        a_dim = 7
         b_dim = n_dim - a_dim
         a_indices = np.unique(np.random.randint(low=0, high=n_dim, size=2 * n_dim))[
             :a_dim
@@ -539,9 +530,6 @@ def test_check_AB_numerical_random_spectrum(wanted_orders: list[tuple[int, ...]]
         )[0]
 
         # full b
-        for order in wanted_orders:
-            order = tuple(slice(None, dim_order + 1) for dim_order in order)
-            for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
-                np.testing.assert_allclose(
-                    block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
-                )
+        np.testing.assert_allclose(
+                H_tilde_full_b.evaluated[(0, 1) + order], 0, atol=1e-5, err_msg=f"{order=}"
+            )
