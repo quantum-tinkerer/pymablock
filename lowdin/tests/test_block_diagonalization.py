@@ -353,6 +353,31 @@ def test_doubled_orders(
                 np.testing.assert_allclose(result, result_doubled, atol=10**-5)
 
 
+def generate_kpm_hamiltonian(n_dim, n_pert, a_dim, a_indices, b_indices):
+    h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+    h_0 += h_0.conjugate().transpose()
+
+    eigs, vecs = scipy.linalg.eigh(h_0)
+    eigs[a_indices] -= 10.0  # introduce an energy gap
+    h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+    eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
+    eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
+
+    H_input = BlockSeries(data={(0, 0, *((0,) * n_pert)): h_0})
+
+    for i in range(n_pert):
+        h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+        h_p += h_p.conjugate().transpose()
+        index = np.zeros(n_pert, int)
+        index[i] = 1
+        H_input.data[(0, 0, *tuple(index))] = h_p
+
+    H_input.shape = (1, 1)
+    H_input.n_infinite = n_pert
+
+    return H_input, eigs_a, vecs_a, eigs_b, vecs_b
+
+
 def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian.
@@ -370,28 +395,9 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
         a_indices = slice(None, a_dim)
         b_indices = slice(a_dim, None)
 
-        h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
-        h_0 += h_0.conjugate().transpose()
-
-        eigs, vecs = scipy.linalg.eigh(h_0)
-        eigs[a_indices] -= 10.0  # introduce an energy gap
-        h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
-        eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
-        eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
-
-        H_input = BlockSeries(data={(0, 0, *((0,) * n_pert)): h_0})
-
-        for i in range(n_pert):
-            h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random(
-                (n_dim, n_dim)
-            )
-            h_p += h_p.conjugate().transpose()
-            index = np.zeros(n_pert, int)
-            index[i] = 1
-            H_input.data[(0, 0, *tuple(index))] = h_p
-
-        H_input.shape = (1, 1)
-        H_input.n_infinite = n_pert
+        H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian(
+            n_dim, n_pert, a_dim, a_indices, b_indices
+        )
 
         H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
         H_tilde_half_b = numerical(
@@ -504,28 +510,9 @@ def test_check_AB_numerical_random_spectrum(
             np.sort(np.concatenate((a_indices, b_indices))), np.arange(0, n_dim)
         )
 
-        h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
-        h_0 += h_0.conjugate().transpose()
-
-        eigs, vecs = scipy.linalg.eigh(h_0)
-        eigs[a_indices] -= 10.0  # introduce an energy gap
-        h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
-        eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
-        eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
-
-        H_input = BlockSeries(data={(0, 0, *((0,) * n_pert)): h_0})
-
-        for i in range(n_pert):
-            h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random(
-                (n_dim, n_dim)
-            )
-            h_p += h_p.conjugate().transpose()
-            index = np.zeros(n_pert, int)
-            index[i] = 1
-            H_input.data[(0, 0, *tuple(index))] = h_p
-
-        H_input.shape = (1, 1)
-        H_input.n_infinite = n_pert
+        H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian(
+            n_dim, n_pert, a_dim, a_indices, b_indices
+        )
 
         H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
 
@@ -535,9 +522,7 @@ def test_check_AB_numerical_random_spectrum(
         )
 
 
-def test_check_AA_numerical(
-    wanted_orders: list[tuple[int, ...]]
-) -> None:
+def test_check_AA_numerical(wanted_orders: list[tuple[int, ...]]) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian.
 
@@ -549,38 +534,24 @@ def test_check_AA_numerical(
     for order in wanted_orders:
         n_pert = len(order)
         n_dim = 72
-        a_dim = 12
+        a_dim = 8
         b_dim = n_dim - a_dim
         a_indices = slice(None, a_dim)
         b_indices = slice(b_dim, None)
 
-        h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
-        h_0 += h_0.conjugate().transpose()
-
-        eigs, vecs = scipy.linalg.eigh(h_0)
-        eigs[a_indices] -= 15.0  # introduce an energy gap
-        h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
-        eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
-        eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
-
-        H_input = BlockSeries(data={(0, 0, *((0,) * n_pert)): h_0})
-
-        for i in range(n_pert):
-            h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random(
-                (n_dim, n_dim)
-            )
-            h_p += h_p.conjugate().transpose()
-            index = np.zeros(n_pert, int)
-            index[i] = 1
-            H_input.data[(0, 0, *tuple(index))] = h_p
-
-        H_input.shape = (1, 1)
-        H_input.n_infinite = n_pert
+        H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian(
+            n_dim, n_pert, a_dim, a_indices, b_indices
+        )
 
         H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
-        H_tilde_KPM = numerical(H_input, vecs_a, eigs_a, kpm_params={'num_moments':25000})[0]
+        H_tilde_KPM = numerical(
+            H_input, vecs_a, eigs_a, kpm_params={"num_moments": 25000}
+        )[0]
 
         # full b
         np.testing.assert_allclose(
-            H_tilde_full_b.evaluated[(0, 0) + order], H_tilde_KPM.evaluated[(0, 0) + order], atol=1e-1, err_msg=f"{order=}"
+            H_tilde_full_b.evaluated[(0, 0) + order],
+            H_tilde_KPM.evaluated[(0, 0) + order],
+            rtol=1e-2,
+            err_msg=f"{order=}",
         )
