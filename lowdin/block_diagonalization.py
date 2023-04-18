@@ -205,14 +205,19 @@ def _commute_H0_away(
 
     Parameters
     ----------
-    expr : (zero or sympy) expression to simplify.
-    H_0_AA : Unperturbed Hamiltonian in subspace AA.
-    H_0_BB : Unperturbed Hamiltonian in subspace BB.
-    Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+    expr : 
+        (zero or sympy) expression to simplify.
+    H_0_AA : 
+        Unperturbed Hamiltonian in subspace AA.
+    H_0_BB : 
+        Unperturbed Hamiltonian in subspace BB.
+    Y_data : 
+        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
 
     Returns
     -------
-    expr : (zero or sympy) expression without H_0_AA or H_0_BB in it.
+    expr : zero or sympy.expr
+        (zero or sympy) expression without H_0_AA or H_0_BB in it.
     """
     if zero == expr:
         return expr
@@ -408,15 +413,15 @@ def numerical(
 
     Returns
     -------
-    h_t : BlockSeries
+    h_t : `~lowdin.series.BlockSeries`
         Full block diagonalized Hamiltonian of the problem. The explict entries
         are called via var_name.evaluated[x, y, order] where x, y refer to the
         sub-space index (A, B). E.g.: var_name.evaluated[0,1,3] returns the AB
         entry of var_name to third order in a single perturbation parameter.
-    u : BlockSeries
+    u : `~lowdin.series.BlockSeries`
         Unitary transformation that block diagonalizes the initial perturbed
         Hamiltonian. Entries are accessed the same way as h_t
-    u_adj : BlockSeries
+    u_adj : `~lowdin.series.BlockSeries`
         Adjoint of u.
     """
     H_input = H
@@ -511,23 +516,24 @@ def solve_sylvester_KPM(
 
     Parameters
     ----------
-    h_0        : Rest hamiltonian of the system
+    h_0 : 
+        Rest hamiltonian of the system
+    eigs_a : 
+        Eigenvalues of the A subspace
+    vecs_a : 
+        Eigenvectors of the A subspace
+    eigs_b : 
+        (Sub)-Set of the eigenvalues of the B subspace
+    vecs_b :
+        (Sub)-Set of the eigenvectors of the B subspace
 
-    eigs_a     : Eigenvalues of the A subspace
-
-    vecs_a     : Eigenvectors of the A subspace
-
-    eigs_b     : (Sub)-Set of the eigenvalues of the B subspace
-
-    vecs_b     : (Sub)-Set of the eigenvectors of the B subspace
-
-    kpm_options: kpm_params and precalculate moments
-                 as specified in kpm_fucs.
+    kpm_options:
+        kpm_params and precalculate moments as specified in kpm_fucs.
 
     Returns
     ----------
     divide_by_energies: callable
-                        Function that applies divide by energies to the RHS of the Sylvester equation.
+        Function that applies divide by energies to the RHS of the Sylvester equation.
     """
     if vecs_b is None:
         vecs_b = np.empty((vecs_a.shape[0], 0))
@@ -588,10 +594,14 @@ def _update_subs(
 
     Parameters
     ----------
-    Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
-    subs : dictionary of substitutions to make.
-    solve_sylvester : function to use for solving Sylvester's equation.
-    op : function to use for matrix multiplication.
+    Y_data : 
+        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+    subs : 
+        dictionary of substitutions to make.
+    solve_sylvester : 
+        function to use for solving Sylvester's equation.
+    op : 
+        function to use for matrix multiplication.
     """
     for V, rhs in Y_data.items():
         if V not in subs:
@@ -608,9 +618,12 @@ def _replace(
 
     Parameters
     ----------
-    expr : (zero or sympy) expression in which to replace general symbols.
-    subs : dictionary {symbol: value} of substitutions to make.
-    op : function to use to multiply the substituted terms.
+    expr : 
+        (zero or sympy) expression in which to replace general symbols.
+    subs : 
+        dictionary {symbol: value} of substitutions to make.
+    op : 
+        function to use to multiply the substituted terms.
 
     Return
     ------
