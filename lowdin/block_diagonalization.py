@@ -11,6 +11,8 @@ from typing import Any, Optional, Callable
 
 import numpy as np
 import sympy
+import qsymm
+from scipy import sparse
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
 
 from lowdin.linalg import ComplementProjector, aslinearoperator
@@ -643,3 +645,137 @@ def _replace(
         )
 
     return _zero_sum(result)
+
+
+def block_diagonalize(
+        hamiltonian :  list[Any, list] | dict | BlockSeries,
+        algorithm : Callable,
+        *,
+        subspaces : Optional[tuple[Any, Any]],
+        **kwargs
+    ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
+    """
+    Parameters
+    ----------
+    hamiltonian :
+        Hamiltonian to diagonalize.
+
+    algorithm :
+        Function that block diagonalizes a Hamiltonian.
+        Options are `~lowdin.block_diagonalize.general` and
+        `~lowdin.block_diagonalize.expanded`.
+    subspaces:
+        Subspaces to use for block diagonalization.
+
+    Returns
+    -------
+    H_tilde : `~lowdin.series.BlockSeries`
+        Block diagonalized Hamiltonian.
+    U : `~lowdin.series.BlockSeries`
+        Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
+    U_adjoint : `~lowdin.series.BlockSeries`
+        Adjoint of U.
+    """
+    H = hamiltonian_to_series(hamiltonian, subspaces=subspaces)
+    n_infinite = H.n_infinite
+
+    # Determine operator to use for matrix multiplication
+    if isinstance(
+        H.evaluated[(0,) * n_infinite],
+        (np.ndarray, sparse.spmatrix, sympy.Matrix)
+    ):
+        op = matmul
+    elif issubclass(type(H.evaluated[(0,) * n_infinite]), sympy.Expr):
+        op = mul
+    
+    # Determine function to use for solving Sylvester's equation
+    # If H_0 is diagonal, don't provide anything
+    # If H_0 is not diagonal, provide a function that solves Sylvester's equation
+    solve_sylvester = None
+    return algorithm(H, op=op, solve_sylvester=solve_sylvester, **kwargs)
+
+
+def hamiltonian_to_series(
+        hamiltonian: list[Any, list] | dict | BlockSeries,
+        subspaces: Optional[tuple[Any, Any]],
+    ) -> BlockSeries:
+    """
+    Converts a Hamiltonian to a `~lowdin.series.BlockSeries`.
+    
+    Parameters
+    ----------
+    hamiltonian :
+        Hamiltonian to convert.
+        If a list, it is assumed to be of the form
+        [H_0, [H_1, H_2, ...]] where H_0 is the zeroth order Hamiltonian and H_1, H_2, ...
+        are the first order perturbations.
+    subspaces :
+        Tuple of eigenvectors of each subspace of the Hamiltonian.
+
+    Returns
+    -------
+    H : `~lowdin.series.BlockSeries`
+        Hamiltonian in the format required by algorithms.
+    """
+    # [[[H_AA, 0], [0, H_BB]], [...]], 1st order perturbations only
+    if isinstance(hamiltonian, list):
+        n_infinite = len(hamiltonian[1])
+        zeroth_order = (0,) * n_infinite
+
+        hamiltonian = {
+            zeroth_order: hamiltonian[0],
+            **{
+                (order,): perturbation for order, perturbation in
+                zip(np.eye(n_infinite, dtype=int), hamiltonian[1])
+            }
+        }
+    elif isinstance(hamiltonian, qsymm.Model):
+        # TODO: Implement by requiring list of perturbative symbols.
+        raise NotImplementedError
+    
+    if isinstance(hamiltonian, dict):
+        n_infinite = len(list(hamiltonian.keys())[0])
+        zeroth_order = (0,) * n_infinite
+        shape = (),
+        H_temporary = BlockSeries(
+            data=hamiltonian,
+            shape=shape,
+            n_infinite=n_infinite,
+        )
+    elif isinstance(hamiltonian, BlockSeries):
+        n_infinite = hamiltonian.n_infinite
+        H_temporary = hamiltonian
+    else:
+        raise NotImplementedError
+
+    if subspaces is None:
+        if H_temporary.shape == ():
+            H = BlockSeries(
+                eval=(lambda index: H_temporary.evaluated[index[:2]][index[0]][index[1]]),
+                shape=(2, 2),
+                n_infinite=n_infinite,
+            )
+        else:
+            H = H_temporary
+
+    if subspaces is not None:
+        # TODO: Implement this for non-numerical inputs.
+        eigvecs_A, eigvecs_B = subspaces[0], subspaces[1]
+
+        def H_eval(index):
+            if index[:2] == (0, 0):
+                return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_A
+            elif index[:2] == (1, 1):
+                return eigvecs_B.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
+            elif index[:2] == (0, 1):
+                return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
+            else:
+                return H.evaluated[(0, 1) + tuple(index[2:])]
+
+        H = BlockSeries(
+            eval=H_eval,
+            shape=(2, 2),
+            n_infinite=n_infinite,
+        )
+    return H
+
