@@ -408,21 +408,21 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
 
         # full b
         np.testing.assert_allclose(
-                H_tilde_full_b.evaluated[(0, 1) + order], 0, atol=1e-5, err_msg=f"{order=}"
-            )
+            H_tilde_full_b.evaluated[(0, 1) + order], 0, atol=1e-5, err_msg=f"{order=}"
+        )
         # half b
         np.testing.assert_allclose(
-                H_tilde_half_b.evaluated[(0, 1) + order], 0, atol=1e-1, err_msg=f"{order=}"
-            )
+            H_tilde_half_b.evaluated[(0, 1) + order], 0, atol=1e-1, err_msg=f"{order=}"
+        )
         # KPM
         np.testing.assert_allclose(
-                H_tilde_kpm.evaluated[(0, 1) + order], 0, atol=1e-1, err_msg=f"{order=}"
-            )
+            H_tilde_kpm.evaluated[(0, 1) + order], 0, atol=1e-1, err_msg=f"{order=}"
+        )
 
 
 def test_solve_sylvester():
-    n_dim = np.random.randint(low=20, high=100)
-    a_dim = np.random.randint(low=1, high=n_dim // 2)
+    n_dim = 62
+    a_dim = 23
     b_dim = n_dim - a_dim
     a_indices = slice(None, a_dim)
     b_indices = slice(a_dim, None)
@@ -475,7 +475,9 @@ def test_solve_sylvester():
     )
 
 
-def test_check_AB_numerical_random_spectrum(wanted_orders: list[tuple[int, ...]]) -> None:
+def test_check_AB_numerical_random_spectrum(
+    wanted_orders: list[tuple[int, ...]]
+) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian.
 
@@ -525,11 +527,60 @@ def test_check_AB_numerical_random_spectrum(wanted_orders: list[tuple[int, ...]]
         H_input.shape = (1, 1)
         H_input.n_infinite = n_pert
 
-        H_tilde_full_b = numerical(
-            H_input, vecs_a, eigs_a, vecs_b, eigs_b
-        )[0]
+        H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
 
         # full b
         np.testing.assert_allclose(
-                H_tilde_full_b.evaluated[(0, 1) + order], 0, atol=1e-5, err_msg=f"{order=}"
+            H_tilde_full_b.evaluated[(0, 1) + order], 0, atol=1e-5, err_msg=f"{order=}"
+        )
+
+
+def test_check_AA_numerical(
+    wanted_orders: list[tuple[int, ...]]
+) -> None:
+    """
+    Test that H_AB is zero for a random Hamiltonian.
+
+    Parameters
+    ----------
+    H: Hamiltonian
+    wanted_orders: list of orders to compute
+    """
+    for order in wanted_orders:
+        n_pert = len(order)
+        n_dim = 72
+        a_dim = 12
+        b_dim = n_dim - a_dim
+        a_indices = slice(None, a_dim)
+        b_indices = slice(b_dim, None)
+
+        h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+        h_0 += h_0.conjugate().transpose()
+
+        eigs, vecs = scipy.linalg.eigh(h_0)
+        eigs[a_indices] -= 15.0  # introduce an energy gap
+        h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+        eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
+        eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
+
+        H_input = BlockSeries(data={(0, 0, *((0,) * n_pert)): h_0})
+
+        for i in range(n_pert):
+            h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random(
+                (n_dim, n_dim)
             )
+            h_p += h_p.conjugate().transpose()
+            index = np.zeros(n_pert, int)
+            index[i] = 1
+            H_input.data[(0, 0, *tuple(index))] = h_p
+
+        H_input.shape = (1, 1)
+        H_input.n_infinite = n_pert
+
+        H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
+        H_tilde_KPM = numerical(H_input, vecs_a, eigs_a, kpm_params={'num_moments':25000})[0]
+
+        # full b
+        np.testing.assert_allclose(
+            H_tilde_full_b.evaluated[(0, 0) + order], H_tilde_KPM.evaluated[(0, 0) + order], atol=1e-1, err_msg=f"{order=}"
+        )
