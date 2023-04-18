@@ -506,6 +506,11 @@ def solve_sylvester_KPM(
     precalculate_moments: bool = False,
 ) -> Callable:
     """
+    General energy division for numerical problems through either full
+    knowledge of the B-space or applicatio of the KPM Green's function
+
+    Parameters
+    ----------
     h_0        : Rest hamiltonian of the system
 
     eigs_a     : Eigenvalues of the A subspace
@@ -519,7 +524,8 @@ def solve_sylvester_KPM(
     kpm_options: kpm_params and precalculate moments
                  as specified in kpm_fucs.
 
-    Returns:
+    Returns
+    ----------
     divide_by_energies: callable
                         Function that applies divide by energies to the RHS of the Sylvester equation.
     """
