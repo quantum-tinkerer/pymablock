@@ -431,26 +431,26 @@ def numerical(
     p_b = ComplementProjector(vecs_a)
 
     def H_eval(*index):
-        new_index = (0, 0) + tuple(index[2:])
-        try:
-            if index[:2] == (0, 0):
-                return (
-                    vecs_a.conjugate().transpose()
-                    @ H_input.evaluated[new_index]
-                    @ vecs_a
-                )
-            if index[:2] == (0, 1):
-                return (
-                    vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ p_b
-                )
-            if index[:2] == (1, 0):
-                return (
-                    H_input.evaluated[(0, 1, *tuple(index[2:]))].conjugate().transpose()
-                )
-            if index[:2] == (1, 1):
-                return p_b @ aslinearoperator(H_input.evaluated[new_index]) @ p_b
-        except:
+        new_index = (0, 0) + index[2:]
+        original = H_input.evaluated[new_index]
+        if zero == original:
             return zero
+        if index[:2] == (0, 0):
+            return (
+                vecs_a.conjugate().transpose()
+                @ H_input.evaluated[new_index]
+                @ vecs_a
+            )
+        if index[:2] == (0, 1):
+            return (
+                vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ p_b
+            )
+        if index[:2] == (1, 0):
+            return (
+                H.evaluated[(0, 1, *index[2:])].conjugate().transpose()
+            )
+        if index[:2] == (1, 1):
+            return p_b @ aslinearoperator(H_input.evaluated[new_index]) @ p_b
 
     H = BlockSeries(eval=H_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
 
