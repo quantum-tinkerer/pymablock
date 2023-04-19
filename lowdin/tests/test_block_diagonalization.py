@@ -13,6 +13,7 @@ from lowdin.block_diagonalization import (
     to_BlockSeries,
     numerical,
     solve_sylvester_KPM,
+    _default_solve_sylvester
 )
 from lowdin.series import BlockSeries, cauchy_dot_product, zero
 from lowdin.linalg import ComplementProjector, complement_projected
@@ -440,58 +441,59 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
 
 
 def test_solve_sylvester():
-    n_dim = 62
-    a_dim = 23
-    b_dim = n_dim - a_dim
-    a_indices = slice(None, a_dim)
-    b_indices = slice(a_dim, None)
+    for _ in range(3):
+        n_dim = 62
+        a_dim = 23
+        b_dim = n_dim - a_dim
+        a_indices = slice(None, a_dim)
+        b_indices = slice(a_dim, None)
 
-    h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
-    h_0 += h_0.conjugate().transpose()
+        h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+        h_0 += h_0.conjugate().transpose()
 
-    eigs, vecs = scipy.linalg.eigh(h_0)
-    eigs[a_indices] -= 10.0  # introduce an energy gap
-    h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
-    eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
-    eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
-    # print("min energy difference of A and B is {}".format(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b))))
+        eigs, vecs = scipy.linalg.eigh(h_0)
+        eigs[a_indices] -= 10.0  # introduce an energy gap
+        h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+        eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
+        eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
+        # print("min energy difference of A and B is {}".format(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b))))
 
-    divide_energies_full_b = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
-    divide_energies_half_b = solve_sylvester_KPM(
-        h_0,
-        vecs_a,
-        eigs_a,
-        vecs_b[:, : b_dim // 2],
-        eigs_b[: b_dim // 2],
-        kpm_params={"num_moments": 10000},
-    )
-    divide_energies_kpm = solve_sylvester_KPM(
-        h_0, vecs_a, eigs_a, kpm_params={"num_moments": 20000}
-    )
+        divide_energies_full_b = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
+        divide_energies_half_b = solve_sylvester_KPM(
+            h_0,
+            vecs_a,
+            eigs_a,
+            vecs_b[:, : b_dim // 2],
+            eigs_b[: b_dim // 2],
+            kpm_params={"num_moments": 10000},
+        )
+        divide_energies_kpm = solve_sylvester_KPM(
+            h_0, vecs_a, eigs_a, kpm_params={"num_moments": 20000}
+        )
 
-    y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
-    y_trial += y_trial.conjugate().transpose()
-    y_trial = vecs_a.conjugate().transpose() @ y_trial @ ComplementProjector(vecs_a)
+        y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+        y_trial += y_trial.conjugate().transpose()
+        y_trial = vecs_a.conjugate().transpose() @ y_trial @ ComplementProjector(vecs_a)
 
-    y_full_b = np.abs(divide_energies_full_b(y_trial))
-    y_half_b = np.abs(divide_energies_half_b(y_trial))
-    y_kpm = np.abs(divide_energies_kpm(y_trial))
+        y_full_b = np.abs(divide_energies_full_b(y_trial))
+        y_half_b = np.abs(divide_energies_half_b(y_trial))
+        y_kpm = np.abs(divide_energies_kpm(y_trial))
 
-    diff_full_half = y_full_b - y_half_b
-    diff_full_kpm = y_full_b - y_kpm
+        diff_full_half = y_full_b - y_half_b
+        diff_full_kpm = y_full_b - y_kpm
 
-    np.testing.assert_allclose(
-        diff_full_half,
-        0,
-        atol=1e-2,
-        err_msg="fail in full/half at max val {}".format(np.max(diff_full_half)),
-    )
-    np.testing.assert_allclose(
-        diff_full_kpm,
-        0,
-        atol=1e-2,
-        err_msg="fail in full/kpm at max val {}".format(np.max(diff_full_kpm)),
-    )
+        np.testing.assert_allclose(
+            diff_full_half,
+            0,
+            atol=1e-2,
+            err_msg="fail in full/half at max val {}".format(np.max(diff_full_half)),
+        )
+        np.testing.assert_allclose(
+            diff_full_kpm,
+            0,
+            atol=1e-2,
+            err_msg="fail in full/kpm at max val {}".format(np.max(diff_full_kpm)),
+        )
 
 
 def test_check_AA_numerical(wanted_orders: list[tuple[int, ...]]) -> None:
@@ -523,3 +525,36 @@ def test_check_AA_numerical(wanted_orders: list[tuple[int, ...]]) -> None:
             rtol=1e-2,
             err_msg=f"{order=}",
         )
+
+def test_solve_sylvester_kpm_v_default():
+    for _ in range(3):
+        n_dim = 50
+        a_dim = 8
+        b_dim = n_dim - a_dim
+
+        h_0 = np.diag(np.sort(50*np.random.random(50)))
+        eigs, vecs = scipy.linalg.eigh(h_0)
+
+        eigs_a, vecs_a = eigs[:a_dim], vecs[:,:a_dim]
+        eigs_b, vecs_b = eigs[a_dim:], vecs[:,a_dim:]
+
+        H_default = to_BlockSeries(np.diag(eigs_a), np.diag(eigs_b))
+
+        solve_sylvester_default = _default_solve_sylvester(H_default)
+        solve_sylvester_kpm = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
+
+        y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+        y_trial += y_trial.conjugate().transpose()
+        y_kpm = vecs_a.conjugate().transpose() @ y_trial @ ComplementProjector(vecs_a)
+
+        y_default = solve_sylvester_default(y_trial[:a_dim,a_dim:])
+        y_kpm = solve_sylvester_kpm(y_kpm)
+
+        diff_y = y_default - y_kpm[:a_dim,a_dim:]
+
+        np.testing.assert_allclose(
+                diff_y,
+                0,
+                atol=1e-2,
+                err_msg="fail in full/half at max val {}".format(np.max(diff_y)),
+            )
