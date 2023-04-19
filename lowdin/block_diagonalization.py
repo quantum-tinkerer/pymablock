@@ -755,10 +755,9 @@ def hamiltonian_to_BlockSeries(
     if isinstance(hamiltonian, dict):
         n_infinite = len(list(hamiltonian.keys())[0])
         zeroth_order = (0,) * n_infinite
-        shape = ()
         H_temporary = BlockSeries(
             data=hamiltonian,
-            shape=shape,
+            shape=(),
             n_infinite=n_infinite,
         )
     elif isinstance(hamiltonian, BlockSeries):
@@ -788,9 +787,7 @@ def hamiltonian_to_BlockSeries(
                     )
         subspaces = (eigvecs_A, eigvecs_B)
 
-    # Subspaces were separated in the input
     if subspaces is None:
-        # H_0 was a list of shape (2, 2) with arrays
         if H_temporary.shape == ():
             H = BlockSeries(
                 eval=(
