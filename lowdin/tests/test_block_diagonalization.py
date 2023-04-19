@@ -353,7 +353,10 @@ def test_doubled_orders(
                 np.testing.assert_allclose(result, result_doubled, atol=10**-5)
 
 
-def generate_kpm_hamiltonian(n_dim, n_infinite, a_dim, a_indices, b_indices):
+def generate_kpm_hamiltonian(n_dim, n_infinite, a_dim):
+    a_indices = slice(None, a_dim)
+    b_indices = slice(a_dim, None)
+
     h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
     h_0 += h_0.conjugate().transpose()
 
@@ -380,25 +383,22 @@ def generate_kpm_hamiltonian(n_dim, n_infinite, a_dim, a_indices, b_indices):
 
 def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
     """
-    Test that H_AB is zero for a random Hamiltonian.
+    Test that H_AB is zero for a random Hamiltonian using the 
+    numerical algorithm.
 
     Parameters
     ----------
-    H: 
-        Hamiltonian
-    wanted_orders: 
+    wanted_orders:
         list of orders to compute
     """
-    
+
     n_infinite = len(wanted_orders[0])
     n_dim = 20
     a_dim = 3
     b_dim = n_dim - a_dim
-    a_indices = slice(None, a_dim)
-    b_indices = slice(a_dim, None)
 
     H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian(
-        n_dim, n_infinite, a_dim, a_indices, b_indices
+        n_dim, n_infinite, a_dim
     )
 
     H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
@@ -410,18 +410,18 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
         eigs_b[: b_dim // 2],
         kpm_params={"num_moments": 5000},
     )[0]
-    H_tilde_kpm = numerical(
-        H_input, vecs_a, eigs_a, kpm_params={"num_moments": 10000}
-    )[0]
+    H_tilde_kpm = numerical(H_input, vecs_a, eigs_a, kpm_params={"num_moments": 10000})[
+        0
+    ]
 
-        # full b
+    # full b
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
             np.testing.assert_allclose(
                 block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
             )
-        
+
         # half b
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
@@ -429,7 +429,7 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
             np.testing.assert_allclose(
                 block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
             )
-        
+
         # KPM
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
@@ -494,60 +494,22 @@ def test_solve_sylvester():
     )
 
 
-def test_check_AB_numerical_random_spectrum(
-    wanted_orders: list[tuple[int, ...]]
-) -> None:
-    """
-    Test that H_AB is zero for a random Hamiltonian.
-
-    Parameters
-    ----------
-    H: Hamiltonian
-    wanted_orders: list of orders to compute
-    """
-    n_infinite = len(wanted_orders[0])
-    n_dim = 45
-    a_dim = 7
-    b_dim = n_dim - a_dim
-    a_indices = np.unique(np.random.randint(low=0, high=n_dim, size=2 * n_dim))[
-        :a_dim
-    ]
-    b_indices = np.delete(np.arange(0, n_dim), a_indices)
-
-    H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian(
-        n_dim, n_infinite, a_dim, a_indices, b_indices
-    )
-
-    H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
-
-    # full b
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
-            np.testing.assert_allclose(
-                block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
-            )
-
-
 def test_check_AA_numerical(wanted_orders: list[tuple[int, ...]]) -> None:
     """
-    Test that H_AB is zero for a random Hamiltonian.
+    Test that H_AA is zero for a random Hamiltonian.
 
     Parameters
     ----------
-    H: Hamiltonian
-    wanted_orders: list of orders to compute
+    wanted_orders: 
+        list of orders to compute
     """
     for order in wanted_orders:
         n_infinite = len(order)
         n_dim = 72
         a_dim = 8
-        b_dim = n_dim - a_dim
-        a_indices = slice(None, a_dim)
-        b_indices = slice(b_dim, None)
 
         H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian(
-            n_dim, n_infinite, a_dim, a_indices, b_indices
+            n_dim, n_infinite, a_dim
         )
 
         H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
