@@ -694,11 +694,14 @@ def block_diagonalize(
     return algorithm(H, op=op, solve_sylvester=solve_sylvester, **kwargs)
 
 
-def hamiltonian_to_series(
+def hamiltonian_to_BlockSeries(
         hamiltonian: list[Any, list] | dict | BlockSeries,
         subspaces: Optional[tuple[Any, Any]],
+        *
+        subspaces_indices: Optional[tuple(np.ndarray, np.ndarray)],
     ) -> BlockSeries:
     """
+    # TODO: change the name once to_BlockSeries is removed
     Converts a Hamiltonian to a `~lowdin.series.BlockSeries`.
     
     Parameters
@@ -716,7 +719,7 @@ def hamiltonian_to_series(
     H : `~lowdin.series.BlockSeries`
         Hamiltonian in the format required by algorithms.
     """
-    # [[[H_AA, 0], [0, H_BB]], [...]], 1st order perturbations only
+    # [H_0, [H_1, H_2, ...]], 1st order perturbations only
     if isinstance(hamiltonian, list):
         n_infinite = len(hamiltonian[1])
         zeroth_order = (0,) * n_infinite
@@ -732,6 +735,7 @@ def hamiltonian_to_series(
         # TODO: Implement by requiring list of perturbative symbols.
         raise NotImplementedError
     
+    # {0: H_0, (1, 0): H_1, (0, 1): H_2, ...}
     if isinstance(hamiltonian, dict):
         n_infinite = len(list(hamiltonian.keys())[0])
         zeroth_order = (0,) * n_infinite
@@ -747,6 +751,27 @@ def hamiltonian_to_series(
     else:
         raise NotImplementedError
 
+    # H_0 is diagonal
+    if subspaces_indices is not None:
+        A_indices, B_indices = subspaces_indices
+        dim, dim_A = A_indices.shape
+        dim_B = B_indices.shape[1]
+        if dim_B != dim - dim_A:
+            raise ValueError(
+                f"Dimension of subspace A ({dim_A}) and subspace B ({dim_B}) " +
+                "do not match the dimension of the Hamiltonian."
+            )
+        eigvecs = np.eye(dim, dtype=complex)
+        eigvecs_A = eigvecs[:, A_indices]
+        eigvecs_B = eigvecs[:, B_indices]
+        if subspaces is not None:
+            for eigvecs, subspace in ((eigvecs_A, eigvecs_B), subspaces):
+                if not np.allclose(eigvecs, subspace):
+                    raise ValueError(
+                        "Subspaces provided do not match the indices provided."
+                    )
+        subspaces = (eigvecs_A, eigvecs_B)
+
     if subspaces is None:
         if H_temporary.shape == ():
             H = BlockSeries(
@@ -756,9 +781,8 @@ def hamiltonian_to_series(
             )
         else:
             H = H_temporary
-
-    if subspaces is not None:
-        # TODO: Implement this for non-numerical inputs.
+    else:
+        # TODO: Implement this for non-numerical inputs and KPM
         eigvecs_A, eigvecs_B = subspaces[0], subspaces[1]
 
         def H_eval(index):
