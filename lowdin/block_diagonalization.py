@@ -448,7 +448,7 @@ def numerical(
                     H_input.evaluated[(0, 1, *tuple(index[2:]))].conjugate().transpose()
                 )
             if index[:2] == (1, 1):
-                return (p_b @ H_input.evaluated[new_index]) @ p_b
+                return p_b @ aslinearoperator(H_input.evaluated[new_index]) @ p_b
         except:
             return zero
 
