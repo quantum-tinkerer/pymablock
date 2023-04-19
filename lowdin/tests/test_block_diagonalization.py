@@ -16,7 +16,7 @@ from lowdin.block_diagonalization import (
     _default_solve_sylvester
 )
 from lowdin.series import BlockSeries, cauchy_dot_product, zero
-from lowdin.linalg import ComplementProjector, complement_projected
+from lowdin.linalg import ComplementProjector
 
 
 @pytest.fixture(

@@ -81,14 +81,6 @@ class ComplementProjector(LinearOperator):
     _transpose = conjugate
 
 
-def complement_projected(operator, vecs):
-    """Project operator on the complement of the span of vecs"""
-    projector = ComplementProjector(vecs)
-    # Wrap to avoid immediate evaluation
-    operator = aslinearoperator(operator)
-    return projector @ operator @ projector
-
-
 def aslinearoperator(A):
     """Same as scipy.sparse.linalg.aslinearoperator, but with passthrough."""
     if zero == A or A is one:
