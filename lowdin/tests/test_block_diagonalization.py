@@ -514,14 +514,6 @@ def test_check_AB_numerical_random_spectrum(
     ]
     b_indices = np.delete(np.arange(0, n_dim), a_indices)
 
-    assert (a_dim + b_dim) == n_dim
-    assert len(a_indices) == a_dim
-    assert not bool(set(a_indices) & set(b_indices))
-    assert (len(a_indices) + len(b_indices)) == n_dim
-    assert np.allclose(
-        np.sort(np.concatenate((a_indices, b_indices))), np.arange(0, n_dim)
-    )
-
     H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian(
         n_dim, n_infinite, a_dim, a_indices, b_indices
     )
