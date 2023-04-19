@@ -137,8 +137,8 @@ H_p_AB = {(1,):h_p[:a_dim, a_dim:]}
 H_p_BB = {(1,):h_p[a_dim:, a_dim:]}
 
 H = block_diagonalization.to_BlockSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB)
-H_T = block_diagonalization.general(H)[0]
-np.diag(H_T.evaluated[1,1,3])
+H_T_AA = block_diagonalization.general(H)[0]
+H_T_AA_exp = block_diagonalization.expanded(H)[0]
 
 # +
 H_0_AA = np.diag(eigs_a)
@@ -149,8 +149,16 @@ H_p_BA = {(1,):h_p[:a_dim, a_dim:].conjugate().transpose()}
 H_p_BB = {(1,):h_p[a_dim:, a_dim:]}
 
 H = block_diagonalization.to_BlockSeries(H_0_BB, H_0_AA, H_p_BB, H_p_AA, H_p_BA)
-H_T = block_diagonalization.general(H)[0]
-np.diag(H_T.evaluated[0,0,3])
+H_T_BB = block_diagonalization.general(H)[0]
+H_T_BB_exp = block_diagonalization.expanded(H)[0]
 # -
+
+for i in range(6):
+    print('order={}'.format(i))
+    print(scipy.linalg.eigh(H_T_AA.evaluated[0,0,i])[0])
+    print(scipy.linalg.eigh(H_T_BB.evaluated[1,1,i])[0])
+    
+    print(scipy.linalg.eigh(H_T_AA_exp.evaluated[0,0,i])[0])
+    print(scipy.linalg.eigh(H_T_BB_exp.evaluated[1,1,i])[0])
 
 
