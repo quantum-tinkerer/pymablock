@@ -697,7 +697,13 @@ def block_diagonalize(
     # If H_0 is diagonal, don't provide anything
     # If H_0 is not diagonal, provide a function that solves Sylvester's equation
     if solve_sylvester is None:
-        if H.evaluated[(0, 0) + (0,) * H.n_infinite].is_diagonal() and H.evaluated[(1, 1) + (0,) * H.n_infinite].is_diagonal():
+        if np.allclose(
+            H.evaluated[(0, 0) + (0,) * H.n_infinite],
+            np.diag.np.diag(H.evaluated[(0, 0) + (0,) * H.n_infinite])
+        ) and np.allclose(
+            H.evaluated[(1, 1) + (0,) * H.n_infinite],
+            np.diag.np.diag(H.evaluated[(1, 1) + (0,) * H.n_infinite])
+        ):
             pass
         else:
             NotImplementedError
