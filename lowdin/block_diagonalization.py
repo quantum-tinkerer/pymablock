@@ -570,8 +570,6 @@ def solve_sylvester_KPM(
             return ((Y @ vecs_b) * G_ml) @ vecs_b.conj().T
 
     def solve_sylvester(Y: np.ndarray) -> np.ndarray:
-        # pdb.set_trace()
-        Y = Y @ np.eye(Y.shape[-1])
         if need_kpm and need_explicit:
             result = sylvester_kpm(Y) + sylvester_explicit(Y)
         elif need_kpm:
