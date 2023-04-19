@@ -359,11 +359,11 @@ def generate_kpm_hamiltonian(n_dim, n_infinite, a_dim):
     b_indices = slice(a_dim, None)
 
     h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
-    h_0 += h_0.conjugate().transpose()
+    h_0 += Dagger(h_0)
 
     eigs, vecs = scipy.linalg.eigh(h_0)
     eigs[a_indices] -= 10.0  # introduce an energy gap
-    h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+    h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
     eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
     eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
 
@@ -371,7 +371,7 @@ def generate_kpm_hamiltonian(n_dim, n_infinite, a_dim):
 
     for i in range(n_infinite):
         h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
-        h_p += h_p.conjugate().transpose()
+        h_p += Dagger(h_p)
         index = np.zeros(n_infinite, int)
         index[i] = 1
         H_input.data[(0, 0, *tuple(index))] = h_p
@@ -449,11 +449,11 @@ def test_solve_sylvester():
         b_indices = slice(a_dim, None)
 
         h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
-        h_0 += h_0.conjugate().transpose()
+        h_0 += Dagger(h_0)
 
         eigs, vecs = scipy.linalg.eigh(h_0)
         eigs[a_indices] -= 10.0  # introduce an energy gap
-        h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+        h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
         eigs_a, vecs_a = eigs[a_indices], vecs[:, a_indices]
         eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
         # print("min energy difference of A and B is {}".format(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b))))
@@ -472,8 +472,8 @@ def test_solve_sylvester():
         )
 
         y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
-        y_trial += y_trial.conjugate().transpose()
-        y_trial = vecs_a.conjugate().transpose() @ y_trial @ ComplementProjector(vecs_a)
+        y_trial += Dagger(y_trial)
+        y_trial = Dagger(vecs_a) @ y_trial @ ComplementProjector(vecs_a)
 
         y_full_b = np.abs(divide_energies_full_b(y_trial))
         y_half_b = np.abs(divide_energies_half_b(y_trial))
@@ -544,8 +544,8 @@ def test_solve_sylvester_kpm_v_default():
         solve_sylvester_kpm = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
 
         y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
-        y_trial += y_trial.conjugate().transpose()
-        y_kpm = vecs_a.conjugate().transpose() @ y_trial @ ComplementProjector(vecs_a)
+        y_trial += Dagger(y_trial)
+        y_kpm = Dagger(vecs_a) @ y_trial @ ComplementProjector(vecs_a)
 
         y_default = solve_sylvester_default(y_trial[:a_dim,a_dim:])
         y_kpm = solve_sylvester_kpm(y_kpm)

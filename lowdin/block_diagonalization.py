@@ -437,17 +437,17 @@ def numerical(
             return zero
         if index[:2] == (0, 0):
             return (
-                vecs_a.conjugate().transpose()
+                Dagger(vecs_a)
                 @ H_input.evaluated[new_index]
                 @ vecs_a
             )
         if index[:2] == (0, 1):
             return (
-                vecs_a.conjugate().transpose() @ H_input.evaluated[new_index] @ p_b
+                Dagger(vecs_a) @ H_input.evaluated[new_index] @ p_b
             )
         if index[:2] == (1, 0):
             return (
-                H.evaluated[(0, 1, *index[2:])].conjugate().transpose()
+                Dagger(H.evaluated[(0, 1, *index[2:])])
             )
         if index[:2] == (1, 1):
             return p_b @ aslinearoperator(H_input.evaluated[new_index]) @ p_b
@@ -539,7 +539,7 @@ def solve_sylvester_KPM(
     if vecs_b is None:
         vecs_b = np.empty((vecs_a.shape[0], 0))
     if eigs_b is None:
-        eigs_b = np.diag(vecs_b.conjugate().transpose() @ h_0 @ vecs_b)
+        eigs_b = np.diag(Dagger(vecs_b) @ h_0 @ vecs_b)
     if kpm_params is None:
         kpm_params = dict()
 
