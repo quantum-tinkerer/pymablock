@@ -676,8 +676,10 @@ def block_diagonalize(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of U.
     """
-    H = hamiltonian_to_series(hamiltonian, subspaces=subspaces)
-    n_infinite = H.n_infinite
+    if algorithm is None:
+        algorithm = general
+
+    H = hamiltonian_to_BlockSeries(hamiltonian, subspaces=subspaces)
 
     # Determine operator to use for matrix multiplication
     if isinstance(
