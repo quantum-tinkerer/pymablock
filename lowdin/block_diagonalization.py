@@ -735,16 +735,16 @@ def hamiltonian_to_BlockSeries(
     H : `~lowdin.series.BlockSeries`
         Hamiltonian in the format required by algorithms.
     """
-    # [H_0, [H_1, H_2, ...]], 1st order perturbations only
+    # [H_0, H_1, H_2, ...], 1st order perturbations only
     if isinstance(hamiltonian, list):
-        n_infinite = len(hamiltonian[1])
+        n_infinite = len(hamiltonian) - 1
         zeroth_order = (0,) * n_infinite
 
         hamiltonian = {
-            zeroth_order: hamiltonian[0],
+            zeroth_order: hamiltonian.pop(0),
             **{
                 tuple(order): perturbation for order, perturbation in
-                zip(np.eye(n_infinite, dtype=int), hamiltonian[1])
+                zip(np.eye(n_infinite, dtype=int), hamiltonian)
             }
         }
     elif isinstance(hamiltonian, qsymm.Model):
