@@ -820,16 +820,16 @@ def test_input_diagonal_indices(diagonal_hamiltonian_indices):
     hamiltonian, subspaces_indices = diagonal_hamiltonian_indices
     H = hamiltonian_to_BlockSeries(hamiltonian, subspaces_indices=subspaces_indices)
     np.allclose(
-        H.evaluated[(0, 0) + (0, ) * H.n_infinite], np.diag([-1, -1, -1])
+        H.evaluated[(0, 0) + (0, ) * H.n_infinite], np.diag([-1, -1])
     )
     np.allclose(
-        H.evaluated[(1, 1) + (0, ) * H.n_infinite], np.diag([1])
+        H.evaluated[(1, 1) + (0, ) * H.n_infinite], np.diag([1, 1])
     )
     np.allclose(H.evaluated[(0, 1) + (0, ) * H.n_infinite], 0)
     np.allclose(H.evaluated[(1, 0) + (0, ) * H.n_infinite], 0)
 
 
-def test_input_hamiltonian_subspaces(H):
+def test_input_hamiltonian_BlockSeries(H):
     """ Test that several inputs are compatible with the algorithm. """
     # List input for diagonal H_0
     hamiltonian = hamiltonian_to_BlockSeries(H)
