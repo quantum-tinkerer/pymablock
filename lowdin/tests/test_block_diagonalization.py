@@ -342,3 +342,31 @@ def test_doubled_orders(
                     assert isinstance(result_doubled, object)
                     continue
                 np.testing.assert_allclose(result, result_doubled, atol=10**-5)
+
+
+def test_permutation_invariance(
+    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+) -> None:
+    """
+    Test that the answer doesn't change if A and B subspaces are permuted.
+
+    Parameters
+    ----------
+    H: BlockSeries of the Hamiltonian
+    wanted_orders: list of orders to compute
+    """
+    H_tilde, U, _ = general(H)
+    H_permuted = BlockSeries(
+        eval=lambda *index: H.evaluated[(1 - index[0], 1 - index[1], *index[2:])],
+        shape=H.shape,
+        n_infinite=H.n_infinite,
+    )
+    H_tilde_permuted, U_permuted, _ = general(H_permuted)
+
+    for wanted_order in wanted_orders:
+        orders = tuple(slice(None, order + 1, None) for order in wanted_order)
+        for H_1, H_2 in zip(
+            H.evaluated[(0, 0, *orders)].compressed(),
+            H_permuted.evaluated[(1, 1, *orders)].compressed(),
+        ):
+            assert np.allclose(H_1, H_2)
