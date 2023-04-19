@@ -682,12 +682,9 @@ def block_diagonalize(
     H = hamiltonian_to_BlockSeries(hamiltonian, subspaces=subspaces)
 
     # Determine operator to use for matrix multiplication
-    if isinstance(
-        H.evaluated[(0,) * n_infinite],
-        (np.ndarray, sparse.spmatrix, sympy.Matrix)
-    ):
+    if hasattr(H.evaluated[(0,) * n_infinite], '__matmul__'):
         op = matmul
-    elif issubclass(type(H.evaluated[(0,) * n_infinite]), sympy.Expr):
+    else:
         op = mul
     
     # Determine function to use for solving Sylvester's equation
