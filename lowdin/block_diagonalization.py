@@ -649,9 +649,11 @@ def _replace(
 
 def block_diagonalize(
         hamiltonian :  list[Any, list] | dict | BlockSeries,
-        algorithm : Optional[Callable],
         *,
-        subspaces : Optional[tuple[Any, Any]],
+        algorithm : Optional[Callable] = None,
+        solve_sylvester : Optional[Callable] = None,
+        subspaces: Optional[tuple[Any, Any]] = None,
+        subspaces_indices: Optional[tuple[int, ...]] = None,
         **kwargs
     ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
@@ -679,10 +681,14 @@ def block_diagonalize(
     if algorithm is None:
         algorithm = general
 
-    H = hamiltonian_to_BlockSeries(hamiltonian, subspaces=subspaces)
+    H = hamiltonian_to_BlockSeries(
+        hamiltonian,
+        subspaces=subspaces,
+        subspaces_indices=subspaces_indices,
+    )
 
     # Determine operator to use for matrix multiplication
-    if hasattr(H.evaluated[(0,) * n_infinite], '__matmul__'):
+    if hasattr(H.evaluated[(0,) * H.n_infinite], '__matmul__'):
         op = matmul
     else:
         op = mul
@@ -690,15 +696,19 @@ def block_diagonalize(
     # Determine function to use for solving Sylvester's equation
     # If H_0 is diagonal, don't provide anything
     # If H_0 is not diagonal, provide a function that solves Sylvester's equation
-    solve_sylvester = None
-    return algorithm(H, op=op, solve_sylvester=solve_sylvester, **kwargs)
+    if solve_sylvester is None:
+        if H.evaluated[(0, 0) + (0,) * H.n_infinite].is_diagonal() and H.evaluated[(1, 1) + (0,) * H.n_infinite].is_diagonal():
+            pass
+        else:
+            NotImplementedError
+    return algorithm(H, solve_sylvester=solve_sylvester, op=op, **kwargs)
 
 
 def hamiltonian_to_BlockSeries(
         hamiltonian: list[Any, list] | dict | BlockSeries,
-        subspaces: Optional[tuple[Any, Any]],
-        *
-        subspaces_indices: Optional[tuple[Any, Any]],
+        *,
+        subspaces: Optional[tuple[Any, Any]] = None,
+        subspaces_indices: Optional[tuple[int, ...]] = None,
     ) -> BlockSeries:
     """
     # TODO: change the name once to_BlockSeries is removed
@@ -727,7 +737,7 @@ def hamiltonian_to_BlockSeries(
         hamiltonian = {
             zeroth_order: hamiltonian[0],
             **{
-                (order,): perturbation for order, perturbation in
+                tuple(order): perturbation for order, perturbation in
                 zip(np.eye(n_infinite, dtype=int), hamiltonian[1])
             }
         }
@@ -739,7 +749,7 @@ def hamiltonian_to_BlockSeries(
     if isinstance(hamiltonian, dict):
         n_infinite = len(list(hamiltonian.keys())[0])
         zeroth_order = (0,) * n_infinite
-        shape = (),
+        shape = ()
         H_temporary = BlockSeries(
             data=hamiltonian,
             shape=shape,
@@ -751,15 +761,15 @@ def hamiltonian_to_BlockSeries(
     else:
         raise NotImplementedError
 
-    # H_0 is diagonal
+
+    # H_0 is a diagonal array, subspaces always needed
     if subspaces_indices is not None:
-        A_indices, B_indices = subspaces_indices
-        dim, dim_A = A_indices.shape
-        dim_B = B_indices.shape[1]
-        if dim_B != dim - dim_A:
+        dim = len(subspaces_indices)
+        A_indices = np.compress(subspaces_indices==0, np.arange(dim))
+        B_indices = np.compress(subspaces_indices==1, np.arange(dim))
+        if np.any(subspaces_indices > 1):
             raise ValueError(
-                f"Dimension of subspace A ({dim_A}) and subspace B ({dim_B}) " +
-                "do not match the dimension of the Hamiltonian."
+                "Only 0 and 1 are allowed as indices for subspaces."
             )
         eigvecs = np.eye(dim, dtype=complex)
         eigvecs_A = eigvecs[:, A_indices]
@@ -772,20 +782,28 @@ def hamiltonian_to_BlockSeries(
                     )
         subspaces = (eigvecs_A, eigvecs_B)
 
+    # Subspaces were separated in the input
     if subspaces is None:
+        # H_0 was a list of shape (2, 2) with arrays
         if H_temporary.shape == ():
             H = BlockSeries(
-                eval=(lambda index: H_temporary.evaluated[index[:2]][index[0]][index[1]]),
+                eval=(
+                    lambda *index: H_temporary.evaluated[index[:2]][index[0]][index[1]]
+                ),
                 shape=(2, 2),
                 n_infinite=n_infinite,
             )
-        else:
+        # hamiltonian was a BlockSeries with shape (2, 2)
+        elif H_temporary.shape == (2, 2):
             H = H_temporary
+        else:
+            raise NotImplementedError
     else:
         # TODO: Implement this for non-numerical inputs and KPM
+        # This only works for numpy arrays so far
         eigvecs_A, eigvecs_B = subspaces[0], subspaces[1]
 
-        def H_eval(index):
+        def H_eval(*index):
             if index[:2] == (0, 0):
                 return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_A
             elif index[:2] == (1, 1):
@@ -793,7 +811,7 @@ def hamiltonian_to_BlockSeries(
             elif index[:2] == (0, 1):
                 return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
             else:
-                return H.evaluated[(0, 1) + tuple(index[2:])]
+                return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
 
         H = BlockSeries(
             eval=H_eval,
@@ -802,3 +820,5 @@ def hamiltonian_to_BlockSeries(
         )
     return H
 
+
+# %%
