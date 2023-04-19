@@ -490,7 +490,7 @@ def numerical(
     U.eval = U_eval
 
     H_tilde_operator = cauchy_dot_product(
-        U_operator, H_operator, U_adjoint_operator, hermitian=True
+        U_adjoint_operator, H_operator, U_operator, hermitian=True
     )
     def H_tilde_eval(*index):
         if index[:2] == (1, 1):
