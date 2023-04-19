@@ -465,9 +465,12 @@ def numerical(
     )
     H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
     # Create series wrapped in linear operators to avoid forming explicit matrices
+    def linear_operator_wrapped(original):
+        return lambda *index: aslinearoperator(original[index])
+
     H_tilde_operator, U_operator, U_adjoint_operator = (
         BlockSeries(
-            eval=lambda *index: aslinearoperator(original[index]),
+            eval=linear_operator_wrapped(original),
             shape=(2, 2),
             n_infinite=n_infinite,
         )
@@ -477,22 +480,21 @@ def numerical(
         U_operator, U_adjoint_operator, hermitian=True, exclude_last=[True, True]
     )
     old_U_eval = U.eval
-    old_H_tilde_eval = H_tilde.eval
 
     def operator_eval(*index):
         if index[:2] == (1, 1):
             return safe_divide(-identity.evaluated[index], 2)
         return old_U_eval(*index)
 
+    U.eval = operator_eval
     def H_tilde_eval(*index):
         if index[:2] == (1, 1):
             return H_tilde_operator.evaluated[index]
-        return old_H_tilde_eval(*index)
+        return H_tilde.evaluated[index]
 
-    U.eval = operator_eval
-    H_tilde.eval = H_tilde_eval
+    result_H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=n_infinite)
 
-    return H_tilde, U, U_adjoint
+    return result_H_tilde, U, U_adjoint
 
 
 def solve_sylvester_KPM(
