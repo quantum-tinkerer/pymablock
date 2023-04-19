@@ -770,6 +770,7 @@ def hamiltonian_to_BlockSeries(
     # H_0 is a diagonal array, subspaces always needed
     if subspaces_indices is not None:
         dim = len(subspaces_indices)
+        subspaces_indices = np.array(subspaces_indices)
         A_indices = np.compress(subspaces_indices==0, np.arange(dim))
         B_indices = np.compress(subspaces_indices==1, np.arange(dim))
         if np.any(subspaces_indices > 1):
@@ -805,22 +806,25 @@ def hamiltonian_to_BlockSeries(
         # TODO: Implement this for non-numerical inputs and KPM
         # This only works for numpy arrays so far
         eigvecs_A, eigvecs_B = subspaces[0], subspaces[1]
+        if H_temporary.shape==():
+            def H_eval(*index):
+                if index[:2] == (0, 0):
+                    return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_A
+                elif index[:2] == (1, 1):
+                    return eigvecs_B.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
+                elif index[:2] == (0, 1):
+                    return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
+                else:
+                    return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
+            H = BlockSeries(
+                eval=H_eval,
+                shape=(2, 2),
+                n_infinite=n_infinite,
+            )
 
-        def H_eval(*index):
-            if index[:2] == (0, 0):
-                return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_A
-            elif index[:2] == (1, 1):
-                return eigvecs_B.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
-            elif index[:2] == (0, 1):
-                return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
-            else:
-                return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
+        elif H_temporary.shape == (2, 2):
+            raise NotImplementedError("Blocks are already separated by shape.")
 
-        H = BlockSeries(
-            eval=H_eval,
-            shape=(2, 2),
-            n_infinite=n_infinite,
-        )
     return H
 
 
