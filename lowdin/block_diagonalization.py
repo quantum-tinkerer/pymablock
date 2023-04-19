@@ -698,7 +698,7 @@ def hamiltonian_to_BlockSeries(
         hamiltonian: list[Any, list] | dict | BlockSeries,
         subspaces: Optional[tuple[Any, Any]],
         *
-        subspaces_indices: Optional[tuple(np.ndarray, np.ndarray)],
+        subspaces_indices: Optional[tuple[Any, Any]],
     ) -> BlockSeries:
     """
     # TODO: change the name once to_BlockSeries is removed
