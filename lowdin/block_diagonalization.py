@@ -430,7 +430,7 @@ def numerical(
 
     p_b = ComplementProjector(vecs_a)
 
-    def new_eval(*index):
+    def H_eval(*index):
         new_index = (0, 0) + tuple(index[2:])
         try:
             if index[:2] == (0, 0):
@@ -452,7 +452,7 @@ def numerical(
         except:
             return zero
 
-    H = BlockSeries(eval=new_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
+    H = BlockSeries(eval=H_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
 
     solve_sylvester = solve_sylvester_KPM(
         H_input.evaluated[(0, 0, *zero_index)],
@@ -545,7 +545,7 @@ def solve_sylvester_KPM(
     if need_kpm:
         kpm_projector = ComplementProjector(np.concatenate((vecs_a, vecs_b), axis=-1))
 
-        def sylvester_kpm(Y):
+        def sylvester_kpm(Y: np.ndarray) -> np.ndarray:
             Y_KPM = Y @ kpm_projector
             vec_G_Y = greens_function(
                 h_0,
@@ -559,10 +559,10 @@ def solve_sylvester_KPM(
     if need_explicit:
         G_ml = 1 / (eigs_a[:, None] - eigs_b[None, :])
 
-        def sylvester_explicit(Y):
+        def sylvester_explicit(Y: np.ndarray) -> np.ndarray:
             return ((Y @ vecs_b) * G_ml) @ vecs_b.conj().T
 
-    def solve_sylvester(Y):
+    def solve_sylvester(Y: np.ndarray) -> np.ndarray:
         # pdb.set_trace()
         Y = Y @ np.eye(Y.shape[-1])
         if need_kpm and need_explicit:
