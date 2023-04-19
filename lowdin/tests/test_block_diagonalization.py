@@ -13,7 +13,7 @@ from lowdin.block_diagonalization import (
     to_BlockSeries,
     numerical,
     solve_sylvester_KPM,
-    _default_solve_sylvester
+    _default_solve_sylvester,
 )
 from lowdin.series import BlockSeries, cauchy_dot_product, zero
 from lowdin.linalg import ComplementProjector
@@ -354,7 +354,35 @@ def test_doubled_orders(
                 np.testing.assert_allclose(result, result_doubled, atol=10**-5)
 
 
-def generate_kpm_hamiltonian(n_dim, n_infinite, a_dim):
+def generate_kpm_hamiltonian(
+    n_dim: int, n_infinite: int, a_dim: int
+) -> tuple[BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Generate random BlockSeries Hamiltonian in the format required
+    by the numerical algorithm (full Hamitonians in the (0,0) block)
+
+    Parameters:
+    ----------
+    n_dim:
+        integer denoting the dimension of the full Hamiltonian
+    n_infinite:
+        Number of perturbation terms that are generated
+    a_dim:
+        Dimension of the A subspace. This number must be smaller
+        than n_dim
+
+    Returns:
+    H_input: `~lowdin/series.BlockSeries`
+        Formatted Hamiltonian in BlockSeries format
+    eigs_a: np.ndarray
+        Eigenvalues of the A subspace
+    vecs_a: np.ndarray
+        Eigenvectors of the A subspace
+    eigs_b: np.ndarray
+        Eigenvalues of the B subspace
+    vecs_b: np.ndarray
+        Eigenvectors of the B subspace
+    """
     a_indices = slice(None, a_dim)
     b_indices = slice(a_dim, None)
 
@@ -384,7 +412,7 @@ def generate_kpm_hamiltonian(n_dim, n_infinite, a_dim):
 
 def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
     """
-    Test that H_AB is zero for a random Hamiltonian using the 
+    Test that H_AB is zero for a random Hamiltonian using the
     numerical algorithm.
 
     Parameters
@@ -440,7 +468,12 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
             )
 
 
-def test_solve_sylvester():
+def test_solve_sylvester() ->None:
+    """
+    Test whether the KPM version of solve_sylvester provides approximately
+    equivalent results depending on how much of the B subspace is known
+    explicitly.
+    """
     for _ in range(3):
         n_dim = 62
         a_dim = 23
@@ -458,7 +491,9 @@ def test_solve_sylvester():
         eigs_b, vecs_b = eigs[b_indices], vecs[:, b_indices]
         # print("min energy difference of A and B is {}".format(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b))))
 
-        divide_energies_full_b = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
+        divide_energies_full_b = solve_sylvester_KPM(
+            h_0, vecs_a, eigs_a, vecs_b, eigs_b
+        )
         divide_energies_half_b = solve_sylvester_KPM(
             h_0,
             vecs_a,
@@ -471,7 +506,9 @@ def test_solve_sylvester():
             h_0, vecs_a, eigs_a, kpm_params={"num_moments": 20000}
         )
 
-        y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+        y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random(
+            (n_dim, n_dim)
+        )
         y_trial += Dagger(y_trial)
         y_trial = Dagger(vecs_a) @ y_trial @ ComplementProjector(vecs_a)
 
@@ -502,7 +539,7 @@ def test_check_AA_numerical(wanted_orders: list[tuple[int, ...]]) -> None:
 
     Parameters
     ----------
-    wanted_orders: 
+    wanted_orders:
         list of orders to compute
     """
     for order in wanted_orders:
@@ -526,43 +563,53 @@ def test_check_AA_numerical(wanted_orders: list[tuple[int, ...]]) -> None:
             err_msg=f"{order=}",
         )
 
-def test_solve_sylvester_kpm_v_default():
+
+def test_solve_sylvester_kpm_v_default() -> None:
+    """
+    Test whether the KPM ready solve_sylvester gives the same result
+    as the default solve_sylvester when prompted with a diagonal input.
+    This should be true.
+    """
     for _ in range(3):
         n_dim = 50
         a_dim = 8
         b_dim = n_dim - a_dim
 
-        h_0 = np.diag(np.sort(50*np.random.random(50)))
+        h_0 = np.diag(np.sort(50 * np.random.random(50)))
         eigs, vecs = scipy.linalg.eigh(h_0)
 
-        eigs_a, vecs_a = eigs[:a_dim], vecs[:,:a_dim]
-        eigs_b, vecs_b = eigs[a_dim:], vecs[:,a_dim:]
+        eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
+        eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
 
         H_default = to_BlockSeries(np.diag(eigs_a), np.diag(eigs_b))
 
         solve_sylvester_default = _default_solve_sylvester(H_default)
         solve_sylvester_kpm = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
 
-        y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+        y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random(
+            (n_dim, n_dim)
+        )
         y_trial += Dagger(y_trial)
         y_kpm = Dagger(vecs_a) @ y_trial @ ComplementProjector(vecs_a)
 
-        y_default = solve_sylvester_default(y_trial[:a_dim,a_dim:])
+        y_default = solve_sylvester_default(y_trial[:a_dim, a_dim:])
         y_kpm = solve_sylvester_kpm(y_kpm)
 
-        diff_y = y_default - y_kpm[:a_dim,a_dim:]
+        diff_y = y_default - y_kpm[:a_dim, a_dim:]
 
         np.testing.assert_allclose(
-                diff_y,
-                0,
-                atol=1e-2,
-                err_msg="fail in full/half at max val {}".format(np.max(diff_y)),
-            )
+            diff_y,
+            0,
+            atol=1e-2,
+            err_msg="fail in full/half at max val {}".format(np.max(diff_y)),
+        )
+
+
 def test_BB_does_what_BB_do(wanted_orders: list[tuple[int, ...]]) -> None:
     """
     Test that the BB block of H_tilde is a) a LinearOperator type and
     b) the same as the AA block on exchanging veca_a and vecs_b
-    
+
     Parameters:
     ----------
     wanted_orders:
@@ -576,15 +623,15 @@ def test_BB_does_what_BB_do(wanted_orders: list[tuple[int, ...]]) -> None:
     H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian(
         n_dim, n_infinite, a_dim
     )
-    
+
     H_tilde_AA = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
     H_tilde_BB = numerical(H_input, vecs_b, eigs_b, vecs_a, eigs_a)[0]
-    
+
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         h_aa = H_tilde_AA.evaluated[(0, 0) + order].compressed()
         h_bb = H_tilde_BB.evaluated[(1, 1) + order].compressed()
-        for (block_aa, block_bb) in zip(h_aa, h_bb):
+        for block_aa, block_bb in zip(h_aa, h_bb):
             assert isinstance(block_bb, scipy.sparse.linalg.LinearOperator)
             eigs_aa = scipy.linalg.eigh(block_aa)[0]
             eigs_bb = scipy.linalg.eigh(block_bb @ np.eye(block_bb.shape[0]))[0]
