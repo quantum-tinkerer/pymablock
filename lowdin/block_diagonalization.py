@@ -16,7 +16,7 @@ import numpy as np
 import sympy
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
 
-from lowdin.linalg import ComplementProjector, complement_projected, aslinearoperator
+from lowdin.linalg import ComplementProjector, aslinearoperator
 from lowdin.kpm_funcs import greens_function
 from lowdin.series import (
     BlockSeries,
@@ -205,13 +205,13 @@ def _commute_H0_away(
 
     Parameters
     ----------
-    expr : 
+    expr :
         (zero or sympy) expression to simplify.
-    H_0_AA : 
+    H_0_AA :
         Unperturbed Hamiltonian in subspace AA.
-    H_0_BB : 
+    H_0_BB :
         Unperturbed Hamiltonian in subspace BB.
-    Y_data : 
+    Y_data :
         dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
 
     Returns
@@ -445,22 +445,16 @@ def numerical(
                 )
             if index[:2] == (1, 0):
                 return (
-                    (
-                        vecs_a.conjugate().transpose()
-                        @ H_input.evaluated[new_index]
-                        @ p_b
-                    )
-                    .conjugate()
-                    .transpose()
+                    H_input.evaluated[(0, 1, *tuple(index[2:]))].conjugate().transpose()
                 )
             if index[:2] == (1, 1):
-                return complement_projected(H_input.evaluated[new_index], vecs_a)
+                return (p_b @ H_input.evaluated[new_index]) @ p_b
         except:
             return zero
 
     H = BlockSeries(eval=new_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
 
-    div_energs = solve_sylvester_KPM(
+    solve_sylvester = solve_sylvester_KPM(
         H_input.evaluated[(0, 0, *zero_index)],
         vecs_a,
         eigs_a,
@@ -469,7 +463,7 @@ def numerical(
         kpm_params,
         precalculate_moments,
     )
-    H_tilde, U, U_adjoint = general(H, solve_sylvester=div_energs)
+    H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
     # Create series wrapped in linear operators to avoid forming explicit matrices
     H_tilde_operator, U_operator, U_adjoint_operator = (
         BlockSeries(
@@ -490,13 +484,13 @@ def numerical(
             return safe_divide(-identity.evaluated[index], 2)
         return old_U_eval(*index)
 
-    def h_tilde_eval(*index):
+    def H_tilde_eval(*index):
         if index[:2] == (1, 1):
             return H_tilde_operator.evaluated[index]
         return old_H_tilde_eval(*index)
 
     U.eval = operator_eval
-    H_tilde.eval = h_tilde_eval
+    H_tilde.eval = H_tilde_eval
 
     return H_tilde, U, U_adjoint
 
@@ -516,13 +510,13 @@ def solve_sylvester_KPM(
 
     Parameters
     ----------
-    h_0 : 
+    h_0 :
         Rest hamiltonian of the system
-    eigs_a : 
+    eigs_a :
         Eigenvalues of the A subspace
-    vecs_a : 
+    vecs_a :
         Eigenvectors of the A subspace
-    eigs_b : 
+    eigs_b :
         (Sub)-Set of the eigenvalues of the B subspace
     vecs_b :
         (Sub)-Set of the eigenvectors of the B subspace
@@ -594,13 +588,13 @@ def _update_subs(
 
     Parameters
     ----------
-    Y_data : 
+    Y_data :
         dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
-    subs : 
+    subs :
         dictionary of substitutions to make.
-    solve_sylvester : 
+    solve_sylvester :
         function to use for solving Sylvester's equation.
-    op : 
+    op :
         function to use for matrix multiplication.
     """
     for V, rhs in Y_data.items():
@@ -618,11 +612,11 @@ def _replace(
 
     Parameters
     ----------
-    expr : 
+    expr :
         (zero or sympy) expression in which to replace general symbols.
-    subs : 
+    subs :
         dictionary {symbol: value} of substitutions to make.
-    op : 
+    op :
         function to use to multiply the substituted terms.
 
     Return
