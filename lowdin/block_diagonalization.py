@@ -465,28 +465,33 @@ def numerical(
     )
     H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
     # Create series wrapped in linear operators to avoid forming explicit matrices
+
     def linear_operator_wrapped(original):
         return lambda *index: aslinearoperator(original[index])
 
-    H_tilde_operator, U_operator, U_adjoint_operator = (
+    H_operator, U_operator, U_adjoint_operator = (
         BlockSeries(
             eval=linear_operator_wrapped(original),
             shape=(2, 2),
             n_infinite=n_infinite,
         )
-        for original in (H_tilde.evaluated, U.evaluated, U_adjoint.evaluated)
+        for original in (H.evaluated, U.evaluated, U_adjoint.evaluated)
     )
     identity = cauchy_dot_product(
         U_operator, U_adjoint_operator, hermitian=True, exclude_last=[True, True]
     )
-    old_U_eval = U.eval
 
-    def operator_eval(*index):
+    old_U_eval = U.eval
+    def U_eval(*index):
         if index[:2] == (1, 1):
             return safe_divide(-identity.evaluated[index], 2)
         return old_U_eval(*index)
 
-    U.eval = operator_eval
+    U.eval = U_eval
+
+    H_tilde_operator = cauchy_dot_product(
+        U_operator, H_operator, U_adjoint_operator, hermitian=True
+    )
     def H_tilde_eval(*index):
         if index[:2] == (1, 1):
             return H_tilde_operator.evaluated[index]
