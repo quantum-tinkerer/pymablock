@@ -10,7 +10,6 @@ from sympy.physics.quantum import Dagger
 from lowdin.block_diagonalization import (
     general,
     expanded,
-    to_BlockSeries,
     numerical,
     solve_sylvester_KPM,
     _default_solve_sylvester,
@@ -84,8 +83,7 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
         hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
-
-    return to_BlockSeries(*hams, n_infinite)
+    return to_BlockSeries(*hams, n_infinite=n_infinite)
 
 
 def compare_series(
@@ -796,3 +794,54 @@ def test_repeated_application(
     )
     compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
     compare_series(U_2, U_target, wanted_orders)
+@pytest.fixture(
+    scope="module",
+    params=[
+        # hamiltonian, subspaces_indices
+        [
+            [np.diag([-1, 1, 1, -1]), np.diag(np.random.random(4))],
+            [0, 1, 1, 0]
+        ],
+        [
+            {(0,): np.diag([-1, 1, 1, -1]), (1,): np.diag(np.random.random(4))},
+            [0, 1, 1, 0]
+        ], # this is redundant
+    ],
+)
+def diagonal_hamiltonian_indices(request):
+    """
+    Return a list of [hamiltonian, subspaces_indices]
+    """
+    return request.param 
+
+def test_input_diagonal_indices(diagonal_hamiltonian_indices):
+    """ Test that several inputs are compatible with the algorithm. """
+    # List input for diagonal H_0
+    hamiltonian, subspaces_indices = diagonal_hamiltonian_indices
+    H = hamiltonian_to_BlockSeries(hamiltonian, subspaces_indices=subspaces_indices)
+    np.allclose(
+        H.evaluated[(0, 0) + (0, ) * H.n_infinite], np.diag([-1, -1, -1])
+    )
+    np.allclose(
+        H.evaluated[(1, 1) + (0, ) * H.n_infinite], np.diag([1])
+    )
+    np.allclose(H.evaluated[(0, 1) + (0, ) * H.n_infinite], 0)
+    np.allclose(H.evaluated[(1, 0) + (0, ) * H.n_infinite], 0)
+
+
+def test_input_hamiltonian_subspaces(H):
+    """ Test that several inputs are compatible with the algorithm. """
+    # List input for diagonal H_0
+    hamiltonian = hamiltonian_to_BlockSeries(H)
+
+    assert hamiltonian.shape == H.shape
+    assert hamiltonian.n_infinite == H.n_infinite
+
+    for block in ((0, 0), (1, 1), (0, 1), (1, 0)):
+        if zero == H.evaluated[block + (0,) * H.n_infinite]:
+            assert zero == hamiltonian.evaluated[block + (0,) * H.n_infinite]
+            continue
+        np.allclose(
+            H.evaluated[block + (0,) * H.n_infinite],
+            hamiltonian.evaluated[block + (0,) * H.n_infinite],
+        )
