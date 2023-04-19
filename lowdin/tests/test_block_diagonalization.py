@@ -468,7 +468,7 @@ def test_check_AB_KPM(wanted_orders: list[tuple[int, ...]]) -> None:
             )
 
 
-def test_solve_sylvester() ->None:
+def test_solve_sylvester() -> None:
     """
     Test whether the KPM version of solve_sylvester provides approximately
     equivalent results depending on how much of the B subspace is known
@@ -605,7 +605,7 @@ def test_solve_sylvester_kpm_v_default() -> None:
         )
 
 
-def test_BB_does_what_BB_do(wanted_orders: list[tuple[int, ...]]) -> None:
+def test_correct_implicit_subspace(wanted_orders: list[tuple[int, ...]]) -> None:
     """
     Test that the BB block of H_tilde is a) a LinearOperator type and
     b) the same as the AA block on exchanging veca_a and vecs_b
@@ -633,8 +633,4 @@ def test_BB_does_what_BB_do(wanted_orders: list[tuple[int, ...]]) -> None:
         h_bb = H_tilde_BB.evaluated[(1, 1) + order].compressed()
         for block_aa, block_bb in zip(h_aa, h_bb):
             assert isinstance(block_bb, scipy.sparse.linalg.LinearOperator)
-            eigs_aa = scipy.linalg.eigh(block_aa)[0]
-            eigs_bb = scipy.linalg.eigh(block_bb @ np.eye(block_bb.shape[0]))[0]
-
-            is_contained = [np.any(np.isclose(e, eigs_bb)) for e in eigs_aa]
-            assert np.all(is_contained)
+            np.testing.assert_allclose(block_aa, vecs_a.conj().T @ block_bb @ vecs_a, atol=1e-14)
