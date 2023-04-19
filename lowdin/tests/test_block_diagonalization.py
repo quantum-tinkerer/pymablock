@@ -558,3 +558,36 @@ def test_solve_sylvester_kpm_v_default():
                 atol=1e-2,
                 err_msg="fail in full/half at max val {}".format(np.max(diff_y)),
             )
+def test_BB_does_what_BB_do(wanted_orders: list[tuple[int, ...]]) -> None:
+    """
+    Test that the BB block of H_tilde is a) a LinearOperator type and
+    b) the same as the AA block on exchanging veca_a and vecs_b
+    
+    Parameters:
+    ----------
+    wanted_orders:
+        list of orders to compute
+    """
+    n_infinite = len(wanted_orders[0])
+    n_dim = 36
+    a_dim = 5
+    b_dim = n_dim - a_dim
+
+    H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian(
+        n_dim, n_infinite, a_dim
+    )
+    
+    H_tilde_AA = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
+    H_tilde_BB = numerical(H_input, vecs_b, eigs_b, vecs_a, eigs_a)[0]
+    
+    for order in wanted_orders:
+        order = tuple(slice(None, dim_order + 1) for dim_order in order)
+        h_aa = H_tilde_AA.evaluated[(0, 0) + order].compressed()
+        h_bb = H_tilde_BB.evaluated[(1, 1) + order].compressed()
+        for (block_aa, block_bb) in zip(h_aa, h_bb):
+            assert isinstance(block_bb, scipy.sparse.linalg.LinearOperator)
+            eigs_aa = scipy.linalg.eigh(block_aa)[0]
+            eigs_bb = scipy.linalg.eigh(block_bb @ np.eye(block_bb.shape[0]))[0]
+
+            is_contained = [np.any(np.isclose(e, eigs_bb)) for e in eigs_aa]
+            assert np.all(is_contained)
