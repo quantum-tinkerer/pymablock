@@ -649,7 +649,7 @@ def _replace(
 
 def block_diagonalize(
         hamiltonian :  list[Any, list] | dict | BlockSeries,
-        algorithm : Callable,
+        algorithm : Optional[Callable],
         *,
         subspaces : Optional[tuple[Any, Any]],
         **kwargs
