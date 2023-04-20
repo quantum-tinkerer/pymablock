@@ -862,6 +862,16 @@ def hamiltonian_to_BlockSeries(
     if hamiltonian.shape != ():
         raise NotImplementedError
 
+    # Separation into subspaces
+    if subspaces is None and subspaces_indices is None:
+        return BlockSeries(
+            eval=(
+                lambda *index: hamiltonian.evaluated[index[:2]][index[0]][index[1]]
+            ),
+            shape=(2, 2),
+            n_infinite=hamiltonian.n_infinite,
+        )
+
     if subspaces_indices is not None:
         if subspaces is not None:
             raise ValueError("Only subspaces or subspaces_indices can be provided.")
@@ -871,15 +881,6 @@ def hamiltonian_to_BlockSeries(
         ):
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
         subspaces = _get_subspaces_from_indices(subspaces_indices)
-
-    if subspaces is None:
-        return BlockSeries(
-            eval=(
-                lambda *index: hamiltonian.evaluated[index[:2]][index[0]][index[1]]
-            ),
-            shape=(2, 2),
-            n_infinite=hamiltonian.n_infinite,
-        )
 
     # TODO: Implement this for non-numerical inputs and KPM
     # This only works for numpy arrays so far
