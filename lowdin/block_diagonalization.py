@@ -849,56 +849,50 @@ def hamiltonian_to_BlockSeries(
     elif isinstance(hamiltonian, qsymm.Model):
         hamiltonian = _qsymm_to_dict(hamiltonian)
     if isinstance(hamiltonian, dict):
-        H_temporary = _dict_to_BlockSeries(hamiltonian)
+        hamiltonian = _dict_to_BlockSeries(hamiltonian)
     elif isinstance(hamiltonian, BlockSeries):
-        H_temporary = hamiltonian
+        pass
     else:
+        raise NotImplementedError
+
+    if hamiltonian.shape == (2, 2):
+        if subspaces is not None or subspaces_indices is not None:
+            raise ValueError("H is already separated but subspaces are provided.")
+        return hamiltonian
+    if hamiltonian.shape != ():
         raise NotImplementedError
 
     if subspaces_indices is not None:
         if subspaces is not None:
             raise ValueError("Only subspaces or subspaces_indices can be provided.")
         if not isinstance(
-            H_temporary.evaluated[(0,) * H_temporary.n_infinite],
-            sparse._dia.dia_matrix
+            hamiltonian.evaluated[(0,) * hamiltonian.n_infinite],
+            sparse.dia_matrix
         ):
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
         subspaces = _get_subspaces_from_indices(subspaces_indices)
 
     if subspaces is None:
-        if H_temporary.shape == (): # subspaces are in list form
-            H = BlockSeries(
-                eval=(
-                    lambda *index: H_temporary.evaluated[index[:2]][index[0]][index[1]]
-                ),
-                shape=(2, 2),
-                n_infinite=H_temporary.n_infinite,
-            )
-        elif H_temporary.shape == (2, 2): # susbspaces separated already
-            H = H_temporary
-        else:
-            raise NotImplementedError
-    else:
-        # TODO: Implement this for non-numerical inputs and KPM
-        # This only works for numpy arrays so far
-        eigvecs_A, eigvecs_B = subspaces[0], subspaces[1]
-        if H_temporary.shape==():
-            def H_eval(*index):
-                if index[:2] == (0, 0):
-                    return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_A
-                elif index[:2] == (1, 1):
-                    return eigvecs_B.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
-                elif index[:2] == (0, 1):
-                    return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
-                else:
-                    return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
+        return BlockSeries(
+            eval=(
+                lambda *index: hamiltonian.evaluated[index[:2]][index[0]][index[1]]
+            ),
+            shape=(2, 2),
+            n_infinite=hamiltonian.n_infinite,
+        )
 
-            H = BlockSeries(
-                eval=H_eval,
-                shape=(2, 2),
-                n_infinite=H_temporary.n_infinite,
-            )
+    # TODO: Implement this for non-numerical inputs and KPM
+    # This only works for numpy arrays so far
+    def H_eval(*index):
+        l, r = index[:2]
+        if l <= r:
+            return Dagger(subspaces[l]) @ hamiltonian.evaluated[index[2:]] @ subspaces[r]
+        return Dagger(H.evaluated[(r, l) + tuple(index[2:])])
 
-        elif H_temporary.shape == (2, 2):
-            raise ValueError("Blocks are already separated. Do not provide subspaces.")
+    H = BlockSeries(
+        eval=H_eval,
+        shape=(2, 2),
+        n_infinite=hamiltonian.n_infinite,
+    )
+
     return H
