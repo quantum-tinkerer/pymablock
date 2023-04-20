@@ -660,14 +660,28 @@ def block_diagonalize(
     Parameters
     ----------
     hamiltonian :
-        Hamiltonian to diagonalize.
-
+        Hamiltonian to diagonalize. Several formats are accepted:
+        - `~lowdin.series.BlockSeries` object.
+        - `dict` of {index: matrix} where index is a tuple of integers and
+            matrix is a `~numpy.ndarray`.
+        - `list` of [unperturbed, perturbation] where unperturbed and
+            perturbation are `~numpy.ndarray`.
     algorithm :
         Function that block diagonalizes a Hamiltonian.
         Options are `~lowdin.block_diagonalize.general` and
         `~lowdin.block_diagonalize.expanded`.
-    subspaces:
-        Subspaces to use for block diagonalization.
+    solve_sylvester :
+        Function to use for solving Sylvester's equation.
+        If None, the default function is used for a diagonal Hamiltonian.
+    subspaces :
+        Subspaces to project the unperturbed Hamiltonian and separate it into blocks.
+        If None, the unperturbed Hamiltonian must be block diagonal.
+    subspaces_indices :
+        If the unperturbed Hamiltonian is diagonal, the indices that label the diagonal
+        elements according to the subspaces may be provided. This argument is incompatible
+        with `subspaces`.
+    **kwargs :
+        Additional keyword arguments to pass to `algorithm`.
 
     Returns
     -------
@@ -737,7 +751,6 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
 
 def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries:
     """
-
     Parameters
     ----------
     hamiltonian :
@@ -767,7 +780,6 @@ def _get_subspaces_from_indices(
         subspaces_indices: tuple[int, ...],
     ) -> tuple[Any, Any]:
     """
-    
     Parameters
     ----------
     subspaces_indices :
@@ -843,7 +855,7 @@ def hamiltonian_to_BlockSeries(
         subspaces = _get_subspaces_from_indices(subspaces_indices)
 
     if subspaces is None:
-        if H_temporary.shape == ():
+        if H_temporary.shape == (): # subspaces are in list form
             H = BlockSeries(
                 eval=(
                     lambda *index: H_temporary.evaluated[index[:2]][index[0]][index[1]]
@@ -851,7 +863,7 @@ def hamiltonian_to_BlockSeries(
                 shape=(2, 2),
                 n_infinite=H_temporary.n_infinite,
             )
-        elif H_temporary.shape == (2, 2):
+        elif H_temporary.shape == (2, 2): # susbspaces separated already
             H = H_temporary
         else:
             raise NotImplementedError
