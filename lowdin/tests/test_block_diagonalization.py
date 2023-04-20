@@ -812,21 +812,27 @@ def diagonal_hamiltonian_indices(request):
     """
     Return a list of [hamiltonian, subspaces_indices]
     """
-    return request.param 
+    return request.param
 
 def test_input_diagonal_indices(diagonal_hamiltonian_indices):
     """ Test that several inputs are compatible with the algorithm. """
     # List input for diagonal H_0
     hamiltonian, subspaces_indices = diagonal_hamiltonian_indices
     H = hamiltonian_to_BlockSeries(hamiltonian, subspaces_indices=subspaces_indices)
-    np.allclose(
-        H.evaluated[(0, 0) + (0, ) * H.n_infinite], np.diag([-1, -1])
+    np.testing.assert_allclose(
+        H.evaluated[(0, 0) + (0, ) * H.n_infinite].diagonal(),
+        np.array([-1, -1])
     )
-    np.allclose(
-        H.evaluated[(1, 1) + (0, ) * H.n_infinite], np.diag([1, 1])
+    np.testing.assert_allclose(
+        H.evaluated[(1, 1) + (0, ) * H.n_infinite].diagonal(),
+        np.array([1, 1])
     )
-    np.allclose(H.evaluated[(0, 1) + (0, ) * H.n_infinite], 0)
-    np.allclose(H.evaluated[(1, 0) + (0, ) * H.n_infinite], 0)
+    np.testing.assert_allclose(
+        H.evaluated[(0, 1) + (0, ) * H.n_infinite].toarray(), 0
+    )
+    np.testing.assert_allclose(
+        H.evaluated[(1, 0) + (0, ) * H.n_infinite].toarray(), 0
+    )
 
 
 def test_input_hamiltonian_BlockSeries(H):
