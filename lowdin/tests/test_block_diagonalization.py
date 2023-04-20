@@ -541,7 +541,6 @@ def test_solve_sylvester(n_dim: int, a_dim: int) -> None:
     h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
     eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
     eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
-    # print("min energy difference of A and B is {}".format(np.min(np.abs(eigs_a.reshape(-1,1) - eigs_b))))
 
     divide_energies_full_b = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
     divide_energies_half_b = solve_sylvester_KPM(
