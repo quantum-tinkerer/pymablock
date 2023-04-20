@@ -692,7 +692,7 @@ def block_diagonalize(
         op = matmul
     else:
         op = mul
-    
+
     # Determine function to use for solving Sylvester's equation
     # If H_0 is diagonal, don't provide anything
     # If H_0 is not diagonal, provide a function that solves Sylvester's equation
@@ -710,7 +710,17 @@ def block_diagonalize(
     return algorithm(H, solve_sylvester=solve_sylvester, op=op, **kwargs)
 
 
-def list_to_BlockSeries(hamiltonian):
+def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
+    """
+    Parameters
+    ----------
+    hamiltonian :
+        Unperturbed Hamiltonian and 1st order perturbations.
+
+    Returns
+    -------
+    H : `~lowdin.series.BlockSeries`
+    """
     # [H_0, H_1, H_2, ...], 1st order perturbations only
     n_infinite = len(hamiltonian) - 1
     zeroth_order = (0,) * n_infinite
@@ -722,10 +732,22 @@ def list_to_BlockSeries(hamiltonian):
             zip(np.eye(n_infinite, dtype=int), hamiltonian)
         }
     }
-    hamiltonian
+    return hamiltonian
 
 
-def dict_to_BlockSeries(hamiltonian):
+def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries:
+    """
+
+    Parameters
+    ----------
+    hamiltonian :
+        Unperturbed Hamiltonian and perturbations.
+        The keys are tuples of integers that indicate the order of the perturbation.
+
+    Returns
+    -------
+    H : `~lowdin.series.BlockSeries`
+    """
     # {0: H_0, (1, 0): H_1, (0, 1): H_2, ...}
     n_infinite = len(list(hamiltonian.keys())[0])
     H_temporary = BlockSeries(
@@ -736,31 +758,41 @@ def dict_to_BlockSeries(hamiltonian):
     return H_temporary
 
 
-def qsymm_to_BlockSeries(hamiltonian):
+def _qsymm_to_dict(hamiltonian):
     # TODO: Implement by requiring list of perturbative symbols.
     raise NotImplementedError
 
 
-def get_subspaces_from_indices(subspaces_indices, subspaces=None):
+def _get_subspaces_from_indices(
+        subspaces_indices: tuple[int, ...],
+    ) -> tuple[Any, Any]:
+    """
+    
+    Parameters
+    ----------
+    subspaces_indices :
+        Indices of the subspaces.
+        0 indicates the first subspace, 1 indicates the second subspace.
+
+    Returns
+    -------
+    subspaces :
+        Subspaces to use for block diagonalization. 
+    """
+
     # H_0 is a diagonal array, subspaces always needed
-    dim = len(subspaces_indices)
     subspaces_indices = np.array(subspaces_indices)
-    A_indices = np.compress(subspaces_indices==0, np.arange(dim))
-    B_indices = np.compress(subspaces_indices==1, np.arange(dim))
-    if np.any(subspaces_indices > 1):
+    max_subspaces = 2
+    if np.any(subspaces_indices >= max_subspaces):
         raise ValueError(
             "Only 0 and 1 are allowed as indices for subspaces."
-        )
+    )
+    dim = len(subspaces_indices)
     eigvecs = np.eye(dim, dtype=complex)
-    eigvecs_A = eigvecs[:, A_indices]
-    eigvecs_B = eigvecs[:, B_indices]
-    if subspaces is not None:
-        for eigvecs, subspace in ((eigvecs_A, eigvecs_B), subspaces):
-            if not np.allclose(eigvecs, subspace):
-                raise ValueError(
-                    "Subspaces provided do not match the indices provided."
-                )
-    subspaces = (eigvecs_A, eigvecs_B)
+    subspaces = tuple(
+        eigvecs[:, np.compress(subspaces_indices==block, np.arange(dim))]
+        for block in range(max_subspaces)
+    )
     return subspaces
 
 
@@ -773,7 +805,7 @@ def hamiltonian_to_BlockSeries(
     """
     # TODO: change the name once to_BlockSeries is removed
     Converts a Hamiltonian to a `~lowdin.series.BlockSeries`.
-    
+
     Parameters
     ----------
     hamiltonian :
@@ -790,19 +822,25 @@ def hamiltonian_to_BlockSeries(
         Hamiltonian in the format required by algorithms.
     """
     if isinstance(hamiltonian, list):
-        hamiltonian = list_to_BlockSeries(hamiltonian)
+        hamiltonian = _list_to_dict(hamiltonian)
     elif isinstance(hamiltonian, qsymm.Model):
-        hamiltonian = qsymm_to_BlockSeries(hamiltonian)
-
+        hamiltonian = _qsymm_to_dict(hamiltonian)
     if isinstance(hamiltonian, dict):
-        H_temporary = dict_to_BlockSeries(hamiltonian)
+        H_temporary = _dict_to_BlockSeries(hamiltonian)
     elif isinstance(hamiltonian, BlockSeries):
         H_temporary = hamiltonian
     else:
         raise NotImplementedError
 
     if subspaces_indices is not None:
-        subspaces = get_subspaces_from_indices(H_temporary, subspaces_indices, subspaces)
+        if subspaces is not None:
+            raise ValueError("Only subspaces or subspaces_indices can be provided.")
+        if not np.allclose(
+            H_temporary.evaluated[(0,) * H_temporary.n_infinite],
+            np.diag(np.diag(H_temporary.evaluated[(0,) * H_temporary.n_infinite]))
+        ):
+            raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
+        subspaces = _get_subspaces_from_indices(subspaces_indices)
 
     if subspaces is None:
         if H_temporary.shape == ():
@@ -831,12 +869,13 @@ def hamiltonian_to_BlockSeries(
                     return eigvecs_A.T.conj() @ H_temporary.evaluated[index[2:]] @ eigvecs_B
                 else:
                     return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
+
             H = BlockSeries(
                 eval=H_eval,
                 shape=(2, 2),
-                n_infinite=n_infinite,
+                n_infinite=H_temporary.n_infinite,
             )
 
         elif H_temporary.shape == (2, 2):
-            raise NotImplementedError("Blocks are already separated by shape.")
+            raise ValueError("Blocks are already separated. Do not provide subspaces.")
     return H
