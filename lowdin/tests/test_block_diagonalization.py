@@ -15,6 +15,7 @@ from lowdin.block_diagonalization import (
     numerical,
     solve_sylvester_KPM,
     _default_solve_sylvester,
+    to_BlockSeries,
 )
 from lowdin.series import BlockSeries, cauchy_dot_product, zero
 from lowdin.linalg import ComplementProjector
@@ -428,6 +429,7 @@ def generate_kpm_hamiltonian(
     eigs, vecs = eigh(h_0)
     eigs[:a_dim] -= 10.0  # introduce an energy gap
     h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+    assert np.allclose(Dagger(vecs) @ h_0 @ vecs, np.diag(eigs))
     eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
     eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
 
@@ -604,11 +606,53 @@ def test_check_AA_numerical(
 
         H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian
 
+        # construct Hamiltonian for general
+        index_rows = np.eye(n_infinite, dtype=int)
+        vecs = np.concatenate((vecs_a, vecs_b),axis=-1)
+        h_0_aa = np.diag(eigs_a)
+        h_0_bb = np.diag(eigs_b)
+        h_p_aa = {
+            tuple(index_rows[index, :]): (
+                Dagger(vecs)
+                @ H_input.evaluated[tuple(index_rows[index, :])]
+                @ vecs
+            )[:a_dim, :a_dim]
+            for index in range(n_infinite)
+        }
+        h_p_bb = {
+            tuple(index_rows[index, :]): (
+                Dagger(vecs)
+                @ H_input.evaluated[tuple(index_rows[index, :])]
+                @ vecs
+            )[a_dim:, a_dim:]
+            for index in range(n_infinite)
+        }
+        h_p_ab = {
+            tuple(index_rows[index, :]): (
+                Dagger(vecs)
+                @ H_input.evaluated[tuple(index_rows[index, :])]
+                @ vecs
+            )[:a_dim, a_dim:]
+            for index in range(n_infinite)
+        }
+
+        H_general = to_BlockSeries(
+            h_0_aa, h_0_bb, h_p_aa, h_p_bb, h_p_ab, n_infinite=n_infinite
+        )
+
+        H_tilde_general = general(H_general)[0]
         H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
         H_tilde_KPM = numerical(
             H_input, vecs_a, eigs_a, kpm_params={"num_moments": 5000}
         )[0]
-
+        
+        np.testing.assert_allclose(
+            H_tilde_full_b.evaluated[(0, 0) + order],
+            H_tilde_general.evaluated[(0, 0) + order],
+            rtol=1e-2,
+            err_msg=f"{order=}",
+        )
+        
         np.testing.assert_allclose(
             H_tilde_full_b.evaluated[(0, 0) + order],
             H_tilde_KPM.evaluated[(0, 0) + order],
