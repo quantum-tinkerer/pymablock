@@ -762,7 +762,18 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     H : `~lowdin.series.BlockSeries`
     """
     # {0: H_0, (1, 0): H_1, (0, 1): H_2, ...}
+    # make 0th order a sparse diagonal if it is diagonal array
     n_infinite = len(list(hamiltonian.keys())[0])
+    zeroth_order = (0,) * n_infinite
+
+    # Make 0th order a sparse diagonal if it is diagonal array
+    if isinstance(hamiltonian[zeroth_order], np.ndarray):
+        if np.allclose(
+            hamiltonian[zeroth_order],
+            np.diag(np.diag(hamiltonian[zeroth_order]))
+        ):
+            hamiltonian[zeroth_order] = sparse.diags(np.diag(hamiltonian[zeroth_order]))
+
     H_temporary = BlockSeries(
         data=hamiltonian,
         shape=(),
@@ -778,7 +789,7 @@ def _qsymm_to_dict(hamiltonian):
 
 def _get_subspaces_from_indices(
         subspaces_indices: tuple[int, ...],
-    ) -> tuple[sparse._array.lil_array, sparse._array.lil_array]:
+    ) -> tuple[sparse._arrays.lil_array, sparse._arrays.lil_array]:
     """
     Parameters
     ----------
@@ -789,7 +800,7 @@ def _get_subspaces_from_indices(
     Returns
     -------
     subspaces :
-        Subspaces to use for block diagonalization. 
+        Subspaces to use for block diagonalization.
     """
 
     # H_0 is a diagonal array, subspaces always needed
@@ -849,11 +860,10 @@ def hamiltonian_to_BlockSeries(
     if subspaces_indices is not None:
         if subspaces is not None:
             raise ValueError("Only subspaces or subspaces_indices can be provided.")
-        # TODO: Make diagonal scipy diagonal
-        # if not np.allclose(
-        #     H_temporary.evaluated[(0,) * H_temporary.n_infinite],
-        #     np.diag(np.diag(H_temporary.evaluated[(0,) * H_temporary.n_infinite]))
-        # ):
+        if not isinstance(
+            H_temporary.evaluated[(0,) * H_temporary.n_infinite],
+            sparse._dia.dia_matrix
+        ):
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
         subspaces = _get_subspaces_from_indices(subspaces_indices)
 
