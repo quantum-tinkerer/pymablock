@@ -390,7 +390,7 @@ def numerical(
         Full Hamiltonian of the system with keys corresponding to the order of
         the perturbation series
     vecs_a :
-        eigenvectors of the A (effective) subspace of H_0 (h[1])
+        eigenvectors of the A (effective) subspace of the known Hamiltonian
     eigs_a :
         eigenvalues to the aforementioned eigenvectors
     vecs_b :
