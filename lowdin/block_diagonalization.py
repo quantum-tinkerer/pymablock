@@ -10,8 +10,6 @@ from functools import reduce
 from copy import copy
 from typing import Any, Optional, Callable
 
-import pdb
-
 import numpy as np
 import sympy
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
@@ -378,10 +376,10 @@ def numerical(
     H: BlockSeries,
     vecs_a: np.ndarray,
     eigs_a: np.ndarray,
-    vecs_b: np.ndarray = None,
-    eigs_b: np.ndarray = None,
-    kpm_params: dict = None,
-    precalculate_moments: bool = False,
+    vecs_b: Optional[np.ndarray] = None,
+    eigs_b: Optional[np.ndarray] = None,
+    kpm_params: Optional[dict] = None,
+    precalculate_moments: Optional[bool] = False,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Diagonalize a Hamiltonian using the hybrid KPM algorithm.
@@ -413,15 +411,15 @@ def numerical(
 
     Returns
     -------
-    h_t : `~lowdin.series.BlockSeries`
+    result_H_tilde : `~lowdin.series.BlockSeries`
         Full block diagonalized Hamiltonian of the problem. The explict entries
         are called via var_name.evaluated[x, y, order] where x, y refer to the
         sub-space index (A, B). E.g.: var_name.evaluated[0,1,3] returns the AB
         entry of var_name to third order in a single perturbation parameter.
-    u : `~lowdin.series.BlockSeries`
+    U : `~lowdin.series.BlockSeries`
         Unitary transformation that block diagonalizes the initial perturbed
         Hamiltonian. Entries are accessed the same way as h_t
-    u_adj : `~lowdin.series.BlockSeries`
+    U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of u.
     """
     H_input = H
@@ -431,31 +429,23 @@ def numerical(
     p_b = ComplementProjector(vecs_a)
 
     def H_eval(*index):
-        new_index = (0, 0) + index[2:]
+        new_index = index[2:]
         original = H_input.evaluated[new_index]
         if zero == original:
             return zero
         if index[:2] == (0, 0):
-            return (
-                Dagger(vecs_a)
-                @ H_input.evaluated[new_index]
-                @ vecs_a
-            )
+            return Dagger(vecs_a) @ original @ vecs_a
         if index[:2] == (0, 1):
-            return (
-                Dagger(vecs_a) @ H_input.evaluated[new_index] @ p_b
-            )
+            return Dagger(vecs_a) @ original @ p_b
         if index[:2] == (1, 0):
-            return (
-                Dagger(H.evaluated[(0, 1, *index[2:])])
-            )
+            return Dagger(H.evaluated[(0, 1, *index[2:])])
         if index[:2] == (1, 1):
-            return p_b @ aslinearoperator(H_input.evaluated[new_index]) @ p_b
+            return p_b @ aslinearoperator(original) @ p_b
 
     H = BlockSeries(eval=H_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
 
     solve_sylvester = solve_sylvester_KPM(
-        H_input.evaluated[(0, 0, *zero_index)],
+        H_input.evaluated[zero_index],
         vecs_a,
         eigs_a,
         vecs_b,
@@ -482,6 +472,7 @@ def numerical(
     )
 
     old_U_eval = U.eval
+
     def U_eval(*index):
         if index[:2] == (1, 1):
             return safe_divide(-identity.evaluated[index], 2)
@@ -492,6 +483,7 @@ def numerical(
     H_tilde_operator = cauchy_dot_product(
         U_adjoint_operator, H_operator, U_operator, hermitian=True
     )
+
     def H_tilde_eval(*index):
         if index[:2] == (1, 1):
             return H_tilde_operator.evaluated[index]
@@ -503,15 +495,17 @@ def numerical(
 
 
 def solve_sylvester_KPM(
-    h_0: np.ndarray,
+    h_0: Any,
     vecs_a: np.ndarray,
     eigs_a: np.ndarray,
-    vecs_b: np.ndarray = None,
-    eigs_b: np.ndarray = None,
-    kpm_params: dict = None,
-    precalculate_moments: bool = False,
+    vecs_b: Optional[np.ndarray] = None,
+    eigs_b: Optional[np.ndarray] = None,
+    kpm_params: Optional[dict] = None,
+    precalculate_moments: Optional[bool] = False,
 ) -> Callable:
     """
+    Solve Sylvester energy division for KPM.
+
     General energy division for numerical problems through either full
     knowledge of the B-space or applicatio of the KPM Green's function
 
