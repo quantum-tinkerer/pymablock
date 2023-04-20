@@ -767,12 +767,12 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     zeroth_order = (0,) * n_infinite
 
     # Make 0th order a sparse diagonal if it is diagonal array
+
+
     if isinstance(hamiltonian[zeroth_order], np.ndarray):
-        if np.allclose(
-            hamiltonian[zeroth_order],
-            np.diag(np.diag(hamiltonian[zeroth_order]))
-        ):
-            hamiltonian[zeroth_order] = sparse.diags(np.diag(hamiltonian[zeroth_order]))
+        hamiltonian[zeroth_order] = sparse.dia_array(hamiltonian[zeroth_order])
+        if np.any(hamiltonian[zeroth_order].offsets):
+            raise ValueError('H_0 must be diagonal')
 
     H_temporary = BlockSeries(
         data=hamiltonian,
@@ -789,7 +789,7 @@ def _qsymm_to_dict(hamiltonian):
 
 def _get_subspaces_from_indices(
         subspaces_indices: tuple[int, ...],
-    ) -> tuple[sparse._arrays.lil_array, sparse._arrays.lil_array]:
+    ) -> tuple[sparse.csr_array, sparse.csr_array]:
     """
     Parameters
     ----------
@@ -811,11 +811,9 @@ def _get_subspaces_from_indices(
             "Only 0 and 1 are allowed as indices for subspaces."
     )
     dim = len(subspaces_indices)
-    eigvecs = np.eye(dim, dtype=complex)
+    eigvecs = sparse.identity(dim, format='csr')
     subspaces = tuple(
-        sparse.lil_array(
-            eigvecs[:, np.compress(subspaces_indices==block, np.arange(dim))]
-        )
+        eigvecs[:, np.compress(subspaces_indices==block, np.arange(dim))]
         for block in range(max_subspaces)
     )
     return subspaces
