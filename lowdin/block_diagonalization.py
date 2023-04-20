@@ -778,7 +778,7 @@ def _qsymm_to_dict(hamiltonian):
 
 def _get_subspaces_from_indices(
         subspaces_indices: tuple[int, ...],
-    ) -> tuple[Any, Any]:
+    ) -> tuple[sparse._array.lil_array, sparse._array.lil_array]:
     """
     Parameters
     ----------
@@ -802,7 +802,9 @@ def _get_subspaces_from_indices(
     dim = len(subspaces_indices)
     eigvecs = np.eye(dim, dtype=complex)
     subspaces = tuple(
-        eigvecs[:, np.compress(subspaces_indices==block, np.arange(dim))]
+        sparse.lil_array(
+            eigvecs[:, np.compress(subspaces_indices==block, np.arange(dim))]
+        )
         for block in range(max_subspaces)
     )
     return subspaces
@@ -847,10 +849,11 @@ def hamiltonian_to_BlockSeries(
     if subspaces_indices is not None:
         if subspaces is not None:
             raise ValueError("Only subspaces or subspaces_indices can be provided.")
-        if not np.allclose(
-            H_temporary.evaluated[(0,) * H_temporary.n_infinite],
-            np.diag(np.diag(H_temporary.evaluated[(0,) * H_temporary.n_infinite]))
-        ):
+        # TODO: Make diagonal scipy diagonal
+        # if not np.allclose(
+        #     H_temporary.evaluated[(0,) * H_temporary.n_infinite],
+        #     np.diag(np.diag(H_temporary.evaluated[(0,) * H_temporary.n_infinite]))
+        # ):
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
         subspaces = _get_subspaces_from_indices(subspaces_indices)
 
