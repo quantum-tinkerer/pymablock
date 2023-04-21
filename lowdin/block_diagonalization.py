@@ -25,6 +25,8 @@ from lowdin.series import (
     safe_divide,
 )
 
+__all__ = ["general", "expanded", "general_symbolic", "to_BlockSeries"]
+
 
 def general(
     H: BlockSeries,
@@ -62,10 +64,7 @@ def general(
 
     # Initialize the transformation as the identity operator
     U = BlockSeries(
-        data={
-            **{block + (0,) * H.n_infinite: one for block in ((0, 0), (1, 1))},
-            **{block + (0,) * H.n_infinite: zero for block in ((0, 1), (1, 0))},
-        },
+        data={block + (0,) * H.n_infinite: one for block in ((0, 0), (1, 1))},
         shape=(2, 2),
         n_infinite=H.n_infinite,
     )

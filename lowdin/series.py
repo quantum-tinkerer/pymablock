@@ -7,10 +7,25 @@ from typing import Any, Optional, Callable
 import numpy as np
 import numpy.ma as ma
 from sympy.physics.quantum import Dagger
-import tinyarray as ta
 
-PENDING = object()  # sentinel value for pending evaluation
-one = object()  # singleton for identity operator
+__all__ = ["BlockSeries", "cauchy_dot_product", "one", "zero"]
+
+class Pending:
+    """Sentinel value representing a pending evaluation."""
+    def __repr__(self) -> str:
+        return "pending"
+
+PENDING = Pending()
+del Pending
+
+class One:
+    """Sentinel value representing the identity operator."""
+    def __repr__(self) -> str:
+        return "one"
+
+one = One()
+del One
+
 
 
 # %%
@@ -212,14 +227,21 @@ def cauchy_dot_product(
     if len(set(factor.n_infinite for factor in series)) > 1:
         raise ValueError("Factors must have equal number of infinite dimensions.")
 
-    return BlockSeries(
-        eval=lambda *index: product_by_order(
-            index, *series, op=op, hermitian=hermitian, exclude_last=exclude_last
-        ),
+    product = BlockSeries(
         data=None,
         shape=(start, end),
         n_infinite=series[0].n_infinite,
     )
+
+    def eval(*index):
+        if index[0] < index[1] and hermitian:
+            return Dagger(product.evaluated[(index[1], index[0], *index[2:])])
+        return product_by_order(
+            index, *series, op=op, hermitian=hermitian, exclude_last=exclude_last
+        )
+
+    product.eval = eval
+    return product
 
 
 def _generate_orders(
@@ -311,8 +333,8 @@ def product_by_order(
         starts, ends = zip(*(key[:-n_infinite] for key, _ in combination))
         if starts[1:] != ends[:-1]:
             continue
-        key = tuple(ta.array(key[-n_infinite:]) for key, _ in combination)
-        if sum(key) != orders:
+        key = tuple(key[-n_infinite:] for key, _ in combination)
+        if list(map(sum, zip(*key))) != orders:  # Vector sum of key
             continue
         values = [value for _, value in combination if value is not one]
         if hermitian and key > tuple(reversed(key)):

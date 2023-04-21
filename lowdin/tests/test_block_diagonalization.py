@@ -2,7 +2,6 @@ from itertools import count, permutations
 from typing import Any, Callable
 
 import numpy as np
-import tinyarray as ta
 import pytest
 from scipy.linalg import eigh
 from scipy.sparse.linalg import LinearOperator
@@ -58,10 +57,10 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     BlockSeries of the Hamiltonian
     """
     n_infinite = len(wanted_orders[0])
-    orders = ta.array(np.eye(n_infinite, dtype=int))
-    h = []
+    orders = np.eye(n_infinite, dtype=int)
+    hams = []
     for i in range(2):
-        h.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
+        hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
 
     def matrices_it(N_i, N_j, hermitian):
         """
@@ -85,9 +84,9 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
 
     for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
-        h.append({order: matrix for order, matrix in zip(orders, matrices)})
+        hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
 
-    return to_BlockSeries(*h, n_infinite)
+    return to_BlockSeries(*hams, n_infinite)
 
 
 def test_check_AB(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
@@ -310,7 +309,7 @@ def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any
         if zero == value:
             continue
         block = index[:2]
-        order = tuple(2 * ta.array(index[2:]))
+        order = tuple(2 * np.array(index[2:]))
         new_data[block + order] = value
     return new_data
 
