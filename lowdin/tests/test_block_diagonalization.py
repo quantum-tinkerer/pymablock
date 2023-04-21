@@ -585,7 +585,7 @@ def test_check_AA_numerical(
     a_dim: int,
 ) -> None:
     """
-    Test that H_AA is zero for a random Hamiltonian.
+    Test that the numerical and general algorithms coincide.
 
     Parameters
     ----------
