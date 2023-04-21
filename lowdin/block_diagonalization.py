@@ -882,10 +882,14 @@ def hamiltonian_to_BlockSeries(
     # TODO: Implement this for non-numerical inputs and KPM
     # This only works for numpy arrays so far
     def H_eval(*index):
-        l, r = index[:2]
-        if l <= r:
-            return Dagger(subspaces[l]) @ hamiltonian.evaluated[index[2:]] @ subspaces[r]
-        return Dagger(H.evaluated[(r, l) + tuple(index[2:])])
+        left, right = index[:2]
+        if left <= right:
+            return (
+                Dagger(subspaces[left])
+                @ hamiltonian.evaluated[index[2:]]
+                @ subspaces[right]
+            )
+        return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
 
     H = BlockSeries(
         eval=H_eval,
