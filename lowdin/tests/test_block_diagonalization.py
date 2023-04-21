@@ -14,7 +14,6 @@ from lowdin.block_diagonalization import (
     numerical,
     solve_sylvester_KPM,
     _default_solve_sylvester,
-    to_BlockSeries,
 )
 from lowdin.series import BlockSeries, cauchy_dot_product, zero
 from lowdin.linalg import ComplementProjector
