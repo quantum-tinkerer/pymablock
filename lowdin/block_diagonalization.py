@@ -25,7 +25,7 @@ from lowdin.series import (
     safe_divide,
 )
 
-__all__ = ["general", "expanded", "general_symbolic", "to_BlockSeries"]
+__all__ = ["general", "expanded", "general_symbolic", "numerical", "to_BlockSeries"]
 
 
 def general(
