@@ -851,3 +851,64 @@ def test_input_hamiltonian_BlockSeries(H):
             H.evaluated[block + (0,) * H.n_infinite],
             hamiltonian.evaluated[block + (0,) * H.n_infinite],
         )
+
+
+def test_input_diagonal_indices():
+    """ Test that several inputs are compatible with the algorithm. """
+    subspaces_indices = [0, 1, 1, 0]
+    eigvals = [-1, 1, 1, -1]
+    perturbation = np.random.random(4)
+    perturbation += perturbation.conj().T
+
+    hamiltonians = [
+        [np.diag(eigvals), perturbation],
+        {(0,): np.diag(eigvals), (1,): perturbation, (2,): perturbation},
+        [sparse.diags(eigvals), perturbation, perturbation],
+        {(0,): sparse.diags(eigvals), (1,): perturbation}
+    ]
+
+    for hamiltonian in hamiltonians:
+        H = hamiltonian_to_BlockSeries(hamiltonian, subspaces_indices=subspaces_indices)
+        np.testing.assert_allclose(
+            H.evaluated[(0, 0) + (0,) * H.n_infinite].diagonal(),
+            np.array([-1, -1])
+        )
+        np.testing.assert_allclose(
+            H.evaluated[(1, 1) + (0,) * H.n_infinite].diagonal(),
+            np.array([1, 1])
+        )
+        np.testing.assert_allclose(H.evaluated[(0, 1) + (0,) * H.n_infinite].toarray(), 0)
+        np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite].toarray(), 0)
+
+
+def test_input_blocks():
+    """ Test that several inputs are compatible with the algorithm. """
+    hermitian_block = np.random.random((2, 2))
+    block = np.random.random((2, 2))
+    block += Dagger(block)
+    h_0 = [
+        [np.diag([-1, -1]), hermitian_block],
+        [Dagger(hermitian_block), np.diag([1, 1])]
+    ]
+    perturbation = [
+        [-block, hermitian_block],
+        [Dagger(hermitian_block), block]
+    ]
+
+    hamiltonians = [
+        [h_0, perturbation],
+        {(0,): h_0, (1,): perturbation, (2,): perturbation},
+    ]
+
+    for hamiltonian in hamiltonians:
+        H = hamiltonian_to_BlockSeries(hamiltonian)
+        np.testing.assert_allclose(
+            H.evaluated[(0, 0) + (0,) * H.n_infinite].diagonal(),
+            np.array([-1, -1])
+        )
+        np.testing.assert_allclose(
+            H.evaluated[(1, 1) + (0,) * H.n_infinite].diagonal(),
+            np.array([1, 1])
+        )
+        np.testing.assert_allclose(H.evaluated[(0, 1) + (0,) * H.n_infinite].toarray(), 0)
+        np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite].toarray(), 0)
