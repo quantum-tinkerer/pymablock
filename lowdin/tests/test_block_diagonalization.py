@@ -599,64 +599,56 @@ def test_check_AA_numerical(
     a_dim:
         Dimension of the A subspace
     """
+    H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian
+    n_infinite = H_input.n_infinite
+
+    # construct Hamiltonian for general
+    index_rows = np.eye(n_infinite, dtype=int)
+    vecs = np.concatenate((vecs_a, vecs_b), axis=-1)
+    h_0_aa = np.diag(eigs_a)
+    h_0_bb = np.diag(eigs_b)
+    h_p_aa = {
+        tuple(index_rows[index, :]): (
+            Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
+        )[:a_dim, :a_dim]
+        for index in range(n_infinite)
+    }
+    h_p_bb = {
+        tuple(index_rows[index, :]): (
+            Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
+        )[a_dim:, a_dim:]
+        for index in range(n_infinite)
+    }
+    h_p_ab = {
+        tuple(index_rows[index, :]): (
+            Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
+        )[:a_dim, a_dim:]
+        for index in range(n_infinite)
+    }
+
+    H_general = to_BlockSeries(
+        h_0_aa, h_0_bb, h_p_aa, h_p_bb, h_p_ab, n_infinite=n_infinite
+    )
+
+    H_tilde_general = general(H_general)[0]
+    H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
+    H_tilde_KPM = numerical(H_input, vecs_a, eigs_a, kpm_params={"num_moments": 5000})[
+        0
+    ]
     for order in wanted_orders:
-        n_infinite = len(order)
+        order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in order)
+        for block_full_b, block_general, block_KPM in zip(
+            H_tilde_full_b.evaluated[order].compressed(),
+            H_tilde_general.evaluated[order].compressed(),
+            H_tilde_KPM.evaluated[order].compressed(),
+        ):
+            np.testing.assert_allclose(
+                block_full_b, block_general, rtol=1e-2, err_msg=f"{order=}"
+            )
 
-        H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian
-
-        # construct Hamiltonian for general
-        index_rows = np.eye(n_infinite, dtype=int)
-        vecs = np.concatenate((vecs_a, vecs_b),axis=-1)
-        h_0_aa = np.diag(eigs_a)
-        h_0_bb = np.diag(eigs_b)
-        h_p_aa = {
-            tuple(index_rows[index, :]): (
-                Dagger(vecs)
-                @ H_input.evaluated[tuple(index_rows[index, :])]
-                @ vecs
-            )[:a_dim, :a_dim]
-            for index in range(n_infinite)
-        }
-        h_p_bb = {
-            tuple(index_rows[index, :]): (
-                Dagger(vecs)
-                @ H_input.evaluated[tuple(index_rows[index, :])]
-                @ vecs
-            )[a_dim:, a_dim:]
-            for index in range(n_infinite)
-        }
-        h_p_ab = {
-            tuple(index_rows[index, :]): (
-                Dagger(vecs)
-                @ H_input.evaluated[tuple(index_rows[index, :])]
-                @ vecs
-            )[:a_dim, a_dim:]
-            for index in range(n_infinite)
-        }
-
-        H_general = to_BlockSeries(
-            h_0_aa, h_0_bb, h_p_aa, h_p_bb, h_p_ab, n_infinite=n_infinite
-        )
-
-        H_tilde_general = general(H_general)[0]
-        H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
-        H_tilde_KPM = numerical(
-            H_input, vecs_a, eigs_a, kpm_params={"num_moments": 5000}
-        )[0]
-
-        np.testing.assert_allclose(
-            H_tilde_full_b.evaluated[(0, 0) + order],
-            H_tilde_general.evaluated[(0, 0) + order],
-            rtol=1e-2,
-            err_msg=f"{order=}",
-        )
-
-        np.testing.assert_allclose(
-            H_tilde_full_b.evaluated[(0, 0) + order],
-            H_tilde_KPM.evaluated[(0, 0) + order],
-            rtol=1e-2,
-            err_msg=f"{order=}",
-        )
+            np.testing.assert_allclose(
+                block_full_b, block_KPM, rtol=1e-2, err_msg=f"{order=}"
+            )
 
 
 def test_solve_sylvester_kpm_v_default(n_dim: int, a_dim: int) -> None:
