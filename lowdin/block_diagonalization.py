@@ -446,8 +446,8 @@ def numerical(
         precalculate_moments,
     )
     H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
-    # Create series wrapped in linear operators to avoid forming explicit matrices
 
+    # Create series wrapped in linear operators to avoid forming explicit matrices
     def linear_operator_wrapped(original):
         return lambda *index: aslinearoperator(original[index])
 
