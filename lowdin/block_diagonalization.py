@@ -387,15 +387,14 @@ def numerical(
     Parameters
     ----------
     H :
-        Full Hamiltonian of the system with keys corresponding to the order of
-        the perturbation series
+        Full Hamiltonian of the system.
     vecs_a :
         eigenvectors of the A (effective) subspace of the known Hamiltonian
     eigs_a :
         eigenvalues to the aforementioned eigenvectors
     vecs_b :
         Explicit parts of the B (auxilliary) space. Need to be eigenvectors to
-        H_0 (h[1])
+        H_0
     eigs_b :
         eigenvectors to the aforementioned explicit B space eigenvectors
     kpm_params :
@@ -403,7 +402,7 @@ def numerical(
         'num_vectors' will be overwritten to match the number of vectors, and
         'operator' key will be deleted.
     precalculate_moments :
-        Whether to precalculate and store all the KPM moments of `vectors`. This
+        Whether to precalculate and store all the KPM moments of ``vectors``. This
         is useful if the Green's function is evaluated at a large number of
         energies, but uses a large amount of memory. If False, the KPM expansion
         is performed every time the Green's function is called, which minimizes
