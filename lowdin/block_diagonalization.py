@@ -14,15 +14,18 @@ import numpy as np
 import sympy
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
 
+from lowdin.linalg import ComplementProjector, aslinearoperator
+from lowdin.kpm_funcs import greens_function
 from lowdin.series import (
     BlockSeries,
     zero,
     one,
     cauchy_dot_product,
     _zero_sum,
+    safe_divide,
 )
 
-__all__ = ["general", "expanded", "general_symbolic", "to_BlockSeries"]
+__all__ = ["general", "expanded", "general_symbolic", "numerical", "to_BlockSeries"]
 
 
 def general(
@@ -88,7 +91,7 @@ def general(
     def eval(*index: tuple[int, ...]) -> Any:
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
-            return -identity.evaluated[index] / 2
+            return safe_divide(-identity.evaluated[index], 2)
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
             Y = H_tilde_rec.evaluated[index]
@@ -199,14 +202,19 @@ def _commute_H0_away(
 
     Parameters
     ----------
-    expr : (zero or sympy) expression to simplify.
-    H_0_AA : Unperturbed Hamiltonian in subspace AA.
-    H_0_BB : Unperturbed Hamiltonian in subspace BB.
-    Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+    expr :
+        (zero or sympy) expression to simplify.
+    H_0_AA :
+        Unperturbed Hamiltonian in subspace AA.
+    H_0_BB :
+        Unperturbed Hamiltonian in subspace BB.
+    Y_data :
+        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
 
     Returns
     -------
-    expr : (zero or sympy) expression without H_0_AA or H_0_BB in it.
+    expr : zero or sympy.expr
+        (zero or sympy) expression without H_0_AA or H_0_BB in it.
     """
     if zero == expr:
         return expr
@@ -363,6 +371,211 @@ def expanded(
     return H_tilde, U, U_adjoint
 
 
+def numerical(
+    H: BlockSeries,
+    vecs_a: np.ndarray,
+    eigs_a: np.ndarray,
+    vecs_b: Optional[np.ndarray] = None,
+    eigs_b: Optional[np.ndarray] = None,
+    kpm_params: Optional[dict] = None,
+    precalculate_moments: Optional[bool] = False,
+) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
+    """
+    Diagonalize a Hamiltonian using the hybrid KPM algorithm.
+
+    Parameters
+    ----------
+    H :
+        Full Hamiltonian of the system.
+    vecs_a :
+        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
+    eigs_a :
+        Eigenvalues to the aforementioned eigenvectors.
+    vecs_b :
+        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
+        unperturbed Hamiltonian.
+    eigs_b :
+        Eigenvalues to the aforementioned explicit B space eigenvectors.
+    kpm_params :
+        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
+        'num_vectors' will be overwritten to match the number of vectors, and the
+        'operator' key will be deleted.
+    precalculate_moments :
+        Whether to precalculate and store all the KPM moments of ``vectors``. This
+        is useful if the Green's function is evaluated at a large number of
+        energies, but uses a large amount of memory. If False, the KPM expansion
+        is performed every time the Green's function is called, which minimizes
+        memory use.
+
+    Returns
+    -------
+    H_tilde : `~lowdin.series.BlockSeries`
+        Full block-diagonalized Hamiltonian of the problem. The ``(0, 0)`` block
+        (A subspace) is a numpy array, while the ``(1, 1)`` block (B subspace)
+        is a ``LinearOperator``.
+    U : `~lowdin.series.BlockSeries`
+        Unitary transformation that block diagonalizes the initial Hamiltonian.
+    U_adjoint : `~lowdin.series.BlockSeries`
+        Adjoint of ``U``.
+    """
+    H_input = H
+    p_b = ComplementProjector(vecs_a)
+
+    def H_eval(*index):
+        original = H_input.evaluated[index[2:]]
+        if zero == original:
+            return zero
+        if index[:2] == (0, 0):
+            return Dagger(vecs_a) @ original @ vecs_a
+        if index[:2] == (0, 1):
+            return Dagger(vecs_a) @ original @ p_b
+        if index[:2] == (1, 0):
+            return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
+        if index[:2] == (1, 1):
+            return p_b @ aslinearoperator(original) @ p_b
+
+    H = BlockSeries(eval=H_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
+
+    solve_sylvester = solve_sylvester_KPM(
+        H_input.evaluated[(0,) * H_input.n_infinite],
+        vecs_a,
+        eigs_a,
+        vecs_b,
+        eigs_b,
+        kpm_params,
+        precalculate_moments,
+    )
+    H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
+
+    # Create series wrapped in linear operators to avoid forming explicit matrices
+    def linear_operator_wrapped(original):
+        return lambda *index: aslinearoperator(original[index])
+
+    H_operator, U_operator, U_adjoint_operator = (
+        BlockSeries(
+            eval=linear_operator_wrapped(original),
+            shape=(2, 2),
+            n_infinite=H.n_infinite,
+        )
+        for original in (H.evaluated, U.evaluated, U_adjoint.evaluated)
+    )
+    identity = cauchy_dot_product(
+        U_operator, U_adjoint_operator, hermitian=True, exclude_last=[True, True]
+    )
+
+    old_U_eval = U.eval
+
+    def U_eval(*index):
+        if index[:2] == (1, 1):
+            return safe_divide(-identity.evaluated[index], 2)
+        return old_U_eval(*index)
+
+    U.eval = U_eval
+
+    H_tilde_operator = cauchy_dot_product(
+        U_adjoint_operator, H_operator, U_operator, hermitian=True
+    )
+
+    def H_tilde_eval(*index):
+        if index[:2] == (1, 1):
+            return H_tilde_operator.evaluated[index]
+        return H_tilde.evaluated[index]
+
+    result_H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
+
+    return result_H_tilde, U, U_adjoint
+
+
+def solve_sylvester_KPM(
+    h_0: Any,
+    vecs_a: np.ndarray,
+    eigs_a: np.ndarray,
+    vecs_b: Optional[np.ndarray] = None,
+    eigs_b: Optional[np.ndarray] = None,
+    kpm_params: Optional[dict] = None,
+    precalculate_moments: Optional[bool] = False,
+) -> Callable:
+    """
+    Solve Sylvester energy division for KPM.
+
+    General energy division for numerical problems through either full knowledge of
+    the B-space or application of the KPM Green's function.
+
+    Parameters
+    ----------
+    h_0 :
+        Unperturbed Hamiltonian of the system.
+    vecs_a :
+        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
+    eigs_a :
+        Eigenvalues to the aforementioned eigenvectors.
+    vecs_b :
+        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
+        unperturbed Hamiltonian.
+    eigs_b :
+        Eigenvalues to the aforementioned explicit B space eigenvectors.
+    kpm_params :
+        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
+        'num_vectors' will be overwritten to match the number of vectors, and the
+        'operator' key will be deleted.
+    precalculate_moments :
+        Whether to precalculate and store all the KPM moments of ``vectors``. This
+        is useful if the Green's function is evaluated at a large number of
+        energies, but uses a large amount of memory. If False, the KPM expansion
+        is performed every time the Green's function is called, which minimizes
+        memory use.
+
+    Returns
+    ----------
+    solve_sylvester: callable
+        Function that applies divide by energies to the RHS of the Sylvester equation.
+    """
+    if vecs_b is None:
+        vecs_b = np.empty((vecs_a.shape[0], 0))
+    if eigs_b is None:
+        eigs_b = np.diag(Dagger(vecs_b) @ h_0 @ vecs_b)
+    if kpm_params is None:
+        kpm_params = dict()
+
+    need_kpm = len(eigs_a) + len(eigs_b) < h_0.shape[0]
+    need_explicit = bool(len(eigs_b))
+    if not any((need_kpm, need_explicit)):
+        # B subspace is empty
+        return lambda Y: Y
+
+    if need_kpm:
+        kpm_projector = ComplementProjector(np.concatenate((vecs_a, vecs_b), axis=-1))
+
+        def sylvester_kpm(Y: np.ndarray) -> np.ndarray:
+            Y_KPM = Y @ kpm_projector
+            vec_G_Y = greens_function(
+                h_0,
+                params=None,
+                vectors=Y_KPM.conj(),
+                kpm_params=kpm_params,
+                precalculate_moments=precalculate_moments,
+            )(eigs_a)
+            return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
+
+    if need_explicit:
+        G_ml = 1 / (eigs_a[:, None] - eigs_b[None, :])
+
+        def sylvester_explicit(Y: np.ndarray) -> np.ndarray:
+            return ((Y @ vecs_b) * G_ml) @ vecs_b.conj().T
+
+    def solve_sylvester(Y: np.ndarray) -> np.ndarray:
+        if need_kpm and need_explicit:
+            result = sylvester_kpm(Y) + sylvester_explicit(Y)
+        elif need_kpm:
+            result = sylvester_kpm(Y)
+        elif need_explicit:
+            result = sylvester_explicit(Y)
+
+        return result
+
+    return solve_sylvester
+
+
 def _update_subs(
     Y_data: dict[Operator, Any],
     subs: dict[Operator | HermitianOperator, Any],
@@ -374,10 +587,14 @@ def _update_subs(
 
     Parameters
     ----------
-    Y_data : dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
-    subs : dictionary of substitutions to make.
-    solve_sylvester : function to use for solving Sylvester's equation.
-    op : function to use for matrix multiplication.
+    Y_data :
+        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+    subs :
+        dictionary of substitutions to make.
+    solve_sylvester :
+        function to use for solving Sylvester's equation.
+    op :
+        function to use for matrix multiplication.
     """
     for V, rhs in Y_data.items():
         if V not in subs:
@@ -394,9 +611,12 @@ def _replace(
 
     Parameters
     ----------
-    expr : (zero or sympy) expression in which to replace general symbols.
-    subs : dictionary {symbol: value} of substitutions to make.
-    op : function to use to multiply the substituted terms.
+    expr :
+        (zero or sympy) expression in which to replace general symbols.
+    subs :
+        dictionary {symbol: value} of substitutions to make.
+    op :
+        function to use to multiply the substituted terms.
 
     Return
     ------
@@ -420,7 +640,9 @@ def _replace(
         if any(zero == factor for factor in substituted_factors):
             continue
         result.append(
-            int(numerator) * reduce(op, substituted_factors) / int(denominator)
+            safe_divide(
+                int(numerator) * reduce(op, substituted_factors), int(denominator)
+            )
         )
 
     return _zero_sum(result)

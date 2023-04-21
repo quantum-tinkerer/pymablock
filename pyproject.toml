@@ -5,11 +5,17 @@ build-backend = "hatchling.build"
 [project]
 name = "lowdin"
 authors = [
-  { name="Cool Authors"},
+  {name="Cool Authors"},
 ]
 description = "Lowdin perturbation theory"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "scipy",
+    "kwant",  # For KPM
+    "packaging",  # For version parsing
+]
 version = "0.0.1"
 
 [project.urls]

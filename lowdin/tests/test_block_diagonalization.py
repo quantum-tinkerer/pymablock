@@ -3,10 +3,21 @@ from typing import Any, Callable
 
 import numpy as np
 import pytest
+from scipy.linalg import eigh
+from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
-from lowdin.block_diagonalization import general, expanded, to_BlockSeries
+from lowdin.block_diagonalization import (
+    general,
+    expanded,
+    to_BlockSeries,
+    numerical,
+    solve_sylvester_KPM,
+    _default_solve_sylvester,
+    to_BlockSeries,
+)
 from lowdin.series import BlockSeries, cauchy_dot_product, zero
+from lowdin.linalg import ComplementProjector
 
 
 @pytest.fixture(
@@ -46,7 +57,7 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     BlockSeries of the Hamiltonian
     """
     n_infinite = len(wanted_orders[0])
-    orders = np.array(np.eye(n_infinite, dtype=int))
+    orders = np.eye(n_infinite, dtype=int)
     hams = []
     for i in range(2):
         hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
@@ -342,3 +353,363 @@ def test_doubled_orders(
                     assert isinstance(result_doubled, object)
                     continue
                 np.testing.assert_allclose(result, result_doubled, atol=10**-5)
+
+
+@pytest.fixture(scope="module")
+def n_dim() -> int:
+    """
+    Randomly generate integers for size of Hamiltonians
+
+    Returns:
+    --------
+    n_dim: int
+        Dimension of the full Hamiltonian
+    """
+    n_dim = np.random.randint(low=25, high=100, dtype=int)
+    return n_dim
+
+
+@pytest.fixture(scope="module")
+def a_dim(n_dim) -> int:
+    """
+    Randomly generate size of a subspace
+
+    Parameters:
+    --------
+    n_dim:
+        Dimension of the total system
+
+    Returns:
+    -------
+    a_dim: int
+        Dimension of the A subspace
+    """
+    a_dim = np.random.randint(low=2, high=n_dim // 2, dtype=int)
+    return a_dim
+
+
+@pytest.fixture(scope="module")
+def generate_kpm_hamiltonian(
+    n_dim: int, wanted_orders: list[tuple[int, ...]], a_dim: int
+) -> tuple[BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Generate random BlockSeries Hamiltonian in the format required by the numerical
+    algorithm (full Hamitonians in the (0,0) block).
+
+    Parameters:
+    ----------
+    n_dim:
+        integer denoting the dimension of the full Hamiltonian.
+    n_infinite:
+        Number of perturbation terms that are generated.
+    a_dim:
+        Dimension of the A subspace. This number must be smaller than n_dim.
+
+    Returns:
+    --------
+    H_input: `~lowdin/series.BlockSeries`
+        Formatted Hamiltonian in BlockSeries format.
+    vecs_a :
+        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
+    eigs_a :
+        Eigenvalues to the aforementioned eigenvectors.
+    vecs_b :
+        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
+        unperturbed Hamiltonian.
+    eigs_b :
+        Eigenvalues to the aforementioned explicit B space eigenvectors.
+    """
+    n_infinite = len(wanted_orders[0])
+
+    h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+    h_0 += h_0.conjugate().transpose()
+
+    eigs, vecs = eigh(h_0)
+    eigs[:a_dim] -= 10.0  # introduce an energy gap
+    h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
+    assert np.allclose(Dagger(vecs) @ h_0 @ vecs, np.diag(eigs))
+    eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
+    eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
+
+    H_input = BlockSeries(data={((0,) * n_infinite): h_0}, shape=())
+
+    for i in range(n_infinite):
+        h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+        h_p += h_p.conjugate().transpose()
+        index = np.zeros(n_infinite, int)
+        index[i] = 1
+        H_input.data[tuple(index)] = h_p
+
+    H_input.n_infinite = n_infinite
+
+    return H_input, vecs_a, eigs_a, vecs_b, eigs_b
+
+
+def test_check_AB_KPM(
+    generate_kpm_hamiltonian: tuple[
+        BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+    ],
+    wanted_orders: list[tuple[int, ...]],
+    n_dim: int,
+    a_dim: int,
+) -> None:
+    """
+    Test that H_AB is zero for a random Hamiltonian using the numerical algorithm.
+
+    Parameters
+    ----------
+    generate_kpm_hamiltonian:
+        Randomly generated Hamiltonian and its eigendecomposition.
+    wanted_orders:
+        List of orders to compute.
+    n_dim:
+        Total size of the input Hamiltonian.
+    a_dim:
+        Size of the A subspace.
+    """
+    b_dim = n_dim - a_dim
+
+    H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
+
+    H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
+    H_tilde_half_b = numerical(
+        H_input,
+        vecs_a,
+        eigs_a,
+        vecs_b[:, : b_dim // 2],
+        eigs_b[: b_dim // 2],
+        kpm_params={"num_moments": 5000},
+    )[0]
+    H_tilde_kpm = numerical(H_input, vecs_a, eigs_a, kpm_params={"num_moments": 10000})[
+        0
+    ]
+
+    # full b
+    for order in wanted_orders:
+        order = tuple(slice(None, dim_order + 1) for dim_order in order)
+        for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
+            np.testing.assert_allclose(
+                block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
+            )
+
+    # half b
+    for order in wanted_orders:
+        order = tuple(slice(None, dim_order + 1) for dim_order in order)
+        for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
+            np.testing.assert_allclose(
+                block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+            )
+
+    # KPM
+    for order in wanted_orders:
+        order = tuple(slice(None, dim_order + 1) for dim_order in order)
+        for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
+            np.testing.assert_allclose(
+                block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+            )
+
+
+def test_solve_sylvester(n_dim: int, a_dim: int) -> None:
+    """
+    Test whether the KPM version of solve_sylvester provides approximately
+    equivalent results depending on how much of the B subspace is known
+    explicitly.
+
+    Parameters:
+    ---------
+    n_dim:
+        Total size of the Hamiltonians.
+    a_dim:
+        Size of the A subspace.
+    """
+    b_dim = n_dim - a_dim
+
+    h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+    h_0 += Dagger(h_0)
+
+    eigs, vecs = eigh(h_0)
+    eigs[:a_dim] -= 10.0  # introduce an energy gap
+    h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
+    eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
+    eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
+
+    divide_energies_full_b = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
+    divide_energies_half_b = solve_sylvester_KPM(
+        h_0,
+        vecs_a,
+        eigs_a,
+        vecs_b[:, : b_dim // 2],
+        eigs_b[: b_dim // 2],
+        kpm_params={"num_moments": 10000},
+    )
+    divide_energies_kpm = solve_sylvester_KPM(
+        h_0, vecs_a, eigs_a, kpm_params={"num_moments": 20000}
+    )
+
+    y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+    y_trial += Dagger(y_trial)
+    y_trial = Dagger(vecs_a) @ y_trial @ ComplementProjector(vecs_a)
+
+    y_full_b = np.abs(divide_energies_full_b(y_trial))
+    y_half_b = np.abs(divide_energies_half_b(y_trial))
+    y_kpm = np.abs(divide_energies_kpm(y_trial))
+
+    np.testing.assert_allclose(
+        y_full_b,
+        y_half_b,
+        atol=1e-2,
+        err_msg="fail in full/half at max val {}".format(np.max(y_full_b - y_half_b)),
+    )
+    np.testing.assert_allclose(
+        y_full_b,
+        y_kpm,
+        atol=1e-2,
+        err_msg="fail in full/kpm at max val {}".format(np.max(y_full_b - y_kpm)),
+    )
+
+
+def test_check_AA_numerical(
+    generate_kpm_hamiltonian: tuple[
+        BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+    ],
+    wanted_orders: list[tuple[int, ...]],
+    a_dim: int,
+) -> None:
+    """
+    Test that the numerical and general algorithms coincide.
+
+    Parameters
+    ----------
+    generate_kpm_hamiltonian:
+        Randomly generated Hamiltnonian and its eigendecomposition.
+    wanted_orders:
+        list of orders to compute.
+    a_dim:
+        Dimension of the A subspace.
+    """
+    H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
+    n_infinite = H_input.n_infinite
+
+    # construct Hamiltonian for general
+    index_rows = np.eye(n_infinite, dtype=int)
+    vecs = np.concatenate((vecs_a, vecs_b), axis=-1)
+    h_0_aa = np.diag(eigs_a)
+    h_0_bb = np.diag(eigs_b)
+    h_p_aa = {
+        tuple(index_rows[index, :]): (
+            Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
+        )[:a_dim, :a_dim]
+        for index in range(n_infinite)
+    }
+    h_p_bb = {
+        tuple(index_rows[index, :]): (
+            Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
+        )[a_dim:, a_dim:]
+        for index in range(n_infinite)
+    }
+    h_p_ab = {
+        tuple(index_rows[index, :]): (
+            Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
+        )[:a_dim, a_dim:]
+        for index in range(n_infinite)
+    }
+
+    H_general = to_BlockSeries(
+        h_0_aa, h_0_bb, h_p_aa, h_p_bb, h_p_ab, n_infinite=n_infinite
+    )
+
+    H_tilde_general = general(H_general)[0]
+    H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
+    H_tilde_KPM = numerical(H_input, vecs_a, eigs_a, kpm_params={"num_moments": 5000})[
+        0
+    ]
+    for order in wanted_orders:
+        order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in order)
+        for block_full_b, block_general, block_KPM in zip(
+            H_tilde_full_b.evaluated[order].compressed(),
+            H_tilde_general.evaluated[order].compressed(),
+            H_tilde_KPM.evaluated[order].compressed(),
+        ):
+            np.testing.assert_allclose(
+                block_full_b, block_general, atol=1e-4, err_msg=f"{order=}"
+            )
+
+            np.testing.assert_allclose(
+                block_full_b, block_KPM, atol=1e-4, err_msg=f"{order=}"
+            )
+
+
+def test_solve_sylvester_kpm_v_default(n_dim: int, a_dim: int) -> None:
+    """
+    Test whether the KPM ready solve_sylvester gives the same result
+    as _default_solve_sylvester when prompted with a diagonal input.
+
+    Paramaters:
+    ---------
+    n_dim:
+        Total size of the Hamiltonian.
+    a_dim:
+        Size of the A subspace.
+    """
+
+    h_0 = np.diag(np.sort(50 * np.random.random(n_dim)))
+    eigs, vecs = eigh(h_0)
+
+    eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
+    eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
+
+    H_default = to_BlockSeries(np.diag(eigs_a), np.diag(eigs_b))
+
+    solve_sylvester_default = _default_solve_sylvester(H_default)
+    solve_sylvester_kpm = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
+
+    y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+    y_trial += Dagger(y_trial)
+    y_kpm = Dagger(vecs_a) @ y_trial @ ComplementProjector(vecs_a)
+
+    y_default = solve_sylvester_default(y_trial[:a_dim, a_dim:])
+    y_kpm = solve_sylvester_kpm(y_kpm)
+
+    np.testing.assert_allclose(
+        y_default,
+        y_kpm[:a_dim, a_dim:],
+        atol=1e-2,
+        err_msg="fail in full/half at max val {}".format(
+            np.max(y_default - y_kpm[:a_dim, a_dim:])
+        ),
+    )
+
+
+def test_correct_implicit_subspace(
+    generate_kpm_hamiltonian: tuple[
+        BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+    ],
+    wanted_orders: list[tuple[int, ...]],
+) -> None:
+    """
+    Testing agreement of explicit and implicit subspaces
+
+    Test that the BB block of H_tilde is a) a LinearOperator type and
+    b) the same as the AA block on exchanging veca_a and vecs_b
+
+    Parameters:
+    ----------
+    generate_kpm_hamiltonian:
+        Randomly generated Hamiltonian and its eigendeomposition.
+    wanted_orders:
+        list of orders to compute.
+    """
+    H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
+
+    H_tilde = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
+    H_tilde_swapped = numerical(H_input, vecs_b, eigs_b, vecs_a, eigs_a)[0]
+
+    for order in wanted_orders:
+        order = tuple(slice(None, dim_order + 1) for dim_order in order)
+        h = H_tilde.evaluated[(0, 0) + order].compressed()
+        h_swapped = H_tilde_swapped.evaluated[(1, 1) + order].compressed()
+        for block_aa, block_bb in zip(h, h_swapped):
+            assert isinstance(block_bb, LinearOperator)
+            np.testing.assert_allclose(
+                block_aa, Dagger(vecs_a) @ block_bb @ vecs_a, atol=1e-14
+            )
