@@ -388,17 +388,17 @@ def numerical(
     H :
         Full Hamiltonian of the system.
     vecs_a :
-        eigenvectors of the A (effective) subspace of the known Hamiltonian
+        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
     eigs_a :
-        eigenvalues to the aforementioned eigenvectors
+        Eigenvalues to the aforementioned eigenvectors.
     vecs_b :
-        Explicit parts of the B (auxilliary) space. Need to be eigenvectors to
-        H_0
+        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
+        unperturbed Hamiltonian.
     eigs_b :
-        eigenvectors to the aforementioned explicit B space eigenvectors
+        Eigenvalues to the aforementioned explicit B space eigenvectors.
     kpm_params :
         Dictionary containing the parameters to pass to the `~kwant.kpm` module.
-        'num_vectors' will be overwritten to match the number of vectors, and
+        'num_vectors' will be overwritten to match the number of vectors, and the
         'operator' key will be deleted.
     precalculate_moments :
         Whether to precalculate and store all the KPM moments of ``vectors``. This
@@ -414,8 +414,7 @@ def numerical(
         (A subspace) is a numpy array, while the ``(1, 1)`` block (B subspace)
         is a ``LinearOperator``.
     U : `~lowdin.series.BlockSeries`
-        Unitary transformation that block diagonalizes the initial perturbed
-        Hamiltonian.
+        Unitary transformation that block diagonalizes the initial Hamiltonian.
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of ``U``.
     """
@@ -503,28 +502,36 @@ def solve_sylvester_KPM(
     """
     Solve Sylvester energy division for KPM.
 
-    General energy division for numerical problems through either full
-    knowledge of the B-space or applicatio of the KPM Green's function
+    General energy division for numerical problems through either full knowledge of
+    the B-space or application of the KPM Green's function.
 
     Parameters
     ----------
     h_0 :
-        Rest hamiltonian of the system
-    eigs_a :
-        Eigenvalues of the A subspace
+        Unperturbed Hamiltonian of the system.
     vecs_a :
-        Eigenvectors of the A subspace
-    eigs_b :
-        (Sub)-Set of the eigenvalues of the B subspace
+        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
+    eigs_a :
+        Eigenvalues to the aforementioned eigenvectors.
     vecs_b :
-        (Sub)-Set of the eigenvectors of the B subspace
-
-    kpm_options:
-        kpm_params and precalculate moments as specified in kpm_fucs.
+        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
+        unperturbed Hamiltonian.
+    eigs_b :
+        Eigenvalues to the aforementioned explicit B space eigenvectors.
+    kpm_params :
+        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
+        'num_vectors' will be overwritten to match the number of vectors, and the
+        'operator' key will be deleted.
+    precalculate_moments :
+        Whether to precalculate and store all the KPM moments of ``vectors``. This
+        is useful if the Green's function is evaluated at a large number of
+        energies, but uses a large amount of memory. If False, the KPM expansion
+        is performed every time the Green's function is called, which minimizes
+        memory use.
 
     Returns
     ----------
-    divide_by_energies: callable
+    solve_sylvester: callable
         Function that applies divide by energies to the RHS of the Sylvester equation.
     """
     if vecs_b is None:
