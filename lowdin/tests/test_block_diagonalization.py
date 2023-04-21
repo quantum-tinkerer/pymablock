@@ -6,7 +6,7 @@ import pytest
 from sympy.physics.quantum import Dagger
 
 from lowdin.block_diagonalization import general, expanded, to_BlockSeries
-from lowdin.series import BlockSeries, cauchy_dot_product, zero
+from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
 
 
 @pytest.fixture(
@@ -342,3 +342,59 @@ def test_doubled_orders(
                     assert isinstance(result_doubled, object)
                     continue
                 np.testing.assert_allclose(result, result_doubled, atol=10**-5)
+
+
+def _test_block(block: Any) -> bool:
+    if isinstance(block, np.ndarray):
+        check_bool = False
+        try:
+            np.testing.assert_allclose(
+                block, np.eye(block.shape), atol=10**-5, err_msg=f"{block=}"
+            )
+            check_bool = True
+        except:
+            np.testing.assert_allclose(
+                block,
+                np.zeros(block.shape),
+                atol=10**-5,
+                err_msg=f"{block=}",
+            )
+            check_bool = True
+    elif block == one:
+        check_bool = True
+    elif block == zero:
+        check_bool == zero
+    return check_bool
+
+
+def test_repeated_application(
+    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+) -> None:
+    """
+    Test ensuring invariance of the result upon repeated application
+    """
+    H_tilde_1, U_1, U_adjoint_1 = general(H)
+    H_tilde_2, U_2, U_adjoint_2 = general(H_tilde_1)
+
+    for order in wanted_orders:
+        order = tuple(slice(None, dim_order + 1) for dim_order in order)
+        for block in U_2.evaluated[(0, 0) + order].compressed():
+            check_boolean = _test_block(block)
+            assert check_boolean == True
+
+        for block in U_2.evaluated[(1, 1) + order].compressed():
+            check_boolean = _test_block(block)
+            assert check_boolean == True
+
+    H_tilde_1, U_1, U_adjoint_1 = expanded(H)
+    H_tilde_2, U_2, U_adjoint_2 = expanded(H_tilde_1)
+
+    for order in wanted_orders:
+        order = tuple(slice(None, dim_order + 1) for dim_order in order)
+        for block in U_2.evaluated[(0, 0) + order].compressed():
+            check_boolean = _test_block(block)
+            assert check_boolean == True
+
+        for block in U_2.evaluated[(1, 1) + order].compressed():
+            check_boolean = _test_block(block)
+            assert check_boolean == True
