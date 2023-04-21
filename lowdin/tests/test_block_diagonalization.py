@@ -573,7 +573,6 @@ def test_check_AA_numerical(
         BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
     ],
     wanted_orders: list[tuple[int, ...]],
-    n_dim: int,
     a_dim: int,
 ) -> None:
     """
@@ -686,8 +685,6 @@ def test_correct_implicit_subspace(
         BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
     ],
     wanted_orders: list[tuple[int, ...]],
-    n_dim: int,
-    a_dim: int,
 ) -> None:
     """
     Testing agreement of explicit and implicit subspaces
@@ -700,11 +697,7 @@ def test_correct_implicit_subspace(
     generate_kpm_hamiltonian:
         Randomly generated Hamiltonian and its eigendeomposition.
     wanted_orders:
-        list of orders to compute
-    n_dim:
-        Total size of the Hamiltonian
-    a_dim:
-        Size of the A subspace
+        list of orders to compute.
     """
     H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
 
