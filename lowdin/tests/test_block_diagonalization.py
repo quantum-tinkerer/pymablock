@@ -345,26 +345,35 @@ def test_doubled_orders(
 
 
 def _test_block(block: Any) -> bool:
+    """
+    Test blocks for series.one or numerical zero
+    
+    Functions doing the typechecking of blocks for the 
+    test_repeated_application test.
+    
+    Pratameters:
+    ----------
+    block:
+        Input to compare
+        
+    Returns:
+    --------
+    bool: boolean
+        Type checking returns true if it find a numerical zero
+        of a ~lowdin.series.one object
+    """
     if isinstance(block, np.ndarray):
-        check_bool = False
-        try:
-            np.testing.assert_allclose(
-                block, np.eye(block.shape), atol=10**-5, err_msg=f"{block=}"
-            )
-            check_bool = True
-        except:
-            np.testing.assert_allclose(
-                block,
-                np.zeros(block.shape),
-                atol=10**-5,
-                err_msg=f"{block=}",
-            )
-            check_bool = True
+        np.testing.assert_allclose(
+            block,
+            np.zeros(block.shape),
+            atol=10**-5,
+            err_msg=f"{block=}",
+        )
+        return True
     elif block == one:
-        check_bool = True
-    elif block == zero:
-        check_bool == zero
-    return check_bool
+        return True
+    else:
+        return False
 
 
 def test_repeated_application(
@@ -372,6 +381,15 @@ def test_repeated_application(
 ) -> None:
     """
     Test ensuring invariance of the result upon repeated application
+
+    Tests if the unitary transform returns identity when the algorithm is applied twice
+    
+    Parameters:
+    -----------
+    H: 
+        Hamiltonian
+    wanted_orders:
+        list of wanted orders 
     """
     H_tilde_1, U_1, U_adjoint_1 = general(H)
     H_tilde_2, U_2, U_adjoint_2 = general(H_tilde_1)
