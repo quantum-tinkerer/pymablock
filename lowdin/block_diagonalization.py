@@ -411,16 +411,15 @@ def numerical(
 
     Returns
     -------
-    result_H_tilde : `~lowdin.series.BlockSeries`
-        Full block diagonalized Hamiltonian of the problem. The explict entries
-        are called via var_name.evaluated[x, y, order] where x, y refer to the
-        sub-space index (A, B). E.g.: var_name.evaluated[0,1,3] returns the AB
-        entry of var_name to third order in a single perturbation parameter.
+    H_tilde : `~lowdin.series.BlockSeries`
+        Full block-diagonalized Hamiltonian of the problem. The ``(0, 0)`` block
+        (A subspace) is a numpy array, while the ``(1, 1)`` block (B subspace)
+        is a ``LinearOperator``.
     U : `~lowdin.series.BlockSeries`
         Unitary transformation that block diagonalizes the initial perturbed
-        Hamiltonian. Entries are accessed the same way as h_t
+        Hamiltonian.
     U_adjoint : `~lowdin.series.BlockSeries`
-        Adjoint of u.
+        Adjoint of ``U``.
     """
     H_input = H
     n_infinite = H_input.n_infinite

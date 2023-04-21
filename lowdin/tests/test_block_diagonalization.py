@@ -473,7 +473,6 @@ def test_check_AB_KPM(
     a_dim:
         Size of the A subspace
     """
-    n_infinite = len(wanted_orders[0])
     b_dim = n_dim - a_dim
 
     H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian
@@ -499,7 +498,7 @@ def test_check_AB_KPM(
                 block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
             )
 
-        # half b
+    # half b
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
@@ -507,7 +506,7 @@ def test_check_AB_KPM(
                 block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
             )
 
-        # KPM
+    # KPM
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
@@ -644,14 +643,14 @@ def test_check_AA_numerical(
         H_tilde_KPM = numerical(
             H_input, vecs_a, eigs_a, kpm_params={"num_moments": 5000}
         )[0]
-        
+
         np.testing.assert_allclose(
             H_tilde_full_b.evaluated[(0, 0) + order],
             H_tilde_general.evaluated[(0, 0) + order],
             rtol=1e-2,
             err_msg=f"{order=}",
         )
-        
+
         np.testing.assert_allclose(
             H_tilde_full_b.evaluated[(0, 0) + order],
             H_tilde_KPM.evaluated[(0, 0) + order],
@@ -730,8 +729,6 @@ def test_correct_implicit_subspace(
     a_dim:
         Size of the A subspace
     """
-    n_infinite = len(wanted_orders[0])
-
     H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian
 
     H_tilde = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
