@@ -4,6 +4,7 @@ from typing import Any, Callable, Optional
 import numpy as np
 import pytest
 from scipy.linalg import eigh
+from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
@@ -13,6 +14,7 @@ from lowdin.block_diagonalization import (
     numerical,
     solve_sylvester_KPM,
     _default_solve_sylvester,
+    hamiltonian_to_BlockSeries,
 )
 from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
 from lowdin.linalg import ComplementProjector
