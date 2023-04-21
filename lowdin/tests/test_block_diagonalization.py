@@ -354,6 +354,26 @@ def compare_series(
 ) -> bool:
     """
     Function that compares two BlockSeries with each other
+    
+    Two series are compared for a given list of wanted orders in all orders.
+    The test first checks for ~/lowdin/series.one objects since these are 
+    not masked by the resulting masked arrays. For numeric types, numpy 
+    arrays, scipy.sparse.linalg.LinearOperator types, and scipy.sparse.sp_Matrix,
+    the evaluated object is converted to a dense array by multiplying with dense
+    identity and numrically compared up to the desired tolerance.
+    
+    Parameters:
+    --------------
+    series1:
+        First ~/lowdin/series.BlockSeries to compare
+    series2:
+        Second ~/lowdin/series/BlockSeries to compare
+    wanted_orders:
+        List of tuples of wanted_orders to check the series for
+    absolute_tolerance:
+        Optional absolute tolerance for numeric comparison
+    relative_tolerance:
+        Optional relative tolerance for numeric comparison
     """
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
@@ -366,7 +386,7 @@ def compare_series(
 
                 if pair[0][-1] == one or pair[1][-1] == one:
                     assert pair[0][-1] == pair[1][-1]
-                    return
+                    continue
                 np.testing.assert_allclose(
                     pair[0][-1] @ np.eye(pair[0][-1].shape),
                     pair[1][-1] @ np.eye(pair[1][-1].shpae),
@@ -406,5 +426,5 @@ def test_repeated_application(
         else:
             return np.zeros_like(tested.evaluated[index])
 
-    U_target.eval = lambda index: target_evaluate(index, H_tilde_2)
+    U_target.eval = lambda *index: target_evaluate(index, H_tilde_2)
     compare_series(U_2, U_target, wanted_orders, 1e-15)
