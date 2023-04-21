@@ -419,14 +419,10 @@ def numerical(
         Adjoint of ``U``.
     """
     H_input = H
-    n_infinite = H_input.n_infinite
-    zero_index = (0,) * n_infinite
-
     p_b = ComplementProjector(vecs_a)
 
     def H_eval(*index):
-        new_index = index[2:]
-        original = H_input.evaluated[new_index]
+        original = H_input.evaluated[index[2:]]
         if zero == original:
             return zero
         if index[:2] == (0, 0):
@@ -434,14 +430,14 @@ def numerical(
         if index[:2] == (0, 1):
             return Dagger(vecs_a) @ original @ p_b
         if index[:2] == (1, 0):
-            return Dagger(H.evaluated[(0, 1, *index[2:])])
+            return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
         if index[:2] == (1, 1):
             return p_b @ aslinearoperator(original) @ p_b
 
     H = BlockSeries(eval=H_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
 
     solve_sylvester = solve_sylvester_KPM(
-        H_input.evaluated[zero_index],
+        H_input.evaluated[(0,) * H_input.n_infinite],
         vecs_a,
         eigs_a,
         vecs_b,
@@ -459,7 +455,7 @@ def numerical(
         BlockSeries(
             eval=linear_operator_wrapped(original),
             shape=(2, 2),
-            n_infinite=n_infinite,
+            n_infinite=H.n_infinite,
         )
         for original in (H.evaluated, U.evaluated, U_adjoint.evaluated)
     )
@@ -485,7 +481,7 @@ def numerical(
             return H_tilde_operator.evaluated[index]
         return H_tilde.evaluated[index]
 
-    result_H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=n_infinite)
+    result_H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
 
     return result_H_tilde, U, U_adjoint
 
