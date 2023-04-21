@@ -393,32 +393,31 @@ def generate_kpm_hamiltonian(
     n_dim: int, wanted_orders: list[tuple[int, ...]], a_dim: int
 ) -> tuple[BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
-    Generate random Hamiltonians formatted for numerical
-
-    Generate random BlockSeries Hamiltonian in the format required
-    by the numerical algorithm (full Hamitonians in the (0,0) block)
+    Generate random BlockSeries Hamiltonian in the format required by the numerical
+    algorithm (full Hamitonians in the (0,0) block).
 
     Parameters:
     ----------
     n_dim:
-        integer denoting the dimension of the full Hamiltonian
+        integer denoting the dimension of the full Hamiltonian.
     n_infinite:
-        Number of perturbation terms that are generated
+        Number of perturbation terms that are generated.
     a_dim:
-        Dimension of the A subspace. This number must be smaller
-        than n_dim
+        Dimension of the A subspace. This number must be smaller than n_dim.
 
     Returns:
+    --------
     H_input: `~lowdin/series.BlockSeries`
-        Formatted Hamiltonian in BlockSeries format
-    eigs_a: np.ndarray
-        Eigenvalues of the A subspace
-    vecs_a: np.ndarray
-        Eigenvectors of the A subspace
-    eigs_b: np.ndarray
-        Eigenvalues of the B subspace
-    vecs_b: np.ndarray
-        Eigenvectors of the B subspace
+        Formatted Hamiltonian in BlockSeries format.
+    vecs_a :
+        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
+    eigs_a :
+        Eigenvalues to the aforementioned eigenvectors.
+    vecs_b :
+        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
+        unperturbed Hamiltonian.
+    eigs_b :
+        Eigenvalues to the aforementioned explicit B space eigenvectors.
     """
     n_infinite = len(wanted_orders[0])
 
@@ -443,7 +442,7 @@ def generate_kpm_hamiltonian(
 
     H_input.n_infinite = n_infinite
 
-    return H_input, eigs_a, vecs_a, eigs_b, vecs_b
+    return H_input, vecs_a, eigs_a, vecs_b, eigs_b
 
 
 def test_check_AB_KPM(
@@ -455,26 +454,22 @@ def test_check_AB_KPM(
     a_dim: int,
 ) -> None:
     """
-    Test for the AB block of numerical
-
-    Test that H_AB is zero for a random Hamiltonian using the
-    numerical algorithm.
+    Test that H_AB is zero for a random Hamiltonian using the numerical algorithm.
 
     Parameters
     ----------
     generate_kpm_hamiltonian:
-        Randomly generated Hamiltonian plus eigenvalues/ -vectors
-        thereof
+        Randomly generated Hamiltonian and its eigendecomposition.
     wanted_orders:
-        list of orders to compute
+        List of orders to compute.
     n_dim:
-        Total size of the input Hamiltonian
+        Total size of the input Hamiltonian.
     a_dim:
-        Size of the A subspace
+        Size of the A subspace.
     """
     b_dim = n_dim - a_dim
 
-    H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian
+    H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
 
     H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
     H_tilde_half_b = numerical(
@@ -516,8 +511,6 @@ def test_check_AB_KPM(
 
 def test_solve_sylvester(n_dim: int, a_dim: int) -> None:
     """
-    Test for the KPM solve_sylvester function
-
     Test whether the KPM version of solve_sylvester provides approximately
     equivalent results depending on how much of the B subspace is known
     explicitly.
@@ -525,9 +518,9 @@ def test_solve_sylvester(n_dim: int, a_dim: int) -> None:
     Parameters:
     ---------
     n_dim:
-        Total size of the Hamiltonians
+        Total size of the Hamiltonians.
     a_dim:
-        Size of the A subspace
+        Size of the A subspace.
     """
     b_dim = n_dim - a_dim
 
@@ -589,16 +582,13 @@ def test_check_AA_numerical(
     Parameters
     ----------
     generate_kpm_hamiltonian:
-        Randomly generated Hamiltnonian and eigenvalues/ -vectors
-        thereof
+        Randomly generated Hamiltnonian and its eigendecomposition.
     wanted_orders:
-        list of orders to compute
-    n_dim:
-        Dimension of the full Hamiltonian
+        list of orders to compute.
     a_dim:
-        Dimension of the A subspace
+        Dimension of the A subspace.
     """
-    H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian
+    H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
     n_infinite = H_input.n_infinite
 
     # construct Hamiltonian for general
@@ -652,18 +642,15 @@ def test_check_AA_numerical(
 
 def test_solve_sylvester_kpm_v_default(n_dim: int, a_dim: int) -> None:
     """
-    Test comparing KPM and default solve_sylvester
-
     Test whether the KPM ready solve_sylvester gives the same result
-    as the default solve_sylvester when prompted with a diagonal input.
-    This should be true.
+    as _default_solve_sylvester when prompted with a diagonal input.
 
     Paramaters:
     ---------
     n_dim:
-        Total size of the Hamiltonian
+        Total size of the Hamiltonian.
     a_dim:
-        Size of the A subspace
+        Size of the A subspace.
     """
 
     h_0 = np.diag(np.sort(50 * np.random.random(n_dim)))
@@ -711,8 +698,7 @@ def test_correct_implicit_subspace(
     Parameters:
     ----------
     generate_kpm_hamiltonian:
-        Randomly generated Hamiltonian and eigenvalues/ -vectors
-        thereof
+        Randomly generated Hamiltonian and its eigendeomposition.
     wanted_orders:
         list of orders to compute
     n_dim:
@@ -720,7 +706,7 @@ def test_correct_implicit_subspace(
     a_dim:
         Size of the A subspace
     """
-    H_input, eigs_a, vecs_a, eigs_b, vecs_b = generate_kpm_hamiltonian
+    H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
 
     H_tilde = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
     H_tilde_swapped = numerical(H_input, vecs_b, eigs_b, vecs_a, eigs_a)[0]
