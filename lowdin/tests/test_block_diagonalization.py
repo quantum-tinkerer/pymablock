@@ -1,5 +1,5 @@
 from itertools import count, permutations
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import numpy as np
 import pytest
@@ -7,6 +7,7 @@ from sympy.physics.quantum import Dagger
 
 from lowdin.block_diagonalization import general, expanded, to_BlockSeries
 from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
+
 
 
 @pytest.fixture(
@@ -344,36 +345,35 @@ def test_doubled_orders(
                 np.testing.assert_allclose(result, result_doubled, atol=10**-5)
 
 
-def _test_block(block: Any) -> bool:
+def compare_series(
+    series1: BlockSeries,
+    series2: BlockSeries,
+    wanted_orders: list[tuple[int, ...]],
+    absolute_tolerance: Optional[float] = 1e-15,
+    relative_tolerance: Optional[float] = None,
+) -> bool:
     """
-    Test blocks for series.one or numerical zero
-    
-    Functions doing the typechecking of blocks for the 
-    test_repeated_application test.
-    
-    Pratameters:
-    ----------
-    block:
-        Input to compare
-        
-    Returns:
-    --------
-    bool: boolean
-        Type checking returns true if it find a numerical zero
-        of a ~lowdin.series.one object
+    Function that compares two BlockSeries with each other
     """
-    if isinstance(block, np.ndarray):
-        np.testing.assert_allclose(
-            block,
-            np.zeros(block.shape),
-            atol=10**-5,
-            err_msg=f"{block=}",
-        )
-        return True
-    elif block == one:
-        return True
-    else:
-        return False
+    for order in wanted_orders:
+        order = tuple(slice(None, dim_order + 1) for dim_order in order)
+        for i, j in [(0, 0), (0, 1), (1, 1)]:
+            for pair in zip(
+                np.ma.ndenumerate(series1.evaluated[(i, j) + order]),
+                np.ma.ndenumerate(series2.evaluated[(i, j) + order]),
+            ):
+                assert pair[0][0] == pair[1][0]
+
+                if pair[0][-1] == one or pair[1][-1] == one:
+                    assert pair[0][-1] == pair[1][-1]
+                    return
+                np.testing.assert_allclose(
+                    pair[0][-1] @ np.eye(pair[0][-1].shape),
+                    pair[1][-1] @ np.eye(pair[1][-1].shpae),
+                    atol=absolute_tolerance,
+                    rtol=relative_tolerance,
+                    err_msg=f"{pair=}",
+                )
 
 
 def test_repeated_application(
@@ -391,28 +391,20 @@ def test_repeated_application(
     wanted_orders:
         list of wanted orders 
     """
-    H_tilde_1, U_1, U_adjoint_1 = general(H)
-    H_tilde_2, U_2, U_adjoint_2 = general(H_tilde_1)
-
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in U_2.evaluated[(0, 0) + order].compressed():
-            check_boolean = _test_block(block)
-            assert check_boolean == True
-
-        for block in U_2.evaluated[(1, 1) + order].compressed():
-            check_boolean = _test_block(block)
-            assert check_boolean == True
-
     H_tilde_1, U_1, U_adjoint_1 = expanded(H)
     H_tilde_2, U_2, U_adjoint_2 = expanded(H_tilde_1)
+    
+    U_target = BlockSeries()
+    U_target.shape = H_tilde_2.shape
+    U_target.n_infinite = H_tilde_2.n_infinite
+    def target_evaluate(index, tested):
+        zero_index = (0, ) * tested.n_infinite
+        if (index == ((0, 0) + zero_index) or index == ((1, 1) + zero_index)):
+            return one
+        if (index == ((0, 1) + zero_index)  or index == ((1, 0) + zero_index)):
+            return zero
+        else:
+            return np.zeros_like(tested.evaluated[index])
 
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in U_2.evaluated[(0, 0) + order].compressed():
-            check_boolean = _test_block(block)
-            assert check_boolean == True
-
-        for block in U_2.evaluated[(1, 1) + order].compressed():
-            check_boolean = _test_block(block)
-            assert check_boolean == True
+    U_target.eval = lambda index: target_evaluate(index, H_tilde_2)
+    compare_series(U_2, U_target, wanted_orders, 1e-15)
