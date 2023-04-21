@@ -756,23 +756,20 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     hamiltonian :
         Unperturbed Hamiltonian and perturbations.
         The keys are tuples of integers that indicate the order of the perturbation.
+        {(0, 0): H_0, (1, 0): H_1, (0, 1): H_2}
 
     Returns
     -------
     H : `~lowdin.series.BlockSeries`
     """
-    # {0: H_0, (1, 0): H_1, (0, 1): H_2, ...}
-    # make 0th order a sparse diagonal if it is diagonal array
     n_infinite = len(list(hamiltonian.keys())[0])
     zeroth_order = (0,) * n_infinite
 
     # Make 0th order a sparse diagonal if it is diagonal array
-
-
     if isinstance(hamiltonian[zeroth_order], np.ndarray):
-        hamiltonian[zeroth_order] = sparse.dia_array(hamiltonian[zeroth_order])
-        if np.any(hamiltonian[zeroth_order].offsets):
-            raise ValueError('H_0 must be diagonal')
+        h_0 = sparse.dia_array(hamiltonian[zeroth_order])
+        if not np.any(h_0.offsets):
+            hamiltonian[zeroth_order] = h_0
 
     H_temporary = BlockSeries(
         data=hamiltonian,
@@ -787,10 +784,12 @@ def _qsymm_to_dict(hamiltonian):
     raise NotImplementedError
 
 
-def _get_subspaces_from_indices(
-        subspaces_indices: tuple[int, ...],
+def _subspaces_from_indices(
+        subspaces_indices: tuple[int, ...] | np.ndarray,
     ) -> tuple[sparse.csr_array, sparse.csr_array]:
     """
+    Returns the subspaces projection from the indices of the elements of the diagonal.
+
     Parameters
     ----------
     subspaces_indices :
@@ -802,8 +801,6 @@ def _get_subspaces_from_indices(
     subspaces :
         Subspaces to use for block diagonalization.
     """
-
-    # H_0 is a diagonal array, subspaces always needed
     subspaces_indices = np.array(subspaces_indices)
     max_subspaces = 2
     if np.any(subspaces_indices >= max_subspaces):
@@ -880,7 +877,7 @@ def hamiltonian_to_BlockSeries(
             sparse.dia_matrix
         ):
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
-        subspaces = _get_subspaces_from_indices(subspaces_indices)
+        subspaces = _subspaces_from_indices(subspaces_indices)
 
     # TODO: Implement this for non-numerical inputs and KPM
     # This only works for numpy arrays so far
