@@ -858,7 +858,7 @@ def test_input_diagonal_indices():
     subspaces_indices = [0, 1, 1, 0]
     eigvals = [-1, 1, 1, -1]
     perturbation = np.random.random(4)
-    perturbation += perturbation.conj().T
+    perturbation += Dagger(perturbation)
 
     hamiltonians = [
         [np.diag(eigvals), perturbation],
@@ -921,8 +921,8 @@ def test_input_blocks():
     block = np.random.random((2, 2))
     block += Dagger(block)
     h_0 = [
-        [np.diag([-1, -1]), hermitian_block],
-        [Dagger(hermitian_block), np.diag([1, 1])]
+        [np.diag([-1, -1]), np.zeros((2, 2))],
+        [np.zeros((2, 2)), np.diag([1, 1])]
     ]
     perturbation = [
         [-block, hermitian_block],
@@ -944,5 +944,5 @@ def test_input_blocks():
             H.evaluated[(1, 1) + (0,) * H.n_infinite].diagonal(),
             np.array([1, 1])
         )
-        np.testing.assert_allclose(H.evaluated[(0, 1) + (0,) * H.n_infinite].toarray(), 0)
-        np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite].toarray(), 0)
+        np.testing.assert_allclose(H.evaluated[(0, 1) + (0,) * H.n_infinite], 0)
+        np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite], 0)

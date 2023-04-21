@@ -863,7 +863,7 @@ def hamiltonian_to_BlockSeries(
     if subspaces is None and subspaces_indices is None:
         return BlockSeries(
             eval=(
-                lambda *index: hamiltonian.evaluated[index[:2]][index[0]][index[1]]
+                lambda *index: hamiltonian.evaluated[index[2:]][index[0]][index[1]]
             ),
             shape=(2, 2),
             n_infinite=hamiltonian.n_infinite,
