@@ -881,6 +881,40 @@ def test_input_diagonal_indices():
         np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite].toarray(), 0)
 
 
+def test_hamiltonian_from_subspaces():
+    """
+    Test that the algorithm works with a Hamiltonian defined on subspaces.
+    The test now does not test the perturbation.
+    """
+    h_0 = np.random.random((4, 4))
+    h_0 += Dagger(h_0)
+    perturbation = 0.1 * np.random.random((4, 4))
+    perturbation += Dagger(perturbation)
+
+    eigvals, eigvecs = np.linalg.eigh(h_0)
+    subspaces = [eigvecs[:, :2], eigvecs[:, 2:]]
+
+    hamiltonians = [
+        [h_0, perturbation],
+        {(0,): h_0, (1,): perturbation, (2,): perturbation},
+    ]
+
+    for hamiltonian in hamiltonians:
+        H = hamiltonian_to_BlockSeries(hamiltonian, subspaces=subspaces)
+        np.testing.assert_allclose(
+            H.evaluated[(0, 0) + (0,) * H.n_infinite].diagonal(), eigvals[:2]
+        )
+        np.testing.assert_allclose(
+            H.evaluated[(1, 1) + (0,) * H.n_infinite].diagonal(), eigvals[2:]
+        )
+        np.testing.assert_allclose(
+            H.evaluated[(0, 1) + (0,) * H.n_infinite], 0, atol=1e-12
+        )
+        np.testing.assert_allclose(
+            H.evaluated[(1, 0) + (0,) * H.n_infinite], 0, atol=1e-12
+        )
+
+
 def test_input_blocks():
     """ Test that several inputs are compatible with the algorithm. """
     hermitian_block = np.random.random((2, 2))
