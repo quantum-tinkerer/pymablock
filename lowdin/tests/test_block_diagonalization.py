@@ -643,11 +643,11 @@ def test_check_AA_numerical(
             H_tilde_KPM.evaluated[order].compressed(),
         ):
             np.testing.assert_allclose(
-                block_full_b, block_general, rtol=1e-2, err_msg=f"{order=}"
+                block_full_b, block_general, atol=1e-4, err_msg=f"{order=}"
             )
 
             np.testing.assert_allclose(
-                block_full_b, block_KPM, rtol=1e-2, err_msg=f"{order=}"
+                block_full_b, block_KPM, atol=1e-4, err_msg=f"{order=}"
             )
 
 
