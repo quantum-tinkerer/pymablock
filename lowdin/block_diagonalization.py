@@ -107,35 +107,37 @@ def general(
     return H_tilde, U, U_adjoint
 
 
-def _default_solve_sylvester(H: BlockSeries) -> Callable:
+def _default_solve_sylvester(h_0: tuple[Any, ...]) -> Callable:
     """
     Returns a function that divides a matrix by the difference
     of a numerical diagonal unperturbed Hamiltonian.
 
     Parameters
     ----------
-    H : Initial Hamiltonian, unperturbed and perturbation.
+    h_0 :
+        Tuple of diagonal blocks of the unperturbed Hamiltonian.
+        Each block must be diagonal.
 
     Returns
     -------:
     solve_sylvester : Function that solves the Sylvester equation.
     """
-    H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-    H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+    H_0_AA, H_0_BB = h_0
 
-    E_A = np.diag(H_0_AA)
-    E_B = np.diag(H_0_BB)
+    E_A = H_0_AA.diagonal()
+    E_B = H_0_BB.diagonal()
 
     # The Hamiltonians must already be diagonalized
-    if not np.allclose(H_0_AA, np.diag(E_A)):
+    if not np.allclose(H_0_AA, sparse.diag(E_A).toarray()):
         raise ValueError("H_0_AA must be diagonal")
-    if not np.allclose(H_0_BB, np.diag(E_B)):
+    if not np.allclose(H_0_BB, sparse.diags(E_B).toarray()):
         raise ValueError("H_0_BB must be diagonal")
 
-    energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
+
+    energy_denominators = sparse.csr_array(1 / (E_A.reshape(-1, 1) - E_B))
 
     def solve_sylvester(Y: Any) -> Any:
-        return Y * energy_denominators
+        return Y * energy_denominators # array-like product
 
     return solve_sylvester
 
