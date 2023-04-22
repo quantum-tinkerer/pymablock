@@ -683,11 +683,13 @@ def block_diagonalize(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of U.
     """
+    kpm = False
     if algorithm is None:
         if eigenvalues is not None and subspaces is None:
             raise ValueError("subspaces must be provided if eigenvalues is provided.")
         elif eigenvalues is not None and subspaces_indices is not None:
             algorithm = numerical
+            kpm = True
             if isinstance(hamiltonian, list):
                 h_0 = hamiltonian[0]
             elif isinstance(hamiltonian, dict):
@@ -699,6 +701,7 @@ def block_diagonalize(
         hamiltonian,
         subspaces=subspaces,
         subspaces_indices=subspaces_indices,
+        kpm = kpm,
     )
 
     # Determine operator to use for matrix multiplication
@@ -830,6 +833,7 @@ def hamiltonian_to_BlockSeries(
         *,
         subspaces: Optional[tuple[Any, Any]] = None,
         subspaces_indices: Optional[tuple[int, ...]] = None,
+        kpm = False,
     ) -> BlockSeries:
     """
     # TODO: change the name once to_BlockSeries is removed
@@ -846,6 +850,8 @@ def hamiltonian_to_BlockSeries(
         {(0, 0): H_0, (1, 0): H_1, (0, 1): H_2}.
     subspaces :
         Tuple of eigenvectors of each subspace of the Hamiltonian.
+    kpm :
+        Whether to use KPM to solve the Sylvester equation.
 
     Returns
     -------
@@ -897,7 +903,7 @@ def hamiltonian_to_BlockSeries(
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
         subspaces = _subspaces_from_indices(subspaces_indices)
 
-    if sum(subspace.shape[1] for subspace in subspaces) != subspaces[0].shape[0]:
+    if kpm:
         # Separation into subspaces for KPM
         # TODO: review condition
         subspaces = (subspaces[0], ComplementProjector(subspaces[0]))
