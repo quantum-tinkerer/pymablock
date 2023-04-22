@@ -897,14 +897,12 @@ def hamiltonian_to_BlockSeries(
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
         subspaces = _subspaces_from_indices(subspaces_indices)
 
-    # Separation into subspaces for KPM
-    # This condition isn't good enough
-
-    kpm = False
     if sum(subspace.shape[1] for subspace in subspaces) != subspaces[0].shape[0]:
-        kpm = True
+        # Separation into subspaces for KPM
+        # TODO: review condition
         subspaces = (subspaces[0], ComplementProjector(subspaces[0]))
 
+    # Separation into subspaces
     def H_eval(*index):
         original = hamiltonian.evaluated[index[2:]]
         if zero == original:
@@ -913,9 +911,7 @@ def hamiltonian_to_BlockSeries(
         if (left, right) in ((0, 0), (0, 1)):
             return Dagger(subspaces[left]) @ original @ subspaces[right]
         elif (left, right) == (1, 1):
-            if kpm:
-                return Dagger(subspaces[left]) @ aslinearoperator(original) @ subspaces[right]
-            return Dagger(subspaces[left]) @ original @ subspaces[right]
+            return Dagger(subspaces[left]) @ aslinearoperator(original) @ subspaces[right]
         return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
 
     H = BlockSeries(
