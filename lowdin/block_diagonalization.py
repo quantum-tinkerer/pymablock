@@ -446,10 +446,8 @@ def numerical(
 
 def solve_sylvester_KPM(
     h_0: Any,
-    vecs_a: np.ndarray,
-    eigs_a: np.ndarray,
-    vecs_b: Optional[np.ndarray] = None,
-    eigs_b: Optional[np.ndarray] = None,
+    subspaces: tuple[Any, Any],
+    eigenvalues: np.ndarray,
     kpm_params: Optional[dict] = None,
     precalculate_moments: Optional[bool] = False,
 ) -> Callable:
@@ -463,15 +461,14 @@ def solve_sylvester_KPM(
     ----------
     h_0 :
         Unperturbed Hamiltonian of the system.
-    vecs_a :
-        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
-    eigs_a :
-        Eigenvalues to the aforementioned eigenvectors.
-    vecs_b :
-        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
-        unperturbed Hamiltonian.
-    eigs_b :
-        Eigenvalues to the aforementioned explicit B space eigenvectors.
+    subspaces :
+        Subspaces to project the unperturbed Hamiltonian and separate it into blocks.
+        The first element of the tuple contains the effective subspace,
+        and the second element contains the (partial) auxilliary subspace.
+    eigenvalues :
+        Eigenvalues of the unperturbed Hamiltonian. The first element of the tuple
+        contains the full eigenvalues of the effective subspace. The second element is
+        optional, and it contains the (partial) eigenvalues of the auxilliary subspace.
     kpm_params :
         Dictionary containing the parameters to pass to the `~kwant.kpm` module.
         'num_vectors' will be overwritten to match the number of vectors, and the
@@ -488,10 +485,16 @@ def solve_sylvester_KPM(
     solve_sylvester: callable
         Function that applies divide by energies to the RHS of the Sylvester equation.
     """
-    if vecs_b is None:
-        vecs_b = np.empty((vecs_a.shape[0], 0))
-    if eigs_b is None:
-        eigs_b = np.diag(Dagger(vecs_b) @ h_0 @ vecs_b)
+    if len(subspaces) == 2:
+        vecs_a, vecs_b = subspaces
+        eigs_a, eigs_b = eigenvalues
+    elif len(subspaces) == 1:
+        vecs_a = subspaces[0]
+        eigs_a = eigenvalues[0]
+        vecs_b = sparse.csr_array(np.empty((vecs_a.shape[0], 0)))
+        eigs_b = (Dagger(vecs_b) @ h_0 @ vecs_b).diagonal()
+    else:
+        raise NotImplementedError("Too many subspaces")
     if kpm_params is None:
         kpm_params = dict()
 
@@ -613,10 +616,7 @@ def block_diagonalize(
         solve_sylvester : Optional[Callable] = None,
         subspaces: Optional[tuple[Any, Any]] = None,
         subspaces_indices: Optional[tuple[int, ...]] = None,
-        vecs_a: Optional[np.ndarray] = None,
-        eigs_a: Optional[np.ndarray] = None,
-        vecs_b: Optional[np.ndarray] = None,
-        eigs_b: Optional[np.ndarray] = None,
+        eigenvalues: Optional[tuple[np.ndarray, np.ndarray]] = None,
         kpm_params: Optional[dict] = None,
         precalculate_moments: Optional[bool] = False,
     ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
@@ -640,19 +640,17 @@ def block_diagonalize(
     subspaces :
         Subspaces to project the unperturbed Hamiltonian and separate it into blocks.
         If None, the unperturbed Hamiltonian must be block diagonal.
+        For KPM, the first element of the tuple contains the effective subspace,
+        and the second element contains the (partial) auxilliary subspace.
     subspaces_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the diagonal
         elements according to the subspaces may be provided. This argument is incompatible
         with `subspaces`.
-    vecs_a :
-        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
-    eigs_a :
-        Eigenvalues to the aforementioned eigenvectors.
-    vecs_b :
-        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
-        unperturbed Hamiltonian.
-    eigs_b :
-        Eigenvalues to the aforementioned explicit B space eigenvectors.
+    eigenvalues :
+        Eigenvalues of the unperturbed Hamiltonian. The first element of the tuple
+        contains the full eigenvalues of the effective subspace. The second element is
+        optional, and it contains the (partial) eigenvalues of the auxilliary subspace.
+        This argument is needed for KPM.
     kpm_params :
         Dictionary containing the parameters to pass to the `~kwant.kpm` module.
         'num_vectors' will be overwritten to match the number of vectors, and the
@@ -676,14 +674,14 @@ def block_diagonalize(
         Adjoint of U.
     """
     if algorithm is None:
-        if vecs_a is None and eigs_a is not None:
-            raise ValueError("vecs_a must be provided if eigs_a is provided")
-        elif vecs_a is not None: #TODO: could also be that someone provides subspaces
-            if eigs_a is None:
-                raise ValueError("eigs_a must be provided if vecs_a is provided")
+        if eigenvalues is not None and subspaces is None:
+            raise ValueError("subspaces must be provided if eigenvalues is provided.")
+        elif eigenvalues is not None and subspaces_indices is not None:
             algorithm = numerical
-            subspaces = (vecs_a,) # interesting subspace
-            # TODO: h_0 = ...
+            if isinstance(hamiltonian, list):
+                h_0 = hamiltonian[0]
+            elif isinstance(hamiltonian, dict):
+                h_0 = hamiltonian[0]
         else:
             algorithm = general
 
@@ -704,13 +702,11 @@ def block_diagonalize(
         if all(isinstance(H.evaluated[block + (0,) * H.n_infinite], sparse.dia_matrix)
                for block in ((0, 0 ), (1, 1))):
             solve_sylvester = _default_solve_sylvester
-        elif len(subspaces) == 1:
+        elif eigenvalues is not None:
             solve_sylvester = solve_sylvester_KPM(
                 h_0,
-                vecs_a,
-                eigs_a,
-                vecs_b,
-                eigs_b,
+                subspaces,
+                eigenvalues,
                 kpm_params,
                 precalculate_moments,
             )
