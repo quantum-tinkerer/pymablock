@@ -818,7 +818,9 @@ def diagonal_hamiltonian_indices(request):
 
 
 def test_input_hamiltonian_BlockSeries(H):
-    """ Test that several inputs are compatible with the algorithm. """
+    """
+    Test that BlockSeries Hamiltonians are interpreted correctly.
+    """
     # List input for diagonal H_0
     hamiltonian = hamiltonian_to_BlockSeries(H)
 
@@ -836,7 +838,15 @@ def test_input_hamiltonian_BlockSeries(H):
 
 
 def test_input_diagonal_indices():
-    """ Test that several inputs are compatible with the algorithm. """
+    """
+    Test inputs where the unperturbed Hamiltonian is diagonal.
+
+    We test the following inputs:
+    - list of numpy arrays
+    - dictionary of numpy arrays
+    - list of sparse matrices
+    - dictionary of sparse matrices
+    """
     subspaces_indices = [0, 1, 1, 0]
     eigvals = [-1, 1, 1, -1]
     perturbation = np.random.random(4)
@@ -863,7 +873,8 @@ def test_input_diagonal_indices():
         np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite].toarray(), 0)
 
 
-def test_hamiltonian_from_subspaces():
+
+def test_input_hamiltonian_from_subspaces():
     """
     Test that the algorithm works with a Hamiltonian defined on subspaces.
     The test now does not test the perturbation.
@@ -897,8 +908,14 @@ def test_hamiltonian_from_subspaces():
         )
 
 
-def test_input_blocks():
-    """ Test that several inputs are compatible with the algorithm. """
+def test_input_hamiltonian_blocks():
+    """
+    Test inputs that come separated by subspace.
+
+    We test the following inputs:
+    - list of Hamiltonians where each Hamiltonian is a list of blocks
+    - dictionary of Hamiltonians where each Hamiltonian is a list of blocks
+    """
     hermitian_block = np.random.random((2, 2))
     block = np.random.random((2, 2))
     block += Dagger(block)
