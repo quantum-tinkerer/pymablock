@@ -868,14 +868,14 @@ def hamiltonian_to_BlockSeries(
             raise ValueError("H is already separated but subspaces are provided.")
         return hamiltonian
     if hamiltonian.shape != ():
-        raise NotImplementedError
+        raise NotImplementedError("Only two subspaces are supported.")
 
     # Separation into subspaces
     if subspaces is None and subspaces_indices is None:
         def H_eval(*index):
             if zero == hamiltonian.evaluated[index[2:]]:
                 return zero
-            try:
+            try: # Hamiltonians come in blocks of 2x2
                 return hamiltonian.evaluated[index[2:]][index[0]][index[1]]
             except TypeError:
                 raise ValueError("`subspaces` or `subspaces_indices` must be provided.")
