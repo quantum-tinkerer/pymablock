@@ -505,9 +505,11 @@ def solve_sylvester_KPM(
         return lambda Y: Y
 
     if need_kpm:
-        kpm_projector = ComplementProjector(np.concatenate((vecs_a, vecs_b), axis=-1))
+        kpm_projector = ComplementProjector(sparse.hstack([vecs_a, vecs_b]), format="csr")
 
-        def sylvester_kpm(Y: np.ndarray) -> np.ndarray:
+        def sylvester_kpm(
+                Y: np.ndarray | sparse.csr_array
+            )-> np.ndarray | sparse.csr_array:
             Y_KPM = Y @ kpm_projector
             vec_G_Y = greens_function(
                 h_0,
@@ -516,15 +518,23 @@ def solve_sylvester_KPM(
                 kpm_params=kpm_params,
                 precalculate_moments=precalculate_moments,
             )(eigs_a)
-            return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
+            return sparse.vstack(
+                [vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))],
+                format="csr"
+            )
+
 
     if need_explicit:
-        G_ml = 1 / (eigs_a[:, None] - eigs_b[None, :])
+        G_ml = sparse.csr_array(1 / (eigs_a[:, None] - eigs_b[None, :]))
 
-        def sylvester_explicit(Y: np.ndarray) -> np.ndarray:
-            return ((Y @ vecs_b) * G_ml) @ vecs_b.conj().T
+        def sylvester_explicit(
+                Y: np.ndarray | sparse.csr_array
+            )-> np.ndarray | sparse.csr_array:
+            return ((Y @ vecs_b) * G_ml) @ Dagger(vecs_b)
 
-    def solve_sylvester(Y: np.ndarray) -> np.ndarray:
+    def solve_sylvester(
+            Y: np.ndarray | sparse.csr_array
+        )-> np.ndarray | sparse.csr_array:
         if need_kpm and need_explicit:
             result = sylvester_kpm(Y) + sylvester_explicit(Y)
         elif need_kpm:
