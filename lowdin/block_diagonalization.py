@@ -372,12 +372,7 @@ def expanded(
 
 def numerical(
     H: BlockSeries,
-    vecs_a: np.ndarray,
-    eigs_a: np.ndarray,
-    vecs_b: Optional[np.ndarray] = None,
-    eigs_b: Optional[np.ndarray] = None,
-    kpm_params: Optional[dict] = None,
-    precalculate_moments: Optional[bool] = False,
+    solve_sylvester: Callable,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Diagonalize a Hamiltonian using the hybrid KPM algorithm.
@@ -386,25 +381,8 @@ def numerical(
     ----------
     H :
         Full Hamiltonian of the system.
-    vecs_a :
-        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
-    eigs_a :
-        Eigenvalues to the aforementioned eigenvectors.
-    vecs_b :
-        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
-        unperturbed Hamiltonian.
-    eigs_b :
-        Eigenvalues to the aforementioned explicit B space eigenvectors.
-    kpm_params :
-        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
-        'num_vectors' will be overwritten to match the number of vectors, and the
-        'operator' key will be deleted.
-    precalculate_moments :
-        Whether to precalculate and store all the KPM moments of ``vectors``. This
-        is useful if the Green's function is evaluated at a large number of
-        energies, but uses a large amount of memory. If False, the KPM expansion
-        is performed every time the Green's function is called, which minimizes
-        memory use.
+    solve_sylvester :
+        Function to use for solving Sylvester's equation.
 
     Returns
     -------
@@ -417,33 +395,6 @@ def numerical(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of ``U``.
     """
-    H_input = H
-    p_b = ComplementProjector(vecs_a)
-
-    def H_eval(*index):
-        original = H_input.evaluated[index[2:]]
-        if zero == original:
-            return zero
-        if index[:2] == (0, 0):
-            return Dagger(vecs_a) @ original @ vecs_a
-        if index[:2] == (0, 1):
-            return Dagger(vecs_a) @ original @ p_b
-        if index[:2] == (1, 0):
-            return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
-        if index[:2] == (1, 1):
-            return p_b @ aslinearoperator(original) @ p_b
-
-    H = BlockSeries(eval=H_eval, shape=(2, 2), n_infinite=H_input.n_infinite)
-
-    solve_sylvester = solve_sylvester_KPM(
-        H_input.evaluated[(0,) * H_input.n_infinite],
-        vecs_a,
-        eigs_a,
-        vecs_b,
-        eigs_b,
-        kpm_params,
-        precalculate_moments,
-    )
     H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
 
     # Create series wrapped in linear operators to avoid forming explicit matrices
@@ -654,7 +605,12 @@ def block_diagonalize(
         solve_sylvester : Optional[Callable] = None,
         subspaces: Optional[tuple[Any, Any]] = None,
         subspaces_indices: Optional[tuple[int, ...]] = None,
-        **kwargs
+        vecs_a: Optional[np.ndarray] = None,
+        eigs_a: Optional[np.ndarray] = None,
+        vecs_b: Optional[np.ndarray] = None,
+        eigs_b: Optional[np.ndarray] = None,
+        kpm_params: Optional[dict] = None,
+        precalculate_moments: Optional[bool] = False,
     ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Parameters
@@ -680,6 +636,25 @@ def block_diagonalize(
         If the unperturbed Hamiltonian is diagonal, the indices that label the diagonal
         elements according to the subspaces may be provided. This argument is incompatible
         with `subspaces`.
+    vecs_a :
+        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
+    eigs_a :
+        Eigenvalues to the aforementioned eigenvectors.
+    vecs_b :
+        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
+        unperturbed Hamiltonian.
+    eigs_b :
+        Eigenvalues to the aforementioned explicit B space eigenvectors.
+    kpm_params :
+        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
+        'num_vectors' will be overwritten to match the number of vectors, and the
+        'operator' key will be deleted.
+    precalculate_moments :
+        Whether to precalculate and store all the KPM moments of ``vectors``. This
+        is useful if the Green's function is evaluated at a large number of
+        energies, but uses a large amount of memory. If False, the KPM expansion
+        is performed every time the Green's function is called, which minimizes
+        memory use.
     **kwargs :
         Additional keyword arguments to pass to `algorithm`.
 
@@ -693,7 +668,16 @@ def block_diagonalize(
         Adjoint of U.
     """
     if algorithm is None:
-        algorithm = general
+        if vecs_a is None and eigs_a is not None:
+            raise ValueError("vecs_a must be provided if eigs_a is provided")
+        elif vecs_a is not None: #TODO: could also be that someone provides subspaces
+            if eigs_a is None:
+                raise ValueError("eigs_a must be provided if vecs_a is provided")
+            algorithm = numerical
+            subspaces = (vecs_a,) # interesting subspace
+            # TODO: h_0 = ...
+        else:
+            algorithm = general
 
     H = hamiltonian_to_BlockSeries(
         hamiltonian,
@@ -708,20 +692,36 @@ def block_diagonalize(
         op = mul
 
     # Determine function to use for solving Sylvester's equation
-    # If H_0 is diagonal, don't provide anything
-    # If H_0 is not diagonal, provide a function that solves Sylvester's equation
     if solve_sylvester is None:
-        if np.allclose(
-            H.evaluated[(0, 0) + (0,) * H.n_infinite],
-            np.diag.np.diag(H.evaluated[(0, 0) + (0,) * H.n_infinite])
-        ) and np.allclose(
-            H.evaluated[(1, 1) + (0,) * H.n_infinite],
-            np.diag.np.diag(H.evaluated[(1, 1) + (0,) * H.n_infinite])
-        ):
-            pass
+        if all(isinstance(H.evaluated[block + (0,) * H.n_infinite], sparse.dia_matrix)
+               for block in ((0, 0 ), (1, 1))):
+            solve_sylvester = _default_solve_sylvester
+        elif len(subspaces) == 1:
+            solve_sylvester = solve_sylvester_KPM(
+                h_0,
+                vecs_a,
+                eigs_a,
+                vecs_b,
+                eigs_b,
+                kpm_params,
+                precalculate_moments,
+            )
         else:
             NotImplementedError
-    return algorithm(H, solve_sylvester=solve_sylvester, op=op, **kwargs)
+
+    if algorithm in (general, expanded):
+        return algorithm(
+            H,
+            solve_sylvester=solve_sylvester,
+            op=op,
+        )
+    elif algorithm is numerical:
+        return algorithm(
+            H,
+            solve_sylvester=solve_sylvester,
+        )
+    else:
+        raise ValueError(f'Unknown algorithm: {algorithm}')
 
 
 def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
@@ -886,8 +886,30 @@ def hamiltonian_to_BlockSeries(
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
         subspaces = _subspaces_from_indices(subspaces_indices)
 
-    # TODO: Implement this for non-numerical inputs and KPM
-    # This only works for numpy arrays so far
+    if len(subspaces) == 1:
+        vecs_a = subspaces[0]
+        p_b = ComplementProjector(vecs_a)
+
+        def H_eval(*index):
+            original = hamiltonian.evaluated[index[2:]]
+            if zero == original:
+                return zero
+            if index[:2] == (0, 0):
+                return Dagger(vecs_a) @ original @ vecs_a
+            if index[:2] == (0, 1):
+                return Dagger(vecs_a) @ original @ p_b
+            if index[:2] == (1, 0):
+                return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
+            if index[:2] == (1, 1):
+                return p_b @ aslinearoperator(original) @ p_b
+
+        H = BlockSeries(
+            eval=H_eval,
+            shape=(2, 2),
+            n_infinite=hamiltonian.n_infinite
+        )
+        return H
+
     def H_eval(*index):
         left, right = index[:2]
         if left <= right:
