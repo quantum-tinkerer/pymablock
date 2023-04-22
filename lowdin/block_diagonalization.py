@@ -717,16 +717,11 @@ def block_diagonalize(
         else:
             NotImplementedError
 
-    if algorithm in (general, expanded):
+    if algorithm in (general, expanded, numerical):
         return algorithm(
             H,
             solve_sylvester=solve_sylvester,
             op=op,
-        )
-    elif algorithm is numerical:
-        return algorithm(
-            H,
-            solve_sylvester=solve_sylvester,
         )
     else:
         raise ValueError(f'Unknown algorithm: {algorithm}')
