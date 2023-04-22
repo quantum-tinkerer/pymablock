@@ -838,10 +838,12 @@ def hamiltonian_to_BlockSeries(
     Parameters
     ----------
     hamiltonian :
-        Hamiltonian to convert.
-        If a list, it is assumed to be of the form
-        [H_0, [H_1, H_2, ...]] where H_0 is the zeroth order Hamiltonian and H_1, H_2, ...
-        are the first order perturbations.
+        Hamiltonian to convert to a `~lowdin.series.BlockSeries`.
+        If a list, it is assumed to be of the form [H_0, H_1, H_2, ...] where
+        H_0 is the zeroth order Hamiltonian and H_1, H_2, ... are the first
+        order perturbations.
+        If a dictionary, it is assumed to be of the form
+        {(0, 0): H_0, (1, 0): H_1, (0, 1): H_2}.
     subspaces :
         Tuple of eigenvectors of each subspace of the Hamiltonian.
 
