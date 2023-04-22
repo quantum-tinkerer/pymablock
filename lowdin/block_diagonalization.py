@@ -899,41 +899,23 @@ def hamiltonian_to_BlockSeries(
 
     # Separation into subspaces for KPM
     # This condition isn't good enough
+
+    kpm = False
     if sum(subspace.shape[1] for subspace in subspaces) != subspaces[0].shape[0]:
-        vecs_a = subspaces[0]
-        p_b = ComplementProjector(vecs_a)
+        kpm = True
+        subspaces = (subspaces[0], ComplementProjector(subspaces[0]))
 
-        def H_eval(*index):
-            original = hamiltonian.evaluated[index[2:]]
-            if zero == original:
-                return zero
-            if index[:2] == (0, 0):
-                return Dagger(vecs_a) @ original @ vecs_a
-            if index[:2] == (0, 1):
-                return Dagger(vecs_a) @ original @ p_b
-            if index[:2] == (1, 0):
-                return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
-            if index[:2] == (1, 1):
-                return p_b @ aslinearoperator(original) @ p_b
-
-        H = BlockSeries(
-            eval=H_eval,
-            shape=(2, 2),
-            n_infinite=hamiltonian.n_infinite
-        )
-        return H
-
-    # Separation into subspaces by projection, no KPM
     def H_eval(*index):
-        if zero == hamiltonian.evaluated[index[2:]]:
+        original = hamiltonian.evaluated[index[2:]]
+        if zero == original:
             return zero
         left, right = index[:2]
-        if left <= right:
-            return (
-                Dagger(subspaces[left])
-                @ hamiltonian.evaluated[index[2:]]
-                @ subspaces[right]
-            )
+        if (left, right) in ((0, 0), (0, 1)):
+            return Dagger(subspaces[left]) @ original @ subspaces[right]
+        elif (left, right) == (1, 1):
+            if kpm:
+                return Dagger(subspaces[left]) @ aslinearoperator(original) @ subspaces[right]
+            return Dagger(subspaces[left]) @ original @ subspaces[right]
         return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
 
     H = BlockSeries(
