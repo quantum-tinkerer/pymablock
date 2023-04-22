@@ -375,6 +375,7 @@ def expanded(
 def numerical(
     H: BlockSeries,
     solve_sylvester: Callable,
+    op: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Diagonalize a Hamiltonian using the hybrid KPM algorithm.
@@ -397,6 +398,11 @@ def numerical(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of ``U``.
     """
+    if op is None:
+        op = matmul
+    if op is not matmul:
+        raise NotImplementedError("Only matmul is supported for op")
+
     H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
 
     # Create series wrapped in linear operators to avoid forming explicit matrices
