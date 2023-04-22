@@ -740,10 +740,10 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     zeroth_order = (0,) * n_infinite
 
     hamiltonian = {
-        zeroth_order: hamiltonian.pop(0),
+        zeroth_order: hamiltonian[0],
         **{
             tuple(order): perturbation for order, perturbation in
-            zip(np.eye(n_infinite, dtype=int), hamiltonian)
+            zip(np.eye(n_infinite, dtype=int), hamiltonian[1:])
         }
     }
     return hamiltonian
