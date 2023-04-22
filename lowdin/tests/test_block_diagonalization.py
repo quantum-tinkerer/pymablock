@@ -872,6 +872,9 @@ def test_input_diagonal_indices():
         np.testing.assert_allclose(H.evaluated[(0, 1) + (0,) * H.n_infinite].toarray(), 0)
         np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite].toarray(), 0)
 
+        with pytest.raises(ValueError):
+            H = hamiltonian_to_BlockSeries(hamiltonian)
+            H.evaluated[(0, 0) + (0,) * H.n_infinite]
 
 
 def test_input_hamiltonian_from_subspaces():
