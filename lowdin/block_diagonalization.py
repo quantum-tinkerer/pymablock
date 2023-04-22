@@ -684,7 +684,7 @@ def block_diagonalize(
         Adjoint of U.
     """
     implicit = False
-    if algorithm is None:
+    if algorithm is None or algorithm == numerical:
         if eigenvalues is not None and subspaces is None:
             raise ValueError("subspaces must be provided if eigenvalues is provided.")
         elif eigenvalues is not None and subspaces_indices is not None:
