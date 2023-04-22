@@ -925,6 +925,8 @@ def hamiltonian_to_BlockSeries(
 
     # Separation into subspaces by projection, no KPM
     def H_eval(*index):
+        if zero == hamiltonian.evaluated[index[2:]]:
+            return zero
         left, right = index[:2]
         if left <= right:
             return (
