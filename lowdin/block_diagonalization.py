@@ -861,10 +861,16 @@ def hamiltonian_to_BlockSeries(
 
     # Separation into subspaces
     if subspaces is None and subspaces_indices is None:
+        def eval(*index):
+            if zero == hamiltonian.evaluated[index[2:]]:
+                return zero
+            try:
+                return hamiltonian.evaluated[index[2:]][index[0]][index[1]]
+            except TypeError:
+                raise ValueError("`subspaces` or `subspaces_indices` must be provided.")
+
         return BlockSeries(
-            eval=(
-                lambda *index: hamiltonian.evaluated[index[2:]][index[0]][index[1]]
-            ),
+            eval=eval,
             shape=(2, 2),
             n_infinite=hamiltonian.n_infinite,
         )
