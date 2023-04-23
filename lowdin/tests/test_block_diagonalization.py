@@ -729,9 +729,7 @@ def test_solve_sylvester_kpm_vs_default(n_dim: int, a_dim: int)-> None:
     subspaces = [vecs[:, :a_dim], vecs[:, a_dim:]]
     eigenvalues = [eigs[:a_dim], eigs[a_dim:]]
 
-    solve_sylvester_default = _default_solve_sylvester(
-        [np.diag(eigs) for eigs in eigenvalues]
-    )
+    solve_sylvester_default = _default_solve_sylvester(eigenvalues)
     solve_sylvester_kpm = solve_sylvester_KPM(h_0, subspaces, eigenvalues)
 
     y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
