@@ -711,12 +711,14 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     ----------
     hamiltonian :
         Unperturbed Hamiltonian and 1st order perturbations.
+        [H_0, H_1, H_2, ...], where H_0 is the unperturbed Hamiltonian and the
+        remaining elements are the 1st order perturbations.
+        This method is for first order perturbations only.
 
     Returns
     -------
     H : `~lowdin.series.BlockSeries`
     """
-    # [H_0, H_1, H_2, ...], 1st order perturbations only
     n_infinite = len(hamiltonian) - 1
     zeroth_order = (0,) * n_infinite
 
@@ -874,8 +876,6 @@ def hamiltonian_to_BlockSeries(
 
     if implicit:
         # Separation into subspaces for KPM
-        # TODO: review condition
-        print("Implicit")
         vecs_a = subspaces[0]
         subspaces = (vecs_a, ComplementProjector(vecs_a))
 
