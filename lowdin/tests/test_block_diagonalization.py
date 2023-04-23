@@ -512,7 +512,7 @@ def test_check_AB_KPM(
         subspaces=subspaces,
         eigenvalues=eigenvalues
     )
-    
+
     half_subspaces = (subspaces[0], subspaces[1][:, : b_dim // 2])
     half_eigenvalues = (eigenvalues[0], eigenvalues[1][: b_dim // 2])
     H_tilde_half_b, _, _ = block_diagonalize(
@@ -685,9 +685,7 @@ def test_check_AA_numerical(
             )
 
 
-def test_solve_sylvester_kpm_vs_default(
-        generate_kpm_hamiltonian: tuple[list[np.ndarray], np.ndarray, np.ndarray]
-) -> None:
+def test_solve_sylvester_kpm_vs_default(n_dim: int, a_dim: int)-> None:
     """
     Test whether the KPM ready solve_sylvester gives the same result
     as _default_solve_sylvester when prompted with a diagonal input.
@@ -699,8 +697,6 @@ def test_solve_sylvester_kpm_vs_default(
     a_dim:
         Size of the A subspace.
     """
-    n_dim = 10
-    a_dim = 5
     h_0 = np.diag(np.sort(50 * np.random.random(n_dim)))
     eigs, vecs = np.linalg.eigh(h_0)
 
@@ -729,9 +725,7 @@ def test_solve_sylvester_kpm_vs_default(
 
 
 def test_correct_implicit_subspace(
-    generate_kpm_hamiltonian: tuple[
-        BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
-    ],
+    generate_kpm_hamiltonian: tuple[list[np.ndarray], np.ndarray, np.ndarray],
     wanted_orders: list[tuple[int, ...]],
 ) -> None:
     """
@@ -747,10 +741,18 @@ def test_correct_implicit_subspace(
     wanted_orders:
         list of orders to compute.
     """
-    H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
+    hamiltonian, subspaces, eigenvalues = generate_kpm_hamiltonian
 
-    H_tilde = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
-    H_tilde_swapped = numerical(H_input, vecs_b, eigs_b, vecs_a, eigs_a)[0]
+    H_tilde, _, _ = block_diagonalize(
+        hamiltonian,
+        subspaces=subspaces,
+        eigenvalues=eigenvalues
+    )
+    H_tilde_swapped, _, _ = block_diagonalize(
+        hamiltonian,
+        subspaces=subspaces[::-1],
+        eigenvalues=eigenvalues[::-1]
+    )
 
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
@@ -759,7 +761,7 @@ def test_correct_implicit_subspace(
         for block_aa, block_bb in zip(h, h_swapped):
             assert isinstance(block_bb, LinearOperator)
             np.testing.assert_allclose(
-                block_aa, Dagger(vecs_a) @ block_bb @ vecs_a, atol=1e-14
+                block_aa, Dagger(subspaces[0]) @ block_bb @ subspaces[0], atol=1e-14
             )
 
 
@@ -817,7 +819,7 @@ def test_input_hamiltonian_KPM(generate_kpm_hamiltonian):
 
     TODO: Improve test
     """
-    hamiltonian, subspaces, eigenvalues = generate_kpm_hamiltonian
+    hamiltonian, subspaces, _ = generate_kpm_hamiltonian
 
     H = hamiltonian_to_BlockSeries(
         hamiltonian,
