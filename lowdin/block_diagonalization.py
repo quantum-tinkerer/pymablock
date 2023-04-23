@@ -498,14 +498,19 @@ def solve_sylvester_KPM(
     if kpm_params is None:
         kpm_params = dict()
 
-    need_kpm = len(eigs_a) + len(eigs_b) < h_0.shape[0]
-    need_explicit = bool(len(eigs_b))
+    need_kpm = eigs_a.shape[0] + eigs_b.shape[0] < h_0.shape[0]
+    need_explicit = bool(eigs_b.shape[0])
     if not any((need_kpm, need_explicit)):
         # B subspace is empty
         return lambda Y: Y
 
     if need_kpm:
-        kpm_projector = ComplementProjector(sparse.hstack([vecs_a, vecs_b]), format="csr")
+        kpm_projector = ComplementProjector(
+            sparse.csr_array(
+                sparse.hstack([vecs_a, vecs_b], format="csr"),
+                shape=(h_0.shape[0], h_0.shape[0])
+            ),
+        )
 
         def sylvester_kpm(
                 Y: np.ndarray | sparse.csr_array
@@ -517,15 +522,17 @@ def solve_sylvester_KPM(
                 vectors=Y_KPM.conj(),
                 kpm_params=kpm_params,
                 precalculate_moments=precalculate_moments,
-            )(eigs_a)
-            return sparse.vstack(
-                [vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))],
-                format="csr"
+            )(eigs_a.data)
+            return sparse.csr_array(
+                sparse.vstack(
+                    [vec_G_Y.conj()[:, m, m] for m in range(eigs_a.shape[0])],
+                    format="csr"
+                ),
             )
 
 
     if need_explicit:
-        G_ml = sparse.csr_array(1 / (eigs_a[:, None] - eigs_b[None, :]))
+        G_ml = sparse.csr_array(1 / (eigs_a.data[:, None] - eigs_b.data[None, :]))
 
         def sylvester_explicit(
                 Y: np.ndarray | sparse.csr_array
@@ -687,9 +694,11 @@ def block_diagonalize(
     if algorithm is None or algorithm == numerical:
         if eigenvalues is not None and subspaces is None:
             raise ValueError("subspaces must be provided if eigenvalues is provided.")
-        elif eigenvalues is not None and subspaces_indices is not None:
+        elif eigenvalues is not None and subspaces is not None:
             algorithm = numerical
             implicit = True
+            subspaces = [sparse.csr_array(subspace) for subspace in subspaces]
+            eigenvalues = [sparse.csr_array(eigenvalue) for eigenvalue in eigenvalues]
             if isinstance(hamiltonian, list):
                 h_0 = hamiltonian[0]
             elif isinstance(hamiltonian, dict):
@@ -715,7 +724,7 @@ def block_diagonalize(
         if all(isinstance(H.evaluated[block + (0,) * H.n_infinite], sparse.dia_matrix)
                for block in ((0, 0 ), (1, 1))):
             solve_sylvester = _default_solve_sylvester
-        elif eigenvalues is not None:
+        if implicit:
             solve_sylvester = solve_sylvester_KPM(
                 h_0,
                 subspaces,
@@ -906,6 +915,7 @@ def hamiltonian_to_BlockSeries(
     if implicit:
         # Separation into subspaces for KPM
         # TODO: review condition
+        ComplementProjector(subspaces[0])
         subspaces = (subspaces[0], ComplementProjector(subspaces[0]))
 
     # Separation into subspaces
