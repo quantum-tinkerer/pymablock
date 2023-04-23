@@ -109,7 +109,10 @@ def general(
     return H_tilde, U, U_adjoint
 
 
-def _default_solve_sylvester(h_0: tuple[Any, ...]) -> Callable:
+def _default_solve_sylvester(
+        h_0: tuple[Any, ...],
+        vecs_b: Optional[np.ndarray] = None
+    ) -> Callable:
     """
     Returns a function that divides a matrix by the difference
     of a numerical diagonal unperturbed Hamiltonian.
@@ -119,23 +122,34 @@ def _default_solve_sylvester(h_0: tuple[Any, ...]) -> Callable:
     h_0 :
         Tuple of diagonal blocks of the unperturbed Hamiltonian.
         Each block must be diagonal.
+    vecs_b :
+        (optional) Eigenvectors of B subspace of the unperturbed Hamiltonian.
+        This is used to solve the Sylvester equation in the KPM algorithm.
 
     Returns
     -------:
     solve_sylvester : Function that solves the Sylvester equation.
     """
     h_0_AA, h_0_BB = h_0
-    E_A, E_B = h_0_AA.diagonal(), h_0_BB.diagonal()
+    eigs_a, eigs_b = h_0_AA.diagonal(), h_0_BB.diagonal()
 
     h_0_AA = sparse.dia_array(h_0_AA) # np.array and sparse matrix to sparse array
     h_0_BB = sparse.dia_array(h_0_BB)
     if np.any(h_0_AA.offsets) or np.any(h_0_BB.offsets):
         raise ValueError("The blocks of h_0 must be diagonal")
 
-    energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
-
     def solve_sylvester(Y: Any) -> Any:
-        return Y * energy_denominators # array-like product
+        if vecs_b is not None:
+            energy_denominators = 1 / (eigs_a[:, None] - eigs_b[None, :])
+            return ((Y @ vecs_b) * energy_denominators) @ Dagger(vecs_b)
+        elif isinstance(Y, np.ndarray):
+            energy_denominators = 1/(eigs_a - eigs_b.reshape(-1, 1))
+            return Y * energy_denominators
+        elif isinstance(Y, sparse.spmatrix):
+            Y = Y @ vecs_b
+            Y_coo = Y.tocoo()
+            Y_coo.data /= eigs_a[Y_coo.row] - eigs_b[Y_coo.col]
+            return sparse.csr_array(Y_coo) @ Dagger(vecs_b)
 
     return solve_sylvester
 
@@ -497,8 +511,8 @@ def solve_sylvester_KPM(
     else:
         raise NotImplementedError("Too many subspaces")
 
-    assert isinstance(eigs_a, np.ndarray)
-    assert isinstance(eigs_b, np.ndarray)
+    if not isinstance(eigs_a, np.ndarray) or not isinstance(eigs_b, np.ndarray):
+        raise TypeError("Eigenvalues must be a numpy array")
 
     if kpm_params is None:
         kpm_params = dict()
@@ -523,20 +537,15 @@ def solve_sylvester_KPM(
             )(eigs_a)
             return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
 
-
-    if need_explicit:
-        G_ml = 1 / (eigs_a[:, None] - eigs_b[None, :])
-
-        def sylvester_explicit(Y: np.ndarray)-> np.ndarray:
-            return ((Y @ vecs_b) * G_ml) @ Dagger(vecs_b)
-
     def solve_sylvester(Y: np.ndarray)-> np.ndarray:
         if need_kpm and need_explicit:
-            result = sylvester_kpm(Y) + sylvester_explicit(Y)
+            h_0 = [sparse.diags(eigs_a), sparse.diags(eigs_b)]
+            result = sylvester_kpm(Y) + _default_solve_sylvester(h_0, vecs_b)(Y)
         elif need_kpm:
             result = sylvester_kpm(Y)
         elif need_explicit:
-            result = sylvester_explicit(Y)
+            h_0 = [sparse.diags(eigs_a), sparse.diags(eigs_b)]
+            result = _default_solve_sylvester(h_0, vecs_b)(Y)
 
         return result
 
