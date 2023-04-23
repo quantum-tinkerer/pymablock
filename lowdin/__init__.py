@@ -5,7 +5,6 @@ from .block_diagonalization import (
     expanded,
     general_symbolic,
     numerical,
-    to_BlockSeries,
 )
 from . import series
 
@@ -14,6 +13,5 @@ __all__ = [
     "expanded",
     "general_symbolic",
     "numerical",
-    "to_BlockSeries",
     "series",
 ]
