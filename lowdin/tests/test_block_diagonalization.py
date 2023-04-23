@@ -442,7 +442,7 @@ def a_dim(n_dim) -> int:
 @pytest.fixture(scope="module")
 def generate_kpm_hamiltonian(
     n_dim: int, wanted_orders: list[tuple[int, ...]], a_dim: int
-) -> tuple[BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[list[np.ndarray], np.ndarray, np.ndarray]:
     """
     Generate random BlockSeries Hamiltonian in the format required by the numerical
     algorithm (full Hamitonians in the (0,0) block).
@@ -458,17 +458,12 @@ def generate_kpm_hamiltonian(
 
     Returns:
     --------
-    H_input: `~lowdin/series.BlockSeries`
-        Formatted Hamiltonian in BlockSeries format.
-    vecs_a :
-        Eigenvectors of the A (effective) subspace of the known Hamiltonian.
-    eigs_a :
-        Eigenvalues to the aforementioned eigenvectors.
-    vecs_b :
-        Explicit parts of the B (auxilliary) space. Need to be eigenvectors of the
-        unperturbed Hamiltonian.
-    eigs_b :
-        Eigenvalues to the aforementioned explicit B space eigenvectors.
+    hamiltonian: list
+        Unperturbed Hamiltonian and perturbation terms.
+    subspaces: tuple
+        Subspaces of the Hamiltonian.
+    eigenvalues: tuple
+        Eigenvalues of the Hamiltonian.
     """
     n_infinite = len(wanted_orders[0])
 
@@ -493,7 +488,7 @@ def generate_kpm_hamiltonian(
 
 def test_check_AB_KPM(
     generate_kpm_hamiltonian: tuple[
-        BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
+        list[np.ndarray], np.ndarray, np.ndarray
     ],
     wanted_orders: list[tuple[int, ...]],
 ) -> None:
@@ -561,7 +556,9 @@ def test_check_AB_KPM(
             )
 
 
-def test_solve_sylvester(n_dim: int, a_dim: int) -> None:
+def test_solve_sylvester(
+        generate_kpm_hamiltonian: tuple[list[np.ndarray], np.ndarray, np.ndarray],
+    ) -> None:
     """
     Test whether the KPM version of solve_sylvester provides approximately
     equivalent results depending on how much of the B subspace is known
@@ -569,38 +566,33 @@ def test_solve_sylvester(n_dim: int, a_dim: int) -> None:
 
     Parameters:
     ---------
-    n_dim:
-        Total size of the Hamiltonians.
-    a_dim:
-        Size of the A subspace.
+    generate_kpm_hamiltonian:
+        Randomly generated Hamiltonian and its eigendecomposition.
     """
+
+    hamiltonian, subspaces, eigenvalues = generate_kpm_hamiltonian
+    h_0 = hamiltonian[0]
+    n_dim = h_0.shape[0]
+    a_dim = subspaces[0].shape[1]
     b_dim = n_dim - a_dim
 
-    h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
-    h_0 += Dagger(h_0)
+    divide_energies_full_b = solve_sylvester_KPM(h_0, subspaces, eigenvalues)
 
-    eigs, vecs = np.linalg.eigh(h_0)
-    eigs[:a_dim] -= 10.0  # introduce an energy gap
-    h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
-    eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
-    eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
-
-    divide_energies_full_b = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
+    half_subspaces = (subspaces[0], subspaces[1][:, : b_dim // 2])
+    half_eigenvalues = (eigenvalues[0], eigenvalues[1][: b_dim // 2])
     divide_energies_half_b = solve_sylvester_KPM(
-        h_0,
-        vecs_a,
-        eigs_a,
-        vecs_b[:, : b_dim // 2],
-        eigs_b[: b_dim // 2],
-        kpm_params={"num_moments": 10000},
+        h_0, half_subspaces, half_eigenvalues, kpm_params={"num_moments": 10000},
     )
+
+    kpm_subspaces = (subspaces[0],)
+    kpm_eigenvalues = (eigenvalues[0],)
     divide_energies_kpm = solve_sylvester_KPM(
-        h_0, vecs_a, eigs_a, kpm_params={"num_moments": 20000}
+        h_0, kpm_subspaces, kpm_eigenvalues, kpm_params={"num_moments": 20000}
     )
 
     y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
     y_trial += Dagger(y_trial)
-    y_trial = Dagger(vecs_a) @ y_trial @ ComplementProjector(vecs_a)
+    y_trial = Dagger(subspaces[0]) @ y_trial @ ComplementProjector(subspaces[0])
 
     y_full_b = np.abs(divide_energies_full_b(y_trial))
     y_half_b = np.abs(divide_energies_half_b(y_trial))
@@ -629,6 +621,7 @@ def test_check_AA_numerical(
     a_dim: int,
 ) -> None:
     """
+    TODO: Update test to new UI.
     Test that the numerical and general algorithms coincide.
 
     Parameters
@@ -692,7 +685,9 @@ def test_check_AA_numerical(
             )
 
 
-def test_solve_sylvester_kpm_v_default(n_dim: int, a_dim: int) -> None:
+def test_solve_sylvester_kpm_vs_default(
+        generate_kpm_hamiltonian: tuple[list[np.ndarray], np.ndarray, np.ndarray]
+) -> None:
     """
     Test whether the KPM ready solve_sylvester gives the same result
     as _default_solve_sylvester when prompted with a diagonal input.
@@ -704,21 +699,21 @@ def test_solve_sylvester_kpm_v_default(n_dim: int, a_dim: int) -> None:
     a_dim:
         Size of the A subspace.
     """
-
+    n_dim = 10
+    a_dim = 5
     h_0 = np.diag(np.sort(50 * np.random.random(n_dim)))
     eigs, vecs = np.linalg.eigh(h_0)
 
-    eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
-    eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
+    subspaces = [vecs[:, :a_dim], vecs[:, a_dim:]]
+    eigenvalues = [eigs[:a_dim], eigs[a_dim:]]
 
-    H_default = to_BlockSeries(np.diag(eigs_a), np.diag(eigs_b))
-
-    solve_sylvester_default = _default_solve_sylvester(H_default)
-    solve_sylvester_kpm = solve_sylvester_KPM(h_0, vecs_a, eigs_a, vecs_b, eigs_b)
+    solve_sylvester_default = _default_solve_sylvester(
+        [np.diag(eigs) for eigs in eigenvalues]
+    )
+    solve_sylvester_kpm = solve_sylvester_KPM(h_0, subspaces, eigenvalues)
 
     y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
-    y_trial += Dagger(y_trial)
-    y_kpm = Dagger(vecs_a) @ y_trial @ ComplementProjector(vecs_a)
+    y_kpm = Dagger(subspaces[0]) @ y_trial @ ComplementProjector(subspaces[0])
 
     y_default = solve_sylvester_default(y_trial[:a_dim, a_dim:])
     y_kpm = solve_sylvester_kpm(y_kpm)
