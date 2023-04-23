@@ -61,7 +61,9 @@ def general(
         op = matmul
 
     if solve_sylvester is None:
-        solve_sylvester = _default_solve_sylvester(H)
+        H_0_AA = H.data[(0, 0) + (0,) * H.n_infinite]
+        H_0_BB  = H.data[(1, 1) + (0,) * H.n_infinite]
+        solve_sylvester = _default_solve_sylvester([H_0_AA, H_0_BB])
 
     # Initialize the transformation as the identity operator
     U = BlockSeries(
@@ -122,19 +124,15 @@ def _default_solve_sylvester(h_0: tuple[Any, ...]) -> Callable:
     -------:
     solve_sylvester : Function that solves the Sylvester equation.
     """
-    H_0_AA, H_0_BB = h_0
+    h_0_AA, h_0_BB = h_0
+    E_A, E_B = h_0_AA.diagonal(), h_0_BB.diagonal()
 
-    E_A = H_0_AA.diagonal()
-    E_B = H_0_BB.diagonal()
+    h_0_AA = sparse.dia_array(h_0_AA) # np.array and sparse matrix to sparse array
+    h_0_BB = sparse.dia_array(h_0_BB)
+    if np.any(h_0.offsets) or np.any(h_0_BB.offsets):
+        raise ValueError("The blocks of h_0 must be diagonal")
 
-    # The Hamiltonians must already be diagonalized
-    if not np.allclose(H_0_AA, sparse.diag(E_A).toarray()):
-        raise ValueError("H_0_AA must be diagonal")
-    if not np.allclose(H_0_BB, sparse.diags(E_B).toarray()):
-        raise ValueError("H_0_BB must be diagonal")
-
-
-    energy_denominators = sparse.csr_array(1 / (E_A.reshape(-1, 1) - E_B))
+    energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
 
     def solve_sylvester(Y: Any) -> Any:
         return Y * energy_denominators # array-like product
@@ -346,7 +344,9 @@ def expanded(
         op = matmul
 
     if solve_sylvester is None:
-        solve_sylvester = _default_solve_sylvester(H)
+        H_0_AA = H.data[(0, 0) + (0,) * H.n_infinite]
+        H_0_BB  = H.data[(1, 1) + (0,) * H.n_infinite]
+        solve_sylvester = _default_solve_sylvester([H_0_AA, H_0_BB])
 
     H_tilde_s, U_s, _, Y_data, subs = general_symbolic(H)
     _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
@@ -488,33 +488,31 @@ def solve_sylvester_KPM(
     if len(subspaces) == 2:
         vecs_a, vecs_b = subspaces
         eigs_a, eigs_b = eigenvalues
+
     elif len(subspaces) == 1:
         vecs_a = subspaces[0]
         eigs_a = eigenvalues[0]
-        vecs_b = sparse.csr_array(np.empty((vecs_a.shape[0], 0)))
-        eigs_b = (Dagger(vecs_b) @ h_0 @ vecs_b).diagonal()
+        vecs_b = np.empty((vecs_a.shape[0], 0))
+        eigs_b = np.diagonal((Dagger(vecs_b) @ h_0 @ vecs_b))
     else:
         raise NotImplementedError("Too many subspaces")
+
+    assert isinstance(eigs_a, np.ndarray)
+    assert isinstance(eigs_b, np.ndarray)
+
     if kpm_params is None:
         kpm_params = dict()
 
-    need_kpm = eigs_a.shape[0] + eigs_b.shape[0] < h_0.shape[0]
-    need_explicit = bool(eigs_b.shape[0])
+    need_kpm = len(eigs_a) + len(eigs_b) < h_0.shape[0]
+    need_explicit = bool(len(eigs_b))
     if not any((need_kpm, need_explicit)):
         # B subspace is empty
         return lambda Y: Y
 
     if need_kpm:
-        kpm_projector = ComplementProjector(
-            sparse.csr_array(
-                sparse.hstack([vecs_a, vecs_b], format="csr"),
-                shape=(h_0.shape[0], h_0.shape[0])
-            ),
-        )
+        kpm_projector = ComplementProjector(np.hstack([vecs_a, vecs_b]))
 
-        def sylvester_kpm(
-                Y: np.ndarray | sparse.csr_array
-            )-> np.ndarray | sparse.csr_array:
+        def sylvester_kpm(Y: np.ndarray)-> np.ndarray:
             Y_KPM = Y @ kpm_projector
             vec_G_Y = greens_function(
                 h_0,
@@ -522,26 +520,17 @@ def solve_sylvester_KPM(
                 vectors=Y_KPM.conj(),
                 kpm_params=kpm_params,
                 precalculate_moments=precalculate_moments,
-            )(eigs_a.data)
-            return sparse.csr_array(
-                sparse.vstack(
-                    [vec_G_Y.conj()[:, m, m] for m in range(eigs_a.shape[0])],
-                    format="csr"
-                ),
-            )
+            )(eigs_a)
+            return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
 
 
     if need_explicit:
-        G_ml = sparse.csr_array(1 / (eigs_a.data[:, None] - eigs_b.data[None, :]))
+        G_ml = 1 / (eigs_a[:, None] - eigs_b[None, :])
 
-        def sylvester_explicit(
-                Y: np.ndarray | sparse.csr_array
-            )-> np.ndarray | sparse.csr_array:
+        def sylvester_explicit(Y: np.ndarray)-> np.ndarray:
             return ((Y @ vecs_b) * G_ml) @ Dagger(vecs_b)
 
-    def solve_sylvester(
-            Y: np.ndarray | sparse.csr_array
-        )-> np.ndarray | sparse.csr_array:
+    def solve_sylvester(Y: np.ndarray)-> np.ndarray:
         if need_kpm and need_explicit:
             result = sylvester_kpm(Y) + sylvester_explicit(Y)
         elif need_kpm:
@@ -697,8 +686,6 @@ def block_diagonalize(
         elif eigenvalues is not None and subspaces is not None:
             algorithm = numerical
             implicit = True
-            subspaces = [sparse.csr_array(subspace) for subspace in subspaces]
-            eigenvalues = [sparse.csr_array(eigenvalue) for eigenvalue in eigenvalues]
             if isinstance(hamiltonian, list):
                 h_0 = hamiltonian[0]
             elif isinstance(hamiltonian, dict):
@@ -724,7 +711,8 @@ def block_diagonalize(
         if all(isinstance(H.evaluated[block + (0,) * H.n_infinite], sparse.dia_matrix)
                for block in ((0, 0 ), (1, 1))):
             solve_sylvester = _default_solve_sylvester
-        if implicit:
+        elif implicit:
+            print("Using KPM for solving Sylvester's equation.")
             solve_sylvester = solve_sylvester_KPM(
                 h_0,
                 subspaces,
@@ -915,8 +903,9 @@ def hamiltonian_to_BlockSeries(
     if implicit:
         # Separation into subspaces for KPM
         # TODO: review condition
-        ComplementProjector(subspaces[0])
-        subspaces = (subspaces[0], ComplementProjector(subspaces[0]))
+        print("Implicit")
+        vecs_a = subspaces[0]
+        subspaces = (vecs_a, ComplementProjector(vecs_a))
 
     # Separation into subspaces
     def H_eval(*index):
