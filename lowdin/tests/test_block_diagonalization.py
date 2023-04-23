@@ -474,16 +474,18 @@ def generate_kpm_hamiltonian(
 
     hamiltonian = []
     h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
-    h_0 += h_0.conjugate().transpose()
-    hamiltonian.append(h_0)
+    h_0 += Dagger(h_0)
 
     eigs, vecs = np.linalg.eigh(h_0)
+    eigs[:a_dim] -= 10
+    h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
+    hamiltonian.append(h_0)
     subspaces = (vecs[:, :a_dim], vecs[:, a_dim:])
-    eigenvalues = (eigs[:a_dim]-10, eigs[a_dim:])
+    eigenvalues = (eigs[:a_dim], eigs[a_dim:])
 
     for _ in range(n_infinite):
         h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
-        h_p += h_p.conjugate().transpose()
+        h_p += Dagger(h_p)
         hamiltonian.append(h_p)
 
     return hamiltonian, subspaces, eigenvalues
@@ -539,7 +541,7 @@ def test_check_AB_KPM(
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
             np.testing.assert_allclose(
-                block.toarray(), 0, atol=1e-5, err_msg=f"{block=}, {order=}"
+                block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
             )
 
     # half b
@@ -547,7 +549,7 @@ def test_check_AB_KPM(
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
             np.testing.assert_allclose(
-                block.toarray(), 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+                block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
             )
 
     # KPM
@@ -555,7 +557,7 @@ def test_check_AB_KPM(
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
             np.testing.assert_allclose(
-                block.toarray(), 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+                block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
             )
 
 
@@ -814,6 +816,28 @@ def diagonal_hamiltonian_indices(request):
     Return a list of [hamiltonian, subspaces_indices]
     """
     return request.param
+def test_input_hamiltonian_KPM(generate_kpm_hamiltonian):
+    """
+    Test that KPM Hamiltonians are interpreted correctly.
+
+    TODO: Improve test
+    """
+    hamiltonian, subspaces, eigenvalues = generate_kpm_hamiltonian
+
+    H = hamiltonian_to_BlockSeries(
+        hamiltonian,
+        subspaces=subspaces
+    )
+
+    assert len(hamiltonian) == H.n_infinite + 1
+
+    for block in ((0, 1), (1, 0)):
+        if zero == H.evaluated[block + (0,) * H.n_infinite]:
+            continue
+        np.allclose(
+            H.evaluated[block + (0,) * H.n_infinite],
+            0,
+        )
 
 
 def test_input_hamiltonian_BlockSeries(H):
@@ -836,7 +860,7 @@ def test_input_hamiltonian_BlockSeries(H):
         )
 
 
-def test_input_diagonal_indices():
+def test_input_hamiltonian_diagonal_indices():
     """
     Test inputs where the unperturbed Hamiltonian is diagonal.
 
