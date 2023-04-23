@@ -61,9 +61,9 @@ def general(
         op = matmul
 
     if solve_sylvester is None:
-        H_0_AA = H.data[(0, 0) + (0,) * H.n_infinite]
-        H_0_BB  = H.data[(1, 1) + (0,) * H.n_infinite]
-        solve_sylvester = _default_solve_sylvester([H_0_AA, H_0_BB])
+        eigs_a = H.data[(0, 0) + (0,) * H.n_infinite].diagonal()
+        eigs_b = H.data[(1, 1) + (0,) * H.n_infinite].diagonal()
+        solve_sylvester = _default_solve_sylvester([eigs_a, eigs_b])
 
     # Initialize the transformation as the identity operator
     U = BlockSeries(
@@ -110,7 +110,7 @@ def general(
 
 
 def _default_solve_sylvester(
-        h_0: tuple[Any, ...],
+        eigenvalues: tuple[Any, ...],
         vecs_b: Optional[np.ndarray] = None
     ) -> Callable:
     """
@@ -130,26 +130,23 @@ def _default_solve_sylvester(
     -------:
     solve_sylvester : Function that solves the Sylvester equation.
     """
-    h_0_AA, h_0_BB = h_0
-    eigs_a, eigs_b = h_0_AA.diagonal(), h_0_BB.diagonal()
+    eigs_a, eigs_b = eigenvalues
 
-    h_0_AA = sparse.dia_array(h_0_AA) # np.array and sparse matrix to sparse array
-    h_0_BB = sparse.dia_array(h_0_BB)
-    if np.any(h_0_AA.offsets) or np.any(h_0_BB.offsets):
-        raise ValueError("The blocks of h_0 must be diagonal")
-
-    def solve_sylvester(Y: Any) -> Any:
+    def solve_sylvester(
+            Y: np.ndarray | sparse.csr_array
+    ) -> np.ndarray | sparse.csr_array:
         if vecs_b is not None:
             energy_denominators = 1 / (eigs_a[:, None] - eigs_b[None, :])
             return ((Y @ vecs_b) * energy_denominators) @ Dagger(vecs_b)
         elif isinstance(Y, np.ndarray):
             energy_denominators = 1/(eigs_a - eigs_b.reshape(-1, 1))
             return Y * energy_denominators
-        elif isinstance(Y, sparse.spmatrix):
-            Y = Y @ vecs_b
+        elif sparse.issparse(Y):
             Y_coo = Y.tocoo()
-            Y_coo.data /= eigs_a[Y_coo.row] - eigs_b[Y_coo.col]
-            return sparse.csr_array(Y_coo) @ Dagger(vecs_b)
+            energy_denominators = eigs_a[Y_coo.row] - eigs_b[Y_coo.col]
+            new_data = Y_coo.data / energy_denominators
+            Y = sparse.coo_matrix((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
+            return sparse.csr_array(Y)
 
     return solve_sylvester
 
@@ -358,9 +355,9 @@ def expanded(
         op = matmul
 
     if solve_sylvester is None:
-        H_0_AA = H.data[(0, 0) + (0,) * H.n_infinite]
-        H_0_BB  = H.data[(1, 1) + (0,) * H.n_infinite]
-        solve_sylvester = _default_solve_sylvester([H_0_AA, H_0_BB])
+        eigs_a = H.data[(0, 0) + (0,) * H.n_infinite].diagonal()
+        eigs_b = H.data[(1, 1) + (0,) * H.n_infinite].diagonal
+        solve_sylvester = _default_solve_sylvester([eigs_a, eigs_b])
 
     H_tilde_s, U_s, _, Y_data, subs = general_symbolic(H)
     _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
@@ -526,7 +523,7 @@ def solve_sylvester_KPM(
     if need_kpm:
         kpm_projector = ComplementProjector(np.hstack([vecs_a, vecs_b]))
 
-        def sylvester_kpm(Y: np.ndarray)-> np.ndarray:
+        def solve_sylvester_kpm(Y: np.ndarray)-> np.ndarray:
             Y_KPM = Y @ kpm_projector
             vec_G_Y = greens_function(
                 h_0,
@@ -537,15 +534,16 @@ def solve_sylvester_KPM(
             )(eigs_a)
             return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
 
+    if need_explicit:
+        solve_sylvester_explicit = _default_solve_sylvester(eigenvalues, vecs_b)
+
     def solve_sylvester(Y: np.ndarray)-> np.ndarray:
         if need_kpm and need_explicit:
-            h_0 = [sparse.diags(eigs_a), sparse.diags(eigs_b)]
-            result = sylvester_kpm(Y) + _default_solve_sylvester(h_0, vecs_b)(Y)
+            result = solve_sylvester_kpm(Y) + solve_sylvester_explicit(Y)
         elif need_kpm:
-            result = sylvester_kpm(Y)
+            result = solve_sylvester_kpm(Y)
         elif need_explicit:
-            h_0 = [sparse.diags(eigs_a), sparse.diags(eigs_b)]
-            result = _default_solve_sylvester(h_0, vecs_b)(Y)
+            result = solve_sylvester_explicit(Y)
 
         return result
 
@@ -719,9 +717,12 @@ def block_diagonalize(
     if solve_sylvester is None:
         if all(isinstance(H.evaluated[block + (0,) * H.n_infinite], sparse.dia_matrix)
                for block in ((0, 0 ), (1, 1))):
-            solve_sylvester = _default_solve_sylvester
+            eigenvalues = tuple(
+                H.evaluated[block + (0,) * H.n_infinite].diagonal()
+                for block in ((0, 0), (1, 1))
+            )
+            solve_sylvester = _default_solve_sylvester(eigenvalues)
         elif implicit:
-            print("Using KPM for solving Sylvester's equation.")
             solve_sylvester = solve_sylvester_KPM(
                 h_0,
                 subspaces,
