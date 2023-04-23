@@ -61,8 +61,16 @@ def general(
         op = matmul
 
     if solve_sylvester is None:
-        eigs_a = H.data[(0, 0) + (0,) * H.n_infinite].diagonal()
-        eigs_b = H.data[(1, 1) + (0,) * H.n_infinite].diagonal()
+        h_0_AA = sparse.dia_array(H.evaluated[(0, 0) + (0,) * H.n_infinite])
+        h_0_BB = sparse.dia_array(H.evaluated[(1, 1) + (0,) * H.n_infinite])
+        if np.any(h_0_AA.offsets) or np.any(h_0_BB.offsets):
+            raise ValueError(
+                "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
+                 " is not provided."
+            )
+
+        eigs_a = h_0_AA.diagonal()
+        eigs_b = h_0_BB.diagonal()
         solve_sylvester = _default_solve_sylvester([eigs_a, eigs_b])
 
     # Initialize the transformation as the identity operator
@@ -139,7 +147,8 @@ def _default_solve_sylvester(
             energy_denominators = 1 / (eigs_a[:, None] - eigs_b[None, :])
             return ((Y @ vecs_b) * energy_denominators) @ Dagger(vecs_b)
         elif isinstance(Y, np.ndarray):
-            energy_denominators = 1/(eigs_a - eigs_b.reshape(-1, 1))
+
+            energy_denominators = 1/ (eigs_a.reshape(-1, 1) - eigs_b)
             return Y * energy_denominators
         elif sparse.issparse(Y):
             Y_coo = Y.tocoo()
@@ -300,8 +309,16 @@ def expanded(
         op = matmul
 
     if solve_sylvester is None:
-        eigs_a = H.data[(0, 0) + (0,) * H.n_infinite].diagonal()
-        eigs_b = H.data[(1, 1) + (0,) * H.n_infinite].diagonal
+        h_0_AA = sparse.dia_array(H.evaluated[(0, 0) + (0,) * H.n_infinite])
+        h_0_BB = sparse.dia_array(H.evaluated[(1, 1) + (0,) * H.n_infinite])
+        if np.any(h_0_AA.offsets) or np.any(h_0_BB.offsets):
+            raise ValueError(
+                "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
+                 " is not provided."
+            )
+
+        eigs_a = h_0_AA.diagonal()
+        eigs_b = h_0_BB.diagonal()
         solve_sylvester = _default_solve_sylvester([eigs_a, eigs_b])
 
     H_tilde_s, U_s, _, Y_data, subs = general_symbolic(H)
