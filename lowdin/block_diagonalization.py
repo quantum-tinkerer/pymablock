@@ -714,7 +714,7 @@ def block_diagonalize(
     )
 
     # Determine operator to use for matrix multiplication
-    if hasattr(H.evaluated[(0,) * H.n_infinite], '__matmul__'):
+    if hasattr(H.evaluated[(0, 0) + (0,) * H.n_infinite], '__matmul__'):
         op = matmul
     else:
         op = mul
