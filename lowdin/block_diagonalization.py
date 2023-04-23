@@ -26,7 +26,7 @@ from lowdin.series import (
     safe_divide,
 )
 
-__all__ = ["general", "expanded", "general_symbolic", "numerical", "to_BlockSeries"]
+__all__ = ["general", "expanded", "general_symbolic", "numerical"]
 
 
 def general(
@@ -149,61 +149,6 @@ def _default_solve_sylvester(
             return sparse.csr_array(Y)
 
     return solve_sylvester
-
-
-def to_BlockSeries(
-    H_0_AA: Any,
-    H_0_BB: Any,
-    H_p_AA: Optional[dict[tuple[int, ...], Any]] = None,
-    H_p_BB: Optional[dict[tuple[int, ...], Any]] = None,
-    H_p_AB: Optional[dict[tuple[int, ...], Any]] = None,
-    n_infinite: int = 1,
-) -> BlockSeries:
-    """
-    TEMPORARY, WILL DELETE WHEN USER API IS READY
-    Creates a BlockSeries from a dictionary of perturbation terms.
-
-    Parameters
-    ----------
-    H_0_AA :
-        Unperturbed Hamiltonian of subspace AA
-    H_0_BB :
-        Unperturbed Hamiltonian of subspace BB
-    H_p_AA :
-        dictionary of perturbation terms of subspace AA
-    H_p_BB :
-        dictionary of perturbation terms of subspace BB
-    H_p_AB :
-        dictionary of perturbation terms of subspace AB
-    n_infinite :
-        (optional) number of infinite indices
-
-    Returns
-    -------
-    H : `~lowdin.series.BlockSeries`
-        BlockSeries of the Hamiltonian
-    """
-    if H_p_AA is None:
-        H_p_AA = {}
-    if H_p_BB is None:
-        H_p_BB = {}
-    if H_p_AB is None:
-        H_p_AB = {}
-
-    zeroth_order = (0,) * n_infinite
-    H = BlockSeries(
-        data={
-            **{(0, 0) + zeroth_order: H_0_AA},
-            **{(1, 1) + zeroth_order: H_0_BB},
-            **{(0, 0) + tuple(key): value for key, value in H_p_AA.items()},
-            **{(0, 1) + tuple(key): value for key, value in H_p_AB.items()},
-            **{(1, 0) + tuple(key): Dagger(value) for key, value in H_p_AB.items()},
-            **{(1, 1) + tuple(key): value for key, value in H_p_BB.items()},
-        },
-        shape=(2, 2),
-        n_infinite=n_infinite,
-    )
-    return H
 
 
 def _commute_H0_away(

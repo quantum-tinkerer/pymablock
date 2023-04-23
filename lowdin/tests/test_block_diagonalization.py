@@ -82,10 +82,26 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
                 H += H.conj().T
             yield H
 
+    hams = []
     for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
         hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
-    return to_BlockSeries(*hams, n_infinite=n_infinite)
+
+    h_p_AA, h_p_BB, h_p_AB = hams
+    zeroth_order = (0,) * n_infinite
+    H = BlockSeries(
+        data={
+            **{(0, 0) + zeroth_order: h_0_AA},
+            **{(1, 1) + zeroth_order: h_0_BB},
+            **{(0, 0) + tuple(key): value for key, value in h_p_AA.items()},
+            **{(0, 1) + tuple(key): value for key, value in h_p_AB.items()},
+            **{(1, 0) + tuple(key): Dagger(value) for key, value in h_p_AB.items()},
+            **{(1, 1) + tuple(key): value for key, value in h_p_BB.items()},
+        },
+        shape=(2, 2),
+        n_infinite=n_infinite,
+    )
+    return H
 
 
 def compare_series(
@@ -171,7 +187,12 @@ def test_check_unitary(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> 
     N_A = H.evaluated[(0, 0) + zero_order].shape[0]
     N_B = H.evaluated[(1, 1) + zero_order].shape[0]
     n_infinite = H.n_infinite
-    identity = to_BlockSeries(np.eye(N_A), np.eye(N_B), {}, {}, {}, n_infinite)
+
+    identity = BlockSeries(
+        data = {(0, 0) + zero_order: np.eye(N_A), (1, 1) + zero_order: np.eye(N_B)},
+        shape=(2, 2),
+        n_infinite=n_infinite,
+    )
     _, U, U_adjoint = general(H)
     transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
 
@@ -285,12 +306,10 @@ def test_second_order_H_tilde(
 def test_check_diagonal_H_0_AA() -> None:
     """Test that offdiagonal H_0_AA requires solve_sylvester."""
     with pytest.raises(ValueError):
-        H = to_BlockSeries(
-            np.array([[1, 1], [1, 1]]),
-            np.eye(2),
-            {},
-            {},
-            {},
+        H = BlockSeries(
+                data={(0, 0, 0): np.array([[1, 1], [1, 1]]), (1, 1, 0): np.eye(2)},
+                shape=(2, 2),
+                n_infinite=1,
         )
         general(H)
 
@@ -298,12 +317,10 @@ def test_check_diagonal_H_0_AA() -> None:
 def test_check_diagonal_H_0_BB() -> None:
     """Test that offdiagonal H_0_BB requires solve_sylvester."""
     with pytest.raises(ValueError):
-        H = to_BlockSeries(
-            np.eye(2),
-            np.array([[1, 1], [1, 1]]),
-            {},
-            {},
-            {},
+        H = BlockSeries(
+                data={(0, 0, 0): np.eye(2), (1, 1, 0): np.array([[1, 1], [1, 1]])},
+                shape=(2, 2),
+                n_infinite=1,
         )
         general(H)
 
@@ -660,8 +677,17 @@ def test_check_AA_numerical(
         for index in range(n_infinite)
     }
 
-    H_general = to_BlockSeries(
-        h_0_aa, h_0_bb, h_p_aa, h_p_bb, h_p_ab, n_infinite=n_infinite
+    H_general = BlockSeries(
+        data = {
+            (0, 0) + (0,) * n_infinite: h_0_aa,
+            (1, 1) + (0,) * n_infinite: h_0_bb,
+            **{(0, 0) + tuple(key): value for key, value in h_p_aa.items()},
+            **{(1, 1) + tuple(key): value for key, value in h_p_bb.items()},
+            **{(0, 1) + tuple(key): value for key, value in h_p_ab.items()},
+            **{(1, 0) + tuple(key): Dagger(value) for key, value in h_p_ab.items()},
+        },
+        shape = (2, 2),
+        n_infinite = n_infinite,
     )
 
     H_tilde_general = general(H_general)[0]
