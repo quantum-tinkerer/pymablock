@@ -888,7 +888,9 @@ def hamiltonian_to_BlockSeries(
         if (left, right) in ((0, 0), (0, 1)):
             return Dagger(subspaces[left]) @ original @ subspaces[right]
         elif (left, right) == (1, 1):
-            return Dagger(subspaces[left]) @ aslinearoperator(original) @ subspaces[right]
+            if implicit: # Needed for compatibility of KPM and subspaces_indices
+                return subspaces[left] @ aslinearoperator(original) @ subspaces[right]
+            return Dagger(subspaces[left]) @ original @ subspaces[right]
         return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
 
     H = BlockSeries(
