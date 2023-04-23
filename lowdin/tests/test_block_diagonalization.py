@@ -3,12 +3,12 @@ from typing import Any, Callable, Optional
 
 import numpy as np
 import pytest
-from scipy.linalg import eigh
 from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
 from lowdin.block_diagonalization import (
+    block_diagonalize,
     general,
     expanded,
     numerical,
@@ -472,28 +472,21 @@ def generate_kpm_hamiltonian(
     """
     n_infinite = len(wanted_orders[0])
 
+    hamiltonian = []
     h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
     h_0 += h_0.conjugate().transpose()
+    hamiltonian.append(h_0)
 
-    eigs, vecs = eigh(h_0)
-    eigs[:a_dim] -= 10.0  # introduce an energy gap
-    h_0 = vecs @ np.diag(eigs) @ vecs.conjugate().transpose()
-    assert np.allclose(Dagger(vecs) @ h_0 @ vecs, np.diag(eigs))
-    eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
-    eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
+    eigs, vecs = np.linalg.eigh(h_0)
+    subspaces = (vecs[:, :a_dim], vecs[:, a_dim:])
+    eigenvalues = (eigs[:a_dim]-10, eigs[a_dim:])
 
-    perturbations = {}
-    for index in np.identity(n_infinite, int):
-        h_p = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
-        perturbations[tuple(index)] = h_p + h_p.conjugate().transpose()
+    for _ in range(n_infinite):
+        h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+        h_p += h_p.conjugate().transpose()
+        hamiltonian.append(h_p)
 
-    H_input = BlockSeries(
-        data={((0,) * n_infinite): h_0, **perturbations},
-        shape=(),
-        n_infinite=n_infinite,
-    )
-
-    return H_input, vecs_a, eigs_a, vecs_b, eigs_b
+    return hamiltonian, subspaces, eigenvalues
 
 
 def test_check_AB_KPM(
@@ -501,8 +494,6 @@ def test_check_AB_KPM(
         BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
     ],
     wanted_orders: list[tuple[int, ...]],
-    n_dim: int,
-    a_dim: int,
 ) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian using the numerical algorithm.
@@ -513,34 +504,42 @@ def test_check_AB_KPM(
         Randomly generated Hamiltonian and its eigendecomposition.
     wanted_orders:
         List of orders to compute.
-    n_dim:
-        Total size of the input Hamiltonian.
-    a_dim:
-        Size of the A subspace.
     """
+    hamiltonian, subspaces, eigenvalues = generate_kpm_hamiltonian
+    n_dim = hamiltonian[0].shape[0]
+    a_dim = subspaces[0].shape[1]
     b_dim = n_dim - a_dim
 
-    H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
+    H_tilde_full_b, _, _ = block_diagonalize(
+        hamiltonian,
+        subspaces=subspaces,
+        eigenvalues=eigenvalues
+    )
+    
+    half_subspaces = (subspaces[0], subspaces[1][:, : b_dim // 2])
+    half_eigenvalues = (eigenvalues[0], eigenvalues[1][: b_dim // 2])
+    H_tilde_half_b, _, _ = block_diagonalize(
+        hamiltonian,
+        subspaces=half_subspaces,
+        eigenvalues=half_eigenvalues,
+        kpm_params={"num_moments": 5000}
+    )
 
-    H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
-    H_tilde_half_b = numerical(
-        H_input,
-        vecs_a,
-        eigs_a,
-        vecs_b[:, : b_dim // 2],
-        eigs_b[: b_dim // 2],
-        kpm_params={"num_moments": 5000},
-    )[0]
-    H_tilde_kpm = numerical(H_input, vecs_a, eigs_a, kpm_params={"num_moments": 10000})[
-        0
-    ]
+    kpm_subspaces = (subspaces[0],)
+    kpm_eigenvalues = (eigenvalues[0],)
+    H_tilde_kpm, _, _ = block_diagonalize(
+        hamiltonian,
+        subspaces=kpm_subspaces,
+        eigenvalues=kpm_eigenvalues,
+        kpm_params={"num_moments": 10000}
+    )
 
     # full b
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
             np.testing.assert_allclose(
-                block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
+                block.toarray(), 0, atol=1e-5, err_msg=f"{block=}, {order=}"
             )
 
     # half b
@@ -548,7 +547,7 @@ def test_check_AB_KPM(
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
             np.testing.assert_allclose(
-                block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+                block.toarray(), 0, atol=1e-1, err_msg=f"{block=}, {order=}"
             )
 
     # KPM
@@ -556,7 +555,7 @@ def test_check_AB_KPM(
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
             np.testing.assert_allclose(
-                block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+                block.toarray(), 0, atol=1e-1, err_msg=f"{block=}, {order=}"
             )
 
 
@@ -578,7 +577,7 @@ def test_solve_sylvester(n_dim: int, a_dim: int) -> None:
     h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
     h_0 += Dagger(h_0)
 
-    eigs, vecs = eigh(h_0)
+    eigs, vecs = np.linalg.eigh(h_0)
     eigs[:a_dim] -= 10.0  # introduce an energy gap
     h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
     eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
@@ -705,7 +704,7 @@ def test_solve_sylvester_kpm_v_default(n_dim: int, a_dim: int) -> None:
     """
 
     h_0 = np.diag(np.sort(50 * np.random.random(n_dim)))
-    eigs, vecs = eigh(h_0)
+    eigs, vecs = np.linalg.eigh(h_0)
 
     eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
     eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
