@@ -58,9 +58,9 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     """
     n_infinite = len(wanted_orders[0])
     orders = np.eye(n_infinite, dtype=int)
-    hams = []
-    for i in range(2):
-        hams.append(np.diag(np.sort(np.random.rand(Ns[i])) - i))
+    h_0_AA = np.diag(np.sort(np.random.rand(Ns[0])) - 1)
+    h_0_BB = np.diag(np.sort(np.random.rand(Ns[1])))
+
 
     def matrices_it(N_i, N_j, hermitian):
         """
