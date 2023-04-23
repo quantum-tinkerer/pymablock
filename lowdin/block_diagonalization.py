@@ -64,8 +64,8 @@ def general(
 
     # Initialize the transformation as the identity operator
     U = BlockSeries(
-        data={block + (0,) * H.n_infinite: one for block in ((0, 0), (1, 1))},
-        shape=(2, 2),
+        data={(i, i) + (0,) * H.n_infinite: one for i in range(H.shape[0])},
+        shape=H.shape,
         n_infinite=H.n_infinite,
     )
 
@@ -76,7 +76,7 @@ def general(
             else -U.evaluated[index]  # off-diagonal block is anti-Hermitian
         ),
         data=None,
-        shape=(2, 2),
+        shape=H.shape,
         n_infinite=H.n_infinite,
     )
 
@@ -89,16 +89,20 @@ def general(
     )
 
     def eval(*index: tuple[int, ...]) -> Any:
-        if index[0] == index[1]:
+        i, j, *rest = index
+        if i == j:
             # diagonal is constrained by unitarity
             return safe_divide(-identity.evaluated[index], 2)
-        elif index[:2] == (0, 1):
-            # off-diagonal block nullifies the off-diagonal part of H_tilde
-            Y = H_tilde_rec.evaluated[index]
-            return -solve_sylvester(Y) if zero != Y else zero
-        elif index[:2] == (1, 0):
+        if i > j:
             # off-diagonal of U is anti-Hermitian
-            return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
+            return -Dagger(U.evaluated[(j, i, *rest)])
+
+        # off-diagonal block nullifies the off-diagonal part of H_tilde
+        Y = H_tilde_rec.evaluated[index]
+        try:
+            return -solve_sylvester(Y, i, j) if zero != Y else zero
+        except TypeError:
+            return -solve_sylvester(Y) if zero != Y else zero
 
     U.eval = eval
 
@@ -119,22 +123,19 @@ def _default_solve_sylvester(H: BlockSeries) -> Callable:
     -------:
     solve_sylvester : Function that solves the Sylvester equation.
     """
-    H_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-    H_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-
-    E_A = np.diag(H_0_AA)
-    E_B = np.diag(H_0_BB)
+    H_i = [H.evaluated[(i, i) + (0,) * H.n_infinite] for i in range(H.shape[0])]
+    E_i = [np.diag(H_i[i]) for i in range(H.shape[0])]
 
     # The Hamiltonians must already be diagonalized
-    if not np.allclose(H_0_AA, np.diag(E_A)):
-        raise ValueError("H_0_AA must be diagonal")
-    if not np.allclose(H_0_BB, np.diag(E_B)):
-        raise ValueError("H_0_BB must be diagonal")
+    if not all(np.allclose(H_i[i], np.diag(E_i[i])) for i in range(H.shape[0])):
+        raise ValueError("H_0 must be diagonal")
 
-    energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
+    del H_i
 
-    def solve_sylvester(Y: Any) -> Any:
-        return Y * energy_denominators
+    def solve_sylvester(Y: Any, i=0, j=1) -> Any:
+        if i >= j:
+            raise ValueError("i must be smaller than j")
+        return Y / (E_i[i][:, None] - E_i[j][None, :])
 
     return solve_sylvester
 
