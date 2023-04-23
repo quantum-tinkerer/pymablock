@@ -129,7 +129,7 @@ def _default_solve_sylvester(h_0: tuple[Any, ...]) -> Callable:
 
     h_0_AA = sparse.dia_array(h_0_AA) # np.array and sparse matrix to sparse array
     h_0_BB = sparse.dia_array(h_0_BB)
-    if np.any(h_0.offsets) or np.any(h_0_BB.offsets):
+    if np.any(h_0_AA.offsets) or np.any(h_0_BB.offsets):
         raise ValueError("The blocks of h_0 must be diagonal")
 
     energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
