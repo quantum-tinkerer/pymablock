@@ -1002,14 +1002,14 @@ def test_input_hamiltonian_symbolic():
     k_x, k_y, k_z, alpha, beta, h, m = sympy.symbols(
         "k_x k_y k_z alpha beta h m", real=True, positive=True, constant=True
     )
-    term_00 = -beta + alpha*k_z + h**2*k_x**2/(2*m) + h**2*k_y**2/(2*m) + h**2*k_z**2/(2*m)
-    term_11 = beta - alpha*k_z + h**2*k_x**2/(2*m) + h**2*k_y**2/(2*m) + h**2*k_z**2/(2*m)
-    term_01 = alpha*k_x - sympy.I*alpha*k_y
-    term_10 = alpha*k_x + sympy.I*alpha*k_y
+    h_00 = -beta + alpha*k_z + h**2*k_x**2/(2*m) + h**2*k_y**2/(2*m) + h**2*k_z**2/(2*m)
+    h_11 = beta - alpha*k_z + h**2*k_x**2/(2*m) + h**2*k_y**2/(2*m) + h**2*k_z**2/(2*m)
+    h_01 = alpha*k_x - sympy.I*alpha*k_y
+    h_10 = alpha*k_x + sympy.I*alpha*k_y
     hamiltonian = sympy.Matrix(
         [
-            [term_00, term_01],
-            [term_10, term_11]
+            [h_00, h_01],
+            [h_10, h_11]
         ]
     )
 
