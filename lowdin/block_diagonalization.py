@@ -793,17 +793,15 @@ def _sympy_to_BlockSeries(
         raise ValueError("Hamiltonian must be Hermitian.")
 
     def H_eval(*index):
-        if index[0] <= index[1]:
-            expr = sympy.diff(
-                hamiltonian, *((n, i) for n, i in zip(symbols, index))
-            )
-            expr = expr.subs({n: 0 for n in symbols})
-            expr = expr / reduce(mul, [sympy.factorial(i) for i in index])
-            expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
-            if expr == sympy.zeros(*expr.shape):
-                expr = zero
-            return expr
-        return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
+        expr = sympy.diff(
+            hamiltonian, *((n, i) for n, i in zip(symbols, index))
+        )
+        expr = expr.subs({n: 0 for n in symbols})
+        expr = expr / reduce(mul, [sympy.factorial(i) for i in index])
+        expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
+        if expr == sympy.zeros(*expr.shape):
+            expr = zero
+        return expr
 
     H = BlockSeries(
         eval=H_eval,
@@ -815,6 +813,7 @@ def _sympy_to_BlockSeries(
 
 def _subspaces_from_indices(
         subspaces_indices: tuple[int, ...] | np.ndarray,
+        symbolic: Optional[bool] = False,
     ) -> tuple[sparse.csr_array, sparse.csr_array]:
     """
     Returns the subspaces projection from the indices of the elements of the diagonal.
@@ -837,11 +836,13 @@ def _subspaces_from_indices(
             "Only 0 and 1 are allowed as indices for subspaces."
     )
     dim = len(subspaces_indices)
-    eigvecs = sparse.identity(dim, format='csr')
+    eigvecs = sparse.identity(dim, format='csr', dtype=int)
     subspaces = tuple(
         eigvecs[:, np.compress(subspaces_indices==block, np.arange(dim))]
         for block in range(max_subspaces)
     )
+    if symbolic:
+        return tuple(subspace.toarray() for subspace in subspaces)
     return subspaces
 
 
@@ -854,7 +855,6 @@ def hamiltonian_to_BlockSeries(
         symbols: Optional[list[sympy.Symbol]] = None,
     ) -> BlockSeries:
     """
-    # TODO: change the name once to_BlockSeries is removed
     Converts a Hamiltonian to a `~lowdin.series.BlockSeries`.
 
     Parameters
@@ -918,18 +918,21 @@ def hamiltonian_to_BlockSeries(
     if subspaces_indices is not None:
         if subspaces is not None:
             raise ValueError("Only subspaces or subspaces_indices can be provided.")
-        if not isinstance(
+        if isinstance(
             hamiltonian.evaluated[(0,) * hamiltonian.n_infinite],
             sparse.dia_matrix
         ):
+            symbolic = False
+        elif hamiltonian.evaluated[(0,) * hamiltonian.n_infinite].is_diagonal():
+            symbolic = True
+        else:
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
-        subspaces = _subspaces_from_indices(subspaces_indices)
+        subspaces = _subspaces_from_indices(subspaces_indices, symbolic=symbolic)
 
     if implicit:
         # Separation into subspaces for KPM
         vecs_a = subspaces[0]
         subspaces = (vecs_a, ComplementProjector(vecs_a))
-
     # Separation into subspaces
     def H_eval(*index):
         original = hamiltonian.evaluated[index[2:]]
