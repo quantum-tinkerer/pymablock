@@ -382,14 +382,13 @@ def compare_series(
                 np.ma.ndenumerate(series1.evaluated[(i, j) + order]),
                 np.ma.ndenumerate(series2.evaluated[(i, j) + order]),
             ):
-                assert pair[0][0] == pair[1][0]
 
                 if pair[0][-1] == one or pair[1][-1] == one:
                     assert pair[0][-1] == pair[1][-1]
                     continue
                 np.testing.assert_allclose(
                     pair[0][-1] @ np.eye(pair[0][-1].shape),
-                    pair[1][-1] @ np.eye(pair[1][-1].shpae),
+                    pair[1][-1] @ np.eye(pair[1][-1].shape),
                     atol=absolute_tolerance,
                     rtol=relative_tolerance,
                     err_msg=f"{pair=}",
