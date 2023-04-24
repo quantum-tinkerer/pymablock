@@ -587,7 +587,7 @@ def _replace(
 def block_diagonalize(
         hamiltonian :  list[Any, list] | dict | BlockSeries,
         *,
-        algorithm : Optional[Callable] = None,
+        algorithm : Optional[str] = None,
         solve_sylvester : Optional[Callable] = None,
         subspaces: Optional[tuple[Any, Any]] = None,
         subspaces_indices: Optional[tuple[int, ...]] = None,
@@ -606,9 +606,8 @@ def block_diagonalize(
         - `list` of [unperturbed, perturbation] where unperturbed and
             perturbation are `~numpy.ndarray`.
     algorithm :
-        Function that block diagonalizes a Hamiltonian.
-        Options are `~lowdin.block_diagonalize.general` and
-        `~lowdin.block_diagonalize.expanded`.
+        Name of the function that block diagonalizes a Hamiltonian.
+        Options are "general", "expanded", "numerical", and "general_symbolic".
     solve_sylvester :
         Function to use for solving Sylvester's equation.
         If None, the default function is used for a diagonal Hamiltonian.
@@ -653,14 +652,14 @@ def block_diagonalize(
         if eigenvalues is not None and subspaces is None:
             raise ValueError("subspaces must be provided if eigenvalues is provided.")
         elif eigenvalues is not None and subspaces is not None:
-            algorithm = numerical
+            algorithm = "numerical"
             implicit = True
             if isinstance(hamiltonian, list):
                 h_0 = hamiltonian[0]
             elif isinstance(hamiltonian, dict):
                 h_0 = hamiltonian[0]
         else:
-            algorithm = general
+            algorithm = "general"
 
     H = hamiltonian_to_BlockSeries(
         hamiltonian,
@@ -695,8 +694,8 @@ def block_diagonalize(
         else:
             NotImplementedError
 
-    if algorithm in (general, expanded, numerical):
-        return algorithm(
+    if algorithm in ("general", "expanded", "numerical"):
+        return eval(algorithm)(
             H,
             solve_sylvester=solve_sylvester,
             op=op,
@@ -900,3 +899,4 @@ def hamiltonian_to_BlockSeries(
     )
 
     return H
+# %%
