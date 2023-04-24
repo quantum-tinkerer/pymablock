@@ -382,6 +382,7 @@ def compare_series(
                 np.ma.ndenumerate(series1.evaluated[(i, j) + order]),
                 np.ma.ndenumerate(series2.evaluated[(i, j) + order]),
             ):
+                assert pair[0][0] == pair[1][0]
 
                 if pair[0][-1] == one or pair[1][-1] == one:
                     assert pair[0][-1] == pair[1][-1]
