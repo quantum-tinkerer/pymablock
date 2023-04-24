@@ -11,7 +11,6 @@ from typing import Any, Optional, Callable
 
 import numpy as np
 import sympy
-import qsymm
 from scipy import sparse
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
 
