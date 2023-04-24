@@ -1014,19 +1014,27 @@ def test_input_hamiltonian_symbolic():
     )
 
     subspaces = [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])]
+    subspaces_indices = [0, 1]
+
     symbols = [k_x, k_y, k_z]
-    H = hamiltonian_to_BlockSeries(
+    H_1 = hamiltonian_to_BlockSeries(
         hamiltonian,
         subspaces=subspaces,
         symbols=symbols
     )
-    assert H.evaluated[(0, 1) + (0,) * H.n_infinite] == sympy.Matrix([[0]])
-    assert H.evaluated[(1, 0) + (0,) * H.n_infinite] == sympy.Matrix([[0]])
-    assert not any(
-        symbol in H.evaluated[(0, 0) + (0,) * H.n_infinite].free_symbols
-        for symbol in symbols
+    H_2 = hamiltonian_to_BlockSeries(
+        hamiltonian,
+        subspaces_indices=subspaces_indices,
+        symbols=symbols
     )
-    assert not any(
-        symbol in H.evaluated[(1, 1) + (0,) * H.n_infinite].free_symbols
-        for symbol in symbols
-    )
+
+    for H in (H_1, H_2):
+        for block in ((0, 1), (1, 0)):
+            assert H.evaluated[block + (0,) * H.n_infinite] == sympy.Matrix([[0]])
+
+    for H in (H_1, H_2):
+        for block in ((0, 1), (1, 0)):
+            assert not any(
+                symbol in H.evaluated[block + (0,) * H.n_infinite].free_symbols
+                for symbol in symbols
+            )
