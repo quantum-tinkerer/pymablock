@@ -1,8 +1,9 @@
 from itertools import count, permutations
 from typing import Any, Callable, Optional
 
-import numpy as np
 import pytest
+import numpy as np
+import sympy
 from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
@@ -992,3 +993,40 @@ def test_input_hamiltonian_blocks():
         )
         np.testing.assert_allclose(H.evaluated[(0, 1) + (0,) * H.n_infinite], 0)
         np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite], 0)
+
+
+def test_input_hamiltonian_symbolic():
+    """
+    Test that the algorithm works with a symbolic Hamiltonian.
+    """
+    k_x, k_y, k_z, alpha, beta, h, m = sympy.symbols(
+        "k_x k_y k_z alpha beta h m", real=True, positive=True, constant=True
+    )
+    term_00 = -beta + alpha*k_z + h**2*k_x**2/(2*m) + h**2*k_y**2/(2*m) + h**2*k_z**2/(2*m)
+    term_11 = beta - alpha*k_z + h**2*k_x**2/(2*m) + h**2*k_y**2/(2*m) + h**2*k_z**2/(2*m)
+    term_01 = alpha*k_x - sympy.I*alpha*k_y
+    term_10 = alpha*k_x + sympy.I*alpha*k_y
+    hamiltonian = sympy.Matrix(
+        [
+            [term_00, term_01],
+            [term_10, term_11]
+        ]
+    )
+
+    subspaces = [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])]
+    symbols = [k_x, k_y, k_z]
+    H = hamiltonian_to_BlockSeries(
+        hamiltonian,
+        subspaces=subspaces,
+        symbols=symbols
+    )
+    assert H.evaluated[(0, 1) + (0,) * H.n_infinite] == sympy.Matrix([[0]])
+    assert H.evaluated[(1, 0) + (0,) * H.n_infinite] == sympy.Matrix([[0]])
+    assert not any(
+        symbol in H.evaluated[(0, 0) + (0,) * H.n_infinite].free_symbols
+        for symbol in symbols
+    )
+    assert not any(
+        symbol in H.evaluated[(1, 1) + (0,) * H.n_infinite].free_symbols
+        for symbol in symbols
+    )

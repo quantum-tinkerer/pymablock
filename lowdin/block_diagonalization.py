@@ -593,6 +593,7 @@ def block_diagonalize(
         eigenvalues: Optional[tuple[np.ndarray, np.ndarray]] = None,
         kpm_params: Optional[dict] = None,
         precalculate_moments: Optional[bool] = False,
+        symbols: list[sympy.Symbol] = None,
     ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Parameters
@@ -629,13 +630,14 @@ def block_diagonalize(
         'num_vectors' will be overwritten to match the number of vectors, and the
         'operator' key will be deleted.
     precalculate_moments :
-        Whether to precalculate and store all the KPM moments of ``vectors``. This
-        is useful if the Green's function is evaluated at a large number of
+        Whether to precalculate and store all the KPM moments of ``vectors``.
+        This is useful if the Green's function is evaluated at a large number of
         energies, but uses a large amount of memory. If False, the KPM expansion
         is performed every time the Green's function is called, which minimizes
         memory use.
-    **kwargs :
-        Additional keyword arguments to pass to `algorithm`.
+    perturbatitve_parameters :
+        List of symbols that label the perturbative parameters. If None, the
+        perturbative parameters are taken from the unperturbed Hamiltonian.
 
     Returns
     -------
@@ -657,6 +659,8 @@ def block_diagonalize(
                 h_0 = hamiltonian[0]
             elif isinstance(hamiltonian, dict):
                 h_0 = hamiltonian[0]
+        elif symbols is not None:
+            algorithm = "expanded"
         else:
             algorithm = "general"
 
@@ -665,6 +669,7 @@ def block_diagonalize(
         subspaces=subspaces,
         subspaces_indices=subspaces_indices,
         implicit = implicit,
+        symbols=symbols,
     )
 
     # Determine operator to use for matrix multiplication
@@ -760,9 +765,52 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     return H_temporary
 
 
-def _qsymm_to_dict(hamiltonian):
-    # TODO: Implement by requiring list of perturbative symbols.
-    raise NotImplementedError
+def _sympy_to_BlockSeries(
+        hamiltonian: sympy.matrices.immutable.ImmutableDenseMatrix,
+        symbols: list[sympy.Symbol] = None,
+    ):
+    """
+    Parameters
+    ----------
+    hamiltonian :
+        Symbolic Hamiltonian.
+    symbols :
+        List of symbols that are the perturbative coefficients.
+        If None, all symbols in the Hamiltonian are assumed to be perturbative
+        coefficients.
+
+    Returns
+    -------
+    H : `~lowdin.series.BlockSeries`
+    """
+    if symbols is None:
+        symbols = list(hamiltonian.free_symbols)
+    if any(n not in hamiltonian.free_symbols for n in symbols):
+        raise ValueError("Not all perturbative parameters are in the Hamiltonian.")
+
+    hamiltonian = hamiltonian.expand()
+    if not hamiltonian.is_hermitian:
+        raise ValueError("Hamiltonian must be Hermitian.")
+
+    def H_eval(*index):
+        if index[0] <= index[1]:
+            expr = sympy.diff(
+                hamiltonian, *((n, i) for n, i in zip(symbols, index))
+            )
+            expr = expr.subs({n: 0 for n in symbols})
+            expr = expr / reduce(mul, [sympy.factorial(i) for i in index])
+            expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
+            if expr == sympy.zeros(*expr.shape):
+                expr = zero
+            return expr
+        return Dagger(H.evaluated[(0, 1) + tuple(index[2:])])
+
+    H = BlockSeries(
+        eval=H_eval,
+        shape=(),
+        n_infinite = len(symbols),
+    )
+    return H
 
 
 def _subspaces_from_indices(
@@ -802,7 +850,8 @@ def hamiltonian_to_BlockSeries(
         *,
         subspaces: Optional[tuple[Any, Any]] = None,
         subspaces_indices: Optional[tuple[int, ...]] = None,
-        implicit = False,
+        implicit : Optional[bool] = False,
+        symbols: Optional[list[sympy.Symbol]] = None,
     ) -> BlockSeries:
     """
     # TODO: change the name once to_BlockSeries is removed
@@ -819,8 +868,12 @@ def hamiltonian_to_BlockSeries(
         {(0, 0): H_0, (1, 0): H_1, (0, 1): H_2}.
     subspaces :
         Tuple of eigenvectors of each subspace of the Hamiltonian.
-    kpm :
+    implicit :
         Whether to use KPM to solve the Sylvester equation.
+    symbols :
+        List of symbols that are the perturbative coefficients.
+        If None, all symbols in the Hamiltonian are assumed to be perturbative
+        coefficients.
 
     Returns
     -------
@@ -829,8 +882,8 @@ def hamiltonian_to_BlockSeries(
     """
     if isinstance(hamiltonian, list):
         hamiltonian = _list_to_dict(hamiltonian)
-    elif isinstance(hamiltonian, qsymm.Model):
-        hamiltonian = _qsymm_to_dict(hamiltonian)
+    elif isinstance(hamiltonian, sympy.Matrix):
+        hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
     if isinstance(hamiltonian, dict):
         hamiltonian = _dict_to_BlockSeries(hamiltonian)
     elif isinstance(hamiltonian, BlockSeries):
