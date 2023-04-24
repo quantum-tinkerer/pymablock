@@ -233,7 +233,7 @@ def _commute_H0_away(
     ):
         expr = expr.subs(subs).expand()
 
-    return expr or zero
+    return expr.expand() or zero
 
 
 def general_symbolic(
