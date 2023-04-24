@@ -434,7 +434,7 @@ def n_dim() -> int:
     n_dim: int
         Dimension of the full Hamiltonian
     """
-    n_dim = np.random.randint(low=25, high=100, dtype=int)
+    n_dim = np.random.randint(low=8, high=20, dtype=int)
     return n_dim
 
 
@@ -453,7 +453,7 @@ def a_dim(n_dim) -> int:
     a_dim: int
         Dimension of the A subspace
     """
-    a_dim = np.random.randint(low=2, high=n_dim // 2, dtype=int)
+    a_dim = np.random.randint(low=2, high=n_dim - 3, dtype=int)
     return a_dim
 
 
