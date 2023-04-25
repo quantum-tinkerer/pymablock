@@ -610,7 +610,9 @@ def test_solve_sylvester(
 
     y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
     y_trial += Dagger(y_trial)
-    y_trial = Dagger(subspaces_vectors[0]) @ y_trial @ ComplementProjector(subspaces_vectors[0])
+    y_trial = (
+        Dagger(subspaces_vectors[0]) @ y_trial @ ComplementProjector(subspaces_vectors[0])
+    )
 
     y_full_b = np.abs(divide_energies_full_b(y_trial))
     y_half_b = np.abs(divide_energies_half_b(y_trial))
@@ -734,7 +736,9 @@ def test_solve_sylvester_kpm_vs_default(n_dim: int, a_dim: int)-> None:
     solve_sylvester_kpm = solve_sylvester_KPM(h_0, subspaces_vectors, eigenvalues)
 
     y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
-    y_kpm = Dagger(subspaces_vectors[0]) @ y_trial @ ComplementProjector(subspaces_vectors[0])
+    y_kpm = (
+        Dagger(subspaces_vectors[0]) @ y_trial @ ComplementProjector(subspaces_vectors[0])
+    )
 
     y_default = solve_sylvester_default(y_trial[:a_dim, a_dim:])
     y_kpm = solve_sylvester_kpm(y_kpm)
@@ -786,7 +790,9 @@ def test_correct_implicit_subspace(
         for block_aa, block_bb in zip(h, h_swapped):
             assert isinstance(block_bb, LinearOperator)
             np.testing.assert_allclose(
-                block_aa, Dagger(subspaces_vectors[0]) @ block_bb @ subspaces_vectors[0], atol=1e-14
+                block_aa,
+                Dagger(subspaces_vectors[0]) @ block_bb @ subspaces_vectors[0],
+                atol=1e-14
             )
 
 
