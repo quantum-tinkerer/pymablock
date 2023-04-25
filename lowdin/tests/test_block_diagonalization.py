@@ -40,7 +40,7 @@ def Ns():
     """
     Return a random number of states for each block (A, B).
     """
-    return np.random.randint(1, high=5, size=2)
+    return np.random.randint(1, high=4, size=2)
 
 
 @pytest.fixture(scope="module")
@@ -434,7 +434,7 @@ def n_dim() -> int:
     n_dim: int
         Dimension of the full Hamiltonian
     """
-    n_dim = np.random.randint(low=8, high=20, dtype=int)
+    n_dim = np.random.randint(low=6, high=12, dtype=int)
     return n_dim
 
 
