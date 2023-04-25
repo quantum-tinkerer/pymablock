@@ -384,7 +384,7 @@ def compare_series(
             ):
                 assert pair[0][0] == pair[1][0]
 
-                if np.all(pair[0][-1] == one) or np.all(pair[1][-1] == one):
+                if isinstance(pair[0][-1], type(one)) or isinstance(pair[1][-1],  type(one)):
                     assert pair[0][-1] == pair[1][-1]
                     continue
                 np.testing.assert_allclose(
