@@ -350,7 +350,7 @@ def compare_series(
     series2: BlockSeries,
     wanted_orders: list[tuple[int, ...]],
     absolute_tolerance: Optional[float] = 1e-15,
-    relative_tolerance: Optional[float] = None,
+    relative_tolerance: Optional[float] = 0,
 ) -> bool:
     """
     Function that compares two BlockSeries with each other
@@ -384,16 +384,15 @@ def compare_series(
             ):
                 assert pair[0][0] == pair[1][0]
 
-                if pair[0][-1] == one or pair[1][-1] == one:
+                if np.all(pair[0][-1] == one) or np.all(pair[1][-1] == one):
                     assert pair[0][-1] == pair[1][-1]
                     continue
                 np.testing.assert_allclose(
-                    pair[0][-1] @ np.eye(pair[0][-1].shape),
-                    pair[1][-1] @ np.eye(pair[1][-1].shape),
+                    pair[0][-1] @ np.eye(*pair[0][-1].shape),
+                    pair[1][-1] @ np.eye(*pair[1][-1].shape),
                     atol=absolute_tolerance,
                     rtol=relative_tolerance,
-                    err_msg=f"{pair=}",
-                )
+                    err_msg="{}".format(str(pair)))
 
 
 def test_repeated_application(
@@ -428,3 +427,4 @@ def test_repeated_application(
 
     U_target.eval = lambda *index: target_evaluate(index, H_tilde_2)
     compare_series(U_2, U_target, wanted_orders, 1e-15)
+    compare_series(H_tilde_1, H_tilde_2, wanted_orders, 1e-3)
