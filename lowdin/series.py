@@ -249,6 +249,7 @@ def _generate_orders(
     start: Optional[int] = None,
     end: Optional[int] = None,
     last: bool = True,
+    shape: tuple[int, ...] = (2, 2)
 ) -> ma.MaskedArray:
     """
     Generate array of lower orders to be used in product_by_order.
@@ -260,17 +261,18 @@ def _generate_orders(
     end : (optional) 0 or 1 column index of block.
     last : Whether to keep last order, True by default.
         This is useful to avoid recursion errors.
+    shape : shape of the block.
 
     Returns
     -------
     Array of lower orders to be used in product_by_order.
     """
     mask = (slice(None), slice(None)) + (-1,) * len(orders)
-    trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
+    trial = ma.ones(shape + tuple([dim + 1 for dim in orders]), dtype=object)
     if start is not None:
-        trial[int(not start)] = ma.masked
+        trial[start] = ma.masked
     if end is not None:
-        trial[:, int(not end)] = ma.masked
+        trial[:, end] = ma.masked
     if not last:
         trial[mask] = ma.masked
     return trial
@@ -316,11 +318,12 @@ def product_by_order(
 
     if exclude_last is None:
         exclude_last = [False] * len(series)
-    starts = [start] + [None] * (len(series) - 1)
-    ends = [None] * (len(series) - 1) + [end]
+    starts = [np.arange(series[0].shape[0]) != start] + [None] * (len(series) - 1)
+    ends = [None] * (len(series) - 1) + [np.arange(series[-1].shape[1]) != end]
+    shapes = [factor.shape for factor in series]
     data = [
-        _generate_orders(orders, start=start, end=end, last=not (last))
-        for start, end, last in zip(starts, ends, exclude_last)
+        _generate_orders(orders, start=start, end=end, last=not (last), shape=shape)
+        for start, end, last, shape in zip(starts, ends, exclude_last, shapes)
     ]
 
     for indices, factor in zip(data, series):
