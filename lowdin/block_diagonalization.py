@@ -665,7 +665,8 @@ def block_diagonalize(
             if isinstance(hamiltonian, list):
                 h_0 = hamiltonian[0]
             elif isinstance(hamiltonian, dict):
-                h_0 = hamiltonian[0]
+                n_infinite = len(list(hamiltonian.keys())[0])
+                h_0 = hamiltonian[(0,) * n_infinite]
         elif symbols is not None: #this could be none if H is already symbolic
             algorithm = "expanded"
         else:
