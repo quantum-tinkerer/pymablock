@@ -659,7 +659,7 @@ def block_diagonalize(
                 h_0 = hamiltonian[0]
             elif isinstance(hamiltonian, dict):
                 h_0 = hamiltonian[0]
-        elif symbols is not None:
+        elif symbols is not None: #this could be none if H is already symbolic
             algorithm = "expanded"
         else:
             algorithm = "general"
@@ -696,7 +696,7 @@ def block_diagonalize(
                 precalculate_moments,
             )
         else:
-            NotImplementedError
+            raise NotImplementedError
 
     if algorithm in ("general", "expanded", "numerical"):
         return eval(algorithm)(
@@ -722,7 +722,7 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     -------
     H : `~lowdin.series.BlockSeries`
     """
-    n_infinite = len(hamiltonian) - 1
+    n_infinite = len(hamiltonian) - 1 # all the perturbations are 1st order
     zeroth_order = (0,) * n_infinite
 
     hamiltonian = {
@@ -930,7 +930,7 @@ def hamiltonian_to_BlockSeries(
         subspaces = _subspaces_from_indices(subspaces_indices, symbolic=symbolic)
 
     if implicit:
-        # Separation into subspaces for KPM
+        # Define subspaces for KPM
         vecs_a = subspaces[0]
         subspaces = (vecs_a, ComplementProjector(vecs_a))
     # Separation into subspaces
