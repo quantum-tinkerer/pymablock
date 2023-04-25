@@ -845,21 +845,12 @@ def test_input_hamiltonian_KPM(generate_kpm_hamiltonian):
     TODO: Improve test
     """
     hamiltonian, subspaces, _ = generate_kpm_hamiltonian
-
-    H = hamiltonian_to_BlockSeries(
-        hamiltonian,
-        subspaces=subspaces
-    )
-
-    assert len(hamiltonian) == H.n_infinite + 1
-
+    H = hamiltonian_to_BlockSeries(hamiltonian, subspaces=subspaces)
+    assert H.shape == (2, 2)
     for block in ((0, 1), (1, 0)):
         if zero == H.evaluated[block + (0,) * H.n_infinite]:
             continue
-        np.allclose(
-            H.evaluated[block + (0,) * H.n_infinite],
-            0,
-        )
+        np.allclose(H.evaluated[block + (0,) * H.n_infinite], 0)
 
 
 def test_input_hamiltonian_BlockSeries(H):
@@ -868,18 +859,14 @@ def test_input_hamiltonian_BlockSeries(H):
     """
     # List input for diagonal H_0
     hamiltonian = hamiltonian_to_BlockSeries(H)
-
     assert hamiltonian.shape == H.shape
     assert hamiltonian.n_infinite == H.n_infinite
-
     for block in ((0, 0), (1, 1), (0, 1), (1, 0)):
-        if zero == H.evaluated[block + (0,) * H.n_infinite]:
-            assert zero == hamiltonian.evaluated[block + (0,) * H.n_infinite]
+        index = block + (0,) * H.n_infinite
+        if zero == H.evaluated[index]:
+            assert zero == hamiltonian.evaluated[index]
             continue
-        np.allclose(
-            H.evaluated[block + (0,) * H.n_infinite],
-            hamiltonian.evaluated[block + (0,) * H.n_infinite],
-        )
+        np.allclose(H.evaluated[index], hamiltonian.evaluated[index])
 
 
 def test_input_hamiltonian_diagonal_indices():
@@ -893,30 +880,28 @@ def test_input_hamiltonian_diagonal_indices():
     - dictionary of sparse matrices
     """
     subspaces_indices = [0, 1, 1, 0]
-    eigvals = [-1, 1, 1, -1]
+    eigenvalues = [-1, 1, 1, -1]
     perturbation = np.random.random(4)
     perturbation += Dagger(perturbation)
 
     hamiltonians = [
-        [np.diag(eigvals), perturbation],
-        {(0,): np.diag(eigvals), (1,): perturbation, (2,): perturbation},
-        [sparse.diags(eigvals), perturbation, perturbation],
-        {(0,): sparse.diags(eigvals), (1,): perturbation}
+        [np.diag(eigenvalues), perturbation],
+        {(0, 0): np.diag(eigenvalues), (1, 0): perturbation, (0, 1): perturbation},
+        [sparse.diags(eigenvalues), perturbation, perturbation],
+        {(0,): sparse.diags(eigenvalues), (1,): perturbation}
     ]
 
+    diagonals = [np.array([-1, -1]), np.array([1, 1])]
     for hamiltonian in hamiltonians:
         H = hamiltonian_to_BlockSeries(hamiltonian, subspaces_indices=subspaces_indices)
-        np.testing.assert_allclose(
-            H.evaluated[(0, 0) + (0,) * H.n_infinite].diagonal(),
-            np.array([-1, -1])
-        )
-        np.testing.assert_allclose(
-            H.evaluated[(1, 1) + (0,) * H.n_infinite].diagonal(),
-            np.array([1, 1])
-        )
-        np.testing.assert_allclose(H.evaluated[(0, 1) + (0,) * H.n_infinite].toarray(), 0)
-        np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite].toarray(), 0)
-
+        assert H.shape == (2, 2)
+        assert H.n_infinite == len(hamiltonian) - 1
+        for block, eigvals in zip(((0, 0), (1, 1)), diagonals):
+            index = block + (0,) * H.n_infinite
+            np.testing.assert_allclose(H.evaluated[index].diagonal(), eigvals)
+        for block in ((0, 1), (1, 0)):
+            index = block + (0,) * H.n_infinite
+            np.testing.assert_allclose(H.evaluated[index].toarray(), 0)
         with pytest.raises(ValueError):
             H = hamiltonian_to_BlockSeries(hamiltonian)
             H.evaluated[(0, 0) + (0,) * H.n_infinite]
@@ -932,28 +917,25 @@ def test_input_hamiltonian_from_subspaces():
     perturbation = 0.1 * np.random.random((4, 4))
     perturbation += Dagger(perturbation)
 
-    eigvals, eigvecs = np.linalg.eigh(h_0)
+    eigenvalues, eigvecs = np.linalg.eigh(h_0)
+    diagonals = [eigenvalues[:2], eigenvalues[2:]]
     subspaces = [eigvecs[:, :2], eigvecs[:, 2:]]
 
     hamiltonians = [
         [h_0, perturbation],
-        {(0,): h_0, (1,): perturbation, (2,): perturbation},
+        {(0, 0): h_0, (1, 0): perturbation, (0, 1): perturbation},
     ]
 
     for hamiltonian in hamiltonians:
         H = hamiltonian_to_BlockSeries(hamiltonian, subspaces=subspaces)
-        np.testing.assert_allclose(
-            H.evaluated[(0, 0) + (0,) * H.n_infinite].diagonal(), eigvals[:2]
-        )
-        np.testing.assert_allclose(
-            H.evaluated[(1, 1) + (0,) * H.n_infinite].diagonal(), eigvals[2:]
-        )
-        np.testing.assert_allclose(
-            H.evaluated[(0, 1) + (0,) * H.n_infinite], 0, atol=1e-12
-        )
-        np.testing.assert_allclose(
-            H.evaluated[(1, 0) + (0,) * H.n_infinite], 0, atol=1e-12
-        )
+        assert H.shape == (2, 2)
+        assert H.n_infinite == len(hamiltonian) - 1
+        for block, eigvals in zip(((0, 0), (1, 1)), diagonals):
+            index = block + (0,) * H.n_infinite
+            np.testing.assert_allclose(H.evaluated[index].diagonal(), eigvals)
+        for block in ((0, 1), (1, 0)):
+            index = block + (0,) * H.n_infinite
+            np.testing.assert_allclose(H.evaluated[index], 0, atol=1e-12)
 
 
 def test_input_hamiltonian_blocks():
@@ -961,8 +943,8 @@ def test_input_hamiltonian_blocks():
     Test inputs that come separated by subspace.
 
     We test the following inputs:
-    - list of Hamiltonians where each Hamiltonian is a list of blocks
-    - dictionary of Hamiltonians where each Hamiltonian is a list of blocks
+    - list of Hamiltonians where each Hamiltonian is a list of blocks.
+    - dictionary of Hamiltonians where each Hamiltonian is a list of blocks.
     """
     hermitian_block = np.random.random((2, 2))
     block = np.random.random((2, 2))
@@ -978,11 +960,13 @@ def test_input_hamiltonian_blocks():
 
     hamiltonians = [
         [h_0, perturbation],
-        {(0,): h_0, (1,): perturbation, (2,): perturbation},
+        {(0, 0): h_0, (1, 0): perturbation, (0, 1): perturbation},
     ]
 
     for hamiltonian in hamiltonians:
         H = hamiltonian_to_BlockSeries(hamiltonian)
+        assert H.shape == (2, 2)
+        assert H.n_infinite == len(hamiltonian) - 1
         np.testing.assert_allclose(
             H.evaluated[(0, 0) + (0,) * H.n_infinite].diagonal(),
             np.array([-1, -1])
@@ -1002,10 +986,11 @@ def test_input_hamiltonian_symbolic():
     k_x, k_y, k_z, alpha, beta, h, m = sympy.symbols(
         "k_x k_y k_z alpha beta h m", real=True, positive=True, constant=True
     )
-    h_00 = -beta + alpha*k_z + h**2*k_x**2/(2*m) + h**2*k_y**2/(2*m) + h**2*k_z**2/(2*m)
-    h_11 = beta - alpha*k_z + h**2*k_x**2/(2*m) + h**2*k_y**2/(2*m) + h**2*k_z**2/(2*m)
-    h_01 = alpha*k_x - sympy.I*alpha*k_y
-    h_10 = alpha*k_x + sympy.I*alpha*k_y
+    kinetic_term = sum(h**2 * k**2 / (2*m) for k in (k_x, k_y, k_z))
+    h_00 = -beta + alpha * k_z + kinetic_term
+    h_11 = beta - alpha * k_z + kinetic_term
+    h_01 = alpha * k_x - sympy.I * alpha * k_y
+    h_10 = alpha * k_x + sympy.I * alpha * k_y
     hamiltonian = sympy.Matrix(
         [
             [h_00, h_01],
@@ -1017,16 +1002,20 @@ def test_input_hamiltonian_symbolic():
     subspaces_indices = [0, 1]
 
     symbols = [k_x, k_y, k_z]
+    # Test if subspaces are provided
     H_1 = hamiltonian_to_BlockSeries(
         hamiltonian,
         subspaces=subspaces,
         symbols=symbols
     )
+    # Test if subspaces_indices are provided
     H_2 = hamiltonian_to_BlockSeries(
         hamiltonian,
         subspaces_indices=subspaces_indices,
         symbols=symbols
     )
+    assert H_1.shape == H_2.shape == (2, 2)
+    assert H_1.n_infinite == H_2.n_infinite == len(symbols)
 
     for H in (H_1, H_2):
         for block in ((0, 1), (1, 0)):
