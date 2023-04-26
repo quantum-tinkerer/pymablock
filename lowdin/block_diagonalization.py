@@ -808,9 +808,7 @@ def _sympy_to_BlockSeries(
         expr = expr.subs({n: 0 for n in symbols})
         expr = expr / reduce(mul, [sympy.factorial(i) for i in index])
         expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
-        if expr == sympy.zeros(*expr.shape):
-            expr = zero
-        return expr
+        return _convert_if_zero(expr)
 
     H = BlockSeries(
         eval=H_eval,
