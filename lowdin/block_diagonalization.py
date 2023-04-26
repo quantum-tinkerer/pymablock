@@ -689,7 +689,8 @@ def block_diagonalize(
     # Determine function to use for solving Sylvester's equation
     if solve_sylvester is None:
         if all(isinstance(H.evaluated[block + (0,) * H.n_infinite], sparse.dia_matrix)
-               for block in ((0, 0 ), (1, 1))):
+               for block in ((0, 0), (1, 1))):
+            # TODO: fix, this is always skipped
             eigenvalues = tuple(
                 H.evaluated[block + (0,) * H.n_infinite].diagonal()
                 for block in ((0, 0), (1, 1))
@@ -981,7 +982,7 @@ def hamiltonian_to_BlockSeries(
                 result = (
                     Dagger(subspaces_vectors[left]) @ original @ subspaces_vectors[right]
                 )
-            return _convert_if_zero(result)
+            return _convert_if_zero(result) # returns dia_sparse to csc :(
         return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
 
     H = BlockSeries(
