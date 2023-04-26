@@ -349,50 +349,53 @@ def compare_series(
     series1: BlockSeries,
     series2: BlockSeries,
     wanted_orders: list[tuple[int, ...]],
-    absolute_tolerance: Optional[float] = 1e-15,
-    relative_tolerance: Optional[float] = 0,
-) -> bool:
+    atol: Optional[float] = 1e-15,
+    rtol: Optional[float] = 0,
+) -> None:
     """
     Function that compares two BlockSeries with each other
-    
+
     Two series are compared for a given list of wanted orders in all orders.
-    The test first checks for ~/lowdin/series.one objects since these are 
-    not masked by the resulting masked arrays. For numeric types, numpy 
-    arrays, scipy.sparse.linalg.LinearOperator types, and scipy.sparse.sp_Matrix,
+    The test first checks for `~lowdin.series.one` objects since these are
+    not masked by the resulting masked arrays. For numeric types, numpy
+    arrays, `scipy.sparse.linalg.LinearOperator` types, and scipy.sparse.sp_Matrix,
     the evaluated object is converted to a dense array by multiplying with dense
     identity and numrically compared up to the desired tolerance.
-    
+
     Parameters:
     --------------
     series1:
-        First ~/lowdin/series.BlockSeries to compare
+        First `~lowdin.series.BlockSeries` to compare
     series2:
-        Second ~/lowdin/series/BlockSeries to compare
+        Second `~lowdin.series.BlockSeries` to compare
     wanted_orders:
         List of tuples of wanted_orders to check the series for
-    absolute_tolerance:
+    atol:
         Optional absolute tolerance for numeric comparison
-    relative_tolerance:
+    rtol:
         Optional relative tolerance for numeric comparison
     """
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for i, j in [(0, 0), (0, 1), (1, 1)]:
-            for pair in zip(
-                np.ma.ndenumerate(series1.evaluated[(i, j) + order]),
-                np.ma.ndenumerate(series2.evaluated[(i, j) + order]),
-            ):
-                assert pair[0][0] == pair[1][0]
+        all_elements = (slice(None),) * len(series1.shape)
+        results = [
+            np.ma.ndenumerate(series.evaluated[all_elements + order])
+            for series in (series1, series2)
+        ]
+        for (order1, value1), (order2, value2) in zip(*results):
+            assert order1 == order2
 
-                if isinstance(pair[0][-1], type(one)) or isinstance(pair[1][-1],  type(one)):
-                    assert pair[0][-1] == pair[1][-1]
-                    continue
-                np.testing.assert_allclose(
-                    pair[0][-1] @ np.eye(*pair[0][-1].shape),
-                    pair[1][-1] @ np.eye(*pair[1][-1].shape),
-                    atol=absolute_tolerance,
-                    rtol=relative_tolerance,
-                    err_msg="{}".format(str(pair)))
+            if isinstance(value1, type(one)) or isinstance(value2,  type(one)):
+                assert value1 == value2
+                continue
+            # Convert all numeric types to dense arrays
+            np.testing.assert_allclose(
+                value1 @ np.identity(value1.shape[1]),
+                value2 @ np.identity(value2.shape[1]),
+                atol=atol,
+                rtol=rtol,
+                err_msg=f"{order1=} {order2=}"
+            )
 
 
 def test_repeated_application(
