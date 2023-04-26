@@ -51,3 +51,18 @@ def test_fibonacci_series() -> None:
     )
 
     assert F.evaluated[6] == 8
+
+
+def test_cleanup():
+    """Test that BlockSeries data is not corrupted by an exception."""
+    def raising_eval(i):
+        if i:
+            raise ValueError
+        return i
+    problematic = BlockSeries(raising_eval, shape=(), n_infinite=1)
+    problematic.evaluated[0]
+    with pytest.raises(ValueError):
+        problematic.evaluated[1]
+    # Check that a repeated call raises the same error
+    with pytest.raises(ValueError):
+        problematic.evaluated[1]

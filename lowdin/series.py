@@ -114,7 +114,12 @@ class _Evaluated:
                 # Calling eval gives control away; mark that this value is evaluated
                 # To be able to catch recursion and data corruption.
                 data[index] = PENDING
-                data[index] = self.original.eval(*index)
+                try:
+                    data[index] = self.original.eval(*index)
+                except BaseException:
+                    # Catching BaseException to clean up also after keyboard interrupt
+                    data.pop(index, None)
+                    raise
             if data[index] is PENDING:
                 raise RuntimeError("Infinite recursion loop detected")
             trial[index] = data[index]
