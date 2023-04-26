@@ -348,7 +348,7 @@ def test_doubled_orders(
 def compare_series(
     series1: BlockSeries,
     series2: BlockSeries,
-    wanted_orders: list[tuple[int, ...]],
+    wanted_orders: tuple[int, ...],
     atol: Optional[float] = 1e-15,
     rtol: Optional[float] = 0,
 ) -> None:
@@ -369,33 +369,32 @@ def compare_series(
     series2:
         Second `~lowdin.series.BlockSeries` to compare
     wanted_orders:
-        List of tuples of wanted_orders to check the series for
+        Tuple of wanted_orders to check the series for
     atol:
         Optional absolute tolerance for numeric comparison
     rtol:
         Optional relative tolerance for numeric comparison
     """
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        all_elements = (slice(None),) * len(series1.shape)
-        results = [
-            np.ma.ndenumerate(series.evaluated[all_elements + order])
-            for series in (series1, series2)
-        ]
-        for (order1, value1), (order2, value2) in zip(*results):
-            assert order1 == order2
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    all_elements = (slice(None),) * len(series1.shape)
+    results = [
+        np.ma.ndenumerate(series.evaluated[all_elements + order])
+        for series in (series1, series2)
+    ]
+    for (order1, value1), (order2, value2) in zip(*results):
+        assert order1 == order2
 
-            if isinstance(value1, type(one)) or isinstance(value2,  type(one)):
-                assert value1 == value2
-                continue
-            # Convert all numeric types to dense arrays
-            np.testing.assert_allclose(
-                value1 @ np.identity(value1.shape[1]),
-                value2 @ np.identity(value2.shape[1]),
-                atol=atol,
-                rtol=rtol,
-                err_msg=f"{order1=} {order2=}"
-            )
+        if isinstance(value1, type(one)) or isinstance(value2,  type(one)):
+            assert value1 == value2
+            continue
+        # Convert all numeric types to dense arrays
+        np.testing.assert_allclose(
+            value1 @ np.identity(value1.shape[1]),
+            value2 @ np.identity(value2.shape[1]),
+            atol=atol,
+            rtol=rtol,
+            err_msg=f"{order1=} {order2=}"
+        )
 
 
 def test_repeated_application(
@@ -413,9 +412,15 @@ def test_repeated_application(
     wanted_orders:
         list of wanted orders
     """
+    # Unpack wanted orders, see #53
+    wanted_orders = wanted_orders[0]
+
     H_tilde_1, U_1, U_adjoint_1 = expanded(H)
     # Workaround for #49
-    orders = (slice(None),) * 2 + tuple(slice(None, dim_order + 1) for dim_order in wanted_orders[0])
+    orders = (
+        slice(None), slice(None),
+        *(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    )
     H_tilde_1.evaluated[orders]
 
     H_tilde_2, U_2, U_adjoint_2 = expanded(H_tilde_1)
