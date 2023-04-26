@@ -854,9 +854,7 @@ def test_input_hamiltonian_KPM(generate_kpm_hamiltonian):
     H = hamiltonian_to_BlockSeries(hamiltonian, subspaces_vectors=subspaces_vectors)
     assert H.shape == (2, 2)
     for block in ((0, 1), (1, 0)):
-        if zero == H.evaluated[block + (0,) * H.n_infinite]:
-            continue
-        np.allclose(H.evaluated[block + (0,) * H.n_infinite], 0)
+        assert zero == H.evaluated[block + (0,) * H.n_infinite]
 
 
 def test_input_hamiltonian_BlockSeries(H):
@@ -906,8 +904,7 @@ def test_input_hamiltonian_diagonal_indices():
             index = block + (0,) * H.n_infinite
             np.testing.assert_allclose(H.evaluated[index].diagonal(), eigvals)
         for block in ((0, 1), (1, 0)):
-            index = block + (0,) * H.n_infinite
-            np.testing.assert_allclose(H.evaluated[index].toarray(), 0)
+            zero == H.evaluated[block + (0,) * H.n_infinite]
         with pytest.raises(ValueError):
             H = hamiltonian_to_BlockSeries(hamiltonian)
             H.evaluated[(0, 0) + (0,) * H.n_infinite]
@@ -941,7 +938,7 @@ def test_input_hamiltonian_from_subspaces():
             np.testing.assert_allclose(H.evaluated[index].diagonal(), eigvals)
         for block in ((0, 1), (1, 0)):
             index = block + (0,) * H.n_infinite
-            np.testing.assert_allclose(H.evaluated[index], 0, atol=1e-12)
+            zero == H.evaluated[index]
 
 
 def test_input_hamiltonian_blocks():
@@ -981,8 +978,8 @@ def test_input_hamiltonian_blocks():
             H.evaluated[(1, 1) + (0,) * H.n_infinite].diagonal(),
             np.array([1, 1])
         )
-        np.testing.assert_allclose(H.evaluated[(0, 1) + (0,) * H.n_infinite], 0)
-        np.testing.assert_allclose(H.evaluated[(1, 0) + (0,) * H.n_infinite], 0)
+        zero == H.evaluated[(0, 1) + (0,) * H.n_infinite]
+        zero == H.evaluated[(1, 0) + (0,) * H.n_infinite]
 
 
 def test_input_hamiltonian_symbolic():
@@ -1025,11 +1022,4 @@ def test_input_hamiltonian_symbolic():
 
     for H in (H_1, H_2):
         for block in ((0, 1), (1, 0)):
-            assert H.evaluated[block + (0,) * H.n_infinite] == sympy.Matrix([[0]])
-
-    for H in (H_1, H_2):
-        for block in ((0, 1), (1, 0)):
-            assert not any(
-                symbol in H.evaluated[block + (0,) * H.n_infinite].free_symbols
-                for symbol in symbols
-            )
+            assert zero == H.evaluated[block + (0,) * H.n_infinite]
