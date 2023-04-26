@@ -7,7 +7,6 @@
 # %%
 from operator import matmul, mul
 from functools import reduce
-from copy import copy
 from typing import Any, Optional, Callable
 
 import numpy as np
@@ -237,15 +236,18 @@ def _commute_H0_away(
 
 
 def general_symbolic(
-    initial_indices: list[tuple[int, ...]],
-) -> tuple[BlockSeries, BlockSeries, BlockSeries, dict[Operator, Any], BlockSeries]:
+    H: BlockSeries,
+) -> tuple[
+    BlockSeries, BlockSeries, BlockSeries, dict[Operator, Any], dict[Operator, Any]
+]:
     """
     General symbolic algorithm for diagonalizing a Hamiltonian.
 
     Parameters
     ----------
-    initial_indices :
-        indices of nonzero terms of the Hamiltonian to be diagonalized.
+    H :
+        The Hamiltonian. The algorithm only checks which terms are present in
+        the Hamiltonian, but does not substitute them.
 
     Returns
     -------
@@ -256,34 +258,31 @@ def general_symbolic(
         U_s * H * U_s^H = H_tilde_s.
     U_adjoint_s : `~lowdin.series.BlockSeries`
         Symbolic adjoint of U_s.
-    Y_data : dict
+    Y_data : `dict`
         dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
         It is updated whenever new terms of `H_tilde_s` or `U_s` are evaluated.
-    H : `~lowdin.series.BlockSeries`
-        Symbolic initial Hamiltonian, unperturbed and perturbation.
+    subs : `dict`
+        Dictionary with placeholder symbols as keys and original Hamiltonian terms as
+        values.
     """
-    initial_indices = tuple(initial_indices)
-    H = BlockSeries(
-        data={
-            **{
-                index: HermitianOperator(f"H_{index}")
-                for index in initial_indices
-                if index[0] == index[1]
-            },
-            **{
-                index: Operator(f"H_{index}")
-                for index in initial_indices
-                if index[0] != index[1]
-            },
-        },
-        shape=(2, 2),
-        n_infinite=len(initial_indices[0]) - 2,
-    )
-    H_symbols = copy(H.data)
-    H_0_AA = H_symbols[(0, 0) + (0,) * H.n_infinite]
-    H_0_BB = H_symbols[(1, 1) + (0,) * H.n_infinite]
+    subs = {}
+    def placeholder_eval(*index):
+        if zero == (actual_value := H.evaluated[index]):
+            return zero
+        operator_type = HermitianOperator if index[0] == index[1] else Operator
+        placeholder = operator_type(f"H_{index}")
+        subs[placeholder] = actual_value
+        return placeholder
 
-    H_tilde, U, U_adjoint = general(H, solve_sylvester=(lambda x: x), op=mul)
+    H_placeholder = BlockSeries(
+        eval=placeholder_eval,
+        shape=H.shape,
+        n_infinite=H.n_infinite,
+    )
+    H_0_AA = H_placeholder.evaluated[(0, 0) + (0,) * H.n_infinite]
+    H_0_BB = H_placeholder.evaluated[(1, 1) + (0,) * H.n_infinite]
+
+    H_tilde, U, U_adjoint = general(H_placeholder, solve_sylvester=(lambda x: x), op=mul)
 
     Y_data = {}
 
@@ -308,7 +307,7 @@ def general_symbolic(
 
     H_tilde.eval = H_tilde_eval
 
-    return H_tilde, U, U_adjoint, Y_data, H_symbols
+    return H_tilde, U, U_adjoint, Y_data, subs
 
 
 def expanded(
@@ -345,10 +344,8 @@ def expanded(
     if solve_sylvester is None:
         solve_sylvester = _default_solve_sylvester(H)
 
-    H_tilde_s, U_s, _, Y_data, H_symbols = general_symbolic(H.data.keys())
+    H_tilde_s, U_s, _, Y_data, subs = general_symbolic(H)
     _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
-
-    subs = {symbol: H.evaluated[index] for index, symbol in H_symbols.items()}
 
     def H_tilde_eval(*index):
         H_tilde = H_tilde_s.evaluated[index]

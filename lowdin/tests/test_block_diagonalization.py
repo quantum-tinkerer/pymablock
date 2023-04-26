@@ -786,13 +786,6 @@ def test_repeated_application(
     wanted_orders = wanted_orders[0]
 
     H_tilde_1, U_1, U_adjoint_1 = expanded(H)
-    # Workaround for #49
-    orders = (
-        slice(None), slice(None),
-        *(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    )
-    H_tilde_1.evaluated[orders]
-
     H_tilde_2, U_2, U_adjoint_2 = expanded(H_tilde_1)
 
     zero_index = (0, ) * H_tilde_1.n_infinite
