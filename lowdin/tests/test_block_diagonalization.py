@@ -431,5 +431,5 @@ def test_repeated_application(
         shape=H_tilde_1.shape,
         n_infinite=H_tilde_1.n_infinite,
     )
-    compare_series(H_tilde_2, H_tilde_1, wanted_orders, 1e-3)
-    compare_series(U_2, U_target, wanted_orders, 1e-3)
+    compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
+    compare_series(U_2, U_target, wanted_orders)
