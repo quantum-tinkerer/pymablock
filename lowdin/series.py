@@ -27,8 +27,6 @@ one = One()
 del One
 
 
-
-# %%
 class Zero:
     """
     A class that behaves like zero in all operations.

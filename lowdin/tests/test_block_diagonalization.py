@@ -157,7 +157,6 @@ def compare_series(
         )
 
 
-def test_check_AB(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
 @pytest.fixture(scope="module")
 def general_output(H: BlockSeries) -> BlockSeries:
     """
@@ -849,6 +848,8 @@ def test_repeated_application(
     )
     compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
     compare_series(U_2, U_target, wanted_orders)
+
+
 @pytest.fixture(
     scope="module",
     params=[
