@@ -24,8 +24,8 @@ from lowdin.linalg import ComplementProjector
 @pytest.fixture(
     scope="module",
     params=[
-        [(3,)],
-        [(2, 2)],
+        (3,),
+        (2, 2),
     ],
 )
 def wanted_orders(request):
@@ -51,13 +51,13 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     Parameters
     ----------
     Ns: dimension of each block (A, B)
-    wanted_orders: list of orders to compute
+    wanted_orders: orders to compute
 
     Returns
     -------
     BlockSeries of the Hamiltonian
     """
-    n_infinite = len(wanted_orders[0])
+    n_infinite = len(wanted_orders)
     orders = np.eye(n_infinite, dtype=int)
     h_0_AA = np.diag(np.sort(np.random.rand(Ns[0])) - 1)
     h_0_BB = np.diag(np.sort(np.random.rand(Ns[1])))
@@ -175,7 +175,7 @@ def general_output(H: BlockSeries) -> BlockSeries:
 
 def test_check_AB(
         general_output: BlockSeries,
-        wanted_orders: list[tuple[int, ...]]
+        wanted_orders: tuple[int, ...]
     ) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian.
@@ -183,21 +183,20 @@ def test_check_AB(
     Parameters
     ----------
     H: Hamiltonian
-    wanted_orders: list of orders to compute
+    wanted_orders: orders to compute
     """
     H_tilde = general_output[0]
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in H_tilde.evaluated[(0, 1) + order].compressed():
-            np.testing.assert_allclose(
-                block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
-            )
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    for block in H_tilde.evaluated[(0, 1) + order].compressed():
+        np.testing.assert_allclose(
+            block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
+        )
 
 
 def test_check_unitary(
         H: BlockSeries,
         general_output: BlockSeries,
-        wanted_orders: list[tuple[int, ...]]
+        wanted_orders: tuple[int, ...]
     ) -> None:
     """
     Test that the transformation is unitary.
@@ -205,9 +204,9 @@ def test_check_unitary(
     Parameters
     ----------
     H: Hamiltonian
-    wanted_orders: list of orders to compute
+    wanted_orders: orders to compute
     """
-    zero_order = (0,) * len(wanted_orders[0])
+    zero_order = (0,) * len(wanted_orders)
     N_A = H.evaluated[(0, 0) + zero_order].shape[0]
     N_B = H.evaluated[(1, 1) + zero_order].shape[0]
     n_infinite = H.n_infinite
@@ -220,17 +219,16 @@ def test_check_unitary(
     _, U, U_adjoint = general_output
     transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
 
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in ((0, 0), (1, 1), (0, 1)):
-            result = transformed.evaluated[tuple(block + order)]
-            for index, block in np.ma.ndenumerate(result):
-                if not any(index):
-                    # Zeroth order is not zero.
-                    continue
-                np.testing.assert_allclose(
-                    block, 0, atol=10**-5, err_msg=f"{block=}, {index=}"
-                )
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    for block in ((0, 0), (1, 1), (0, 1)):
+        result = transformed.evaluated[tuple(block + order)]
+        for index, block in np.ma.ndenumerate(result):
+            if not any(index):
+                # Zeroth order is not zero.
+                continue
+            np.testing.assert_allclose(
+                block, 0, atol=10**-5, err_msg=f"{block=}, {index=}"
+            )
 
 
 def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
@@ -250,7 +248,7 @@ def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
 
 
 def test_first_order_H_tilde(
-    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+    H: BlockSeries, wanted_orders: tuple[int, ...]
 ) -> None:
     """
     Test that the first order is computed correctly.
@@ -258,10 +256,10 @@ def test_first_order_H_tilde(
     Parameters
     ----------
     H : Hamiltonian
-    wanted_orders: list of orders to compute
+    wanted_orders: orders to compute
     """
     H_tilde = general(H)[0]
-    Np = len(wanted_orders[0])
+    Np = len(wanted_orders)
     for order in permutations((0,) * (Np - 1) + (1,)):
         result = H_tilde.evaluated[(0, 0) + order]
         expected = compute_first_order(H, order)
@@ -303,14 +301,14 @@ def compute_second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
 
 
 def test_second_order_H_tilde(
-    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+    H: BlockSeries, wanted_orders: tuple[int, ...]
 ) -> None:
     """Test that the second order is computed correctly.
 
     Parameters
     ----------
     H : Hamiltonian
-    wanted_orders: list of orders to compute
+    wanted_orders: orders to compute
     """
     H_tilde = general(H)[0]
     n_infinite = H.n_infinite
@@ -350,7 +348,7 @@ def test_check_diagonal_H_0_BB() -> None:
 
 
 def test_equivalence_general_expanded(
-    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+    H: BlockSeries, wanted_orders: tuple[int, ...]
 ) -> None:
     """
     Test that the general and expanded methods give the same results.
@@ -408,7 +406,7 @@ def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any
 
 @pytest.mark.parametrize("algorithm", [general, expanded])
 def test_doubled_orders(
-    algorithm: Callable, H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+    algorithm: Callable, H: BlockSeries, wanted_orders: tuple[int, ...]
 ) -> None:
     """
     Test that doubling the order of the inputs produces the same results on
@@ -418,7 +416,7 @@ def test_doubled_orders(
     Parameters
     ----------
     H: BlockSeries of the Hamiltonian
-    wanted_orders: list of orders to compute
+    wanted_orders: orders to compute
     """
     # Get the data directly to avoid defining an extra eval
     data = H._data
@@ -482,7 +480,7 @@ def a_dim(n_dim) -> int:
 
 @pytest.fixture(scope="module")
 def generate_kpm_hamiltonian(
-    n_dim: int, wanted_orders: list[tuple[int, ...]], a_dim: int
+    n_dim: int, wanted_orders: tuple[int, ...], a_dim: int
 ) -> tuple[list[np.ndarray], np.ndarray, np.ndarray]:
     """
     Generate random BlockSeries Hamiltonian in the format required by the numerical
@@ -506,7 +504,7 @@ def generate_kpm_hamiltonian(
     eigenvalues: tuple
         Eigenvalues of the Hamiltonian.
     """
-    n_infinite = len(wanted_orders[0])
+    n_infinite = len(wanted_orders)
 
     hamiltonian = []
     h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
@@ -531,7 +529,7 @@ def test_check_AB_KPM(
     generate_kpm_hamiltonian: tuple[
         list[np.ndarray], np.ndarray, np.ndarray
     ],
-    wanted_orders: list[tuple[int, ...]],
+    wanted_orders: tuple[int, ...],
 ) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian using the numerical algorithm.
@@ -660,7 +658,7 @@ def test_check_AA_numerical(
     generate_kpm_hamiltonian: tuple[
         BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
     ],
-    wanted_orders: list[tuple[int, ...]],
+    wanted_orders: tuple[int, ...],
     a_dim: int,
 ) -> None:
     """
@@ -721,20 +719,19 @@ def test_check_AA_numerical(
     H_tilde_KPM = numerical(H_input, vecs_a, eigs_a, kpm_params={"num_moments": 5000})[
         0
     ]
-    for order in wanted_orders:
-        order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block_full_b, block_general, block_KPM in zip(
-            H_tilde_full_b.evaluated[order].compressed(),
-            H_tilde_general.evaluated[order].compressed(),
-            H_tilde_KPM.evaluated[order].compressed(),
-        ):
-            np.testing.assert_allclose(
-                block_full_b, block_general, atol=1e-4, err_msg=f"{order=}"
-            )
+    order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    for block_full_b, block_general, block_KPM in zip(
+        H_tilde_full_b.evaluated[order].compressed(),
+        H_tilde_general.evaluated[order].compressed(),
+        H_tilde_KPM.evaluated[order].compressed(),
+    ):
+        np.testing.assert_allclose(
+            block_full_b, block_general, atol=1e-4, err_msg=f"{order=}"
+        )
 
-            np.testing.assert_allclose(
-                block_full_b, block_KPM, atol=1e-4, err_msg=f"{order=}"
-            )
+        np.testing.assert_allclose(
+            block_full_b, block_KPM, atol=1e-4, err_msg=f"{order=}"
+        )
 
 
 def test_solve_sylvester_kpm_vs_default(n_dim: int, a_dim: int)-> None:
@@ -778,7 +775,7 @@ def test_solve_sylvester_kpm_vs_default(n_dim: int, a_dim: int)-> None:
 
 def test_correct_implicit_subspace(
     generate_kpm_hamiltonian: tuple[list[np.ndarray], np.ndarray, np.ndarray],
-    wanted_orders: list[tuple[int, ...]],
+    wanted_orders: tuple[int, ...],
 ) -> None:
     """
     Testing agreement of explicit and implicit subspaces_vectors
@@ -806,21 +803,20 @@ def test_correct_implicit_subspace(
         eigenvalues=eigenvalues[::-1]
     )
 
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        h = H_tilde.evaluated[(0, 0) + order].compressed()
-        h_swapped = H_tilde_swapped.evaluated[(1, 1) + order].compressed()
-        for block_aa, block_bb in zip(h, h_swapped):
-            assert isinstance(block_bb, LinearOperator)
-            np.testing.assert_allclose(
-                block_aa,
-                Dagger(subspaces_vectors[0]) @ block_bb @ subspaces_vectors[0],
-                atol=1e-14
-            )
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    h = H_tilde.evaluated[(0, 0) + order].compressed()
+    h_swapped = H_tilde_swapped.evaluated[(1, 1) + order].compressed()
+    for block_aa, block_bb in zip(h, h_swapped):
+        assert isinstance(block_bb, LinearOperator)
+        np.testing.assert_allclose(
+            block_aa,
+            Dagger(subspaces_vectors[0]) @ block_bb @ subspaces_vectors[0],
+            atol=1e-14
+        )
 
 
 def test_repeated_application(
-    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+    H: BlockSeries, wanted_orders: tuple[int, ...]
 ) -> None:
     """
     Test ensuring invariance of the result upon repeated application
@@ -834,9 +830,6 @@ def test_repeated_application(
     wanted_orders:
         list of wanted orders
     """
-    # Unpack wanted orders, see #53
-    wanted_orders = wanted_orders[0]
-
     H_tilde_1, U_1, U_adjoint_1 = expanded(H)
     H_tilde_2, U_2, U_adjoint_2 = expanded(H_tilde_1)
 
@@ -1054,7 +1047,10 @@ def test_input_hamiltonian_symbolic():
 
 
 @pytest.mark.xfail(reason="solve_sylvester won't be determined with current code")
-def test_block_diagonalize(diagonal_hamiltonians, wanted_orders):
+def test_block_diagonalize(
+    diagonal_hamiltonians: tuple | list,
+    wanted_orders : tuple[int, ...]
+):
     """
     Test that `block_diagonalize` chooses the right algorithm and the
     solve_sylvester function.
