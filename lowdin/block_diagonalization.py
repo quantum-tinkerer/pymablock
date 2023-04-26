@@ -775,7 +775,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
 
 
 def _sympy_to_BlockSeries(
-        hamiltonian: sympy.matrices.immutable.ImmutableDenseMatrix,
+        hamiltonian: sympy.MatrixBase,
         symbols: list[sympy.Symbol] = None,
     ):
     """
@@ -910,8 +910,8 @@ def hamiltonian_to_BlockSeries(
     """
     if isinstance(hamiltonian, list):
         hamiltonian = _list_to_dict(hamiltonian)
-    elif isinstance(hamiltonian, sympy.Matrix):
-        hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
+    elif hasattr(hamiltonian, "is_Matrix") and hamiltonian.is_Matrix:
+            hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
     if isinstance(hamiltonian, dict):
         hamiltonian = _dict_to_BlockSeries(hamiltonian)
     elif isinstance(hamiltonian, BlockSeries):
