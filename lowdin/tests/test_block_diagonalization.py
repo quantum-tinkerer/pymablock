@@ -1,5 +1,5 @@
 from itertools import count, permutations
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import numpy as np
 import pytest
@@ -15,7 +15,7 @@ from lowdin.block_diagonalization import (
     solve_sylvester_KPM,
     _default_solve_sylvester,
 )
-from lowdin.series import BlockSeries, cauchy_dot_product, zero
+from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
 from lowdin.linalg import ComplementProjector
 
 
@@ -86,6 +86,58 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
         hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
 
     return to_BlockSeries(*hams, n_infinite)
+
+
+def compare_series(
+    series1: BlockSeries,
+    series2: BlockSeries,
+    wanted_orders: tuple[int, ...],
+    atol: Optional[float] = 1e-15,
+    rtol: Optional[float] = 0,
+) -> None:
+    """
+    Function that compares two BlockSeries with each other
+
+    Two series are compared for a given list of wanted orders in all orders.
+    The test first checks for `~lowdin.series.one` objects since these are
+    not masked by the resulting masked arrays. For numeric types, numpy
+    arrays, `scipy.sparse.linalg.LinearOperator` types, and scipy.sparse.sp_Matrix,
+    the evaluated object is converted to a dense array by multiplying with dense
+    identity and numrically compared up to the desired tolerance.
+
+    Parameters:
+    --------------
+    series1:
+        First `~lowdin.series.BlockSeries` to compare
+    series2:
+        Second `~lowdin.series.BlockSeries` to compare
+    wanted_orders:
+        Tuple of wanted_orders to check the series for
+    atol:
+        Optional absolute tolerance for numeric comparison
+    rtol:
+        Optional relative tolerance for numeric comparison
+    """
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    all_elements = (slice(None),) * len(series1.shape)
+    results = [
+        np.ma.ndenumerate(series.evaluated[all_elements + order])
+        for series in (series1, series2)
+    ]
+    for (order1, value1), (order2, value2) in zip(*results):
+        assert order1 == order2
+
+        if isinstance(value1, type(one)) or isinstance(value2,  type(one)):
+            assert value1 == value2
+            continue
+        # Convert all numeric types to dense arrays
+        np.testing.assert_allclose(
+            value1 @ np.identity(value1.shape[1]),
+            value2 @ np.identity(value2.shape[1]),
+            atol=atol,
+            rtol=rtol,
+            err_msg=f"{order1=} {order2=}"
+        )
 
 
 def test_check_AB(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
@@ -713,3 +765,41 @@ def test_correct_implicit_subspace(
             np.testing.assert_allclose(
                 block_aa, Dagger(vecs_a) @ block_bb @ vecs_a, atol=1e-14
             )
+
+
+def test_repeated_application(
+    H: BlockSeries, wanted_orders: list[tuple[int, ...]]
+) -> None:
+    """
+    Test ensuring invariance of the result upon repeated application
+
+    Tests if the unitary transform returns identity when the algorithm is applied twice
+
+    Parameters:
+    -----------
+    H:
+        Hamiltonian
+    wanted_orders:
+        list of wanted orders
+    """
+    # Unpack wanted orders, see #53
+    wanted_orders = wanted_orders[0]
+
+    H_tilde_1, U_1, U_adjoint_1 = expanded(H)
+    # Workaround for #49
+    orders = (
+        slice(None), slice(None),
+        *(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    )
+    H_tilde_1.evaluated[orders]
+
+    H_tilde_2, U_2, U_adjoint_2 = expanded(H_tilde_1)
+
+    zero_index = (0, ) * H_tilde_1.n_infinite
+    U_target = BlockSeries(
+        data={(i, i, *zero_index): one for i in range(H_tilde_1.shape[0])},
+        shape=H_tilde_1.shape,
+        n_infinite=H_tilde_1.n_infinite,
+    )
+    compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
+    compare_series(U_2, U_target, wanted_orders)
