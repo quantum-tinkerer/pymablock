@@ -933,7 +933,9 @@ def hamiltonian_to_BlockSeries(
             if zero == hamiltonian.evaluated[index[2:]]:
                 return zero
             try: # Hamiltonians come in blocks of 2x2
-                return hamiltonian.evaluated[index[2:]][index[0]][index[1]]
+                return _convert_if_zero(
+                    hamiltonian.evaluated[index[2:]][index[0]][index[1]]
+                )
             except TypeError:
                 raise ValueError("`subspaces_vectors` or `subspaces_indices`"
                                     " must be provided.")
@@ -970,15 +972,18 @@ def hamiltonian_to_BlockSeries(
         if zero == original:
             return zero
         left, right = index[:2]
-        if (left, right) in ((0, 0), (0, 1)):
-            return Dagger(subspaces_vectors[left]) @ original @ subspaces_vectors[right]
-        elif (left, right) == (1, 1):
-            if implicit: # Needed for compatibility of KPM and subspaces_indices
-                return (
+        if left <= right:
+            if implicit and left == right == 1:
+                # compatibility with KPM
+                result = (
                     subspaces_vectors[left] @ aslinearoperator(original)
                     @ subspaces_vectors[right]
                 )
-            return Dagger(subspaces_vectors[left]) @ original @ subspaces_vectors[right]
+            else:
+                result = (
+                    Dagger(subspaces_vectors[left]) @ original @ subspaces_vectors[right]
+                )
+            return _convert_if_zero(result)
         return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
 
     H = BlockSeries(
@@ -988,4 +993,29 @@ def hamiltonian_to_BlockSeries(
     )
 
     return H
-# %%
+
+
+def _convert_if_zero(value: Any):
+    """
+    Converts a value to zero if it is close enough.
+
+    Parameters
+    ----------
+    value :
+        Value to convert to zero.
+
+    Returns
+    -------
+    zero :
+        Zero if value is close enough to zero, otherwise value.
+    """
+    if isinstance(value, np.ndarray):
+        if np.allclose(value, 0):
+            return zero
+    elif isinstance(value, sparse.csr_matrix):
+        if value.nnz == 0:
+            return zero
+    elif hasattr(value, "is_zero_matrix") and value.is_zero_matrix:
+        # symbolic zero matrix replaced by zero
+        return zero
+    return value
