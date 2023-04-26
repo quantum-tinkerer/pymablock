@@ -158,6 +158,26 @@ def compare_series(
 
 
 def test_check_AB(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
+@pytest.fixture(scope="module")
+def general_output(H: BlockSeries) -> BlockSeries:
+    """
+    Return the transformed Hamiltonian.
+
+    Parameters
+    ----------
+    H: Hamiltonian
+
+    Returns
+    -------
+    transformed Hamiltonian
+    """
+    return general(H)
+
+
+def test_check_AB(
+        general_output: BlockSeries,
+        wanted_orders: list[tuple[int, ...]]
+    ) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian.
 
@@ -166,7 +186,7 @@ def test_check_AB(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
     H: Hamiltonian
     wanted_orders: list of orders to compute
     """
-    H_tilde = general(H)[0]
+    H_tilde = general_output[0]
     for order in wanted_orders:
         order = tuple(slice(None, dim_order + 1) for dim_order in order)
         for block in H_tilde.evaluated[(0, 1) + order].compressed():
@@ -175,7 +195,11 @@ def test_check_AB(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
             )
 
 
-def test_check_unitary(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> None:
+def test_check_unitary(
+        H: BlockSeries,
+        general_output: BlockSeries,
+        wanted_orders: list[tuple[int, ...]]
+    ) -> None:
     """
     Test that the transformation is unitary.
 
@@ -194,7 +218,7 @@ def test_check_unitary(H: BlockSeries, wanted_orders: list[tuple[int, ...]]) -> 
         shape=(2, 2),
         n_infinite=n_infinite,
     )
-    _, U, U_adjoint = general(H)
+    _, U, U_adjoint = general_output
     transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
 
     for order in wanted_orders:
@@ -873,7 +897,23 @@ def test_input_hamiltonian_BlockSeries(H):
         np.allclose(H.evaluated[index], hamiltonian.evaluated[index])
 
 
-def test_input_hamiltonian_diagonal_indices():
+@pytest.fixture(scope="module", params=[0, 1, 2, 3])
+def diagonal_hamiltonians(request):
+    subspaces_indices = [0, 1, 1, 0]
+    eigenvalues = [-1, 1, 1, -1]
+    perturbation = np.random.random(4)
+    perturbation += Dagger(perturbation)
+    hamiltonians = [
+        [np.diag(eigenvalues), perturbation],
+        {(0, 0): np.diag(eigenvalues), (1, 0): perturbation, (0, 1): perturbation},
+        [sparse.diags(eigenvalues), perturbation, perturbation],
+        {(0,): sparse.diags(eigenvalues), (1,): perturbation}
+    ]
+    diagonals = [np.array([-1, -1]), np.array([1, 1])]
+    return hamiltonians[request.param], subspaces_indices, diagonals
+
+
+def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonians):
     """
     Test inputs where the unperturbed Hamiltonian is diagonal.
 
@@ -883,31 +923,18 @@ def test_input_hamiltonian_diagonal_indices():
     - list of sparse matrices
     - dictionary of sparse matrices
     """
-    subspaces_indices = [0, 1, 1, 0]
-    eigenvalues = [-1, 1, 1, -1]
-    perturbation = np.random.random(4)
-    perturbation += Dagger(perturbation)
-
-    hamiltonians = [
-        [np.diag(eigenvalues), perturbation],
-        {(0, 0): np.diag(eigenvalues), (1, 0): perturbation, (0, 1): perturbation},
-        [sparse.diags(eigenvalues), perturbation, perturbation],
-        {(0,): sparse.diags(eigenvalues), (1,): perturbation}
-    ]
-
-    diagonals = [np.array([-1, -1]), np.array([1, 1])]
-    for hamiltonian in hamiltonians:
-        H = hamiltonian_to_BlockSeries(hamiltonian, subspaces_indices=subspaces_indices)
-        assert H.shape == (2, 2)
-        assert H.n_infinite == len(hamiltonian) - 1
-        for block, eigvals in zip(((0, 0), (1, 1)), diagonals):
-            index = block + (0,) * H.n_infinite
-            np.testing.assert_allclose(H.evaluated[index].diagonal(), eigvals)
-        for block in ((0, 1), (1, 0)):
-            zero == H.evaluated[block + (0,) * H.n_infinite]
-        with pytest.raises(ValueError):
-            H = hamiltonian_to_BlockSeries(hamiltonian)
-            H.evaluated[(0, 0) + (0,) * H.n_infinite]
+    hamiltonian, subspaces_indices, diagonals = diagonal_hamiltonians
+    H = hamiltonian_to_BlockSeries(hamiltonian, subspaces_indices=subspaces_indices)
+    assert H.shape == (2, 2)
+    assert H.n_infinite == len(hamiltonian) - 1
+    for block, eigvals in zip(((0, 0), (1, 1)), diagonals):
+        index = block + (0,) * H.n_infinite
+        np.testing.assert_allclose(H.evaluated[index].diagonal(), eigvals)
+    for block in ((0, 1), (1, 0)):
+        zero == H.evaluated[block + (0,) * H.n_infinite]
+    with pytest.raises(ValueError):
+        H = hamiltonian_to_BlockSeries(hamiltonian)
+        H.evaluated[(0, 0) + (0,) * H.n_infinite]
 
 
 def test_input_hamiltonian_from_subspaces():
@@ -978,8 +1005,8 @@ def test_input_hamiltonian_blocks():
             H.evaluated[(1, 1) + (0,) * H.n_infinite].diagonal(),
             np.array([1, 1])
         )
-        zero == H.evaluated[(0, 1) + (0,) * H.n_infinite]
-        zero == H.evaluated[(1, 0) + (0,) * H.n_infinite]
+        assert zero == H.evaluated[(0, 1) + (0,) * H.n_infinite]
+        assert zero == H.evaluated[(1, 0) + (0,) * H.n_infinite]
 
 
 def test_input_hamiltonian_symbolic():
@@ -1023,3 +1050,23 @@ def test_input_hamiltonian_symbolic():
     for H in (H_1, H_2):
         for block in ((0, 1), (1, 0)):
             assert zero == H.evaluated[block + (0,) * H.n_infinite]
+
+
+@pytest.mark.xfail(reason="solve_sylvester won't be determined with current code")
+def test_block_diagonalize(diagonal_hamiltonians, wanted_orders):
+    """
+    Test that `block_diagonalize` chooses the right algorithm and the
+    solve_sylvester function.
+
+    Parameters
+    ----------
+    diagonal_hamiltonians :
+        Hamiltonians to test.
+    wanted_orders : list
+        List of orders to test.
+    """
+
+    hamiltonian, subspaces_indices, diagonals = diagonal_hamiltonians
+    H_tilde, _, _ = block_diagonalize(hamiltonian, subspaces_indices=subspaces_indices)
+    test_check_AB(H_tilde, wanted_orders)
+    test_check_unitary(H_tilde, wanted_orders)
