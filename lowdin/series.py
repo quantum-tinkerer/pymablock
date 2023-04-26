@@ -108,7 +108,7 @@ class _Evaluated:
         one_entry = np.isscalar(trial[item])
         trial[item] = 1
 
-        data = self.original.data
+        data = self.original._data
         for index in zip(*np.where(trial)):
             if index not in data:
                 # Calling eval gives control away; mark that this value is evaluated
@@ -179,7 +179,7 @@ class BlockSeries:
         """
         self.eval = (lambda *_: zero) if eval is None else eval
         self.evaluated = _Evaluated(self)
-        self.data = data or {}
+        self._data = data or {}
         self.shape = shape
         self.n_infinite = n_infinite
 

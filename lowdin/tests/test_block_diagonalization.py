@@ -127,7 +127,7 @@ def compare_series(
     for (order1, value1), (order2, value2) in zip(*results):
         assert order1 == order2
 
-        if isinstance(value1, type(one)) or isinstance(value2,  type(one)):
+        if isinstance(value1, type(one)) or isinstance(value2, type(one)):
             assert value1 == value2
             continue
         # Convert all numeric types to dense arrays
@@ -136,7 +136,7 @@ def compare_series(
             value2 @ np.identity(value2.shape[1]),
             atol=atol,
             rtol=rtol,
-            err_msg=f"{order1=} {order2=}"
+            err_msg=f"{order1=} {order2=}",
         )
 
 
@@ -379,8 +379,8 @@ def test_doubled_orders(
     H: BlockSeries of the Hamiltonian
     wanted_orders: list of orders to compute
     """
-
-    data = H.data
+    # Get the data directly to avoid defining an extra eval
+    data = H._data
     H_doubled = BlockSeries(
         data=double_orders(data), shape=H.shape, n_infinite=H.n_infinite
     )
@@ -482,16 +482,16 @@ def generate_kpm_hamiltonian(
     eigs_a, vecs_a = eigs[:a_dim], vecs[:, :a_dim]
     eigs_b, vecs_b = eigs[a_dim:], vecs[:, a_dim:]
 
-    H_input = BlockSeries(data={((0,) * n_infinite): h_0}, shape=())
+    perturbations = {}
+    for index in np.identity(n_infinite, int):
+        h_p = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+        perturbations[tuple(index)] = h_p + h_p.conjugate().transpose()
 
-    for i in range(n_infinite):
-        h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
-        h_p += h_p.conjugate().transpose()
-        index = np.zeros(n_infinite, int)
-        index[i] = 1
-        H_input.data[tuple(index)] = h_p
-
-    H_input.n_infinite = n_infinite
+    H_input = BlockSeries(
+        data={((0,) * n_infinite): h_0, **perturbations},
+        shape=(),
+        n_infinite=n_infinite,
+    )
 
     return H_input, vecs_a, eigs_a, vecs_b, eigs_b
 
@@ -788,7 +788,7 @@ def test_repeated_application(
     H_tilde_1, U_1, U_adjoint_1 = expanded(H)
     H_tilde_2, U_2, U_adjoint_2 = expanded(H_tilde_1)
 
-    zero_index = (0, ) * H_tilde_1.n_infinite
+    zero_index = (0,) * H_tilde_1.n_infinite
     U_target = BlockSeries(
         data={(i, i, *zero_index): one for i in range(H_tilde_1.shape[0])},
         shape=H_tilde_1.shape,
