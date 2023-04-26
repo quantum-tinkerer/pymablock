@@ -66,3 +66,10 @@ def test_cleanup():
     # Check that a repeated call raises the same error
     with pytest.raises(ValueError):
         problematic.evaluated[1]
+
+
+def test_recursion_detection():
+    """Test that BlockSeries detects recursion."""
+    recursive = BlockSeries(lambda i: recursive.evaluated[i], shape=(), n_infinite=1)
+    with pytest.raises(RuntimeError, match="Infinite recursion loop detected"):
+        recursive.evaluated[0]
