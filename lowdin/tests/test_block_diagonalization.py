@@ -405,29 +405,26 @@ def test_repeated_application(
     Test ensuring invariance of the result upon repeated application
 
     Tests if the unitary transform returns identity when the algorithm is applied twice
-    
+
     Parameters:
     -----------
-    H: 
+    H:
         Hamiltonian
     wanted_orders:
-        list of wanted orders 
+        list of wanted orders
     """
     H_tilde_1, U_1, U_adjoint_1 = expanded(H)
-    H_tilde_2, U_2, U_adjoint_2 = expanded(H_tilde_1)
-    
-    U_target = BlockSeries()
-    U_target.shape = H_tilde_2.shape
-    U_target.n_infinite = H_tilde_2.n_infinite
-    def target_evaluate(index, tested):
-        zero_index = (0, ) * tested.n_infinite
-        if (index == ((0, 0) + zero_index) or index == ((1, 1) + zero_index)):
-            return one
-        if (index == ((0, 1) + zero_index)  or index == ((1, 0) + zero_index)):
-            return zero
-        else:
-            return np.zeros_like(tested.evaluated[index])
+    # Workaround for #49
+    orders = (slice(None),) * 2 + tuple(slice(None, dim_order + 1) for dim_order in wanted_orders[0])
+    H_tilde_1.evaluated[orders]
 
-    U_target.eval = lambda *index: target_evaluate(index, H_tilde_2)
-    compare_series(U_2, U_target, wanted_orders, 1e-15)
-    compare_series(H_tilde_1, H_tilde_2, wanted_orders, 1e-3)
+    H_tilde_2, U_2, U_adjoint_2 = expanded(H_tilde_1)
+
+    zero_index = (0, ) * H_tilde_1.n_infinite
+    U_target = BlockSeries(
+        data={(i, i, *zero_index): one for i in range(H_tilde_1.shape[0])},
+        shape=H_tilde_1.shape,
+        n_infinite=H_tilde_1.n_infinite,
+    )
+    compare_series(H_tilde_2, H_tilde_1, wanted_orders, 1e-3)
+    compare_series(U_2, U_target, wanted_orders, 1e-3)
