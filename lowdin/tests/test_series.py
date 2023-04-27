@@ -1,9 +1,10 @@
 from typing import Any
+from operator import mul
 
 import numpy as np
 import pytest
 
-from lowdin.series import BlockSeries
+from lowdin.series import BlockSeries, cauchy_dot_product
 
 
 @pytest.fixture(
@@ -20,8 +21,6 @@ from lowdin.series import BlockSeries
         [np.index_exp[6, 3, 3], IndexError],
     ],
 )
-
-
 def possible_keys_and_errors(request):
     return request.param
 
@@ -45,9 +44,10 @@ def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) 
 def test_fibonacci_series() -> None:
     """Test that we can implement the Fibonacci series."""
     F = BlockSeries(
-        eval=lambda x: F.evaluated[x-2] + F.evaluated[x-1],
+        eval=lambda x: F.evaluated[x - 2] + F.evaluated[x - 1],
         data={(0,): 0, (1,): 1},
-        shape=(), n_infinite=1,
+        shape=(),
+        n_infinite=1,
     )
 
     assert F.evaluated[6] == 8
@@ -55,10 +55,12 @@ def test_fibonacci_series() -> None:
 
 def test_cleanup():
     """Test that BlockSeries data is not corrupted by an exception."""
+
     def raising_eval(i):
         if i:
             raise ValueError
         return i
+
     problematic = BlockSeries(raising_eval, shape=(), n_infinite=1)
     problematic.evaluated[0]
     with pytest.raises(ValueError):
@@ -73,3 +75,23 @@ def test_recursion_detection():
     recursive = BlockSeries(lambda i: recursive.evaluated[i], shape=(), n_infinite=1)
     with pytest.raises(RuntimeError, match="Infinite recursion loop detected"):
         recursive.evaluated[0]
+
+
+def test_cauchy_dot_product():
+    """Test that cauchy dot product reduces to a dot"""
+    n = 5
+    test_value = np.random.randn(n, n)
+    a = BlockSeries(
+        data={(i, j, 2): x for (i, j), x in np.ndenumerate(test_value)},
+        shape=(n, n),
+        n_infinite=1,
+    )
+    b = BlockSeries(
+        data={(i, j, 1): x for (i, j), x in np.ndenumerate(test_value)},
+        shape=(n, n),
+        n_infinite=1,
+    )
+    result = cauchy_dot_product(a, b, op=mul)
+    np.testing.assert_allclose(
+        result.evaluated[:, :, 3].astype(float), test_value @ test_value
+    )

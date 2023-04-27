@@ -1,5 +1,5 @@
 # %%
-from itertools import product
+from itertools import product, compress
 from functools import reduce
 from operator import matmul
 from typing import Any, Optional, Callable
@@ -249,38 +249,6 @@ def cauchy_dot_product(
     return product
 
 
-def _generate_orders(
-    orders: tuple[int, ...],
-    start: Optional[int] = None,
-    end: Optional[int] = None,
-    last: bool = True,
-) -> ma.MaskedArray:
-    """
-    Generate array of lower orders to be used in product_by_order.
-
-    Parameters
-    ----------
-    orders : maximum orders of each infinite dimension.
-    start : (optional) 0 or 1 row index of block.
-    end : (optional) 0 or 1 column index of block.
-    last : Whether to keep last order, True by default.
-        This is useful to avoid recursion errors.
-
-    Returns
-    -------
-    Array of lower orders to be used in product_by_order.
-    """
-    mask = (slice(None), slice(None)) + (-1,) * len(orders)
-    trial = ma.ones((2, 2) + tuple([dim + 1 for dim in orders]), dtype=object)
-    if start is not None:
-        trial[int(not start)] = ma.masked
-    if end is not None:
-        trial[:, int(not end)] = ma.masked
-    if not last:
-        trial[mask] = ma.masked
-    return trial
-
-
 # %%
 def product_by_order(
     index: tuple[int, ...],
@@ -321,15 +289,23 @@ def product_by_order(
 
     if exclude_last is None:
         exclude_last = [False] * len(series)
-    starts = [start] + [None] * (len(series) - 1)
-    ends = [None] * (len(series) - 1) + [end]
-    data = [
-        _generate_orders(orders, start=start, end=end, last=not (last))
-        for start, end, last in zip(starts, ends, exclude_last)
-    ]
 
-    for indices, factor in zip(data, series):
-        indices[ma.where(indices)] = factor.evaluated[ma.where(indices)]
+    # Form masked arrays with correct shapes and required elements unmasked
+    data = [
+        ma.ones(
+            factor.shape + tuple([dim + 1 for dim in orders]),
+            dtype=object,
+        )
+        for factor in series
+    ]
+    data[0][np.arange(data[0].shape[0]) != start] = ma.masked
+    data[-1][:, np.arange(data[-1].shape[1]) != end] = ma.masked
+    for values in compress(data, exclude_last):
+        values[(slice(None), slice(None)) + (-1,) * len(orders)] = ma.masked
+
+    # Fill these with the evaluated data
+    for values, factor in zip(data, series):
+        values[ma.where(values)] = factor.evaluated[ma.where(values)]
 
     terms = []
     daggered_terms = []
