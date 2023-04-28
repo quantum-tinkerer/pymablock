@@ -846,25 +846,6 @@ def test_repeated_application(
     compare_series(U_2, U_target, wanted_orders)
 
 
-@pytest.fixture(
-    scope="module",
-    params=[
-        # hamiltonian, subspaces_indices
-        [
-            [np.diag([-1, 1, 1, -1]), np.diag(np.random.random(4))],
-            [0, 1, 1, 0]
-        ],
-        [
-            {(0,): np.diag([-1, 1, 1, -1]), (1,): np.diag(np.random.random(4))},
-            [0, 1, 1, 0]
-        ], # this is redundant
-    ],
-)
-def diagonal_hamiltonian_indices(request):
-    """
-    Return a list of [hamiltonian, subspaces_indices]
-    """
-    return request.param
 def test_input_hamiltonian_KPM(generate_kpm_hamiltonian):
     """
     Test that KPM Hamiltonians are interpreted correctly.
