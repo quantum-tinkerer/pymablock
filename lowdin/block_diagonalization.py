@@ -748,6 +748,8 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     hamiltonian :
         Unperturbed Hamiltonian and perturbations.
         The keys are tuples of integers that indicate the order of the perturbation.
+        The values are the perturbations, and can be either a `~numpy.ndarray` or
+        `~scipy.sparse.csr_matrix` or a list with the blocks of the Hamiltonian.
         {(0, 0): H_0, (1, 0): H_1, (0, 1): H_2}
 
     Returns
@@ -756,13 +758,10 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     """
     n_infinite = len(list(hamiltonian.keys())[0])
     zeroth_order = (0,) * n_infinite
+    h_0 = hamiltonian[zeroth_order]
 
-    # Make 0th order a sparse diagonal if it is diagonal array
-    if isinstance(hamiltonian[zeroth_order], np.ndarray):
-        if np.count_nonzero(
-            hamiltonian[zeroth_order] - np.diag(np.diagonal(hamiltonian[zeroth_order]))
-        ) == 0:
-            hamiltonian[zeroth_order] = sparse.dia_matrix(hamiltonian[zeroth_order])
+    if isinstance(h_0, np.ndarray) or sparse.issparse(h_0):
+        hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
 
     H_temporary = BlockSeries(
         data=hamiltonian,
