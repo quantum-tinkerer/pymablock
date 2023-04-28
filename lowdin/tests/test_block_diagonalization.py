@@ -199,7 +199,6 @@ def test_check_AB(
 
 
 def test_check_unitary(
-        H: BlockSeries,
         general_output: BlockSeries,
         wanted_orders: tuple[int, ...]
     ) -> None:
@@ -212,16 +211,17 @@ def test_check_unitary(
     wanted_orders: orders to compute
     """
     zero_order = (0,) * len(wanted_orders)
-    N_A = H.evaluated[(0, 0) + zero_order].shape[0]
-    N_B = H.evaluated[(1, 1) + zero_order].shape[0]
-    n_infinite = H.n_infinite
+    H_tilde, U, U_adjoint = general_output
+
+    N_A = H_tilde.evaluated[(0, 0) + zero_order].shape[0]
+    N_B = H_tilde.evaluated[(1, 1) + zero_order].shape[0]
+    n_infinite = H_tilde.n_infinite
 
     identity = BlockSeries(
         data = {(0, 0) + zero_order: np.eye(N_A), (1, 1) + zero_order: np.eye(N_B)},
         shape=(2, 2),
         n_infinite=n_infinite,
     )
-    _, U, U_adjoint = general_output
     transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
 
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
