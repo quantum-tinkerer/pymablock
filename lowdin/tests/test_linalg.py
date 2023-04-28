@@ -2,6 +2,8 @@ import numpy as np
 from numpy.testing import assert_allclose
 from scipy import sparse
 from scipy.sparse.linalg import aslinearoperator
+from scipy import sparse
+import sympy
 
 from lowdin import linalg
 
@@ -33,3 +35,17 @@ def test_complement_projector():
     explicit = np.eye(10) - vec_A @ vec_A.conj().T
     assert_allclose(projector @ np.eye(10), explicit)
     assert_allclose(np.eye(10) @ projector, explicit)
+
+
+def test_is_diagonal():
+    array = np.random.randint(0, 4, size=(3, 3))
+    assert not linalg.is_diagonal(array)
+    assert linalg.is_diagonal(np.diag(np.diag(array)))
+
+    sparse_array = sparse.csr_array(array)
+    assert not linalg.is_diagonal(sparse_array)
+    assert linalg.is_diagonal(sparse.diags(sparse_array.diagonal()))
+
+    sympy_matrix = sympy.Matrix(array)
+    assert not linalg.is_diagonal(sympy_matrix)
+    assert linalg.is_diagonal(sympy.Matrix.diag(*sympy_matrix.diagonal()))
