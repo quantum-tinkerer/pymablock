@@ -795,8 +795,6 @@ def _sympy_to_BlockSeries(
         raise ValueError("Not all perturbative parameters are in the Hamiltonian.")
 
     hamiltonian = hamiltonian.expand()
-    if not hamiltonian.is_hermitian:
-        raise ValueError("Hamiltonian must be Hermitian.")
 
     def H_eval(*index):
         expr = sympy.diff(
@@ -805,6 +803,8 @@ def _sympy_to_BlockSeries(
         expr = expr.subs({n: 0 for n in symbols})
         expr = expr / reduce(mul, [sympy.factorial(i) for i in index])
         expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
+        if not expr.is_hermitian:
+            raise ValueError("Hamiltonian must be Hermitian at every order.")
         return _convert_if_zero(expr)
 
     H = BlockSeries(
