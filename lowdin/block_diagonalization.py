@@ -146,7 +146,6 @@ def _default_solve_sylvester(
             energy_denominators = 1 / (eigs_a[:, None] - eigs_b[None, :])
             return ((Y @ vecs_b) * energy_denominators) @ Dagger(vecs_b)
         elif isinstance(Y, np.ndarray):
-
             energy_denominators = 1/ (eigs_a.reshape(-1, 1) - eigs_b)
             return Y * energy_denominators
         elif sparse.issparse(Y):
@@ -925,13 +924,12 @@ def hamiltonian_to_BlockSeries(
     # Separation into subspaces_vectors
     if subspaces_vectors is None and subspaces_indices is None:
         def H_eval(*index):
-            if zero == hamiltonian.evaluated[index[2:]]:
+            h = hamiltonian.evaluated[index[2:]]
+            if zero == h:
                 return zero
             try: # Hamiltonians come in blocks of 2x2
-                return _convert_if_zero(
-                    hamiltonian.evaluated[index[2:]][index[0]][index[1]]
-                )
-            except TypeError:
+                return _convert_if_zero(h[index[0]][index[1]])
+            except (TypeError, NotImplementedError):  # scipy.sparse lacks slices
                 raise ValueError("`subspaces_vectors` or `subspaces_indices`"
                                     " must be provided.")
 
@@ -953,7 +951,7 @@ def hamiltonian_to_BlockSeries(
         if issubclass(type(h_0), sympy.MatrixBase):
             symbolic = True
         else:
-            raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
+            symbolic = False
         subspaces_vectors = _subspaces_from_indices(subspaces_indices, symbolic=symbolic)
 
     if implicit:
