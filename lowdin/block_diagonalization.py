@@ -436,11 +436,11 @@ def solve_sylvester_KPM(
     subspaces_vectors :
         Subspaces to project the unperturbed Hamiltonian and separate it into blocks.
         The first element of the tuple contains the effective subspace,
-        and the second element contains the (partial) auxilliary subspace.
+        and the second element contains the (partial) auxiliary subspace.
     eigenvalues :
         Eigenvalues of the unperturbed Hamiltonian. The first element of the tuple
         contains the full eigenvalues of the effective subspace. The second element is
-        optional, and it contains the (partial) eigenvalues of the auxilliary subspace.
+        optional, and it contains the (partial) eigenvalues of the auxiliary subspace.
     kpm_params :
         Dictionary containing the parameters to pass to the `~kwant.kpm` module.
         'num_vectors' will be overwritten to match the number of vectors, and the
@@ -618,7 +618,7 @@ def block_diagonalize(
         orthonormal vectors that span the BB subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
         For KPM, the first element contains the effective subspace, and the
-        second element contains the (partial) auxilliary subspace.
+        second element contains the (partial) auxiliary subspace.
     subspaces_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
         diagonal elements according to the subspaces_vectors may be provided.
@@ -628,7 +628,7 @@ def block_diagonalize(
         Eigenvalues of the unperturbed Hamiltonian. The first element of the
         tuple contains the full eigenvalues of the effective subspace. The
         second element is optional, and it contains the (partial) eigenvalues
-        of the auxilliary subspace. This argument is needed for KPM.
+        of the auxiliary subspace. This argument is needed for KPM.
     kpm_params :
         Dictionary containing the parameters to pass to the `~kwant.kpm` module.
         'num_vectors' will be overwritten to match the number of vectors, and
@@ -883,7 +883,7 @@ def hamiltonian_to_BlockSeries(
         orthonormal vectors that span the BB subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
         For KPM, the first element contains the effective subspace, and the
-        second element contains the (partial) auxilliary subspace.
+        second element contains the (partial) auxiliary subspace.
     subspaces_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
         diagonal elements according to the subspaces_vectors may be provided.
@@ -892,7 +892,7 @@ def hamiltonian_to_BlockSeries(
     implicit :
         Whether to use KPM to solve the Sylvester equation. If True, the first
         element of `subspaces_vectors` must be the effective subspace, and the
-        second element must be the (partial) auxilliary subspace.
+        second element must be the (partial) auxiliary subspace.
     symbols :
         List of symbols that label the perturbative parameters. The order of
         the symbols will be used to determine the indices of the Hamiltonian.
@@ -906,8 +906,8 @@ def hamiltonian_to_BlockSeries(
     """
     if isinstance(hamiltonian, list):
         hamiltonian = _list_to_dict(hamiltonian)
-    elif hasattr(hamiltonian, "is_Matrix") and hamiltonian.is_Matrix:
-            hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
+    elif issubclass(type(hamiltonian), sympy.MatrixBase):
+        hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
     if isinstance(hamiltonian, dict):
         hamiltonian = _dict_to_BlockSeries(hamiltonian)
     elif isinstance(hamiltonian, BlockSeries):
