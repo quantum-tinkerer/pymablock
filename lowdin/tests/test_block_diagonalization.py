@@ -360,26 +360,25 @@ def test_equivalence_general_expanded(
     """
     H_tilde_general, U_general, _ = general(H)
     H_tilde_expanded, U_expanded, _ = expanded(H)
-    for order in wanted_orders:
-        for block in ((0, 0), (1, 1), (0, 1)):
-            for op_general, op_expanded in zip(
-                (H_tilde_general, U_general), (H_tilde_expanded, U_expanded)
-            ):
-                result_general = op_general.evaluated[block + order]
-                result_expanded = op_expanded.evaluated[block + order]
-                if zero == result_general:
-                    assert zero == result_expanded
-                elif zero == result_expanded:
-                    np.testing.assert_allclose(
-                        0, result_general, atol=10**-5, err_msg=f"{order=}"
-                    )
-                else:
-                    np.testing.assert_allclose(
-                        result_general,
-                        result_expanded,
-                        atol=10**-5,
-                        err_msg=f"{order=}",
-                    )
+    for block in ((0, 0), (1, 1), (0, 1)):
+        for op_general, op_expanded in zip(
+            (H_tilde_general, U_general), (H_tilde_expanded, U_expanded)
+        ):
+            result_general = op_general.evaluated[block + wanted_orders]
+            result_expanded = op_expanded.evaluated[block + wanted_orders]
+            if zero == result_general:
+                assert zero == result_expanded
+            elif zero == result_expanded:
+                np.testing.assert_allclose(
+                    0, result_general, atol=10**-5, err_msg=f"{wanted_orders=}"
+                )
+            else:
+                np.testing.assert_allclose(
+                    result_general,
+                    result_expanded,
+                    atol=10**-5,
+                    err_msg=f"{wanted_orders=}",
+                )
 
 
 def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any]:
@@ -427,22 +426,21 @@ def test_doubled_orders(
     H_tilde, U, _ = algorithm(H)
     H_tilde_doubled, U_doubled, _ = algorithm(H_doubled)
 
-    for wanted_order in wanted_orders:
-        blocks = np.index_exp[:2, :2]
-        orders = tuple(slice(None, order + 1, None) for order in wanted_order)
-        doubled_orders = tuple(
-            slice(None, 2 * (order + 1), None) for order in wanted_order
-        )
+    blocks = np.index_exp[:2, :2]
+    orders = tuple(slice(None, order + 1, None) for order in wanted_orders)
+    doubled_orders = tuple(
+        slice(None, 2 * (order + 1), None) for order in wanted_orders
+    )
 
-        for op, op_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
-            result = op.evaluated[blocks + orders].compressed()
-            result_doubled = op_doubled.evaluated[blocks + doubled_orders].compressed()
-            assert len(result) == len(result_doubled)
-            for result, result_doubled in zip(result, result_doubled):
-                if isinstance(result, object):
-                    assert isinstance(result_doubled, object)
-                    continue
-                np.testing.assert_allclose(result, result_doubled, atol=10**-5)
+    for op, op_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
+        result = op.evaluated[blocks + orders].compressed()
+        result_doubled = op_doubled.evaluated[blocks + doubled_orders].compressed()
+        assert len(result) == len(result_doubled)
+        for result, result_doubled in zip(result, result_doubled):
+            if isinstance(result, object):
+                assert isinstance(result_doubled, object)
+                continue
+            np.testing.assert_allclose(result, result_doubled, atol=10**-5)
 
 
 @pytest.fixture(scope="module")
@@ -571,28 +569,23 @@ def test_check_AB_KPM(
     )
 
     # full b
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
-            np.testing.assert_allclose(
-                block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
-            )
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
+        np.testing.assert_allclose(
+            block, 0, atol=1e-5, err_msg=f"{block=}, {order=}"
+        )
 
     # half b
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
-            np.testing.assert_allclose(
-                block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
-            )
+    for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
+        np.testing.assert_allclose(
+            block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+        )
 
     # KPM
-    for order in wanted_orders:
-        order = tuple(slice(None, dim_order + 1) for dim_order in order)
-        for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
-            np.testing.assert_allclose(
-                block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
-            )
+    for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
+        np.testing.assert_allclose(
+            block, 0, atol=1e-1, err_msg=f"{block=}, {order=}"
+        )
 
 
 def test_solve_sylvester(
