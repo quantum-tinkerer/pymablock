@@ -841,7 +841,7 @@ def _subspaces_from_indices(
             "Only 0 and 1 are allowed as indices for subspaces_vectors."
     )
     dim = len(subspaces_indices)
-    eigvecs = sparse.identity(dim, format='csr', dtype=int)
+    eigvecs = sparse.csr_array(np.eye(dim, dtype=int))
     subspaces_vectors = tuple(
         eigvecs[:, np.compress(subspaces_indices==block, np.arange(dim))]
         for block in range(max_subspaces)
