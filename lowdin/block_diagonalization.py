@@ -60,9 +60,9 @@ def general(
         op = matmul
 
     if solve_sylvester is None:
-        h_0_AA = sparse.dia_array(H.evaluated[(0, 0) + (0,) * H.n_infinite])
-        h_0_BB = sparse.dia_array(H.evaluated[(1, 1) + (0,) * H.n_infinite])
-        if np.any(h_0_AA.offsets) or np.any(h_0_BB.offsets):
+        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
             raise ValueError(
                 "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
                  " is not provided."
@@ -308,9 +308,9 @@ def expanded(
         op = matmul
 
     if solve_sylvester is None:
-        h_0_AA = sparse.dia_array(H.evaluated[(0, 0) + (0,) * H.n_infinite])
-        h_0_BB = sparse.dia_array(H.evaluated[(1, 1) + (0,) * H.n_infinite])
-        if np.any(h_0_AA.offsets) or np.any(h_0_BB.offsets):
+        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
             raise ValueError(
                 "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
                  " is not provided."
@@ -688,13 +688,10 @@ def block_diagonalize(
 
     # Determine function to use for solving Sylvester's equation
     if solve_sylvester is None:
-        if all(isinstance(H.evaluated[block + (0,) * H.n_infinite], sparse.dia_matrix)
-               for block in ((0, 0), (1, 1))):
-            # TODO: fix, this is always skipped
-            eigenvalues = tuple(
-                H.evaluated[block + (0,) * H.n_infinite].diagonal()
-                for block in ((0, 0), (1, 1))
-            )
+        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        if all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
+            eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
             solve_sylvester = _default_solve_sylvester(eigenvalues)
         elif implicit:
             solve_sylvester = solve_sylvester_KPM(
@@ -950,12 +947,11 @@ def hamiltonian_to_BlockSeries(
         if subspaces_vectors is not None:
             raise ValueError("Only subspaces_vectors or subspaces_indices can"
                                 " be provided.")
-        if isinstance(
-            hamiltonian.evaluated[(0,) * hamiltonian.n_infinite],
-            sparse.dia_matrix
-        ):
-            symbolic = False
-        elif hamiltonian.evaluated[(0,) * hamiltonian.n_infinite].is_diagonal():
+        h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
+        if not is_diagonal(h_0):
+            raise ValueError("If subspaces_indices is provided, H_0 must be"
+                                " diagonal.")
+        if issubclass(type(h_0), sympy.MatrixBase):
             symbolic = True
         else:
             raise ValueError("If subspaces_indices is provided, H_0 must be diagonal.")
