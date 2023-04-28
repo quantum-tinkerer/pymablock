@@ -188,9 +188,14 @@ def test_check_AB(
     H_tilde = general_output[0]
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     for block in H_tilde.evaluated[(0, 1) + order].compressed():
-        np.testing.assert_allclose(
-            block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
-        )
+        if isinstance(block, np.ndarray):
+            np.testing.assert_allclose(
+                block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
+            )
+        else:
+            np.testing.assert_allclose(
+                block.toarray(), 0, atol=10**-5, err_msg=f"{block=}, {order=}"
+            )
 
 
 def test_check_unitary(
@@ -226,8 +231,13 @@ def test_check_unitary(
             if not any(index):
                 # Zeroth order is not zero.
                 continue
+        if isinstance(block, np.ndarray):
             np.testing.assert_allclose(
-                block, 0, atol=10**-5, err_msg=f"{block=}, {index=}"
+                block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
+            )
+        else:
+            np.testing.assert_allclose(
+                block.toarray(), 0, atol=10**-5, err_msg=f"{block=}, {order=}"
             )
 
 
