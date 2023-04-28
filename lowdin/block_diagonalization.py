@@ -14,7 +14,7 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
 
-from lowdin.linalg import ComplementProjector, aslinearoperator
+from lowdin.linalg import ComplementProjector, aslinearoperator, is_diagonal
 from lowdin.kpm_funcs import greens_function
 from lowdin.series import (
     BlockSeries,

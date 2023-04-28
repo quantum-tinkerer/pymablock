@@ -7,6 +7,8 @@ from scipy.sparse import spmatrix, identity
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 from kwant.linalg import mumps
+from scipy import sparse
+import sympy
 
 from lowdin.series import zero, one
 
@@ -148,3 +150,10 @@ def aslinearoperator(A):
     if zero == A or A is one:
         return A
     return scipy_aslinearoperator(A)
+
+def is_diagonal(A):
+    """Check if A is diagonal"""
+    if issubclass(type(A), sympy.MatrixBase):  # sympy
+        return A.is_diagonal()
+    A = sparse.dia_array(A)  # numpy or scipy.sparse
+    return not any(A.offsets)
