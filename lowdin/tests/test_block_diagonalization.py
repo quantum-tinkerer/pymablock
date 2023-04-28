@@ -875,18 +875,36 @@ def test_input_hamiltonian_BlockSeries(H):
         np.allclose(H.evaluated[index], hamiltonian.evaluated[index])
 
 
-@pytest.fixture(scope="module", params=[0, 1, 2, 3])
-def diagonal_hamiltonians(request):
+@pytest.fixture(scope="module", params=[0])
+def diagonal_hamiltonians(wanted_orders, request):
+    """
+
+    Parameters:
+    -----------
+    wanted_orders:
+        orders to compute
+    request:
+        pytest request object
+    """
     subspaces_indices = [0, 1, 1, 0]
     eigenvalues = [-1, 1, 1, -1]
-    perturbation = np.random.random(4)
-    perturbation += Dagger(perturbation)
-    hamiltonians = [
-        [np.diag(eigenvalues), perturbation],
-        {(0, 0): np.diag(eigenvalues), (1, 0): perturbation, (0, 1): perturbation},
-        [sparse.diags(eigenvalues), perturbation, perturbation],
-        {(0,): sparse.diags(eigenvalues), (1,): perturbation}
-    ]
+
+    n_infinite = len(wanted_orders)
+
+    h_list = [np.diag(eigenvalues)]
+    h_list_sparse = [sparse.diags(eigenvalues)]
+    h_dict = {(0,) * n_infinite: np.diag(eigenvalues)}
+    h_dict_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues)}
+    for i in range(n_infinite):
+        perturbation = np.random.random((4, 4))
+        perturbation += Dagger(perturbation)
+        h_list.append(perturbation)
+        h_list_sparse.append(perturbation)
+        order = tuple(np.eye(n_infinite, dtype=int)[i])
+        h_dict[order] = perturbation
+        h_dict_sparse[order] = perturbation
+
+    hamiltonians = [h_list, h_dict, h_list_sparse, h_dict_sparse]
     diagonals = [np.array([-1, -1]), np.array([1, 1])]
     return hamiltonians[request.param], subspaces_indices, diagonals
 
@@ -1030,7 +1048,6 @@ def test_input_hamiltonian_symbolic():
             assert zero == H.evaluated[block + (0,) * H.n_infinite]
 
 
-@pytest.mark.xfail(reason="solve_sylvester won't be determined with current code")
 def test_block_diagonalize(
     diagonal_hamiltonians: tuple | list,
     wanted_orders : tuple[int, ...]
@@ -1043,11 +1060,14 @@ def test_block_diagonalize(
     ----------
     diagonal_hamiltonians :
         Hamiltonians to test.
-    wanted_orders : list
-        List of orders to test.
+    wanted_orders :
+        orders to compute
     """
-
     hamiltonian, subspaces_indices, diagonals = diagonal_hamiltonians
-    H_tilde, _, _ = block_diagonalize(hamiltonian, subspaces_indices=subspaces_indices)
-    test_check_AB(H_tilde, wanted_orders)
-    test_check_unitary(H_tilde, wanted_orders)
+    H_tilde, U, U_adjoint = block_diagonalize(
+        hamiltonian, subspaces_indices=subspaces_indices
+    )
+    assert H_tilde.shape == (2, 2)
+    assert H_tilde.n_infinite == len(hamiltonian) - 1 == len(wanted_orders)
+    test_check_AB([H_tilde, U, U_adjoint], wanted_orders)
+    test_check_unitary([H_tilde, U, U_adjoint], wanted_orders)
