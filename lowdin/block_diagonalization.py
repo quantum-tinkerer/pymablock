@@ -1020,6 +1020,8 @@ def hamiltonian_to_BlockSeries(
     # Separation into subspace_vectors
     def H_eval(*index):
         monomial = reduce(mul, [n**i for n, i in zip(symbols, index[2:])], 1)
+        if monomial == 1: # sympy 1 into numeric 1
+            monomial = 1
         original = hamiltonian.evaluated[index[2:]]
         if zero == original:
             return zero
