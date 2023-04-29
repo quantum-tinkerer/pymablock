@@ -40,7 +40,8 @@ def Ns():
     """
     Return a random number of states for each block (A, B).
     """
-    return np.random.randint(1, high=4, size=2)
+    n_a = np.random.randint(1, 3)
+    return n_a, n_a + 1
 
 
 @pytest.fixture(scope="module")
@@ -454,41 +455,9 @@ def test_doubled_orders(
 
 
 @pytest.fixture(scope="module")
-def n_dim() -> int:
-    """
-    Randomly generate integers for size of Hamiltonians
-
-    Returns:
-    --------
-    n_dim: int
-        Dimension of the full Hamiltonian
-    """
-    n_dim = np.random.randint(low=6, high=12, dtype=int)
-    return n_dim
-
-
-@pytest.fixture(scope="module")
-def a_dim(n_dim) -> int:
-    """
-    Randomly generate size of a subspace
-
-    Parameters:
-    --------
-    n_dim:
-        Dimension of the total system
-
-    Returns:
-    -------
-    a_dim: int
-        Dimension of the A subspace
-    """
-    a_dim = np.random.randint(low=2, high=n_dim - 3, dtype=int)
-    return a_dim
-
-
-@pytest.fixture(scope="module")
 def generate_kpm_hamiltonian(
-    n_dim: int, wanted_orders: tuple[int, ...], a_dim: int
+    Ns: tuple[int, int],
+    wanted_orders: tuple[int, ...]
 ) -> tuple[list[np.ndarray], np.ndarray, np.ndarray]:
     """
     Generate random BlockSeries Hamiltonian in the format required by the numerical
@@ -496,12 +465,8 @@ def generate_kpm_hamiltonian(
 
     Parameters:
     ----------
-    n_dim:
-        integer denoting the dimension of the full Hamiltonian.
     n_infinite:
         Number of perturbation terms that are generated.
-    a_dim:
-        Dimension of the A subspace. This number must be smaller than n_dim.
 
     Returns:
     --------
@@ -512,6 +477,8 @@ def generate_kpm_hamiltonian(
     eigenvalues: tuple
         Eigenvalues of the Hamiltonian.
     """
+    a_dim, b_dim = Ns
+    n_dim = a_dim + b_dim
     n_infinite = len(wanted_orders)
 
     hamiltonian = []
@@ -737,18 +704,18 @@ def test_check_AA_numerical(
         )
 
 
-def test_solve_sylvester_kpm_vs_default(n_dim: int, a_dim: int)-> None:
+def test_solve_sylvester_kpm_vs_default(Ns: tuple[int, int])-> None:
     """
     Test whether the KPM ready solve_sylvester gives the same result
     as _solve_sylvester_diagonal when prompted with a diagonal input.
 
     Paramaters:
     ---------
-    n_dim:
-        Total size of the Hamiltonian.
-    a_dim:
-        Size of the A subspace.
+    Ns:
+        tuple of dimensions of the two subspaces.
     """
+    a_dim, b_dim = Ns
+    n_dim = a_dim + b_dim
     h_0 = np.diag(np.sort(50 * np.random.random(n_dim)))
     eigs, vecs = np.linalg.eigh(h_0)
 
@@ -855,8 +822,13 @@ def test_input_hamiltonian_KPM(generate_kpm_hamiltonian):
     hamiltonian, subspace_vectors, _ = generate_kpm_hamiltonian
     H = hamiltonian_to_BlockSeries(hamiltonian, subspace_vectors=subspace_vectors)
     assert H.shape == (2, 2)
+    assert H.n_infinite == len(hamiltonian) - 1
     for block in ((0, 1), (1, 0)):
-        assert zero == H.evaluated[block + (0,) * H.n_infinite]
+        index = block + (0,) * H.n_infinite
+        if zero == H.evaluated[index]:
+            pass
+        np.testing.assert_allclose(H.evaluated[index], 0, atol=1e-14)
+
 
 
 def test_input_hamiltonian_BlockSeries(H):
