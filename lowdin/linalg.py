@@ -156,7 +156,9 @@ def is_diagonal(A):
     """Check if A is diagonal"""
     if isinstance(A, sympy.MatrixBase):  # sympy
         return A.is_diagonal()
-    elif isinstance(A, np.ndarray) or sparse.issparse(A):
+    elif isinstance(A, np.ndarray):
+        return not np.count_nonzero(A - np.diag(np.diagonal(A)))
+    elif sparse.issparse(A):
         A = sparse.dia_array(A)  # numpy or scipy.sparse
         return not any(A.offsets)
     return False
