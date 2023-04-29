@@ -764,7 +764,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
         hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
 
     symbols = None
-    key_types = set(issubclass(type(key), sympy.Basic) for key in hamiltonian.keys())
+    key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
     if any(key_types):
         hamiltonian, symbols = _symbolic_keys_to_orders(hamiltonian)
 
@@ -954,7 +954,7 @@ def hamiltonian_to_BlockSeries(
     """
     if isinstance(hamiltonian, list):
         hamiltonian = _list_to_dict(hamiltonian)
-    elif issubclass(type(hamiltonian), sympy.MatrixBase):
+    elif isinstance(hamiltonian, sympy.MatrixBase):
         hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
     if isinstance(hamiltonian, dict):
         hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian)
@@ -1058,12 +1058,12 @@ def _convert_if_zero(value: Any):
         Zero if value is close enough to zero, otherwise value.
     """
     if isinstance(value, np.ndarray):
-        if np.allclose(value, 0):
+        if not np.any(value):
             return zero
     elif sparse.issparse(value):
         if value.count_nonzero() == 0:
             return zero
-    if issubclass(type(value), sympy.MatrixBase):
+    if isinstance(value, sympy.MatrixBase):
         if value.is_zero_matrix:
             return zero
     return value
