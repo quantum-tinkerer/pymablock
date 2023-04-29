@@ -683,7 +683,7 @@ def block_diagonalize(
         h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
         if all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
             eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
-            solve_sylvester = _default_solve_sylvester(eigenvalues)
+            solve_sylvester = _solve_sylvester_diagonal(*eigenvalues)
         elif implicit:
             solve_sylvester = solve_sylvester_KPM(
                 h_0,
