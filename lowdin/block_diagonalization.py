@@ -152,8 +152,7 @@ def _default_solve_sylvester(
             Y_coo = Y.tocoo()
             energy_denominators = eigs_a[Y_coo.row] - eigs_b[Y_coo.col]
             new_data = Y_coo.data / energy_denominators
-            Y = sparse.coo_matrix((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
-            return sparse.csr_array(Y)
+            return sparse.csr_array((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
 
     return solve_sylvester
 
@@ -346,7 +345,6 @@ def expanded(
 def numerical(
     H: BlockSeries,
     solve_sylvester: Callable,
-    op: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Diagonalize a Hamiltonian using the hybrid KPM algorithm.
@@ -369,11 +367,6 @@ def numerical(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of ``U``.
     """
-    if op is None:
-        op = matmul
-    if op is not matmul:
-        raise NotImplementedError("Only matmul is supported for op")
-
     H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
 
     # Create series wrapped in linear operators to avoid forming explicit matrices
@@ -709,6 +702,11 @@ def block_diagonalize(
             solve_sylvester=solve_sylvester,
             op=op,
         )
+    elif algorithm == "numerical":
+        return globals()[algorithm](
+            H,
+            solve_sylvester=solve_sylvester,
+        )
     else:
         raise ValueError(f'Unknown algorithm: {algorithm}')
 
@@ -1004,10 +1002,10 @@ def _convert_if_zero(value: Any):
     if isinstance(value, np.ndarray):
         if np.allclose(value, 0):
             return zero
-    elif isinstance(value, sparse.csr_matrix):
-        if value.nnz == 0:
+    elif sparse.issparse(value):
+        if value.count_nonzero() == 0:
             return zero
-    elif hasattr(value, "is_zero_matrix") and value.is_zero_matrix:
-        # symbolic zero matrix replaced by zero
-        return zero
+    if issubclass(type(value), sympy.MatrixBase):
+        if value.is_zero:
+            return zero
     return value
