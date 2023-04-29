@@ -988,7 +988,7 @@ def test_input_hamiltonian_blocks():
         assert zero == H.evaluated[(1, 0) + (0,) * H.n_infinite]
 
 
-@ pytest.fixture(params=[0, 1])
+@pytest.fixture(params=[0, 1])
 def symbolic_hamiltonian(request):
     """
     Return a symbolic Hamiltonian in the form of a sympy.Matrix.
@@ -997,8 +997,6 @@ def symbolic_hamiltonian(request):
     k_x, k_y, k_z, alpha, beta, h, m = sympy.symbols(
         "k_x k_y k_z alpha beta h m", real=True, positive=True, constant=True
     )
-    symbols = [k_x, k_y, k_z]
-
     kinetic_term = sum(h**2 * k**2 / (2*m) for k in (k_x, k_y, k_z))
     h_00 = -beta + alpha * k_z + kinetic_term
     h_11 = beta - alpha * k_z + kinetic_term
@@ -1011,7 +1009,7 @@ def symbolic_hamiltonian(request):
         ]
     )
 
-    m = h = alpha = beta = 1 # values must be numeric, TODO: test if values are symbolic
+    m = h = alpha = beta = 1 # values must be numeric, TODO: test symbolic
     hamiltonian_2 = {
         k_x**2 : h**2 * np.eye(2)/(2 * m),
         k_y**2 : h**2 * np.eye(2)/(2 * m),
@@ -1023,7 +1021,10 @@ def symbolic_hamiltonian(request):
     }
 
     hamiltonians  = [hamiltonian_1, hamiltonian_2]
-    return hamiltonians[request.param], symbols
+    symbols = [k_x, k_y, k_z]
+    subspace_vectors = [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])]
+    subspace_indices = [0, 1]
+    return hamiltonians[request.param], symbols, subspace_vectors, subspace_indices
 
 
 def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
@@ -1031,9 +1032,7 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
     Test that the algorithm works with a symbolic Hamiltonian.
     """
 
-    hamiltonian, symbols = symbolic_hamiltonian
-    subspace_vectors = [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])]
-    subspace_indices = [0, 1]
+    hamiltonian, symbols, subspace_vectors, subspace_indices = symbolic_hamiltonian
 
     # Test if subspace_vectors are provided
     H_1 = hamiltonian_to_BlockSeries(
@@ -1053,9 +1052,10 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
     for H in (H_1, H_2):
         for block in ((0, 1), (1, 0)):
             assert zero == H.evaluated[block + (0,) * H.n_infinite]
+    # TODO: compare they are the same value by value
 
 
-def test_block_diagonalize(
+def test_block_diagonalize_diagonal_hamiltonian(
     diagonal_hamiltonians: tuple | list,
     wanted_orders : tuple[int, ...]
 ):
