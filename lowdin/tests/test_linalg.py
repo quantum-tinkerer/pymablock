@@ -2,7 +2,6 @@ import numpy as np
 from numpy.testing import assert_allclose
 from scipy import sparse
 from scipy.sparse.linalg import aslinearoperator
-from scipy import sparse
 import sympy
 
 from lowdin import linalg
