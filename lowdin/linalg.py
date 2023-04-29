@@ -1,8 +1,12 @@
+from typing import Callable
+
 from packaging.version import parse
 import numpy as np
 from scipy import __version__ as scipy_version
+from scipy.sparse import spmatrix, identity
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
+from kwant.linalg import mumps
 
 from lowdin.series import zero, one
 
@@ -56,6 +60,64 @@ if parse(scipy_version) < parse("1.11"):
     LinearOperator._rdot = _rdot
     LinearOperator.__array_ufunc__ = None
     del __rmul__, _rdot
+
+
+def direct_greens_function(
+    h: spmatrix,
+    E: float,
+    atol: float = 1e-7,
+    eps: float = 1e-10,
+) -> Callable[[np.ndarray], np.ndarray]:
+    """Compute the Green's function of a Hamiltonian.using MUMPS solver.
+
+    Parameters
+    ----------
+    h :
+        Hamiltonian matrix.
+    E :
+        Energy at which to compute the Green's function.
+    atol :
+        Accepted precision of the desired result in 2-norm.
+    eps :
+        Tolerance for the MUMPS solver to identify null pivots. Passed through
+        to MUMPS CNTL(3) with a - sign, see MUMPS user guide.
+
+    Returns
+    -------
+    greens_function : `Callable[[np.ndarray], np.ndarray]`
+        Function that computes the Green's function at a given energy.
+    """
+    h = h.astype(np.complex128)  # Kwant MUMPS wrapper only has complex bindings.
+    h = h - E * identity(h.shape[0], dtype=h.dtype, format="csr")
+    ctx = mumps.MUMPSContext()
+    ctx.analyze(h)
+    ctx.mumps_instance.icntl[24] = 1
+    ctx.mumps_instance.cntl[3] = -eps
+    ctx.factor(h)
+
+    def greens_function(vec: np.ndarray) -> np.ndarray:
+        """Apply the Green's function to a vector.
+
+        Parameters
+        ----------
+        vec :
+            Vector to which to apply the Green's function. If the Green's
+            function is evaluated at an eigenenergy, this vector must be
+            orthogonal to the corresponding eigenvector(s).
+
+        Returns
+        -------
+        sol :
+            Solution of :math:`(H - E) sol = vec`.
+        """
+        sol = ctx.solve(vec)
+        if np.linalg.norm(h @ sol - vec) > atol:
+            raise RuntimeError(
+                f"Solution did not achieve required precision of {atol}."
+            )
+        return sol
+
+    return greens_function
 
 
 class ComplementProjector(LinearOperator):
