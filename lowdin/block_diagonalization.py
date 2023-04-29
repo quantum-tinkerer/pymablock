@@ -772,7 +772,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     h_0 = hamiltonian[zeroth_order]
 
     if isinstance(h_0, np.ndarray):
-        if np.allclose(h_0, np.diag(np.diag(h_0))):
+        if is_diagonal(h_0):
             hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
     elif sparse.issparse(h_0):  # normalize sparse matrices for solve_sylvester
         hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
@@ -1010,10 +1010,7 @@ def hamiltonian_to_BlockSeries(
         if not is_diagonal(h_0):
             raise ValueError("If subspace_indices is provided, H_0 must be"
                                 " diagonal.")
-        if issubclass(type(h_0), sympy.MatrixBase):
-            symbolic = True
-        else:
-            symbolic = False
+        symbolic = isinstance(h_0, sympy.MatrixBase)
         subspace_vectors = _subspaces_from_indices(subspace_indices, symbolic=symbolic)
 
     if implicit:
