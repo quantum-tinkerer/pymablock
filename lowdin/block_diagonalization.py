@@ -970,9 +970,6 @@ def hamiltonian_to_BlockSeries(
     else:
         raise NotImplementedError
 
-    if symbols is None:
-        symbols = []
-
     if hamiltonian.shape == (2, 2):
         if subspace_vectors is not None or subspace_indices is not None:
             raise ValueError("H is already separated but subspace_vectors"
@@ -984,16 +981,16 @@ def hamiltonian_to_BlockSeries(
     # Separation into subspace_vectors
     if subspace_vectors is None and subspace_indices is None:
         def H_eval(*index):
-            monomial = reduce(mul, [n**i for n, i in zip(symbols, index[2:])], 1)
             h = hamiltonian.evaluated[index[2:]]
             if zero == h:
                 return zero
-            try: # Hamiltonians come in blocks of 2x2
-                result = _convert_if_zero(h[index[0]][index[1]])
-                return result * monomial
-            except (TypeError, NotImplementedError):  # scipy.sparse lacks slices
-                raise ValueError("`subspace_vectors` or `subspace_indices`"
-                                    " must be provided.")
+            try:  # Hamiltonians come in blocks of 2x2
+                return _convert_if_zero(h[index[0]][index[1]])
+            except Exception as e:
+                raise ValueError(
+                    "Without `subspace_vectors` or `subspace_indices`"
+                    " H must have a 2x2 block structure."
+                ) from e
 
         H = BlockSeries(
             eval=H_eval,
@@ -1019,26 +1016,22 @@ def hamiltonian_to_BlockSeries(
         subspace_vectors = (vecs_a, ComplementProjector(vecs_a))
     # Separation into subspace_vectors
     def H_eval(*index):
-        monomial = reduce(mul, [n**i for n, i in zip(symbols, index[2:])], 1)
-        if monomial == 1: # sympy 1 into numeric 1
-            monomial = 1
         original = hamiltonian.evaluated[index[2:]]
         if zero == original:
             return zero
         left, right = index[:2]
-        if left <= right:
-            if implicit and left == right == 1:
-                # compatibility with KPM
-                result = (
-                    subspace_vectors[left] @ aslinearoperator(original)
-                    @ subspace_vectors[right]
-                )
-            else:
-                result = (
-                    Dagger(subspace_vectors[left]) @ original @ subspace_vectors[right]
-                )
-            return monomial * _convert_if_zero(result)
-        return monomial * Dagger(H.evaluated[(right, left) + tuple(index[2:])])
+        if left > right:
+            return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
+        if implicit and left == right == 1:
+            result = (
+                subspace_vectors[left] @ aslinearoperator(original)
+                @ subspace_vectors[right]
+            )
+        else:
+            result = (
+                Dagger(subspace_vectors[left]) @ original @ subspace_vectors[right]
+            )
+        return _convert_if_zero(result)
 
     H = BlockSeries(
         eval=H_eval,
@@ -1051,7 +1044,7 @@ def hamiltonian_to_BlockSeries(
 
 def _convert_if_zero(value: Any):
     """
-    Converts a value to zero if it is close enough.
+    Converts an exact zero to sentinel value zero.
 
     Parameters
     ----------

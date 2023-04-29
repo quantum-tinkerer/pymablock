@@ -236,11 +236,7 @@ def test_check_unitary(
             if not any(index):
                 # Zeroth order is not zero.
                 continue
-        if isinstance(block, sympy.MatrixBase):
-            assert block.is_zero_matrix
-        elif block.dtype == np.dtype("O"):
-            assert sympy.Matrix(block).is_zero_matrix
-        elif isinstance(block, np.ndarray):
+        if isinstance(block, np.ndarray):
             np.testing.assert_allclose(
                 block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
             )
@@ -248,7 +244,8 @@ def test_check_unitary(
             np.testing.assert_allclose(
                 block.toarray(), 0, atol=10**-5, err_msg=f"{block=}, {order=}"
             )
-
+        elif isinstance(block, sympy.MatrixBase):
+            assert block.is_zero_matrix
         else:
             raise TypeError(f"Unknown type {type(block)}")
 
