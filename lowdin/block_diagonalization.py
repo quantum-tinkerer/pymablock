@@ -1060,6 +1060,6 @@ def _convert_if_zero(value: Any):
         if value.count_nonzero() == 0:
             return zero
     if issubclass(type(value), sympy.MatrixBase):
-        if value.is_zero:
+        if value.is_zero_matrix:
             return zero
     return value
