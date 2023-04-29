@@ -977,29 +977,53 @@ def test_input_hamiltonian_blocks():
         assert zero == H.evaluated[(1, 0) + (0,) * H.n_infinite]
 
 
-def test_input_hamiltonian_symbolic():
+@ pytest.fixture(params=[0, 1])
+def symbolic_hamiltonian(request):
     """
-    Test that the algorithm works with a symbolic Hamiltonian.
+    Return a symbolic Hamiltonian in the form of a sympy.Matrix.
     """
+
     k_x, k_y, k_z, alpha, beta, h, m = sympy.symbols(
         "k_x k_y k_z alpha beta h m", real=True, positive=True, constant=True
     )
+    symbols = [k_x, k_y, k_z]
+
     kinetic_term = sum(h**2 * k**2 / (2*m) for k in (k_x, k_y, k_z))
     h_00 = -beta + alpha * k_z + kinetic_term
     h_11 = beta - alpha * k_z + kinetic_term
     h_01 = alpha * k_x - sympy.I * alpha * k_y
     h_10 = alpha * k_x + sympy.I * alpha * k_y
-    hamiltonian = sympy.Matrix(
+    hamiltonian_1 = sympy.Matrix(
         [
             [h_00, h_01],
             [h_10, h_11]
         ]
     )
 
+    m = h = alpha = beta = 1 # values must be numeric, TODO: test if values are symbolic
+    hamiltonian_2 = {
+        k_x**2 : h**2 * np.eye(2)/(2 * m),
+        k_y**2 : h**2 * np.eye(2)/(2 * m),
+        k_z**2 : h**2 * np.eye(2)/(2 * m),
+        sympy.Rational(1) : np.diag([-1, 1]) * beta,
+        k_z : alpha * np.diag([1, -1]),
+        k_x : alpha * np.array([[0, 1], [1, 0]]),
+        k_y : alpha * np.array([[0, -1j], [1j, 0]])
+    }
+
+    hamiltonians  = [hamiltonian_1, hamiltonian_2]
+    return hamiltonians[request.param], symbols
+
+
+def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
+    """
+    Test that the algorithm works with a symbolic Hamiltonian.
+    """
+
+    hamiltonian, symbols = symbolic_hamiltonian
     subspace_vectors = [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])]
     subspace_indices = [0, 1]
 
-    symbols = [k_x, k_y, k_z]
     # Test if subspace_vectors are provided
     H_1 = hamiltonian_to_BlockSeries(
         hamiltonian,
