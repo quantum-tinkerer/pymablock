@@ -1078,3 +1078,27 @@ def test_block_diagonalize_diagonal_hamiltonian(
     assert H_tilde.n_infinite == len(hamiltonian) - 1 == len(wanted_orders)
     test_check_AB([H_tilde, U, U_adjoint], wanted_orders)
     test_check_unitary([H_tilde, U, U_adjoint], wanted_orders)
+
+
+def test_block_diagonalize_symbolic_hamiltonian(
+        symbolic_hamiltonian: tuple[sympy.Matrix | dict, list[sympy.Symbol]],
+        ):
+    """
+    Test that `block_diagonalize` chooses the right algorithm and the
+    solve_sylvester function.
+
+    Parameters
+    ----------
+    symbolic_hamiltonian :
+        Hamiltonian to test.
+    wanted_orders :
+        orders to compute
+    """
+    hamiltonian, symbols, subspace_vectors, subspace_indices = symbolic_hamiltonian
+    H_tilde, U, U_adjoint = block_diagonalize(
+        hamiltonian, symbols=symbols, subspace_indices=subspace_indices
+    )
+    assert H_tilde.shape == (2, 2)
+    assert H_tilde.n_infinite == len(symbols)
+    test_check_AB([H_tilde, U, U_adjoint], (1,) * len(symbols))
+    test_check_unitary([H_tilde, U, U_adjoint], (1,) * len(symbols))
