@@ -795,27 +795,19 @@ def _symbolic_keys_to_orders(hamiltonian):
     """
     symbols = list(set.union(*[key.free_symbols for key in hamiltonian.keys()]))
     symbols = sorted(symbols, key=lambda x: x.name)
+    if not all(symbol.is_commutative for symbol in symbols):
+        raise ValueError("All symbols must be commutative.")
 
     new_hamiltonian = {}
     for key, value in hamiltonian.items():
-        monomial = key.as_coefficients_dict()
-        if len(monomial) > 1:
-            raise ValueError("Keys must be a monomial.")
-        if list(monomial.values())[0] != 1:
-            raise ValueError("Keys must be a monomial without numerical coefficients.")
-        monomial = sympy.simplify(key) # TODO: don't assume symbols commute
-        factors = monomial.as_ordered_factors()
-        basis = [factor.free_symbols.pop() for factor in factors]
-
+        monomial = key.as_powers_dict()
+        basis = monomial.keys()
         indices = np.array([symbols.index(base) for base in basis])
         order = np.zeros(len(symbols), dtype=int)
-        order[indices] = 1
         exponents = np.zeros(len(symbols), dtype=int)
-        exponents[indices] = [
-            factor.as_coeff_exponent(basis[i])[1] for i, factor in enumerate(factors)
-        ]
-        new_key = order * exponents
-        new_hamiltonian[tuple(new_key)] = value
+        order[indices] = 1
+        exponents[indices] = [monomial[base] for base in basis]
+        new_hamiltonian[tuple(order * exponents)] = value
     return new_hamiltonian, symbols
 
 
