@@ -193,10 +193,14 @@ def test_check_AB(
             np.testing.assert_allclose(
                 block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
             )
-        else:
+        elif sparse.issparse(block):
             np.testing.assert_allclose(
                 block.toarray(), 0, atol=10**-5, err_msg=f"{block=}, {order=}"
             )
+        elif isinstance(block, sympy.MatrixBase):
+            assert block.is_zero_matrix
+        else:
+            raise TypeError(f"Unknown type {type(block)}")
 
 
 def test_check_unitary(
@@ -232,14 +236,21 @@ def test_check_unitary(
             if not any(index):
                 # Zeroth order is not zero.
                 continue
-        if isinstance(block, np.ndarray):
+        if isinstance(block, sympy.MatrixBase):
+            assert block.is_zero_matrix
+        elif block.dtype == np.dtype("O"):
+            assert sympy.Matrix(block).is_zero_matrix
+        elif isinstance(block, np.ndarray):
             np.testing.assert_allclose(
                 block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
             )
-        else:
+        elif sparse.issparse(block):
             np.testing.assert_allclose(
                 block.toarray(), 0, atol=10**-5, err_msg=f"{block=}, {order=}"
             )
+
+        else:
+            raise TypeError(f"Unknown type {type(block)}")
 
 
 def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
