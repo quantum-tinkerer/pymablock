@@ -754,6 +754,11 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     -------
     H : `~lowdin.series.BlockSeries`
     """
+    symbols = None
+    key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
+    if any(key_types):
+        hamiltonian, symbols = _symbolic_keys_to_orders(hamiltonian)
+
     n_infinite = len(list(hamiltonian.keys())[0])
     zeroth_order = (0,) * n_infinite
     h_0 = hamiltonian[zeroth_order]
@@ -763,11 +768,6 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
             hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
     elif sparse.issparse(h_0):  # normalize sparse matrices for solve_sylvester
         hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
-
-    symbols = None
-    key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
-    if any(key_types):
-        hamiltonian, symbols = _symbolic_keys_to_orders(hamiltonian)
 
     H_temporary = BlockSeries(
         data=hamiltonian,
@@ -801,9 +801,15 @@ def _symbolic_keys_to_orders(hamiltonian):
 
     new_hamiltonian = {}
     for key, value in hamiltonian.items():
+        if value.dtype == np.dtype("O"):
+            raise ValueError("Values of the dictionary must be numeric.")
         monomial = key.as_powers_dict()
         basis = monomial.keys()
-        indices = np.array([symbols.index(base) for base in basis])
+        if len(basis) == 1 and list(basis)[0] not in symbols:
+            # unperturbed Hamiltonian
+            new_hamiltonian[(0,) * len(symbols)] = value
+            continue
+        indices = np.array([symbols.index(base, ) for base in basis])
         order = np.zeros(len(symbols), dtype=int)
         exponents = np.zeros(len(symbols), dtype=int)
         order[indices] = 1
