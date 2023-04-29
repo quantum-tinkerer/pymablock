@@ -757,7 +757,10 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     zeroth_order = (0,) * n_infinite
     h_0 = hamiltonian[zeroth_order]
 
-    if isinstance(h_0, np.ndarray) or sparse.issparse(h_0):
+    if isinstance(h_0, np.ndarray):
+        if np.allclose(h_0, np.diag(np.diag(h_0))):
+            hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
+    elif sparse.issparse(h_0):  # normalize sparse matrices for solve_sylvester
         hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
 
     symbols = None
