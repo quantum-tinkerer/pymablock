@@ -611,11 +611,12 @@ def block_diagonalize(
         If None, the unperturbed Hamiltonian must be block diagonal.
         For KPM, the first element contains the effective subspace, and the
         second element contains the (partial) auxiliary subspace.
-    subspaces_indices :
+        Mutually exclusive with `subspace_indices`.
+    subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the subspaces_vectors may be provided.
+        diagonal elements according to the subspace_vectors may be provided.
         Indices 0 and 1 are reserved for the AA and BB subspaces, respectively.
-        This argument is incompatible with `subspaces_vectors`.
+        Mutually exclusive with `subspace_vectors`.
     eigenvalues :
         Eigenvalues of the unperturbed Hamiltonian. The first element of the
         tuple contains the full eigenvalues of the effective subspace. The
@@ -880,14 +881,15 @@ def hamiltonian_to_BlockSeries(
         If None, the unperturbed Hamiltonian must be block diagonal.
         For KPM, the first element contains the effective subspace, and the
         second element contains the (partial) auxiliary subspace.
-    subspaces_indices :
+        Mutually exclusive with `subspace_indices`.
+    subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the subspaces_vectors may be provided.
+        diagonal elements according to the subspace_vectors may be provided.
         Indices 0 and 1 are reserved for the AA and BB subspaces, respectively.
-        This argument is incompatible with `subspaces_vectors`.
+        Mutually exclusive with `subspace_vectors`.
     implicit :
         Whether to use KPM to solve the Sylvester equation. If True, the first
-        element of `subspaces_vectors` must be the effective subspace, and the
+        element of `subspace_vectors` must be the effective subspace, and the
         second element must be the (partial) auxiliary subspace.
     symbols :
         List of symbols that label the perturbative parameters. The order of
