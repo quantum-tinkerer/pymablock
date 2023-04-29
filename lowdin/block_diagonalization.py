@@ -695,8 +695,8 @@ def block_diagonalize(
         else:
             raise NotImplementedError
 
-    if algorithm in ("general", "expanded", "numerical"):
-        return eval(algorithm)(
+    if algorithm in ("general", "expanded"):
+        return globals()[algorithm](
             H,
             solve_sylvester=solve_sylvester,
             op=op,
