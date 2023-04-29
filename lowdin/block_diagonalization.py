@@ -694,7 +694,8 @@ def block_diagonalize(
             eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
             solve_sylvester = _solve_sylvester_diagonal(*eigenvalues)
         else:
-            raise NotImplementedError
+            raise ValueError("solve_sylvester must be provided or the"
+                             " unperturbed Hamiltonian must be diagonal.")
 
     if algorithm in ("general", "expanded"):
         return globals()[algorithm](
