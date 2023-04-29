@@ -68,7 +68,7 @@ def direct_greens_function(
     atol: float = 1e-7,
     eps: float = 1e-10,
 ) -> Callable[[np.ndarray], np.ndarray]:
-    """Compute the Green's function of a Hamiltonian.using MUMPS solver.
+    """Compute the Green's function of a Hamiltonian using MUMPS solver.
 
     Parameters
     ----------
