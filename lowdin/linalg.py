@@ -161,6 +161,6 @@ def is_diagonal(A):
             return B.reshape(-1)[:-1].reshape(len(B) - 1, len(B) + 1)[:, 1:]
         return not np.any(offdiagonal(A))
     elif sparse.issparse(A):
-        A = sparse.dia_array(A)  # numpy or scipy.sparse
+        A = sparse.dia_array(A)
         return not any(A.offsets)
     return False
