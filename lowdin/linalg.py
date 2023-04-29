@@ -157,9 +157,9 @@ def is_diagonal(A):
     if isinstance(A, sympy.MatrixBase):  # sympy
         return A.is_diagonal()
     elif isinstance(A, np.ndarray):
-        def offdiagonal_view(B):
+        def offdiagonal(B):
             return B.reshape(-1)[:-1].reshape(len(B) - 1, len(B) + 1)[:, 1:]
-        return not np.any(offdiagonal_view(A))
+        return not np.any(offdiagonal(A))
     elif sparse.issparse(A):
         A = sparse.dia_array(A)  # numpy or scipy.sparse
         return not any(A.offsets)
