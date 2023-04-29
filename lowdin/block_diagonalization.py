@@ -127,9 +127,10 @@ def _solve_sylvester_diagonal(
 
     Parameters
     ----------
-    h_0 :
-        Tuple of diagonal blocks of the unperturbed Hamiltonian.
-        Each block must be diagonal.
+    eigs_a :
+        Eigenvalues of A subspace of the unperturbed Hamiltonian.
+    eigs_b :
+        Eigenvalues of B subspace of the unperturbed Hamiltonian.
     vecs_b :
         (optional) Eigenvectors of B subspace of the unperturbed Hamiltonian.
 
