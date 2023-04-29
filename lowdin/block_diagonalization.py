@@ -953,11 +953,14 @@ def hamiltonian_to_BlockSeries(
     elif issubclass(type(hamiltonian), sympy.MatrixBase):
         hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
     if isinstance(hamiltonian, dict):
-        hamiltonian = _dict_to_BlockSeries(hamiltonian)
+        hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian)
     elif isinstance(hamiltonian, BlockSeries):
         pass
     else:
         raise NotImplementedError
+
+    if symbols is None:
+        symbols = []
 
     if hamiltonian.shape == (2, 2):
         if subspace_vectors is not None or subspace_indices is not None:
@@ -970,11 +973,13 @@ def hamiltonian_to_BlockSeries(
     # Separation into subspace_vectors
     if subspace_vectors is None and subspace_indices is None:
         def H_eval(*index):
+            monomial = reduce(mul, [n**i for n, i in zip(symbols, index[2:])], 1)
             h = hamiltonian.evaluated[index[2:]]
             if zero == h:
                 return zero
             try: # Hamiltonians come in blocks of 2x2
-                return _convert_if_zero(h[index[0]][index[1]])
+                result = _convert_if_zero(h[index[0]][index[1]])
+                return result * monomial
             except (TypeError, NotImplementedError):  # scipy.sparse lacks slices
                 raise ValueError("`subspace_vectors` or `subspace_indices`"
                                     " must be provided.")
@@ -986,26 +991,27 @@ def hamiltonian_to_BlockSeries(
         )
         return H
 
-    if subspaces_indices is not None:
-        if subspaces_vectors is not None:
-            raise ValueError("Only subspaces_vectors or subspaces_indices can"
+    if subspace_indices is not None:
+        if subspace_vectors is not None:
+            raise ValueError("Only subspace_vectors or subspace_indices can"
                                 " be provided.")
         h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
         if not is_diagonal(h_0):
-            raise ValueError("If subspaces_indices is provided, H_0 must be"
+            raise ValueError("If subspace_indices is provided, H_0 must be"
                                 " diagonal.")
         if issubclass(type(h_0), sympy.MatrixBase):
             symbolic = True
         else:
             symbolic = False
-        subspaces_vectors = _subspaces_from_indices(subspaces_indices, symbolic=symbolic)
+        subspace_vectors = _subspaces_from_indices(subspace_indices, symbolic=symbolic)
 
     if implicit:
-        # Define subspaces_vectors for KPM
-        vecs_a = subspaces_vectors[0]
-        subspaces_vectors = (vecs_a, ComplementProjector(vecs_a))
-    # Separation into subspaces_vectors
+        # Define subspace_vectors for KPM
+        vecs_a = subspace_vectors[0]
+        subspace_vectors = (vecs_a, ComplementProjector(vecs_a))
+    # Separation into subspace_vectors
     def H_eval(*index):
+        monomial = reduce(mul, [n**i for n, i in zip(symbols, index[2:])], 1)
         original = hamiltonian.evaluated[index[2:]]
         if zero == original:
             return zero
@@ -1014,15 +1020,15 @@ def hamiltonian_to_BlockSeries(
             if implicit and left == right == 1:
                 # compatibility with KPM
                 result = (
-                    subspaces_vectors[left] @ aslinearoperator(original)
-                    @ subspaces_vectors[right]
+                    subspace_vectors[left] @ aslinearoperator(original)
+                    @ subspace_vectors[right]
                 )
             else:
                 result = (
-                    Dagger(subspaces_vectors[left]) @ original @ subspaces_vectors[right]
+                    Dagger(subspace_vectors[left]) @ original @ subspace_vectors[right]
                 )
-            return _convert_if_zero(result) # returns dia_sparse to csc :(
-        return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
+            return monomial * _convert_if_zero(result)
+        return monomial * Dagger(H.evaluated[(right, left) + tuple(index[2:])])
 
     H = BlockSeries(
         eval=H_eval,
