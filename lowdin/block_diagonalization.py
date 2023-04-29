@@ -809,6 +809,8 @@ def _symbolic_keys_to_orders(hamiltonian):
 
     new_hamiltonian = {}
     for key, value in hamiltonian.items():
+        if isinstance(value, sympy.MatrixBase):
+            raise ValueError("Values of the dictionary must be numeric.")
         if value.dtype == np.dtype("O"):
             raise ValueError("Values of the dictionary must be numeric.")
         monomial = key.as_powers_dict()
