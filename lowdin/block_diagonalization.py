@@ -152,7 +152,15 @@ def _solve_sylvester_diagonal(
             energy_denominators = eigs_a[Y_coo.row] - eigs_b[Y_coo.col]
             new_data = Y_coo.data / energy_denominators
             return sparse.csr_array((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
-
+        elif isinstance(Y, sympy.MatrixBase):
+            array_eigs_a = np.array(eigs_a, dtype=object)
+            array_eigs_b = np.array(eigs_b, dtype=object)
+            energy_denominators = sympy.Matrix(
+                1/(array_eigs_a.reshape(-1, 1) - array_eigs_b)
+            )
+            return energy_denominators.multiply_elementwise(Y)
+        else:
+            NotImplementedError
     return solve_sylvester
 
 
