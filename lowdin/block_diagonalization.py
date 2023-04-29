@@ -759,12 +759,60 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     if isinstance(h_0, np.ndarray) or sparse.issparse(h_0):
         hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
 
+    symbols = None
+    key_types = set(issubclass(type(key), sympy.Basic) for key in hamiltonian.keys())
+    if any(key_types):
+        hamiltonian, symbols = _symbolic_keys_to_orders(hamiltonian)
+
     H_temporary = BlockSeries(
         data=hamiltonian,
         shape=(),
         n_infinite=n_infinite,
     )
-    return H_temporary
+    return H_temporary, symbols
+
+
+def _symbolic_keys_to_orders(hamiltonian):
+    """
+    Parameters
+    ----------
+    hamiltonian :
+        Dictionary with symbolic keys, each a monomial without numerical
+        prefactor. The values can be either a `~numpy.ndarray` or
+        `~scipy.sparse.csr_matrix` or a list with the blocks of the Hamiltonian.
+
+    Returns
+    -------
+    new_hamiltonian :
+        Dictionary with the same values as ``hamiltonian``, but with keys that
+        indicate the order of the perturbation.
+    symbols :
+        List of symbols in the order they appear in the keys of ``hamiltonian``.
+    """
+    symbols = list(set.union(*[key.free_symbols for key in hamiltonian.keys()]))
+    symbols = sorted(symbols, key=lambda x: x.name)
+
+    new_hamiltonian = {}
+    for key, value in hamiltonian.items():
+        monomial = key.as_coefficients_dict()
+        if len(monomial) > 1:
+            raise ValueError("Keys must be a monomial.")
+        if list(monomial.values())[0] != 1:
+            raise ValueError("Keys must be a monomial without numerical coefficients.")
+        monomial = sympy.simplify(key) # TODO: don't assume symbols commute
+        factors = monomial.as_ordered_factors()
+        basis = [factor.free_symbols.pop() for factor in factors]
+
+        indices = np.array([symbols.index(base) for base in basis])
+        order = np.zeros(len(symbols), dtype=int)
+        order[indices] = 1
+        exponents = np.zeros(len(symbols), dtype=int)
+        exponents[indices] = [
+            factor.as_coeff_exponent(basis[i])[1] for i, factor in enumerate(factors)
+        ]
+        new_key = order * exponents
+        new_hamiltonian[tuple(new_key)] = value
+    return new_hamiltonian, symbols
 
 
 def _sympy_to_BlockSeries(
