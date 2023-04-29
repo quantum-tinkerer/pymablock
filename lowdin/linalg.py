@@ -151,9 +151,12 @@ def aslinearoperator(A):
         return A
     return scipy_aslinearoperator(A)
 
+
 def is_diagonal(A):
     """Check if A is diagonal"""
-    if issubclass(type(A), sympy.MatrixBase):  # sympy
+    if isinstance(A, sympy.MatrixBase):  # sympy
         return A.is_diagonal()
-    A = sparse.dia_array(A)  # numpy or scipy.sparse
-    return not any(A.offsets)
+    elif isinstance(A, np.ndarray) or sparse.issparse(A):
+        A = sparse.dia_array(A)  # numpy or scipy.sparse
+        return not any(A.offsets)
+    return False
