@@ -682,10 +682,7 @@ def block_diagonalize(
     if solve_sylvester is None:
         h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
         h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
-            eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
-            solve_sylvester = _solve_sylvester_diagonal(*eigenvalues)
-        elif implicit:
+        if implicit:
             solve_sylvester = solve_sylvester_KPM(
                 h_0,
                 subspace_vectors,
@@ -693,6 +690,9 @@ def block_diagonalize(
                 kpm_params,
                 precalculate_moments,
             )
+        elif all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
+            eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
+            solve_sylvester = _solve_sylvester_diagonal(*eigenvalues)
         else:
             raise NotImplementedError
 
