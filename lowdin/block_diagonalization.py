@@ -836,14 +836,14 @@ def _sympy_to_BlockSeries(
 
     hamiltonian = hamiltonian.expand()
 
-    def H_eval(*index):
+    def H_eval(*index):  # TODO: write this recursively, more efficient
         expr = sympy.diff(
             hamiltonian, *((n, i) for n, i in zip(symbols, index))
         )
         expr = expr.subs({n: 0 for n in symbols})
         expr = expr / reduce(mul, [sympy.factorial(i) for i in index])
         expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
-        if not expr.is_hermitian:
+        if expr.is_hermitian is False:  # sympy three-valued logic
             raise ValueError("Hamiltonian must be Hermitian at every order.")
         return _convert_if_zero(expr)
 
