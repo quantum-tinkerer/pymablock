@@ -586,6 +586,7 @@ def expanded(
 def implicit(
     H: BlockSeries,
     solve_sylvester: Callable,
+    algorithm : str = "general",
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Block diagonalize a Hamiltonian without explicitly forming BB matrices.
@@ -599,6 +600,9 @@ def implicit(
         Full Hamiltonian of the system.
     solve_sylvester :
         Function to use for solving Sylvester's equation.
+    algorithm :
+        Algorithm to use for diagonalization. One of "general", "expanded".
+        The "expanded" (default) is faster in lower orders.
 
     Returns
     -------
@@ -611,7 +615,10 @@ def implicit(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of ``U``.
     """
-    H_tilde, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
+    if algorithm not in ("general", "expanded"):
+        raise ValueError(f"Unsupported algorithm: {algorithm}")
+    algorithm = globals()[algorithm]
+    H_tilde, U, U_adjoint = algorithm(H, solve_sylvester=solve_sylvester)
 
     # Create series wrapped in linear operators to avoid forming explicit matrices
     def linear_operator_wrapped(original):
