@@ -261,7 +261,7 @@ def hamiltonian_to_BlockSeries(
     if subspace_vectors is None and subspace_indices is None:
 
         def H_eval(*index):
-            h = hamiltonian.evaluated[index[2:]]
+            h = _convert_if_zero(hamiltonian.evaluated[index[2:]])
             if zero == h:
                 return zero
             try:  # Hamiltonians come in blocks of 2x2
