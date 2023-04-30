@@ -66,8 +66,8 @@ def block_diagonalize(
     subspace_vectors :
         Subspaces to project the unperturbed Hamiltonian and separate it into
         blocks. The first element of the tuple contains the orthonormal vectors
-        that span the AA subspace, while the second element contains the
-        orthonormal vectors that span the BB subspace.
+        that span the A subspace, while the second element contains the
+        orthonormal vectors that span the B subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
         For KPM, the first element contains the effective subspace, and the
         second element contains the (partial) auxiliary subspace.
@@ -75,7 +75,7 @@ def block_diagonalize(
     subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
         diagonal elements according to the subspace_vectors may be provided.
-        Indices 0 and 1 are reserved for the AA and BB subspaces, respectively.
+        Indices 0 and 1 are reserved for the A and B subspaces, respectively.
         Mutually exclusive with `subspace_vectors`.
     eigenvalues :
         Eigenvalues of the unperturbed Hamiltonian. The first element of the
@@ -141,8 +141,8 @@ def block_diagonalize(
 
     # Determine function to use for solving Sylvester's equation
     if solve_sylvester is None:
-        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        h_0_A = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_B = H.evaluated[(1, 1) + (0,) * H.n_infinite]
         if implicit:
             solve_sylvester = solve_sylvester_KPM(
                 h_0,
@@ -151,8 +151,8 @@ def block_diagonalize(
                 kpm_params,
                 precalculate_moments,
             )
-        elif all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
-            eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
+        elif all(is_diagonal(h) for h in (h_0_A, h_0_B)):
+            eigenvalues = tuple(h.diagonal() for h in (h_0_A, h_0_B))
             solve_sylvester = _solve_sylvester_diagonal(*eigenvalues)
         else:
             raise ValueError("solve_sylvester must be provided or the"
@@ -189,11 +189,11 @@ def hamiltonian_to_BlockSeries(
     ----------
     hamiltonian :
         Hamiltonian to convert to a `~lowdin.series.BlockSeries`.
-        If a list, it is assumed to be of the form [H_0, H_1, H_2, ...] where
-        H_0 is the zeroth order Hamiltonian and H_1, H_2, ... are the first
+        If a list, it is assumed to be of the form [h_0, h_1, h_2, ...] where
+        h_0 is the zeroth order Hamiltonian and h_1, h_2, ... are the first
         order perturbations.
         If a dictionary, it is assumed to be of the form
-        {(0, 0): H_0, (1, 0): H_1, (0, 1): H_2}.
+        {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}.
         If a `~lowdin.series.BlockSeries`, it is returned unchanged.
         If a sympy matrix, it is tranformed to a `~lowdin.series.BlockSeries`
         by Taylor expanding the matrix with respect to the perturbative
@@ -201,8 +201,8 @@ def hamiltonian_to_BlockSeries(
     subspace_vectors :
         Subspaces to project the unperturbed Hamiltonian and separate it into
         blocks. The first element of the tuple contains the orthonormal vectors
-        that span the AA subspace, while the second element contains the
-        orthonormal vectors that span the BB subspace.
+        that span the A subspace, while the second element contains the
+        orthonormal vectors that span the B subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
         For KPM, the first element contains the effective subspace, and the
         second element contains the (partial) auxiliary subspace.
@@ -210,7 +210,7 @@ def hamiltonian_to_BlockSeries(
     subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
         diagonal elements according to the subspace_vectors may be provided.
-        Indices 0 and 1 are reserved for the AA and BB subspaces, respectively.
+        Indices 0 and 1 are reserved for the A and B subspaces, respectively.
         Mutually exclusive with `subspace_vectors`.
     implicit :
         Whether to use KPM to solve the Sylvester equation. If True, the first
@@ -273,7 +273,7 @@ def hamiltonian_to_BlockSeries(
                                 " be provided.")
         h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
         if not is_diagonal(h_0):
-            raise ValueError("If subspace_indices is provided, H_0 must be"
+            raise ValueError("If subspace_indices is provided, h_0 must be"
                                 " diagonal.")
         symbolic = isinstance(h_0, sympy.MatrixBase)
         subspace_vectors = _subspaces_from_indices(subspace_indices, symbolic=symbolic)
@@ -343,17 +343,17 @@ def general(
         op = matmul
 
     if solve_sylvester is None:
-        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
+        h_0_A = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_B = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        if not is_diagonal(h_0_A) or not is_diagonal(h_0_B):
             raise ValueError(
                 "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
                  " is not provided."
             )
 
-        eigs_a = h_0_AA.diagonal()
-        eigs_b = h_0_BB.diagonal()
-        solve_sylvester = _solve_sylvester_diagonal(eigs_a, eigs_b)
+        eigs_A = h_0_A.diagonal()
+        eigs_B = h_0_B.diagonal()
+        solve_sylvester = _solve_sylvester_diagonal(eigs_A, eigs_B)
 
     # Initialize the transformation as the identity operator
     U = BlockSeries(
@@ -423,7 +423,7 @@ def general_symbolic(
     U_adjoint_s : `~lowdin.series.BlockSeries`
         Symbolic adjoint of U_s.
     Y_data : `dict`
-        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+        dictionary of {V: rhs} such that h_0_A * V - V * h_0_B = rhs.
         It is updated whenever new terms of `H_tilde_s` or `U_s` are evaluated.
     subs : `dict`
         Dictionary with placeholder symbols as keys and original Hamiltonian terms as
@@ -443,8 +443,8 @@ def general_symbolic(
         shape=H.shape,
         n_infinite=H.n_infinite,
     )
-    H_0_AA = H_placeholder.evaluated[(0, 0) + (0,) * H.n_infinite]
-    H_0_BB = H_placeholder.evaluated[(1, 1) + (0,) * H.n_infinite]
+    h_0_A = H_placeholder.evaluated[(0, 0) + (0,) * H.n_infinite]
+    h_0_B = H_placeholder.evaluated[(1, 1) + (0,) * H.n_infinite]
 
     H_tilde, U, U_adjoint = general(H_placeholder, solve_sylvester=(lambda x: x), op=mul)
 
@@ -455,7 +455,7 @@ def general_symbolic(
     def U_eval(*index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
-            Y = _commute_H0_away(old_U_eval(*index), H_0_AA, H_0_BB, Y_data)
+            Y = _commute_h0_away(old_U_eval(*index), h_0_A, h_0_B, Y_data)
             if zero == Y:
                 return zero
             Y_data[V] = Y
@@ -467,7 +467,7 @@ def general_symbolic(
     old_H_tilde_eval = H_tilde.eval
 
     def H_tilde_eval(*index):
-        return _commute_H0_away(old_H_tilde_eval(*index), H_0_AA, H_0_BB, Y_data)
+        return _commute_h0_away(old_H_tilde_eval(*index), h_0_A, h_0_B, Y_data)
 
     H_tilde.eval = H_tilde_eval
 
@@ -506,17 +506,17 @@ def expanded(
         op = matmul
 
     if solve_sylvester is None:
-        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
+        h_0_A = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_B = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        if not is_diagonal(h_0_A) or not is_diagonal(h_0_B):
             raise ValueError(
                 "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
                  " is not provided."
             )
 
-        eigs_a = h_0_AA.diagonal()
-        eigs_b = h_0_BB.diagonal()
-        solve_sylvester = _solve_sylvester_diagonal(eigs_a, eigs_b)
+        eigs_A = h_0_A.diagonal()
+        eigs_B = h_0_B.diagonal()
+        solve_sylvester = _solve_sylvester_diagonal(eigs_A, eigs_B)
 
     H_tilde_s, U_s, _, Y_data, subs = general_symbolic(H)
     _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
@@ -610,8 +610,8 @@ def numerical(
 
 ### Different formats and algorithms of solving Sylvester equation.
 def _solve_sylvester_diagonal(
-        eigs_a: Any,
-        eigs_b: Any,
+        eigs_A: Any,
+        eigs_B: Any,
         vecs_b: Optional[np.ndarray] = None
     ) -> Callable:
     """
@@ -620,9 +620,9 @@ def _solve_sylvester_diagonal(
 
     Parameters
     ----------
-    eigs_a :
+    eigs_A :
         Eigenvalues of A subspace of the unperturbed Hamiltonian.
-    eigs_b :
+    eigs_B :
         Eigenvalues of B subspace of the unperturbed Hamiltonian.
     vecs_b :
         (optional) Eigenvectors of B subspace of the unperturbed Hamiltonian.
@@ -635,19 +635,19 @@ def _solve_sylvester_diagonal(
             Y: np.ndarray | sparse.csr_array
     ) -> np.ndarray | sparse.csr_array:
         if vecs_b is not None:
-            energy_denominators = 1 / (eigs_a[:, None] - eigs_b[None, :])
+            energy_denominators = 1 / (eigs_A[:, None] - eigs_B[None, :])
             return ((Y @ vecs_b) * energy_denominators) @ Dagger(vecs_b)
         elif isinstance(Y, np.ndarray):
-            energy_denominators = 1 / (eigs_a.reshape(-1, 1) - eigs_b)
+            energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
             return Y * energy_denominators
         elif sparse.issparse(Y):
             Y_coo = Y.tocoo()
-            energy_denominators = eigs_a[Y_coo.row] - eigs_b[Y_coo.col]
-            new_data = Y_coo.data / energy_denominators
+            energy_denominators = 1 / eigs_A[Y_coo.row] - eigs_B[Y_coo.col]
+            new_data = Y_coo.data * energy_denominators
             return sparse.csr_array((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
         elif isinstance(Y, sympy.MatrixBase):
-            array_eigs_a = np.array(eigs_a, dtype=object)
-            array_eigs_b = np.array(eigs_b, dtype=object)
+            array_eigs_a = np.array(eigs_A, dtype=object)  # Use numpy to reshape
+            array_eigs_b = np.array(eigs_B, dtype=object)
             energy_denominators = sympy.Matrix(
                 1/(array_eigs_a.reshape(-1, 1) - array_eigs_b)
             )
@@ -698,26 +698,28 @@ def solve_sylvester_KPM(
     solve_sylvester: callable
         Function that applies divide by energies to the RHS of the Sylvester equation.
     """
+    # Full A subspace and partial/full B subspace provided
     if len(subspace_vectors) == 2:
         vecs_a, vecs_b = subspace_vectors
-        eigs_a, eigs_b = eigenvalues
+        eigs_A, eigs_B = eigenvalues
 
+    # Full A subspace and no B subspace provided
     elif len(subspace_vectors) == 1:
         vecs_a = subspace_vectors[0]
-        eigs_a = eigenvalues[0]
+        eigs_A = eigenvalues[0]
         vecs_b = np.empty((vecs_a.shape[0], 0))
-        eigs_b = np.diagonal((Dagger(vecs_b) @ h_0 @ vecs_b))
+        eigs_B = np.diagonal((Dagger(vecs_b) @ h_0 @ vecs_b))
     else:
         raise NotImplementedError("Too many subspace_vectors")
 
-    if not isinstance(eigs_a, np.ndarray) or not isinstance(eigs_b, np.ndarray):
+    if not isinstance(eigs_A, np.ndarray) or not isinstance(eigs_B, np.ndarray):
         raise TypeError("Eigenvalues must be a numpy array")
 
     if kpm_params is None:
         kpm_params = dict()
 
-    need_kpm = len(eigs_a) + len(eigs_b) < h_0.shape[0]
-    need_explicit = bool(len(eigs_b))
+    need_kpm = len(eigs_A) + len(eigs_B) < h_0.shape[0]
+    need_explicit = bool(len(eigs_B))
     if not any((need_kpm, need_explicit)):
         # B subspace is empty
         return lambda Y: Y
@@ -733,11 +735,11 @@ def solve_sylvester_KPM(
                 vectors=Y_KPM.conj(),
                 kpm_params=kpm_params,
                 precalculate_moments=precalculate_moments,
-            )(eigs_a)
-            return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
+            )(eigs_A)
+            return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_A))])
 
     if need_explicit:
-        solve_sylvester_explicit = _solve_sylvester_diagonal(eigs_a, eigs_b, vecs_b)
+        solve_sylvester_explicit = _solve_sylvester_diagonal(eigs_A, eigs_B, vecs_b)
 
     def solve_sylvester(Y: np.ndarray)-> np.ndarray:
         if need_kpm and need_explicit:
@@ -788,41 +790,41 @@ def solve_sylvester_direct(
 
 
 ### Auxiliary functions.
-def _commute_H0_away(
-    expr: Any, H_0_AA: Any, H_0_BB: Any, Y_data: dict[Operator, Any]
+def _commute_h0_away(
+    expr: Any, h_0_A: Any, h_0_B: Any, Y_data: dict[Operator, Any]
 ) -> Any:
     """
-    Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
+    Simplify expression by commmuting h_0 and V using Sylvester's Equation relations.
 
     Parameters
     ----------
     expr :
         (zero or sympy) expression to simplify.
-    H_0_AA :
-        Unperturbed Hamiltonian in subspace AA.
-    H_0_BB :
-        Unperturbed Hamiltonian in subspace BB.
+    h_0_A :
+        Unperturbed Hamiltonian in subspace A.
+    h_0_B :
+        Unperturbed Hamiltonian in subspace B.
     Y_data :
-        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+        dictionary of {V: rhs} such that h_0_A * V - V * h_0_B = rhs.
 
     Returns
     -------
     expr : zero or sympy.expr
-        (zero or sympy) expression without H_0_AA or H_0_BB in it.
+        (zero or sympy) expression without h_0_A or h_0_B in it.
     """
     if zero == expr:
         return expr
 
     subs = {
-        **{H_0_AA * V: rhs + V * H_0_BB for V, rhs in Y_data.items()},
+        **{h_0_A * V: rhs + V * h_0_B for V, rhs in Y_data.items()},
         **{
-            H_0_BB * Dagger(V): -Dagger(rhs) + Dagger(V) * H_0_AA
+            h_0_B * Dagger(V): -Dagger(rhs) + Dagger(V) * h_0_A
             for V, rhs in Y_data.items()
         },
     }
 
     while (
-        any(H in expr.free_symbols for H in (H_0_AA, H_0_BB))
+        any(H in expr.free_symbols for H in (h_0_A, h_0_B))
         and len(expr.free_symbols) > 1
     ):
         expr = expr.subs(subs).expand()
@@ -842,7 +844,7 @@ def _update_subs(
     Parameters
     ----------
     Y_data :
-        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+        dictionary of {V: rhs} such that h_0_A * V - V * h_0_B = rhs.
     subs :
         dictionary of substitutions to make.
     solve_sylvester :
@@ -908,7 +910,7 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     ----------
     hamiltonian :
         Unperturbed Hamiltonian and 1st order perturbations.
-        [H_0, H_1, H_2, ...], where H_0 is the unperturbed Hamiltonian and the
+        [h_0, h_1, h_2, ...], where h_0 is the unperturbed Hamiltonian and the
         remaining elements are the 1st order perturbations.
         This method is for first order perturbations only.
 
@@ -938,7 +940,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
         The keys are tuples of integers that indicate the order of the perturbation.
         The values are the perturbations, and can be either a `~numpy.ndarray` or
         `~scipy.sparse.csr_matrix` or a list with the blocks of the Hamiltonian.
-        {(0, 0): H_0, (1, 0): H_1, (0, 1): H_2}
+        {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}
 
     Returns
     -------
@@ -1068,7 +1070,7 @@ def _subspaces_from_indices(
     ----------
     subspace_indices :
         Indices of the subspace_vectors.
-        0 indicates the first subspace, 1 indicates the second subspace.
+        0 indicates the first subspace A, 1 indicates the second subspace B.
 
     Returns
     -------

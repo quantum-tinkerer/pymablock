@@ -61,8 +61,8 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     """
     n_infinite = len(wanted_orders)
     orders = np.eye(n_infinite, dtype=int)
-    h_0_AA = np.diag(np.sort(np.random.rand(Ns[0])) - 1)
-    h_0_BB = np.diag(np.sort(np.random.rand(Ns[1])))
+    h_0_A = np.diag(np.sort(np.random.rand(Ns[0])) - 1)
+    h_0_B = np.diag(np.sort(np.random.rand(Ns[1])))
 
 
     def matrices_it(N_i, N_j, hermitian):
@@ -90,16 +90,16 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
         hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
 
-    h_p_AA, h_p_BB, h_p_AB = hams
+    h_p_A, h_p_B, h_p_AB = hams
     zeroth_order = (0,) * n_infinite
     H = BlockSeries(
         data={
-            **{(0, 0) + zeroth_order: h_0_AA},
-            **{(1, 1) + zeroth_order: h_0_BB},
-            **{(0, 0) + tuple(key): value for key, value in h_p_AA.items()},
+            **{(0, 0) + zeroth_order: h_0_A},
+            **{(1, 1) + zeroth_order: h_0_B},
+            **{(0, 0) + tuple(key): value for key, value in h_p_A.items()},
             **{(0, 1) + tuple(key): value for key, value in h_p_AB.items()},
             **{(1, 0) + tuple(key): Dagger(value) for key, value in h_p_AB.items()},
-            **{(1, 1) + tuple(key): value for key, value in h_p_BB.items()},
+            **{(1, 1) + tuple(key): value for key, value in h_p_B.items()},
         },
         shape=(2, 2),
         n_infinite=n_infinite,
@@ -307,17 +307,17 @@ def compute_second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     """
     n_infinite = H.n_infinite
     order = tuple(value // 2 for value in order)
-    H_0_AA, H_0_BB, H_p_AB = (
+    h_0_A, h_0_B, h_p_AB = (
         H.evaluated[(0, 0) + (0,) * n_infinite],
         H.evaluated[(1, 1) + (0,) * n_infinite],
         H.evaluated[(0, 1) + order],
     )
 
-    E_A = np.diag(H_0_AA)
-    E_B = np.diag(H_0_BB)
-    energy_denominators = 1 / (E_A.reshape(-1, 1) - E_B)
-    V1 = -H_p_AB * energy_denominators
-    return -(V1 @ Dagger(H_p_AB) + H_p_AB @ Dagger(V1)) / 2
+    eigs_A = np.diag(h_0_A)
+    eigs_B = np.diag(h_0_B)
+    energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
+    V1 = -h_p_AB * energy_denominators
+    return -(V1 @ Dagger(h_p_AB) + h_p_AB @ Dagger(V1)) / 2
 
 
 def test_second_order_H_tilde(
@@ -345,8 +345,8 @@ def test_second_order_H_tilde(
         )
 
 
-def test_check_diagonal_H_0_AA() -> None:
-    """Test that offdiagonal H_0_AA requires solve_sylvester."""
+def test_check_diagonal_h_0_A() -> None:
+    """Test that offdiagonal h_0_A requires solve_sylvester."""
     with pytest.raises(ValueError):
         H = BlockSeries(
                 data={(0, 0, 0): np.array([[1, 1], [1, 1]]), (1, 1, 0): np.eye(2)},
@@ -356,8 +356,8 @@ def test_check_diagonal_H_0_AA() -> None:
         general(H)
 
 
-def test_check_diagonal_H_0_BB() -> None:
-    """Test that offdiagonal H_0_BB requires solve_sylvester."""
+def test_check_diagonal_h_0_B() -> None:
+    """Test that offdiagonal h_0_B requires solve_sylvester."""
     with pytest.raises(ValueError):
         H = BlockSeries(
                 data={(0, 0, 0): np.eye(2), (1, 1, 0): np.array([[1, 1], [1, 1]])},
@@ -633,7 +633,7 @@ def test_solve_sylvester(
 
 
 @pytest.mark.skip(reason="Sometimes it fails due to precision.")
-def test_check_AA_numerical(
+def test_numerical_consistent_on_A(
     generate_kpm_hamiltonian: tuple[
         BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
     ],
@@ -653,27 +653,27 @@ def test_check_AA_numerical(
     a_dim:
         Dimension of the A subspace.
     """
-    H_input, vecs_a, eigs_a, vecs_b, eigs_b = generate_kpm_hamiltonian
+    H_input, vecs_A, eigs_A, vecs_B, eigs_B = generate_kpm_hamiltonian
     n_infinite = H_input.n_infinite
 
     # construct Hamiltonian for general
     index_rows = np.eye(n_infinite, dtype=int)
-    vecs = np.concatenate((vecs_a, vecs_b), axis=-1)
-    h_0_aa = np.diag(eigs_a)
-    h_0_bb = np.diag(eigs_b)
-    h_p_aa = {
+    vecs = np.concatenate((vecs_A, vecs_B), axis=-1)
+    h_0_A = np.diag(eigs_A)
+    h_0_B = np.diag(eigs_B)
+    h_p_A = {
         tuple(index_rows[index, :]): (
             Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
         )[:a_dim, :a_dim]
         for index in range(n_infinite)
     }
-    h_p_bb = {
+    h_p_B = {
         tuple(index_rows[index, :]): (
             Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
         )[a_dim:, a_dim:]
         for index in range(n_infinite)
     }
-    h_p_ab = {
+    h_p_AB = {
         tuple(index_rows[index, :]): (
             Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
         )[:a_dim, a_dim:]
@@ -682,20 +682,20 @@ def test_check_AA_numerical(
 
     H_general = BlockSeries(
         data = {
-            (0, 0) + (0,) * n_infinite: h_0_aa,
-            (1, 1) + (0,) * n_infinite: h_0_bb,
-            **{(0, 0) + tuple(key): value for key, value in h_p_aa.items()},
-            **{(1, 1) + tuple(key): value for key, value in h_p_bb.items()},
-            **{(0, 1) + tuple(key): value for key, value in h_p_ab.items()},
-            **{(1, 0) + tuple(key): Dagger(value) for key, value in h_p_ab.items()},
+            (0, 0) + (0,) * n_infinite: h_0_A,
+            (1, 1) + (0,) * n_infinite: h_0_B,
+            **{(0, 0) + tuple(key): value for key, value in h_p_A.items()},
+            **{(1, 1) + tuple(key): value for key, value in h_p_B.items()},
+            **{(0, 1) + tuple(key): value for key, value in h_p_AB.items()},
+            **{(1, 0) + tuple(key): Dagger(value) for key, value in h_p_AB.items()},
         },
         shape = (2, 2),
         n_infinite = n_infinite,
     )
 
     H_tilde_general = general(H_general)[0]
-    H_tilde_full_b = numerical(H_input, vecs_a, eigs_a, vecs_b, eigs_b)[0]
-    H_tilde_KPM = numerical(H_input, vecs_a, eigs_a, kpm_params={"num_moments": 5000})[
+    H_tilde_full_b = numerical(H_input, vecs_A, eigs_A, vecs_B, eigs_B)[0]
+    H_tilde_KPM = numerical(H_input, vecs_A, eigs_A, kpm_params={"num_moments": 5000})[
         0
     ]
     order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
@@ -786,7 +786,7 @@ def test_correct_implicit_subspace(
     Testing agreement of explicit and implicit subspace_vectors
 
     Test that the BB block of H_tilde is a) a LinearOperator type and
-    b) the same as the AA block on exchanging veca_a and vecs_b
+    b) the same as the A block on exchanging vecs_A and vecs_B
 
     Parameters:
     ----------
@@ -811,11 +811,11 @@ def test_correct_implicit_subspace(
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     h = H_tilde.evaluated[(0, 0) + order].compressed()
     h_swapped = H_tilde_swapped.evaluated[(1, 1) + order].compressed()
-    for block_aa, block_bb in zip(h, h_swapped):
-        assert isinstance(block_bb, LinearOperator)
+    for block_A, block_B in zip(h, h_swapped):
+        assert isinstance(block_B, LinearOperator)
         np.testing.assert_allclose(
-            block_aa,
-            Dagger(subspace_vectors[0]) @ block_bb @ subspace_vectors[0],
+            block_A,
+            Dagger(subspace_vectors[0]) @ block_B @ subspace_vectors[0],
             atol=1e-14
         )
 
