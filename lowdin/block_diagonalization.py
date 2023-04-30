@@ -989,29 +989,24 @@ def _symbolic_keys_to_tuples(
     symbols :
         List of symbols in the order they appear in the keys of ``hamiltonian``.
     """
+    # Collect all symbols from the keys
     symbols = list(set.union(*[key.free_symbols for key in hamiltonian.keys()]))
     symbols = sorted(symbols, key=lambda x: x.name)
     if not all(symbol.is_commutative for symbol in symbols):
         raise ValueError("All symbols must be commutative.")
 
+    # Convert symbolic keys to orders of the perturbation
     new_hamiltonian = {}
     for key, value in hamiltonian.items():
         if isinstance(value, sympy.MatrixBase):
             raise ValueError("Values of the dictionary must be numeric.")
         if value.dtype == np.dtype("O"):
             raise ValueError("Values of the dictionary must be numeric.")
+
         monomial = key.as_powers_dict()
-        basis = monomial.keys()
-        if len(basis) == 1 and list(basis)[0] not in symbols:
-            # unperturbed Hamiltonian
-            new_hamiltonian[(0,) * len(symbols)] = value
-            continue
-        indices = np.array([symbols.index(base, ) for base in basis])
-        order = np.zeros(len(symbols), dtype=int)
-        exponents = np.zeros(len(symbols), dtype=int)
-        order[indices] = 1
-        exponents[indices] = [monomial[base] for base in basis]
-        new_hamiltonian[tuple(order * exponents)] = value
+        if monomial.keys() - set(symbols) - {1}:
+            raise ValueError("The Hamiltonian keys must be monomials of symbols")
+        new_hamiltonian[tuple(monomial[s] for s in symbols)] = value
     return new_hamiltonian, symbols
 
 
