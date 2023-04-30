@@ -63,8 +63,8 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     """
     n_infinite = len(wanted_orders)
     orders = np.eye(n_infinite, dtype=int)
-    h_0_A = np.diag(np.sort(np.random.rand(Ns[0])) - 1)
-    h_0_B = np.diag(np.sort(np.random.rand(Ns[1])))
+    h_0_AA = np.diag(np.sort(np.random.rand(Ns[0])) - 1)
+    h_0_BB = np.diag(np.sort(np.random.rand(Ns[1])))
 
     def matrices_it(N_i, N_j, hermitian):
         """
@@ -91,16 +91,16 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
         matrices = matrices_it(Ns[i], Ns[j], hermitian)
         hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
 
-    h_p_A, h_p_B, h_p_AB = hams
+    h_p_AA, h_p_BB, h_p_AB = hams
     zeroth_order = (0,) * n_infinite
     H = BlockSeries(
         data={
-            **{(0, 0) + zeroth_order: h_0_A},
-            **{(1, 1) + zeroth_order: h_0_B},
-            **{(0, 0) + tuple(key): value for key, value in h_p_A.items()},
+            **{(0, 0) + zeroth_order: h_0_AA},
+            **{(1, 1) + zeroth_order: h_0_BB},
+            **{(0, 0) + tuple(key): value for key, value in h_p_AA.items()},
             **{(0, 1) + tuple(key): value for key, value in h_p_AB.items()},
             **{(1, 0) + tuple(key): Dagger(value) for key, value in h_p_AB.items()},
-            **{(1, 1) + tuple(key): value for key, value in h_p_B.items()},
+            **{(1, 1) + tuple(key): value for key, value in h_p_BB.items()},
         },
         shape=(2, 2),
         n_infinite=n_infinite,
@@ -312,14 +312,14 @@ def compute_second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     """
     n_infinite = H.n_infinite
     order = tuple(value // 2 for value in order)
-    h_0_A, h_0_B, h_p_AB = (
+    h_0_AA, h_0_BB, h_p_AB = (
         H.evaluated[(0, 0) + (0,) * n_infinite],
         H.evaluated[(1, 1) + (0,) * n_infinite],
         H.evaluated[(0, 1) + order],
     )
 
-    eigs_A = np.diag(h_0_A)
-    eigs_B = np.diag(h_0_B)
+    eigs_A = np.diag(h_0_AA)
+    eigs_B = np.diag(h_0_BB)
     energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
     V1 = -h_p_AB * energy_denominators
     return -(V1 @ Dagger(h_p_AB) + h_p_AB @ Dagger(V1)) / 2
@@ -351,7 +351,7 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
 
 
 def test_check_diagonal_h_0_A() -> None:
-    """Test that offdiagonal h_0_A requires solve_sylvester."""
+    """Test that offdiagonal h_0_AA requires solve_sylvester."""
     with pytest.raises(ValueError):
         H = BlockSeries(
             data={(0, 0, 0): np.array([[1, 1], [1, 1]]), (1, 1, 0): np.eye(2)},
@@ -362,7 +362,7 @@ def test_check_diagonal_h_0_A() -> None:
 
 
 def test_check_diagonal_h_0_B() -> None:
-    """Test that offdiagonal h_0_B requires solve_sylvester."""
+    """Test that offdiagonal h_0_BB requires solve_sylvester."""
     with pytest.raises(ValueError):
         H = BlockSeries(
             data={(0, 0, 0): np.eye(2), (1, 1, 0): np.array([[1, 1], [1, 1]])},
@@ -687,15 +687,15 @@ def test_implicit_consistent_on_A(
     # construct Hamiltonian for general
     index_rows = np.eye(n_infinite, dtype=int)
     vecs = np.concatenate((vecs_A, vecs_B), axis=-1)
-    h_0_A = np.diag(eigs_A)
-    h_0_B = np.diag(eigs_B)
-    h_p_A = {
+    h_0_AA = np.diag(eigs_A)
+    h_0_BB = np.diag(eigs_B)
+    h_p_AA = {
         tuple(index_rows[index, :]): (
             Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
         )[:a_dim, :a_dim]
         for index in range(n_infinite)
     }
-    h_p_B = {
+    h_p_BB = {
         tuple(index_rows[index, :]): (
             Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
         )[a_dim:, a_dim:]
@@ -710,10 +710,10 @@ def test_implicit_consistent_on_A(
 
     H_general = BlockSeries(
         data={
-            (0, 0) + (0,) * n_infinite: h_0_A,
-            (1, 1) + (0,) * n_infinite: h_0_B,
-            **{(0, 0) + tuple(key): value for key, value in h_p_A.items()},
-            **{(1, 1) + tuple(key): value for key, value in h_p_B.items()},
+            (0, 0) + (0,) * n_infinite: h_0_AA,
+            (1, 1) + (0,) * n_infinite: h_0_BB,
+            **{(0, 0) + tuple(key): value for key, value in h_p_AA.items()},
+            **{(1, 1) + tuple(key): value for key, value in h_p_BB.items()},
             **{(0, 1) + tuple(key): value for key, value in h_p_AB.items()},
             **{(1, 0) + tuple(key): Dagger(value) for key, value in h_p_AB.items()},
         },

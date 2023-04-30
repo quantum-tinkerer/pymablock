@@ -158,8 +158,8 @@ def block_diagonalize(
 
     # Determine function to use for solving Sylvester's equation
     if solve_sylvester is None:
-        h_0_A = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_B = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
         if direct_solver is not None:
             if direct_solver:
                 solve_sylvester = solve_sylvester_direct(
@@ -174,9 +174,9 @@ def block_diagonalize(
                     eigenvalues,
                     solver_options=solver_options,
                 )
-        elif all(is_diagonal(h) for h in (h_0_A, h_0_B)):
-            eigenvalues = tuple(h.diagonal() for h in (h_0_A, h_0_B))
-            solve_sylvester = _solve_sylvester_diagonal(*eigenvalues)
+        elif all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
+            eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
+            solve_sylvester = solve_sylvester_diagonal(*eigenvalues)
         else:
             raise ValueError(
                 "`solve_sylvester` must be provided or the"
@@ -376,17 +376,17 @@ def general(
         operator = matmul
 
     if solve_sylvester is None:
-        h_0_A = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_B = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if not is_diagonal(h_0_A) or not is_diagonal(h_0_B):
+        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
             raise ValueError(
                 "The unperturbed Hamiltonian must be diagonal if"
                 " solve_sylvester is not provided."
             )
 
-        eigs_A = h_0_A.diagonal()
-        eigs_B = h_0_B.diagonal()
-        solve_sylvester = _solve_sylvester_diagonal(eigs_A, eigs_B)
+        eigs_A = h_0_AA.diagonal()
+        eigs_B = h_0_BB.diagonal()
+        solve_sylvester = solve_sylvester_diagonal(eigs_A, eigs_B)
 
     # Initialize the transformation as the identity operator
     U = BlockSeries(
@@ -461,7 +461,7 @@ def general_symbolic(
     U_adjoint_s : `~lowdin.series.BlockSeries`
         Symbolic adjoint of U_s.
     Y_data : `dict`
-        dictionary of {V: rhs} such that h_0_A * V - V * h_0_B = rhs.
+        dictionary of {V: rhs} such that h_0_AA * V - V * h_0_BB = rhs.
         It is updated whenever new terms of `H_tilde_s` or `U_s` are evaluated.
     subs : `dict`
         Dictionary with placeholder symbols as keys and original Hamiltonian terms as
@@ -482,8 +482,8 @@ def general_symbolic(
         shape=H.shape,
         n_infinite=H.n_infinite,
     )
-    h_0_A = H_placeholder.evaluated[(0, 0) + (0,) * H.n_infinite]
-    h_0_B = H_placeholder.evaluated[(1, 1) + (0,) * H.n_infinite]
+    h_0_AA = H_placeholder.evaluated[(0, 0) + (0,) * H.n_infinite]
+    h_0_BB = H_placeholder.evaluated[(1, 1) + (0,) * H.n_infinite]
 
     H_tilde, U, U_adjoint = general(
         H_placeholder, solve_sylvester=(lambda x: x), operator=mul
@@ -496,7 +496,7 @@ def general_symbolic(
     def U_eval(*index):
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
-            Y = _commute_h0_away(old_U_eval(*index), h_0_A, h_0_B, Y_data)
+            Y = _commute_h0_away(old_U_eval(*index), h_0_AA, h_0_BB, Y_data)
             if zero == Y:
                 return zero
             Y_data[V] = Y
@@ -508,7 +508,7 @@ def general_symbolic(
     old_H_tilde_eval = H_tilde.eval
 
     def H_tilde_eval(*index):
-        return _commute_h0_away(old_H_tilde_eval(*index), h_0_A, h_0_B, Y_data)
+        return _commute_h0_away(old_H_tilde_eval(*index), h_0_AA, h_0_BB, Y_data)
 
     H_tilde.eval = H_tilde_eval
 
@@ -547,17 +547,17 @@ def expanded(
         operator = matmul
 
     if solve_sylvester is None:
-        h_0_A = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_B = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if not is_diagonal(h_0_A) or not is_diagonal(h_0_B):
+        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
             raise ValueError(
                 "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
                 " is not provided."
             )
 
-        eigs_A = h_0_A.diagonal()
-        eigs_B = h_0_B.diagonal()
-        solve_sylvester = _solve_sylvester_diagonal(eigs_A, eigs_B)
+        eigs_A = h_0_AA.diagonal()
+        eigs_B = h_0_BB.diagonal()
+        solve_sylvester = solve_sylvester_diagonal(eigs_A, eigs_B)
 
     H_tilde_s, U_s, _, Y_data, subs = general_symbolic(H)
     _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, operator=operator)
@@ -839,7 +839,7 @@ def solve_sylvester_direct(
 
 ### Auxiliary functions.
 def _commute_h0_away(
-    expr: Any, h_0_A: Any, h_0_B: Any, Y_data: dict[Operator, Any]
+    expr: Any, h_0_AA: Any, h_0_BB: Any, Y_data: dict[Operator, Any]
 ) -> Any:
     """
     Simplify expression by commmuting h_0 and V using Sylvester's Equation relations.
@@ -848,31 +848,31 @@ def _commute_h0_away(
     ----------
     expr :
         (zero or sympy) expression to simplify.
-    h_0_A :
+    h_0_AA :
         Unperturbed Hamiltonian in subspace A.
-    h_0_B :
+    h_0_BB :
         Unperturbed Hamiltonian in subspace B.
     Y_data :
-        dictionary of {V: rhs} such that h_0_A * V - V * h_0_B = rhs.
+        dictionary of {V: rhs} such that h_0_AA * V - V * h_0_BB = rhs.
 
     Returns
     -------
     expr : zero or sympy.expr
-        (zero or sympy) expression without h_0_A or h_0_B in it.
+        (zero or sympy) expression without h_0_AA or h_0_BB in it.
     """
     if zero == expr:
         return expr
 
     subs = {
-        **{h_0_A * V: rhs + V * h_0_B for V, rhs in Y_data.items()},
+        **{h_0_AA * V: rhs + V * h_0_BB for V, rhs in Y_data.items()},
         **{
-            h_0_B * Dagger(V): -Dagger(rhs) + Dagger(V) * h_0_A
+            h_0_BB * Dagger(V): -Dagger(rhs) + Dagger(V) * h_0_AA
             for V, rhs in Y_data.items()
         },
     }
 
     while (
-        any(H in expr.free_symbols for H in (h_0_A, h_0_B))
+        any(H in expr.free_symbols for H in (h_0_AA, h_0_BB))
         and len(expr.free_symbols) > 1
     ):
         expr = expr.subs(subs).expand()
@@ -892,7 +892,7 @@ def _update_subs(
     Parameters
     ----------
     Y_data :
-        dictionary of {V: rhs} such that h_0_A * V - V * h_0_B = rhs.
+        dictionary of {V: rhs} such that h_0_AA * V - V * h_0_BB = rhs.
     subs :
         dictionary of substitutions to make.
     solve_sylvester :
