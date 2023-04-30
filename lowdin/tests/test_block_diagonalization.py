@@ -713,7 +713,7 @@ def test_numerical_consistent_on_A(
         )
 
 
-def test_solve_sylvester_kpm_vs_default(Ns: tuple[int, int])-> None:
+def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int])-> None:
     """
     Test whether the KPM ready solve_sylvester gives the same result
     as _solve_sylvester_diagonal when prompted with a diagonal input.
@@ -753,7 +753,7 @@ def test_solve_sylvester_kpm_vs_default(Ns: tuple[int, int])-> None:
 
 
 @pytest.mark.xfail(reason="Did not fix numerical errors yet")
-def test_solve_sylvester_direct_vs_default()-> None:
+def test_solve_sylvester_direct_vs_diagonal()-> None:
     n = 100
     a_dim = 5
     E = np.random.randn(n)
@@ -882,7 +882,7 @@ def test_input_hamiltonian_BlockSeries(H):
         np.allclose(H.evaluated[index], hamiltonian.evaluated[index])
 
 
-@pytest.fixture(scope="module", params=[0, 1, 2, 3, 4])
+@pytest.fixture(scope="module", params=[0, 1, 2, 3, 4, 5])
 def diagonal_hamiltonians(wanted_orders, request):
     """
 
