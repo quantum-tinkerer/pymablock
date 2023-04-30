@@ -14,7 +14,12 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
 
-from lowdin.linalg import ComplementProjector, aslinearoperator, is_diagonal
+from lowdin.linalg import (
+    ComplementProjector,
+    aslinearoperator,
+    is_diagonal,
+    direct_greens_function
+)
 from lowdin.kpm_funcs import greens_function
 from lowdin.series import (
     BlockSeries,
@@ -744,6 +749,37 @@ def solve_sylvester_KPM(
         return result
 
     return solve_sylvester
+
+
+def solve_sylvester_direct(
+    h_0: sparse.spmatrix,
+    eigenvectors: np.ndarray,
+    eigenvalues: np.ndarray,
+) -> Callable[[np.ndarray], np.ndarray]:
+    """Solve Sylvester equation using a direct sparse solver.
+
+    Parameters
+    ----------
+    h_0 :
+        Unperturbed Hamiltonian of the system.
+    eigenvectors :
+        Eigenvectors of the relevant subspace of the unperturbed Hamiltonian.
+    eigenvalues :
+        Corresponding eigenvalues.
+
+    Returns
+    -------
+    solve_sylvester : `Callable[[np.ndarray], np.ndarray]`
+        Function that solves the corresponding Sylvester equation.
+    """
+    projector = ComplementProjector(eigenvectors)
+    greens_functions = [
+        direct_greens_function(h_0, E) for E in eigenvalues
+    ]
+
+    def solve_sylvester(Y: np.ndarray) -> np.ndarray:
+        Y_projected = Y @ projector
+        return np.vstack([gf(Y_projected) for gf in greens_functions]) @ projector
 
 
 ### Auxiliary functions.
