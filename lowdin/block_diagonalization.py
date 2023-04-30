@@ -643,7 +643,7 @@ def _solve_sylvester_diagonal(
             return Y * energy_denominators
         elif sparse.issparse(Y):
             Y_coo = Y.tocoo()
-            energy_denominators = 1 / eigs_A[Y_coo.row] - eigs_B[Y_coo.col]
+            energy_denominators = 1 / (eigs_A[Y_coo.row] - eigs_B[Y_coo.col])
             new_data = Y_coo.data * energy_denominators
             return sparse.csr_array((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
         elif isinstance(Y, sympy.MatrixBase):
