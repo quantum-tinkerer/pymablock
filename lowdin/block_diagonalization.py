@@ -776,16 +776,15 @@ def solve_sylvester_direct(
     solve_sylvester : `Callable[[np.ndarray], np.ndarray]`
         Function that solves the corresponding Sylvester equation.
     """
-    projector = ComplementProjector(eigenvectors)
+    projector = ComplementProjector(eigenvectors.conj())
     greens_functions = [
         direct_greens_function(h_0, E) for E in eigenvalues
     ]
 
     def solve_sylvester(Y: np.ndarray) -> np.ndarray:
-        Y_projected = Y @ projector
-        return np.vstack(
-            [gf(vec) for gf, vec in zip(greens_functions, Y_projected)]
-        ) @ projector
+        Y = Y @ projector
+        result = np.vstack([-gf(vec) for gf, vec in zip(greens_functions, Y)])
+        return result @ projector
 
     return solve_sylvester
 
