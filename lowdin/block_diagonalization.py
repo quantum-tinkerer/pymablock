@@ -8,6 +8,7 @@
 from operator import matmul, mul
 from functools import reduce
 from typing import Any, Optional, Callable
+from copy import copy
 
 import numpy as np
 import sympy
@@ -955,7 +956,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
         hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
 
     H_temporary = BlockSeries(
-        data=hamiltonian,
+        data=copy(hamiltonian),
         shape=(),
         n_infinite=n_infinite,
     )
