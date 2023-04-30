@@ -13,6 +13,7 @@ from typing import Any, Optional, Callable
 import numpy as np
 import sympy
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
+from scipy.optimize import curve_fit, root_scalar
 
 from lowdin.linalg import ComplementProjector, aslinearoperator
 from lowdin.kpm_funcs import greens_function
@@ -481,7 +482,9 @@ def numerical(
             return H_tilde_operator.evaluated[index]
         return H_tilde.evaluated[index]
 
-    result_H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
+    result_H_tilde = BlockSeries(
+        eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite
+    )
 
     return result_H_tilde, U, U_adjoint
 
@@ -548,14 +551,10 @@ def solve_sylvester_KPM(
 
         def sylvester_kpm(Y: np.ndarray) -> np.ndarray:
             Y_KPM = Y @ kpm_projector
-            vec_G_Y = greens_function(
-                h_0,
-                params=None,
-                vectors=Y_KPM.conj(),
-                kpm_params=kpm_params,
-                precalculate_moments=precalculate_moments,
-            )(eigs_a)
-            return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_a))])
+            Y_solved = _adaptive_kpm(
+                Y_KPM, h_0, vecs_a, eigs_a, precalculate_moments, kpm_params
+            )
+            return Y_solved
 
     if need_explicit:
         G_ml = 1 / (eigs_a[:, None] - eigs_b[None, :])
@@ -574,6 +573,99 @@ def solve_sylvester_KPM(
         return result
 
     return solve_sylvester
+
+
+def _call_gf(hamiltonian, energies, Y, kpm_params, precalculate_moments):
+    vec_G_Y = greens_function(
+        hamiltonian,
+        params=None,
+        vectors=Y.conj(),
+        kpm_params=kpm_params,
+        precalculate_moments=precalculate_moments,
+    )(energies)
+    Y = np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(energies))])
+    return Y
+
+
+def _kpm_convergence(x, a, b):
+    """
+    Expected convergence behaviour of the Jackson Kernel
+    according to DOI: 10.1103/RevModPhys.78.275
+    """
+    return a + b / x
+
+
+def _next_num_moments(num_moments, errors, tolerance):
+    if len(np.unique(num_moments)) < len(num_moments):
+        raise ValueError("The same number of moments is attempted multiple times")
+    parameters = curve_fit(_kpm_convergence, num_moments, errors)[0]
+    root_results = root_scalar(
+        lambda x: _kpm_convergence(x, parameters[0], parameters[1] - tolerance),
+        x0=num_moments[-2],
+        x1=num_moments[-1],
+    )
+
+    if root_results.root > 2e5:
+        return num_moments[-1] * 10
+    else:
+        return int(root_results.root)
+
+
+def _apply_sylvester(hamiltonian, vectors, Y):
+    h_aa = Dagger(vectors) @ hamiltonian @ vectors
+    h_bb = ComplementProjector(vectors) @ hamiltonian @ ComplementProjector(vectors)
+    return h_aa @ Y - Y @ h_bb
+
+
+def _adaptive_kpm(
+    Y: np.ndarray,
+    hamiltonian: np.ndarray,
+    vectors: np.ndarray,
+    energies: np.ndarray,
+    precalculate_moments: Optional[bool] = False,
+    kpm_params: Optional[dict] = None,
+    num_moments: Optional[list[int, ...]] = [],
+    errors: Optional[list[float, ...]] = [],
+    tolerance: Optional[float] = 1e-5,
+    maximum_iterations: Optional[int] = 10,
+):
+    # set-up the base case
+    if len(num_moments) == 0:
+        try:
+            num_moments.append(kpm_params["num_moments"])
+        except KeyError:
+            num_moments.append(100)
+
+    Y_trial = _call_gf(
+        hamiltonian,
+        energies,
+        Y,
+        kpm_params | {"num_moments": num_moments[-1]},
+        precalculate_moments,
+    )
+    errors.append(np.linalg.norm(_apply_sylvester(hamiltonian, vectors, Y_trial) - Y))
+
+    if not (errors[-1] < tolerance):
+        if not (len(num_moments) < 2) and not (len(errors) < 2):
+            num_moments.append(_next_num_moments(num_moments, errors, tolerance))
+
+        else:
+            num_moments.append(num_moments[-1] * 10)
+
+        return _adaptive_kpm(
+            Y,
+            hamiltonian,
+            vectors,
+            energies,
+            precalculate_moments,
+            kpm_params,
+            num_moments,
+            errors,
+            tolerance,
+            maximum_iterations - 1,
+        )
+    else:
+        return Y_trial
 
 
 def _update_subs(
