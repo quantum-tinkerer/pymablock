@@ -660,7 +660,7 @@ def test_solve_sylvester(
     )
 
 
-@pytest.mark.skip(reason="Sometimes it fails due to precision.")
+@pytest.mark.xfail(reason="Sometimes it fails due to precision.")
 def test_implicit_consistent_on_A(
     generate_kpm_hamiltonian: tuple[
         BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
