@@ -950,7 +950,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     symbols = None
     key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
     if any(key_types):
-        hamiltonian, symbols = _symbolic_keys_to_orders(hamiltonian)
+        hamiltonian, symbols = _symbolic_keys_to_tuples(hamiltonian)
 
     n_infinite = len(list(hamiltonian.keys())[0])
     zeroth_order = (0,) * n_infinite
@@ -970,7 +970,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     return H_temporary, symbols
 
 
-def _symbolic_keys_to_orders(
+def _symbolic_keys_to_tuples(
         hamiltonian: dict[sympy.Basic, Any]
     ) -> tuple[dict[tuple[int, ...], Any], list[sympy.Basic]]:
     """
