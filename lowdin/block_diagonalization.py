@@ -51,12 +51,17 @@ def block_diagonalize(
     Parameters
     ----------
     hamiltonian :
-        Hamiltonian to diagonalize. Several formats are accepted:
-        - `~lowdin.series.BlockSeries` object.
-        - `dict` of {index: matrix} where index is a tuple of integers and
-            matrix is a `~numpy.ndarray`.
-        - `list` of [unperturbed, perturbation] where unperturbed and
-            perturbation are `~numpy.ndarray`.
+        Hamiltonian to convert to a `~lowdin.series.BlockSeries`.
+        If a list, it is assumed to be of the form [h_0, h_1, h_2, ...] where
+        h_0 is the zeroth order Hamiltonian and h_1, h_2, ... are the first
+        order perturbations.
+        If a dictionary, it is assumed to be of the form
+        {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}, or
+        {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians.
+        If a `~lowdin.series.BlockSeries`, it is returned unchanged.
+        If a sympy matrix, it is tranformed to a `~lowdin.series.BlockSeries`
+        by Taylor expanding the matrix with respect to the perturbative
+        parameters.
     algorithm :
         Name of the function that block diagonalizes a Hamiltonian.
         Options are "general", "expanded", "implicit", and "general_symbolic".
@@ -194,7 +199,8 @@ def hamiltonian_to_BlockSeries(
         h_0 is the zeroth order Hamiltonian and h_1, h_2, ... are the first
         order perturbations.
         If a dictionary, it is assumed to be of the form
-        {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}.
+        {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}, or
+        {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians.
         If a `~lowdin.series.BlockSeries`, it is returned unchanged.
         If a sympy matrix, it is tranformed to a `~lowdin.series.BlockSeries`
         by Taylor expanding the matrix with respect to the perturbative
@@ -937,10 +943,12 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     ----------
     hamiltonian :
         Unperturbed Hamiltonian and perturbations.
-        The keys are tuples of integers that indicate the order of the perturbation.
-        The values are the perturbations, and can be either a `~numpy.ndarray` or
+        The keys can be tuples of integers or symbolic monomials. They
+        indicate the order of the perturbation in its respective value.
+        The values are the perturbations, and can be either a `~numpy.ndarray`,
         `~scipy.sparse.csr_matrix` or a list with the blocks of the Hamiltonian.
-        {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}
+        For example, {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2} or
+        {1: h_0, x: h_1, y: h_2}.
 
     Returns
     -------
@@ -977,16 +985,17 @@ def _symbolic_keys_to_tuples(
     ----------
     hamiltonian :
         Dictionary with symbolic keys, each a monomial without numerical
-        prefactor. The values can be either a `~numpy.ndarray` or
-        `~scipy.sparse.csr_matrix` or a list with the blocks of the Hamiltonian.
+        prefactor. The values can be either a `~numpy.ndarray`,
+        `~scipy.sparse.csr_matrix`, or a list with the blocks of the Hamiltonian.
 
     Returns
     -------
     new_hamiltonian :
-        Dictionary with the same values as ``hamiltonian``, but with keys that
-        indicate the order of the perturbation.
+        Dictionary with the same values as `hamiltonian`, but with keys that
+        indicate the order of the perturbation in a tuple.
     symbols :
-        List of symbols in the order they appear in the keys of ``hamiltonian``.
+        List of symbols in the order they appear in the keys of `hamiltonian`.
+        The tuple keys of `new_hamiltonian` are ordered according to this list.
     """
     # Collect all symbols from the keys
     symbols = list(set.union(*[key.free_symbols for key in hamiltonian.keys()]))
