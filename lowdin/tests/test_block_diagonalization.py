@@ -188,19 +188,19 @@ def test_check_AB(
     """
     H_tilde = general_output[0]
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    for block in H_tilde.evaluated[(0, 1) + order].compressed():
-        if isinstance(block, np.ndarray):
+    for matrix in H_tilde.evaluated[(0, 1) + order].compressed():
+        if isinstance(matrix, np.ndarray):
             np.testing.assert_allclose(
-                block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
+                matrix, 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
             )
-        elif sparse.issparse(block):
+        elif sparse.issparse(matrix):
             np.testing.assert_allclose(
-                block.toarray(), 0, atol=10**-5, err_msg=f"{block=}, {order=}"
+                matrix.toarray(), 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
             )
-        elif isinstance(block, sympy.MatrixBase):
-            assert block.is_zero_matrix
+        elif isinstance(matrix, sympy.MatrixBase):
+            assert matrix.is_zero_matrix
         else:
-            raise TypeError(f"Unknown type {type(block)}")
+            raise TypeError(f"Unknown type {type(matrix)}")
 
 
 def test_check_unitary(
@@ -232,22 +232,22 @@ def test_check_unitary(
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     for block in ((0, 0), (1, 1), (0, 1)):
         result = transformed.evaluated[tuple(block + order)]
-        for index, block in np.ma.ndenumerate(result):
+        for index, matrix in np.ma.ndenumerate(result):
             if not any(index):
                 # Zeroth order is not zero.
                 continue
-        if isinstance(block, np.ndarray):
-            np.testing.assert_allclose(
-                block, 0, atol=10**-5, err_msg=f"{block=}, {order=}"
-            )
-        elif sparse.issparse(block):
-            np.testing.assert_allclose(
-                block.toarray(), 0, atol=10**-5, err_msg=f"{block=}, {order=}"
-            )
-        elif isinstance(block, sympy.MatrixBase):
-            assert block.is_zero_matrix
-        else:
-            raise TypeError(f"Unknown type {type(block)}")
+            if isinstance(matrix, np.ndarray):
+                np.testing.assert_allclose(
+                    matrix, 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
+                )
+            elif sparse.issparse(matrix):
+                np.testing.assert_allclose(
+                    matrix.toarray(), 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
+                )
+            elif isinstance(matrix, sympy.MatrixBase):
+                assert matrix.is_zero_matrix
+            else:
+                raise TypeError(f"Unknown type {type(matrix)}")
 
 
 def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
@@ -855,7 +855,7 @@ def test_input_hamiltonian_BlockSeries(H):
         np.allclose(H.evaluated[index], hamiltonian.evaluated[index])
 
 
-@pytest.fixture(scope="module", params=[0])
+@pytest.fixture(scope="module", params=[0, 1, 2, 3, 4])
 def diagonal_hamiltonians(wanted_orders, request):
     """
 
