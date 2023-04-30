@@ -31,7 +31,7 @@ from lowdin.series import (
     safe_divide,
 )
 
-__all__ = ["general", "expanded", "general_symbolic", "numerical"]
+__all__ = ["general", "expanded", "general_symbolic", "implicit"]
 
 
 ### The main function for end-users.
@@ -59,7 +59,7 @@ def block_diagonalize(
             perturbation are `~numpy.ndarray`.
     algorithm :
         Name of the function that block diagonalizes a Hamiltonian.
-        Options are "general", "expanded", "numerical", and "general_symbolic".
+        Options are "general", "expanded", "implicit", and "general_symbolic".
     solve_sylvester :
         Function to use for solving Sylvester's equation.
         If None, the default function is used for a diagonal Hamiltonian.
@@ -108,12 +108,12 @@ def block_diagonalize(
         Adjoint of U.
     """
     implicit = False
-    if algorithm is None or algorithm == numerical:
+    if algorithm is None or algorithm == "implicit":
         if eigenvalues is not None and subspace_vectors is None:
             raise ValueError("subspace_vectors must be provided if"
                                 " eigenvalues is provided.")
         elif eigenvalues is not None and subspace_vectors is not None:
-            algorithm = "numerical"
+            algorithm = "implicit"
             implicit = True
             if isinstance(hamiltonian, list):
                 h_0 = hamiltonian[0]
@@ -165,7 +165,7 @@ def block_diagonalize(
             solve_sylvester=solve_sylvester,
             op=op,
         )
-    elif algorithm == "numerical":
+    elif algorithm == "implicit":
         return globals()[algorithm](
             H,
             solve_sylvester=solve_sylvester,
@@ -543,7 +543,7 @@ def expanded(
     return H_tilde, U, U_adjoint
 
 
-def numerical(
+def implicit(
     H: BlockSeries,
     solve_sylvester: Callable,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:

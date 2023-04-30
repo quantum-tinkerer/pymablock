@@ -12,7 +12,7 @@ from lowdin.block_diagonalization import (
     block_diagonalize,
     general,
     expanded,
-    numerical,
+    implicit,
     solve_sylvester_KPM,
     solve_sylvester_direct,
     _solve_sylvester_diagonal,
@@ -469,7 +469,7 @@ def generate_kpm_hamiltonian(
     wanted_orders: tuple[int, ...]
 ) -> tuple[list[np.ndarray], np.ndarray, np.ndarray]:
     """
-    Generate random BlockSeries Hamiltonian in the format required by the numerical
+    Generate random BlockSeries Hamiltonian in the format required by the implicit
     algorithm (full Hamitonians in the (0,0) block).
 
     Parameters:
@@ -516,7 +516,7 @@ def test_check_AB_KPM(
     wanted_orders: tuple[int, ...],
 ) -> None:
     """
-    Test that H_AB is zero for a random Hamiltonian using the numerical algorithm.
+    Test that H_AB is zero for a random Hamiltonian using the implicit algorithm.
 
     Parameters
     ----------
@@ -633,7 +633,7 @@ def test_solve_sylvester(
 
 
 @pytest.mark.skip(reason="Sometimes it fails due to precision.")
-def test_numerical_consistent_on_A(
+def test_implicit_consistent_on_A(
     generate_kpm_hamiltonian: tuple[
         BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
     ],
@@ -642,7 +642,7 @@ def test_numerical_consistent_on_A(
 ) -> None:
     """
     TODO: Update test to new UI.
-    Test that the numerical and general algorithms coincide.
+    Test that the implicit and general algorithms coincide.
 
     Parameters
     ----------
@@ -694,8 +694,8 @@ def test_numerical_consistent_on_A(
     )
 
     H_tilde_general = general(H_general)[0]
-    H_tilde_full_b = numerical(H_input, vecs_A, eigs_A, vecs_B, eigs_B)[0]
-    H_tilde_KPM = numerical(H_input, vecs_A, eigs_A, kpm_params={"num_moments": 5000})[
+    H_tilde_full_b = implicit(H_input, vecs_A, eigs_A, vecs_B, eigs_B)[0]
+    H_tilde_KPM = implicit(H_input, vecs_A, eigs_A, kpm_params={"num_moments": 5000})[
         0
     ]
     order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
