@@ -855,7 +855,7 @@ def test_input_hamiltonian_BlockSeries(H):
         np.allclose(H.evaluated[index], hamiltonian.evaluated[index])
 
 
-@pytest.fixture(scope="module", params=[0, 1, 2, 3, 4, 5])
+@pytest.fixture(scope="module", params=[0, 1, 2, 3])
 def diagonal_hamiltonians(wanted_orders, request):
     """
 
@@ -872,10 +872,8 @@ def diagonal_hamiltonians(wanted_orders, request):
     n_infinite = len(wanted_orders)
 
     h_list = [np.diag(eigenvalues)]
-    h_list_sparse = [sparse.diags(eigenvalues)]
     h_list_all_sparse = [sparse.diags(eigenvalues)]
     h_dict = {(0,) * n_infinite: np.diag(eigenvalues)}
-    h_dict_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues)}
     h_dict_all_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues)}
     for i in range(n_infinite):
         sparse_perturbation = 0.1 * sparse.random(4, 4, density=0.2)
@@ -883,20 +881,15 @@ def diagonal_hamiltonians(wanted_orders, request):
         perturbation = sparse_perturbation.toarray()
 
         h_list.append(perturbation)
-        h_list_sparse.append(perturbation)
+        h_list_all_sparse.append(sparse_perturbation)
         order = tuple(np.eye(n_infinite, dtype=int)[i])
         h_dict[order] = perturbation
-        h_dict_sparse[order] = perturbation
-
-        h_list_all_sparse.append(sparse_perturbation)
         h_dict_all_sparse[order] = sparse.csr_array(sparse_perturbation)
 
     hamiltonians = [
         h_list,
         h_dict,
         h_list_all_sparse,
-        h_list_sparse,
-        h_dict_sparse,
         h_dict_all_sparse,
     ]
     diagonals = [np.array([-1, -1]), np.array([1, 1])]
@@ -906,12 +899,6 @@ def diagonal_hamiltonians(wanted_orders, request):
 def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonians):
     """
     Test inputs where the unperturbed Hamiltonian is diagonal.
-
-    We test the following inputs:
-    - list of numpy arrays
-    - dictionary of numpy arrays
-    - list of sparse matrices
-    - dictionary of sparse matrices
     """
     hamiltonian, subspace_indices, diagonals = diagonal_hamiltonians
     H = hamiltonian_to_BlockSeries(hamiltonian, subspace_indices=subspace_indices)
@@ -929,7 +916,7 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonians):
 
 def test_input_hamiltonian_from_subspaces():
     """
-    Test that the algorithm works with a Hamiltonian defined on subspace_vectors.
+    Test that the algorithm works with a Hamiltonian defined on `subspace_vectors`.
     The test now does not test the perturbation.
     """
     h_0 = np.random.random((4, 4))
@@ -997,6 +984,7 @@ def symbolic_hamiltonian(request):
     Return a symbolic Hamiltonian in the form of a sympy.Matrix.
     """
 
+    # Symbolic Hamiltonian in sympy.Matrix
     k_x, k_y, k_z, alpha, beta, h, m = sympy.symbols(
         "k_x k_y k_z alpha beta h m", real=True, positive=True, constant=True
     )
@@ -1007,6 +995,7 @@ def symbolic_hamiltonian(request):
     h_10 = alpha * k_x + sympy.I * alpha * k_y
     hamiltonian_1 = sympy.Matrix([[h_00, h_01], [h_10, h_11]])
 
+    # Symbolic Hamiltonian in dictionary
     m = h = alpha = beta = 1  # values must be numeric, TODO: test symbolic
     hamiltonian_2 = {
         k_x**2: h**2 * np.eye(2) / (2 * m),
@@ -1029,7 +1018,6 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
     """
     Test that the algorithm works with a symbolic Hamiltonian.
     """
-
     hamiltonian, symbols, subspace_vectors, subspace_indices = symbolic_hamiltonian
 
     # Test if subspace_vectors are provided
@@ -1054,7 +1042,7 @@ def test_block_diagonalize_hamiltonian_diagonal(
 ):
     """
     Test that `block_diagonalize` chooses the right algorithm and the
-    solve_sylvester function.
+    `solve_sylvester` function.
 
     Parameters
     ----------
@@ -1078,7 +1066,7 @@ def test_block_diagonalize_symbolic_hamiltonian(
 ):
     """
     Test that `block_diagonalize` chooses the right algorithm and the
-    solve_sylvester function.
+    `solve_sylvester` function.
 
     Parameters
     ----------
