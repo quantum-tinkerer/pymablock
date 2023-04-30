@@ -875,8 +875,9 @@ def diagonal_hamiltonians(wanted_orders, request):
     h_list_sparse = [sparse.diags(eigenvalues)]
     h_dict = {(0,) * n_infinite: np.diag(eigenvalues)}
     h_dict_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues)}
+    h_dict_all_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues)}
     for i in range(n_infinite):
-        perturbation = np.random.random((4, 4))
+        perturbation = 0.1 * np.random.random((4, 4))
         perturbation += Dagger(perturbation)
         h_list.append(perturbation)
         h_list_sparse.append(perturbation)
@@ -884,7 +885,11 @@ def diagonal_hamiltonians(wanted_orders, request):
         h_dict[order] = perturbation
         h_dict_sparse[order] = perturbation
 
-    hamiltonians = [h_list, h_dict, h_list_sparse, h_dict_sparse]
+        sparse_perturbation = 0.1 * sparse.random(4, 4, density=0.2)
+        sparse_perturbation += Dagger(sparse_perturbation)
+        h_dict_all_sparse[order] = sparse.csr_array(sparse_perturbation)
+
+    hamiltonians = [h_list, h_dict, h_list_sparse, h_dict_sparse, h_dict_all_sparse]
     diagonals = [np.array([-1, -1]), np.array([1, 1])]
     return hamiltonians[request.param], subspace_indices, diagonals
 
