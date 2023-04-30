@@ -344,7 +344,7 @@ def general(
     H_tilde : `~lowdin.series.BlockSeries`
         Block diagonalized Hamiltonian.
     U : `~lowdin.series.BlockSeries`
-        Unitary transformation that block diagonalizes H such that H_tilde = U^H H U.
+        Unitary that block diagonalizes H such that H_tilde = U^H H U.
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of U.
     """
@@ -356,8 +356,8 @@ def general(
         h_0_B = H.evaluated[(1, 1) + (0,) * H.n_infinite]
         if not is_diagonal(h_0_A) or not is_diagonal(h_0_B):
             raise ValueError(
-                "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
-                 " is not provided."
+                "The unperturbed Hamiltonian must be diagonal if"
+                " solve_sylvester is not provided."
             )
 
         eigs_A = h_0_A.diagonal()
@@ -585,7 +585,7 @@ def implicit(
         (A subspace) is a numpy array, while the ``(1, 1)`` block (B subspace)
         is a ``LinearOperator``.
     U : `~lowdin.series.BlockSeries`
-        Unitary transformation that block diagonalizes the initial Hamiltonian.
+        Unitary that block diagonalizes the initial Hamiltonian.
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of ``U``.
     """
