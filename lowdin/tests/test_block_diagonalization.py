@@ -14,6 +14,7 @@ from lowdin.block_diagonalization import (
     expanded,
     numerical,
     solve_sylvester_KPM,
+    solve_sylvester_direct,
     _solve_sylvester_diagonal,
     hamiltonian_to_BlockSeries,
 )
@@ -749,6 +750,32 @@ def test_solve_sylvester_kpm_vs_default(Ns: tuple[int, int])-> None:
             np.max(y_default - y_kpm[:a_dim, a_dim:])
         ),
     )
+
+
+@pytest.mark.xfail(reason="Did not fix numerical errors yet")
+def test_solve_sylvester_direct_vs_default()-> None:
+    n = 100
+    a_dim = 5
+    E = np.random.randn(n)
+    t = np.random.rand(n - 1) * np.exp(2j * np.pi * np.random.rand(n - 1))
+    h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
+    eigvals, eigvecs = np.linalg.eigh(h.toarray())
+    eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
+
+    diagonal = _solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:])
+    direct = solve_sylvester_direct(h, eigvecs, eigvals[:a_dim])
+
+    y = np.random.randn(a_dim, n) + 1j * np.random.randn(a_dim, n)
+    y_diagonal = y @ eigvecs_rest
+    y_direct = (
+        y @ ComplementProjector(eigvecs)
+    )
+
+    y_default = diagonal(y_diagonal)
+    y_direct = direct(y_direct)
+
+    np.testing.assert_allclose(y_default, y_direct @ eigvecs_rest)
+    np.testing.assert_allclose(y_direct @ eigvecs, 0)
 
 
 def test_correct_implicit_subspace(
