@@ -588,7 +588,10 @@ def implicit(
     solve_sylvester: Callable,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    Diagonalize a Hamiltonian using the hybrid KPM algorithm.
+    Block diagonalize a Hamiltonian without explicitly forming BB matrices.
+
+    Instead these matrices are wrapped in `scipy.sparse.LinearOperator` and
+    combined to keep them low rank.
 
     Parameters
     ----------
@@ -652,12 +655,14 @@ def implicit(
 
 
 ### Different formats and algorithms of solving Sylvester equation.
-def _solve_sylvester_diagonal(
+def solve_sylvester_diagonal(
     eigs_A: Any, eigs_B: Any, vecs_b: Optional[np.ndarray] = None
 ) -> Callable:
     """
-    Returns a function that divides a matrix by the difference
-    of a numerical diagonal unperturbed Hamiltonian.
+    Define a function for solving a Sylvester's equation with diagonal matrices
+
+    Optionally, this function also applies the eigenvectors of the second matrix
+    to the solution.
 
     Parameters
     ----------
@@ -669,13 +674,13 @@ def _solve_sylvester_diagonal(
         (optional) Eigenvectors of B subspace of the unperturbed Hamiltonian.
 
     Returns
-    -------:
+    -------
     solve_sylvester : Function that solves the Sylvester equation.
     """
 
     def solve_sylvester(
-        Y: np.ndarray | sparse.csr_array,
-    ) -> np.ndarray | sparse.csr_array:
+        Y: np.ndarray | sparse.csr_array | sympy.MatrixBase,
+    ) -> np.ndarray | sparse.csr_array | sympy.MatrixBase:
         if vecs_b is not None:
             energy_denominators = 1 / (eigs_A[:, None] - eigs_B[None, :])
             return ((Y @ vecs_b) * energy_denominators) @ Dagger(vecs_b)
@@ -786,7 +791,7 @@ def solve_sylvester_KPM(
             return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_A))])
 
     if need_explicit:
-        solve_sylvester_explicit = _solve_sylvester_diagonal(eigs_A, eigs_B, vecs_b)
+        solve_sylvester_explicit = solve_sylvester_diagonal(eigs_A, eigs_B, vecs_b)
 
     def solve_sylvester(Y: np.ndarray) -> np.ndarray:
         if need_kpm and need_explicit:
