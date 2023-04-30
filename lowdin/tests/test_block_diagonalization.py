@@ -52,8 +52,10 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
 
     Parameters
     ----------
-    Ns: dimension of each block (A, B)
-    wanted_orders: orders to compute
+    Ns:
+        Dimension of each block (A, B)
+    wanted_orders:
+        Orders to compute
 
     Returns
     -------
@@ -130,7 +132,7 @@ def compare_series(
     series2:
         Second `~lowdin.series.BlockSeries` to compare
     wanted_orders:
-        Tuple of wanted_orders to check the series for
+        Order until which to compare the series
     atol:
         Optional absolute tolerance for numeric comparison
     rtol:
@@ -180,8 +182,10 @@ def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -
 
     Parameters
     ----------
-    H: Hamiltonian
-    wanted_orders: orders to compute
+    general_output:
+        transformed Hamiltonian to test
+    wanted_orders:
+        orders to compute
     """
     H_tilde = general_output[0]
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
@@ -208,8 +212,10 @@ def test_check_unitary(
 
     Parameters
     ----------
-    H: Hamiltonian
-    wanted_orders: orders to compute
+    H:
+        Hamiltonian
+    wanted_orders:
+        orders to compute
     """
     zero_order = (0,) * len(wanted_orders)
     H_tilde, U, U_adjoint = general_output
@@ -252,8 +258,10 @@ def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
 
     Parameters
     ----------
-    H: Hamiltonian
-    order: tuple of orders to compute
+    H:
+        Hamiltonian
+    order:
+        tuple of orders to compute
 
     Returns
     -------
@@ -268,8 +276,10 @@ def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> 
 
     Parameters
     ----------
-    H : Hamiltonian
-    wanted_orders: orders to compute
+    H :
+        Hamiltonian
+    wanted_orders:
+        orders to compute
     """
     H_tilde = general(H)[0]
     Np = len(wanted_orders)
@@ -291,8 +301,10 @@ def compute_second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
 
     Parameters
     ----------
-    H: Hamiltonian
-    order: tuple of orders to compute
+    H:
+        Hamiltonian
+    order:
+        Orders to compute
 
     Returns
     -------
@@ -318,8 +330,10 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
 
     Parameters
     ----------
-    H : Hamiltonian
-    wanted_orders: orders to compute
+    H :
+        Hamiltonian
+    wanted_orders:
+        Orders to compute
     """
     H_tilde = general(H)[0]
     n_infinite = H.n_infinite
@@ -366,8 +380,10 @@ def test_equivalence_general_expanded(
 
     Parameters
     ----------
-    H: BlockSeries of the Hamiltonian
-    wanted_orders: list of orders to compute
+    H:
+        Hamiltonian
+    wanted_orders:
+        Orders to compute
     """
     H_tilde_general, U_general, _ = general(H)
     H_tilde_expanded, U_expanded, _ = expanded(H)
@@ -398,7 +414,8 @@ def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any
 
     Parameters
     ----------
-    data: dictionary of the form {(block, order): value}
+    data:
+        dictionary of the form {(block, order): value} with BlockSeries data
 
     Returns
     -------
@@ -425,8 +442,10 @@ def test_doubled_orders(
 
     Parameters
     ----------
-    H: BlockSeries of the Hamiltonian
-    wanted_orders: orders to compute
+    H:
+        Hamiltonian
+    wanted_orders:
+        Orders to compute
     """
     # Get the data directly to avoid defining an extra eval
     data = H._data
@@ -454,22 +473,26 @@ def test_doubled_orders(
             np.testing.assert_allclose(result, result_doubled, atol=10**-5)
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="module", params=[0, 1])
 def generate_kpm_hamiltonian(
-    Ns: tuple[int, int], wanted_orders: tuple[int, ...]
-) -> tuple[list[np.ndarray], np.ndarray, np.ndarray]:
+    Ns: tuple[int, int], wanted_orders: tuple[int, ...], request: Any
+) -> tuple[list | dict, np.ndarray, np.ndarray]:
     """
     Generate random BlockSeries Hamiltonian in the format required by the implicit
     algorithm (full Hamitonians in the (0,0) block).
 
     Parameters:
     ----------
-    n_infinite:
-        Number of perturbation terms that are generated.
+    Ns:
+        Dimensions of the subspaces.
+    wanted_orders:
+        Orders to compute.
+    request:
+        Pytest request object.
 
     Returns:
     --------
-    hamiltonian: list
+    hamiltonian: list | dict
         Unperturbed Hamiltonian and perturbation terms.
     subspace_vectors: tuple
         Subspaces of the Hamiltonian.
@@ -480,26 +503,32 @@ def generate_kpm_hamiltonian(
     n_dim = a_dim + b_dim
     n_infinite = len(wanted_orders)
 
-    hamiltonian = []
+    hamiltonian_list = []
+    hamiltonian_dict = {}
     h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
     h_0 += Dagger(h_0)
 
     eigs, vecs = np.linalg.eigh(h_0)
     eigs[:a_dim] -= 10
     h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
-    hamiltonian.append(h_0)
+    hamiltonian_list.append(h_0)
+    hamiltonian_dict[(0,) * n_infinite] = h_0
     subspace_vectors = (vecs[:, :a_dim], vecs[:, a_dim:])
     eigenvalues = (eigs[:a_dim], eigs[a_dim:])
 
-    for _ in range(n_infinite):
+    for i in range(n_infinite):
         h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
         h_p += Dagger(h_p)
-        hamiltonian.append(h_p)
+        hamiltonian_list.append(h_p)
+        order = tuple(np.eye(n_infinite, dtype=int)[i])
+        hamiltonian_dict[order] = h_p
 
-    return hamiltonian, subspace_vectors, eigenvalues
+    hamiltonians = [hamiltonian_list, hamiltonian_dict]
+    return hamiltonians[request.param], subspace_vectors, eigenvalues
 
 
 def test_check_AB_KPM(
+    Ns: tuple[int, int],
     generate_kpm_hamiltonian: tuple[list[np.ndarray], np.ndarray, np.ndarray],
     wanted_orders: tuple[int, ...],
 ) -> None:
@@ -508,15 +537,15 @@ def test_check_AB_KPM(
 
     Parameters
     ----------
+    Ns:
+        Dimensions of the Hamiltonian.
     generate_kpm_hamiltonian:
         Randomly generated Hamiltonian and its eigendecomposition.
     wanted_orders:
         List of orders to compute.
     """
+    a_dim, b_dim = Ns
     hamiltonian, subspace_vectors, eigenvalues = generate_kpm_hamiltonian
-    n_dim = hamiltonian[0].shape[0]
-    a_dim = subspace_vectors[0].shape[1]
-    b_dim = n_dim - a_dim
 
     H_tilde_full_b, _, _ = block_diagonalize(
         hamiltonian, subspace_vectors=subspace_vectors, eigenvalues=eigenvalues
@@ -555,6 +584,8 @@ def test_check_AB_KPM(
 
 
 def test_solve_sylvester(
+    Ns: tuple[int, int],
+    wanted_orders: tuple[int, ...],
     generate_kpm_hamiltonian: tuple[list[np.ndarray], np.ndarray, np.ndarray],
 ) -> None:
     """
@@ -564,15 +595,21 @@ def test_solve_sylvester(
 
     Parameters:
     ---------
+    Ns:
+        Dimensions of the Hamiltonian.
+    wanted_orders:
+        Orders to compute.
     generate_kpm_hamiltonian:
         Randomly generated Hamiltonian and its eigendecomposition.
     """
-
+    a_dim, b_dim = Ns
+    n_dim = a_dim + b_dim
     hamiltonian, subspace_vectors, eigenvalues = generate_kpm_hamiltonian
-    h_0 = hamiltonian[0]
-    n_dim = h_0.shape[0]
-    a_dim = subspace_vectors[0].shape[1]
-    b_dim = n_dim - a_dim
+
+    if isinstance(hamiltonian, list):
+        h_0 = hamiltonian[0]
+    elif isinstance(hamiltonian, dict):
+        h_0 = hamiltonian[(0,) * len(wanted_orders)]
 
     divide_energies_full_b = solve_sylvester_KPM(h_0, subspace_vectors, eigenvalues)
 
@@ -770,7 +807,7 @@ def test_correct_implicit_subspace(
     generate_kpm_hamiltonian:
         Randomly generated Hamiltonian and its eigendeomposition.
     wanted_orders:
-        list of orders to compute.
+        Orders to compute.
     """
     hamiltonian, subspace_vectors, eigenvalues = generate_kpm_hamiltonian
 
@@ -841,6 +878,11 @@ def test_input_hamiltonian_KPM(generate_kpm_hamiltonian):
 def test_input_hamiltonian_BlockSeries(H):
     """
     Test that BlockSeries Hamiltonians are interpreted correctly.
+
+    Parameters:
+    -----------
+    H:
+        Hamiltonian
     """
     # List input for diagonal H_0
     hamiltonian = hamiltonian_to_BlockSeries(H)
@@ -855,13 +897,13 @@ def test_input_hamiltonian_BlockSeries(H):
 
 
 @pytest.fixture(scope="module", params=[0, 1, 2, 3])
-def diagonal_hamiltonians(wanted_orders, request):
+def diagonal_hamiltonian(wanted_orders, request):
     """
 
     Parameters:
     -----------
     wanted_orders:
-        orders to compute
+        Orders to compute
     request:
         pytest request object
     """
@@ -895,11 +937,16 @@ def diagonal_hamiltonians(wanted_orders, request):
     return hamiltonians[request.param], subspace_indices, diagonals
 
 
-def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonians):
+def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
     """
     Test inputs where the unperturbed Hamiltonian is diagonal.
+
+    Parameters:
+    -----------
+    diagonal_hamiltonian:
+        Hamiltonian with diagonal unperturbed Hamiltonian
     """
-    hamiltonian, subspace_indices, diagonals = diagonal_hamiltonians
+    hamiltonian, subspace_indices, diagonals = diagonal_hamiltonian
     H = hamiltonian_to_BlockSeries(hamiltonian, subspace_indices=subspace_indices)
     assert H.shape == (2, 2)
     assert H.n_infinite == len(hamiltonian) - 1
@@ -982,7 +1029,6 @@ def symbolic_hamiltonian(request):
     """
     Return a symbolic Hamiltonian in the form of a sympy.Matrix.
     """
-
     # Symbolic Hamiltonian in sympy.Matrix
     k_x, k_y, k_z, alpha, beta, h, m = sympy.symbols(
         "k_x k_y k_z alpha beta h m", real=True, positive=True, constant=True
@@ -1016,6 +1062,11 @@ def symbolic_hamiltonian(request):
 def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
     """
     Test that the algorithm works with a symbolic Hamiltonian.
+
+    Parameters
+    ----------
+    symbolic_hamiltonian :
+        Sympy Matrix or dictionary of sympy expressions.
     """
     hamiltonian, symbols, subspace_vectors, subspace_indices = symbolic_hamiltonian
 
@@ -1037,7 +1088,7 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
 
 
 def test_block_diagonalize_hamiltonian_diagonal(
-    diagonal_hamiltonians: tuple | list, wanted_orders: tuple[int, ...]
+    diagonal_hamiltonian: tuple | list, wanted_orders: tuple[int, ...]
 ):
     """
     Test that `block_diagonalize` chooses the right algorithm and the
@@ -1045,12 +1096,12 @@ def test_block_diagonalize_hamiltonian_diagonal(
 
     Parameters
     ----------
-    diagonal_hamiltonians :
-        Hamiltonians to test.
+    diagonal_hamiltonian :
+        Hamiltonian
     wanted_orders :
         orders to compute
     """
-    hamiltonian, subspace_indices, diagonals = diagonal_hamiltonians
+    hamiltonian, subspace_indices, diagonals = diagonal_hamiltonian
     H_tilde, U, U_adjoint = block_diagonalize(
         hamiltonian, subspace_indices=subspace_indices
     )
@@ -1070,7 +1121,7 @@ def test_block_diagonalize_symbolic_hamiltonian(
     Parameters
     ----------
     symbolic_hamiltonian :
-        Hamiltonian to test.
+        Hamiltonian
     wanted_orders :
         orders to compute
     """
