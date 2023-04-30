@@ -28,6 +28,283 @@ from lowdin.series import (
 __all__ = ["general", "expanded", "general_symbolic", "numerical"]
 
 
+### The main function for end-users.
+def block_diagonalize(
+        hamiltonian:  list[Any, list] | dict | BlockSeries,
+        *,
+        algorithm: Optional[str] = None,
+        solve_sylvester: Optional[Callable] = None,
+        subspace_vectors: Optional[tuple[Any, Any]] = None,
+        subspace_indices: Optional[tuple[int, ...]] = None,
+        eigenvalues: Optional[tuple[np.ndarray, np.ndarray]] = None,
+        kpm_params: Optional[dict] = None,
+        precalculate_moments: Optional[bool] = False,
+        symbols: list[sympy.Symbol] = None,
+    ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
+    """
+    Parameters
+    ----------
+    hamiltonian :
+        Hamiltonian to diagonalize. Several formats are accepted:
+        - `~lowdin.series.BlockSeries` object.
+        - `dict` of {index: matrix} where index is a tuple of integers and
+            matrix is a `~numpy.ndarray`.
+        - `list` of [unperturbed, perturbation] where unperturbed and
+            perturbation are `~numpy.ndarray`.
+    algorithm :
+        Name of the function that block diagonalizes a Hamiltonian.
+        Options are "general", "expanded", "numerical", and "general_symbolic".
+    solve_sylvester :
+        Function to use for solving Sylvester's equation.
+        If None, the default function is used for a diagonal Hamiltonian.
+    subspace_vectors :
+        Subspaces to project the unperturbed Hamiltonian and separate it into
+        blocks. The first element of the tuple contains the orthonormal vectors
+        that span the AA subspace, while the second element contains the
+        orthonormal vectors that span the BB subspace.
+        If None, the unperturbed Hamiltonian must be block diagonal.
+        For KPM, the first element contains the effective subspace, and the
+        second element contains the (partial) auxiliary subspace.
+        Mutually exclusive with `subspace_indices`.
+    subspace_indices :
+        If the unperturbed Hamiltonian is diagonal, the indices that label the
+        diagonal elements according to the subspace_vectors may be provided.
+        Indices 0 and 1 are reserved for the AA and BB subspaces, respectively.
+        Mutually exclusive with `subspace_vectors`.
+    eigenvalues :
+        Eigenvalues of the unperturbed Hamiltonian. The first element of the
+        tuple contains the full eigenvalues of the effective subspace. The
+        second element is optional, and it contains the (partial) eigenvalues
+        of the auxiliary subspace. This argument is needed for KPM.
+    kpm_params :
+        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
+        'num_vectors' will be overwritten to match the number of vectors, and
+        the 'operator' key will be deleted.
+    precalculate_moments :
+        Whether to precalculate and store all the KPM moments of ``vectors``.
+        This is useful if the Green's function is evaluated at a large number
+        of energies, but uses a large amount of memory. If False, the KPM
+        expansion is performed every time the Green's function is called, which
+        minimizes memory use.
+    perturbatitve_parameters :
+        List of symbols that label the perturbative parameters. The order of
+        the symbols will be used to determine the indices of the Hamiltonian.
+        If None, the perturbative parameters are taken from the unperturbed
+        Hamiltonian.
+
+    Returns
+    -------
+    H_tilde : `~lowdin.series.BlockSeries`
+        Block diagonalized Hamiltonian.
+    U : `~lowdin.series.BlockSeries`
+        Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
+    U_adjoint : `~lowdin.series.BlockSeries`
+        Adjoint of U.
+    """
+    implicit = False
+    if algorithm is None or algorithm == numerical:
+        if eigenvalues is not None and subspace_vectors is None:
+            raise ValueError("subspace_vectors must be provided if"
+                                " eigenvalues is provided.")
+        elif eigenvalues is not None and subspace_vectors is not None:
+            algorithm = "numerical"
+            implicit = True
+            if isinstance(hamiltonian, list):
+                h_0 = hamiltonian[0]
+            elif isinstance(hamiltonian, dict):
+                n_infinite = len(list(hamiltonian.keys())[0])
+                h_0 = hamiltonian[(0,) * n_infinite]
+        elif symbols is not None:  # this could be none if H is already symbolic
+            algorithm = "expanded"
+        else:
+            algorithm = "general"
+
+    H = hamiltonian_to_BlockSeries(
+        hamiltonian,
+        subspace_vectors=subspace_vectors,
+        subspace_indices=subspace_indices,
+        implicit = implicit,
+        symbols=symbols,
+    )
+
+    # Determine operator to use for matrix multiplication
+    if hasattr(H.evaluated[(0, 0) + (0,) * H.n_infinite], '__matmul__'):
+        op = matmul
+    else:
+        op = mul
+
+    # Determine function to use for solving Sylvester's equation
+    if solve_sylvester is None:
+        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        if implicit:
+            solve_sylvester = solve_sylvester_KPM(
+                h_0,
+                subspace_vectors,
+                eigenvalues,
+                kpm_params,
+                precalculate_moments,
+            )
+        elif all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
+            eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
+            solve_sylvester = _solve_sylvester_diagonal(*eigenvalues)
+        else:
+            raise ValueError("solve_sylvester must be provided or the"
+                             " unperturbed Hamiltonian must be diagonal.")
+
+    if algorithm in ("general", "expanded"):
+        return globals()[algorithm](
+            H,
+            solve_sylvester=solve_sylvester,
+            op=op,
+        )
+    elif algorithm == "numerical":
+        return globals()[algorithm](
+            H,
+            solve_sylvester=solve_sylvester,
+        )
+    else:
+        raise ValueError(f'Unknown algorithm: {algorithm}')
+
+
+### Converting different formats to BlockSeries
+def hamiltonian_to_BlockSeries(
+        hamiltonian: list[Any, list] | dict | BlockSeries,
+        *,
+        subspace_vectors: Optional[tuple[Any, Any]] = None,
+        subspace_indices: Optional[tuple[int, ...]] = None,
+        implicit: Optional[bool] = False,
+        symbols: Optional[list[sympy.Symbol]] = None,
+    ) -> BlockSeries:
+    """
+    Converts a Hamiltonian to a `~lowdin.series.BlockSeries`.
+
+    Parameters
+    ----------
+    hamiltonian :
+        Hamiltonian to convert to a `~lowdin.series.BlockSeries`.
+        If a list, it is assumed to be of the form [H_0, H_1, H_2, ...] where
+        H_0 is the zeroth order Hamiltonian and H_1, H_2, ... are the first
+        order perturbations.
+        If a dictionary, it is assumed to be of the form
+        {(0, 0): H_0, (1, 0): H_1, (0, 1): H_2}.
+        If a `~lowdin.series.BlockSeries`, it is returned unchanged.
+        If a sympy matrix, it is tranformed to a `~lowdin.series.BlockSeries`
+        by Taylor expanding the matrix with respect to the perturbative
+        parameters.
+    subspace_vectors :
+        Subspaces to project the unperturbed Hamiltonian and separate it into
+        blocks. The first element of the tuple contains the orthonormal vectors
+        that span the AA subspace, while the second element contains the
+        orthonormal vectors that span the BB subspace.
+        If None, the unperturbed Hamiltonian must be block diagonal.
+        For KPM, the first element contains the effective subspace, and the
+        second element contains the (partial) auxiliary subspace.
+        Mutually exclusive with `subspace_indices`.
+    subspace_indices :
+        If the unperturbed Hamiltonian is diagonal, the indices that label the
+        diagonal elements according to the subspace_vectors may be provided.
+        Indices 0 and 1 are reserved for the AA and BB subspaces, respectively.
+        Mutually exclusive with `subspace_vectors`.
+    implicit :
+        Whether to use KPM to solve the Sylvester equation. If True, the first
+        element of `subspace_vectors` must be the effective subspace, and the
+        second element must be the (partial) auxiliary subspace.
+    symbols :
+        List of symbols that label the perturbative parameters. The order of
+        the symbols will be used to determine the indices of the Hamiltonian.
+        If None, the perturbative parameters are taken from the unperturbed
+        Hamiltonian.
+
+    Returns
+    -------
+    H : `~lowdin.series.BlockSeries`
+        Initial Hamiltonian in the format required by algorithms.
+    """
+    if isinstance(hamiltonian, list):
+        hamiltonian = _list_to_dict(hamiltonian)
+    elif isinstance(hamiltonian, sympy.MatrixBase):
+        hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
+    if isinstance(hamiltonian, dict):
+        hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian)
+    elif isinstance(hamiltonian, BlockSeries):
+        pass
+    else:
+        raise NotImplementedError
+
+    if hamiltonian.shape == (2, 2):
+        if subspace_vectors is not None or subspace_indices is not None:
+            raise ValueError("H is already separated but subspace_vectors"
+                                " are provided.")
+        return hamiltonian
+    if hamiltonian.shape != ():
+        raise NotImplementedError("Only two subspace_vectors are supported.")
+
+    # Separation into subspace_vectors
+    if subspace_vectors is None and subspace_indices is None:
+        def H_eval(*index):
+            h = hamiltonian.evaluated[index[2:]]
+            if zero == h:
+                return zero
+            try:  # Hamiltonians come in blocks of 2x2
+                return _convert_if_zero(h[index[0]][index[1]])
+            except Exception as e:
+                raise ValueError(
+                    "Without `subspace_vectors` or `subspace_indices`"
+                    " H must have a 2x2 block structure."
+                ) from e
+
+        H = BlockSeries(
+            eval=H_eval,
+            shape=(2, 2),
+            n_infinite=hamiltonian.n_infinite,
+        )
+        return H
+
+    if subspace_indices is not None:
+        if subspace_vectors is not None:
+            raise ValueError("Only subspace_vectors or subspace_indices can"
+                                " be provided.")
+        h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
+        if not is_diagonal(h_0):
+            raise ValueError("If subspace_indices is provided, H_0 must be"
+                                " diagonal.")
+        symbolic = isinstance(h_0, sympy.MatrixBase)
+        subspace_vectors = _subspaces_from_indices(subspace_indices, symbolic=symbolic)
+
+    if implicit:
+        # Define subspace_vectors for KPM
+        vecs_a = subspace_vectors[0]
+        subspace_vectors = (vecs_a, ComplementProjector(vecs_a))
+    # Separation into subspace_vectors
+    def H_eval(*index):
+        original = hamiltonian.evaluated[index[2:]]
+        if zero == original:
+            return zero
+        left, right = index[:2]
+        if left > right:
+            return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
+        if implicit and left == right == 1:
+            result = (
+                subspace_vectors[left] @ aslinearoperator(original)
+                @ subspace_vectors[right]
+            )
+        else:
+            result = (
+                Dagger(subspace_vectors[left]) @ original @ subspace_vectors[right]
+            )
+        return _convert_if_zero(result)
+
+    H = BlockSeries(
+        eval=H_eval,
+        shape=(2, 2),
+        n_infinite=hamiltonian.n_infinite,
+    )
+
+    return H
+
+
+### Block diagonalization algorithms
 def general(
     H: BlockSeries,
     solve_sylvester: Optional[Callable] = None,
@@ -114,96 +391,6 @@ def general(
 
     H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True)
     return H_tilde, U, U_adjoint
-
-
-def _solve_sylvester_diagonal(
-        eigs_a: Any,
-        eigs_b: Any,
-        vecs_b: Optional[np.ndarray] = None
-    ) -> Callable:
-    """
-    Returns a function that divides a matrix by the difference
-    of a numerical diagonal unperturbed Hamiltonian.
-
-    Parameters
-    ----------
-    eigs_a :
-        Eigenvalues of A subspace of the unperturbed Hamiltonian.
-    eigs_b :
-        Eigenvalues of B subspace of the unperturbed Hamiltonian.
-    vecs_b :
-        (optional) Eigenvectors of B subspace of the unperturbed Hamiltonian.
-
-    Returns
-    -------:
-    solve_sylvester : Function that solves the Sylvester equation.
-    """
-    def solve_sylvester(
-            Y: np.ndarray | sparse.csr_array
-    ) -> np.ndarray | sparse.csr_array:
-        if vecs_b is not None:
-            energy_denominators = 1 / (eigs_a[:, None] - eigs_b[None, :])
-            return ((Y @ vecs_b) * energy_denominators) @ Dagger(vecs_b)
-        elif isinstance(Y, np.ndarray):
-            energy_denominators = 1/ (eigs_a.reshape(-1, 1) - eigs_b)
-            return Y * energy_denominators
-        elif sparse.issparse(Y):
-            Y_coo = Y.tocoo()
-            energy_denominators = eigs_a[Y_coo.row] - eigs_b[Y_coo.col]
-            new_data = Y_coo.data / energy_denominators
-            return sparse.csr_array((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
-        elif isinstance(Y, sympy.MatrixBase):
-            array_eigs_a = np.array(eigs_a, dtype=object)
-            array_eigs_b = np.array(eigs_b, dtype=object)
-            energy_denominators = sympy.Matrix(
-                1/(array_eigs_a.reshape(-1, 1) - array_eigs_b)
-            )
-            return energy_denominators.multiply_elementwise(Y)
-        else:
-            NotImplementedError
-    return solve_sylvester
-
-
-def _commute_H0_away(
-    expr: Any, H_0_AA: Any, H_0_BB: Any, Y_data: dict[Operator, Any]
-) -> Any:
-    """
-    Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
-
-    Parameters
-    ----------
-    expr :
-        (zero or sympy) expression to simplify.
-    H_0_AA :
-        Unperturbed Hamiltonian in subspace AA.
-    H_0_BB :
-        Unperturbed Hamiltonian in subspace BB.
-    Y_data :
-        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
-
-    Returns
-    -------
-    expr : zero or sympy.expr
-        (zero or sympy) expression without H_0_AA or H_0_BB in it.
-    """
-    if zero == expr:
-        return expr
-
-    subs = {
-        **{H_0_AA * V: rhs + V * H_0_BB for V, rhs in Y_data.items()},
-        **{
-            H_0_BB * Dagger(V): -Dagger(rhs) + Dagger(V) * H_0_AA
-            for V, rhs in Y_data.items()
-        },
-    }
-
-    while (
-        any(H in expr.free_symbols for H in (H_0_AA, H_0_BB))
-        and len(expr.free_symbols) > 1
-    ):
-        expr = expr.subs(subs).expand()
-
-    return expr.expand() or zero
 
 
 def general_symbolic(
@@ -415,6 +602,55 @@ def numerical(
     return result_H_tilde, U, U_adjoint
 
 
+### Different formats and algorithms of solving Sylvester equation.
+def _solve_sylvester_diagonal(
+        eigs_a: Any,
+        eigs_b: Any,
+        vecs_b: Optional[np.ndarray] = None
+    ) -> Callable:
+    """
+    Returns a function that divides a matrix by the difference
+    of a numerical diagonal unperturbed Hamiltonian.
+
+    Parameters
+    ----------
+    eigs_a :
+        Eigenvalues of A subspace of the unperturbed Hamiltonian.
+    eigs_b :
+        Eigenvalues of B subspace of the unperturbed Hamiltonian.
+    vecs_b :
+        (optional) Eigenvectors of B subspace of the unperturbed Hamiltonian.
+
+    Returns
+    -------:
+    solve_sylvester : Function that solves the Sylvester equation.
+    """
+    def solve_sylvester(
+            Y: np.ndarray | sparse.csr_array
+    ) -> np.ndarray | sparse.csr_array:
+        if vecs_b is not None:
+            energy_denominators = 1 / (eigs_a[:, None] - eigs_b[None, :])
+            return ((Y @ vecs_b) * energy_denominators) @ Dagger(vecs_b)
+        elif isinstance(Y, np.ndarray):
+            energy_denominators = 1 / (eigs_a.reshape(-1, 1) - eigs_b)
+            return Y * energy_denominators
+        elif sparse.issparse(Y):
+            Y_coo = Y.tocoo()
+            energy_denominators = eigs_a[Y_coo.row] - eigs_b[Y_coo.col]
+            new_data = Y_coo.data / energy_denominators
+            return sparse.csr_array((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
+        elif isinstance(Y, sympy.MatrixBase):
+            array_eigs_a = np.array(eigs_a, dtype=object)
+            array_eigs_b = np.array(eigs_b, dtype=object)
+            energy_denominators = sympy.Matrix(
+                1/(array_eigs_a.reshape(-1, 1) - array_eigs_b)
+            )
+            return energy_denominators.multiply_elementwise(Y)
+        else:
+            NotImplementedError
+    return solve_sylvester
+
+
 def solve_sylvester_KPM(
     h_0: Any,
     subspace_vectors: tuple[Any, Any],
@@ -510,6 +746,49 @@ def solve_sylvester_KPM(
     return solve_sylvester
 
 
+### Auxiliary functions.
+def _commute_H0_away(
+    expr: Any, H_0_AA: Any, H_0_BB: Any, Y_data: dict[Operator, Any]
+) -> Any:
+    """
+    Simplify expression by commmuting H_0 and V using Sylvester's Equation relations.
+
+    Parameters
+    ----------
+    expr :
+        (zero or sympy) expression to simplify.
+    H_0_AA :
+        Unperturbed Hamiltonian in subspace AA.
+    H_0_BB :
+        Unperturbed Hamiltonian in subspace BB.
+    Y_data :
+        dictionary of {V: rhs} such that H_0_AA * V - V * H_0_BB = rhs.
+
+    Returns
+    -------
+    expr : zero or sympy.expr
+        (zero or sympy) expression without H_0_AA or H_0_BB in it.
+    """
+    if zero == expr:
+        return expr
+
+    subs = {
+        **{H_0_AA * V: rhs + V * H_0_BB for V, rhs in Y_data.items()},
+        **{
+            H_0_BB * Dagger(V): -Dagger(rhs) + Dagger(V) * H_0_AA
+            for V, rhs in Y_data.items()
+        },
+    }
+
+    while (
+        any(H in expr.free_symbols for H in (H_0_AA, H_0_BB))
+        and len(expr.free_symbols) > 1
+    ):
+        expr = expr.subs(subs).expand()
+
+    return expr.expand() or zero
+
+
 def _update_subs(
     Y_data: dict[Operator, Any],
     subs: dict[Operator | HermitianOperator, Any],
@@ -582,144 +861,6 @@ def _replace(
     return _zero_sum(result)
 
 
-def block_diagonalize(
-        hamiltonian :  list[Any, list] | dict | BlockSeries,
-        *,
-        algorithm : Optional[str] = None,
-        solve_sylvester : Optional[Callable] = None,
-        subspace_vectors: Optional[tuple[Any, Any]] = None,
-        subspace_indices: Optional[tuple[int, ...]] = None,
-        eigenvalues: Optional[tuple[np.ndarray, np.ndarray]] = None,
-        kpm_params: Optional[dict] = None,
-        precalculate_moments: Optional[bool] = False,
-        symbols: list[sympy.Symbol] = None,
-    ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """
-    Parameters
-    ----------
-    hamiltonian :
-        Hamiltonian to diagonalize. Several formats are accepted:
-        - `~lowdin.series.BlockSeries` object.
-        - `dict` of {index: matrix} where index is a tuple of integers and
-            matrix is a `~numpy.ndarray`.
-        - `list` of [unperturbed, perturbation] where unperturbed and
-            perturbation are `~numpy.ndarray`.
-    algorithm :
-        Name of the function that block diagonalizes a Hamiltonian.
-        Options are "general", "expanded", "numerical", and "general_symbolic".
-    solve_sylvester :
-        Function to use for solving Sylvester's equation.
-        If None, the default function is used for a diagonal Hamiltonian.
-    subspace_vectors :
-        Subspaces to project the unperturbed Hamiltonian and separate it into
-        blocks. The first element of the tuple contains the orthonormal vectors
-        that span the AA subspace, while the second element contains the
-        orthonormal vectors that span the BB subspace.
-        If None, the unperturbed Hamiltonian must be block diagonal.
-        For KPM, the first element contains the effective subspace, and the
-        second element contains the (partial) auxiliary subspace.
-        Mutually exclusive with `subspace_indices`.
-    subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the subspace_vectors may be provided.
-        Indices 0 and 1 are reserved for the AA and BB subspaces, respectively.
-        Mutually exclusive with `subspace_vectors`.
-    eigenvalues :
-        Eigenvalues of the unperturbed Hamiltonian. The first element of the
-        tuple contains the full eigenvalues of the effective subspace. The
-        second element is optional, and it contains the (partial) eigenvalues
-        of the auxiliary subspace. This argument is needed for KPM.
-    kpm_params :
-        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
-        'num_vectors' will be overwritten to match the number of vectors, and
-        the 'operator' key will be deleted.
-    precalculate_moments :
-        Whether to precalculate and store all the KPM moments of ``vectors``.
-        This is useful if the Green's function is evaluated at a large number
-        of energies, but uses a large amount of memory. If False, the KPM
-        expansion is performed every time the Green's function is called, which
-        minimizes memory use.
-    perturbatitve_parameters :
-        List of symbols that label the perturbative parameters. The order of
-        the symbols will be used to determine the indices of the Hamiltonian.
-        If None, the perturbative parameters are taken from the unperturbed
-        Hamiltonian.
-
-    Returns
-    -------
-    H_tilde : `~lowdin.series.BlockSeries`
-        Block diagonalized Hamiltonian.
-    U : `~lowdin.series.BlockSeries`
-        Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
-    U_adjoint : `~lowdin.series.BlockSeries`
-        Adjoint of U.
-    """
-    implicit = False
-    if algorithm is None or algorithm == numerical:
-        if eigenvalues is not None and subspace_vectors is None:
-            raise ValueError("subspace_vectors must be provided if"
-                                " eigenvalues is provided.")
-        elif eigenvalues is not None and subspace_vectors is not None:
-            algorithm = "numerical"
-            implicit = True
-            if isinstance(hamiltonian, list):
-                h_0 = hamiltonian[0]
-            elif isinstance(hamiltonian, dict):
-                n_infinite = len(list(hamiltonian.keys())[0])
-                h_0 = hamiltonian[(0,) * n_infinite]
-        elif symbols is not None: #this could be none if H is already symbolic
-            algorithm = "expanded"
-        else:
-            algorithm = "general"
-
-    H = hamiltonian_to_BlockSeries(
-        hamiltonian,
-        subspace_vectors=subspace_vectors,
-        subspace_indices=subspace_indices,
-        implicit = implicit,
-        symbols=symbols,
-    )
-
-    # Determine operator to use for matrix multiplication
-    if hasattr(H.evaluated[(0, 0) + (0,) * H.n_infinite], '__matmul__'):
-        op = matmul
-    else:
-        op = mul
-
-    # Determine function to use for solving Sylvester's equation
-    if solve_sylvester is None:
-        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if implicit:
-            solve_sylvester = solve_sylvester_KPM(
-                h_0,
-                subspace_vectors,
-                eigenvalues,
-                kpm_params,
-                precalculate_moments,
-            )
-        elif all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
-            eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
-            solve_sylvester = _solve_sylvester_diagonal(*eigenvalues)
-        else:
-            raise ValueError("solve_sylvester must be provided or the"
-                             " unperturbed Hamiltonian must be diagonal.")
-
-    if algorithm in ("general", "expanded"):
-        return globals()[algorithm](
-            H,
-            solve_sylvester=solve_sylvester,
-            op=op,
-        )
-    elif algorithm == "numerical":
-        return globals()[algorithm](
-            H,
-            solve_sylvester=solve_sylvester,
-        )
-    else:
-        raise ValueError(f'Unknown algorithm: {algorithm}')
-
-
 def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     """
     Parameters
@@ -734,7 +875,7 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     -------
     H : `~lowdin.series.BlockSeries`
     """
-    n_infinite = len(hamiltonian) - 1 # all the perturbations are 1st order
+    n_infinite = len(hamiltonian) - 1  # all the perturbations are 1st order
     zeroth_order = (0,) * n_infinite
 
     hamiltonian = {
@@ -785,7 +926,9 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     return H_temporary, symbols
 
 
-def _symbolic_keys_to_orders(hamiltonian):
+def _symbolic_keys_to_orders(
+        hamiltonian: dict[sympy.Basic, Any]
+    ) -> tuple[dict[tuple[int, ...], Any], list[sympy.Basic]]:
     """
     Parameters
     ----------
@@ -831,7 +974,7 @@ def _symbolic_keys_to_orders(hamiltonian):
 def _sympy_to_BlockSeries(
         hamiltonian: sympy.MatrixBase,
         symbols: list[sympy.Symbol] = None,
-    ):
+    ) -> BlockSeries:
     """
     Parameters
     ----------
@@ -906,142 +1049,6 @@ def _subspaces_from_indices(
     if symbolic:
         return tuple(subspace.toarray() for subspace in subspace_vectors)
     return subspace_vectors
-
-
-def hamiltonian_to_BlockSeries(
-        hamiltonian: list[Any, list] | dict | BlockSeries,
-        *,
-        subspace_vectors: Optional[tuple[Any, Any]] = None,
-        subspace_indices: Optional[tuple[int, ...]] = None,
-        implicit : Optional[bool] = False,
-        symbols: Optional[list[sympy.Symbol]] = None,
-    ) -> BlockSeries:
-    """
-    Converts a Hamiltonian to a `~lowdin.series.BlockSeries`.
-
-    Parameters
-    ----------
-    hamiltonian :
-        Hamiltonian to convert to a `~lowdin.series.BlockSeries`.
-        If a list, it is assumed to be of the form [H_0, H_1, H_2, ...] where
-        H_0 is the zeroth order Hamiltonian and H_1, H_2, ... are the first
-        order perturbations.
-        If a dictionary, it is assumed to be of the form
-        {(0, 0): H_0, (1, 0): H_1, (0, 1): H_2}.
-        If a `~lowdin.series.BlockSeries`, it is returned unchanged.
-        If a sympy matrix, it is tranformed to a `~lowdin.series.BlockSeries`
-        by Taylor expanding the matrix with respect to the perturbative
-        parameters.
-    subspace_vectors :
-        Subspaces to project the unperturbed Hamiltonian and separate it into
-        blocks. The first element of the tuple contains the orthonormal vectors
-        that span the AA subspace, while the second element contains the
-        orthonormal vectors that span the BB subspace.
-        If None, the unperturbed Hamiltonian must be block diagonal.
-        For KPM, the first element contains the effective subspace, and the
-        second element contains the (partial) auxiliary subspace.
-        Mutually exclusive with `subspace_indices`.
-    subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the subspace_vectors may be provided.
-        Indices 0 and 1 are reserved for the AA and BB subspaces, respectively.
-        Mutually exclusive with `subspace_vectors`.
-    implicit :
-        Whether to use KPM to solve the Sylvester equation. If True, the first
-        element of `subspace_vectors` must be the effective subspace, and the
-        second element must be the (partial) auxiliary subspace.
-    symbols :
-        List of symbols that label the perturbative parameters. The order of
-        the symbols will be used to determine the indices of the Hamiltonian.
-        If None, the perturbative parameters are taken from the unperturbed
-        Hamiltonian.
-
-    Returns
-    -------
-    H : `~lowdin.series.BlockSeries`
-        Initial Hamiltonian in the format required by algorithms.
-    """
-    if isinstance(hamiltonian, list):
-        hamiltonian = _list_to_dict(hamiltonian)
-    elif isinstance(hamiltonian, sympy.MatrixBase):
-        hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
-    if isinstance(hamiltonian, dict):
-        hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian)
-    elif isinstance(hamiltonian, BlockSeries):
-        pass
-    else:
-        raise NotImplementedError
-
-    if hamiltonian.shape == (2, 2):
-        if subspace_vectors is not None or subspace_indices is not None:
-            raise ValueError("H is already separated but subspace_vectors"
-                                " are provided.")
-        return hamiltonian
-    if hamiltonian.shape != ():
-        raise NotImplementedError("Only two subspace_vectors are supported.")
-
-    # Separation into subspace_vectors
-    if subspace_vectors is None and subspace_indices is None:
-        def H_eval(*index):
-            h = hamiltonian.evaluated[index[2:]]
-            if zero == h:
-                return zero
-            try:  # Hamiltonians come in blocks of 2x2
-                return _convert_if_zero(h[index[0]][index[1]])
-            except Exception as e:
-                raise ValueError(
-                    "Without `subspace_vectors` or `subspace_indices`"
-                    " H must have a 2x2 block structure."
-                ) from e
-
-        H = BlockSeries(
-            eval=H_eval,
-            shape=(2, 2),
-            n_infinite=hamiltonian.n_infinite,
-        )
-        return H
-
-    if subspace_indices is not None:
-        if subspace_vectors is not None:
-            raise ValueError("Only subspace_vectors or subspace_indices can"
-                                " be provided.")
-        h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
-        if not is_diagonal(h_0):
-            raise ValueError("If subspace_indices is provided, H_0 must be"
-                                " diagonal.")
-        symbolic = isinstance(h_0, sympy.MatrixBase)
-        subspace_vectors = _subspaces_from_indices(subspace_indices, symbolic=symbolic)
-
-    if implicit:
-        # Define subspace_vectors for KPM
-        vecs_a = subspace_vectors[0]
-        subspace_vectors = (vecs_a, ComplementProjector(vecs_a))
-    # Separation into subspace_vectors
-    def H_eval(*index):
-        original = hamiltonian.evaluated[index[2:]]
-        if zero == original:
-            return zero
-        left, right = index[:2]
-        if left > right:
-            return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
-        if implicit and left == right == 1:
-            result = (
-                subspace_vectors[left] @ aslinearoperator(original)
-                @ subspace_vectors[right]
-            )
-        else:
-            result = (
-                Dagger(subspace_vectors[left]) @ original @ subspace_vectors[right]
-            )
-        return _convert_if_zero(result)
-
-    H = BlockSeries(
-        eval=H_eval,
-        shape=(2, 2),
-        n_infinite=hamiltonian.n_infinite,
-    )
-
-    return H
 
 
 def _convert_if_zero(value: Any):
