@@ -548,7 +548,10 @@ def test_check_AB_KPM(
     hamiltonian, subspace_vectors, eigenvalues = generate_kpm_hamiltonian
 
     H_tilde_full_b, _, _ = block_diagonalize(
-        hamiltonian, subspace_vectors=subspace_vectors, eigenvalues=eigenvalues
+        hamiltonian,
+        subspace_vectors=subspace_vectors,
+        eigenvalues=eigenvalues,
+        direct_solver=False,
     )
 
     half_subspaces = (subspace_vectors[0], subspace_vectors[1][:, : b_dim // 2])
@@ -557,7 +560,8 @@ def test_check_AB_KPM(
         hamiltonian,
         subspace_vectors=half_subspaces,
         eigenvalues=half_eigenvalues,
-        kpm_params={"num_moments": 5000},
+        direct_solver=False,
+        solver_options={"num_moments": 5000},
     )
 
     kpm_subspaces = (subspace_vectors[0],)
@@ -566,7 +570,8 @@ def test_check_AB_KPM(
         hamiltonian,
         subspace_vectors=kpm_subspaces,
         eigenvalues=kpm_eigenvalues,
-        kpm_params={"num_moments": 10000},
+        direct_solver=False,
+        solver_options={"num_moments": 10000},
     )
 
     # full b
@@ -619,13 +624,16 @@ def test_solve_sylvester(
         h_0,
         half_subspaces,
         half_eigenvalues,
-        kpm_params={"num_moments": 10000},
+        solver_options={"num_moments": 10000},
     )
 
     kpm_subspaces = (subspace_vectors[0],)
     kpm_eigenvalues = (eigenvalues[0],)
     divide_energies_kpm = solve_sylvester_KPM(
-        h_0, kpm_subspaces, kpm_eigenvalues, kpm_params={"num_moments": 20000}
+        h_0,
+        kpm_subspaces,
+        kpm_eigenvalues,
+        solver_options={"num_moments": 20000}
     )
 
     y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
@@ -715,7 +723,12 @@ def test_implicit_consistent_on_A(
 
     H_tilde_general = general(H_general)[0]
     H_tilde_full_b = implicit(H_input, vecs_A, eigs_A, vecs_B, eigs_B)[0]
-    H_tilde_KPM = implicit(H_input, vecs_A, eigs_A, kpm_params={"num_moments": 5000})[0]
+    H_tilde_KPM = implicit(
+        H_input,
+        vecs_A,
+        eigs_A,
+        solver_options={"num_moments": 5000}
+    )[0]
     order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     for block_full_b, block_general, block_KPM in zip(
         H_tilde_full_b.evaluated[order].compressed(),
@@ -791,8 +804,7 @@ def test_solve_sylvester_direct_vs_diagonal()-> None:
     np.testing.assert_allclose(y_default, y_direct)
 
 
-
-def test_correct_implicit_subspace(
+def test_consistent_implicit_subspace(
     generate_kpm_hamiltonian: tuple[list[np.ndarray], np.ndarray, np.ndarray],
     wanted_orders: tuple[int, ...],
 ) -> None:
@@ -812,12 +824,16 @@ def test_correct_implicit_subspace(
     hamiltonian, subspace_vectors, eigenvalues = generate_kpm_hamiltonian
 
     H_tilde, _, _ = block_diagonalize(
-        hamiltonian, subspace_vectors=subspace_vectors, eigenvalues=eigenvalues
+        hamiltonian,
+        subspace_vectors=subspace_vectors,
+        eigenvalues=eigenvalues,
+        direct_solver=False
     )
     H_tilde_swapped, _, _ = block_diagonalize(
         hamiltonian,
         subspace_vectors=subspace_vectors[::-1],
         eigenvalues=eigenvalues[::-1],
+        direct_solver=False,
     )
 
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)

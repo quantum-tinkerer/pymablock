@@ -43,8 +43,8 @@ def block_diagonalize(
     subspace_vectors: Optional[tuple[Any, Any]] = None,
     subspace_indices: Optional[tuple[int, ...]] = None,
     eigenvalues: Optional[tuple[np.ndarray, np.ndarray]] = None,
-    kpm_params: Optional[dict] = None,
-    precalculate_moments: Optional[bool] = False,
+    direct_solver: Optional[bool] = None,
+    solver_options: Optional[dict] = None,
     symbols: list[sympy.Symbol] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
@@ -87,16 +87,19 @@ def block_diagonalize(
         tuple contains the full eigenvalues of the effective subspace. The
         second element is optional, and it contains the (partial) eigenvalues
         of the auxiliary subspace. This argument is needed for KPM.
-    kpm_params :
-        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
-        'num_vectors' will be overwritten to match the number of vectors, and
-        the 'operator' key will be deleted.
-    precalculate_moments :
-        Whether to precalculate and store all the KPM moments of ``vectors``.
-        This is useful if the Green's function is evaluated at a large number
-        of energies, but uses a large amount of memory. If False, the KPM
-        expansion is performed every time the Green's function is called, which
-        minimizes memory use.
+    solver_options :
+        Dictionary containing the options to pass to the solver.
+        Relevant keys are:
+            num_moments : int
+                Number of moments to use for the KPM expansion.
+            num_vectors : int
+                Number of vectors to use for the KPM expansion.
+            precalculate_moments : bool
+                Whether to precalculate and store all the KPM moments of ``vectors``.
+                This is useful if the Green's function is evaluated at a large number
+                of energies, but uses a large amount of memory. If False, the KPM
+                expansion is performed every time the Green's function is called, which
+                minimizes memory use.
     symbols :
         List of symbols that label the perturbative parameters. The order of
         the symbols will be used to determine the indices of the Hamiltonian.
@@ -112,22 +115,29 @@ def block_diagonalize(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of U.
     """
-    implicit = False
+    implicit = isinstance(direct_solver, bool)
+    # Determine the algorithm to use
     if algorithm is None or algorithm == "implicit":
-        if eigenvalues is not None and subspace_vectors is None:
+        if symbols is not None:  # TODO: make it work if H is already symbolic
+            algorithm = "expanded"
+        elif eigenvalues is not None and subspace_vectors is None:
             raise ValueError(
                 "`subspace_vectors` must be provided if `eigenvalues` is provided."
             )
         elif eigenvalues is not None and subspace_vectors is not None:
             algorithm = "implicit"
-            implicit = True
+            if direct_solver is None:
+                direct_solver = True
+                implicit = True
             if isinstance(hamiltonian, list):
                 h_0 = hamiltonian[0]
             elif isinstance(hamiltonian, dict):
                 n_infinite = len(list(hamiltonian.keys())[0])
                 h_0 = hamiltonian[(0,) * n_infinite]
-        elif symbols is not None:  # TODO: make it work if H is already symbolic
-            algorithm = "expanded"
+            elif isinstance(hamiltonian, BlockSeries):
+                h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
+            else:
+                NotImplemented
         else:
             algorithm = "general"
 
@@ -150,14 +160,20 @@ def block_diagonalize(
     if solve_sylvester is None:
         h_0_A = H.evaluated[(0, 0) + (0,) * H.n_infinite]
         h_0_B = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if implicit:
-            solve_sylvester = solve_sylvester_KPM(
-                h_0,
-                subspace_vectors,
-                eigenvalues,
-                kpm_params,
-                precalculate_moments,
-            )
+        if direct_solver is not None:
+            if direct_solver:
+                solve_sylvester = solve_sylvester_direct(
+                    h_0,
+                    subspace_vectors[0],
+                    eigenvalues[0],
+                )
+            else:
+                solve_sylvester = solve_sylvester_KPM(
+                    h_0,
+                    subspace_vectors,
+                    eigenvalues,
+                    solver_options=solver_options,
+                )
         elif all(is_diagonal(h) for h in (h_0_A, h_0_B)):
             eigenvalues = tuple(h.diagonal() for h in (h_0_A, h_0_B))
             solve_sylvester = _solve_sylvester_diagonal(*eigenvalues)
@@ -688,8 +704,7 @@ def solve_sylvester_KPM(
     h_0: Any,
     subspace_vectors: tuple[Any, Any],
     eigenvalues: np.ndarray,
-    kpm_params: Optional[dict] = None,
-    precalculate_moments: Optional[bool] = False,
+    solver_options: Optional[dict] = None,
 ) -> Callable:
     """
     Solve Sylvester energy division for KPM.
@@ -709,16 +724,19 @@ def solve_sylvester_KPM(
         Eigenvalues of the unperturbed Hamiltonian. The first element of the tuple
         contains the full eigenvalues of the effective subspace. The second element is
         optional, and it contains the (partial) eigenvalues of the auxiliary subspace.
-    kpm_params :
-        Dictionary containing the parameters to pass to the `~kwant.kpm` module.
-        'num_vectors' will be overwritten to match the number of vectors, and the
-        'operator' key will be deleted.
-    precalculate_moments :
-        Whether to precalculate and store all the KPM moments of ``vectors``. This
-        is useful if the Green's function is evaluated at a large number of
-        energies, but uses a large amount of memory. If False, the KPM expansion
-        is performed every time the Green's function is called, which minimizes
-        memory use.
+    solver_options :
+        Dictionary containing the options to pass to the solver.
+        Relevant keys are:
+            num_moments : int
+                Number of moments to use for the KPM expansion.
+            num_vectors : int
+                Number of vectors to use for the KPM expansion.
+            precalculate_moments : bool
+                Whether to precalculate and store all the KPM moments of ``vectors``.
+                This is useful if the Green's function is evaluated at a large number
+                of energies, but uses a large amount of memory. If False, the KPM
+                expansion is performed every time the Green's function is called, which
+                minimizes memory use.
 
     Returns
     ----------
@@ -742,8 +760,10 @@ def solve_sylvester_KPM(
     if not isinstance(eigs_A, np.ndarray) or not isinstance(eigs_B, np.ndarray):
         raise TypeError("Eigenvalues must be a numpy array")
 
-    if kpm_params is None:
-        kpm_params = dict()
+    if solver_options is None:
+        solver_options = dict()
+
+    precalculate_moments = solver_options.get("precalculate_moments", False)
 
     need_kpm = len(eigs_A) + len(eigs_B) < h_0.shape[0]
     need_explicit = bool(len(eigs_B))
@@ -760,7 +780,7 @@ def solve_sylvester_KPM(
                 h_0,
                 params=None,
                 vectors=Y_KPM.conj(),
-                kpm_params=kpm_params,
+                kpm_params=solver_options,
                 precalculate_moments=precalculate_moments,
             )(eigs_A)
             return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_A))])
