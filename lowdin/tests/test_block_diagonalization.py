@@ -15,7 +15,7 @@ from lowdin.block_diagonalization import (
     implicit,
     solve_sylvester_KPM,
     solve_sylvester_direct,
-    _solve_sylvester_diagonal,
+    solve_sylvester_diagonal,
     hamiltonian_to_BlockSeries,
 )
 from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
@@ -747,7 +747,7 @@ def test_implicit_consistent_on_A(
 def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     """
     Test whether the KPM ready solve_sylvester gives the same result
-    as _solve_sylvester_diagonal when prompted with a diagonal input.
+    as solve_sylvester_diagonal when prompted with a diagonal input.
 
     Paramaters:
     ---------
@@ -762,7 +762,7 @@ def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     subspace_vectors = [vecs[:, :a_dim], vecs[:, a_dim:]]
     eigenvalues = [eigs[:a_dim], eigs[a_dim:]]
 
-    solve_sylvester_default = _solve_sylvester_diagonal(*eigenvalues)
+    solve_sylvester_default = solve_sylvester_diagonal(*eigenvalues)
     solve_sylvester_kpm = solve_sylvester_KPM(h_0, subspace_vectors, eigenvalues)
 
     y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
@@ -792,7 +792,7 @@ def test_solve_sylvester_direct_vs_diagonal()-> None:
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
-    diagonal = _solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
+    diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
     direct = solve_sylvester_direct(h, eigvecs, eigvals[:a_dim])
 
     y = np.random.randn(a_dim, n - a_dim) + 1j * np.random.randn(a_dim, n - a_dim)
