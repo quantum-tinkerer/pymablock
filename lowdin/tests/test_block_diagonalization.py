@@ -742,17 +742,16 @@ def test_solve_sylvester_direct_vs_diagonal()-> None:
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
-    diagonal = _solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:])
+    diagonal = _solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
     direct = solve_sylvester_direct(h, eigvecs, eigvals[:a_dim])
 
     y = np.random.randn(a_dim, n - a_dim) + 1j * np.random.randn(a_dim, n - a_dim)
-    y_diagonal = y
-    y_direct = y @ eigvecs_rest.T
+    y = y @ Dagger(eigvecs_rest)
 
-    y_default = diagonal(y_diagonal)
-    y_direct = direct(y_direct)
+    y_default = diagonal(y)
+    y_direct = direct(y)
 
-    np.testing.assert_allclose(y_default @ eigvecs_rest.T, y_direct)
+    np.testing.assert_allclose(y_default, y_direct)
 
 
 

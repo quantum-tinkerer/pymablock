@@ -797,9 +797,11 @@ def solve_sylvester_direct(
     solve_sylvester : `Callable[[np.ndarray], np.ndarray]`
         Function that solves the corresponding Sylvester equation.
     """
-    projector = ComplementProjector(eigenvectors.conj())
+    projector = ComplementProjector(eigenvectors)
+    # Compute the Green's function of the transposed Hamiltonian because we are
+    # solving the equation from the right.
     greens_functions = [
-        direct_greens_function(h_0, E) for E in eigenvalues
+        direct_greens_function(h_0.T, E) for E in eigenvalues
     ]
 
     def solve_sylvester(Y: np.ndarray) -> np.ndarray:
