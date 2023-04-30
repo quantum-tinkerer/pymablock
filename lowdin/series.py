@@ -184,7 +184,7 @@ class BlockSeries:
 
 def cauchy_dot_product(
     *series: BlockSeries,
-    op: Optional[Callable] = None,
+    operator: Optional[Callable] = None,
     hermitian: bool = False,
     exclude_last: Optional[list[bool]] = None
 ):
@@ -198,7 +198,7 @@ def cauchy_dot_product(
     ----------
     series :
         Series to multiply using their block structure.
-    op :
+    operator :
         (optional) Function for multiplying elements of the series.
         Default is matrix multiplication matmul.
     hermitian :
@@ -214,8 +214,8 @@ def cauchy_dot_product(
     """
     if len(series) < 2:
         return series[0] if series else one
-    if op is None:
-        op = matmul
+    if operator is None:
+        operator = matmul
     if exclude_last is None:
         exclude_last = [False] * len(series)
 
@@ -240,7 +240,11 @@ def cauchy_dot_product(
         if index[0] < index[1] and hermitian:
             return Dagger(product.evaluated[(index[1], index[0], *index[2:])])
         return product_by_order(
-            index, *series, op=op, hermitian=hermitian, exclude_last=exclude_last
+            index,
+            *series,
+            operator=operator,
+            hermitian=hermitian,
+            exclude_last=exclude_last
         )
 
     product.eval = eval
@@ -251,7 +255,7 @@ def cauchy_dot_product(
 def product_by_order(
     index: tuple[int, ...],
     *series: BlockSeries,
-    op: Optional[Callable] = None,
+    operator: Optional[Callable] = None,
     hermitian: bool = False,
     exclude_last: Optional[list[bool]] = None
 ) -> Any:
@@ -264,7 +268,7 @@ def product_by_order(
         Index of the wanted order.
     series :
         Series to multiply using their block structure.
-    op :
+    operator :
         Function for multiplying elements of the series.
         Default is matrix multiplication matmul.
     hermitian :
@@ -278,8 +282,8 @@ def product_by_order(
     Any
         Sum of all products that contribute to the wanted order.
     """
-    if op is None:
-        op = matmul
+    if operator is None:
+        operator = matmul
     start, end, *orders = index
     hermitian = hermitian and start == end
 
@@ -318,7 +322,7 @@ def product_by_order(
         values = [value for _, value in combination if value is not one]
         if hermitian and key > tuple(reversed(key)):
             continue
-        term = reduce(op, values)
+        term = reduce(operator, values)
         if not hermitian or key == tuple(reversed(key)):
             terms.append(term)
         else:

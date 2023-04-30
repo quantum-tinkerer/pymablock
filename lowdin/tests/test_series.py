@@ -91,7 +91,7 @@ def test_cauchy_dot_product():
         shape=(n, n),
         n_infinite=1,
     )
-    result = cauchy_dot_product(a, b, op=mul)
+    result = cauchy_dot_product(a, b, operator=mul)
     np.testing.assert_allclose(
         result.evaluated[:, :, 3].astype(float), test_value @ test_value
     )

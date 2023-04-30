@@ -141,9 +141,9 @@ def block_diagonalize(
 
     # Determine operator to use for matrix multiplication
     if hasattr(H.evaluated[(0, 0) + (0,) * H.n_infinite], '__matmul__'):
-        op = matmul
+        operator = matmul
     else:
-        op = mul
+        operator = mul
 
     # Determine function to use for solving Sylvester's equation
     if solve_sylvester is None:
@@ -168,7 +168,7 @@ def block_diagonalize(
         return globals()[algorithm](
             H,
             solve_sylvester=solve_sylvester,
-            op=op,
+            operator=operator,
         )
     elif algorithm == "implicit":
         return globals()[algorithm](
@@ -322,7 +322,7 @@ def general(
     H: BlockSeries,
     solve_sylvester: Optional[Callable] = None,
     *,
-    op: Optional[Callable] = None,
+    operator: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Computes the block diagonalization of a Hamiltonian.
@@ -333,9 +333,11 @@ def general(
         Initial Hamiltonian, unperturbed and perturbation.
     solve_sylvester :
         (optional) function that solves the Sylvester equation.
-        Defaults to a function that works for numerical diagonal unperturbed Hamiltonians.
-    op :
-        (optional) function to use for matrix multiplication. Defaults to matmul.
+        Defaults to a function that works for numerical diagonal unperturbed
+        Hamiltonians.
+    operator :
+        (optional) function to use for matrix multiplication.
+        Defaults to matmul.
 
     Returns
     -------
@@ -346,8 +348,8 @@ def general(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of U.
     """
-    if op is None:
-        op = matmul
+    if operator is None:
+        operator = matmul
 
     if solve_sylvester is None:
         h_0_A = H.evaluated[(0, 0) + (0,) * H.n_infinite]
@@ -382,10 +384,19 @@ def general(
 
     # Uncorrected identity and H_tilde to compute U
     identity = cauchy_dot_product(
-        U_adjoint, U, op=op, hermitian=True, exclude_last=[True, True]
+        U_adjoint,
+        U,
+        operator=operator,
+        hermitian=True,
+        exclude_last=[True, True]
     )
     H_tilde_rec = cauchy_dot_product(
-        U_adjoint, H, U, op=op, hermitian=True, exclude_last=[True, False, True]
+        U_adjoint,
+        H,
+        U,
+        operator=operator,
+        hermitian=True,
+        exclude_last=[True, False, True]
     )
 
     def eval(*index: tuple[int, ...]) -> Any:
@@ -402,7 +413,7 @@ def general(
 
     U.eval = eval
 
-    H_tilde = cauchy_dot_product(U_adjoint, H, U, op=op, hermitian=True)
+    H_tilde = cauchy_dot_product(U_adjoint, H, U, operator=operator, hermitian=True)
     return H_tilde, U, U_adjoint
 
 
@@ -453,7 +464,11 @@ def general_symbolic(
     h_0_A = H_placeholder.evaluated[(0, 0) + (0,) * H.n_infinite]
     h_0_B = H_placeholder.evaluated[(1, 1) + (0,) * H.n_infinite]
 
-    H_tilde, U, U_adjoint = general(H_placeholder, solve_sylvester=(lambda x: x), op=mul)
+    H_tilde, U, U_adjoint = general(
+        H_placeholder,
+        solve_sylvester=(lambda x: x),
+        operator=mul
+    )
 
     Y_data = {}
 
@@ -485,7 +500,7 @@ def expanded(
     H: BlockSeries,
     solve_sylvester: Optional[Callable] = None,
     *,
-    op: Optional[Callable] = None,
+    operator: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Diagonalize a Hamiltonian using the general_symbolic algorithm and
@@ -497,7 +512,7 @@ def expanded(
         Initial Hamiltonian, unperturbed and perturbation.
     solve_sylvester :
         Function to use for solving Sylvester's equation.
-    op :
+    operator :
         Function to use for matrix multiplication.
 
     Returns
@@ -509,8 +524,8 @@ def expanded(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of U.
     """
-    if op is None:
-        op = matmul
+    if operator is None:
+        operator = matmul
 
     if solve_sylvester is None:
         h_0_A = H.evaluated[(0, 0) + (0,) * H.n_infinite]
@@ -526,12 +541,12 @@ def expanded(
         solve_sylvester = _solve_sylvester_diagonal(eigs_A, eigs_B)
 
     H_tilde_s, U_s, _, Y_data, subs = general_symbolic(H)
-    _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, op=op)
+    _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, operator=operator)
 
     def H_tilde_eval(*index):
         H_tilde = H_tilde_s.evaluated[index]
-        _update_subs(Y_data, subs, solve_sylvester, op)
-        return _replace(H_tilde, subs, op)
+        _update_subs(Y_data, subs, solve_sylvester, operator)
+        return _replace(H_tilde, subs, operator)
 
     H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
 
@@ -540,7 +555,7 @@ def expanded(
     def U_eval(*index):
         if index[:2] == (0, 1):
             U_s.evaluated[index]  # Update Y_data
-            _update_subs(Y_data, subs, solve_sylvester, op)
+            _update_subs(Y_data, subs, solve_sylvester, operator)
             return subs.get(Operator(f"V_{{{index[2:]}}}"), zero)
         return old_U_eval(*index)
 
@@ -842,7 +857,7 @@ def _update_subs(
     Y_data: dict[Operator, Any],
     subs: dict[Operator | HermitianOperator, Any],
     solve_sylvester: Callable,
-    op: Callable,
+    operator: Callable,
 ) -> None:
     """
     Store the solutions to the Sylvester equation in subs.
@@ -855,17 +870,17 @@ def _update_subs(
         dictionary of substitutions to make.
     solve_sylvester :
         function to use for solving Sylvester's equation.
-    op :
+    operator :
         function to use for matrix multiplication.
     """
     for V, rhs in Y_data.items():
         if V not in subs:
-            rhs = _replace(rhs, subs, op)  # No general symbols left
+            rhs = _replace(rhs, subs, operator)  # No general symbols left
             subs[V] = solve_sylvester(rhs)
 
 
 def _replace(
-    expr: Any, subs: dict[Operator | HermitianOperator, Any], op: Callable
+    expr: Any, subs: dict[Operator | HermitianOperator, Any], operator: Callable
 ) -> Any:
     """
     Substitute terms in an expression and multiply them accordingly.
@@ -877,7 +892,7 @@ def _replace(
         (zero or sympy) expression in which to replace general symbols.
     subs :
         dictionary {symbol: value} of substitutions to make.
-    op :
+    operator :
         function to use to multiply the substituted terms.
 
     Return
@@ -903,7 +918,7 @@ def _replace(
             continue
         result.append(
             safe_divide(
-                int(numerator) * reduce(op, substituted_factors), int(denominator)
+                int(numerator) * reduce(operator, substituted_factors), int(denominator)
             )
         )
 
