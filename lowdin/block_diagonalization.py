@@ -120,11 +120,12 @@ def block_diagonalize(
             elif isinstance(hamiltonian, dict):
                 n_infinite = len(list(hamiltonian.keys())[0])
                 h_0 = hamiltonian[(0,) * n_infinite]
-        elif symbols is not None:  # this could be none if H is already symbolic
+        elif symbols is not None:  # TODO: make it work if H is already symbolic
             algorithm = "expanded"
         else:
             algorithm = "general"
 
+    # Normalize the Hamiltonian
     H = hamiltonian_to_BlockSeries(
         hamiltonian,
         subspace_vectors=subspace_vectors,
@@ -918,7 +919,7 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     -------
     H : `~lowdin.series.BlockSeries`
     """
-    n_infinite = len(hamiltonian) - 1  # all the perturbations are 1st order
+    n_infinite = len(hamiltonian) - 1  # All the perturbations are 1st order
     zeroth_order = (0,) * n_infinite
 
     hamiltonian = {
@@ -958,7 +959,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     if isinstance(h_0, np.ndarray):
         if is_diagonal(h_0):
             hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
-    elif sparse.issparse(h_0):  # normalize sparse matrices for solve_sylvester
+    elif sparse.issparse(h_0):  # Normalize sparse matrices for solve_sylvester
         hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
 
     H_temporary = BlockSeries(
@@ -1033,20 +1034,22 @@ def _sympy_to_BlockSeries(
     H : `~lowdin.series.BlockSeries`
     """
     if symbols is None:
-        symbols = list(hamiltonian.free_symbols)
+        symbols = list(hamiltonian.free_symbols)  # All symbols are perturbative
     if any(n not in hamiltonian.free_symbols for n in symbols):
-        raise ValueError("Not all perturbative parameters are in the Hamiltonian.")
+        raise ValueError("Not all perturbative parameters are in `hamiltonian`.")
 
     hamiltonian = hamiltonian.expand()
 
     def H_eval(*index):  # TODO: write this recursively, more efficient
+        # Get order of perturbation by Taylor expanding
         expr = sympy.diff(
             hamiltonian, *((n, i) for n, i in zip(symbols, index))
         )
         expr = expr.subs({n: 0 for n in symbols})
         expr = expr / reduce(mul, [sympy.factorial(i) for i in index])
+        # Multiply by perturbative coefficients
         expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
-        if expr.is_hermitian is False:  # sympy three-valued logic
+        if expr.is_hermitian is False:  # Sympy three-valued logic
             raise ValueError("Hamiltonian must be Hermitian at every order.")
         return _convert_if_zero(expr)
 
@@ -1085,11 +1088,13 @@ def _subspaces_from_indices(
     )
     dim = len(subspace_indices)
     eigvecs = sparse.csr_array(sparse.identity(dim, dtype=int, format="csr"))
+    # Canonical basis vectors for each subspace
     subspace_vectors = tuple(
         eigvecs[:, np.compress(subspace_indices==block, np.arange(dim))]
         for block in range(max_subspaces)
     )
     if symbolic:
+        # Convert to dense arrays, otherwise they cannot multiply sympy matrices.
         return tuple(subspace.toarray() for subspace in subspace_vectors)
     return subspace_vectors
 
