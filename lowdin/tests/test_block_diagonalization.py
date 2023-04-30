@@ -900,23 +900,26 @@ def diagonal_hamiltonians(wanted_orders, request):
 
     h_list = [np.diag(eigenvalues)]
     h_list_sparse = [sparse.diags(eigenvalues)]
+    h_list_all_sparse = [sparse.diags(eigenvalues)]
     h_dict = {(0,) * n_infinite: np.diag(eigenvalues)}
     h_dict_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues)}
     h_dict_all_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues)}
     for i in range(n_infinite):
-        perturbation = 0.1 * np.random.random((4, 4))
-        perturbation += Dagger(perturbation)
+        sparse_perturbation = 0.1 * sparse.random(4, 4, density=0.2)
+        sparse_perturbation += Dagger(sparse_perturbation)
+        perturbation = sparse_perturbation.toarray()
+
         h_list.append(perturbation)
         h_list_sparse.append(perturbation)
         order = tuple(np.eye(n_infinite, dtype=int)[i])
         h_dict[order] = perturbation
         h_dict_sparse[order] = perturbation
 
-        sparse_perturbation = 0.1 * sparse.random(4, 4, density=0.2)
-        sparse_perturbation += Dagger(sparse_perturbation)
+        h_list_all_sparse.append(sparse_perturbation)
         h_dict_all_sparse[order] = sparse.csr_array(sparse_perturbation)
 
-    hamiltonians = [h_list, h_dict, h_list_sparse, h_dict_sparse, h_dict_all_sparse]
+    hamiltonians = [h_list, h_dict, h_list_all_sparse, h_list_sparse,
+                    h_dict_sparse, h_dict_all_sparse]
     diagonals = [np.array([-1, -1]), np.array([1, 1])]
     return hamiltonians[request.param], subspace_indices, diagonals
 
@@ -1084,7 +1087,7 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
     # TODO: compare they are the same value by value
 
 
-def test_block_diagonalize_diagonal_hamiltonian(
+def test_block_diagonalize_hamiltonian_diagonal(
     diagonal_hamiltonians: tuple | list,
     wanted_orders : tuple[int, ...]
 ):
