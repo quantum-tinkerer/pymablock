@@ -1166,7 +1166,7 @@ def _sympy_to_BlockSeries(
 
     hamiltonian = hamiltonian.expand()
 
-    def H_eval(*index):  # TODO: write this recursively, more efficient
+    def H_eval(*index):
         # Get order of perturbation by Taylor expanding
         expr = sympy.diff(hamiltonian, *((n, i) for n, i in zip(symbols, index)))
         expr = expr.subs({n: 0 for n in symbols})
