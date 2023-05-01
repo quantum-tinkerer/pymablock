@@ -40,7 +40,7 @@ def block_diagonalize(
     *,
     algorithm: Optional[str] = None,
     solve_sylvester: Optional[Callable] = None,
-    subspace_vectors: Optional[tuple[Any, Any]] = None,
+    subspace_eigenvectors: Optional[tuple[Any, Any]] = None,
     subspace_indices: Optional[tuple[int, ...]] = None,
     eigenvalues: Optional[tuple[np.ndarray, np.ndarray]] = None,
     direct_solver: bool = True,
@@ -68,7 +68,7 @@ def block_diagonalize(
     solve_sylvester :
         Function to use for solving Sylvester's equation.
         If None, the default function is used for a diagonal Hamiltonian.
-    subspace_vectors :
+    subspace_eigenvectors :
         Subspaces to project the unperturbed Hamiltonian and separate it into
         blocks. The first element of the tuple contains the orthonormal vectors
         that span the A subspace, while the second element contains the
@@ -79,9 +79,9 @@ def block_diagonalize(
         Mutually exclusive with `subspace_indices`.
     subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the subspace_vectors may be provided.
+        diagonal elements according to the subspace_eigenvectors may be provided.
         Indices 0 and 1 are reserved for the A and B subspaces, respectively.
-        Mutually exclusive with `subspace_vectors`.
+        Mutually exclusive with `subspace_eigenvectors`.
     eigenvalues :
         Eigenvalues of the unperturbed Hamiltonian. The first element of the
         tuple contains the full eigenvalues of the effective subspace. The
@@ -117,9 +117,9 @@ def block_diagonalize(
     """
     if (use_implicit := eigenvalues is not None):
         # Build solve_sylvester
-        if subspace_vectors is None:
+        if subspace_eigenvectors is None:
             raise ValueError(
-                "`subspace_vectors` must be provided if `eigenvalues` is provided."
+                "`subspace_eigenvectors` must be provided if `eigenvalues` is provided."
             )
         if isinstance(hamiltonian, list):
             h_0 = hamiltonian[0]
@@ -136,13 +136,13 @@ def block_diagonalize(
             if direct_solver:
                 solve_sylvester = solve_sylvester_direct(
                     h_0,
-                    subspace_vectors[0],
+                    subspace_eigenvectors[0],
                     eigenvalues[0],
                 )
             else:
                 solve_sylvester = solve_sylvester_KPM(
                     h_0,
-                    subspace_vectors,
+                    subspace_eigenvectors,
                     eigenvalues,
                     solver_options=solver_options,
                 )
@@ -150,7 +150,7 @@ def block_diagonalize(
     # Normalize the Hamiltonian
     H = hamiltonian_to_BlockSeries(
         hamiltonian,
-        subspace_vectors=subspace_vectors,
+        subspace_eigenvectors=subspace_eigenvectors,
         subspace_indices=subspace_indices,
         implicit=use_implicit,
         symbols=symbols,
@@ -188,7 +188,7 @@ def block_diagonalize(
 def hamiltonian_to_BlockSeries(
     hamiltonian: list[Any, list] | dict | BlockSeries,
     *,
-    subspace_vectors: Optional[tuple[Any, Any]] = None,
+    subspace_eigenvectors: Optional[tuple[Any, Any]] = None,
     subspace_indices: Optional[tuple[int, ...]] = None,
     implicit: Optional[bool] = False,
     symbols: Optional[list[sympy.Symbol]] = None,
@@ -210,7 +210,7 @@ def hamiltonian_to_BlockSeries(
         If a sympy matrix, it is tranformed to a `~lowdin.series.BlockSeries`
         by Taylor expanding the matrix with respect to the perturbative
         parameters.
-    subspace_vectors :
+    subspace_eigenvectors :
         Subspaces to project the unperturbed Hamiltonian and separate it into
         blocks. The first element of the tuple contains the orthonormal vectors
         that span the A subspace, while the second element contains the
@@ -221,12 +221,12 @@ def hamiltonian_to_BlockSeries(
         Mutually exclusive with `subspace_indices`.
     subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the subspace_vectors may be provided.
+        diagonal elements according to the subspace_eigenvectors may be provided.
         Indices 0 and 1 are reserved for the A and B subspaces, respectively.
-        Mutually exclusive with `subspace_vectors`.
+        Mutually exclusive with `subspace_eigenvectors`.
     implicit :
         Whether to use KPM to solve the Sylvester equation. If True, the first
-        element of `subspace_vectors` must be the effective subspace, and the
+        element of `subspace_eigenvectors` must be the effective subspace, and the
         second element must be the (partial) auxiliary subspace.
     symbols :
         List of symbols that label the perturbative parameters. The order of
@@ -239,9 +239,11 @@ def hamiltonian_to_BlockSeries(
     H : `~lowdin.series.BlockSeries`
         Initial Hamiltonian in the format required by algorithms.
     """
-    if subspace_vectors is not None and subspace_indices is not None:
-        raise ValueError("subspace_vectors and subspace_indices are mutually exclusive.")
-    to_split = subspace_vectors is not None or subspace_indices is not None
+    if subspace_eigenvectors is not None and subspace_indices is not None:
+        raise ValueError(
+            "subspace_eigenvectors and subspace_indices are mutually exclusive."
+        )
+    to_split = subspace_eigenvectors is not None or subspace_indices is not None
 
     # Convert anything to BlockSeries
     if isinstance(hamiltonian, list):
@@ -257,15 +259,15 @@ def hamiltonian_to_BlockSeries(
 
     if hamiltonian.shape and to_split:
         raise ValueError(
-            "H is already separated but subspace_vectors" " are provided."
+            "H is already separated but subspace_eigenvectors" " are provided."
         )
 
     if hamiltonian.shape == (2, 2):
         return hamiltonian
     elif hamiltonian.shape:
-        raise NotImplementedError("Only two subspace_vectors are supported.")
+        raise NotImplementedError("Only two subspace_eigenvectors are supported.")
 
-    # Separation into subspace_vectors
+    # Separation into subspace_eigenvectors
     if not to_split:
         # Hamiltonian must have 2x2 entries in each block
         def H_eval(*index):
@@ -276,7 +278,7 @@ def hamiltonian_to_BlockSeries(
                 return _convert_if_zero(h[index[0]][index[1]])
             except Exception as e:
                 raise ValueError(
-                    "Without `subspace_vectors` or `subspace_indices`"
+                    "Without `subspace_eigenvectors` or `subspace_indices`"
                     " H must have a 2x2 block structure."
                 ) from e
 
@@ -287,7 +289,7 @@ def hamiltonian_to_BlockSeries(
         )
         return H
 
-    # Define subspace_vectors
+    # Define subspace_eigenvectors
     if subspace_indices is not None:
         h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
         if not is_diagonal(h_0):
@@ -296,14 +298,16 @@ def hamiltonian_to_BlockSeries(
                  " must be diagonal."
             )
         symbolic = isinstance(h_0, sympy.MatrixBase)
-        subspace_vectors = _subspaces_from_indices(subspace_indices, symbolic=symbolic)
+        subspace_eigenvectors = _subspaces_from_indices(
+            subspace_indices, symbolic=symbolic
+        )
 
     if implicit:
-        # Define subspace_vectors for KPM
-        vecs_a = subspace_vectors[0]
-        subspace_vectors = (vecs_a, ComplementProjector(vecs_a))
+        # Define subspace_eigenvectors for KPM
+        vecs_a = subspace_eigenvectors[0]
+        subspace_eigenvectors = (vecs_a, ComplementProjector(vecs_a))
 
-    # Separation into subspace_vectors
+    # Separation into subspace_eigenvectors
     def H_eval(*index):
         original = hamiltonian.evaluated[index[2:]]
         if zero == original:
@@ -312,14 +316,12 @@ def hamiltonian_to_BlockSeries(
         if left > right:
             return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
         if implicit and left == right == 1:
-            result = (
-                subspace_vectors[left]
-                @ aslinearoperator(original)
-                @ subspace_vectors[right]
-            )
-        else:
-            result = Dagger(subspace_vectors[left]) @ original @ subspace_vectors[right]
-        return _convert_if_zero(result)
+            original = aslinearoperator(original)
+        return _convert_if_zero(
+            Dagger(subspace_eigenvectors[left])
+            @ original
+            @ subspace_eigenvectors[right]
+        )
 
     H = BlockSeries(
         eval=H_eval,
@@ -683,7 +685,7 @@ def solve_sylvester_diagonal(
 
 def solve_sylvester_KPM(
     h_0: Any,
-    subspace_vectors: tuple[Any, Any],
+    subspace_eigenvectors: tuple[Any, Any],
     eigenvalues: np.ndarray,
     solver_options: Optional[dict] = None,
 ) -> Callable:
@@ -697,7 +699,7 @@ def solve_sylvester_KPM(
     ----------
     h_0 :
         Unperturbed Hamiltonian of the system.
-    subspace_vectors :
+    subspace_eigenvectors :
         Subspaces to project the unperturbed Hamiltonian and separate it into blocks.
         The first element of the tuple contains the effective subspace,
         and the second element contains the (partial) auxiliary subspace.
@@ -725,18 +727,18 @@ def solve_sylvester_KPM(
         Function that applies divide by energies to the RHS of the Sylvester equation.
     """
     # Full A subspace and partial/full B subspace provided
-    if len(subspace_vectors) == 2:
-        vecs_a, vecs_b = subspace_vectors
+    if len(subspace_eigenvectors) == 2:
+        vecs_a, vecs_b = subspace_eigenvectors
         eigs_A, eigs_B = eigenvalues
 
     # Full A subspace and no B subspace provided
-    elif len(subspace_vectors) == 1:
-        vecs_a = subspace_vectors[0]
+    elif len(subspace_eigenvectors) == 1:
+        vecs_a = subspace_eigenvectors[0]
         eigs_A = eigenvalues[0]
         vecs_b = np.empty((vecs_a.shape[0], 0))
         eigs_B = np.diagonal((Dagger(vecs_b) @ h_0 @ vecs_b))
     else:
-        raise NotImplementedError("Too many subspace_vectors")
+        raise NotImplementedError("Too many subspace_eigenvectors")
 
     if not isinstance(eigs_A, np.ndarray) or not isinstance(eigs_B, np.ndarray):
         raise TypeError("Eigenvalues must be a numpy array")
@@ -1087,35 +1089,35 @@ def _subspaces_from_indices(
     symbolic: Optional[bool] = False,
 ) -> tuple[sparse.csr_array, sparse.csr_array]:
     """
-    Returns the subspace_vectors projection from the indices of the elements
+    Returns the subspace_eigenvectors projection from the indices of the elements
     of the diagonal.
 
     Parameters
     ----------
     subspace_indices :
-        Indices of the subspace_vectors.
+        Indices of the subspace_eigenvectors.
         0 indicates the first subspace A, 1 indicates the second subspace B.
 
     Returns
     -------
-    subspace_vectors :
+    subspace_eigenvectors :
         Subspaces to use for block diagonalization.
     """
     subspace_indices = np.array(subspace_indices)
     max_subspaces = 2
     if np.any(subspace_indices >= max_subspaces):
-        raise ValueError("Only 0 and 1 are allowed as indices for subspace_vectors.")
+        raise ValueError("Only 0 and 1 are allowed as indices for subspace_eigenvectors.")
     dim = len(subspace_indices)
     eigvecs = sparse.csr_array(sparse.identity(dim, dtype=int, format="csr"))
     # Canonical basis vectors for each subspace
-    subspace_vectors = tuple(
+    subspace_eigenvectors = tuple(
         eigvecs[:, np.compress(subspace_indices == block, np.arange(dim))]
         for block in range(max_subspaces)
     )
     if symbolic:
         # Convert to dense arrays, otherwise they cannot multiply sympy matrices.
-        return tuple(subspace.toarray() for subspace in subspace_vectors)
-    return subspace_vectors
+        return tuple(subspace.toarray() for subspace in subspace_eigenvectors)
+    return subspace_eigenvectors
 
 
 def _extract_diagonal(H: BlockSeries) -> tuple[np.ndarray, np.ndarray]:
