@@ -164,15 +164,7 @@ def block_diagonalize(
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None:
-        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if not all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
-            raise ValueError(
-                "`solve_sylvester` must be provided or the"
-                " unperturbed Hamiltonian must be diagonal."
-            )
-        eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
-        solve_sylvester = solve_sylvester_diagonal(*eigenvalues)
+        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
 
     if algorithm is None:
         # symbolic expressions benefit from no H_0 in numerators
@@ -373,17 +365,7 @@ def general(
         operator = matmul
 
     if solve_sylvester is None:
-        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
-            raise ValueError(
-                "The unperturbed Hamiltonian must be diagonal if"
-                " solve_sylvester is not provided."
-            )
-
-        eigs_A = h_0_AA.diagonal()
-        eigs_B = h_0_BB.diagonal()
-        solve_sylvester = solve_sylvester_diagonal(eigs_A, eigs_B)
+        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
 
     # Initialize the transformation as the identity operator
     U = BlockSeries(
@@ -544,17 +526,7 @@ def expanded(
         operator = matmul
 
     if solve_sylvester is None:
-        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
-            raise ValueError(
-                "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
-                " is not provided."
-            )
-
-        eigs_A = h_0_AA.diagonal()
-        eigs_B = h_0_BB.diagonal()
-        solve_sylvester = solve_sylvester_diagonal(eigs_A, eigs_B)
+        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
 
     H_tilde_s, U_s, _, Y_data, subs = general_symbolic(H)
     _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, operator=operator)
@@ -1144,6 +1116,19 @@ def _subspaces_from_indices(
         # Convert to dense arrays, otherwise they cannot multiply sympy matrices.
         return tuple(subspace.toarray() for subspace in subspace_vectors)
     return subspace_vectors
+
+
+def _extract_diagonal(H: BlockSeries) -> tuple[np.ndarray, np.ndarray]:
+    """Extract the diagonal of the zeroth order of the Hamiltonian."""
+    h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+    h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+    if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
+        raise ValueError(
+            "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
+            " is not provided."
+        )
+
+    return h_0_AA.diagonal(), h_0_BB.diagonal()
 
 
 def _convert_if_zero(value: Any):
