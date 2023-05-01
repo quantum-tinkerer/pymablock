@@ -164,6 +164,17 @@ def block_diagonalize(
             raise TypeError(
                 "`hamiltonian` must be a list, dictionary, or BlockSeries."
             )
+        if any(h_0.shape[0] != vecs.shape[0] for vecs in subspace_eigenvectors):
+            raise ValueError(
+                "`subspace_eigenvectors` does not match the shape of `h_0`."
+            )
+        num_vecs = sum(vecs.shape[1] for vecs in subspace_eigenvectors)
+        num_eigvals = sum(len(eigvals) for eigvals in eigenvalues)
+        if num_vecs != num_eigvals:
+            raise ValueError(
+                "If `subspace_eigenvectors` and `eigenvalues` are provided, "
+                "they must have the same number of elements."
+            )
         if solve_sylvester is None:
             if direct_solver:
                 solve_sylvester = solve_sylvester_direct(
