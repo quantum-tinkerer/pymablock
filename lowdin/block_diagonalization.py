@@ -247,6 +247,11 @@ def hamiltonian_to_BlockSeries(
     H : `~lowdin.series.BlockSeries`
         Initial Hamiltonian in the format required by algorithms.
     """
+    if subspace_vectors is not None and subspace_indices is not None:
+        raise ValueError("subspace_vectors and subspace_indices are mutually exclusive.")
+    to_split = subspace_vectors is not None or subspace_indices is not None
+
+    # Convert anything to BlockSeries
     if isinstance(hamiltonian, list):
         hamiltonian = _list_to_dict(hamiltonian)
     elif isinstance(hamiltonian, sympy.MatrixBase):
@@ -258,18 +263,19 @@ def hamiltonian_to_BlockSeries(
     else:
         raise NotImplementedError
 
+    if hamiltonian.shape and to_split:
+        raise ValueError(
+            "H is already separated but subspace_vectors" " are provided."
+        )
+
     if hamiltonian.shape == (2, 2):
-        if subspace_vectors is not None or subspace_indices is not None:
-            raise ValueError(
-                "H is already separated but subspace_vectors" " are provided."
-            )
         return hamiltonian
-    if hamiltonian.shape != ():
+    elif hamiltonian.shape:
         raise NotImplementedError("Only two subspace_vectors are supported.")
 
     # Separation into subspace_vectors
-    if subspace_vectors is None and subspace_indices is None:
-
+    if not to_split:
+        # Hamiltonian must have 2x2 entries in each block
         def H_eval(*index):
             h = _convert_if_zero(hamiltonian.evaluated[index[2:]])
             if zero == h:
@@ -289,11 +295,8 @@ def hamiltonian_to_BlockSeries(
         )
         return H
 
+    # Define subspace_vectors
     if subspace_indices is not None:
-        if subspace_vectors is not None:
-            raise ValueError(
-                "Only `subspace_vectors` or `subspace_indices` can be provided."
-            )
         h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
         if not is_diagonal(h_0):
             raise ValueError(
