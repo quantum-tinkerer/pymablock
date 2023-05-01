@@ -213,7 +213,7 @@ def diagonal_hamiltonian(wanted_orders, request):
     return hamiltonians[request.param], subspace_indices, diagonals
 
 
-@pytest.fixture(params=[0, 1])
+@pytest.fixture(params=[0, 1, 2])
 def symbolic_hamiltonian(request):
     """
     Return a symbolic Hamiltonian in the form of a sympy.Matrix.
@@ -229,19 +229,33 @@ def symbolic_hamiltonian(request):
     h_10 = alpha * k_x + sympy.I * alpha * k_y
     hamiltonian_1 = sympy.Matrix([[h_00, h_01], [h_10, h_11]])
 
-    # Symbolic Hamiltonian in dictionary
-    m = h = alpha = beta = 1  # values must be numeric, TODO: test symbolic
+    # Symbolic Hamiltonian in dictionary of sympy.Matrix
+    sigma_x = sympy.Matrix([[0, 1], [1, 0]])
+    sigma_y = sympy.Matrix([[0, -1j], [1j, 0]])
+    sigma_z = sympy.Matrix([[1, 0], [0, -1]])
     hamiltonian_2 = {
+        k_x**2: h**2 * sympy.Identity(2) / (2 * m),
+        k_y**2: h**2 * sympy.Identity(2) / (2 * m),
+        k_z**2: h**2 * sympy.Identity(2) / (2 * m),
+        sympy.Rational(1): beta * sigma_z,
+        k_z: alpha * sigma_z,
+        k_x: alpha * sigma_x,
+        k_y: alpha * sigma_y,
+    }
+
+    # Symbolic Hamiltonian in dictionary of numpy.ndarray
+    m = h = alpha = beta = 1  # values must be numeric, TODO: test symbolic
+    hamiltonian_3 = {
         k_x**2: h**2 * np.eye(2) / (2 * m),
         k_y**2: h**2 * np.eye(2) / (2 * m),
         k_z**2: h**2 * np.eye(2) / (2 * m),
-        sympy.Rational(1): np.diag([-1, 1]) * beta,
+        sympy.Rational(1): beta * np.diag([-1, 1]),
         k_z: alpha * np.diag([1, -1]),
         k_x: alpha * np.array([[0, 1], [1, 0]]),
         k_y: alpha * np.array([[0, -1j], [1j, 0]]),
     }
 
-    hamiltonians = [hamiltonian_1, hamiltonian_2]
+    hamiltonians = [hamiltonian_1, hamiltonian_2, hamiltonian_3]
     symbols = [k_x, k_y, k_z]
     subspace_eigenvectors = [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])]
     subspace_indices = [0, 1]
