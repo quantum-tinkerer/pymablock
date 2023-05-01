@@ -246,7 +246,7 @@ def hamiltonian_to_BlockSeries(
     elif isinstance(hamiltonian, BlockSeries):
         pass
     else:
-        raise NotImplementedError
+        raise TypeError("Unrecognized type for Hamiltonian.")
 
     if hamiltonian.shape and to_split:
         raise ValueError(
@@ -256,7 +256,7 @@ def hamiltonian_to_BlockSeries(
     if hamiltonian.shape == (2, 2):
         return hamiltonian
     elif hamiltonian.shape:
-        raise NotImplementedError("Only two subspace_eigenvectors are supported.")
+        raise ValueError("Only two subspace_eigenvectors are supported.")
 
     # Separation into subspace_eigenvectors
     if not to_split:
@@ -669,14 +669,14 @@ def solve_sylvester_diagonal(
             )
             return energy_denominators.multiply_elementwise(Y)
         else:
-            NotImplementedError
+            TypeError(f"Unsupported rhs type: {type(Y)}")
 
     return solve_sylvester
 
 
 def solve_sylvester_KPM(
     h_0: Any,
-    subspace_eigenvectors: tuple[Any, Any],
+    subspace_eigenvectors: tuple[np.ndarray, ...],
     eigenvalues: np.ndarray,
     solver_options: Optional[dict] = None,
 ) -> Callable:
@@ -693,7 +693,7 @@ def solve_sylvester_KPM(
     subspace_eigenvectors :
         Subspaces to project the unperturbed Hamiltonian and separate it into blocks.
         The first element of the tuple contains the effective subspace,
-        and the second element contains the (partial) auxiliary subspace.
+        and the optional second element contains the (partial) auxiliary subspace.
     eigenvalues :
         Eigenvalues of the unperturbed Hamiltonian. The first element of the tuple
         contains the full eigenvalues of the effective subspace. The second element is
@@ -729,7 +729,7 @@ def solve_sylvester_KPM(
         vecs_b = np.empty((vecs_a.shape[0], 0))
         eigs_B = np.diagonal((Dagger(vecs_b) @ h_0 @ vecs_b))
     else:
-        raise NotImplementedError("Too many subspace_eigenvectors")
+        raise ValueError("Invalid number of subspace_eigenvectors")
 
     if not isinstance(eigs_A, np.ndarray) or not isinstance(eigs_B, np.ndarray):
         raise TypeError("Eigenvalues must be a numpy array")
