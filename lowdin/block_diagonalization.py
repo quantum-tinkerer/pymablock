@@ -115,9 +115,13 @@ def block_diagonalize(
         if isinstance(hamiltonian, list):
             h_0 = hamiltonian[0]
         elif isinstance(hamiltonian, dict):
-            n_infinite = len(list(hamiltonian.keys())[0])
-            h_0 = hamiltonian[(0,) * n_infinite]
+            h_0 = hamiltonian.get(1, hamiltonian[(0,) * len(list(hamiltonian.keys())[0])])
         elif isinstance(hamiltonian, BlockSeries):
+            if hamiltonian.shape:
+                raise ValueError(
+                    "`hamiltonian` must be a scalar BlockSeries when using an implicit"
+                    " solver."
+                )
             h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
         else:
             raise TypeError(
