@@ -31,7 +31,7 @@ from lowdin.series import (
     safe_divide,
 )
 
-__all__ = ["general", "expanded", "general_symbolic", "implicit"]
+__all__ = ["block_diagonalize", "general", "expanded", "general_symbolic", "implicit"]
 
 
 ### The main function for end-users.

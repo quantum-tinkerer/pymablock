@@ -1,6 +1,7 @@
 "Lowdin perturbation theory"
 
 from .block_diagonalization import (
+    block_diagonalize,
     general,
     expanded,
     general_symbolic,
@@ -9,6 +10,7 @@ from .block_diagonalization import (
 from . import series
 
 __all__ = [
+    "block_diagonalize",
     "general",
     "expanded",
     "general_symbolic",
