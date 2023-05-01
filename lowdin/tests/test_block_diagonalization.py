@@ -987,6 +987,23 @@ def test_consistent_implicit_subspace(
     """
     hamiltonian, subspace_eigenvectors, eigenvalues = generate_kpm_hamiltonian
 
+    with pytest.raises(ValueError):
+        faulted_eigenvalues = (eigenvalues[0],)
+        H_tilde, _, _ = block_diagonalize(
+            hamiltonian,
+            subspace_eigenvectors=subspace_eigenvectors,
+            eigenvalues=faulted_eigenvalues,
+            direct_solver=False
+        )
+    with pytest.raises(ValueError):
+        faulted_eigenvectors = (subspace_eigenvectors[0][:1, :], subspace_eigenvectors[1])
+        H_tilde, _, _ = block_diagonalize(
+            hamiltonian,
+            subspace_eigenvectors=faulted_eigenvectors,
+            eigenvalues=eigenvalues,
+            direct_solver=False
+        )
+
     H_tilde, _, _ = block_diagonalize(
         hamiltonian,
         subspace_eigenvectors=subspace_eigenvectors,
