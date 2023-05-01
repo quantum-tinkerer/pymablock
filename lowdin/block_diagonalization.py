@@ -67,9 +67,10 @@ def block_diagonalize(
     calculations and symbolic ones. The latter is better suited for higher
     orders numerical calculations.
 
-    For large numerical calculations, the "implicit" algorithm is well suited.
-    To use it, the full and partial eigendecomposition of the occupied and
-    unoccupied spaces, respectively, must be provided.
+    For large numerical calculations with a sparse Hamiltonian and a low
+    dimensional relevant subspace, the algorithm uses an implicit representation
+    of the spectrum and does not require full diagonalization. This is enabled
+    if ``eigenvalues`` and ``subspace_vectors`` are provided.
 
     Parameters
     ----------
