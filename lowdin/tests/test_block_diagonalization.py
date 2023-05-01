@@ -1153,3 +1153,43 @@ def test_block_diagonalize_symbolic_hamiltonian(
     assert H_tilde.n_infinite == len(symbols)
     test_check_AB([H_tilde, U, U_adjoint], (1,) * len(symbols))
     test_check_unitary([H_tilde, U, U_adjoint], (1,) * len(symbols))
+
+
+def test_unknown_data_type():
+    """
+    Test that the algorithm raises an error if the data type is unknown.
+    """
+    class Unknown:
+        """Black box class with a minimal algebraic interface."""
+        def __init__(self, name):
+            self.name = name
+
+        def __repr__(self):
+            return self.name
+
+        __str__ = __repr__
+
+        def __mul__(self, other):
+            return Unknown(f"{self.name} * {other}")
+
+        def __rmul__(self, other):
+            return Unknown(f"{other} * {self.name}")
+
+        def __add__(self, other):
+            return Unknown(f"{self.name} + {other}")
+
+        def adjoint(self):
+            return Unknown(f"{self.name}^*")
+
+        def __neg__(self):
+            return Unknown(f"-{self.name}")
+
+    H = [
+        [[Unknown("a"), zero], [zero, Unknown("b")]],
+        [[Unknown("c"), Unknown("d")], [Unknown("e"), Unknown("f")]],
+    ]
+    H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x: x)
+    H_tilde.evaluated[:, :, :3]
+    # Shouldn't work without the solve_sylvester function
+    with pytest.raises(NotImplementedError):
+        H_tilde, *_ = block_diagonalize(H)
