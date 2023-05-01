@@ -88,18 +88,9 @@ def block_diagonalize(
         second element is optional, and it contains the (partial) eigenvalues
         of the auxiliary subspace. This argument is needed for KPM.
     solver_options :
-        Dictionary containing the options to pass to the solver.
-        Relevant keys are:
-            num_moments : int
-                Number of moments to use for the KPM expansion.
-            num_vectors : int
-                Number of vectors to use for the KPM expansion.
-            precalculate_moments : bool
-                Whether to precalculate and store all the KPM moments of ``vectors``.
-                This is useful if the Green's function is evaluated at a large number
-                of energies, but uses a large amount of memory. If False, the KPM
-                expansion is performed every time the Green's function is called, which
-                minimizes memory use.
+        Dictionary containing the options to pass to the Sylvester solver.
+        See docstrings of `~lowdin.block_diagonalization.solve_sylvester_KPM`
+        and `~lowdin.block_diagonalization.solve_sylvester_direct` for details.
     symbols :
         List of symbols that label the perturbative parameters. The order of
         the symbols will be used to determine the indices of the Hamiltonian.
@@ -788,6 +779,7 @@ def solve_sylvester_direct(
     h_0: sparse.spmatrix,
     eigenvectors: np.ndarray,
     eigenvalues: np.ndarray,
+    **solver_options: dict,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Solve Sylvester equation using a direct sparse solver.
 
@@ -799,6 +791,9 @@ def solve_sylvester_direct(
         Eigenvectors of the relevant subspace of the unperturbed Hamiltonian.
     eigenvalues :
         Corresponding eigenvalues.
+    **solver_options :
+        Keyword arguments to pass to the solver, see
+        `lowdin.linalg.direct_greens_function`.
 
     Returns
     -------
@@ -809,7 +804,7 @@ def solve_sylvester_direct(
     # Compute the Green's function of the transposed Hamiltonian because we are
     # solving the equation from the right.
     greens_functions = [
-        direct_greens_function(h_0.T, E) for E in eigenvalues
+        direct_greens_function(h_0.T, E, **solver_options) for E in eigenvalues
     ]
 
     def solve_sylvester(Y: np.ndarray) -> np.ndarray:
