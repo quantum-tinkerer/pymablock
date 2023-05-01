@@ -1106,6 +1106,9 @@ def _symbolic_keys_to_tuples(
     """
     Convert symbolic monomial keys to tuples of integers.
 
+    The key for the unperturbed Hamiltonian is assumed to be 1, and the
+    remaining keys are assumed to be symbolic monomials.
+
     Parameters
     ----------
     hamiltonian :
