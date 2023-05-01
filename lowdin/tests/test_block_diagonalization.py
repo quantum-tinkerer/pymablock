@@ -1001,6 +1001,7 @@ def test_consistent_implicit_subspace(
     """
     hamiltonian, subspace_eigenvectors, eigenvalues = generate_kpm_hamiltonian
 
+    # Catch error if the number of eigenvalues and eigenvectors do not match
     with pytest.raises(ValueError):
         faulted_eigenvalues = (eigenvalues[0],)
         H_tilde, _, _ = block_diagonalize(
@@ -1009,6 +1010,7 @@ def test_consistent_implicit_subspace(
             eigenvalues=faulted_eigenvalues,
             direct_solver=False
         )
+    # Catch error if the dimension of the eigenvectors do not match the Hamiltonian
     with pytest.raises(ValueError):
         faulted_eigenvectors = (subspace_eigenvectors[0][:1, :], subspace_eigenvectors[1])
         H_tilde, _, _ = block_diagonalize(
@@ -1073,7 +1075,10 @@ def test_input_hamiltonian_kpm(generate_kpm_hamiltonian):
     """
     Test that KPM Hamiltonians are interpreted correctly.
 
-    TODO: Improve test
+    Parameters:
+    -----------
+    generate_kpm_hamiltonian:
+        Randomly generated Hamiltonian and its eigendeomposition.
     """
     hamiltonian, subspace_eigenvectors, _ = generate_kpm_hamiltonian
     H = hamiltonian_to_BlockSeries(
@@ -1135,7 +1140,6 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
     for H in (H_1, H_2):
         for block in ((0, 1), (1, 0)):
             assert zero == H.evaluated[block + (0,) * H.n_infinite]
-    # TODO: compare they are the same value by value
 
 
 def test_block_diagonalize_hamiltonian_diagonal(
