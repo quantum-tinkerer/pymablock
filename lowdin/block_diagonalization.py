@@ -43,7 +43,7 @@ def block_diagonalize(
     subspace_vectors: Optional[tuple[Any, Any]] = None,
     subspace_indices: Optional[tuple[int, ...]] = None,
     eigenvalues: Optional[tuple[np.ndarray, np.ndarray]] = None,
-    direct_solver: Optional[bool] = None,
+    direct_solver: bool = True,
     solver_options: Optional[dict] = None,
     symbols: list[sympy.Symbol] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
@@ -64,7 +64,7 @@ def block_diagonalize(
         parameters.
     algorithm :
         Name of the function that block diagonalizes a Hamiltonian.
-        Options are "general", "expanded", "implicit", and "general_symbolic".
+        Options are "general" and "expanded".
     solve_sylvester :
         Function to use for solving Sylvester's equation.
         If None, the default function is used for a diagonal Hamiltonian.
@@ -115,52 +115,24 @@ def block_diagonalize(
     U_adjoint : `~lowdin.series.BlockSeries`
         Adjoint of U.
     """
-    implicit = isinstance(direct_solver, bool)
-    # Determine the algorithm to use
-    if algorithm is None or algorithm == "implicit":
-        if symbols is not None:  # TODO: make it work if H is already symbolic
-            algorithm = "expanded"
-        elif eigenvalues is not None and subspace_vectors is None:
+    if (use_implicit := eigenvalues is not None):
+        # Build solve_sylvester
+        if subspace_vectors is None:
             raise ValueError(
                 "`subspace_vectors` must be provided if `eigenvalues` is provided."
             )
-        elif eigenvalues is not None and subspace_vectors is not None:
-            algorithm = "implicit"
-            if direct_solver is None:
-                direct_solver = True
-                implicit = True
-            if isinstance(hamiltonian, list):
-                h_0 = hamiltonian[0]
-            elif isinstance(hamiltonian, dict):
-                n_infinite = len(list(hamiltonian.keys())[0])
-                h_0 = hamiltonian[(0,) * n_infinite]
-            elif isinstance(hamiltonian, BlockSeries):
-                h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
-            else:
-                NotImplemented
+        if isinstance(hamiltonian, list):
+            h_0 = hamiltonian[0]
+        elif isinstance(hamiltonian, dict):
+            n_infinite = len(list(hamiltonian.keys())[0])
+            h_0 = hamiltonian[(0,) * n_infinite]
+        elif isinstance(hamiltonian, BlockSeries):
+            h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
         else:
-            algorithm = "general"
-
-    # Normalize the Hamiltonian
-    H = hamiltonian_to_BlockSeries(
-        hamiltonian,
-        subspace_vectors=subspace_vectors,
-        subspace_indices=subspace_indices,
-        implicit=implicit,
-        symbols=symbols,
-    )
-
-    # Determine operator to use for matrix multiplication
-    if hasattr(H.evaluated[(0, 0) + (0,) * H.n_infinite], "__matmul__"):
-        operator = matmul
-    else:
-        operator = mul
-
-    # Determine function to use for solving Sylvester's equation
-    if solve_sylvester is None:
-        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
-        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
-        if direct_solver is not None:
+            raise TypeError(
+                "`hamiltonian` must be a list, dictionary, or BlockSeries."
+            )
+        if solve_sylvester is None:
             if direct_solver:
                 solve_sylvester = solve_sylvester_direct(
                     h_0,
@@ -174,28 +146,50 @@ def block_diagonalize(
                     eigenvalues,
                     solver_options=solver_options,
                 )
-        elif all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
-            eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
-            solve_sylvester = solve_sylvester_diagonal(*eigenvalues)
-        else:
+
+    # Normalize the Hamiltonian
+    H = hamiltonian_to_BlockSeries(
+        hamiltonian,
+        subspace_vectors=subspace_vectors,
+        subspace_indices=subspace_indices,
+        implicit=use_implicit,
+        symbols=symbols,
+    )
+
+    # Determine operator to use for matrix multiplication.
+    if hasattr(H.evaluated[(0, 0) + (0,) * H.n_infinite], "__matmul__"):
+        operator = matmul
+    else:
+        operator = mul
+
+    # If solve_sylvester is not yet defined, use the diagonal one.
+    if solve_sylvester is None:
+        h_0_AA = H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        h_0_BB = H.evaluated[(1, 1) + (0,) * H.n_infinite]
+        if not all(is_diagonal(h) for h in (h_0_AA, h_0_BB)):
             raise ValueError(
                 "`solve_sylvester` must be provided or the"
                 " unperturbed Hamiltonian must be diagonal."
             )
+        eigenvalues = tuple(h.diagonal() for h in (h_0_AA, h_0_BB))
+        solve_sylvester = solve_sylvester_diagonal(*eigenvalues)
 
-    if algorithm in ("general", "expanded"):
-        return globals()[algorithm](
-            H,
-            solve_sylvester=solve_sylvester,
-            operator=operator,
-        )
-    elif algorithm == "implicit":
-        return globals()[algorithm](
-            H,
-            solve_sylvester=solve_sylvester,
-        )
-    else:
+    if algorithm is None:
+        # symbolic expressions benefit from no H_0 in numerators
+        algorithm = "expanded" if symbols is not None else "general"
+    if algorithm not in ("general", "expanded"):
         raise ValueError(f"Unknown algorithm: {algorithm}")
+    if use_implicit:
+        return implicit(
+            H,
+            solve_sylvester=solve_sylvester,
+            algorithm=algorithm,
+        )
+    return globals()[algorithm](
+        H,
+        solve_sylvester=solve_sylvester,
+        operator=operator,
+    )
 
 
 ### Converting different formats to BlockSeries
