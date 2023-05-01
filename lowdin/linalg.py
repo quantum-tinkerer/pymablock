@@ -6,8 +6,8 @@ from scipy import __version__ as scipy_version
 from scipy.sparse import spmatrix, identity
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
-from kwant.linalg import mumps
 from scipy import sparse
+from kwant.linalg import mumps
 import sympy
 
 from lowdin.series import zero, one
@@ -155,14 +155,14 @@ def aslinearoperator(A):
 
 
 def is_diagonal(A):
-    """Check if A is diagonal"""
-    if isinstance(A, sympy.MatrixBase):  # sympy
+    """Check if A is diagonal."""
+    if isinstance(A, sympy.MatrixBase):
         return A.is_diagonal()
     elif isinstance(A, np.ndarray):
-        def offdiagonal(B):
-            return B.reshape(-1)[:-1].reshape(len(B) - 1, len(B) + 1)[:, 1:]
-        return not np.any(offdiagonal(A))
+        # Create a view of the offdiagonal array elements
+        offdiagonal = A.reshape(-1)[:-1].reshape(len(A) - 1, len(A) + 1)[:, 1:]
+        return not np.any(offdiagonal)
     elif sparse.issparse(A):
         A = sparse.dia_array(A)
         return not any(A.offsets)
-    return False
+    raise NotImplementedError(f"Cannot extract diagonal from {type(A)}")
