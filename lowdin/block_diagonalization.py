@@ -36,7 +36,7 @@ __all__ = ["block_diagonalize", "general", "expanded", "general_symbolic", "impl
 
 ### The main function for end-users.
 def block_diagonalize(
-    hamiltonian: list[Any, list] | dict | BlockSeries,
+    hamiltonian: list[Any, list] | dict | BlockSeries | sympy.Matrix,
     *,
     algorithm: Optional[str] = None,
     solve_sylvester: Optional[Callable] = None,
@@ -229,7 +229,7 @@ def block_diagonalize(
 
 ### Converting different formats to BlockSeries
 def hamiltonian_to_BlockSeries(
-    hamiltonian: list[Any, list] | dict | BlockSeries,
+    hamiltonian: list[Any, list[Any]] | dict | BlockSeries | sympy.Matrix,
     *,
     subspace_eigenvectors: Optional[tuple[Any, Any]] = None,
     subspace_indices: Optional[tuple[int, ...]] = None,
@@ -278,9 +278,7 @@ def hamiltonian_to_BlockSeries(
         respectively.
         Mutually exclusive with `subspace_eigenvectors`.
     implicit :
-        Whether to use KPM to solve the Sylvester equation. If True, the first
-        element of `subspace_eigenvectors` must be the effective subspace, and
-        the second element must be the (partial) auxiliary subspace.
+        Whether wrap the Hamiltonian of the BB subspace into a linear operator.
     symbols :
         List of symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
