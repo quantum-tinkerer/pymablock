@@ -909,7 +909,7 @@ def solve_sylvester_KPM(
     if solver_options is None:
         solver_options = dict()
 
-    precalculate_moments = solver_options.get("precalculate_moments", False)
+    precalculate_moments = solver_options.pop("precalculate_moments", False)
 
     need_kpm = len(eigs_A) + len(eigs_B) < h_0.shape[0]
     need_explicit = bool(len(eigs_B))
