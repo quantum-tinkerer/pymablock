@@ -103,7 +103,9 @@ def block_diagonalize(
         Options are "general" and "expanded".
     solve_sylvester :
         Function to use for solving Sylvester's equation.
-        If None, the default function is used for a diagonal Hamiltonian.
+        If None, the default function is used for a diagonal Hamiltonian or,
+        unless the implicit method is used. In that case, the default function
+        is the direct solver.
     subspace_eigenvectors :
         A tuple with the subspaces to project the Hamiltonian on and separate
         it into blocks. The first element of the tuple contains the
@@ -127,6 +129,10 @@ def block_diagonalize(
         Dictionary containing the options to pass to the Sylvester solver.
         See docstrings of `~lowdin.block_diagonalization.solve_sylvester_KPM`
         and `~lowdin.block_diagonalization.solve_sylvester_direct` for details.
+    direct_solver:
+        Whether to use the direct solver for the implicit method. Otherwise,
+        the KPM solver is used.
+        Deaults to True.
     symbols :
         List of symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
