@@ -20,7 +20,7 @@ Solvers to Sylvester equation
 Linear algebra
 --------------
 .. automodule:: lowdin.linalg
-   :members:
+   :members: aslinearoperator, direct_greens_function
    :undoc-members:
    :show-inheritance:
 
