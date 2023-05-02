@@ -909,39 +909,27 @@ def solve_sylvester_KPM(
         solver_options = dict()
 
     precalculate_moments = solver_options.pop("precalculate_moments", False)
-
-    need_kpm = len(eigs_A) + len(eigs_B) < h_0.shape[0]
     need_explicit = bool(len(eigs_B))
-    if not any((need_kpm, need_explicit)):
-        # B subspace is empty
-        return lambda Y: Y
+    kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
 
-    if need_kpm:
-        kpm_projector = ComplementProjector(np.hstack([vecs_A, vecs_B]))
-
-        def solve_sylvester_kpm(Y: np.ndarray) -> np.ndarray:
-            Y_KPM = Y @ kpm_projector
-            vec_G_Y = greens_function(
-                h_0,
-                params=None,
-                vectors=Y_KPM.conj(),
-                kpm_params=solver_options,
-                precalculate_moments=precalculate_moments,
-            )(eigs_A)
-            return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_A))])
+    def solve_sylvester_kpm(Y: np.ndarray) -> np.ndarray:
+        Y_KPM = Y @ kpm_projector
+        vec_G_Y = greens_function(
+            h_0,
+            params=None,
+            vectors=Y_KPM.conj(),
+            kpm_params=solver_options,
+            precalculate_moments=precalculate_moments,
+        )(eigs_A)
+        return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_A))])
 
     if need_explicit:
         solve_sylvester_explicit = solve_sylvester_diagonal(eigs_A, eigs_B, vecs_B)
 
     def solve_sylvester(Y: np.ndarray) -> np.ndarray:
-        if need_kpm and need_explicit:
-            result = solve_sylvester_kpm(Y) + solve_sylvester_explicit(Y)
-        elif need_kpm:
-            result = solve_sylvester_kpm(Y)
-        elif need_explicit:
-            result = solve_sylvester_explicit(Y)
-
-        return result
+        if need_explicit:
+            return solve_sylvester_kpm(Y) + solve_sylvester_explicit(Y)
+        return solve_sylvester_kpm(Y)
 
     return solve_sylvester
 
