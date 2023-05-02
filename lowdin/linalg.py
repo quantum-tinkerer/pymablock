@@ -1,4 +1,5 @@
 from typing import Callable, Optional
+from warnings import warn
 
 from packaging.version import parse
 import numpy as np
@@ -115,9 +116,10 @@ def direct_greens_function(
         """
         sol = ctx.solve(vec)
         if (residue := np.linalg.norm(h @ sol - vec)) > atol:
-            raise RuntimeError(
+            warn(
                 f"Solution only achieved precision {residue} > {atol}."
-                " adjust eps or atol."
+                " adjust eps or atol.",
+                RuntimeWarning,
             )
         return sol
 
