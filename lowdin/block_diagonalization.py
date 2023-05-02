@@ -699,15 +699,16 @@ def implicit(
 
     # Create series wrapped in linear operators to avoid forming explicit matrices
     def linear_operator_wrapped(original):
-        return lambda *index: aslinearoperator(original[index])
+        return lambda *index: aslinearoperator(original.evaluated[index])
 
     H_operator, U_operator, U_adjoint_operator = (
         BlockSeries(
             eval=linear_operator_wrapped(original),
             shape=(2, 2),
             n_infinite=H.n_infinite,
+            dimension_names=original.dimension_names,
         )
-        for original in (H.evaluated, U.evaluated, U_adjoint.evaluated)
+        for original in (H, U, U_adjoint)
     )
     identity = cauchy_dot_product(
         U_operator, U_adjoint_operator, hermitian=True, exclude_last=[True, True]
