@@ -6,6 +6,7 @@ from typing import Any, Optional, Callable
 
 import numpy as np
 import numpy.ma as ma
+import sympy
 from sympy.physics.quantum import Dagger
 
 __all__ = ["BlockSeries", "cauchy_dot_product", "one", "zero"]
@@ -164,6 +165,7 @@ class BlockSeries:
         data: Optional[dict[tuple[int, ...], Any]] = None,
         shape: tuple[int, ...] = (),
         n_infinite: int = 1,
+        dimension_names: Optional[tuple[str | sympy.Symbol, ...]] = None,
     ) -> None:
         """An infinite series that caches its items.
         The series has finite and infinite dimensions.
@@ -180,6 +182,7 @@ class BlockSeries:
         self._data = data or {}
         self.shape = shape
         self.n_infinite = n_infinite
+        self.dimension_names = dimension_names or ()
 
 
 def cauchy_dot_product(
