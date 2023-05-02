@@ -153,6 +153,10 @@ def block_diagonalize(
         Adjoint of U.
 
     """
+    if subspace_eigenvectors is not None:
+        all_vecs = np.hstack(subspace_eigenvectors)
+        if not np.allclose(Dagger(all_vecs) @ all_vecs, np.eye(all_vecs.shape[1])):
+            raise ValueError("Eigenvectors must be orthonormal.")
     if (use_implicit := eigenvalues is not None):
         # Build solve_sylvester
         if subspace_eigenvectors is None:
