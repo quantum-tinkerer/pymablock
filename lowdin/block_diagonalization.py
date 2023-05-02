@@ -113,13 +113,13 @@ def block_diagonalize(
         has the eigenvectors of the B (auxiliary) subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
         For KPM, (partial) auxiliary subspace may be missing or incomplete.
-        Mutually exclusive with `subspace_indices`.
+        Mutually exclusive with ``subspace_indices``.
     subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the `subspace_eigenvectors` may be
+        diagonal elements according to the ``subspace_eigenvectors`` may be
         provided. Indices 0 and 1 are reserved for the A and B subspaces,
         respectively.
-        Mutually exclusive with `subspace_eigenvectors`.
+        Mutually exclusive with ``subspace_eigenvectors``.
     eigenvalues :
         A tuple with partial eigenvalues of the unperturbed Hamiltonian. If
         provided, must contain all the eigenvalues of the A subspace and
@@ -265,9 +265,9 @@ def hamiltonian_to_BlockSeries(
         {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians. The elements h_i
         may be `~sympy.Matrix`, `~numpy.ndarray`, `~scipy.sparse.spmatrix`, or
         lists of these types.
-        - If a `sympy.Matrix`, a list of `symbols` must be provided, otherwise
+        - If a `sympy.Matrix`, a list of ``symbols`` must be provided, otherwise
         all symbols will be treated as perturbative parameters. We normalize it
-        to BlockSeries by Taylor expanding on `symbols` to the desired order.
+        to BlockSeries by Taylor expanding on ``symbols`` to the desired order.
         - If a `~lowdin.series.BlockSeries`, it is returned unchanged.
     subspace_eigenvectors :
         A tuple with the subspaces to project the Hamiltonian on and separate
@@ -276,13 +276,13 @@ def hamiltonian_to_BlockSeries(
         has the eigenvectors of the B (auxiliary) subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
         For KPM, (partial) auxiliary subspace may be missing or incomplete.
-        Mutually exclusive with `subspace_indices`.
+        Mutually exclusive with ``subspace_indices``.
     subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
         diagonal elements according to the `subspace_eigenvectors` may be
         provided. Indices 0 and 1 are reserved for the A and B subspaces,
         respectively.
-        Mutually exclusive with `subspace_eigenvectors`.
+        Mutually exclusive with ``subspace_eigenvectors``.
     implicit :
         Whether wrap the Hamiltonian of the BB subspace into a linear operator.
     symbols :
@@ -510,12 +510,12 @@ def general_symbolic(
 
     Returns
     -------
-    H_tilde_s : `~lowdin.series.BlockSeries`
+    H_tilde : `~lowdin.series.BlockSeries`
         Symbolic diagonalized Hamiltonian.
-    U_s : `~lowdin.series.BlockSeries`
+    U : `~lowdin.series.BlockSeries`
         Symbolic unitary matrix that block diagonalizes H such that
         U_s * H * U_s^H = H_tilde_s.
-    U_adjoint_s : `~lowdin.series.BlockSeries`
+    U_adjoint : `~lowdin.series.BlockSeries`
         Symbolic adjoint of U_s. Its diagonal blocks are Hermitian and its
         off-diagonal blocks (V) are anti-Hermitian.
     Y_data : `dict`
@@ -790,8 +790,8 @@ def solve_sylvester_KPM(
     h_0 :
         Unperturbed Hamiltonian of the system.
     subspace_eigenvectors :
-        Subspaces to project the unperturbed Hamiltonian and separate it into blocks.
-        The first element of the tuple contains the effective subspace,
+        Subspaces to project the unperturbed Hamiltonian and separate it into
+        blocks. The first element of the tuple contains the effective subspace,
         and the second element contains the (partial) auxiliary subspace.
     eigenvalues :
         A tuple with partial eigenvalues of the unperturbed Hamiltonian. If
@@ -1123,11 +1123,11 @@ def _symbolic_keys_to_tuples(
     Returns
     -------
     new_hamiltonian :
-        Dictionary with the same values as `hamiltonian`, but with keys that
+        Dictionary with the same values as ``hamiltonian``, but with keys that
         indicate the order of the perturbation in a tuple.
     symbols :
         List of symbols in the order they appear in the keys of `hamiltonian`.
-        The tuple keys of `new_hamiltonian` are ordered according to this list.
+        The tuple keys of ``new_hamiltonian`` are ordered according to this list.
     """
     # Collect all symbols from the keys
     symbols = list(set.union(*[key.free_symbols for key in hamiltonian.keys()]))
@@ -1200,7 +1200,7 @@ def _subspaces_from_indices(
     Parameters
     ----------
     subspace_indices :
-        Indices of the `subspace_eigenvectors`.
+        Indices of the ``subspace_eigenvectors``.
         0 indicates the occupied subspace A, 1 indicates the unoccupied
         subspace B.
 
@@ -1213,7 +1213,7 @@ def _subspaces_from_indices(
     max_subspaces = 2
     if np.any(subspace_indices >= max_subspaces):
         raise ValueError(
-            "Only 0 and 1 are allowed as indices for `subspace_eigenvectors`."
+            "Only 0 and 1 are allowed as indices for ``subspace_eigenvectors``."
         )
     dim = len(subspace_indices)
     eigvecs = sparse.csr_array(sparse.identity(dim, dtype=int, format="csr"))
@@ -1233,7 +1233,7 @@ def _extract_diagonal(H: BlockSeries) -> tuple[np.ndarray, np.ndarray]:
     h_0_AA, h_0_BB = H.evaluated[([0, 1], [0, 1]) + (0,) * H.n_infinite]
     if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
         raise ValueError(
-            "The unperturbed Hamiltonian must be diagonal if solve_sylvester"
+            "The unperturbed Hamiltonian must be diagonal if ``solve_sylvester``"
             " is not provided."
         )
     eigs_A, eigs_B = h_0_AA.diagonal(), h_0_BB.diagonal()
