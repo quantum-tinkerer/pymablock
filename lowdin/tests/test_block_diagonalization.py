@@ -256,7 +256,7 @@ def symbolic_hamiltonian(request):
     }
 
     hamiltonians = [hamiltonian_1, hamiltonian_2, hamiltonian_3]
-    symbols = [k_x, k_y, k_z]
+    symbols = tuple([k_x, k_y, k_z])
     subspace_eigenvectors = [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])]
     subspace_indices = [0, 1]
     return hamiltonians[request.param], symbols, subspace_eigenvectors, subspace_indices
@@ -1138,6 +1138,7 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
     assert H_1.n_infinite == H_2.n_infinite == len(symbols)
 
     for H in (H_1, H_2):
+        assert H.dimension_names
         for block in ((0, 1), (1, 0)):
             assert zero == H.evaluated[block + (0,) * H.n_infinite]
 

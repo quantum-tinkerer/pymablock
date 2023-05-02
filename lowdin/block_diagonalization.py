@@ -350,6 +350,7 @@ def hamiltonian_to_BlockSeries(
             eval=H_eval,
             shape=(2, 2),
             n_infinite=hamiltonian.n_infinite,
+            dimension_names=symbols,
         )
         return H
 
@@ -391,6 +392,7 @@ def hamiltonian_to_BlockSeries(
         eval=H_eval,
         shape=(2, 2),
         n_infinite=hamiltonian.n_infinite,
+        dimension_names=symbols,
     )
 
     return H
@@ -1140,7 +1142,7 @@ def _symbolic_keys_to_tuples(
     """
     # Collect all symbols from the keys
     symbols = list(set.union(*[key.free_symbols for key in hamiltonian.keys()]))
-    symbols = sorted(symbols, key=lambda x: x.name)
+    symbols = tuple(sorted(symbols, key=lambda x: x.name))
     if not all(symbol.is_commutative for symbol in symbols):
         raise ValueError("All symbols must be commutative.")
 
