@@ -237,7 +237,7 @@ def block_diagonalize(
 
     if algorithm is None:
         # symbolic expressions benefit from no H_0 in numerators
-        algorithm = "expanded" if symbols is not None else "general"
+        algorithm = "expanded" if H.dimension_names != () else "general"
     if algorithm not in ("general", "expanded"):
         raise ValueError(f"Unknown algorithm: {algorithm}")
     if use_implicit:
