@@ -101,9 +101,9 @@ def block_diagonalize(
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, ``h_i`` may be a list of lists with the Hamiltonian blocks.
         - If a `sympy.Matrix`,
-            a list of ``symbols`` must be provided as perturbative parameters,
-            otherwise all symbols will be treated as perturbative. The normali-
-            zation `~lowdin.series.BlockSeries` is done by Taylor expanding on
+            unless a list of ``symbols`` is provided as perturbative parameters,
+            all symbols will be treated as perturbative. The normalization to
+            `~lowdin.series.BlockSeries` is done by Taylor expanding on
             ``symbols`` to the desired order.
         - If a `~lowdin.series.BlockSeries`, it is returned unchanged.
     algorithm :
@@ -298,9 +298,9 @@ def hamiltonian_to_BlockSeries(
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
         - If a `sympy.Matrix`,
-            a list of ``symbols`` must be provided as perturbative parameters,
-            otherwise all symbols will be treated as perturbative. The normali-
-            zation `~lowdin.series.BlockSeries` is done by Taylor expanding on
+            unless a list of ``symbols`` is provided as perturbative parameters,
+            all symbols will be treated as perturbative. The normalization to
+            `~lowdin.series.BlockSeries` is done by Taylor expanding on
             ``symbols`` to the desired order.
     subspace_eigenvectors :
         A tuple with orthonormal eigenvectors to project the Hamiltonian on
