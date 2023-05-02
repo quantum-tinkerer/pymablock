@@ -161,7 +161,7 @@ def block_diagonalize(
 
     """
     if subspace_eigenvectors is not None:
-        _check_orthonormality(subspace_eigenvectors)
+        _check_orthonormality(subspace_eigenvectors, atol=atol)
     if (use_implicit := eigenvalues is not None):
         # Build solve_sylvester
         if subspace_eigenvectors is None:
@@ -1354,12 +1354,12 @@ def _convert_if_zero(value: Any, atol=1e-12):
     return value
 
 
-def _check_orthonormality(subspace_eigenvectors):
+def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
     """ Check that the eigenvectors are orthonormal."""
     if isinstance(subspace_eigenvectors[0], np.ndarray):
         all_vecs = np.hstack(subspace_eigenvectors)
         overlap = Dagger(all_vecs) @ all_vecs
-        if not np.allclose(overlap, np.eye(all_vecs.shape[1])):
+        if not np.allclose(overlap, np.eye(all_vecs.shape[1]), atol=atol):
             raise ValueError("Eigenvectors must be orthonormal.")
     elif isinstance(subspace_eigenvectors[0], sympy.MatrixBase):
         all_vecs = sympy.Matrix.hstack(*subspace_eigenvectors)
