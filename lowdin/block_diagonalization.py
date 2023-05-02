@@ -40,12 +40,13 @@ def block_diagonalize(
     *,
     algorithm: Optional[str] = None,
     solve_sylvester: Optional[Callable] = None,
-    subspace_eigenvectors: Optional[tuple[Any, ...]] = None,
+    subspace_eigenvectors: Optional[tuple[np.ndarray | sympy.Matrix, ...]] = None,
     subspace_indices: Optional[tuple[int, ...] | np.ndarray] = None,
     eigenvalues: Optional[tuple[np.ndarray, ...]] = None,
     direct_solver: bool = True,
     solver_options: Optional[dict] = None,
     symbols: list[sympy.Symbol] = None,
+    atol: float = 1e-12,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Compute the block diagonalization of a Hamiltonian order by order.
@@ -142,6 +143,8 @@ def block_diagonalize(
         Hamiltonian. The order of the symbols is mapped to the indices of the
         Hamiltonian. If None, the perturbative parameters are taken from the
         unperturbed Hamiltonian.
+    atol :
+        Absolute tolerance to consider a number zero.
 
     Returns
     -------
@@ -210,7 +213,13 @@ def block_diagonalize(
         subspace_indices=subspace_indices,
         implicit=use_implicit,
         symbols=symbols,
+        atol=atol,
     )
+
+    if zero != H.evaluated[(0, 1) + (0,) * H.n_infinite]:
+        raise ValueError(
+            "The off-diagonal elements of the unperturbed Hamiltonian must be zero."
+        )
 
     # Determine operator to use for matrix multiplication.
     if hasattr(H.evaluated[(0, 0) + (0,) * H.n_infinite], "__matmul__"):
@@ -248,6 +257,7 @@ def hamiltonian_to_BlockSeries(
     subspace_indices: Optional[tuple[int, ...]] = None,
     implicit: Optional[bool] = False,
     symbols: Optional[list[sympy.Symbol]] = None,
+    atol: float = 1e-12,
 ) -> BlockSeries:
     """
     Normalize a Hamiltonian to be used by the algorithms.
@@ -297,6 +307,8 @@ def hamiltonian_to_BlockSeries(
         Hamiltonian. The order of the symbols is mapped to the indices of the
         Hamiltonian. If None, the perturbative parameters are taken from the
         unperturbed Hamiltonian.
+    atol :
+        Absolute tolerance to consider a number zero.
 
     Returns
     -------
@@ -336,11 +348,11 @@ def hamiltonian_to_BlockSeries(
     if not to_split:
         # Hamiltonian must have 2x2 entries in each block
         def H_eval(*index):
-            h = _convert_if_zero(hamiltonian.evaluated[index[2:]])
+            h = _convert_if_zero(hamiltonian.evaluated[index[2:]], atol=atol)
             if zero == h:
                 return zero
             try:  # Hamiltonians come in blocks of 2x2
-                return _convert_if_zero(h[index[0]][index[1]])
+                return _convert_if_zero(h[index[0]][index[1]], atol=atol)
             except Exception as e:
                 raise ValueError(
                     "Without `subspace_eigenvectors` or `subspace_indices`"
@@ -374,8 +386,6 @@ def hamiltonian_to_BlockSeries(
 
     # Separation into subspace_eigenvectors
     def H_eval(*index):
-        if not any(index[2:]) and index[:2] == (0, 1):
-            return zero
         left, right = index[:2]
         if left > right:
             return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
@@ -387,7 +397,8 @@ def hamiltonian_to_BlockSeries(
         return _convert_if_zero(
             Dagger(subspace_eigenvectors[left])
             @ original
-            @ subspace_eigenvectors[right]
+            @ subspace_eigenvectors[right],
+            atol=atol
         )
 
     H = BlockSeries(
@@ -1278,7 +1289,7 @@ def _extract_diagonal(H: BlockSeries) -> tuple[np.ndarray, np.ndarray]:
     return h_0_AA.diagonal(), h_0_BB.diagonal()
 
 
-def _convert_if_zero(value: Any):
+def _convert_if_zero(value: Any, atol=1e-12):
     """
     Converts an exact zero to sentinel value zero.
 
@@ -1291,9 +1302,11 @@ def _convert_if_zero(value: Any):
     -------
     zero :
         Zero if value is close enough to zero, otherwise value.
+    atol :
+        Absolute tolerance for numerical zero.
     """
     if isinstance(value, np.ndarray):
-        if not np.any(value):
+        if np.allclose(value, 0, atol=atol):
             return zero
     elif sparse.issparse(value):
         if value.count_nonzero() == 0:
@@ -1305,12 +1318,15 @@ def _convert_if_zero(value: Any):
 
 
 def _check_orthonormality(subspace_eigenvectors):
+    """ Check that the eigenvectors are orthonormal."""
     if isinstance(subspace_eigenvectors[0], np.ndarray):
         all_vecs = np.hstack(subspace_eigenvectors)
-        if not np.allclose(Dagger(all_vecs) @ all_vecs, np.eye(all_vecs.shape[1])):
+        overlap = Dagger(all_vecs) @ all_vecs
+        if not np.allclose(overlap, np.eye(all_vecs.shape[1])):
             raise ValueError("Eigenvectors must be orthonormal.")
     elif isinstance(subspace_eigenvectors[0], sympy.MatrixBase):
         all_vecs = sympy.Matrix.hstack(*subspace_eigenvectors)
-        if not (Dagger(all_vecs) @ all_vecs).diagonal() == sympy.ones(1, all_vecs.shape[0]):
+        overlap = Dagger(all_vecs) @ all_vecs
+        if not (overlap).diagonal() == sympy.ones(1, all_vecs.shape[0]):
             raise ValueError("Eigenvectors must be orthonormal.")
 # %%
