@@ -890,13 +890,12 @@ def solve_sylvester_KPM(
         Function that applies divide by energies to the right hand side of
         Sylvester's equation.
     """
-    # Full A subspace and partial/full B subspace provided
     if len(subspace_eigenvectors) == 2:
+        # Full A subspace and partial/full B subspace provided
         vecs_A, vecs_B = subspace_eigenvectors
         eigs_A, eigs_B = eigenvalues
-
-    # Full A subspace and no B subspace provided
     elif len(subspace_eigenvectors) == 1:
+        # Full A subspace and no B subspace provided
         vecs_A = subspace_eigenvectors[0]
         eigs_A = eigenvalues[0]
         vecs_B = np.empty((vecs_A.shape[0], 0))
