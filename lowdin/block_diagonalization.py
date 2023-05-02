@@ -192,7 +192,7 @@ def block_diagonalize(
             )
         if not all(
             len(vals) == vecs.shape[1]
-            for vals, vecs in zip(eigenvalues, subspace_eigenvectors
+            for vals, vecs in zip(eigenvalues, subspace_eigenvectors)
         ):
             raise ValueError(
                 "If `subspace_eigenvectors` and `eigenvalues` are provided, "
