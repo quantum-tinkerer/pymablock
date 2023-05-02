@@ -84,28 +84,28 @@ def block_diagonalize(
         Supported formats:
 
         - If a list,
-            it is assumed to be of the form [h_0, h_1, h_2, ...] where h_0 is
-            the unperturbed Hamiltonian and h_1, h_2, ... are the first order
-            perturbations. The elements h_i may be `~sympy.Matrix`,
+            it is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where ``h_0``
+            is the unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first
+            order perturbations. The elements ``h_i`` may be `~sympy.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
+            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian blocks.
         - If a dictionary,
             it is assumed to be of the form
-            {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}, or
-            {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians.
+            ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or
+            ``{1: h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians.
             In the former case, the keys must be tuples of integers indicating
             the order of each perturbation. In the latter case, the keys must
             be monomials and the indices are ordered as in `H.dimension_names`.
-            The values of the dictionary, h_i may be `~sympy.Matrix`,
+            The values of the dictionary, ``h_i`` may be `~sympy.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
+            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian blocks.
         - If a `sympy.Matrix`,
-            a list of `symbols` must be provided as perturbative parameters,
+            a list of ``symbols`` must be provided as perturbative parameters,
             otherwise all symbols will be treated as perturbative. The normali-
             zation `~lowdin.series.BlockSeries` is done by Taylor expanding on
-            `symbols` to the desired order.
+            ``symbols`` to the desired order.
         - If a `~lowdin.series.BlockSeries`, it is returned unchanged.
     algorithm :
         Name of the function that block diagonalizes a Hamiltonian.
@@ -126,8 +126,8 @@ def block_diagonalize(
     subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
         diagonal elements according to the ``subspace_eigenvectors`` may be
-        provided. Indices 0 and 1 are reserved for the A and B subspaces,
-        respectively.
+        provided. Indices 0 and 1 are reserved for the A (effective) and B
+        effective subspaces, respectively.
         Mutually exclusive with ``subspace_eigenvectors``.
     eigenvalues :
         A tuple with partial eigenvalues of the unperturbed Hamiltonian. If
@@ -280,28 +280,29 @@ def hamiltonian_to_BlockSeries(
         Supported formats:
 
         - If a list,
-            it is assumed to be of the form [h_0, h_1, h_2, ...] where h_0 is
-            the unperturbed Hamiltonian and h_1, h_2, ... are the first order
-            perturbations. The elements h_i may be `~sympy.Matrix`,
+            it is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where h_0
+            is the unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first
+            order perturbations. The elements ``h_i`` may be `~sympy.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
+            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
+            blocks.
         - If a dictionary,
             it is assumed to be of the form
-            {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}, or
-            {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians.
+            ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or
+            ``{1: h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians.
             In the former case, the keys must be tuples of integers indicating
             the order of each perturbation. In the latter case, the keys must
-            be monomials and the indices are ordered as in `H.dimension_names`.
+            be monomials and the indices are ordered as in ``H.dimension_names``.
             The values of the dictionary, h_i may be `~sympy.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
         - If a `sympy.Matrix`,
-            a list of `symbols` must be provided as perturbative parameters,
+            a list of ``symbols`` must be provided as perturbative parameters,
             otherwise all symbols will be treated as perturbative. The normali-
             zation `~lowdin.series.BlockSeries` is done by Taylor expanding on
-            `symbols` to the desired order.
+            ``symbols`` to the desired order.
     subspace_eigenvectors :
         A tuple with orthonormal eigenvectors to project the Hamiltonian on
         and separate it into blocks. The first element of the tuple has the
@@ -359,7 +360,7 @@ def hamiltonian_to_BlockSeries(
     if hamiltonian.shape == (2, 2):
         return hamiltonian
     elif hamiltonian.shape:
-        raise ValueError("Only two subspace_eigenvectors are supported.")
+        raise ValueError("Only 2x2 block Hamiltonians are supported.")
 
     # Separation into subspace_eigenvectors
     if not to_split:
@@ -451,7 +452,7 @@ def general(
     ----------
     H :
         Initial Hamiltonian, unperturbed and perturbation.
-        The data in H can be either numerical or symbolic.
+        The data in ``H`` can be either numerical or symbolic.
     solve_sylvester :
         (optional) function that solves the Sylvester equation.
         Defaults to a function that works for diagonal unperturbed Hamiltonians.
@@ -464,9 +465,9 @@ def general(
     H_tilde : `~lowdin.series.BlockSeries`
         Block diagonalized Hamiltonian.
     U : `~lowdin.series.BlockSeries`
-        Unitary that block diagonalizes H such that H_tilde = U^H H U.
+        Unitary that block diagonalizes H such that ``H_tilde = U^H H U``.
     U_adjoint : `~lowdin.series.BlockSeries`
-        Adjoint of U.
+        Adjoint of ``U``.
     """
     if operator is None:
         operator = matmul
@@ -536,7 +537,7 @@ def general_symbolic(
 
     This function uses symbolic algebra to compute the block diagonalization,
     producing formulas that contain the orders of the perturbation and the
-    off-diagonal (V) block of the unitary transformation U.
+    off-diagonal (V) block of the unitary transformation ``U``.
 
     This function is general, therefore the solutions to the Sylvester equation
     are not computed. Instead, the solutions are stored in a dictionary that
@@ -554,13 +555,13 @@ def general_symbolic(
         Symbolic diagonalized Hamiltonian.
     U : `~lowdin.series.BlockSeries`
         Symbolic unitary matrix that block diagonalizes H such that
-        U_s * H * U_s^H = H_tilde_s.
+        ``U * H * U^H = H_tilde``.
     U_adjoint : `~lowdin.series.BlockSeries`
-        Symbolic adjoint of U_s. Its diagonal blocks are Hermitian and its
+        Symbolic adjoint of ``U``. Its diagonal blocks are Hermitian and its
         off-diagonal blocks (V) are anti-Hermitian.
     Y_data : `dict`
-        dictionary of {V: rhs} such that h_0_AA * V - V * h_0_BB = rhs.
-        It is updated whenever new terms of `H_tilde_s` or `U_s` are evaluated.
+        dictionary of ``{V: rhs}`` such that ``h_0_AA * V - V * h_0_BB = rhs``.
+        It is updated whenever new terms of ``H_tilde`` or ``U`` are evaluated.
     subs : `dict`
         Dictionary with placeholder symbols as keys and original Hamiltonian
         terms as values.
@@ -641,16 +642,17 @@ def expanded(
         Defaults to a function that works for diagonal unperturbed Hamiltonians.
     operator :
         Function to use for matrix multiplication.
-        Defaults to `matmul`.
+        Defaults to ``matmul``.
 
     Returns
     -------
     H_tilde : `~lowdin.series.BlockSeries`
         Diagonalized Hamiltonian.
     U : `~lowdin.series.BlockSeries`
-        Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
+        Unitary matrix that block diagonalizes H such that
+        ``U * H * U^H = H_tilde``.
     U_adjoint : `~lowdin.series.BlockSeries`
-        Adjoint of U.
+        Adjoint of ``U``.
     """
     if operator is None:
         operator = matmul
@@ -696,9 +698,9 @@ def implicit(
     Block diagonalize a Hamiltonian without explicitly forming BB matrices.
 
     This function uses either "general" or "expanded" algorithm to block
-    diagonalize, but does not compute products within the auxiliary subspace.
-    Instead these matrices are wrapped in ``scipy.sparse.LinearOperator`` and
-    combined to keep them low rank.
+    diagonalize, but does not compute products within the B (auxiliary)
+    subspace. Instead these matrices are wrapped in
+    ``scipy.sparse.LinearOperator`` and combined to keep them low rank.
 
     This function is useful for large numeric Hamiltonians where the effective
     subspace is small, but the full Hamiltonian is large.
@@ -727,7 +729,7 @@ def implicit(
     if algorithm not in ("general", "expanded"):
         raise ValueError(f"Unsupported algorithm: {algorithm}")
     algorithm = globals()[algorithm]
-    H_tilde, U, U_adjoint = algorithm(H, solve_sylvester=solve_sylvester)
+    H_tilde_temporary, U, U_adjoint = algorithm(H, solve_sylvester=solve_sylvester)
 
     # Create series wrapped in linear operators to avoid forming explicit matrices
     def linear_operator_wrapped(original):
@@ -762,16 +764,16 @@ def implicit(
     def H_tilde_eval(*index):
         if index[:2] == (1, 1):
             return H_tilde_operator.evaluated[index]
-        return H_tilde.evaluated[index]
+        return H_tilde_temporary.evaluated[index]
 
-    result_H_tilde = BlockSeries(
+    H_tilde = BlockSeries(
         eval=H_tilde_eval,
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names
     )
 
-    return result_H_tilde, U, U_adjoint
+    return H_tilde, U, U_adjoint
 
 
 ### Different formats and algorithms of solving Sylvester equation.
@@ -863,12 +865,12 @@ def solve_sylvester_KPM(
 
             num_vectors : positive int, or None, default: 10
                 Number of vectors used in the KPM expansion. If ``None``, the
-                number of vectors used equals the length of the 'vector_factory'.
+                number of vectors used equals the length of the
+                ``vector_factory``.
             vector_factory : iterable, optional
                 If provided, it should contain (or yield) vectors of the size of
                 the system. If not provided, random phase vectors are used.
-                The default random vectors are optimal for most cases, see the
-                discussions in [1]_ and [2]_.
+                The default random vectors are optimal for most cases.
             operator : operator, dense matrix, or sparse matrix, optional
                 Operator for which the spectral density will be evaluated. If
                 it is callable, the ``densities`` at each energy will have the
@@ -877,7 +879,7 @@ def solve_sylvester_KPM(
                 ``scipy.sparse.matrices``, the densities will be scalars.
             precalculate_moments : bool
                 Whether to precalculate and store all the KPM moments of
-                `vectors`. This is useful if the Green's function is evaluated
+                ``vectors``. This is useful if the Green's function is evaluated
                 at a large number of energies, but uses a large amount of
                 memory. If False, the KPM expansion is performed every time the
                 Green's function is called, which minimizes memory use.
@@ -1006,12 +1008,12 @@ def _commute_h0_away(
     h_0_BB :
         Unperturbed Hamiltonian in subspace B.
     Y_data :
-        dictionary of {V: rhs} such that h_0_AA * V - V * h_0_BB = rhs.
+        dictionary of ``{V: rhs}`` such that ``h_0_AA * V - V * h_0_BB = rhs``.
 
     Returns
     -------
     expr : zero or sympy.expr
-        (zero or sympy) expression without h_0_AA or h_0_BB in it.
+        (zero or sympy) expression without ``h_0_AA`` or ``h_0_BB`` in it.
     """
     if zero == expr:
         return expr
