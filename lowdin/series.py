@@ -241,7 +241,7 @@ def cauchy_dot_product(
     )
 
     def eval(*index):
-        if index[0] < index[1] and hermitian:
+        if index[0] > index[1] and hermitian:
             return Dagger(product.evaluated[(index[1], index[0], *index[2:])])
         return product_by_order(
             index,
