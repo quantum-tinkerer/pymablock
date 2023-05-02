@@ -728,10 +728,12 @@ def implicit(
 
 ### Different formats and algorithms of solving Sylvester equation.
 def solve_sylvester_diagonal(
-    eigs_A: Any, eigs_B: Any, vecs_B: Optional[np.ndarray] = None
+    eigs_A: np.ndarray | sympy.MatrixBase,
+    eigs_B: np.ndarray | sympy.MatrixBase,
+    vecs_B: Optional[np.ndarray] = None
 ) -> Callable:
     """
-    Define a function for solving a Sylvester's equation with diagonal matrices
+    Define a function for solving a Sylvester's equation for diagonal matrices.
 
     Optionally, this function also applies the eigenvectors of the second
     matrix to the solution.
@@ -778,7 +780,7 @@ def solve_sylvester_diagonal(
 
 
 def solve_sylvester_KPM(
-    h_0: Any,
+    h_0: np.ndarray | sparse.spmatrix,
     subspace_eigenvectors: tuple[np.ndarray, ...],
     eigenvalues: np.ndarray,
     solver_options: Optional[dict] = None,
@@ -805,6 +807,7 @@ def solve_sylvester_KPM(
     solver_options :
         Dictionary containing the options to pass to the solver.
         Relevant keys are:
+
             num_moments : int
                 Number of moments to use for the KPM expansion.
             num_vectors : int
@@ -1278,3 +1281,5 @@ def _convert_if_zero(value: Any):
         if value.is_zero_matrix:
             return zero
     return value
+
+# %%
