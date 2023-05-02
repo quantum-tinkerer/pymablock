@@ -148,7 +148,8 @@ def block_diagonalize(
         Hamiltonian. If None, the perturbative parameters are taken from the
         unperturbed Hamiltonian.
     atol :
-        Absolute tolerance to consider a number zero.
+        Absolute tolerance to consider matrices as exact zeros. This is used
+        to validate that the unperturbed Hamiltonian is block-diagonal.
 
     Returns
     -------
@@ -323,7 +324,8 @@ def hamiltonian_to_BlockSeries(
         Hamiltonian. If None, the perturbative parameters are taken from the
         unperturbed Hamiltonian.
     atol :
-        Absolute tolerance to consider a number zero.
+        Absolute tolerance to consider matrices as exact zeros. This is used
+        to validate that the unperturbed Hamiltonian is block-diagonal.
 
     Returns
     -------
