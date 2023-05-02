@@ -150,7 +150,10 @@ class ComplementProjector(LinearOperator):
 
 
 def aslinearoperator(A):
-    """Same as scipy.sparse.linalg.aslinearoperator, but with passthrough."""
+    """
+    Same as `scipy.sparse.linalg.aslinearoperator`, but with passthrough for
+    `~lowdin.series.zero`.
+    """
     if zero == A or A is one:
         return A
     return scipy_aslinearoperator(A)
