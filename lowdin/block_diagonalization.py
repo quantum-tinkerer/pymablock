@@ -317,7 +317,7 @@ def hamiltonian_to_BlockSeries(
         respectively.
         Mutually exclusive with ``subspace_eigenvectors``.
     implicit :
-        Whether wrap the Hamiltonian of the BB subspace into a linear operator.
+        Whether to wrap the Hamiltonian of the BB subspace into a linear operator.
     symbols :
         List of symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
