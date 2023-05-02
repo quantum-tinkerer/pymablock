@@ -729,6 +729,7 @@ def test_check_AB_KPM(
         subspace_eigenvectors=subspace_eigenvectors,
         eigenvalues=eigenvalues,
         direct_solver=False,
+        atol=1e-12
     )
 
     half_subspaces = (subspace_eigenvectors[0], subspace_eigenvectors[1][:, : b_dim // 2])
@@ -739,6 +740,7 @@ def test_check_AB_KPM(
         eigenvalues=half_eigenvalues,
         direct_solver=False,
         solver_options={"num_moments": 5000},
+        atol=1e-12
     )
 
     kpm_subspaces = (subspace_eigenvectors[0],)
@@ -749,6 +751,7 @@ def test_check_AB_KPM(
         eigenvalues=kpm_eigenvalues,
         direct_solver=False,
         solver_options={"num_moments": 10000},
+        atol=1e-12
     )
 
     # full b
@@ -1027,13 +1030,15 @@ def test_consistent_implicit_subspace(
         hamiltonian,
         subspace_eigenvectors=subspace_eigenvectors,
         eigenvalues=eigenvalues,
-        direct_solver=False
+        direct_solver=False,
+        atol=1e-12
     )
     H_tilde_swapped, _, _ = block_diagonalize(
         hamiltonian,
         subspace_eigenvectors=subspace_eigenvectors[::-1],
         eigenvalues=eigenvalues[::-1],
         direct_solver=False,
+        atol=1e-12
     )
 
     assert H_tilde.shape == H_tilde_swapped.shape
