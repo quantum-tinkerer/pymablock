@@ -58,10 +58,11 @@ def block_diagonalize(
     defines the computation as a `~lowdin.series.BlockSeries` object, which
     can be evaluated at any order.
 
-    This function accepts a Hamiltonian in several formats and it separates it
-    into effective and auxiliary subspaces if the blocks, eigenvectors or
-    indices of the eigenvalues are provided, see below. If this is the case,
-    the Hamiltonian is returned in the projected basis.
+    This function accepts a Hamiltonian in several formats and it first
+    brings it to the eigenbasis of the unperturbed Hamiltonian if the blocks,
+    eigenvectors or indices of the eigenvalues are provided, see below.
+    Then, the perturbation theory is performed and the Hamiltonian is
+    block-diagonalized.
 
     The block diagonalization is performed using the "expanded" or "general"
     algorithm. The former is better suited for lower orders numerical
@@ -80,28 +81,31 @@ def block_diagonalize(
         The Hamiltonian is normalized to a `~lowdin.series.BlockSeries` by
         separating it into effective and auxiliary subspaces.
 
-        Several types are supported:
+        Supported formats:
 
         - If a list,
             it is assumed to be of the form [h_0, h_1, h_2, ...] where h_0 is
             the unperturbed Hamiltonian and h_1, h_2, ... are the first order
             perturbations. The elements h_i may be `~sympy.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
-            the Hamiltonian into effective and auxiliary subspaces. Otherwise,
-            h_i may be a list of lists with the Hamiltonian blocks.
+            the unperturbed Hamiltonian into effective and auxiliary subspaces.
+            Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
         - If a dictionary,
             it is assumed to be of the form
             {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}, or
-            {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians. The elements
-            h_i may be `~sympy.Matrix`, `~numpy.ndarray`,
-            `~scipy.sparse.spmatrix`, that require separating the Hamiltonian
-            into effective and auxiliary subspaces. Otherwise, h_i may be a
-            list of lists with the Hamiltonian blocks.
+            {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians.
+            In the former case, the keys must be tuples of integers indicating
+            the order of each perturbation. In the latter case, the keys must
+            be monomials and the indices are ordered as in `H.dimension_names`.
+            The values of the dictionary, h_i may be `~sympy.Matrix`,
+            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
+            the unperturbed Hamiltonian into effective and auxiliary subspaces.
+            Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
         - If a `sympy.Matrix`,
-            a list of `symbols` must be provided, otherwise all symbols will be
-            treated as perturbative parameters. We normalize it to
-            `~lowdin.series.BlockSeries` by Taylor expanding on `symbols` to
-            the desired order.
+            a list of `symbols` must be provided as perturbative parameters,
+            otherwise all symbols will be treated as perturbative. The normali-
+            zation `~lowdin.series.BlockSeries` is done by Taylor expanding on
+            `symbols` to the desired order.
         - If a `~lowdin.series.BlockSeries`, it is returned unchanged.
     algorithm :
         Name of the function that block diagonalizes a Hamiltonian.
@@ -136,7 +140,7 @@ def block_diagonalize(
         and `~lowdin.block_diagonalization.solve_sylvester_direct` for details.
     direct_solver:
         Whether to use the direct solver for the implicit method. Otherwise,
-        the KPM solver is used.
+        the KPM solver, an experimental solver, is used.
         Deaults to True.
     symbols :
         List of symbols that label the perturbative parameters of a symbolic
@@ -272,20 +276,31 @@ def hamiltonian_to_BlockSeries(
         The Hamiltonian is normalized to a `~lowdin.series.BlockSeries` by
         separating it into effective and auxiliary subspaces.
 
-        Several types are supported:
-        - If a list, it is assumed to be of the form [h_0, h_1, h_2, ...] where
-        h_0 is the unperturbed Hamiltonian and h_1, h_2, ... are the first
-        order perturbations. The elements h_i may be `~sympy.Matrix`,
-        `~numpy.ndarray`, `~scipy.sparse.spmatrix`, or lists of these types.
-        - If a dictionary, it is assumed to be of the form
-        {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}, or
-        {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians. The elements h_i
-        may be `~sympy.Matrix`, `~numpy.ndarray`, `~scipy.sparse.spmatrix`, or
-        lists of these types.
-        - If a `sympy.Matrix`, a list of ``symbols`` must be provided, otherwise
-        all symbols will be treated as perturbative parameters. We normalize it
-        to BlockSeries by Taylor expanding on ``symbols`` to the desired order.
-        - If a `~lowdin.series.BlockSeries`, it is returned unchanged.
+        Supported formats:
+
+        - If a list,
+            it is assumed to be of the form [h_0, h_1, h_2, ...] where h_0 is
+            the unperturbed Hamiltonian and h_1, h_2, ... are the first order
+            perturbations. The elements h_i may be `~sympy.Matrix`,
+            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
+            the unperturbed Hamiltonian into effective and auxiliary subspaces.
+            Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
+        - If a dictionary,
+            it is assumed to be of the form
+            {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}, or
+            {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians.
+            In the former case, the keys must be tuples of integers indicating
+            the order of each perturbation. In the latter case, the keys must
+            be monomials and the indices are ordered as in `H.dimension_names`.
+            The values of the dictionary, h_i may be `~sympy.Matrix`,
+            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
+            the unperturbed Hamiltonian into effective and auxiliary subspaces.
+            Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
+        - If a `sympy.Matrix`,
+            a list of `symbols` must be provided as perturbative parameters,
+            otherwise all symbols will be treated as perturbative. The normali-
+            zation `~lowdin.series.BlockSeries` is done by Taylor expanding on
+            `symbols` to the desired order.
     subspace_eigenvectors :
         A tuple with orthonormal eigenvectors to project the Hamiltonian on
         and separate it into blocks. The first element of the tuple has the
