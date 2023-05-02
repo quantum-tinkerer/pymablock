@@ -190,9 +190,10 @@ def block_diagonalize(
             raise ValueError(
                 "`subspace_eigenvectors` does not match the shape of `h_0`."
             )
-        num_vecs = sum(vecs.shape[1] for vecs in subspace_eigenvectors)
-        num_eigvals = sum(len(eigvals) for eigvals in eigenvalues)
-        if num_vecs != num_eigvals:
+        if not all(
+            len(vals) == vecs.shape[1]
+            for vals, vecs in zip(eigenvalues, subspace_eigenvectors
+        ):
             raise ValueError(
                 "If `subspace_eigenvectors` and `eigenvalues` are provided, "
                 "they must have the same number of elements."
