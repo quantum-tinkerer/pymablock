@@ -120,7 +120,8 @@ def block_diagonalize(
         eigenvectors of the A (effective) subspace, and the second element
         has the eigenvectors of the B (auxiliary) subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
-        For KPM, (partial) auxiliary subspace may be missing or incomplete.
+        For `implicit`, the (partial) auxiliary subspace may be missing or
+        incomplete.
         Mutually exclusive with ``subspace_indices``.
     subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
@@ -308,7 +309,8 @@ def hamiltonian_to_BlockSeries(
         eigenvectors of the A (effective) subspace, and the second element
         has the eigenvectors of the B (auxiliary) subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
-        For KPM, (partial) auxiliary subspace may be missing or incomplete.
+        For `implicit`, the (partial) auxiliary subspace may be missing or
+        incomplete.
         Mutually exclusive with ``subspace_indices``.
     subspace_indices :
         If the unperturbed Hamiltonian is diagonal, the indices that label the
