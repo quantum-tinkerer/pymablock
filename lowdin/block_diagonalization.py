@@ -891,6 +891,10 @@ def solve_sylvester_KPM(
         Sylvester's equation.
     """
     eigs_A = eigenvalues[0]
+    if len(subspace_eigenvectors) != len(eigenvalues):
+        raise ValueError("Number of eigenvectors must match eigenvalues")
+    if len(subspace_eigenvectors) > 2:
+        raise ValueError("Invalid number of subspace_eigenvectors")
     if any(not isinstance(eigs, np.ndarray) for eigs in eigenvalues):
         raise TypeError("Eigenvalues must be a numpy array")
 
