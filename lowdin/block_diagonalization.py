@@ -58,7 +58,7 @@ def block_diagonalize(
     can be evaluated at any order.
 
     This function accepts a Hamiltonian in several formats and it separates it
-    into occupied and unoccupied subspaces if the blocks, eigenvectors or
+    into effective and auxiliary subspaces if the blocks, eigenvectors or
     indices of the eigenvalues are provided, see below. If this is the case,
     the Hamiltonian is returned in the projected basis.
 
@@ -77,7 +77,7 @@ def block_diagonalize(
     hamiltonian :
         Full symbolic or numeric Hamiltonian to block diagonalize.
         The Hamiltonian is normalized to a `~lowdin.series.BlockSeries` by
-        separating it into occupied and unoccupied subspaces.
+        separating it into effective and auxiliary subspaces.
 
         Several types are supported:
 
@@ -86,7 +86,7 @@ def block_diagonalize(
             the unperturbed Hamiltonian and h_1, h_2, ... are the first order
             perturbations. The elements h_i may be `~sympy.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
-            the Hamiltonian into occupied and unoccupied subspaces. Otherwise,
+            the Hamiltonian into effective and auxiliary subspaces. Otherwise,
             h_i may be a list of lists with the Hamiltonian blocks.
         - If a dictionary,
             it is assumed to be of the form
@@ -94,7 +94,7 @@ def block_diagonalize(
             {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians. The elements
             h_i may be `~sympy.Matrix`, `~numpy.ndarray`,
             `~scipy.sparse.spmatrix`, that require separating the Hamiltonian
-            into occupied and unoccupied subspaces. Otherwise, h_i may be a
+            into effective and auxiliary subspaces. Otherwise, h_i may be a
             list of lists with the Hamiltonian blocks.
         - If a `sympy.Matrix`,
             a list of `symbols` must be provided, otherwise all symbols will be
@@ -111,8 +111,8 @@ def block_diagonalize(
         unless the implicit method is used. In that case, the default function
         is the direct solver.
     subspace_eigenvectors :
-        A tuple with the subspaces to project the Hamiltonian on and separate
-        it into blocks. The first element of the tuple contains the
+        A tuple with orthonormal eigenvectors to project the Hamiltonian on
+        and separate it into blocks. The first element of the tuple has the
         eigenvectors of the A (effective) subspace, and the second element
         has the eigenvectors of the B (auxiliary) subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
@@ -201,7 +201,6 @@ def block_diagonalize(
                     eigenvalues,
                     solver_options=solver_options,
                 )
-
     # Normalize the Hamiltonian
     H = hamiltonian_to_BlockSeries(
         hamiltonian,
@@ -251,7 +250,7 @@ def hamiltonian_to_BlockSeries(
     """
     Normalize a Hamiltonian to be used by the algorithms.
 
-    This function projects the Hamiltonian onto the occupied and unoccupied
+    This function projects the Hamiltonian onto the effective and auxiliary
     subspaces, depending on the inputs, see below.
 
     Parameters
@@ -259,7 +258,7 @@ def hamiltonian_to_BlockSeries(
     hamiltonian :
         Full symbolic or numeric Hamiltonian to block diagonalize.
         The Hamiltonian is normalized to a `~lowdin.series.BlockSeries` by
-        separating it into occupied and unoccupied subspaces.
+        separating it into effective and auxiliary subspaces.
 
         Several types are supported:
         - If a list, it is assumed to be of the form [h_0, h_1, h_2, ...] where
@@ -276,8 +275,8 @@ def hamiltonian_to_BlockSeries(
         to BlockSeries by Taylor expanding on ``symbols`` to the desired order.
         - If a `~lowdin.series.BlockSeries`, it is returned unchanged.
     subspace_eigenvectors :
-        A tuple with the subspaces to project the Hamiltonian on and separate
-        it into blocks. The first element of the tuple contains the
+        A tuple with orthonormal eigenvectors to project the Hamiltonian on
+        and separate it into blocks. The first element of the tuple has the
         eigenvectors of the A (effective) subspace, and the second element
         has the eigenvectors of the B (auxiliary) subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
@@ -366,7 +365,6 @@ def hamiltonian_to_BlockSeries(
         subspace_eigenvectors = _subspaces_from_indices(
             subspace_indices, symbolic=symbolic
         )
-
     if implicit:
         # Define subspace_eigenvectors for KPM
         vecs_A = subspace_eigenvectors[0]
@@ -471,6 +469,7 @@ def general(
     identity = cauchy_dot_product(
         U_adjoint, U, operator=operator, hermitian=True, exclude_last=[True, True]
     )
+
     H_tilde_rec = cauchy_dot_product(
         U_adjoint,
         H,
@@ -666,7 +665,7 @@ def implicit(
     Block diagonalize a Hamiltonian without explicitly forming BB matrices.
 
     This function uses either "general" or "expanded" algorithm to block
-    diagonalize, but does not compute products within the unoccupied subspace.
+    diagonalize, but does not compute products within the auxiliary subspace.
     Instead these matrices are wrapped in ``scipy.sparse.LinearOperator`` and
     combined to keep them low rank.
 
@@ -1228,7 +1227,7 @@ def _subspaces_from_indices(
     ----------
     subspace_indices :
         Indices of the ``subspace_eigenvectors``.
-        0 indicates the occupied subspace A, 1 indicates the unoccupied
+        0 indicates the effective subspace A, 1 indicates the auxiliary
         subspace B.
 
     Returns

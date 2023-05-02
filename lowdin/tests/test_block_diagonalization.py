@@ -154,6 +154,7 @@ def generate_kpm_hamiltonian(
     h_0 += Dagger(h_0)
 
     eigs, vecs = np.linalg.eigh(h_0)
+    vecs, _ = np.linalg.qr(vecs)
     eigs[:a_dim] -= 10
     h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
     hamiltonian_list.append(h_0)
@@ -297,6 +298,7 @@ def test_input_hamiltonian_from_subspaces():
     perturbation += Dagger(perturbation)
 
     eigenvalues, eigvecs = np.linalg.eigh(h_0)
+    eigvecs, _ = np.linalg.qr(eigvecs)
     diagonals = [eigenvalues[:2], eigenvalues[2:]]
     subspace_eigenvectors = [eigvecs[:, :2], eigvecs[:, 2:]]
 
@@ -937,6 +939,7 @@ def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     n_dim = a_dim + b_dim
     h_0 = np.diag(np.sort(50 * np.random.random(n_dim)))
     eigs, vecs = np.linalg.eigh(h_0)
+    vecs, _ = np.linalg.qr(vecs)
 
     subspace_eigenvectors = [vecs[:, :a_dim], vecs[:, a_dim:]]
     eigenvalues = [eigs[:a_dim], eigs[a_dim:]]
@@ -971,6 +974,7 @@ def test_solve_sylvester_direct_vs_diagonal()-> None:
     t = np.random.rand(n - 1) * np.exp(2j * np.pi * np.random.rand(n - 1))
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
+    eigvecs, _ = np.linalg.qr(eigvecs)
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
     diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
