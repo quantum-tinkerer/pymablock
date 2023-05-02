@@ -1097,7 +1097,7 @@ def test_input_hamiltonian_kpm(generate_kpm_hamiltonian):
     for block in ((0, 1), (1, 0)):
         index = block + (0,) * H.n_infinite
         if zero == H.evaluated[index]:
-            pass
+            continue
         np.testing.assert_allclose(H.evaluated[index], 0, atol=1e-12)
     assert isinstance(H.evaluated[(1, 1) + (0,) * H.n_infinite], LinearOperator)
 
