@@ -374,12 +374,14 @@ def hamiltonian_to_BlockSeries(
 
     # Separation into subspace_eigenvectors
     def H_eval(*index):
-        original = hamiltonian.evaluated[index[2:]]
-        if zero == original:
+        if not any(index[2:]) and index[:2] == (0, 1):
             return zero
         left, right = index[:2]
         if left > right:
             return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
+        original = hamiltonian.evaluated[index[2:]]
+        if zero == original:
+            return zero
         if implicit and left == right == 1:
             original = aslinearoperator(original)
         return _convert_if_zero(
