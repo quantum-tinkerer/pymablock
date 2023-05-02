@@ -80,23 +80,27 @@ def block_diagonalize(
         separating it into occupied and unoccupied subspaces.
 
         Several types are supported:
-        - If a list, it is assumed to be of the form [h_0, h_1, h_2, ...] where
-            h_0 is the unperturbed Hamiltonian and h_1, h_2, ... are the first
-            order perturbations. The elements h_i may be `~sympy.Matrix`,
+
+        - If a list,
+            it is assumed to be of the form [h_0, h_1, h_2, ...] where h_0 is
+            the unperturbed Hamiltonian and h_1, h_2, ... are the first order
+            perturbations. The elements h_i may be `~sympy.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the Hamiltonian into occupied and unoccupied subspaces. Otherwise,
             h_i may be a list of lists with the Hamiltonian blocks.
-        - If a dictionary, it is assumed to be of the form
+        - If a dictionary,
+            it is assumed to be of the form
             {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}, or
             {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians. The elements
             h_i may be `~sympy.Matrix`, `~numpy.ndarray`,
             `~scipy.sparse.spmatrix`, that require separating the Hamiltonian
             into occupied and unoccupied subspaces. Otherwise, h_i may be a
             list of lists with the Hamiltonian blocks.
-        - If a `sympy.Matrix`, a list of `symbols` must be provided, otherwise
-            all symbols will be treated as perturbative parameters. We
-            normalize it to BlockSeries by Taylor expanding on `symbols` to the
-            desired order.
+        - If a `sympy.Matrix`,
+            a list of `symbols` must be provided, otherwise all symbols will be
+            treated as perturbative parameters. We normalize it to
+            `~lowdin.series.BlockSeries` by Taylor expanding on `symbols` to
+            the desired order.
         - If a `~lowdin.series.BlockSeries`, it is returned unchanged.
     algorithm :
         Name of the function that block diagonalizes a Hamiltonian.
@@ -649,7 +653,7 @@ def implicit(
 
     This function uses either "general" or "expanded" algorithm to block
     diagonalize, but does not compute products within the unoccupied subspace.
-    Instead these matrices are wrapped in `scipy.sparse.LinearOperator` and
+    Instead these matrices are wrapped in ``scipy.sparse.LinearOperator`` and
     combined to keep them low rank.
 
     This function is useful for large numeric Hamiltonians where the effective
@@ -670,7 +674,7 @@ def implicit(
     H_tilde : `~lowdin.series.BlockSeries`
         Full block-diagonalized Hamiltonian of the problem. The ``(0, 0)`` block
         (A subspace) is a numpy array, while the ``(1, 1)`` block (B subspace)
-        is a ``LinearOperator``.
+        is a ``scipy.sparse.LinearOperator``.
     U : `~lowdin.series.BlockSeries`
         Unitary that block diagonalizes the initial Hamiltonian.
     U_adjoint : `~lowdin.series.BlockSeries`
@@ -729,8 +733,8 @@ def solve_sylvester_diagonal(
     """
     Define a function for solving a Sylvester's equation with diagonal matrices
 
-    Optionally, this function also applies the eigenvectors of the second matrix
-    to the solution.
+    Optionally, this function also applies the eigenvectors of the second
+    matrix to the solution.
 
     Parameters
     ----------
