@@ -1,10 +1,9 @@
-# %%
 # # The polynomial alternative to Lowdin perturbation theory
 #
 # See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view)
 # for the motivation and the expressions
 
-# %%
+
 from operator import matmul, mul
 from functools import reduce
 from typing import Any, Optional, Callable

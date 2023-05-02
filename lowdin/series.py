@@ -1,4 +1,3 @@
-# %%
 from itertools import product, compress
 from functools import reduce
 from operator import matmul
@@ -255,7 +254,6 @@ def cauchy_dot_product(
     return product
 
 
-# %%
 def product_by_order(
     index: tuple[int, ...],
     *series: BlockSeries,
