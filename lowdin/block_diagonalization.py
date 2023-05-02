@@ -454,8 +454,7 @@ def general(
         The data in H can be either numerical or symbolic.
     solve_sylvester :
         (optional) function that solves the Sylvester equation.
-        Defaults to a function that works for numerical diagonal unperturbed
-        Hamiltonians.
+        Defaults to a function that works for diagonal unperturbed Hamiltonians.
     operator :
         (optional) function to use for matrix multiplication.
         Defaults to matmul.
@@ -639,8 +638,10 @@ def expanded(
         Initial Hamiltonian, unperturbed and perturbation.
     solve_sylvester :
         Function to use for solving Sylvester's equation.
+        Defaults to a function that works for diagonal unperturbed Hamiltonians.
     operator :
         Function to use for matrix multiplication.
+        Defaults to `matmul`.
 
     Returns
     -------
@@ -788,15 +789,16 @@ def solve_sylvester_diagonal(
     Parameters
     ----------
     eigs_A :
-        Eigenvalues of A subspace of the unperturbed Hamiltonian.
+        Eigenvalues of the effective (A) subspace of the unperturbed Hamiltonian.
     eigs_B :
-        Eigenvalues of B subspace of the unperturbed Hamiltonian.
+        Eigenvalues of auxiliary (B) subspace of the unperturbed Hamiltonian.
     vecs_B :
-        (optional) Eigenvectors of B subspace of the unperturbed Hamiltonian.
+        (optional) Eigenvectors of the auxiliary (B) subspace of the
+        unperturbed Hamiltonian.
 
     Returns
     -------
-    solve_sylvester : Function that solves the Sylvester equation.
+    solve_sylvester : Function that solves Sylvester's equation.
     """
 
     def solve_sylvester(
@@ -833,10 +835,12 @@ def solve_sylvester_KPM(
     solver_options: Optional[dict] = None,
 ) -> Callable:
     """
-    Solve Sylvester energy division for KPM.
+    Solve Sylvester energy division for the Kernel Polynomial Method (KPM).
 
     General energy division for numerical problems through either full
     knowledge of the B-space or application of the KPM Green's function.
+
+    This is an experimental feature and is not yet fully supported.
 
     Parameters
     ----------
@@ -852,13 +856,25 @@ def solve_sylvester_KPM(
         optionally some eigenvalues of the B subspace. Used to compute the
         Green's function when Hamiltonian is too expensive to diagonalize.
     solver_options :
-        Dictionary containing the options to pass to the solver.
+        Dictionary containing the options to pass to the solver. See the
+        `~kwant.kpm` documentation for details.
+
         Relevant keys are:
 
-            num_moments : int
-                Number of moments to use for the KPM expansion.
-            num_vectors : int
-                Number of vectors to use for the KPM expansion.
+            num_vectors : positive int, or None, default: 10
+                Number of vectors used in the KPM expansion. If ``None``, the
+                number of vectors used equals the length of the 'vector_factory'.
+            vector_factory : iterable, optional
+                If provided, it should contain (or yield) vectors of the size of
+                the system. If not provided, random phase vectors are used.
+                The default random vectors are optimal for most cases, see the
+                discussions in [1]_ and [2]_.
+            operator : operator, dense matrix, or sparse matrix, optional
+                Operator for which the spectral density will be evaluated. If
+                it is callable, the ``densities`` at each energy will have the
+                dimension of the result of ``operator(bra, ket)``. If it has a
+                ``dot`` method, such as ``numpy.ndarray`` and
+                ``scipy.sparse.matrices``, the densities will be scalars.
             precalculate_moments : bool
                 Whether to precalculate and store all the KPM moments of
                 `vectors`. This is useful if the Green's function is evaluated
@@ -869,7 +885,8 @@ def solve_sylvester_KPM(
     Returns
     ----------
     solve_sylvester: callable
-        Function that applies divide by energies to the RHS of the Sylvester equation.
+        Function that applies divide by energies to the right hand side of
+        Sylvester's equation.
     """
     # Full A subspace and partial/full B subspace provided
     if len(subspace_eigenvectors) == 2:
@@ -938,16 +955,19 @@ def solve_sylvester_direct(
     """
     Solve Sylvester equation using a direct sparse solver.
 
+    This function uses MUMPS, which is a parallel direct solver for sparse
+    matrices. This solver is very efficient for large sparse matrices.
+
     Parameters
     ----------
     h_0 :
         Unperturbed Hamiltonian of the system.
     eigenvectors :
-        Eigenvectors of the relevant subspace of the unperturbed Hamiltonian.
+        Eigenvectors of the effective subspace of the unperturbed Hamiltonian.
     eigenvalues :
         Corresponding eigenvalues.
     **solver_options :
-        Keyword arguments to pass to the solver, see
+        Keyword arguments to pass to the solver ``eps`` and ``atol``, see
         `lowdin.linalg.direct_greens_function`.
 
     Returns
