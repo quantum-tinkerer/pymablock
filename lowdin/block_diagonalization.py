@@ -162,7 +162,9 @@ def block_diagonalize(
         if isinstance(hamiltonian, list):
             h_0 = hamiltonian[0]
         elif isinstance(hamiltonian, dict):
-            h_0 = hamiltonian.get(1, hamiltonian[(0,) * len(list(hamiltonian.keys())[0])])
+            h_0 = hamiltonian.get(1, hamiltonian.get(1.))
+            if h_0 is None:
+                h_0 = hamiltonian[(0,) * len(next(iter(hamiltonian.keys())))]
         elif isinstance(hamiltonian, BlockSeries):
             if hamiltonian.shape:
                 raise ValueError(
