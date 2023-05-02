@@ -889,27 +889,14 @@ def solve_sylvester_KPM(
         Function that applies divide by energies to the right hand side of
         Sylvester's equation.
     """
-    if len(subspace_eigenvectors) == 2:
-        # Full A subspace and partial/full B subspace provided
-        vecs_A, vecs_B = subspace_eigenvectors
-        eigs_A, eigs_B = eigenvalues
-    elif len(subspace_eigenvectors) == 1:
-        # Full A subspace and no B subspace provided
-        vecs_A = subspace_eigenvectors[0]
-        eigs_A = eigenvalues[0]
-        vecs_B = np.empty((vecs_A.shape[0], 0))
-        eigs_B = np.array([])
-    else:
-        raise ValueError("Invalid number of subspace_eigenvectors")
-
-    if not isinstance(eigs_A, np.ndarray) or not isinstance(eigs_B, np.ndarray):
+    eigs_A = eigenvalues[0]
+    if any(not isinstance(eigs, np.ndarray) for eigs in eigenvalues):
         raise TypeError("Eigenvalues must be a numpy array")
 
     if solver_options is None:
         solver_options = dict()
 
     precalculate_moments = solver_options.pop("precalculate_moments", False)
-    need_explicit = bool(len(eigs_B))
     kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
 
     def solve_sylvester_kpm(Y: np.ndarray) -> np.ndarray:
@@ -923,7 +910,10 @@ def solve_sylvester_KPM(
         )(eigs_A)
         return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_A))])
 
+    need_explicit = bool(len(subspace_eigenvectors) - 1)
     if need_explicit:
+        vecs_B = subspace_eigenvectors[1]
+        eigs_B = eigenvalues[1]
         solve_sylvester_explicit = solve_sylvester_diagonal(eigs_A, eigs_B, vecs_B)
 
     def solve_sylvester(Y: np.ndarray) -> np.ndarray:
