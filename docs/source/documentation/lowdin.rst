@@ -17,6 +17,13 @@ Solvers to Sylvester equation
    :undoc-members:
    :show-inheritance:
 
+Linear algebra
+--------------
+.. automodule:: lowdin.linalg
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Series
 ------
 
