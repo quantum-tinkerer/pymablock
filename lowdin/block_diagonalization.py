@@ -450,6 +450,7 @@ def general(
         data={block + (0,) * H.n_infinite: one for block in ((0, 0), (1, 1))},
         shape=(2, 2),
         n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
     )
 
     U_adjoint = BlockSeries(
@@ -461,6 +462,7 @@ def general(
         data=None,
         shape=(2, 2),
         n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
     )
 
     # Uncorrected identity and H_tilde to compute U
@@ -548,6 +550,7 @@ def general_symbolic(
         eval=placeholder_eval,
         shape=H.shape,
         n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
     )
     h_0_AA = H_placeholder.evaluated[(0, 0) + (0,) * H.n_infinite]
     h_0_BB = H_placeholder.evaluated[(1, 1) + (0,) * H.n_infinite]
@@ -631,7 +634,12 @@ def expanded(
         _update_subs(Y_data, subs, solve_sylvester, operator)
         return _replace(H_tilde, subs, operator)
 
-    H_tilde = BlockSeries(eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite)
+    H_tilde = BlockSeries(
+        eval=H_tilde_eval,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
 
     old_U_eval = U.eval
 
@@ -724,7 +732,10 @@ def implicit(
         return H_tilde.evaluated[index]
 
     result_H_tilde = BlockSeries(
-        eval=H_tilde_eval, shape=(2, 2), n_infinite=H.n_infinite
+        eval=H_tilde_eval,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names
     )
 
     return result_H_tilde, U, U_adjoint
@@ -1111,6 +1122,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
         data=copy(hamiltonian),
         shape=(),
         n_infinite=n_infinite,
+        dimension_names=symbols,
     )
     return H_temporary, symbols
 
@@ -1175,7 +1187,7 @@ def _sympy_to_BlockSeries(
     H : `~lowdin.series.BlockSeries`
     """
     if symbols is None:
-        symbols = list(hamiltonian.free_symbols)  # All symbols are perturbative
+        symbols = tuple(list(hamiltonian.free_symbols))  # All symbols are perturbative
     if any(n not in hamiltonian.free_symbols for n in symbols):
         raise ValueError("Not all perturbative parameters are in `hamiltonian`.")
 
@@ -1196,6 +1208,7 @@ def _sympy_to_BlockSeries(
         eval=H_eval,
         shape=(),
         n_infinite=len(symbols),
+        dimension_names=symbols,
     )
     return H
 

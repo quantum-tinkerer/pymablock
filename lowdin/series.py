@@ -237,6 +237,7 @@ def cauchy_dot_product(
         data=None,
         shape=(start, end),
         n_infinite=series[0].n_infinite,
+        dimension_names=series[0].dimension_names,
     )
 
     def eval(*index):
