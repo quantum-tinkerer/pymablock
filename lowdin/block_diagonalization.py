@@ -898,7 +898,7 @@ def solve_sylvester_KPM(
         vecs_A = subspace_eigenvectors[0]
         eigs_A = eigenvalues[0]
         vecs_B = np.empty((vecs_A.shape[0], 0))
-        eigs_B = np.diagonal((Dagger(vecs_B) @ h_0 @ vecs_B))
+        eigs_B = np.array([])
     else:
         raise ValueError("Invalid number of subspace_eigenvectors")
 
