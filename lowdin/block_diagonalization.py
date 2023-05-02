@@ -31,7 +31,7 @@ from lowdin.series import (
     safe_divide,
 )
 
-__all__ = ["block_diagonalize", "general", "expanded", "general_symbolic", "implicit"]
+__all__ = ["block_diagonalize", "general", "expanded", "symbolic", "implicit"]
 
 
 ### The main function for end-users.
@@ -527,7 +527,7 @@ def general(
     return H_tilde, U, U_adjoint
 
 
-def general_symbolic(
+def symbolic(
     H: BlockSeries,
 ) -> tuple[
     BlockSeries, BlockSeries, BlockSeries, dict[Operator, Any], dict[Operator, Any]
@@ -660,7 +660,7 @@ def expanded(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
 
-    H_tilde_s, U_s, _, Y_data, subs = general_symbolic(H)
+    H_tilde_s, U_s, _, Y_data, subs = symbolic(H)
     _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, operator=operator)
 
     def H_tilde_eval(*index):
