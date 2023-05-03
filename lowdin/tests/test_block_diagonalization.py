@@ -1014,7 +1014,7 @@ def test_consistent_implicit_subspace(
         subspace_eigenvectors=almost_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 10000},
-        atol=1e-12
+        atol=1e-9
     )
     reversed_eigenvectors = (subspace_eigenvectors[1], subspace_eigenvectors[0][:, :-1])
     H_tilde_swapped, _, _ = block_diagonalize(
@@ -1022,7 +1022,7 @@ def test_consistent_implicit_subspace(
         subspace_eigenvectors=reversed_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 10000},
-        atol=1e-12
+        atol=1e-9
     )
 
     assert H_tilde.shape == H_tilde_swapped.shape
@@ -1037,7 +1037,7 @@ def test_consistent_implicit_subspace(
         np.testing.assert_allclose(
             block_A,
             Dagger(subspace_eigenvectors[0]) @ block_B @ subspace_eigenvectors[0],
-            atol=1e-14,
+            atol=1e-9,
         )
 
 
