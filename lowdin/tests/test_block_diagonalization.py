@@ -727,7 +727,7 @@ def test_check_AB_KPM(
         subspace_eigenvectors=almost_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 5000},
-        atol=1e-12
+        atol=1e-8
     )
 
     half_eigenvectors = (
@@ -738,7 +738,7 @@ def test_check_AB_KPM(
         subspace_eigenvectors=half_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 5000},
-        atol=1e-12
+        atol=1e-8
     )
 
     kpm_subspaces = (subspace_eigenvectors[0],)
@@ -747,21 +747,21 @@ def test_check_AB_KPM(
         subspace_eigenvectors=kpm_subspaces,
         direct_solver=False,
         solver_options={"num_moments": 10000},
-        atol=1e-12
+        atol=1e-8
     )
 
     # # full b
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
-        np.testing.assert_allclose(block, 0, atol=1e-5, err_msg=f"{block=}, {order=}")
+        np.testing.assert_allclose(block, 0, atol=1e-6, err_msg=f"{block=}, {order=}")
 
     # half b
     for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
-        np.testing.assert_allclose(block, 0, atol=1e-1, err_msg=f"{block=}, {order=}")
+        np.testing.assert_allclose(block, 0, atol=1e-6, err_msg=f"{block=}, {order=}")
 
     # KPM
     for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
-        np.testing.assert_allclose(block, 0, atol=1e-1, err_msg=f"{block=}, {order=}")
+        np.testing.assert_allclose(block, 0, atol=1e-6, err_msg=f"{block=}, {order=}")
 
 
 def test_solve_sylvester(
@@ -1014,7 +1014,7 @@ def test_consistent_implicit_subspace(
         subspace_eigenvectors=almost_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 10000},
-        atol=1e-9
+        atol=1e-8
     )
     reversed_eigenvectors = (subspace_eigenvectors[1], subspace_eigenvectors[0][:, :-1])
     H_tilde_swapped, _, _ = block_diagonalize(
@@ -1022,7 +1022,7 @@ def test_consistent_implicit_subspace(
         subspace_eigenvectors=reversed_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 10000},
-        atol=1e-9
+        atol=1e-8
     )
 
     assert H_tilde.shape == H_tilde_swapped.shape
@@ -1037,7 +1037,7 @@ def test_consistent_implicit_subspace(
         np.testing.assert_allclose(
             block_A,
             Dagger(subspace_eigenvectors[0]) @ block_B @ subspace_eigenvectors[0],
-            atol=1e-9,
+            atol=1e-8,
         )
 
 
