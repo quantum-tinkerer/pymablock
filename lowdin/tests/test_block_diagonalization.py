@@ -969,7 +969,7 @@ def test_solve_sylvester_direct_vs_diagonal()-> None:
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
     diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
-    direct = solve_sylvester_direct(h, eigvecs, eigvals[:a_dim])
+    direct = solve_sylvester_direct(h, eigvecs)
 
     y = np.random.randn(a_dim, n - a_dim) + 1j * np.random.randn(a_dim, n - a_dim)
     y = y @ Dagger(eigvecs_rest)
