@@ -106,5 +106,5 @@ For example, to request the 2nd order correction to the occupied subspace of the
 Hamiltonian, you may execute:
 
 ```{code-cell} ipython3
-H_tilde.evaluated[0, 0, 2].expand().simplify()
+H_tilde[0, 0, 2].expand().simplify()
 ```

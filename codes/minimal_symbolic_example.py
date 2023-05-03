@@ -80,4 +80,4 @@ def solve_sylvester(rhs):
 H_tilde, U, U_adjoint = expanded(H, solve_sylvester=solve_sylvester, op=mul)
 
 # %%
-H_tilde.evaluated[0, 0, 4].expand().simplify()
+H_tilde[0, 0, 4].expand().simplify()

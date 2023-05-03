@@ -78,14 +78,14 @@ H = lowdin.to_BlockSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB)
 from which we can access the occupied block of the {math}`0`-th order
 Hamiltonian, `H_0_AA`, as
 ```{code-cell} ipython3
-H.evaluated[0, 0, 0]
+H[0, 0, 0]
 ```
 Here the first two indices `0, 0` corespond to `A, A`, while the third `0` corresponds
 to the {math}`0`-th order.
 
 Similarly, the occupied block of the {math}`1`-st order Hamiltonian is
 ```{code-cell} ipython3
-H.evaluated[0, 0, 1]
+H[0, 0, 1]
 ```
 which corresponds to the original perturbation.
 
@@ -95,12 +95,12 @@ H_tilde, U, U_adjoint = lowdin.general(H)
 ```
 and obtain a second order correction to the occupied subspace as
 ```{code-cell} ipython3
-H_tilde.evaluated[0, 0, 2]
+H_tilde[0, 0, 2]
 ```
 
 All corrections to the occupied subspace to 2th order can be computed like
 ```{code-cell} ipython3
-H_tilde.evaluated[0, 0, :3]
+H_tilde[0, 0, :3]
 ```
 which is a `numpy.MaskedArray`.
 
@@ -108,7 +108,7 @@ We can obtain the final block-diagonalized Hamiltonian up to second order as
 ```{code-cell} ipython3
 import numpy.ma as ma
 
-transformed_H = ma.sum(H_tilde.evaluated[:2, :2, :3], axis=2)
+transformed_H = ma.sum(H_tilde[:2, :2, :3], axis=2)
 block = np.block([
     [transformed_H[0, 0], transformed_H[0, 1]],
     [transformed_H[1, 0], transformed_H[1, 1]]
