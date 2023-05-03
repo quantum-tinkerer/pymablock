@@ -1,4 +1,4 @@
-from itertools import count, permutations
+from itertools import count, permutations, chain
 from typing import Any, Callable, Optional
 
 import pytest
@@ -259,6 +259,77 @@ def symbolic_hamiltonian(request):
     return hamiltonians[request.param], symbols, subspace_eigenvectors, subspace_indices
 
 
+def compare_series(
+    series1: BlockSeries,
+    series2: BlockSeries,
+    wanted_orders: tuple[int, ...],
+    atol: Optional[float] = 1e-15,
+    rtol: Optional[float] = 0,
+) -> None:
+    """
+    Function that compares two BlockSeries with each other
+
+    Two series are compared for a given list of wanted orders in all orders.
+    The test first checks for `~lowdin.series.one` objects since these are
+    not masked by the resulting masked arrays. For numeric types, numpy
+    arrays, `scipy.sparse.linalg.LinearOperator` types, and scipy.sparse.sp_Matrix,
+    the evaluated object is converted to a dense array by multiplying with dense
+    identity and numrically compared up to the desired tolerance.
+
+    Parameters:
+    --------------
+    series1:
+        First `~lowdin.series.BlockSeries` to compare
+    series2:
+        Second `~lowdin.series.BlockSeries` to compare
+    wanted_orders:
+        Order until which to compare the series
+    atol:
+        Optional absolute tolerance for numeric comparison
+    rtol:
+        Optional relative tolerance for numeric comparison
+    """
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    all_elements = (slice(None),) * len(series1.shape)
+    results = [
+        np.ma.ndenumerate(series[all_elements + order]) for series in (series1, series2)
+    ]
+    results1 = [i for i in results[0]]
+    results2 = [i for i in results[1]]
+
+    differing_keys = set([i[0] for i in results1]) - set([i[0] for i in results2])
+
+    paired_results1 = [i for i in results1 if i[0] not in differing_keys]
+    paired_results2 = [i for i in results2 if i[0] not in differing_keys]
+
+    unpaired_results1 = [i for i in results1 if i[0] in differing_keys]
+    unpaired_results2 = [i for i in results2 if i[0] in differing_keys]
+
+    for (order1, value1), (order2, value2) in zip(paired_results1, paired_results2):
+        assert order1 == order2
+
+        if isinstance(value1, type(one)) or isinstance(value2, type(one)):
+            assert value1 == value2
+            continue
+        # Convert all numeric types to dense arrays
+        np.testing.assert_allclose(
+            value1 @ np.identity(value1.shape[1]),
+            value2 @ np.identity(value2.shape[1]),
+            atol=atol,
+            rtol=rtol,
+            err_msg=f"{order1=} {order2=}",
+        )
+
+    for order, value in chain(unpaired_results1, unpaired_results2):
+        np.testing.assert_allclose(
+            value @ np.identity(value.shape[1]),
+            np.zeros_like(value),
+            atol=atol,
+            rtol=rtol,
+            err_msg=f"{order=}",
+        )
+
+
 def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
     """
     Test inputs where the unperturbed Hamiltonian is diagonal.
@@ -278,6 +349,7 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
         np.testing.assert_allclose(H[index].diagonal(), eigvals)
     for block in ((0, 1), (1, 0)):
         zero == H[block + (0,) * H.n_infinite]
+    # breakpoint()
     with pytest.raises(ValueError):
         H = hamiltonian_to_BlockSeries(hamiltonian)
         H[(0, 0) + (0,) * H.n_infinite]
@@ -351,57 +423,6 @@ def test_input_hamiltonian_blocks():
         assert zero == H[(1, 0) + (0,) * H.n_infinite]
 
 
-def compare_series(
-    series1: BlockSeries,
-    series2: BlockSeries,
-    wanted_orders: tuple[int, ...],
-    atol: Optional[float] = 1e-15,
-    rtol: Optional[float] = 0,
-) -> None:
-    """
-    Function that compares two BlockSeries with each other
-
-    Two series are compared for a given list of wanted orders in all orders.
-    The test first checks for `~lowdin.series.one` objects since these are
-    not masked by the resulting masked arrays. For numeric types, numpy
-    arrays, `scipy.sparse.linalg.LinearOperator` types, and scipy.sparse.sp_Matrix,
-    the evaluated object is converted to a dense array by multiplying with dense
-    identity and numrically compared up to the desired tolerance.
-
-    Parameters:
-    --------------
-    series1:
-        First `~lowdin.series.BlockSeries` to compare
-    series2:
-        Second `~lowdin.series.BlockSeries` to compare
-    wanted_orders:
-        Order until which to compare the series
-    atol:
-        Optional absolute tolerance for numeric comparison
-    rtol:
-        Optional relative tolerance for numeric comparison
-    """
-    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    all_elements = (slice(None),) * len(series1.shape)
-    results = [
-        np.ma.ndenumerate(series[all_elements + order]) for series in (series1, series2)
-    ]
-    for (order1, value1), (order2, value2) in zip(*results):
-        assert order1 == order2
-
-        if isinstance(value1, type(one)) or isinstance(value2, type(one)):
-            assert value1 == value2
-            continue
-        # Convert all numeric types to dense arrays
-        np.testing.assert_allclose(
-            value1 @ np.identity(value1.shape[1]),
-            value2 @ np.identity(value2.shape[1]),
-            atol=atol,
-            rtol=rtol,
-            err_msg=f"{order1=} {order2=}",
-        )
-
-
 def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     """
     Test that H_AB is zero for a random Hamiltonian.
@@ -414,20 +435,20 @@ def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -
         orders to compute
     """
     H_tilde = general_output[0]
-    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    for matrix in H_tilde[(0, 1) + order].compressed():
-        if isinstance(matrix, np.ndarray):
-            np.testing.assert_allclose(
-                matrix, 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-            )
-        elif sparse.issparse(matrix):
-            np.testing.assert_allclose(
-                matrix.toarray(), 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-            )
-        elif isinstance(matrix, sympy.MatrixBase):
-            assert matrix.is_zero_matrix
+
+    def H_eval(*index):
+        if index[:2] in ((0, 1), (1, 0)) and (
+            isinstance(H_tilde[index], np.ndarray) or sparse.issparse(H_tilde[index])
+        ):
+            return np.zeros_like(H_tilde[index])
         else:
-            raise TypeError(f"Unknown type {type(matrix)}")
+            return H_tilde[index]
+
+    H_target = BlockSeries(
+        eval=H_eval, shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
+    )
+
+    compare_series(H_tilde, H_target, wanted_orders, 1e-5)
 
 
 def test_check_unitary(
@@ -457,25 +478,24 @@ def test_check_unitary(
     )
     transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
 
-    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    for block in ((0, 0), (1, 1), (0, 1)):
-        result = transformed[tuple(block + order)]
-        for index, matrix in np.ma.ndenumerate(result):
-            if not any(index):
-                # Zeroth order is not zero.
-                continue
-            if isinstance(matrix, np.ndarray):
-                np.testing.assert_allclose(
-                    matrix, 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-                )
-            elif sparse.issparse(matrix):
-                np.testing.assert_allclose(
-                    matrix.toarray(), 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-                )
-            elif isinstance(matrix, sympy.MatrixBase):
-                assert matrix.is_zero_matrix
-            else:
-                raise TypeError(f"Unknown type {type(matrix)}")
+    def H_eval(*index):
+        request = transformed[index]
+        if not any(index[2:]) and index[:2] in ((0, 0), (1, 1)):
+            return np.identity(request.shape[1])
+        if isinstance(request, np.ndarray) or sparse.issparse(request):
+            return np.zeros_like(request)
+        if isinstance(request, sympy.MatrixBase):
+            return sympy.zeros(request.shape[0])
+        if request == zero:
+            return request
+        else:
+            raise TypeError(f"Unknown type {type(request)}")
+
+    H_target = BlockSeries(
+        eval=H_eval, shape=transformed.shape, n_infinite=transformed.n_infinite
+    )
+
+    compare_series(transformed, H_target, wanted_orders, atol=1e-5)
 
 
 def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
@@ -508,17 +528,28 @@ def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> 
         orders to compute
     """
     H_tilde = general(H)[0]
-    Np = len(wanted_orders)
-    for order in permutations((0,) * (Np - 1) + (1,)):
-        result = H_tilde[(0, 0) + order]
-        expected = compute_first_order(H, order)
-        if zero == result:
-            np.testing.assert_allclose(
-                0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
-            )
-        np.testing.assert_allclose(
-            result, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
-        )
+
+    def H_eval(*index):
+        request = H_tilde[index]
+        if index[2:] in permutations((0,) * (len(index[2:]) - 1) + (1,)) and index[
+            :2
+        ] == (0, 0):
+            if isinstance(request, type(zero)):
+                return zero
+            else:
+                return compute_first_order(H, index[2:])
+        else:
+            return request
+
+    H_target = BlockSeries(
+        eval=H_eval, shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
+    )
+    compare_series(
+        H_tilde,
+        H_target,
+        wanted_orders,
+        atol=1e-5,
+    )
 
 
 def compute_second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
@@ -564,16 +595,22 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     H_tilde = general(H)[0]
     n_infinite = H.n_infinite
 
-    for order in permutations((0,) * (n_infinite - 1) + (2,)):
-        result = H_tilde[(0, 0) + order]
-        expected = compute_second_order(H, order)
-        if zero == result:
-            np.testing.assert_allclose(
-                0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
-            )
-        np.testing.assert_allclose(
-            result, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
-        )
+    def H_eval(*index):
+        request = H_tilde[index]
+        if index[:2] == (0, 0) and index[2:] in permutations(
+            (0,) * (len(index[2:]) - 1) + (2,)
+        ):
+            if isinstance(request, type(zero)):
+                return zero
+            else:
+                return compute_second_order(H, index[2:])
+        else:
+            return H_tilde[index]
+
+    H_target = BlockSeries(
+        eval=H_eval, shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
+    )
+    compare_series(H_tilde, H_target, wanted_orders, atol=1e-5)
 
 
 def test_check_diagonal_h_0_A() -> None:
@@ -613,25 +650,9 @@ def test_equivalence_general_expanded(
     """
     H_tilde_general, U_general, _ = general(H)
     H_tilde_expanded, U_expanded, _ = expanded(H)
-    for block in ((0, 0), (1, 1), (0, 1)):
-        for op_general, op_expanded in zip(
-            (H_tilde_general, U_general), (H_tilde_expanded, U_expanded)
-        ):
-            result_general = op_general[block + wanted_orders]
-            result_expanded = op_expanded[block + wanted_orders]
-            if zero == result_general:
-                assert zero == result_expanded
-            elif zero == result_expanded:
-                np.testing.assert_allclose(
-                    0, result_general, atol=10**-5, err_msg=f"{wanted_orders=}"
-                )
-            else:
-                np.testing.assert_allclose(
-                    result_general,
-                    result_expanded,
-                    atol=10**-5,
-                    err_msg=f"{wanted_orders=}",
-                )
+
+    compare_series(H_tilde_general, H_tilde_expanded, wanted_orders, atol=1e-5)
+    compare_series(U_general, U_expanded, wanted_orders, atol=1e-5)
 
 
 def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any]:
