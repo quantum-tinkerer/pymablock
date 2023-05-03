@@ -41,7 +41,6 @@ def block_diagonalize(
     solve_sylvester: Optional[Callable] = None,
     subspace_eigenvectors: Optional[tuple[np.ndarray | sympy.Matrix, ...]] = None,
     subspace_indices: Optional[tuple[int, ...] | np.ndarray] = None,
-    eigenvalues: Optional[tuple[np.ndarray, ...]] = None,
     direct_solver: bool = True,
     solver_options: Optional[dict] = None,
     symbols: list[sympy.Symbol] = None,
@@ -71,7 +70,8 @@ def block_diagonalize(
     For large numerical calculations with a sparse Hamiltonian and a low
     dimensional relevant subspace, the algorithm uses an implicit representation
     of the spectrum and does not require full diagonalization. This is enabled
-    if ``eigenvalues`` and ``subspace_vectors`` are provided.
+    if ``subspace_vectors`` do not span the full space of the unperturbed
+    Hamiltonian.
 
     Parameters
     ----------
@@ -129,11 +129,6 @@ def block_diagonalize(
         provided. Indices 0 and 1 are reserved for the A (effective) and B
         effective subspaces, respectively.
         Mutually exclusive with ``subspace_eigenvectors``.
-    eigenvalues :
-        A tuple with partial eigenvalues of the unperturbed Hamiltonian. If
-        provided, must contain all the eigenvalues of the A subspace and
-        optionally some eigenvalues of the B subspace. Used to compute the
-        Green's function when Hamiltonian is too expensive to diagonalize.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
         See docstrings of `~lowdin.block_diagonalization.solve_sylvester_KPM`
@@ -161,14 +156,14 @@ def block_diagonalize(
         Adjoint of U.
 
     """
+    use_implicit = False
     if subspace_eigenvectors is not None:
         _check_orthonormality(subspace_eigenvectors, atol=atol)
-    if (use_implicit := eigenvalues is not None):
+        num_vectors = sum(vecs.shape[1] for vecs in subspace_eigenvectors)
+        use_implicit = num_vectors < subspace_eigenvectors[0].shape[0]
+
+    if use_implicit:
         # Build solve_sylvester
-        if subspace_eigenvectors is None:
-            raise ValueError(
-                "`subspace_eigenvectors` must be provided if `eigenvalues` is provided."
-            )
         if isinstance(hamiltonian, list):
             h_0 = hamiltonian[0]
         elif isinstance(hamiltonian, dict):
@@ -190,28 +185,19 @@ def block_diagonalize(
             raise ValueError(
                 "`subspace_eigenvectors` does not match the shape of `h_0`."
             )
-        if not all(
-            len(vals) == vecs.shape[1]
-            for vals, vecs in zip(eigenvalues, subspace_eigenvectors)
-        ):
-            raise ValueError(
-                "If `subspace_eigenvectors` and `eigenvalues` are provided, "
-                "they must have the same number of elements."
-            )
         if solve_sylvester is None:
             if direct_solver:
                 solve_sylvester = solve_sylvester_direct(
                     h_0,
                     subspace_eigenvectors[0],
-                    eigenvalues[0],
                 )
             else:
                 solve_sylvester = solve_sylvester_KPM(
                     h_0,
                     subspace_eigenvectors,
-                    eigenvalues,
                     solver_options=solver_options,
                 )
+
     # Normalize the Hamiltonian
     H = hamiltonian_to_BlockSeries(
         hamiltonian,
@@ -835,7 +821,6 @@ def solve_sylvester_diagonal(
 def solve_sylvester_KPM(
     h_0: np.ndarray | sparse.spmatrix,
     subspace_eigenvectors: tuple[np.ndarray, ...],
-    eigenvalues: np.ndarray,
     solver_options: Optional[dict] = None,
 ) -> Callable:
     """
@@ -854,11 +839,6 @@ def solve_sylvester_KPM(
         Subspaces to project the unperturbed Hamiltonian and separate it into
         blocks. The first element of the tuple contains the effective subspace,
         and the second element contains the (partial) auxiliary subspace.
-    eigenvalues :
-        A tuple with partial eigenvalues of the unperturbed Hamiltonian. If
-        provided, must contain all the eigenvalues of the A subspace and
-        optionally some eigenvalues of the B subspace. Used to compute the
-        Green's function when Hamiltonian is too expensive to diagonalize.
     solver_options :
         Dictionary containing the options to pass to the solver. See the
         `~kwant.kpm` documentation for details.
@@ -892,13 +872,13 @@ def solve_sylvester_KPM(
         Function that applies divide by energies to the right hand side of
         Sylvester's equation.
     """
-    eigs_A = eigenvalues[0]
-    if len(subspace_eigenvectors) != len(eigenvalues):
-        raise ValueError("Number of eigenvectors must match eigenvalues")
+    eigs_A = (
+        Dagger(subspace_eigenvectors[0])
+        @ h_0
+        @ subspace_eigenvectors[0]
+    ).diagonal()
     if len(subspace_eigenvectors) > 2:
         raise ValueError("Invalid number of subspace_eigenvectors")
-    if any(not isinstance(eigs, np.ndarray) for eigs in eigenvalues):
-        raise TypeError("Eigenvalues must be a numpy array")
 
     if solver_options is None:
         solver_options = dict()
@@ -920,7 +900,11 @@ def solve_sylvester_KPM(
     need_explicit = bool(len(subspace_eigenvectors) - 1)
     if need_explicit:
         vecs_B = subspace_eigenvectors[1]
-        eigs_B = eigenvalues[1]
+        eigs_B = (
+            Dagger(subspace_eigenvectors[1])
+            @ h_0
+            @ subspace_eigenvectors[1]
+        ).diagonal()
         solve_sylvester_explicit = solve_sylvester_diagonal(eigs_A, eigs_B, vecs_B)
 
     def solve_sylvester(Y: np.ndarray) -> np.ndarray:
@@ -934,7 +918,6 @@ def solve_sylvester_KPM(
 def solve_sylvester_direct(
     h_0: sparse.spmatrix,
     eigenvectors: np.ndarray,
-    eigenvalues: np.ndarray,
     **solver_options: dict,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """
@@ -949,8 +932,6 @@ def solve_sylvester_direct(
         Unperturbed Hamiltonian of the system.
     eigenvectors :
         Eigenvectors of the effective subspace of the unperturbed Hamiltonian.
-    eigenvalues :
-        Corresponding eigenvalues.
     **solver_options :
         Keyword arguments to pass to the solver ``eps`` and ``atol``, see
         `lowdin.linalg.direct_greens_function`.
@@ -961,6 +942,7 @@ def solve_sylvester_direct(
         Function that solves the corresponding Sylvester equation.
     """
     projector = ComplementProjector(eigenvectors)
+    eigenvalues = np.diag(Dagger(eigenvectors) @ h_0 @ eigenvectors)
     # Compute the Green's function of the transposed Hamiltonian because we are
     # solving the equation from the right.
     greens_functions = [
