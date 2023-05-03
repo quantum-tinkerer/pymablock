@@ -275,12 +275,12 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
     assert H.dimension_names == ()
     for block, eigvals in zip(((0, 0), (1, 1)), diagonals):
         index = block + (0,) * H.n_infinite
-        np.testing.assert_allclose(H.evaluated[index].diagonal(), eigvals)
+        np.testing.assert_allclose(H[index].diagonal(), eigvals)
     for block in ((0, 1), (1, 0)):
-        zero == H.evaluated[block + (0,) * H.n_infinite]
+        zero == H[block + (0,) * H.n_infinite]
     with pytest.raises(ValueError):
         H = hamiltonian_to_BlockSeries(hamiltonian)
-        H.evaluated[(0, 0) + (0,) * H.n_infinite]
+        H[(0, 0) + (0,) * H.n_infinite]
 
 
 def test_input_hamiltonian_from_subspaces():
@@ -312,10 +312,10 @@ def test_input_hamiltonian_from_subspaces():
         assert H.dimension_names == ()
         for block, eigvals in zip(((0, 0), (1, 1)), diagonals):
             index = block + (0,) * H.n_infinite
-            np.testing.assert_allclose(H.evaluated[index].diagonal(), eigvals)
+            np.testing.assert_allclose(H[index].diagonal(), eigvals)
         for block in ((0, 1), (1, 0)):
             index = block + (0,) * H.n_infinite
-            zero == H.evaluated[index]
+            zero == H[index]
 
 
 def test_input_hamiltonian_blocks():
@@ -343,13 +343,13 @@ def test_input_hamiltonian_blocks():
         assert H.n_infinite == len(hamiltonian) - 1
         assert H.dimension_names == ()
         np.testing.assert_allclose(
-            H.evaluated[(0, 0) + (0,) * H.n_infinite].diagonal(), np.array([-1, -1])
+            H[(0, 0) + (0,) * H.n_infinite].diagonal(), np.array([-1, -1])
         )
         np.testing.assert_allclose(
-            H.evaluated[(1, 1) + (0,) * H.n_infinite].diagonal(), np.array([1, 1])
+            H[(1, 1) + (0,) * H.n_infinite].diagonal(), np.array([1, 1])
         )
-        assert zero == H.evaluated[(0, 1) + (0,) * H.n_infinite]
-        assert zero == H.evaluated[(1, 0) + (0,) * H.n_infinite]
+        assert zero == H[(0, 1) + (0,) * H.n_infinite]
+        assert zero == H[(1, 0) + (0,) * H.n_infinite]
 
 
 def compare_series(
@@ -385,7 +385,7 @@ def compare_series(
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     all_elements = (slice(None),) * len(series1.shape)
     results = [
-        np.ma.ndenumerate(series.evaluated[all_elements + order])
+        np.ma.ndenumerate(series[all_elements + order])
         for series in (series1, series2)
     ]
     for (order1, value1), (order2, value2) in zip(*results):
@@ -417,7 +417,7 @@ def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -
     """
     H_tilde = general_output[0]
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    for matrix in H_tilde.evaluated[(0, 1) + order].compressed():
+    for matrix in H_tilde[(0, 1) + order].compressed():
         if isinstance(matrix, np.ndarray):
             np.testing.assert_allclose(
                 matrix, 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
@@ -448,8 +448,8 @@ def test_check_unitary(
     zero_order = (0,) * len(wanted_orders)
     H_tilde, U, U_adjoint = general_output
 
-    N_A = H_tilde.evaluated[(0, 0) + zero_order].shape[0]
-    N_B = H_tilde.evaluated[(1, 1) + zero_order].shape[0]
+    N_A = H_tilde[(0, 0) + zero_order].shape[0]
+    N_B = H_tilde[(1, 1) + zero_order].shape[0]
     n_infinite = H_tilde.n_infinite
 
     identity = BlockSeries(
@@ -461,7 +461,7 @@ def test_check_unitary(
 
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     for block in ((0, 0), (1, 1), (0, 1)):
-        result = transformed.evaluated[tuple(block + order)]
+        result = transformed[tuple(block + order)]
         for index, matrix in np.ma.ndenumerate(result):
             if not any(index):
                 # Zeroth order is not zero.
@@ -495,7 +495,7 @@ def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     -------
     First order correction obtained explicitly
     """
-    return H.evaluated[(0, 0) + order]
+    return H[(0, 0) + order]
 
 
 def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
@@ -512,7 +512,7 @@ def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> 
     H_tilde = general(H)[0]
     Np = len(wanted_orders)
     for order in permutations((0,) * (Np - 1) + (1,)):
-        result = H_tilde.evaluated[(0, 0) + order]
+        result = H_tilde[(0, 0) + order]
         expected = compute_first_order(H, order)
         if zero == result:
             np.testing.assert_allclose(
@@ -541,9 +541,9 @@ def compute_second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     n_infinite = H.n_infinite
     order = tuple(value // 2 for value in order)
     h_0_AA, h_0_BB, h_p_AB = (
-        H.evaluated[(0, 0) + (0,) * n_infinite],
-        H.evaluated[(1, 1) + (0,) * n_infinite],
-        H.evaluated[(0, 1) + order],
+        H[(0, 0) + (0,) * n_infinite],
+        H[(1, 1) + (0,) * n_infinite],
+        H[(0, 1) + order],
     )
 
     eigs_A = np.diag(h_0_AA)
@@ -567,7 +567,7 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     n_infinite = H.n_infinite
 
     for order in permutations((0,) * (n_infinite - 1) + (2,)):
-        result = H_tilde.evaluated[(0, 0) + order]
+        result = H_tilde[(0, 0) + order]
         expected = compute_second_order(H, order)
         if zero == result:
             np.testing.assert_allclose(
@@ -619,8 +619,8 @@ def test_equivalence_general_expanded(
         for op_general, op_expanded in zip(
             (H_tilde_general, U_general), (H_tilde_expanded, U_expanded)
         ):
-            result_general = op_general.evaluated[block + wanted_orders]
-            result_expanded = op_expanded.evaluated[block + wanted_orders]
+            result_general = op_general[block + wanted_orders]
+            result_expanded = op_expanded[block + wanted_orders]
             if zero == result_general:
                 assert zero == result_expanded
             elif zero == result_expanded:
@@ -691,8 +691,8 @@ def test_doubled_orders(
     )
 
     for op, op_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
-        result = op.evaluated[blocks + orders].compressed()
-        result_doubled = op_doubled.evaluated[blocks + doubled_orders].compressed()
+        result = op[blocks + orders].compressed()
+        result_doubled = op_doubled[blocks + doubled_orders].compressed()
         assert len(result) == len(result_doubled)
         for result, result_doubled in zip(result, result_doubled):
             if isinstance(result, object):
@@ -752,15 +752,15 @@ def test_check_AB_KPM(
 
     # # full b
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
+    for block in H_tilde_full_b[(0, 1) + order].compressed():
         np.testing.assert_allclose(block, 0, atol=1e-6, err_msg=f"{block=}, {order=}")
 
     # half b
-    for block in H_tilde_half_b.evaluated[(0, 1) + order].compressed():
+    for block in H_tilde_half_b[(0, 1) + order].compressed():
         np.testing.assert_allclose(block, 0, atol=1e-6, err_msg=f"{block=}, {order=}")
 
     # KPM
-    for block in H_tilde_kpm.evaluated[(0, 1) + order].compressed():
+    for block in H_tilde_kpm[(0, 1) + order].compressed():
         np.testing.assert_allclose(block, 0, atol=1e-6, err_msg=f"{block=}, {order=}")
 
 
@@ -865,19 +865,19 @@ def test_implicit_consistent_on_A(
     h_0_BB = np.diag(eigs_B)
     h_p_AA = {
         tuple(index_rows[index, :]): (
-            Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
+            Dagger(vecs) @ H_input[tuple(index_rows[index, :])] @ vecs
         )[:a_dim, :a_dim]
         for index in range(n_infinite)
     }
     h_p_BB = {
         tuple(index_rows[index, :]): (
-            Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
+            Dagger(vecs) @ H_input[tuple(index_rows[index, :])] @ vecs
         )[a_dim:, a_dim:]
         for index in range(n_infinite)
     }
     h_p_AB = {
         tuple(index_rows[index, :]): (
-            Dagger(vecs) @ H_input.evaluated[tuple(index_rows[index, :])] @ vecs
+            Dagger(vecs) @ H_input[tuple(index_rows[index, :])] @ vecs
         )[:a_dim, a_dim:]
         for index in range(n_infinite)
     }
@@ -905,9 +905,9 @@ def test_implicit_consistent_on_A(
     )[0]
     order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     for block_full_b, block_general, block_KPM in zip(
-        H_tilde_full_b.evaluated[order].compressed(),
-        H_tilde_general.evaluated[order].compressed(),
-        H_tilde_KPM.evaluated[order].compressed(),
+        H_tilde_full_b[order].compressed(),
+        H_tilde_general[order].compressed(),
+        H_tilde_KPM[order].compressed(),
     ):
         np.testing.assert_allclose(
             block_full_b, block_general, atol=1e-4, err_msg=f"{order=}"
@@ -1030,8 +1030,8 @@ def test_consistent_implicit_subspace(
     assert H_tilde.dimension_names == H_tilde_swapped.dimension_names
 
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    h = H_tilde.evaluated[(0, 0) + order].compressed()
-    h_swapped = H_tilde_swapped.evaluated[(1, 1) + order].compressed()
+    h = H_tilde[(0, 0) + order].compressed()
+    h_swapped = H_tilde_swapped[(1, 1) + order].compressed()
     for block_A, block_B in zip(h, h_swapped):
         assert isinstance(block_B, LinearOperator)
         np.testing.assert_allclose(
@@ -1085,10 +1085,10 @@ def test_input_hamiltonian_kpm(generate_kpm_hamiltonian):
     assert H.dimension_names == ()
     for block in ((0, 1), (1, 0)):
         index = block + (0,) * H.n_infinite
-        if zero == H.evaluated[index]:
+        if zero == H[index]:
             continue
-        np.testing.assert_allclose(H.evaluated[index], 0, atol=1e-12)
-    assert isinstance(H.evaluated[(1, 1) + (0,) * H.n_infinite], LinearOperator)
+        np.testing.assert_allclose(H[index], 0, atol=1e-12)
+    assert isinstance(H[(1, 1) + (0,) * H.n_infinite], LinearOperator)
 
 
 def test_input_hamiltonian_BlockSeries(H):
@@ -1107,10 +1107,10 @@ def test_input_hamiltonian_BlockSeries(H):
     assert hamiltonian.dimension_names == H.dimension_names
     for block in ((0, 0), (1, 1), (0, 1), (1, 0)):
         index = block + (0,) * H.n_infinite
-        if zero == H.evaluated[index]:
-            assert zero == hamiltonian.evaluated[index]
+        if zero == H[index]:
+            assert zero == hamiltonian[index]
             continue
-        np.allclose(H.evaluated[index], hamiltonian.evaluated[index])
+        np.allclose(H[index], hamiltonian[index])
 
 
 def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
@@ -1138,7 +1138,7 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
 
     for H in (H_1, H_2):
         for block in ((0, 1), (1, 0)):
-            assert zero == H.evaluated[block + (0,) * H.n_infinite]
+            assert zero == H[block + (0,) * H.n_infinite]
 
 
 def test_block_diagonalize_hamiltonian_diagonal(
@@ -1238,7 +1238,7 @@ def test_unknown_data_type():
         [[Unknown("c"), Unknown("d")], [Unknown("e"), Unknown("f")]],
     ]
     H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x: x)
-    H_tilde.evaluated[:, :, :3]
+    H_tilde[:, :, :3]
     # Shouldn't work without the solve_sylvester function
     with pytest.raises(NotImplementedError):
         H_tilde, *_ = block_diagonalize(H)

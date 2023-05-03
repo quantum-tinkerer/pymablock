@@ -36,7 +36,7 @@ def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) 
     key, shape = possible_keys_and_errors
     try:
         a = BlockSeries(lambda *x: x, data=None, shape=(5,), n_infinite=2)
-        assert shape == a.evaluated[key].shape
+        assert shape == a[key].shape
     except Exception as e:
         assert type(e) == shape
 
@@ -44,13 +44,13 @@ def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) 
 def test_fibonacci_series() -> None:
     """Test that we can implement the Fibonacci series."""
     F = BlockSeries(
-        eval=lambda x: F.evaluated[x - 2] + F.evaluated[x - 1],
+        eval=lambda x: F[x - 2] + F[x - 1],
         data={(0,): 0, (1,): 1},
         shape=(),
         n_infinite=1,
     )
 
-    assert F.evaluated[6] == 8
+    assert F[6] == 8
 
 
 def test_cleanup():
@@ -62,19 +62,19 @@ def test_cleanup():
         return i
 
     problematic = BlockSeries(raising_eval, shape=(), n_infinite=1)
-    problematic.evaluated[0]
+    problematic[0]
     with pytest.raises(ValueError):
-        problematic.evaluated[1]
+        problematic[1]
     # Check that a repeated call raises the same error
     with pytest.raises(ValueError):
-        problematic.evaluated[1]
+        problematic[1]
 
 
 def test_recursion_detection():
     """Test that BlockSeries detects recursion."""
-    recursive = BlockSeries(lambda i: recursive.evaluated[i], shape=(), n_infinite=1)
+    recursive = BlockSeries(lambda i: recursive[i], shape=(), n_infinite=1)
     with pytest.raises(RuntimeError, match="Infinite recursion loop detected"):
-        recursive.evaluated[0]
+        recursive[0]
 
 
 def test_cauchy_dot_product():
@@ -93,5 +93,5 @@ def test_cauchy_dot_product():
     )
     result = cauchy_dot_product(a, b, operator=mul)
     np.testing.assert_allclose(
-        result.evaluated[:, :, 3].astype(float), test_value @ test_value
+        result[:, :, 3].astype(float), test_value @ test_value
     )

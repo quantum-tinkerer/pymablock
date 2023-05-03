@@ -71,92 +71,6 @@ def safe_divide(numerator, denominator):
         return (1 / denominator) * numerator
 
 
-class _Evaluated:
-    def __init__(self, original: "BlockSeries") -> None:
-        self.original = original
-
-    def __getitem__(
-        self, item: int | slice | tuple[int | slice, ...]
-    ) -> ma.MaskedArray[Any] | Any:
-        """
-        Evaluate the series at the given index, following numpy's indexing rules.
-
-        Parameters
-        ----------
-        item : index at which to evaluate the series.
-
-        Returns
-        -------
-        The item or items at the given index.
-        """
-        if not isinstance(item, tuple):  # Allow indexing with integer
-            item = (item,)
-
-        self.check_finite(item[-self.original.n_infinite :])
-        self.check_number_perturbations(item)
-
-        # Create trial array to use for indexing
-        trial_shape = self.original.shape + tuple(
-            [
-                order.stop if isinstance(order, slice) else np.max(order, initial=0) + 1
-                for order in item[-self.original.n_infinite :]
-            ]
-        )
-        trial = np.zeros(trial_shape, dtype=object)
-        one_entry = np.isscalar(trial[item])
-        trial[item] = 1
-
-        data = self.original._data
-        for index in zip(*np.where(trial)):
-            if index not in data:
-                # Calling eval gives control away; mark that this value is evaluated
-                # To be able to catch recursion and data corruption.
-                data[index] = PENDING
-                try:
-                    data[index] = self.original.eval(*index)
-                except BaseException:
-                    # Catching BaseException to clean up also after keyboard interrupt
-                    data.pop(index, None)
-                    raise
-            if data[index] is PENDING:
-                raise RuntimeError("Infinite recursion loop detected")
-            trial[index] = data[index]
-
-        result = trial[item]
-        if not one_entry:
-            return ma.masked_where(_mask(result), result)
-        return result  # return one item
-
-    def check_finite(self, orders: tuple[int | slice, ...]):
-        """
-        Check that the indices of the infinite dimension are finite and positive.
-
-        Parameters
-        ----------
-        orders : indices of the infinite dimension.
-        """
-        for order in orders:
-            if isinstance(order, slice):
-                if order.stop is None:
-                    raise IndexError("Cannot evaluate infinite series")
-                elif isinstance(order.start, int) and order.start < 0:
-                    raise IndexError("Cannot evaluate negative order")
-
-    def check_number_perturbations(self, item: tuple[int | slice, ...]):
-        """
-        Check that the number of indices is correct.
-
-        Parameters
-        ----------
-        item : indices to check.
-        """
-        if len(item) != len(self.original.shape) + self.original.n_infinite:
-            raise IndexError(
-                "Wrong number of indices",
-                (len(item), len(self.original.shape), self.original.n_infinite),
-            )
-
-
 class BlockSeries:
     def __init__(
         self,
@@ -177,11 +91,91 @@ class BlockSeries:
         n_infinite : Number of infinite dimensions.
         """
         self.eval = (lambda *_: zero) if eval is None else eval
-        self.evaluated = _Evaluated(self)
         self._data = data or {}
         self.shape = shape
         self.n_infinite = n_infinite
         self.dimension_names = dimension_names or ()
+
+    def __getitem__(
+        self, item: int | slice | tuple[int | slice, ...]
+    ) -> ma.MaskedArray[Any] | Any:
+        """
+        Evaluate the series at the given index, following numpy's indexing rules.
+
+        Parameters
+        ----------
+        item : index at which to evaluate the series.
+
+        Returns
+        -------
+        The item or items at the given index.
+        """
+        if not isinstance(item, tuple):  # Allow indexing with integer
+            item = (item,)
+
+        self._check_finite(item[-self.n_infinite :])
+        self._check_number_perturbations(item)
+
+        # Create trial array to use for indexing
+        trial_shape = self.shape + tuple(
+            [
+                order.stop if isinstance(order, slice) else np.max(order, initial=0) + 1
+                for order in item[-self.n_infinite :]
+            ]
+        )
+        trial = np.zeros(trial_shape, dtype=object)
+        one_entry = np.isscalar(trial[item])
+        trial[item] = 1
+
+        data = self._data
+        for index in zip(*np.where(trial)):
+            if index not in data:
+                # Calling eval gives control away; mark that this value is evaluated
+                # To be able to catch recursion and data corruption.
+                data[index] = PENDING
+                try:
+                    data[index] = self.eval(*index)
+                except BaseException:
+                    # Catching BaseException to clean up also after keyboard interrupt
+                    data.pop(index, None)
+                    raise
+            if data[index] is PENDING:
+                raise RuntimeError("Infinite recursion loop detected")
+            trial[index] = data[index]
+
+        result = trial[item]
+        if not one_entry:
+            return ma.masked_where(_mask(result), result)
+        return result  # return one item
+
+    def _check_finite(self, orders: tuple[int | slice, ...]):
+        """
+        Check that the indices of the infinite dimension are finite and positive.
+
+        Parameters
+        ----------
+        orders : indices of the infinite dimension.
+        """
+        for order in orders:
+            if isinstance(order, slice):
+                if order.stop is None:
+                    raise IndexError("Cannot evaluate infinite series")
+                elif isinstance(order.start, int) and order.start < 0:
+                    raise IndexError("Cannot evaluate negative order")
+
+    def _check_number_perturbations(self, item: tuple[int | slice, ...]):
+        """
+        Check that the number of indices is correct.
+
+        Parameters
+        ----------
+        item : indices to check.
+        """
+        if len(item) != len(self.shape) + self.n_infinite:
+            raise IndexError(
+                "Wrong number of indices",
+                (len(item), len(self.shape), self.n_infinite),
+            )
 
 
 def cauchy_dot_product(
@@ -241,7 +235,7 @@ def cauchy_dot_product(
 
     def eval(*index):
         if index[0] > index[1] and hermitian:
-            return Dagger(product.evaluated[(index[1], index[0], *index[2:])])
+            return Dagger(product[(index[1], index[0], *index[2:])])
         return product_by_order(
             index,
             *series,
@@ -309,7 +303,7 @@ def product_by_order(
 
     # Fill these with the evaluated data
     for values, factor in zip(data, series):
-        values[ma.where(values)] = factor.evaluated[ma.where(values)]
+        values[ma.where(values)] = factor[ma.where(values)]
 
     terms = []
     daggered_terms = []

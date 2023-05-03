@@ -176,7 +176,7 @@ def block_diagonalize(
                     "`hamiltonian` must be a scalar BlockSeries when using an implicit"
                     " solver."
                 )
-            h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
+            h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
         else:
             raise TypeError(
                 "`hamiltonian` must be a list, dictionary, or BlockSeries."
@@ -208,13 +208,13 @@ def block_diagonalize(
         atol=atol,
     )
 
-    if zero != H.evaluated[(0, 1) + (0,) * H.n_infinite]:
+    if zero != H[(0, 1) + (0,) * H.n_infinite]:
         raise ValueError(
             "The off-diagonal elements of the unperturbed Hamiltonian must be zero."
         )
 
     # Determine operator to use for matrix multiplication.
-    if hasattr(H.evaluated[(0, 0) + (0,) * H.n_infinite], "__matmul__"):
+    if hasattr(H[(0, 0) + (0,) * H.n_infinite], "__matmul__"):
         operator = matmul
     else:
         operator = mul
@@ -354,7 +354,7 @@ def hamiltonian_to_BlockSeries(
     if not to_split:
         # Hamiltonian must have 2x2 entries in each block
         def H_eval(*index):
-            h = _convert_if_zero(hamiltonian.evaluated[index[2:]], atol=atol)
+            h = _convert_if_zero(hamiltonian[index[2:]], atol=atol)
             if zero == h:
                 return zero
             try:  # Hamiltonians come in blocks of 2x2
@@ -375,7 +375,7 @@ def hamiltonian_to_BlockSeries(
 
     # Define subspace_eigenvectors
     if subspace_indices is not None:
-        h_0 = hamiltonian.evaluated[(0,) * hamiltonian.n_infinite]
+        h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
         if not is_diagonal(h_0):
             raise ValueError(
                 "If `subspace_indices` is provided, the unperturbed Hamiltonian"
@@ -394,8 +394,8 @@ def hamiltonian_to_BlockSeries(
     def H_eval(*index):
         left, right = index[:2]
         if left > right:
-            return Dagger(H.evaluated[(right, left) + tuple(index[2:])])
-        original = hamiltonian.evaluated[index[2:]]
+            return Dagger(H[(right, left) + tuple(index[2:])])
+        original = hamiltonian[index[2:]]
         if zero == original:
             return zero
         if implicit and left == right == 1:
@@ -473,9 +473,9 @@ def general(
 
     U_adjoint = BlockSeries(
         eval=(
-            lambda *index: U.evaluated[index]  # diagonal block is Hermitian
+            lambda *index: U[index]  # diagonal block is Hermitian
             if index[0] == index[1]
-            else -U.evaluated[index]  # off-diagonal block is anti-Hermitian
+            else -U[index]  # off-diagonal block is anti-Hermitian
         ),
         data=None,
         shape=(2, 2),
@@ -500,14 +500,14 @@ def general(
     def eval(*index: tuple[int, ...]) -> Any:
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
-            return safe_divide(-identity.evaluated[index], 2)
+            return safe_divide(-identity[index], 2)
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
-            Y = H_tilde_rec.evaluated[index]
+            Y = H_tilde_rec[index]
             return -solve_sylvester(Y) if zero != Y else zero
         elif index[:2] == (1, 0):
             # off-diagonal of U is anti-Hermitian
-            return -Dagger(U.evaluated[(0, 1) + tuple(index[2:])])
+            return -Dagger(U[(0, 1) + tuple(index[2:])])
 
     U.eval = eval
 
@@ -558,7 +558,7 @@ def symbolic(
 
     # Initialize symbols for terms in H
     def placeholder_eval(*index):
-        if zero == (actual_value := H.evaluated[index]):
+        if zero == (actual_value := H[index]):
             return zero
         operator_type = HermitianOperator if index[0] == index[1] else Operator
         placeholder = operator_type(f"H_{{{index}}}")
@@ -571,8 +571,8 @@ def symbolic(
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
     )
-    h_0_AA = H_placeholder.evaluated[(0, 0) + (0,) * H.n_infinite]
-    h_0_BB = H_placeholder.evaluated[(1, 1) + (0,) * H.n_infinite]
+    h_0_AA = H_placeholder[(0, 0) + (0,) * H.n_infinite]
+    h_0_BB = H_placeholder[(1, 1) + (0,) * H.n_infinite]
 
     # Solve for symbols representing H and V (off-diagonal block of U)
     H_tilde, U, U_adjoint = general(
@@ -652,7 +652,7 @@ def expanded(
     _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, operator=operator)
 
     def H_tilde_eval(*index):
-        H_tilde = H_tilde_s.evaluated[index]
+        H_tilde = H_tilde_s[index]
         _update_subs(Y_data, subs, solve_sylvester, operator)
         return _replace(H_tilde, subs, operator)
 
@@ -667,7 +667,7 @@ def expanded(
 
     def U_eval(*index):
         if index[:2] == (0, 1):
-            U_s.evaluated[index]  # Update Y_data
+            U_s[index]  # Update Y_data
             _update_subs(Y_data, subs, solve_sylvester, operator)
             return subs.get(Operator(f"V_{{{index[2:]}}}"), zero)
         return old_U_eval(*index)
@@ -721,7 +721,7 @@ def implicit(
 
     # Create series wrapped in linear operators to avoid forming explicit matrices
     def linear_operator_wrapped(original):
-        return lambda *index: aslinearoperator(original.evaluated[index])
+        return lambda *index: aslinearoperator(original[index])
 
     H_operator, U_operator, U_adjoint_operator = (
         BlockSeries(
@@ -740,7 +740,7 @@ def implicit(
 
     def U_eval(*index):
         if index[:2] == (1, 1):
-            return safe_divide(-identity.evaluated[index], 2)
+            return safe_divide(-identity[index], 2)
         return old_U_eval(*index)
 
     U.eval = U_eval
@@ -751,8 +751,8 @@ def implicit(
 
     def H_tilde_eval(*index):
         if index[:2] == (1, 1):
-            return H_tilde_operator.evaluated[index]
-        return H_tilde_temporary.evaluated[index]
+            return H_tilde_operator[index]
+        return H_tilde_temporary[index]
 
     H_tilde = BlockSeries(
         eval=H_tilde_eval,
@@ -1273,7 +1273,7 @@ def _subspaces_from_indices(
 
 def _extract_diagonal(H: BlockSeries) -> tuple[np.ndarray, np.ndarray]:
     """Extract the diagonal of the zeroth order of the Hamiltonian."""
-    h_0_AA, h_0_BB = H.evaluated[([0, 1], [0, 1]) + (0,) * H.n_infinite]
+    h_0_AA, h_0_BB = H[([0, 1], [0, 1]) + (0,) * H.n_infinite]
     if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
         raise ValueError(
             "The unperturbed Hamiltonian must be diagonal if ``solve_sylvester``"
