@@ -1,4 +1,5 @@
-from typing import Callable
+from typing import Callable, Optional
+from warnings import warn
 
 from packaging.version import parse
 import numpy as np
@@ -6,7 +7,9 @@ from scipy import __version__ as scipy_version
 from scipy.sparse import spmatrix, identity
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
+from scipy import sparse
 from kwant.linalg import mumps
+import sympy
 
 from lowdin.series import zero, one
 
@@ -66,7 +69,7 @@ def direct_greens_function(
     h: spmatrix,
     E: float,
     atol: float = 1e-7,
-    eps: float = 1e-10,
+    eps: Optional[float] = None,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Compute the Green's function of a Hamiltonian using MUMPS solver.
 
@@ -80,19 +83,20 @@ def direct_greens_function(
         Accepted precision of the desired result in 2-norm.
     eps :
         Tolerance for the MUMPS solver to identify null pivots. Passed through
-        to MUMPS CNTL(3) with a - sign, see MUMPS user guide.
+        to MUMPS CNTL(3), see MUMPS user guide.
 
     Returns
     -------
     greens_function : `Callable[[np.ndarray], np.ndarray]`
         Function that computes the Green's function at a given energy.
     """
-    h = h.astype(np.complex128)  # Kwant MUMPS wrapper only has complex bindings.
+    h = h.astype(complex)  # Kwant MUMPS wrapper only has complex bindings.
     h = h - E * identity(h.shape[0], dtype=h.dtype, format="csr")
     ctx = mumps.MUMPSContext()
     ctx.analyze(h)
     ctx.mumps_instance.icntl[24] = 1
-    ctx.mumps_instance.cntl[3] = -eps
+    if eps is not None:
+        ctx.mumps_instance.cntl[3] = eps
     ctx.factor(h)
 
     def greens_function(vec: np.ndarray) -> np.ndarray:
@@ -111,9 +115,11 @@ def direct_greens_function(
             Solution of :math:`(H - E) sol = vec`.
         """
         sol = ctx.solve(vec)
-        if np.linalg.norm(h @ sol - vec) > atol:
-            raise RuntimeError(
-                f"Solution did not achieve required precision of {atol}."
+        if (residue := np.linalg.norm(h @ sol - vec)) > atol:
+            warn(
+                f"Solution only achieved precision {residue} > {atol}."
+                " adjust eps or atol.",
+                RuntimeWarning,
             )
         return sol
 
@@ -144,7 +150,24 @@ class ComplementProjector(LinearOperator):
 
 
 def aslinearoperator(A):
-    """Same as scipy.sparse.linalg.aslinearoperator, but with passthrough."""
+    """
+    Same as `scipy.sparse.linalg.aslinearoperator`, but with passthrough for
+    `~lowdin.series.zero`.
+    """
     if zero == A or A is one:
         return A
     return scipy_aslinearoperator(A)
+
+
+def is_diagonal(A):
+    """Check if A is diagonal."""
+    if isinstance(A, sympy.MatrixBase):
+        return A.is_diagonal()
+    elif isinstance(A, np.ndarray):
+        # Create a view of the offdiagonal array elements
+        offdiagonal = A.reshape(-1)[:-1].reshape(len(A) - 1, len(A) + 1)[:, 1:]
+        return not np.any(offdiagonal)
+    elif sparse.issparse(A):
+        A = sparse.dia_array(A)
+        return not any(A.offsets)
+    raise NotImplementedError(f"Cannot extract diagonal from {type(A)}")

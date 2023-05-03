@@ -1,7 +1,6 @@
 from typing import Optional
 
-import scipy
-import scipy.sparse
+from scipy import sparse
 import numpy as np
 import copy
 import kwant
@@ -186,8 +185,9 @@ def _kpm_preprocess(ham, kpm_params):
     # Make sure to return the same format
     if isinstance(ham, np.ndarray):
         ham_rescaled = (ham - _b * np.eye(ham.shape[0])) / _a
-    elif isinstance(ham, scipy.sparse.spmatrix):
-        id = scipy.sparse.identity(ham.shape[0], dtype="complex", format="csr")
+    elif sparse.issparse(ham):
+        id = sparse.identity(ham.shape[0], dtype="complex", format="csr")
+        id = sparse.csr_array(id)
         ham_rescaled = (ham - _b * id) / _a
     # extract the number of moments or set default to 100
     energy_resolution = kpm_params.get("energy_resolution")
