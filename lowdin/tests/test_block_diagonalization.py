@@ -141,8 +141,6 @@ def generate_kpm_hamiltonian(
         Unperturbed Hamiltonian and perturbation terms.
     subspace_eigenvectors: tuple
         Subspaces of the Hamiltonian.
-    eigenvalues: tuple
-        Eigenvalues of the Hamiltonian.
     """
     a_dim, b_dim = Ns
     n_dim = a_dim + b_dim
@@ -159,7 +157,6 @@ def generate_kpm_hamiltonian(
     hamiltonian_list.append(h_0)
     hamiltonian_dict[(0,) * n_infinite] = h_0
     subspace_eigenvectors = (vecs[:, :a_dim], vecs[:, a_dim:])
-    eigenvalues = (eigs[:a_dim], eigs[a_dim:])
 
     for i in range(n_infinite):
         h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
@@ -169,7 +166,7 @@ def generate_kpm_hamiltonian(
         hamiltonian_dict[order] = h_p
 
     hamiltonians = [hamiltonian_list, hamiltonian_dict]
-    return hamiltonians[request.param], subspace_eigenvectors, eigenvalues
+    return hamiltonians[request.param], subspace_eigenvectors
 
 
 @pytest.fixture(scope="module", params=[0, 1, 2, 3])
@@ -721,40 +718,39 @@ def test_check_AB_KPM(
     wanted_orders:
         List of orders to compute.
     """
-    a_dim, b_dim = Ns
-    hamiltonian, subspace_eigenvectors, eigenvalues = generate_kpm_hamiltonian
+    _, b_dim = Ns
+    hamiltonian, subspace_eigenvectors = generate_kpm_hamiltonian
 
+    almost_eigenvectors = (subspace_eigenvectors[0], subspace_eigenvectors[1][:, :-1])
     H_tilde_full_b, _, _ = block_diagonalize(
         hamiltonian,
-        subspace_eigenvectors=subspace_eigenvectors,
-        eigenvalues=eigenvalues,
+        subspace_eigenvectors=almost_eigenvectors,
         direct_solver=False,
+        solver_options={"num_moments": 5000},
         atol=1e-12
     )
 
-    half_subspaces = (subspace_eigenvectors[0], subspace_eigenvectors[1][:, : b_dim // 2])
-    half_eigenvalues = (eigenvalues[0], eigenvalues[1][: b_dim // 2])
+    half_eigenvectors = (
+        subspace_eigenvectors[0], subspace_eigenvectors[1][:, : b_dim // 2]
+    )
     H_tilde_half_b, _, _ = block_diagonalize(
         hamiltonian,
-        subspace_eigenvectors=half_subspaces,
-        eigenvalues=half_eigenvalues,
+        subspace_eigenvectors=half_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 5000},
         atol=1e-12
     )
 
     kpm_subspaces = (subspace_eigenvectors[0],)
-    kpm_eigenvalues = (eigenvalues[0],)
     H_tilde_kpm, _, _ = block_diagonalize(
         hamiltonian,
         subspace_eigenvectors=kpm_subspaces,
-        eigenvalues=kpm_eigenvalues,
         direct_solver=False,
         solver_options={"num_moments": 10000},
         atol=1e-12
     )
 
-    # full b
+    # # full b
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     for block in H_tilde_full_b.evaluated[(0, 1) + order].compressed():
         np.testing.assert_allclose(block, 0, atol=1e-5, err_msg=f"{block=}, {order=}")
@@ -789,30 +785,26 @@ def test_solve_sylvester(
     """
     a_dim, b_dim = Ns
     n_dim = a_dim + b_dim
-    hamiltonian, subspace_eigenvectors, eigenvalues = generate_kpm_hamiltonian
+    hamiltonian, subspace_eigenvectors = generate_kpm_hamiltonian
 
     if isinstance(hamiltonian, list):
         h_0 = hamiltonian[0]
     elif isinstance(hamiltonian, dict):
         h_0 = hamiltonian[(0,) * len(wanted_orders)]
 
-    divide_energies_full_b = solve_sylvester_KPM(h_0, subspace_eigenvectors, eigenvalues)
+    divide_energies_full_b = solve_sylvester_KPM(h_0, subspace_eigenvectors)
 
     half_subspaces = (subspace_eigenvectors[0], subspace_eigenvectors[1][:, : b_dim // 2])
-    half_eigenvalues = (eigenvalues[0], eigenvalues[1][: b_dim // 2])
     divide_energies_half_b = solve_sylvester_KPM(
         h_0,
         half_subspaces,
-        half_eigenvalues,
         solver_options={"num_moments": 10000},
     )
 
     kpm_subspaces = (subspace_eigenvectors[0],)
-    kpm_eigenvalues = (eigenvalues[0],)
     divide_energies_kpm = solve_sylvester_KPM(
         h_0,
         kpm_subspaces,
-        kpm_eigenvalues,
         solver_options={"num_moments": 20000}
     )
 
@@ -945,7 +937,7 @@ def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     eigenvalues = [eigs[:a_dim], eigs[a_dim:]]
 
     solve_sylvester_default = solve_sylvester_diagonal(*eigenvalues)
-    solve_sylvester_kpm = solve_sylvester_KPM(h_0, subspace_eigenvectors, eigenvalues)
+    solve_sylvester_kpm = solve_sylvester_KPM(h_0, subspace_eigenvectors)
 
     y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
     y_kpm = (
@@ -1005,39 +997,31 @@ def test_consistent_implicit_subspace(
     wanted_orders:
         Orders to compute.
     """
-    hamiltonian, subspace_eigenvectors, eigenvalues = generate_kpm_hamiltonian
+    hamiltonian, subspace_eigenvectors = generate_kpm_hamiltonian
 
-    # Catch error if the number of eigenvalues and eigenvectors do not match
-    with pytest.raises(ValueError):
-        faulted_eigenvalues = (eigenvalues[0],)
-        H_tilde, _, _ = block_diagonalize(
-            hamiltonian,
-            subspace_eigenvectors=subspace_eigenvectors,
-            eigenvalues=faulted_eigenvalues,
-            direct_solver=False
-        )
     # Catch error if the dimension of the eigenvectors do not match the Hamiltonian
     with pytest.raises(ValueError):
         faulted_eigenvectors = (subspace_eigenvectors[0][:1, :], subspace_eigenvectors[1])
         H_tilde, _, _ = block_diagonalize(
             hamiltonian,
             subspace_eigenvectors=faulted_eigenvectors,
-            eigenvalues=eigenvalues,
             direct_solver=False
         )
 
+    almost_eigenvectors = (subspace_eigenvectors[0], subspace_eigenvectors[1][:, :-1])
     H_tilde, _, _ = block_diagonalize(
         hamiltonian,
-        subspace_eigenvectors=subspace_eigenvectors,
-        eigenvalues=eigenvalues,
+        subspace_eigenvectors=almost_eigenvectors,
         direct_solver=False,
+        solver_options={"num_moments": 10000},
         atol=1e-12
     )
+    reversed_eigenvectors = (subspace_eigenvectors[1], subspace_eigenvectors[0][:, :-1])
     H_tilde_swapped, _, _ = block_diagonalize(
         hamiltonian,
-        subspace_eigenvectors=subspace_eigenvectors[::-1],
-        eigenvalues=eigenvalues[::-1],
+        subspace_eigenvectors=reversed_eigenvectors,
         direct_solver=False,
+        solver_options={"num_moments": 10000},
         atol=1e-12
     )
 
@@ -1092,7 +1076,7 @@ def test_input_hamiltonian_kpm(generate_kpm_hamiltonian):
     generate_kpm_hamiltonian:
         Randomly generated Hamiltonian and its eigendeomposition.
     """
-    hamiltonian, subspace_eigenvectors, _ = generate_kpm_hamiltonian
+    hamiltonian, subspace_eigenvectors = generate_kpm_hamiltonian
     H = hamiltonian_to_BlockSeries(
         hamiltonian, subspace_eigenvectors=subspace_eigenvectors, implicit=True
     )
