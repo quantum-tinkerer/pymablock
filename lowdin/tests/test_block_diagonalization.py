@@ -471,7 +471,8 @@ def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -
         eval=H_eval, shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
     )
 
-    compare_series(H_tilde, H_target, wanted_orders, atol=1e-5)
+    compare_series(
+        H_tilde, H_target, wanted_orders, atol=1e-5)
 
 
 def test_check_unitary(
