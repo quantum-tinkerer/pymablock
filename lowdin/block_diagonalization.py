@@ -839,30 +839,7 @@ def solve_sylvester_KPM(
         and the second element contains the (partial) auxiliary subspace.
     solver_options :
         Dictionary containing the options to pass to the solver. See the
-        `~kwant.kpm` documentation for details.
-
-        Relevant keys are:
-
-            num_vectors : positive int, or None, default: 10
-                Number of vectors used in the KPM expansion. If ``None``, the
-                number of vectors used equals the length of the
-                ``vector_factory``.
-            vector_factory : iterable, optional
-                If provided, it should contain (or yield) vectors of the size of
-                the system. If not provided, random phase vectors are used.
-                The default random vectors are optimal for most cases.
-            operator : operator, dense matrix, or sparse matrix, optional
-                Operator for which the spectral density will be evaluated. If
-                it is callable, the ``densities`` at each energy will have the
-                dimension of the result of ``operator(bra, ket)``. If it has a
-                ``dot`` method, such as ``numpy.ndarray`` and
-                ``scipy.sparse.matrices``, the densities will be scalars.
-            precalculate_moments : bool
-                Whether to precalculate and store all the KPM moments of
-                ``vectors``. This is useful if the Green's function is evaluated
-                at a large number of energies, but uses a large amount of
-                memory. If False, the KPM expansion is performed every time the
-                Green's function is called, which minimizes memory use.
+        `~lowdin.kpm_funcs.greens_function` documentation for details.
 
     Returns
     ----------
@@ -879,7 +856,6 @@ def solve_sylvester_KPM(
     if solver_options is None:
         solver_options = dict()
 
-    precalculate_moments = solver_options.pop("precalculate_moments", False)
     kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
 
     def solve_sylvester_kpm(Y: np.ndarray) -> np.ndarray:
@@ -889,7 +865,6 @@ def solve_sylvester_KPM(
             params=None,
             vectors=Y_KPM.conj(),
             kpm_params=solver_options,
-            precalculate_moments=precalculate_moments,
         )(eigs_A)
         return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_A))])
 
