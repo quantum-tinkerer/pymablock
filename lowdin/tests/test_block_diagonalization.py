@@ -312,15 +312,20 @@ def compare_series(
             assert value1 == value2
             continue
         # Convert all numeric types to dense arrays
-        np.testing.assert_allclose(
-            value1 @ np.identity(value1.shape[1]),
-            value2 @ np.identity(value2.shape[1]),
-            atol=atol,
-            rtol=rtol,
-            err_msg=f"{order1=} {order2=}",
-        )
-
-    for order, value in chain(unpaired_results1, unpaired_results2):
+        if (isinstance(value1, np.ndarray) or sparse.issparse(value1)) and (isinstance(value2, np.ndarray) or sparse.issparse(value2)):
+            np.testing.assert_allclose(
+                value1 @ np.identity(value1.shape[1]),
+                value2 @ np.identity(value2.shape[1]),
+                atol=atol,
+                rtol=rtol,
+                err_msg=f"{order1=} {order2=}",
+            )
+        elif isinstance(value1, sympy.MatrixBase) and isinstance(value2, sympy.MatrixBase):
+            assert value1 == value2
+        else:
+            raise TypeError(f"Unknown type {type(value1)} or {type(value2)}")
+    
+    for (order, value) in chain(unpaired_results1,unpaired_results2):
         np.testing.assert_allclose(
             value @ np.identity(value.shape[1]),
             np.zeros_like(value),
@@ -328,7 +333,6 @@ def compare_series(
             rtol=rtol,
             err_msg=f"{order=}",
         )
-
 
 def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
     """
