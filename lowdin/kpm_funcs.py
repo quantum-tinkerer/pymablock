@@ -2,17 +2,14 @@ from typing import Optional
 
 from scipy import sparse
 import numpy as np
-import copy
-import kwant
-from kwant.kpm import SpectralDensity, _rescale, jackson_kernel
+from kwant.kpm import _rescale, jackson_kernel
 
 
 def greens_function(
-    ham: kwant.system,
+    ham: np.ndarray | sparse.spmatrix,
     vectors: np.ndarray,
     params: Optional[dict] = None,
     kpm_params: Optional[dict] = None,
-    precalculate_moments: Optional[bool] = False,
 ):
     """Build a Green's function operator using KPM.
 
@@ -22,7 +19,6 @@ def greens_function(
     Parameters
     ----------
     ham :
-        Finalized kwant system or dense or sparse ndarray of the
         Hamiltonian with shape `(N, N)`.
     vectors :
         Vectors upon which the Green's function will act.
@@ -35,12 +31,6 @@ def greens_function(
         Dictionary containing the parameters to pass to the `~kwant.kpm`
         module. 'num_vectors' will be overwritten to match the number
         of vectors, and 'operator' key will be deleted.
-    precalculate_moments:
-        Whether to precalculate and store all the KPM moments of `vectors`.
-        This is useful if the Green's function is evaluated at a large
-        number of energies, but uses a large amount of memory.
-        If False, the KPM expansion is performed every time the Green's
-        function is called, which minimizes memory use.
 
     Returns
     -------
@@ -56,22 +46,8 @@ def greens_function(
         kpm_params = {}
     vectors = np.atleast_2d(vectors)
 
-    # precalclulate expanded_vectors
-    if precalculate_moments:
-        params = copy.deepcopy(kpm_params)
-        kpm_params["num_vectors"] = None
-        kpm_params["vector_factory"] = vectors
-        # overwrite operator to extract kpm expanded vectors only
-        kpm_params["operator"] = lambda bra, ket: ket
-        # Do the KPM expansion
-        kpm_expansion = SpectralDensity(ham, params=params, **kpm_params)
-        expanded_vectors = np.array(kpm_expansion._moments_list)
-        expanded_vectors = np.moveaxis(expanded_vectors, -1, 0)
-        kernel, num_moments = kpm_expansion.kernel, kpm_expansion.num_moments
-        _a, _b = kpm_expansion._a, kpm_expansion._b
-    else:
-        # Rescale Hamiltonian
-        ham, (_a, _b), num_moments, kernel = _kpm_preprocess(ham, kpm_params)
+    # Rescale Hamiltonian
+    ham, (_a, _b), num_moments, kernel = _kpm_preprocess(ham, kpm_params)
 
     # Get the kernel coefficients
     m = np.arange(num_moments)
@@ -105,16 +81,13 @@ def greens_function(
         coef = gs[:, None] * np.exp(-1j * np.outer(m, phi_e))
         coef = prefactor * coef
 
-        if precalculate_moments:
-            vecs_in_energy = expanded_vectors @ coef
-        else:
-            # Make generator to calculate expanded vectors on the fly
-            expanded_vector_generator = _kpm_vectors(ham, vectors, num_moments)
-            # Order as (energies, vectors, degrees of freedom)
-            vecs_in_energy = sum(
-                vec[None, :, :].T * c[None, None, :]
-                for c, vec in zip(coef, expanded_vector_generator)
-            )
+        # Make generator to calculate expanded vectors on the fly
+        expanded_vector_generator = _kpm_vectors(ham, vectors, num_moments)
+        # Order as (energies, vectors, degrees of freedom)
+        vecs_in_energy = sum(
+            vec[None, :, :].T * c[None, None, :]
+            for c, vec in zip(coef, expanded_vector_generator)
+        )
 
         return vecs_in_energy
 
