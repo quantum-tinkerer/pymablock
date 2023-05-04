@@ -1,23 +1,68 @@
+from functools import reduce
+from operator import mul
+
 import numpy as np
 import sympy
-import scipy.sparse
 
-import kwant.kpm
 from kwant._common import ensure_rng
 
 from qsymm.model import Model, _symbol_normalizer
 
-from .higher_order_lowdin import _interesting_keys
 from .kpm_funcs import _kpm_preprocess
 
 one = sympy.sympify(1)
 
 
-def trace_perturbation(H0, H1, order=2, interesting_keys=None,
-                       trace=True, num_moments=100, operator=None,
-                       num_vectors=10, vectors=None,
-                       normalized_vectors=False, kpm_params=dict()
-                      ):
+def _interesting_keys(keys, order=2):
+    """
+    Generate list of interesting keys as monomials of `keys`
+    with maximum total power `order`.
+    It helps minimize total time of calculations.
+
+    Parameters
+    ----------
+    keys: iterable of sympy expressions
+        Keys that appear in monomials.
+    order: int (default 2)
+        Maximum total power of `keys` in `interesting_keys`.
+
+    Returns
+    -------
+    interesting_keys: set of sympy expressions
+    """
+
+    def partition(n, d, depth=0):
+        # Partition the number n into d parts sensitive to the order of terms
+        if d == depth:
+            return [[]]
+        return [
+            item + [i]
+            for i in range(n + 1)
+            for item in partition(n - i, d, depth=depth + 1)
+        ]
+
+    # Generate partitioning of `order` to `len(keys) + 1` parts, this includes all
+    # monomials with lower total power as well
+    powers = partition(order, len(keys) + 1)
+    interesting_keys = set(
+        reduce(mul, [k**n for (k, n) in zip(keys, power)]) for power in powers
+    )
+    return interesting_keys
+
+
+def trace_perturbation(
+    H0,
+    H1,
+    order=2,
+    interesting_keys=None,
+    trace=True,
+    num_moments=100,
+    operator=None,
+    num_vectors=10,
+    vectors=None,
+    normalized_vectors=False,
+    kpm_params=dict(),
+):
     """
     Perturbative expansion of `Tr(f(H) * A)` using stochastic trace.
 
@@ -77,18 +122,14 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
     else:
         interesting_keys = {_symbol_normalizer(k) for k in interesting_keys}
     H1.keep = interesting_keys
-    ## Removed this restriction, because small parameters can also appear in `operator`
-#     if not interesting_keys <= all_keys:
-#         raise ValueError('`interesting_keys` should be a subset of all monomials of `H1.keys()` '
-#                          'up to total power `order`.')
 
     # Convert to appropriate format
     if not isinstance(H0, Model):
         H0 = Model({1: H0}, keep=interesting_keys)
     elif not (len(H0) == 1 and list(H0.keys()).pop() == 1):
-        raise ValueError('H0 must contain a single entry {sympy.sympify(1): array}.')
+        raise ValueError("H0 must contain a single entry {sympy.sympify(1): array}.")
     # Find the bounds of the spectrum and rescale `ham`
-    kpm_params['num_moments'] = num_moments
+    kpm_params["num_moments"] = num_moments
     H0[one], (_a, _b), num_moments, _kernel = _kpm_preprocess(H0[one], kpm_params)
     H1 /= _a
 
@@ -97,7 +138,7 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
 
     if vectors is None:
         # Make random vectors
-        rng = ensure_rng(kpm_params.get('rng'))
+        rng = ensure_rng(kpm_params.get("rng"))
         vectors = np.exp(2j * np.pi * rng.random_sample((num_vectors, N)))
     if not isinstance(vectors, Model):
         vectors = Model({1: np.atleast_2d(vectors)})
@@ -123,7 +164,9 @@ def trace_perturbation(H0, H1, order=2, interesting_keys=None,
         Perturbative expansion of `Tr(f(H) * A)` using stochastic trace.
         The moments are precalculated, so evaluation should be fast.
         """
-        coef = np.polynomial.chebyshev.chebinterpolate(lambda x: f(x * _a + _b), num_moments)
+        coef = np.polynomial.chebyshev.chebinterpolate(
+            lambda x: f(x * _a + _b), num_moments
+        )
         coef = _kernel(coef)
         return sum(c * moment for c, moment in zip(coef, moments))
 
