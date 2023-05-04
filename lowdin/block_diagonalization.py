@@ -699,7 +699,7 @@ def implicit(
         Function to use for solving Sylvester's equation.
     algorithm :
         Algorithm to use for diagonalization. One of "general", "expanded".
-        The "expanded" (default) is faster in lower orders.
+        The "general" (default) is faster in higher orders.
 
     Returns
     -------
@@ -781,7 +781,7 @@ def solve_sylvester_diagonal(
     eigs_B :
         Eigenvalues of auxiliary (B) subspace of the unperturbed Hamiltonian.
     vecs_B :
-        (optional) Eigenvectors of the auxiliary (B) subspace of the
+        Eigenvectors of the auxiliary (B) subspace of the
         unperturbed Hamiltonian.
 
     Returns

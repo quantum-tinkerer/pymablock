@@ -30,7 +30,7 @@ def greens_function(
         `M` is the number of vectors and `N` the number of orbitals
         in the system.
     params :
-        Parameters for the kwant system.
+        Parameters for the kwant system if ``ham`` is a kwant system.
     kpm_params :
         Dictionary containing the parameters to pass to the `~kwant.kpm`
         module. 'num_vectors' will be overwritten to match the number
