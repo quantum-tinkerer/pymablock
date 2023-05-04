@@ -304,8 +304,7 @@ def test_input_hamiltonian_from_subspaces():
 
     for hamiltonian in hamiltonians:
         H = hamiltonian_to_BlockSeries(
-            hamiltonian,
-            subspace_eigenvectors=subspace_eigenvectors
+            hamiltonian, subspace_eigenvectors=subspace_eigenvectors
         )
         assert H.shape == (2, 2)
         assert H.n_infinite == len(hamiltonian) - 1
@@ -385,8 +384,7 @@ def compare_series(
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     all_elements = (slice(None),) * len(series1.shape)
     results = [
-        np.ma.ndenumerate(series[all_elements + order])
-        for series in (series1, series2)
+        np.ma.ndenumerate(series[all_elements + order]) for series in (series1, series2)
     ]
     for (order1, value1), (order2, value2) in zip(*results):
         assert order1 == order2
@@ -727,18 +725,19 @@ def test_check_AB_KPM(
         subspace_eigenvectors=almost_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 5000},
-        atol=1e-8
+        atol=1e-8,
     )
 
     half_eigenvectors = (
-        subspace_eigenvectors[0], subspace_eigenvectors[1][:, : b_dim // 2]
+        subspace_eigenvectors[0],
+        subspace_eigenvectors[1][:, : b_dim // 2],
     )
     H_tilde_half_b, _, _ = block_diagonalize(
         hamiltonian,
         subspace_eigenvectors=half_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 5000},
-        atol=1e-8
+        atol=1e-8,
     )
 
     kpm_subspaces = (subspace_eigenvectors[0],)
@@ -747,7 +746,7 @@ def test_check_AB_KPM(
         subspace_eigenvectors=kpm_subspaces,
         direct_solver=False,
         solver_options={"num_moments": 10000},
-        atol=1e-8
+        atol=1e-8,
     )
 
     # # full b
@@ -794,7 +793,10 @@ def test_solve_sylvester(
 
     divide_energies_full_b = solve_sylvester_KPM(h_0, subspace_eigenvectors)
 
-    half_subspaces = (subspace_eigenvectors[0], subspace_eigenvectors[1][:, : b_dim // 2])
+    half_subspaces = (
+        subspace_eigenvectors[0],
+        subspace_eigenvectors[1][:, : b_dim // 2],
+    )
     divide_energies_half_b = solve_sylvester_KPM(
         h_0,
         half_subspaces,
@@ -803,9 +805,7 @@ def test_solve_sylvester(
 
     kpm_subspaces = (subspace_eigenvectors[0],)
     divide_energies_kpm = solve_sylvester_KPM(
-        h_0,
-        kpm_subspaces,
-        solver_options={"num_moments": 20000}
+        h_0, kpm_subspaces, solver_options={"num_moments": 20000}
     )
 
     y_trial = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
@@ -898,10 +898,7 @@ def test_implicit_consistent_on_A(
     H_tilde_general = general(H_general)[0]
     H_tilde_full_b = implicit(H_input, vecs_A, eigs_A, vecs_B, eigs_B)[0]
     H_tilde_KPM = implicit(
-        H_input,
-        vecs_A,
-        eigs_A,
-        solver_options={"num_moments": 5000}
+        H_input, vecs_A, eigs_A, solver_options={"num_moments": 5000}
     )[0]
     order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     for block_full_b, block_general, block_KPM in zip(
@@ -959,7 +956,7 @@ def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     )
 
 
-def test_solve_sylvester_direct_vs_diagonal()-> None:
+def test_solve_sylvester_direct_vs_diagonal() -> None:
     n = 300
     a_dim = 5
     E = np.random.randn(n)
@@ -1001,11 +998,12 @@ def test_consistent_implicit_subspace(
 
     # Catch error if the dimension of the eigenvectors do not match the Hamiltonian
     with pytest.raises(ValueError):
-        faulted_eigenvectors = (subspace_eigenvectors[0][:1, :], subspace_eigenvectors[1])
+        faulted_eigenvectors = (
+            subspace_eigenvectors[0][:1, :],
+            subspace_eigenvectors[1],
+        )
         H_tilde, _, _ = block_diagonalize(
-            hamiltonian,
-            subspace_eigenvectors=faulted_eigenvectors,
-            direct_solver=False
+            hamiltonian, subspace_eigenvectors=faulted_eigenvectors, direct_solver=False
         )
 
     almost_eigenvectors = (subspace_eigenvectors[0], subspace_eigenvectors[1][:, :-1])
@@ -1014,7 +1012,7 @@ def test_consistent_implicit_subspace(
         subspace_eigenvectors=almost_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 10000},
-        atol=1e-8
+        atol=1e-8,
     )
     reversed_eigenvectors = (subspace_eigenvectors[1], subspace_eigenvectors[0][:, :-1])
     H_tilde_swapped, _, _ = block_diagonalize(
@@ -1022,7 +1020,7 @@ def test_consistent_implicit_subspace(
         subspace_eigenvectors=reversed_eigenvectors,
         direct_solver=False,
         solver_options={"num_moments": 10000},
-        atol=1e-8
+        atol=1e-8,
     )
 
     assert H_tilde.shape == H_tilde_swapped.shape
@@ -1208,8 +1206,10 @@ def test_unknown_data_type():
     """
     Test that the algorithm raises an error if the data type is unknown.
     """
+
     class Unknown:
         """Black box class with a minimal algebraic interface."""
+
         def __init__(self, name):
             self.name = name
 

@@ -92,6 +92,4 @@ def test_cauchy_dot_product():
         n_infinite=1,
     )
     result = cauchy_dot_product(a, b, operator=mul)
-    np.testing.assert_allclose(
-        result[:, :, 3].astype(float), test_value @ test_value
-    )
+    np.testing.assert_allclose(result[:, :, 3].astype(float), test_value @ test_value)

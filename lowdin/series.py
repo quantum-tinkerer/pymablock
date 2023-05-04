@@ -10,18 +10,24 @@ from sympy.physics.quantum import Dagger
 
 __all__ = ["BlockSeries", "cauchy_dot_product", "one", "zero"]
 
+
 class Pending:
     """Sentinel value representing a pending evaluation."""
+
     def __repr__(self) -> str:
         return "pending"
+
 
 PENDING = Pending()
 del Pending
 
+
 class One:
     """Sentinel value representing the identity operator."""
+
     def __repr__(self) -> str:
         return "one"
+
 
 one = One()
 del One
@@ -182,7 +188,7 @@ def cauchy_dot_product(
     *series: BlockSeries,
     operator: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: Optional[list[bool]] = None
+    exclude_last: Optional[list[bool]] = None,
 ):
     """
     Multivariate Cauchy product of BlockSeries.
@@ -241,7 +247,7 @@ def cauchy_dot_product(
             *series,
             operator=operator,
             hermitian=hermitian,
-            exclude_last=exclude_last
+            exclude_last=exclude_last,
         )
 
     product.eval = eval
@@ -253,7 +259,7 @@ def product_by_order(
     *series: BlockSeries,
     operator: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: Optional[list[bool]] = None
+    exclude_last: Optional[list[bool]] = None,
 ) -> Any:
     """
     Compute sum of all product of factors of a wanted order.
