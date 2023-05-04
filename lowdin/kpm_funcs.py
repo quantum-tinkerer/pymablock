@@ -78,7 +78,6 @@ def greens_function(
     gs = kernel(np.ones(num_moments))
     gs[0] = gs[0] / 2
 
-
     def green_expansion(e):
         """
         Takes an energy ``e`` and returns the Green's function evaluated at
@@ -123,10 +122,10 @@ def greens_function(
 
 
 def _kpm_vectors(
-        ham: np.ndarray,
-        vectors: np.ndarray,
-        max_moments: int,
-    ):
+    ham: np.ndarray,
+    vectors: np.ndarray,
+    max_moments: int,
+):
     r"""
     Generator of KPM vectors
 

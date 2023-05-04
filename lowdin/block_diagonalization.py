@@ -167,7 +167,7 @@ def block_diagonalize(
         if isinstance(hamiltonian, list):
             h_0 = hamiltonian[0]
         elif isinstance(hamiltonian, dict):
-            h_0 = hamiltonian.get(1, hamiltonian.get(1.))
+            h_0 = hamiltonian.get(1, hamiltonian.get(1.0))
             if h_0 is None:
                 h_0 = hamiltonian[(0,) * len(next(iter(hamiltonian.keys())))]
         elif isinstance(hamiltonian, BlockSeries):
@@ -178,9 +178,7 @@ def block_diagonalize(
                 )
             h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
         else:
-            raise TypeError(
-                "`hamiltonian` must be a list, dictionary, or BlockSeries."
-            )
+            raise TypeError("`hamiltonian` must be a list, dictionary, or BlockSeries.")
         if any(h_0.shape[0] != vecs.shape[0] for vecs in subspace_eigenvectors):
             raise ValueError(
                 "`subspace_eigenvectors` does not match the shape of `h_0`."
@@ -404,7 +402,7 @@ def hamiltonian_to_BlockSeries(
             Dagger(subspace_eigenvectors[left])
             @ original
             @ subspace_eigenvectors[right],
-            atol=atol
+            atol=atol,
         )
 
     H = BlockSeries(
@@ -680,7 +678,7 @@ def expanded(
 def implicit(
     H: BlockSeries,
     solve_sylvester: Callable,
-    algorithm : str = "general",
+    algorithm: str = "general",
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Block diagonalize a Hamiltonian without explicitly forming BB matrices.
@@ -758,7 +756,7 @@ def implicit(
         eval=H_tilde_eval,
         shape=(2, 2),
         n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names
+        dimension_names=H.dimension_names,
     )
 
     return H_tilde, U, U_adjoint
@@ -768,7 +766,7 @@ def implicit(
 def solve_sylvester_diagonal(
     eigs_A: np.ndarray | sympy.MatrixBase,
     eigs_B: np.ndarray | sympy.MatrixBase,
-    vecs_B: Optional[np.ndarray] = None
+    vecs_B: Optional[np.ndarray] = None,
 ) -> Callable:
     """
     Define a function for solving a Sylvester's equation for diagonal matrices.
@@ -873,9 +871,7 @@ def solve_sylvester_KPM(
         Sylvester's equation.
     """
     eigs_A = (
-        Dagger(subspace_eigenvectors[0])
-        @ h_0
-        @ subspace_eigenvectors[0]
+        Dagger(subspace_eigenvectors[0]) @ h_0 @ subspace_eigenvectors[0]
     ).diagonal()
     if len(subspace_eigenvectors) > 2:
         raise ValueError("Invalid number of subspace_eigenvectors")
@@ -901,9 +897,7 @@ def solve_sylvester_KPM(
     if need_explicit:
         vecs_B = subspace_eigenvectors[1]
         eigs_B = (
-            Dagger(subspace_eigenvectors[1])
-            @ h_0
-            @ subspace_eigenvectors[1]
+            Dagger(subspace_eigenvectors[1]) @ h_0 @ subspace_eigenvectors[1]
         ).diagonal()
         solve_sylvester_explicit = solve_sylvester_diagonal(eigs_A, eigs_B, vecs_B)
 
@@ -1283,12 +1277,11 @@ def _extract_diagonal(H: BlockSeries) -> tuple[np.ndarray, np.ndarray]:
     if isinstance(h_0_AA, sympy.MatrixBase):
         array_eigs_A = np.array(eigs_A, dtype=object)
         array_eigs_B = np.array(eigs_B, dtype=object)
-        if np.any((array_eigs_A.reshape(-1, 1) - array_eigs_B)==0):
+        if np.any((array_eigs_A.reshape(-1, 1) - array_eigs_B) == 0):
             raise ValueError("The subspaces must not share eigenvalues.")
     else:
         if np.any(np.isclose(eigs_A.reshape(-1, 1), eigs_B)):
             raise ValueError("The subspaces must not share eigenvalues.")
-
 
     return h_0_AA.diagonal(), h_0_BB.diagonal()
 
@@ -1322,7 +1315,7 @@ def _convert_if_zero(value: Any, atol=1e-12):
 
 
 def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
-    """ Check that the eigenvectors are orthonormal."""
+    """Check that the eigenvectors are orthonormal."""
     if isinstance(subspace_eigenvectors[0], np.ndarray):
         all_vecs = np.hstack(subspace_eigenvectors)
         overlap = Dagger(all_vecs) @ all_vecs
