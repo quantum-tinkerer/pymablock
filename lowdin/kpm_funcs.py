@@ -7,44 +7,33 @@ from kwant.kpm import _rescale, jackson_kernel
 
 def greens_function(
     ham: np.ndarray | sparse.spmatrix,
-    vectors: np.ndarray,
-    params: Optional[dict] = None,
+    energy: float,
+    vector: np.ndarray,
     kpm_params: Optional[dict] = None,
 ):
-    """Build a Green's function operator using KPM.
+    """Return a solution of the linear system (ham - energy) * x = vector.
 
-    Returns a function that takes an energy or a list of energies, and returns
-    the Green's function with that energy acting on `vectors`.
+    Uses the Kernel polynomial method (KPM) with the Jackson kernel.
 
     Parameters
     ----------
     ham :
         Hamiltonian with shape `(N, N)`.
-    vectors :
-        Vectors upon which the Green's function will act.
-        Vector of length `N` or array of vectors with shape `(M, N)`.
-        `M` is the number of vectors and `N` the number of orbitals
-        in the system.
-    params :
-        Parameters for the kwant system if ``ham`` is a kwant system.
+    energy :
+        Energy at which to evaluate the Green's function.
+    vector :
+        Vector with shape `(N,)`.
     kpm_params :
         Dictionary containing the parameters to pass to the `~kwant.kpm`
-        module. 'num_vectors' will be overwritten to match the number
-        of vectors, and 'operator' key will be deleted.
+        module. ``num_vectors`` and ``operator`` parameters are overridden.
 
     Returns
     -------
-    green_expansion : callable
-        Takes an energy or array of energies and returns the Greens function
-        acting on the vectors, for those energies.
-        The ndarray returned has initial dimension the same `num_e` as `e`,
-        unless `e` is a scalar, and second dimension `M` unless `vectors` is
-        a single vector. The shape of the returned array is `(num_e, M, N)` or
-        `(M, N)` or `(num_e, N)` or `(N,)`.
+    solution : `~np.ndarray`
+        Solution of the linear system.
     """
     if kpm_params is None:
         kpm_params = {}
-    vectors = np.atleast_2d(vectors)
 
     # Rescale Hamiltonian
     ham, (_a, _b), num_moments, kernel = _kpm_preprocess(ham, kpm_params)
@@ -54,44 +43,14 @@ def greens_function(
     gs = kernel(np.ones(num_moments))
     gs[0] = gs[0] / 2
 
-    def green_expansion(e):
-        """
-        Takes an energy ``e`` and returns the Green's function evaluated at
-        that energy times the vectors.
+    e_rescaled = (energy - _b) / _a
+    phi_e = np.arccos(e_rescaled)
+    prefactor = -2j / (np.sqrt((1 - e_rescaled) * (1 + e_rescaled)))
+    prefactor = prefactor / _a  # rescale energy expansion
+    coef = gs[:, None] * np.exp(-1j * np.outer(m, phi_e))
+    coef = prefactor * coef
 
-        Parameters
-        ----------
-        e : float or array-like
-            Energy or array of energies at which to evaluate the Green's
-            function.
-
-        Returns
-        -------
-        vecs_in_energy : ndarray
-            Initial dimensions '(N_E, M, N)', where 'N_E' is the number of
-            energies passed, 'M' is the number of vectors, and 'N' is the
-            dimension of the vectors.
-        """
-        # remember if only one e was given
-        e = np.atleast_1d(e).flatten()
-        e_rescaled = (e - _b) / _a
-        phi_e = np.arccos(e_rescaled)
-        prefactor = -2j / (np.sqrt((1 - e_rescaled) * (1 + e_rescaled)))
-        prefactor = prefactor / _a  # rescale energy expansion
-        coef = gs[:, None] * np.exp(-1j * np.outer(m, phi_e))
-        coef = prefactor * coef
-
-        # Make generator to calculate expanded vectors on the fly
-        expanded_vector_generator = _kpm_vectors(ham, vectors, num_moments)
-        # Order as (energies, vectors, degrees of freedom)
-        vecs_in_energy = sum(
-            vec[None, :, :].T * c[None, None, :]
-            for c, vec in zip(coef, expanded_vector_generator)
-        )
-
-        return vecs_in_energy
-
-    return green_expansion
+    return sum(vec * c for c, vec in zip(coef, _kpm_vectors(ham, vector, num_moments)))
 
 
 def _kpm_vectors(

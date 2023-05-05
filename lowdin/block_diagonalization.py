@@ -853,20 +853,16 @@ def solve_sylvester_KPM(
     if len(subspace_eigenvectors) > 2:
         raise ValueError("Invalid number of subspace_eigenvectors")
 
-    if solver_options is None:
-        solver_options = dict()
-
     kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
 
     def solve_sylvester_kpm(Y: np.ndarray) -> np.ndarray:
         Y_KPM = Y @ kpm_projector
-        vec_G_Y = greens_function(
-            h_0,
-            params=None,
-            vectors=Y_KPM.conj(),
-            kpm_params=solver_options,
-        )(eigs_A)
-        return np.vstack([vec_G_Y.conj()[:, m, m] for m in range(len(eigs_A))])
+        return np.vstack(
+            [
+                greens_function(h_0.T, energy, vector, solver_options)
+                for energy, vector in zip(eigs_A, Y_KPM)
+            ]
+        )
 
     need_explicit = bool(len(subspace_eigenvectors) - 1)
     if need_explicit:
