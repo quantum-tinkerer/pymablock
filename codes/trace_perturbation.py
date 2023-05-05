@@ -8,7 +8,8 @@ from kwant._common import ensure_rng
 
 from qsymm.model import Model, _symbol_normalizer
 
-from .kpm_funcs import _kpm_preprocess
+from .kpm_funcs import rescale
+from kwant.kpm import jackson_kernel
 
 one = sympy.sympify(1)
 
@@ -130,7 +131,7 @@ def trace_perturbation(
         raise ValueError("H0 must contain a single entry {sympy.sympify(1): array}.")
     # Find the bounds of the spectrum and rescale `ham`
     kpm_params["num_moments"] = num_moments
-    H0[one], (_a, _b), num_moments, _kernel = _kpm_preprocess(H0[one], kpm_params)
+    H0[one], (_a, _b) = rescale(H0[one], kpm_params.get("eps", 0.05))
     H1 /= _a
 
     ham = H0 + H1
@@ -167,7 +168,7 @@ def trace_perturbation(
         coef = np.polynomial.chebyshev.chebinterpolate(
             lambda x: f(x * _a + _b), num_moments
         )
-        coef = _kernel(coef)
+        coef = jackson_kernel(coef)
         return sum(c * moment for c, moment in zip(coef, moments))
 
     return expansion

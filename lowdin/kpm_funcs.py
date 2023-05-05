@@ -1,15 +1,16 @@
 from typing import Optional
 
 from scipy import sparse
+from scipy.sparse.linalg import LinearOperator
 import numpy as np
-from kwant.kpm import _rescale, jackson_kernel
 
 
 def greens_function(
     ham: np.ndarray | sparse.spmatrix,
     energy: float,
     vector: np.ndarray,
-    kpm_params: Optional[dict] = None,
+    num_moments: int = 100,
+    energy_resolution: Optional[float] = None,
 ):
     """Return a solution of the linear system (ham - energy) * x = vector.
 
@@ -18,45 +19,40 @@ def greens_function(
     Parameters
     ----------
     ham :
-        Hamiltonian with shape `(N, N)`.
+        Hamiltonian with shape `(N, N)`. It is required that the Hamiltonian
+        is rescaled so that its spectrum lies in the interval `[-1, 1]`.
     energy :
-        Energy at which to evaluate the Green's function.
+        Rescaled energy at which to evaluate the Green's function.
     vector :
         Vector with shape `(N,)`.
-    kpm_params :
-        Dictionary containing the parameters to pass to the `~kwant.kpm`
-        module. ``num_vectors`` and ``operator`` parameters are overridden.
+    num_moments :
+        Number of moments to use in the KPM expansion.
+    energy_resolution :
+        Energy resolution to use in the KPM expansion. If specified, the
+        number of moments is chosen automatically.
 
     Returns
     -------
     solution : `~np.ndarray`
         Solution of the linear system.
     """
-    if kpm_params is None:
-        kpm_params = {}
+    if energy_resolution is not None:
+        num_moments = int(np.ceil(1.6 / energy_resolution))
 
-    # Rescale Hamiltonian
-    ham, (_a, _b), num_moments, kernel = _kpm_preprocess(ham, kpm_params)
-
-    # Get the kernel coefficients
-    m = np.arange(num_moments)
-    gs = kernel(np.ones(num_moments))
+    gs = jackson_kernel(num_moments)
     gs[0] = gs[0] / 2
 
-    e_rescaled = (energy - _b) / _a
-    phi_e = np.arccos(e_rescaled)
-    prefactor = -2j / (np.sqrt((1 - e_rescaled) * (1 + e_rescaled)))
-    prefactor = prefactor / _a  # rescale energy expansion
-    coef = gs[:, None] * np.exp(-1j * np.outer(m, phi_e))
+    phi_e = np.arccos(energy)
+    prefactor = -2j / (np.sqrt((1 - energy) * (1 + energy)))
+    coef = gs * np.exp(-1j * np.arange(num_moments) * phi_e)
     coef = prefactor * coef
 
-    return sum(vec * c for c, vec in zip(coef, _kpm_vectors(ham, vector, num_moments)))
+    return sum(vec * c for c, vec in zip(coef, kpm_vectors(ham, vector)))
 
 
-def _kpm_vectors(
+def kpm_vectors(
     ham: np.ndarray,
     vectors: np.ndarray,
-    max_moments: int,
 ):
     r"""
     Generator of KPM vectors
@@ -74,8 +70,6 @@ def _kpm_vectors(
         Hamiltonian, dense or sparse array with shape '(N, N)'.
     vectors :
         Vector of length 'N' or array of vectors with shape '(M, N)'.
-    max_moments :
-        Number of moments to stop the iteration.
 
     Yields
     ------
@@ -90,48 +84,88 @@ def _kpm_vectors(
     alpha_next = np.zeros(vectors.shape, dtype=complex)
 
     alpha[:] = vectors
-    n = 0
     yield alpha.T
-    n += 1
     alpha_prev[:] = alpha
     alpha[:] = ham @ alpha
     yield alpha.T
-    n += 1
-    while n < max_moments:
+    while True:
         alpha_next[:] = 2 * ham @ alpha - alpha_prev
         alpha_prev[:] = alpha
         alpha[:] = alpha_next
         yield alpha.T
-        n += 1
 
 
-def _kpm_preprocess(ham, kpm_params):
-    # Find the bounds of the spectrum and rescale `ham`
-    eps = kpm_params.get("eps", 0.05)
-    bounds = kpm_params.get("bounds", None)
-    if eps <= 0:
-        raise ValueError("'eps' must be positive")
-    # Hamiltonian rescaled as in Eq. (24), This returns a LinearOperator
-    ham_rescaled, (_a, _b) = _rescale(ham, eps=eps, bounds=bounds, v0=None)
-    # Make sure to return the same format
-    if isinstance(ham, np.ndarray):
-        ham_rescaled = (ham - _b * np.eye(ham.shape[0])) / _a
-    elif sparse.issparse(ham):
-        id = sparse.identity(ham.shape[0], dtype="complex", format="csr")
-        id = sparse.csr_array(id)
-        ham_rescaled = (ham - _b * id) / _a
-    # extract the number of moments or set default to 100
-    energy_resolution = kpm_params.get("energy_resolution")
-    if energy_resolution is not None:
-        num_moments = int(np.ceil((1.6 * _a) / energy_resolution))
-        if kpm_params.get("num_moments"):
-            raise TypeError(
-                "Either 'num_moments' or 'energy_resolution' can be provided."
-            )
-    elif kpm_params.get("num_moments") is None:
-        num_moments = 100
+def rescale(
+    hamiltonian: np.ndarray | sparse.spmatrix | LinearOperator,
+    eps: Optional[float] = 0.01,
+    bounds: Optional[tuple[float, float]] = None,
+):
+    """Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
+
+    Adapted with modifications from kwant.kpm
+    Copyright 2011-2016 Kwant developers, BSD simplified license
+    https://gitlab.kwant-project.org/kwant/kwant/-/blob/v1.4.3/LICENSE.rst
+
+    Parameters
+    ----------
+    hamiltonian :
+        Hamiltonian of the system.
+    eps :
+        Extra tolerance to add to the spectral bounds as a fraction of the bandwidth.
+    bounds :
+        Estimated boundaries of the spectrum. If not provided the maximum and
+        minimum eigenvalues are calculated.
+
+    Returns
+    -------
+    hamiltonian_rescaled :
+        Rescaled Hamiltonian.
+    (a, b) :
+        Rescaling parameters such that ``h_rescaled = (h - b) / a``.
+    """
+
+    if bounds is not None:
+        lmin, lmax = bounds
     else:
-        num_moments = kpm_params.get("num_moments")
-    kernel = kpm_params.get("kernel", jackson_kernel)
+        # Relative tolerance to which to calculate eigenvalues.  Because after
+        # rescaling we will add eps / 2 to the spectral bounds, we don't need
+        # to know the bounds more accurately than eps / 2.
+        tol = eps / 2
+        lmax = sparse.linalg.eigsh(
+            hamiltonian, k=1, which="LA", return_eigenvectors=False, tol=tol
+        )[0]
+        lmin = sparse.linalg.eigsh(
+            hamiltonian, k=1, which="SA", return_eigenvectors=False, tol=tol
+        )[0]
 
-    return ham_rescaled, (_a, _b), num_moments, kernel
+        if lmax - lmin <= abs(lmax + lmin) * tol / 2:
+            raise ValueError(
+                "The Hamiltonian has a single eigenvalue, it is not possible to "
+                "obtain a spectral density."
+            )
+
+    a = np.abs(lmax - lmin) / (2.0 - eps)
+    b = (lmax + lmin) / 2.0
+
+    if sparse.issparse(hamiltonian):
+        identity = sparse.identity(hamiltonian.shape[0], format="csr")
+        rescaled_ham = (hamiltonian - b * identity) / a
+    elif isinstance(hamiltonian, np.ndarray):
+        rescaled_ham = (hamiltonian - b * np.eye(hamiltonian.shape[0])) / a
+    else:
+        rescaled_ham = LinearOperator(
+            shape=hamiltonian.shape, matvec=(lambda v: (hamiltonian @ v - b * v) / a)
+        )
+
+    return rescaled_ham, (a, b)
+
+
+def jackson_kernel(N):
+    """Coefficients of the Jackson kernel of length N.
+
+    Taken from Eq. (71) of `Rev. Mod. Phys., Vol. 78, No. 1 (2006)
+    <https://arxiv.org/abs/cond-mat/0504627>`_.
+    """
+    m = np.arange(N) / (N + 1)
+    denom = (N + 1) * np.tan(np.pi / (N + 1))
+    return (1 - m) * np.cos(m * np.pi) + np.sin(m * np.pi) / denom

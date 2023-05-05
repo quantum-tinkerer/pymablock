@@ -20,7 +20,7 @@ from lowdin.linalg import (
     is_diagonal,
     direct_greens_function,
 )
-from lowdin.kpm_funcs import greens_function
+from lowdin.kpm_funcs import greens_function, rescale
 from lowdin.series import (
     BlockSeries,
     zero,
@@ -838,8 +838,15 @@ def solve_sylvester_KPM(
         blocks. The first element of the tuple contains the effective subspace,
         and the second element contains the (partial) auxiliary subspace.
     solver_options :
-        Dictionary containing the options to pass to the solver. See the
-        `~lowdin.kpm_funcs.greens_function` documentation for details.
+        Dictionary containing the any of the following options for KPM.
+        - eps: float
+            Tolerance for Hamiltonian rescaling.
+        - bounds: tuple[float, float]
+            Spectral bounds for Hamiltonian rescaling, overrides ``eps``.
+        - num_moments: int
+            Number of moments to use for KPM.
+        - energy_resolution: float
+            Relative energy resolution of KPM. If provided, overrides ``num_moments``.
 
     Returns
     ----------
@@ -852,15 +859,26 @@ def solve_sylvester_KPM(
     ).diagonal()
     if len(subspace_eigenvectors) > 2:
         raise ValueError("Invalid number of subspace_eigenvectors")
+    if solver_options is None:
+        solver_options = {}
 
     kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
+    # Prepare the Hamiltonian for KPM by rescaling to [-1, 1]
+    h_rescaled, (a, b) = rescale(h_0.T, eps=solver_options.get("eps", 0.01))
+    eigs_A_rescaled = (eigs_A - b) / a
 
     def solve_sylvester_kpm(Y: np.ndarray) -> np.ndarray:
-        Y_KPM = Y @ kpm_projector
+        Y_KPM = Y @ kpm_projector / a  # Keep track of Hamiltonian rescaling
         return np.vstack(
             [
-                greens_function(h_0.T, energy, vector, solver_options)
-                for energy, vector in zip(eigs_A, Y_KPM)
+                greens_function(
+                    h_rescaled,
+                    energy,
+                    vector,
+                    solver_options.get("num_moments", 100),
+                    solver_options.get("energy_resolution"),
+                )
+                for energy, vector in zip(eigs_A_rescaled, Y_KPM)
             ]
         )
 
