@@ -20,7 +20,7 @@ from lowdin.linalg import (
     is_diagonal,
     direct_greens_function,
 )
-from lowdin.kpm_funcs import greens_function, rescale
+from lowdin.kpm import greens_function, rescale
 from lowdin.series import (
     BlockSeries,
     zero,
@@ -686,7 +686,7 @@ def implicit(
     This function uses either "general" or "expanded" algorithm to block
     diagonalize, but does not compute products within the B (auxiliary)
     subspace. Instead these matrices are wrapped in
-    ``scipy.sparse.LinearOperator`` and combined to keep them low rank.
+    `~scipy.sparse.linalg.LinearOperator` and combined to keep them low rank.
 
     This function is useful for large numeric Hamiltonians where the effective
     subspace is small, but the full Hamiltonian is large.
