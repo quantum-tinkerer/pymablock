@@ -131,12 +131,12 @@ def rescale(
         # rescaling we will add eps / 2 to the spectral bounds, we don't need
         # to know the bounds more accurately than eps / 2.
         tol = eps / 2
-        lmax = sparse.linalg.eigsh(
-            hamiltonian, k=1, which="LA", return_eigenvectors=False, tol=tol
-        )[0]
-        lmin = sparse.linalg.eigsh(
-            hamiltonian, k=1, which="SA", return_eigenvectors=False, tol=tol
-        )[0]
+        lmax, lmin = [
+            sparse.linalg.eigsh(
+                hamiltonian, k=1, which=which, return_eigenvectors=False, tol=tol
+            )[0]
+            for which in ("LA", "SA")
+        ]
 
         if lmax - lmin <= abs(lmax + lmin) * tol / 2:
             raise ValueError(
