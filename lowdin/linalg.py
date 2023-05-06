@@ -90,6 +90,8 @@ def direct_greens_function(
     greens_function : `Callable[[np.ndarray], np.ndarray]`
         Function that computes the Green's function at a given energy.
     """
+    original_type = h.dtype
+    h_is_real = np.issubdtype(original_type, np.floating)
     h = h.astype(complex)  # Kwant MUMPS wrapper only has complex bindings.
     h = h - E * identity(h.shape[0], dtype=h.dtype, format="csr")
     ctx = mumps.MUMPSContext()
@@ -114,6 +116,7 @@ def direct_greens_function(
         sol :
             Solution of :math:`(H - E) sol = vec`.
         """
+        is_real = np.issubdtype(vec.dtype, np.floating) and h_is_real
         sol = ctx.solve(vec)
         if (residue := np.linalg.norm(h @ sol - vec)) > atol:
             warn(
@@ -121,7 +124,9 @@ def direct_greens_function(
                 " adjust eps or atol.",
                 RuntimeWarning,
             )
-        return sol
+        if is_real:
+            sol = sol.real
+        return sol.astype(np.find_common_type([], [original_type, vec.dtype]))
 
     return greens_function
 

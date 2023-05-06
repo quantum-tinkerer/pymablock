@@ -28,6 +28,16 @@ def test_direct_greens_function():
     assert_allclose(h @ sol - E[n0] * sol, vec)
 
 
+def test_direct_greens_function_dtype():
+    n = 10
+    E = np.random.randn(n).astype(np.float16)
+    np.diag(E)
+    gf = linalg.direct_greens_function(sparse.diags(E), 0)
+    assert gf(E).dtype == np.float16
+    assert_allclose(gf(1j * E), 1j * np.ones(n))
+    assert gf(1j * E).dtype == np.complex64
+
+
 def test_complement_projector():
     """Test ComplementProjector against explicit implementation"""
     vec_A = np.random.randn(10, 3) + 1j * np.random.randn(10, 3)
