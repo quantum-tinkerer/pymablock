@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import Optional, Callable
+from collections.abc import Iterator
 
 from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
@@ -11,7 +12,7 @@ def greens_function(
     vector: np.ndarray,
     num_moments: int = 100,
     energy_resolution: Optional[float] = None,
-):
+) -> Callable[[np.ndarray], np.ndarray]:
     """Return a solution of the linear system (ham - energy) * x = vector.
 
     Uses the Kernel polynomial method (KPM) with the Jackson kernel.
@@ -53,7 +54,7 @@ def greens_function(
 def kpm_vectors(
     ham: np.ndarray,
     vectors: np.ndarray,
-):
+) -> Iterator[np.ndarray]:
     r"""
     Generator of KPM vectors
 
@@ -99,7 +100,7 @@ def rescale(
     hamiltonian: np.ndarray | sparse.spmatrix | LinearOperator,
     eps: Optional[float] = 0.01,
     bounds: Optional[tuple[float, float]] = None,
-):
+) -> tuple[np.ndarray | sparse.spmatrix | LinearOperator, tuple[float, float]]:
     """Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
 
     Adapted with modifications from kwant.kpm
@@ -160,7 +161,7 @@ def rescale(
     return rescaled_ham, (a, b)
 
 
-def jackson_kernel(N):
+def jackson_kernel(N: int) -> np.ndarray:
     """Coefficients of the Jackson kernel of length N.
 
     Taken from Eq. (71) of `Rev. Mod. Phys., Vol. 78, No. 1 (2006)
