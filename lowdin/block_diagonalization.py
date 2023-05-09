@@ -20,7 +20,7 @@ from lowdin.linalg import (
     is_diagonal,
     direct_greens_function,
 )
-from lowdin.kpm_funcs import greens_function
+from lowdin.kpm import greens_function, rescale
 from lowdin.series import (
     BlockSeries,
     zero,
@@ -686,7 +686,7 @@ def implicit(
     This function uses either "general" or "expanded" algorithm to block
     diagonalize, but does not compute products within the B (auxiliary)
     subspace. Instead these matrices are wrapped in
-    ``scipy.sparse.LinearOperator`` and combined to keep them low rank.
+    `~scipy.sparse.linalg.LinearOperator` and combined to keep them low rank.
 
     This function is useful for large numeric Hamiltonians where the effective
     subspace is small, but the full Hamiltonian is large.
@@ -838,8 +838,16 @@ def solve_sylvester_KPM(
         blocks. The first element of the tuple contains the effective subspace,
         and the second element contains the (partial) auxiliary subspace.
     solver_options :
-        Dictionary containing the options to pass to the solver. See the
-        `~lowdin.kpm_funcs.greens_function` documentation for details.
+        Dictionary containing any of the following options for KPM.
+        - eps: float
+            Tolerance for Hamiltonian rescaling.
+        - bounds: tuple[float, float]
+            ``(E_min, E_max)`` spectral bounds of the Hamiltonian, used to rescale
+            inside an interval ``[-1, 1]``.
+        - num_moments: int
+            Number of moments to use for KPM.
+        - energy_resolution: float
+            Relative energy resolution of KPM. If provided, overrides ``num_moments``.
 
     Returns
     ----------
@@ -851,16 +859,32 @@ def solve_sylvester_KPM(
         Dagger(subspace_eigenvectors[0]) @ h_0 @ subspace_eigenvectors[0]
     ).diagonal()
     if len(subspace_eigenvectors) > 2:
-        raise ValueError("Invalid number of subspace_eigenvectors")
+        raise ValueError("Invalid number of subspaces")
+    if solver_options is None:
+        solver_options = {}
 
     kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
+    # Prepare the Hamiltonian for KPM by rescaling to [-1, 1]
+    h_rescaled, (a, b) = rescale(h_0, eps=solver_options.get("eps", 0.01))
+    eigs_A_rescaled = (eigs_A - b) / a
+    # We need to solve a transposed problem
+    h_rescaled_T = h_rescaled.T
+    # CSR format has a faster matrix-vector product
+    if sparse.issparse(h_rescaled_T):
+        h_rescaled_T = h_rescaled_T.tocsr()
 
     def solve_sylvester_kpm(Y: np.ndarray) -> np.ndarray:
-        Y_KPM = Y @ kpm_projector
+        Y_KPM = Y @ kpm_projector / a  # Keep track of Hamiltonian rescaling
         return np.vstack(
             [
-                greens_function(h_0.T, energy, vector, solver_options)
-                for energy, vector in zip(eigs_A, Y_KPM)
+                greens_function(
+                    h_rescaled_T,
+                    energy,
+                    vector,
+                    solver_options.get("num_moments", 100),
+                    solver_options.get("energy_resolution"),
+                )
+                for energy, vector in zip(eigs_A_rescaled, Y_KPM)
             ]
         )
 
