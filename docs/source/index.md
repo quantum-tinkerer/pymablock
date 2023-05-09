@@ -42,12 +42,53 @@ It provides series of block operators that may contain numerical or symbolic
 values, and two algorithms that allow to efficiently block-diagonalize
 numerical and symbolic Hamiltonians with multivariate perturbations.
 
+
+Doing perturbation theory is a three step process:
+* First, a Hamiltonian that depends on perturbative parameters is required.
+{math}`\lambda`
+
+```{code-cell} ipython3
+:tags: [hide-input]
+
+from sympy import Matrix, Symbol, Eq, Add
+
+h_0 = -Matrix([[1, 0], [0, -1]])  # sigma z
+
+lamba = Symbol('lambda', real=True)
+h_p = lamba * Matrix([[0, 1], [1, 0]]) # sigma_x
+hamiltonian = [h_0, h_p]
+
+h_0 + h_p
+```
+
+* Second, the perturbation theory is defined by calling `block_diagonalized`.
+
+```{code-cell} ipython3
+from lowdin.block_diagonalization import block_diagonalize
+
+subspace_indices = [0, 1]
+H_tilde, *_ = block_diagonalize(hamiltonian, subspace_indices=subspace_indices)
+```
+
+* Finally, the perturbative corrections to the Hamiltonian are called, computed
+and cached for each block and order.
+
+```{code-cell} ipython3
+H_tilde[0, 0, 2]  # AA block, 2nd order
+```
+
 ## Why _Lowdin_?
 
-The goal of this package is to...
+* _Lowdin_ is efficient
 
+  It provides taylored algorithms for different Hamiltonians.
+* _Lowidn_ handles symbolic and numeric computations
 
+  It works with `numpy` arrays, `scipy` sparse arrays, and `sympy` matrices and
+  quantum operators.
+* _Lowdin_ is well tested
 
+  Its tests make it reliable for an arbitrary number of perturbations.
 
 ## How does _Lowdin_ work?
 
@@ -114,8 +155,6 @@ order using `expanded`.
 
 from operator import mul
 
-from sympy import Symbol, Eq
-
 from lowdin.block_diagonalization import BlockSeries, symbolic
 
 H = BlockSeries(
@@ -142,12 +181,28 @@ H_tilde, *_ = symbolic(H)
 
 for order in range(max_order):
     result = Symbol(fr'\tilde{{H}}_{order}^{{AA}}')
-    display(Eq(result, H_tilde[0, 0, order]).subs({**hamiltonians, **offdiagonals}))
+    display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
 ```
 Finally, `expanded` replaces the specifics of `H` into the simplified expressions,
 never requiring to compute products within the auxiliary `B` subspace.
 This makes `expanded` efficient for lower order numerical computations and
 symbolic ones, while `general` is suitable for higher orders.
+
+##  How to use _Lowdin_ on large numerical Hamiltonians?
+
+The most expensive parts of the algorithm for large matrices are solving
+Sylvester's equation and the matrix products within the auxiliary `B` subspace.
+By calling `block_diagonalize` and providing the eigenvectors of the effective
+`A` subspace, _Lowdin_ runs in `implicit` mode without needing the eigenvectors
+of the auxiliary subspace.
+For this, _Lowdin_ wraps the `B` subspace components of the Hamiltonian into
+``scipy.sparse.LinearOperator`` and chooses an efficient
+[MUMPS](https://mumps-solver.org/index.php)-based solver.
+This allows an efficient calculation of the perturbative corrections to the
+effective subspace.
+
+Additionaly, there is an experimental solver that uses the
+[Hybrid Kernel Polynomial Method](https://arxiv.org/abs/1909.09649).
 
 ## Installation
 
