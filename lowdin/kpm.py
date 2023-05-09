@@ -2,7 +2,6 @@ from typing import Optional, Callable
 from collections.abc import Iterator
 
 from scipy import sparse
-from scipy.sparse.linalg import LinearOperator
 import numpy as np
 
 
@@ -97,10 +96,10 @@ def kpm_vectors(
 
 
 def rescale(
-    hamiltonian: np.ndarray | sparse.spmatrix | LinearOperator,
+    hamiltonian: np.ndarray | sparse.spmatrix,
     eps: Optional[float] = 0.01,
     bounds: Optional[tuple[float, float]] = None,
-) -> tuple[np.ndarray | sparse.spmatrix | LinearOperator, tuple[float, float]]:
+) -> tuple[np.ndarray | sparse.spmatrix, tuple[float, float]]:
     """Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
 
     Adapted with modifications from kwant.kpm
@@ -154,10 +153,7 @@ def rescale(
     elif isinstance(hamiltonian, np.ndarray):
         rescaled_h = (hamiltonian - b * np.eye(hamiltonian.shape[0])) / a
     else:
-        rescaled_h = LinearOperator(
-            shape=hamiltonian.shape, matvec=(lambda v: (hamiltonian @ v - b * v) / a)
-        )
-
+        raise TypeError("hamiltonian must be a numpy array or a sparse matrix")
     return rescaled_h, (a, b)
 
 
