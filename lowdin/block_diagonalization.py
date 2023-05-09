@@ -859,7 +859,7 @@ def solve_sylvester_KPM(
         Dagger(subspace_eigenvectors[0]) @ h_0 @ subspace_eigenvectors[0]
     ).diagonal()
     if len(subspace_eigenvectors) > 2:
-        raise ValueError("Invalid number of subspace_eigenvectors")
+        raise ValueError("Invalid number of subspaces")
     if solver_options is None:
         solver_options = {}
 
