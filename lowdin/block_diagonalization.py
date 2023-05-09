@@ -865,15 +865,18 @@ def solve_sylvester_KPM(
 
     kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
     # Prepare the Hamiltonian for KPM by rescaling to [-1, 1]
-    h_rescaled, (a, b) = rescale(h_0.T, eps=solver_options.get("eps", 0.01))
+    h_rescaled, (a, b) = rescale(h_0, eps=solver_options.get("eps", 0.01))
     eigs_A_rescaled = (eigs_A - b) / a
+    # We need to solve a transposed problem; additionally CSR has a faster
+    # matrix-vector product
+    h_rescaled_T = h_rescaled.T.tocsr()
 
     def solve_sylvester_kpm(Y: np.ndarray) -> np.ndarray:
         Y_KPM = Y @ kpm_projector / a  # Keep track of Hamiltonian rescaling
         return np.vstack(
             [
                 greens_function(
-                    h_rescaled,
+                    h_rescaled_T,
                     energy,
                     vector,
                     solver_options.get("num_moments", 100),
