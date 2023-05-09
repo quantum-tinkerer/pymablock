@@ -7,19 +7,19 @@ import numpy as np
 
 
 def greens_function(
-    ham: np.ndarray | sparse.spmatrix,
+    hamiltonian: np.ndarray | sparse.spmatrix,
     energy: float,
     vector: np.ndarray,
     num_moments: int = 100,
     energy_resolution: Optional[float] = None,
 ) -> Callable[[np.ndarray], np.ndarray]:
-    """Return a solution of the linear system (ham - energy) * x = vector.
+    """Return a solution of (hamiltonian - energy) @ x = vector.
 
     Uses the Kernel polynomial method (KPM) with the Jackson kernel.
 
     Parameters
     ----------
-    ham :
+    hamiltonian :
         Hamiltonian with shape `(N, N)`. It is required that the Hamiltonian
         is rescaled so that its spectrum lies in the interval `[-1, 1]`.
     energy :
@@ -48,11 +48,11 @@ def greens_function(
     coef = gs * np.exp(-1j * np.arange(num_moments) * phi_e)
     coef = prefactor * coef
 
-    return sum(vec * c for c, vec in zip(coef, kpm_vectors(ham, vector)))
+    return sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
 
 
 def kpm_vectors(
-    ham: np.ndarray,
+    hamiltonian: np.ndarray,
     vectors: np.ndarray,
 ) -> Iterator[np.ndarray]:
     r"""
@@ -67,7 +67,7 @@ def kpm_vectors(
 
     Parameters
     ----------
-    ham :
+    hamiltonian :
         Hamiltonian, dense or sparse array with shape '(N, N)'.
     vectors :
         Vector of length 'N' or array of vectors with shape '(M, N)'.
@@ -87,10 +87,10 @@ def kpm_vectors(
     alpha[:] = vectors
     yield alpha.T
     alpha_prev[:] = alpha
-    alpha[:] = ham @ alpha
+    alpha[:] = hamiltonian @ alpha
     yield alpha.T
     while True:
-        alpha_next[:] = 2 * ham @ alpha - alpha_prev
+        alpha_next[:] = 2 * hamiltonian @ alpha - alpha_prev
         alpha_prev[:] = alpha
         alpha[:] = alpha_next
         yield alpha.T
@@ -150,15 +150,15 @@ def rescale(
 
     if sparse.issparse(hamiltonian):
         identity = sparse.identity(hamiltonian.shape[0], format="csr")
-        rescaled_ham = (hamiltonian - b * identity) / a
+        rescaled_h = (hamiltonian - b * identity) / a
     elif isinstance(hamiltonian, np.ndarray):
-        rescaled_ham = (hamiltonian - b * np.eye(hamiltonian.shape[0])) / a
+        rescaled_h = (hamiltonian - b * np.eye(hamiltonian.shape[0])) / a
     else:
-        rescaled_ham = LinearOperator(
+        rescaled_h = LinearOperator(
             shape=hamiltonian.shape, matvec=(lambda v: (hamiltonian @ v - b * v) / a)
         )
 
-    return rescaled_ham, (a, b)
+    return rescaled_h, (a, b)
 
 
 def jackson_kernel(N: int) -> np.ndarray:
