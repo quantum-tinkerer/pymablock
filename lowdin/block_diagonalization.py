@@ -838,7 +838,7 @@ def solve_sylvester_KPM(
         blocks. The first element of the tuple contains the effective subspace,
         and the second element contains the (partial) auxiliary subspace.
     solver_options :
-        Dictionary containing the any of the following options for KPM.
+        Dictionary containing any of the following options for KPM.
         - eps: float
             Tolerance for Hamiltonian rescaling.
         - bounds: tuple[float, float]
