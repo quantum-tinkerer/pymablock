@@ -34,7 +34,12 @@ Doing perturbation theory is a three step process:
 * Request the perturbative corrections to the Hamiltonian
 
 ```
-H_tilde, U, U_dagger = block_diagonalize([h_0, h_p], eigenvectors)
+from lowdin import block_diagonalize
+
+# Define perturbation theory
+H_tilde, *_ = block_diagonalize([h_0, h_p], subspace_eigenvectors=[vecs_A, vecs_B])
+
+# Request correction to the effective Hamiltonian
 H_AA_4 = H_tilde[0, 0, 4]
 ```
 
@@ -50,6 +55,12 @@ H_AA_4 = H_tilde[0, 0, 4]
 * _Lowdin_ is well tested
 
   Its tests make it reliable for an arbitrary number of perturbations.
+
+
+## When to use _Lowdin_?
+
+
+
 
 ## How does _Lowdin_ work?
 
@@ -150,6 +161,7 @@ Finally, `expanded` replaces the specifics of `H` into the simplified expression
 never requiring to compute products within the auxiliary `B` subspace.
 This makes `expanded` efficient for lower order numerical computations and
 symbolic ones, while `general` is suitable for higher orders.
+
 
 ##  How to use _Lowdin_ on large numerical Hamiltonians?
 
