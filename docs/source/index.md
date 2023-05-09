@@ -19,21 +19,6 @@ CHANGELOG.md
 ```
 
 # _Lowdin_
-TODO:
-This is the initial page and it contains explanations on:
-- Goal of the package
-- Usage context
-- Setting of the perturbation theory: Hamiltonian + gap + 2 subspaces
-- Statement about how results are the same as SW and _Lowdin_.
-- Overall idea behind general and expanded
-- Implicit and its two solvers KPM and direct
-- How to install it
-- Where to find docs
-
-Things to clarify:
-- We do not support more than 2 blocks
-- We do not support time-dependent perturbation theory
-
 
 ## What is _Lowdin_?
 
@@ -44,37 +29,13 @@ numerical and symbolic Hamiltonians with multivariate perturbations.
 
 
 Doing perturbation theory is a three step process:
-* First, a Hamiltonian that depends on perturbative parameters is required.
-{math}`\lambda`
+* Define a Hamiltonian
+* Call `block_diagonalize`
+* Request the perturbative corrections to the Hamiltonian
 
-```{code-cell} ipython3
-:tags: [hide-input]
-
-from sympy import Matrix, Symbol, Eq, Add
-
-h_0 = -Matrix([[1, 0], [0, -1]])  # sigma z
-
-lamba = Symbol('lambda', real=True)
-h_p = lamba * Matrix([[0, 1], [1, 0]]) # sigma_x
-hamiltonian = [h_0, h_p]
-
-h_0 + h_p
 ```
-
-* Second, the perturbation theory is defined by calling `block_diagonalized`.
-
-```{code-cell} ipython3
-from lowdin.block_diagonalization import block_diagonalize
-
-subspace_indices = [0, 1]
-H_tilde, *_ = block_diagonalize(hamiltonian, subspace_indices=subspace_indices)
-```
-
-* Finally, the perturbative corrections to the Hamiltonian are called, computed
-and cached for each block and order.
-
-```{code-cell} ipython3
-H_tilde[0, 0, 2]  # AA block, 2nd order
+H_tilde, U, U_dagger = block_diagonalize([h_0, h_p], eigenvectors)
+H_AA_4 = H_tilde[0, 0, 4]
 ```
 
 ## Why _Lowdin_?
@@ -155,6 +116,8 @@ order using `expanded`.
 
 from operator import mul
 
+from sympy import Symbol, Eq
+
 from lowdin.block_diagonalization import BlockSeries, symbolic
 
 H = BlockSeries(
@@ -203,6 +166,12 @@ effective subspace.
 
 Additionaly, there is an experimental solver that uses the
 [Hybrid Kernel Polynomial Method](https://arxiv.org/abs/1909.09649).
+
+
+## What does _Lowdin_ not do?
+
+_Lowdin_ is not able to treat time-dependent perturbations yet, or work with
+more than two subspaces.
 
 ## Installation
 
