@@ -263,7 +263,6 @@ def compare_series(
     series1: BlockSeries,
     series2: BlockSeries,
     wanted_orders: tuple[int, ...],
-    specified_blocks: Optional[list[tuple[int, ...]]] = None,
     atol: Optional[float] = 1e-15,
     rtol: Optional[float] = 0,
 ) -> None:
@@ -291,14 +290,7 @@ def compare_series(
         Optional relative tolerance for numeric comparison
     """
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-
-    if not specified_blocks:
-        all_elements = (slice(None),) * len(series1.shape)
-    else:
-        all_elements = tuple(
-            np.split(np.vstack([block for block in specified_blocks]), 2, axis=0)
-        )
-
+    all_elements = (slice(None),) * len(series1.shape)
     results = [
         np.ma.ndenumerate(series[all_elements + order]) for series in (series1, series2)
     ]
@@ -465,9 +457,7 @@ def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -
         eval=H_eval, shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
     )
 
-    compare_series(
-        H_tilde, H_target, wanted_orders, atol=1e-5, specified_blocks=[(0, 0), (0, 1)]
-    )
+    compare_series(H_tilde, H_target, wanted_orders, 1e-5)
 
 
 def test_check_unitary(
@@ -722,21 +712,15 @@ def test_doubled_orders(
     H_tilde_doubled, U_doubled, _ = algorithm(H_doubled)
 
     def H_doubled_eval(*index):
-        new_index = index[:2] + tuple(2 * np.array(index[2:]))
+        new_index = index[:2] + tuple(2*np.array(index[2:]))
         return H_tilde_doubled[new_index]
-
+    
     def U_doubled_eval(*index):
-        new_index = index[:2] + tuple(2 * np.array(index[2:]))
+        new_index = index[:2] + tuple(2*np.array(index[2:]))
         return U_doubled[new_index]
-
-    H_doubled_target = BlockSeries(
-        eval=H_doubled_eval,
-        shape=H_tilde_doubled.shape,
-        n_infinite=H_tilde_doubled.n_infinite,
-    )
-    U_doubled_target = BlockSeries(
-        eval=U_doubled_eval, shape=U_doubled.shape, n_infinite=U_doubled.n_infinite
-    )
+    
+    H_doubled_target = BlockSeries(eval=H_doubled_eval, shape=H_tilde_doubled.shape, n_infinite=H_tilde_doubled.n_infinite)
+    U_doubled_target = BlockSeries(eval=U_doubled_eval, shape=U_doubled.shape, n_infinite=U_doubled.n_infinite)
 
     compare_series(H_tilde, H_doubled_target, wanted_orders, atol=1e-5)
     compare_series(U, U_doubled_target, wanted_orders, atol=1e-5)
@@ -807,45 +791,35 @@ def test_check_AB_KPM(
         solver_options={"num_moments": 10000},
         atol=1e-8,
     )
-
+    
     def H_full_b_eval(*index):
         request = H_tilde_full_b[index]
-        if index[:2] == (0, 1) and not zero:
+        if index[:2] == (0,1) and not zero:
             return np.zeros(request.shape)
         else:
             return request
-
+        
     def H_half_b_eval(*index):
         request = H_tilde_half_b[index]
-        if index[:2] == (0, 1) and not zero:
+        if index[:2] == (0,1) and not zero:
             return np.zeros(request.shape)
         else:
             return request
-
+        
     def H_kpm_eval(*index):
         request = H_tilde_kpm[index]
-        if index[:2] == (0, 1) and not zero:
+        if index[:2] == (0,1) and not zero:
             return np.zeros(request.shape)
         else:
             return request
-
-    H_target_full_b = BlockSeries(
-        eval=H_full_b_eval,
-        shape=H_tilde_full_b.shape,
-        n_infinite=H_tilde_full_b.n_infinite,
-    )
-    H_target_half_b = BlockSeries(
-        eval=H_half_b_eval,
-        shape=H_tilde_half_b.shape,
-        n_infinite=H_tilde_half_b.n_infinite,
-    )
-    H_target_kpm = BlockSeries(
-        eval=H_kpm_eval, shape=H_tilde_kpm.shape, n_infinite=H_tilde_kpm.n_infinite
-    )
-
-    compare_series(H_tilde_full_b, H_target_full_b, wanted_orders, atol=1e-6)
-    compare_series(H_tilde_half_b, H_target_half_b, wanted_orders, atol=1e-6)
-    compare_series(H_tilde_kpm, H_target_kpm, wanted_orders, atol=1e-6)
+    
+    H_target_full_b = BlockSeries(eval=H_full_b_eval, shape=H_tilde_full_b.shape, n_infinite = H_tilde_full_b.n_infinite)
+    H_target_half_b = BlockSeries(eval=H_half_b_eval, shape = H_tilde_half_b.shape, n_infinite = H_tilde_half_b.n_infinite)
+    H_target_kpm = BlockSeries(eval = H_kpm_eval, shape=H_tilde_kpm.shape, n_infinite=H_tilde_kpm.n_infinite)
+    
+    compare_series(H_tilde_full_b, H_target_full_b, wanted_orders, atol = 1e-6)
+    compare_series(H_tilde_half_b, H_target_half_b, wanted_orders, atol = 1e-6)
+    compare_series(H_tilde_kpm, H_target_kpm, wanted_orders, atol = 1e-6)
 
     # # full b
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
@@ -1160,7 +1134,7 @@ def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
         n_infinite=H_tilde_1.n_infinite,
     )
     compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
-    compare_series(U_2, U_target, wanted_orders, atol=1e-10)
+    compare_series(U_2, U_target, wanted_orders)
 
 
 def test_input_hamiltonian_kpm(generate_kpm_hamiltonian):
