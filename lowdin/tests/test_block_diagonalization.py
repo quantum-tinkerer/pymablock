@@ -291,11 +291,12 @@ def compare_series(
         Optional relative tolerance for numeric comparison
     """
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+
     if not specified_blocks:
         all_elements = (slice(None),) * len(series1.shape)
     else:
         all_elements = tuple(
-            np.split(np.vstack([block for block in specified_blocks]), 2, axis=-1)
+            np.split(np.vstack([block for block in specified_blocks]), 2, axis=0)
         )
 
     results = [
@@ -318,15 +319,9 @@ def compare_series(
         if isinstance(value1, type(one)) or isinstance(value2, type(one)):
             assert value1 == value2
             continue
-        elif isinstance(value1, sympy.MatrixBase) and isinstance(
-            value2, sympy.MatrixBase
-        ):
-            assert value1 == value2
         # Convert all numeric types to dense arrays
-        elif ((isinstance(value1, np.ndarray) or sparse.issparse(value1)) and (
-            isinstance(value2, np.ndarray)
-            or sparse.issparse(value2))
-            or isinstance(value1, type(value2))
+        if (isinstance(value1, np.ndarray) or sparse.issparse(value1)) and (
+            isinstance(value2, np.ndarray) or sparse.issparse(value2)
         ):
             np.testing.assert_allclose(
                 value1 @ np.identity(value1.shape[1]),
@@ -335,9 +330,12 @@ def compare_series(
                 rtol=rtol,
                 err_msg=f"{order1=} {order2=}",
             )
-
+        elif isinstance(value1, sympy.MatrixBase) and isinstance(
+            value2, sympy.MatrixBase
+        ):
+            assert value1 == value2
         else:
-            raise TypeError(f"Inadequate comparisson between {type(value1)} and {type(value2)}")
+            raise TypeError(f"Unknown type {type(value1)} or {type(value2)}")
 
     for order, value in chain(unpaired_results1, unpaired_results2):
         np.testing.assert_allclose(
@@ -843,9 +841,22 @@ def test_check_AB_KPM(
         eval=H_kpm_eval, shape=H_tilde_kpm.shape, n_infinite=H_tilde_kpm.n_infinite
     )
 
-    compare_series(H_tilde_full_b, H_target_full_b, wanted_orders, atol=1e-6, specified_blocks=[(0,1)])
-    compare_series(H_tilde_half_b, H_target_half_b, wanted_orders, atol=1e-6, specified_blocks=[(0,1)])
-    compare_series(H_tilde_kpm, H_target_kpm, wanted_orders, atol=1e-6, specified_blocks=[(0,1)])
+    compare_series(H_tilde_full_b, H_target_full_b, wanted_orders, atol=1e-6)
+    compare_series(H_tilde_half_b, H_target_half_b, wanted_orders, atol=1e-6)
+    compare_series(H_tilde_kpm, H_target_kpm, wanted_orders, atol=1e-6)
+
+    # # full b
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    for block in H_tilde_full_b[(0, 1) + order].compressed():
+        np.testing.assert_allclose(block, 0, atol=1e-6, err_msg=f"{block=}, {order=}")
+
+    # half b
+    for block in H_tilde_half_b[(0, 1) + order].compressed():
+        np.testing.assert_allclose(block, 0, atol=1e-6, err_msg=f"{block=}, {order=}")
+
+    # KPM
+    for block in H_tilde_kpm[(0, 1) + order].compressed():
+        np.testing.assert_allclose(block, 0, atol=1e-6, err_msg=f"{block=}, {order=}")
 
 
 def test_solve_sylvester(
