@@ -323,9 +323,9 @@ def compare_series(
         ):
             assert value1 == value2
         # Convert all numeric types to dense arrays
-        elif (
-            (isinstance(value1, np.ndarray) or sparse.issparse(value1))
-            and (isinstance(value2, np.ndarray) or sparse.issparse(value2))
+        elif ((isinstance(value1, np.ndarray) or sparse.issparse(value1)) and (
+            isinstance(value2, np.ndarray)
+            or sparse.issparse(value2))
             or isinstance(value1, type(value2))
         ):
             np.testing.assert_allclose(
@@ -337,9 +337,7 @@ def compare_series(
             )
 
         else:
-            raise TypeError(
-                f"Inadequate comparisson between {type(value1)} and {type(value2)}"
-            )
+            raise TypeError(f"Inadequate comparisson between {type(value1)} and {type(value2)}")
 
     for order, value in chain(unpaired_results1, unpaired_results2):
         np.testing.assert_allclose(
@@ -845,23 +843,9 @@ def test_check_AB_KPM(
         eval=H_kpm_eval, shape=H_tilde_kpm.shape, n_infinite=H_tilde_kpm.n_infinite
     )
 
-    compare_series(
-        H_tilde_full_b,
-        H_target_full_b,
-        wanted_orders,
-        atol=1e-6,
-        specified_blocks=[(0, 1)],
-    )
-    compare_series(
-        H_tilde_half_b,
-        H_target_half_b,
-        wanted_orders,
-        atol=1e-6,
-        specified_blocks=[(0, 1)],
-    )
-    compare_series(
-        H_tilde_kpm, H_target_kpm, wanted_orders, atol=1e-6, specified_blocks=[(0, 1)]
-    )
+    compare_series(H_tilde_full_b, H_target_full_b, wanted_orders, atol=1e-6, specified_blocks=[(0,1)])
+    compare_series(H_tilde_half_b, H_target_half_b, wanted_orders, atol=1e-6, specified_blocks=[(0,1)])
+    compare_series(H_tilde_kpm, H_target_kpm, wanted_orders, atol=1e-6, specified_blocks=[(0,1)])
 
 
 def test_solve_sylvester(
@@ -1128,23 +1112,16 @@ def test_consistent_implicit_subspace(
     assert H_tilde.n_infinite == H_tilde_swapped.n_infinite
     assert H_tilde.dimension_names == H_tilde_swapped.dimension_names
 
-    def swapped_eval(*index):
-        if index[:2] == (0, 0):
-            request = H_tilde_swapped[(1, 1) + index[2:]]
-            assert isinstance(request, LinearOperator)
-            return Dagger(subspace_eigenvectors[0]) @ request @ subspace_eigenvectors[0]
-        else:
-            return None
-
-    H_swapped_eval = BlockSeries(
-        eval=swapped_eval,
-        shape=H_tilde_swapped.shape,
-        n_infinite=H_tilde_swapped.n_infinite,
-    )
-
-    compare_series(
-        H_tilde, H_swapped_eval, wanted_orders, atol=1e-8, specified_blocks=[(0, 0)]
-    )
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    h = H_tilde[(0, 0) + order].compressed()
+    h_swapped = H_tilde_swapped[(1, 1) + order].compressed()
+    for block_A, block_B in zip(h, h_swapped):
+        assert isinstance(block_B, LinearOperator)
+        np.testing.assert_allclose(
+            block_A,
+            Dagger(subspace_eigenvectors[0]) @ block_B @ subspace_eigenvectors[0],
+            atol=1e-8,
+        )
 
 
 def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
