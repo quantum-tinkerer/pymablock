@@ -594,7 +594,6 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
         Orders to compute
     """
     H_tilde = general(H)[0]
-    n_infinite = H.n_infinite
 
     def H_eval(*index):
         request = H_tilde[index]
