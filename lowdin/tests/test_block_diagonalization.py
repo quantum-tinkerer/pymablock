@@ -285,8 +285,6 @@ def compare_series(
         Second `~lowdin.series.BlockSeries` to compare
     wanted_orders:
         Order until which to compare the series
-    specified_blocks:
-        Optional list of tuples to specify blocks (AA, AB, ...) to compare
     atol:
         Optional absolute tolerance for numeric comparison
     rtol:
