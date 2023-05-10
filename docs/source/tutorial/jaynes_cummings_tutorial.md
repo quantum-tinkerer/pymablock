@@ -23,15 +23,16 @@ kernelspec:
 from operator import mul
 
 import sympy
+from sympy import Matrix, symbols
 from sympy.physics.quantum.boson import BosonOp, BosonFockKet
 from sympy.physics.quantum import qapply, Dagger
 
-from lowdin.block_diagonalization import to_BlockSeries, expanded
+from lowdin import block_diagonalize
 ```
 
 ```{code-cell} ipython3
 # resonator frequency, qubit frequency, Rabi coupling
-wr, wq, g = sympy.symbols(r"\omega_r, \omega_q, g", real=True)
+wr, wq, g = symbols(r"\omega_r, \omega_q, g", real=True)
 
 # resonator photon annihilation operator
 a = BosonOp("a")
@@ -42,14 +43,10 @@ Hamiltonian in the different subspaces, occupied ({math}`AA`), unoccupied ({math
 terms ({math}`AB`/{math}`BA`).
 
 ```{code-cell} ipython3
-H_0_AA = wr * Dagger(a) * a + wq / 2
-H_0_BB = wr * Dagger(a) * a - wq / 2
-H_p_AB = {(1,): g * Dagger(a)}
-H_p_BA = {(1,): g * a}
-H_p_AA = {}
-H_p_BB = {}
+H_0 = Matrix([[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]])
+H_p = Matrix([[0,  g * Dagger(a)], [g * a, 0]])
 
-H = to_BlockSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB)
+H_0 + H_p
 ```
 
 To use Lowdin we need to solve Sylvester's Equation
@@ -83,20 +80,20 @@ def solve_sylvester(rhs):
     Returns:
     V : zero or sympy expression for off-diagonal block of unitary transformation
     """
-    E_i = expectation_value(basis_ket, H_0_AA)
+    E_i = expectation_value(basis_ket, H_0[0, 0])
     V = []
-    for term in rhs.expand().as_ordered_terms():
+    for term in rhs[0, 0].expand().as_ordered_terms():
         term_on_basis = qapply(term * basis_ket).doit()
         normalized_ket = term_on_basis.as_ordered_factors()[-1]
-        E_j = expectation_value(normalized_ket, H_0_BB)
+        E_j = expectation_value(normalized_ket, H_0[1, 1])
         V.append(term / (E_j - E_i))
-    return sum(V)
+    return Matrix([[sum(V)]])
 ```
 
 We define the block-diagonalization of `H` by defining,
 
 ```{code-cell} ipython3
-H_tilde, U, U_adjoint = expanded(H, solve_sylvester=solve_sylvester, op=mul)
+H_tilde, U, U_adjoint = block_diagonalize(H_0 + H_p, subspace_indices=[0, 1], solve_sylvester=solve_sylvester, symbols=[g])
 ```
 
 where `H_tilde` is the transformed Hamiltonian, `U` is the unitary transformation, and
@@ -106,5 +103,5 @@ For example, to request the 2nd order correction to the occupied subspace of the
 Hamiltonian, you may execute:
 
 ```{code-cell} ipython3
-H_tilde[0, 0, 2].expand().simplify()
+H_tilde[0, 0, 2][0, 0].expand().simplify()
 ```
