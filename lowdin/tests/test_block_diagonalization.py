@@ -490,7 +490,6 @@ def test_check_unitary(
     compare_series(transformed, H_target, wanted_orders, atol=1e-5)
 
 
-
 def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     """
     Compute the first order correction to the Hamiltonian.
@@ -596,16 +595,22 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     H_tilde = general(H)[0]
     n_infinite = H.n_infinite
 
-    for order in permutations((0,) * (n_infinite - 1) + (2,)):
-        result = H_tilde[(0, 0) + order]
-        expected = compute_second_order(H, order)
-        if zero == result:
-            np.testing.assert_allclose(
-                0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
-            )
-        np.testing.assert_allclose(
-            result, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
-        )
+    def H_eval(*index):
+        request = H_tilde[index]
+        if index[:2] == (0, 0) and index[2:] in [
+            tuple(2*np.eye(H_tilde.n_infinite)[i, :]) for i in range(H_tilde.n_infinite)
+        ]:
+            if isinstance(request, type(zero)):
+                return zero
+            else:
+                return compute_second_order(H, index[2:])
+        else:
+            return H_tilde[index]
+
+    H_target = BlockSeries(
+        eval=H_eval, shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
+    )
+    compare_series(H_tilde, H_target, wanted_orders, atol=1e-5)
 
 
 def test_check_diagonal_h_0_A() -> None:
