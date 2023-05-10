@@ -299,8 +299,8 @@ def compare_series(
 
     differing_keys = set([i[0] for i in results1]) - set([i[0] for i in results2])
 
-    paired_results1 = sorted([i for i in results1 if i[0] not in differing_keys])
-    paired_results2 = sorted([i for i in results2 if i[0] not in differing_keys])
+    paired_results1 = [i for i in results1 if i[0] not in differing_keys]
+    paired_results2 = [i for i in results2 if i[0] not in differing_keys]
 
     unpaired_results1 = [i for i in results1 if i[0] in differing_keys]
     unpaired_results2 = [i for i in results2 if i[0] in differing_keys]
@@ -312,9 +312,7 @@ def compare_series(
             assert value1 == value2
             continue
         # Convert all numeric types to dense arrays
-        if (isinstance(value1, np.ndarray) or sparse.issparse(value1)) and (
-            isinstance(value2, np.ndarray) or sparse.issparse(value2)
-        ):
+        if (isinstance(value1, np.ndarray) or sparse.issparse(value1)) and (isinstance(value2, np.ndarray) or sparse.issparse(value2)):
             np.testing.assert_allclose(
                 value1 @ np.identity(value1.shape[1]),
                 value2 @ np.identity(value2.shape[1]),
@@ -322,14 +320,12 @@ def compare_series(
                 rtol=rtol,
                 err_msg=f"{order1=} {order2=}",
             )
-        elif isinstance(value1, sympy.MatrixBase) and isinstance(
-            value2, sympy.MatrixBase
-        ):
+        elif isinstance(value1, sympy.MatrixBase) and isinstance(value2, sympy.MatrixBase):
             assert value1 == value2
         else:
             raise TypeError(f"Unknown type {type(value1)} or {type(value2)}")
-
-    for order, value in chain(unpaired_results1, unpaired_results2):
+    
+    for (order, value) in chain(unpaired_results1,unpaired_results2):
         np.testing.assert_allclose(
             value @ np.identity(value.shape[1]),
             np.zeros_like(value),
@@ -337,7 +333,6 @@ def compare_series(
             rtol=rtol,
             err_msg=f"{order=}",
         )
-
 
 def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
     """
@@ -449,7 +444,7 @@ def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -
         if index[:2] in ((0, 1), (1, 0)) and (
             isinstance(H_tilde[index], np.ndarray) or sparse.issparse(H_tilde[index])
         ):
-            return np.zeros(H_tilde[index].shape)
+            return np.zeros_like(H_tilde[index])
         else:
             return H_tilde[index]
 
@@ -602,6 +597,7 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
         Orders to compute
     """
     H_tilde = general(H)[0]
+    n_infinite = H.n_infinite
 
     def H_eval(*index):
         request = H_tilde[index]
@@ -711,20 +707,6 @@ def test_doubled_orders(
     H_tilde, U, _ = algorithm(H)
     H_tilde_doubled, U_doubled, _ = algorithm(H_doubled)
 
-    def H_doubled_eval(*index):
-        new_index = index[:2] + tuple(2*np.array(index[2:]))
-        return H_tilde_doubled[new_index]
-    
-    def U_doubled_eval(*index):
-        new_index = index[:2] + tuple(2*np.array(index[2:]))
-        return U_doubled[new_index]
-    
-    H_doubled_target = BlockSeries(eval=H_doubled_eval, shape=H_tilde_doubled.shape, n_infinite=H_tilde_doubled.n_infinite)
-    U_doubled_target = BlockSeries(eval=U_doubled_eval, shape=U_doubled.shape, n_infinite=U_doubled.n_infinite)
-
-    compare_series(H_tilde, H_doubled_target, wanted_orders, atol=1e-5)
-    compare_series(U, U_doubled_target, wanted_orders, atol=1e-5)
-
     blocks = np.index_exp[:2, :2]
     orders = tuple(slice(None, order + 1, None) for order in wanted_orders)
     doubled_orders = tuple(
@@ -791,35 +773,6 @@ def test_check_AB_KPM(
         solver_options={"num_moments": 10000},
         atol=1e-8,
     )
-    
-    def H_full_b_eval(*index):
-        request = H_tilde_full_b[index]
-        if index[:2] == (0,1) and not zero:
-            return np.zeros(request.shape)
-        else:
-            return request
-        
-    def H_half_b_eval(*index):
-        request = H_tilde_half_b[index]
-        if index[:2] == (0,1) and not zero:
-            return np.zeros(request.shape)
-        else:
-            return request
-        
-    def H_kpm_eval(*index):
-        request = H_tilde_kpm[index]
-        if index[:2] == (0,1) and not zero:
-            return np.zeros(request.shape)
-        else:
-            return request
-    
-    H_target_full_b = BlockSeries(eval=H_full_b_eval, shape=H_tilde_full_b.shape, n_infinite = H_tilde_full_b.n_infinite)
-    H_target_half_b = BlockSeries(eval=H_half_b_eval, shape = H_tilde_half_b.shape, n_infinite = H_tilde_half_b.n_infinite)
-    H_target_kpm = BlockSeries(eval = H_kpm_eval, shape=H_tilde_kpm.shape, n_infinite=H_tilde_kpm.n_infinite)
-    
-    compare_series(H_tilde_full_b, H_target_full_b, wanted_orders, atol = 1e-6)
-    compare_series(H_tilde_half_b, H_target_half_b, wanted_orders, atol = 1e-6)
-    compare_series(H_tilde_kpm, H_target_kpm, wanted_orders, atol = 1e-6)
 
     # # full b
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
