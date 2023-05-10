@@ -17,7 +17,7 @@ from lowdin.block_diagonalization import (
     solve_sylvester_direct,
     solve_sylvester_diagonal,
     hamiltonian_to_BlockSeries,
-    _convert_if_zero
+    _convert_if_zero,
 )
 from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
 from lowdin.linalg import ComplementProjector
@@ -599,7 +599,8 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     def H_eval(*index):
         request = H_tilde[index]
         if index[:2] == (0, 0) and index[2:] in [
-            tuple(2*np.eye(H_tilde.n_infinite)[i, :]) for i in range(H_tilde.n_infinite)
+            tuple(2 * np.eye(H_tilde.n_infinite)[i, :])
+            for i in range(H_tilde.n_infinite)
         ]:
             if isinstance(request, type(zero)):
                 return zero
@@ -651,7 +652,7 @@ def test_equivalence_general_expanded(
     """
     H_tilde_general, U_general, _ = general(H)
     H_tilde_expanded, U_expanded, _ = expanded(H)
-    
+
     def new_eval_general(*index):
         return _convert_if_zero(H_tilde_general[index])
 
@@ -669,8 +670,6 @@ def test_equivalence_general_expanded(
 
     compare_series(H_tilde_general_rounded, H_tilde_expanded, wanted_orders, atol=1e-5)
     compare_series(U_general_rounded, U_expanded, wanted_orders, atol=1e-5)
-
-
 
 
 def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any]:
@@ -721,21 +720,25 @@ def test_doubled_orders(
     H_tilde, U, _ = algorithm(H)
     H_tilde_doubled, U_doubled, _ = algorithm(H_doubled)
 
-    blocks = np.index_exp[:2, :2]
-    orders = tuple(slice(None, order + 1, None) for order in wanted_orders)
-    doubled_orders = tuple(
-        slice(None, 2 * (order + 1), None) for order in wanted_orders
+    def H_doubled_eval(*index):
+        new_index = index[:2] + tuple(2 * np.array(index[2:]))
+        return H_tilde_doubled[new_index]
+
+    def U_doubled_eval(*index):
+        new_index = index[:2] + tuple(2 * np.array(index[2:]))
+        return U_doubled[new_index]
+
+    H_doubled_target = BlockSeries(
+        eval=H_doubled_eval,
+        shape=H_tilde_doubled.shape,
+        n_infinite=H_tilde_doubled.n_infinite,
+    )
+    U_doubled_target = BlockSeries(
+        eval=U_doubled_eval, shape=U_doubled.shape, n_infinite=U_doubled.n_infinite
     )
 
-    for op, op_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
-        result = op[blocks + orders].compressed()
-        result_doubled = op_doubled[blocks + doubled_orders].compressed()
-        assert len(result) == len(result_doubled)
-        for result, result_doubled in zip(result, result_doubled):
-            if isinstance(result, object):
-                assert isinstance(result_doubled, object)
-                continue
-            np.testing.assert_allclose(result, result_doubled, atol=10**-5)
+    compare_series(H_tilde, H_doubled_target, wanted_orders, atol=1e-5)
+    compare_series(U, U_doubled_target, wanted_orders, atol=1e-5)
 
 
 def test_check_AB_KPM(
