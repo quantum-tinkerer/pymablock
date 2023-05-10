@@ -392,14 +392,27 @@ def compare_series(
         if isinstance(value1, type(one)) or isinstance(value2, type(one)):
             assert value1 == value2
             continue
+        elif isinstance(value1, sympy.MatrixBase) and isinstance(
+            value2, sympy.MatrixBase
+        ):
+            assert value1 == value2
         # Convert all numeric types to dense arrays
-        np.testing.assert_allclose(
-            value1 @ np.identity(value1.shape[1]),
-            value2 @ np.identity(value2.shape[1]),
-            atol=atol,
-            rtol=rtol,
-            err_msg=f"{order1=} {order2=}",
-        )
+        elif (
+            (isinstance(value1, np.ndarray) or sparse.issparse(value1))
+            and (isinstance(value2, np.ndarray) or sparse.issparse(value2))
+            or isinstance(value1, type(value2))
+        ):
+            np.testing.assert_allclose(
+                value1 @ np.identity(value1.shape[1]),
+                value2 @ np.identity(value2.shape[1]),
+                atol=atol,
+                rtol=rtol,
+                err_msg=f"{order1=} {order2=}",
+            )
+        else:
+            raise TypeError(
+                r"Inadequate comparisson between {type(value1)} and {type(value2)}"
+            )
 
 
 def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
@@ -509,6 +522,25 @@ def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> 
     """
     H_tilde = general(H)[0]
     Np = len(wanted_orders)
+
+    def H_eval(*index):
+        request = H_tilde[index]
+        if index[2:] in [
+            tuple(np.eye(H_tilde.n_infinite)[i, :]) for i in range(H_tilde.n_infinite)
+        ] and index[:2] == (0, 0):
+            if isinstance(request, type(zero)):
+                return zero
+            else:
+                return compute_first_order(H, index[2:])
+        else:
+            return request
+
+    H_target = BlockSeries(
+        eval=H_eval, shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
+    )
+
+    compare_series(H_tilde, H_target, wanted_orders, atol=1e-5)
+
     for order in permutations((0,) * (Np - 1) + (1,)):
         result = H_tilde[(0, 0) + order]
         expected = compute_first_order(H, order)
