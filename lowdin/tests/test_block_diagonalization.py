@@ -470,25 +470,25 @@ def test_check_unitary(
     )
     transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
 
-    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    for block in ((0, 0), (1, 1), (0, 1)):
-        result = transformed[tuple(block + order)]
-        for index, matrix in np.ma.ndenumerate(result):
-            if not any(index):
-                # Zeroth order is not zero.
-                continue
-            if isinstance(matrix, np.ndarray):
-                np.testing.assert_allclose(
-                    matrix, 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-                )
-            elif sparse.issparse(matrix):
-                np.testing.assert_allclose(
-                    matrix.toarray(), 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-                )
-            elif isinstance(matrix, sympy.MatrixBase):
-                assert matrix.is_zero_matrix
-            else:
-                raise TypeError(f"Unknown type {type(matrix)}")
+    def H_eval(*index):
+        request = transformed[index]
+        if not any(index[2:]) and index[:2] in ((0, 0), (1, 1)):
+            return np.identity(request.shape[1])
+        if isinstance(request, np.ndarray) or sparse.issparse(request):
+            return np.zeros_like(request)
+        if isinstance(request, sympy.MatrixBase):
+            return sympy.zeros(request.shape[0])
+        if request == zero:
+            return request
+        else:
+            raise TypeError(f"Unknown type {type(request)}")
+
+    H_target = BlockSeries(
+        eval=H_eval, shape=transformed.shape, n_infinite=transformed.n_infinite
+    )
+
+    compare_series(transformed, H_target, wanted_orders, atol=1e-5)
+
 
 
 def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
