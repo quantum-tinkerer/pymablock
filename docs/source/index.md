@@ -56,12 +56,6 @@ H_AA_4 = H_tilde[0, 0, 4]
 
   Its tests make it reliable for an arbitrary number of perturbations.
 
-
-## When to use _Lowdin_?
-
-
-
-
 ## How does _Lowdin_ work?
 
 _Lowdin_ provides series of block operators to do perturbation theory.

@@ -219,7 +219,7 @@ def block_diagonalize(
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None:
-        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
+        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H, atol))
 
     if algorithm is None:
         # symbolic expressions benefit from no H_0 in numerators
@@ -332,7 +332,7 @@ def hamiltonian_to_BlockSeries(
     elif isinstance(hamiltonian, sympy.MatrixBase):
         hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
     if isinstance(hamiltonian, dict):
-        hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian)
+        hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian, atol)
     elif isinstance(hamiltonian, BlockSeries):
         pass
     else:
@@ -374,7 +374,7 @@ def hamiltonian_to_BlockSeries(
     # Define subspace_eigenvectors
     if subspace_indices is not None:
         h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
-        if not is_diagonal(h_0):
+        if not is_diagonal(h_0, atol):
             raise ValueError(
                 "If `subspace_indices` is provided, the unperturbed Hamiltonian"
                 " must be diagonal."
@@ -1097,7 +1097,10 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     return hamiltonian
 
 
-def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries:
+def _dict_to_BlockSeries(
+    hamiltonian: dict[tuple[int, ...], Any],
+    atol: float = 1e-12,
+) -> BlockSeries:
     """
     Convert a dictionary of perturbations to a BlockSeries.
 
@@ -1126,7 +1129,7 @@ def _dict_to_BlockSeries(hamiltonian: dict[tuple[int, ...], Any]) -> BlockSeries
     h_0 = hamiltonian[zeroth_order]
 
     if isinstance(h_0, np.ndarray):
-        if is_diagonal(h_0):
+        if is_diagonal(h_0, atol):
             hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
     elif sparse.issparse(h_0):  # Normalize sparse matrices for solve_sylvester
         hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
@@ -1265,12 +1268,15 @@ def _subspaces_from_indices(
     return subspace_eigenvectors
 
 
-def _extract_diagonal(H: BlockSeries) -> tuple[np.ndarray, np.ndarray]:
+def _extract_diagonal(
+    H: BlockSeries,
+    atol: float = 1e-12,
+) -> tuple[np.ndarray, np.ndarray]:
     """Extract the diagonal of the zeroth order of the Hamiltonian."""
     diag_indices = np.arange(H.shape[0])
     h_0 = H[(diag_indices, diag_indices) + (0,) * H.n_infinite]
     is_sympy = any(isinstance(block, sympy.MatrixBase) for block in h_0)
-    if not all(is_diagonal(h) for h in h_0):
+    if not all(is_diagonal(h, atol) for h in h_0):
         raise ValueError(
             "The unperturbed Hamiltonian must be diagonal if ``solve_sylvester``"
             " is not provided."
