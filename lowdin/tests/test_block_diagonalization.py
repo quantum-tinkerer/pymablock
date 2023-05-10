@@ -17,7 +17,7 @@ from lowdin.block_diagonalization import (
     solve_sylvester_direct,
     solve_sylvester_diagonal,
     hamiltonian_to_BlockSeries,
-    _convert_if_zero,
+    _convert_if_zero
 )
 from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
 from lowdin.linalg import ComplementProjector
@@ -345,6 +345,7 @@ def compare_series(
             )
 
     for order, value in chain(unpaired_results1, unpaired_results2):
+        breakpoint()
         np.testing.assert_allclose(
             value @ np.identity(value.shape[1]),
             np.zeros_like(value),
@@ -472,7 +473,8 @@ def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -
         eval=H_eval, shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
     )
 
-    compare_series(H_tilde, H_target, wanted_orders, atol=1e-5)
+    compare_series(
+        H_tilde, H_target, wanted_orders, atol=1e-5)
 
 
 def test_check_unitary(
@@ -673,21 +675,14 @@ def test_equivalence_general_expanded(
     """
     H_tilde_general, U_general, _ = general(H)
     H_tilde_expanded, U_expanded, _ = expanded(H)
-
+    
     def new_eval_general(*index):
         return _convert_if_zero(H_tilde_general[index])
-
     def new_eval_u_general(*index):
         return _convert_if_zero(U_general[index])
-
-    H_tilde_general_rounded = BlockSeries(
-        eval=new_eval_general,
-        shape=H_tilde_general.shape,
-        n_infinite=H_tilde_general.n_infinite,
-    )
-    U_general_rounded = BlockSeries(
-        eval=new_eval_u_general, shape=U_general.shape, n_infinite=U_general.n_infinite
-    )
+    
+    H_tilde_general_rounded = BlockSeries(eval=new_eval_general, shape=H_tilde_general.shape, n_infinite=H_tilde_general.n_infinite)
+    U_general_rounded = BlockSeries(eval=new_eval_u_general, shape=U_general.shape, n_infinite=U_general.n_infinite)
 
     compare_series(H_tilde_general_rounded, H_tilde_expanded, wanted_orders, atol=1e-5)
     compare_series(U_general_rounded, U_expanded, wanted_orders, atol=1e-5)
