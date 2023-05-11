@@ -332,7 +332,7 @@ def hamiltonian_to_BlockSeries(
     elif isinstance(hamiltonian, sympy.MatrixBase):
         hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
     if isinstance(hamiltonian, dict):
-        hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian, atol)
+        hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian, symbols, atol)
     elif isinstance(hamiltonian, BlockSeries):
         pass
     else:
@@ -1099,6 +1099,7 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
 
 def _dict_to_BlockSeries(
     hamiltonian: dict[tuple[int, ...], Any],
+    symbols: Optional[tuple[sympy.Symbol]] = None,
     atol: float = 1e-12,
 ) -> BlockSeries:
     """
@@ -1119,7 +1120,6 @@ def _dict_to_BlockSeries(
     -------
     H : `~lowdin.series.BlockSeries`
     """
-    symbols = None
     key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
     if any(key_types):
         hamiltonian, symbols = _symbolic_keys_to_tuples(hamiltonian)
@@ -1320,9 +1320,11 @@ def _convert_if_zero(value: Any, atol=1e-12):
     elif sparse.issparse(value):
         if value.count_nonzero() == 0:
             return zero
-    if isinstance(value, sympy.MatrixBase):
+    elif isinstance(value, sympy.MatrixBase):
         if value.is_zero_matrix:
             return zero
+    elif value == 0:
+        return zero
     return value
 
 
