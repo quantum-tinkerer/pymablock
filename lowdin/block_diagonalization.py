@@ -1115,6 +1115,10 @@ def _dict_to_BlockSeries(
         `~scipy.sparse.csr_matrix` or a list with the blocks of the Hamiltonian.
         For example, {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2} or
         {1: h_0, x: h_1, y: h_2}.
+    symbols :
+        tuple of symbols to use for the BlockSeries.
+    atol :
+        absolute tolerance for determining if a matrix is diagonal.
 
     Returns
     -------
