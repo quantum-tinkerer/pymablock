@@ -10,7 +10,6 @@ from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 from scipy import sparse
 from kwant.linalg import mumps
 import sympy
-from sympy.matrices.common import MatrixSpecial, MatrixOperations
 
 from lowdin.series import zero, one
 
@@ -64,26 +63,6 @@ if parse(scipy_version) < parse("1.11"):
     LinearOperator._rdot = _rdot
     LinearOperator.__array_ufunc__ = None
     del __rmul__, _rdot
-
-
-# Monkey-patch scipy adjoint of matrices to support fermionic and bosonic Hamiltonians
-def _eval_adjoint(self):
-    return self._new(self.cols, self.rows, lambda i, j: self[j, i].adjoint())
-
-
-MatrixOperations._eval_adjoint = _eval_adjoint
-
-
-def _eval_is_matrix_hermitian(self, simpfunc):
-    mat = self._new(
-        self.rows, self.cols, lambda i, j: simpfunc(self[i, j] - self[j, i].adjoint())
-    )
-    return mat.is_zero_matrix
-
-
-MatrixSpecial._eval_is_matrix_hermitian = lambda self: _eval_is_matrix_hermitian(
-    self, lambda x: x.simplify()
-)
 
 
 def direct_greens_function(
