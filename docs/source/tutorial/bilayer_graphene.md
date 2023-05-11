@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.14.4
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -30,13 +30,7 @@ $$\{c_{B1}, c_{B2}, c_{T1}, c_{T2}\}.$$
 We set $c_{B1}$ to be in the origin and $c_{T1}$ to be the AA on top at $(0,0,b)^T$, where $b$ is the distance between the two layers.
 The hoppings between nearest neighbors are the same (covalent carbon bonds) in plane, but differ out of plane.
 
-```{code-cell} ipython3
-
-```
-
-```{code-cell} ipython3
-
-```
++++
 
 Finally we arrive at the Bloch-matrix representation of the bilayer tight-binding lattice
 \begin{align}
@@ -66,10 +60,72 @@ What though when we slowly turn on the interlayer coupling? To analyse this, we 
 Let us begin by creating the Hamiltonian as a `sympy` Matrix. For brevity we will assume that all interlayer hoppings are equal and denote them as $t_l$
 
 ```{code-cell} ipython3
-t_i, t_l, a, k_x, k_y = sympy.symbols('t_i t_l a k_x k_y')
-H = sympy.Matrix
+t_i, t_l, a, b = sympy.symbols('t_i t_l a b', real=True, positive=True, commutative=True)
+k_x, k_y, k_z = sympy.symbols('k_x k_y k_z', commutative=True, real=True)
+
+f_12 = -t_i*(sympy.exp(sympy.I*k_x*a)+sympy.exp(-sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
+f_13 = -t_l*sympy.exp(sympy.I*k_z*b)*(sympy.exp(-sympy.I*k_x*a)+sympy.exp(sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
+f_14 = 0#-t_l*sympy.exp(sympy.I*k_z*b)*(sympy.exp(-sympy.I*k_x*a)+sympy.exp(sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
+f_23 = 0#-t_l*sympy.exp(sympy.I*k_z*b)*(sympy.exp(sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2)+sympy.exp(-sympy.I*k_x*a))
+f_24 = 0#-t_l*sympy.exp(sympy.I*k_z*b)*(sympy.exp(sympy.I*k_x*a)+sympy.exp(-sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
+f_34 = -t_i*(sympy.exp(sympy.I*k_x*a)+sympy.exp(-sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
+
+H = sympy.Matrix([[0,f_12,f_13,f_14],
+                  [0,0,f_23,f_24],
+                  [0,0,0,f_34],
+                  [0,0,0,0]])
+H += H.conjugate().T
+display(H)
+```
+
+```{code-cell} ipython3
+:tags: []
+
+K = sympy.sympify(2*sympy.pi/(3*a)*np.array([1,1/sympy.sqrt(3)]))
+K
+```
+
+```{code-cell} ipython3
+:tags: []
+
+q_x, q_y = sympy.symbols('q_x q_y')
+delta_K = sympy.sympify(2*sympy.pi/(3*a)*np.array([q_x,q_y]))
+delta_K
+```
+
+```{code-cell} ipython3
+:tags: []
+
+K+delta_K
+```
+
+```{code-cell} ipython3
+H_K_point = sympy.simplify(H.subs({k_x:K[0]+delta_K[0],k_y:K[1]+delta_K[1]}))
+display(H_K_point)
 ```
 
 ```{code-cell} ipython3
 
+```
+
+```{code-cell} ipython3
+
+```
+
+```{code-cell} ipython3
+
+```
+
+```{code-cell} ipython3
+
+```
+
+```{code-cell} ipython3
+# To-do
+# treat the intrAlayer hopping as perturbation
+# spectrum will have two zero modes 
+# delta_k_x and delta_k_y are perturbations too
+
+
+# for start up to second order in delta_k
 ```
