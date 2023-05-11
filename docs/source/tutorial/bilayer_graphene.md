@@ -34,15 +34,12 @@ The hoppings between nearest neighbors are the same (covalent carbon bonds) in p
 
 Finally we arrive at the Bloch-matrix representation of the bilayer tight-binding lattice
 \begin{align}
-\mathcal{H}=\sum_k \left(\begin{array}{cc}c^\dagger_{k,B1}\\ c^{\dagger}_{k,B2}\\ c^{\dagger}_{k,T1}\\ c^{\dagger}_{k,T2}\end{array}\right)\left(\begin{array}{cc}0&f_{B1,B2}(k)&f_{B1,T1}(k)&f_{B1,T2}(k)\\ f_{B1,B2}(k)^\dagger&0&f_{B2,T1}(k)&f_{B2,T2}(k)\\f_{B1,T1}^\dagger(k)&f_{B2,T1}^\dagger(k)&0&f_{T1,T2}(k)\\f_{B1,T2}^\dagger(k)&f_{B2,T2}^\dagger(k)&f_{T1,T2}^\dagger(k)&0\end{array}\right) \left(\begin{array}{cc}c_{k,B1}\\ c_{k,B2}\\ c_{k,T1}\\ c_{k,T2}\end{array}\right)
+\mathcal{H}=\sum_k \left(\begin{array}{cc}c^\dagger_{k,B1}\\ c^{\dagger}_{k,B2}\\ c^{\dagger}_{k,T1}\\ c^{\dagger}_{k,T2}\end{array}\right)\left(\begin{array}{cc}0&f_{B1,B2}(k)&f_{B1,T1}(k)&0\\ f_{B1,B2}(k)^\dagger&0&0&0\\f_{B1,T1}^\dagger(k)&0&0&f_{T1,T2}(k)\\0&0&f_{T1,T2}^\dagger(k)&0\end{array}\right) \left(\begin{array}{cc}c_{k,B1}\\ c_{k,B2}\\ c_{k,T1}\\ c_{k,T2}\end{array}\right)
 \end{align}
 where we have found
 \begin{align}
 f_{B1,B2}(k)&=-t_i(e^{ik_xa}+e^{-ik_xa/2}2\cos(k_ya\sqrt{3}/2)) \\
-f_{B1,T1}(k)&=-t_{B1,T1}e^{ik_zb}(e^{-ik_xa}+e^{ikxa/2}2\cos(k_ya\sqrt{3}/2)) \\
-f_{B1,T2}(k)&= -t_{B1,T2}e^{ik_zb}(e^{-ik_xa}+e^{ik_xa/2}2\cos(k_ya\sqrt{3}/2))\\
-f_{B2,T1}(k)&= -t_{B1,T2}e^{ik_zb}(e^{ik_xa/2}2\cos(k_ya\sqrt{3}/2)+e^{-ik_xa})\\
-f_{B2,T2}(k)&= -t_{B2,T2}e^{ik_zb}(e^{ik_xa}+e^{-ik_xa/2}2\cos(k_ya\sqrt{3}/2))\\
+f_{B1,T1}(k)&=-t_{B1,T1}\\
 f_{T1,T2}(k)&=-t_i(e^{ik_xa}+e^{-ik_xa/2}2\cos(k_ya\sqrt{3}/2)) \\
 \end{align}
 where the $t$ correspond to the hopping ampltiudes across the indexed bond, $k_i$ are the momenta, and $a$ is the lattice constant.
@@ -64,10 +61,10 @@ t_i, t_l, a, b = sympy.symbols('t_i t_l a b', real=True, positive=True, commutat
 k_x, k_y, k_z = sympy.symbols('k_x k_y k_z', commutative=True, real=True)
 
 f_12 = -t_i*(sympy.exp(sympy.I*k_x*a)+sympy.exp(-sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
-f_13 = -t_l*sympy.exp(sympy.I*k_z*b)*(sympy.exp(-sympy.I*k_x*a)+sympy.exp(sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
-f_14 = 0#-t_l*sympy.exp(sympy.I*k_z*b)*(sympy.exp(-sympy.I*k_x*a)+sympy.exp(sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
-f_23 = 0#-t_l*sympy.exp(sympy.I*k_z*b)*(sympy.exp(sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2)+sympy.exp(-sympy.I*k_x*a))
-f_24 = 0#-t_l*sympy.exp(sympy.I*k_z*b)*(sympy.exp(sympy.I*k_x*a)+sympy.exp(-sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
+f_13 = -t_l
+f_14 = 0
+f_23 = 0
+f_24 = 0
 f_34 = -t_i*(sympy.exp(sympy.I*k_x*a)+sympy.exp(-sympy.I*k_x*a/2)*2*sympy.cos(k_y*a*sympy.sqrt(3)/2))
 
 H = sympy.Matrix([[0,f_12,f_13,f_14],
@@ -105,15 +102,21 @@ display(H_K_point)
 ```
 
 ```{code-cell} ipython3
-
+P, D = H_K_point.subs({q_x:0,q_y:0}).diagonalize()
 ```
 
 ```{code-cell} ipython3
-
+D
 ```
 
 ```{code-cell} ipython3
+P
+```
 
+```{code-cell} ipython3
+:tags: []
+
+H_tilde, U, U_adj = block_diagonalization.block_diagonalize(H_K_point, symbols=[q_x, q_y], subspace_eigenvectors=(P[:,:2],P[:,2:]))
 ```
 
 ```{code-cell} ipython3
