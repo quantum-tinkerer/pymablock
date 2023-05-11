@@ -20,8 +20,6 @@ kernelspec:
 * Demonstrate usefulness of package
 
 ```{code-cell} ipython3
-from operator import mul
-
 import sympy
 from sympy import Matrix, symbols
 from sympy.physics.quantum.boson import BosonOp, BosonFockKet
@@ -104,4 +102,10 @@ Hamiltonian, you may execute:
 
 ```{code-cell} ipython3
 H_tilde[0, 0, 2][0, 0].expand().simplify()
+```
+
+The 4th order correction is
+
+```{code-cell} ipython3
+H_tilde[0, 0, 4][0, 0].expand().simplify()
 ```
