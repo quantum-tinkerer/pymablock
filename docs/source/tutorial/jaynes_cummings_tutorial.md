@@ -41,10 +41,10 @@ Hamiltonian in the different subspaces, occupied ({math}`AA`), unoccupied ({math
 terms ({math}`AB`/{math}`BA`).
 
 ```{code-cell} ipython3
-H_0 = Matrix([[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]])
-H_p = Matrix([[0,  g * Dagger(a)], [g * a, 0]])
+H_0 = [[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]]
+H_p = [[0,  g * Dagger(a)], [g * a, 0]]
 
-H_0 + H_p
+Matrix(H_0) + Matrix(H_p)
 ```
 
 To use Lowdin we need to solve Sylvester's Equation
@@ -78,20 +78,20 @@ def solve_sylvester(rhs):
     Returns:
     V : zero or sympy expression for off-diagonal block of unitary transformation
     """
-    E_i = expectation_value(basis_ket, H_0[0, 0])
+    E_i = expectation_value(basis_ket, H_0[0][0])
     V = []
-    for term in rhs[0, 0].expand().as_ordered_terms():
+    for term in rhs.expand().as_ordered_terms():
         term_on_basis = qapply(term * basis_ket).doit()
         normalized_ket = term_on_basis.as_ordered_factors()[-1]
-        E_j = expectation_value(normalized_ket, H_0[1, 1])
+        E_j = expectation_value(normalized_ket, H_0[1][1])
         V.append(term / (E_j - E_i))
-    return Matrix([[sum(V)]])
+    return sum(V)
 ```
 
 We define the block-diagonalization of `H` by defining,
 
 ```{code-cell} ipython3
-H_tilde, U, U_adjoint = block_diagonalize(H_0 + H_p, subspace_indices=[0, 1], solve_sylvester=solve_sylvester, symbols=[g])
+H_tilde, U, U_adjoint = block_diagonalize([H_0, H_p], solve_sylvester=solve_sylvester, symbols=[g])
 ```
 
 where `H_tilde` is the transformed Hamiltonian, `U` is the unitary transformation, and
@@ -101,11 +101,11 @@ For example, to request the 2nd order correction to the occupied subspace of the
 Hamiltonian, you may execute:
 
 ```{code-cell} ipython3
-H_tilde[0, 0, 2][0, 0].expand().simplify()
+H_tilde[0, 0, 2].expand().simplify()
 ```
 
 The 4th order correction is
 
 ```{code-cell} ipython3
-H_tilde[0, 0, 4][0, 0].expand().simplify()
+H_tilde[0, 0, 4].expand().simplify()
 ```
