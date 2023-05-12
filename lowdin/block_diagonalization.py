@@ -839,6 +839,7 @@ def solve_sylvester_KPM(
         and the second element contains the (partial) auxiliary subspace.
     solver_options :
         Dictionary containing any of the following options for KPM.
+
         - eps: float
             Tolerance for Hamiltonian rescaling.
         - bounds: tuple[float, float]
