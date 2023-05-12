@@ -1242,3 +1242,22 @@ def test_unknown_data_type():
     # Shouldn't work without the solve_sylvester function
     with pytest.raises(NotImplementedError):
         H_tilde, *_ = block_diagonalize(H)
+
+
+def test_zero_h_0():
+    """
+    Test that the algorithm works if the first block is zero.
+    """
+    h_0 = np.diag([0.0, 0.0, 1.0, 1.0])
+    h_p = np.random.randn(4, 4)
+    h_p += h_p.T
+    h = [h_0, h_p]
+    block_diagonalize(h, subspace_indices=[0, 0, 1, 1])[0][:, :, 3]
+    h_sparse = [sparse.csr_array(term) for term in h]
+    block_diagonalize(h_sparse, subspace_indices=[0, 0, 1, 1])[0][:, :, 3]
+    h_sympy = [sympy.Matrix(term) for term in h]
+    block_diagonalize(h_sympy, subspace_indices=[0, 0, 1, 1])[0][:, :, 3]
+    h_blocked = [
+        [[term[:2, :2], term[2:, :2]], [term[:2, :2], term[2:, 2:]]] for term in h
+    ]
+    block_diagonalize(h_blocked)[0][:, :, 3]

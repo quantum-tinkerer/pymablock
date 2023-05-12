@@ -800,14 +800,17 @@ def solve_sylvester_diagonal(
             return Y * energy_denominators
         elif sparse.issparse(Y):
             Y_coo = Y.tocoo()
-            energy_denominators = 1 / (eigs_A[Y_coo.row] - eigs_B[Y_coo.col])
+            # Sometimes eigs_A/eigs_B can be a scalar zero.
+            eigs_A_select = eigs_A if not eigs_A.shape else eigs_A[Y_coo.row]
+            eigs_B_select = eigs_B if not eigs_B.shape else eigs_B[Y_coo.col]
+            energy_denominators = 1 / (eigs_A_select - eigs_B_select)
             new_data = Y_coo.data * energy_denominators
             return sparse.csr_array((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
         elif isinstance(Y, sympy.MatrixBase):
             array_eigs_a = np.array(eigs_A, dtype=object)  # Use numpy to reshape
             array_eigs_b = np.array(eigs_B, dtype=object)
             energy_denominators = sympy.Matrix(
-                1 / (array_eigs_a.reshape(-1, 1) - array_eigs_b)
+                np.resize(1 / (array_eigs_a.reshape(-1, 1) - array_eigs_b), Y.shape)
             )
             return energy_denominators.multiply_elementwise(Y)
         else:
@@ -1262,23 +1265,29 @@ def _subspaces_from_indices(
 
 def _extract_diagonal(H: BlockSeries) -> tuple[np.ndarray, np.ndarray]:
     """Extract the diagonal of the zeroth order of the Hamiltonian."""
-    h_0_AA, h_0_BB = H[([0, 1], [0, 1]) + (0,) * H.n_infinite]
-    if not is_diagonal(h_0_AA) or not is_diagonal(h_0_BB):
+    diag_indices = np.arange(H.shape[0])
+    h_0 = H[(diag_indices, diag_indices) + (0,) * H.n_infinite]
+    is_sympy = any(isinstance(block, sympy.MatrixBase) for block in h_0)
+    if not all(is_diagonal(h) for h in h_0):
         raise ValueError(
             "The unperturbed Hamiltonian must be diagonal if ``solve_sylvester``"
             " is not provided."
         )
-    eigs_A, eigs_B = h_0_AA.diagonal(), h_0_BB.diagonal()
-    if isinstance(h_0_AA, sympy.MatrixBase):
-        array_eigs_A = np.array(eigs_A, dtype=object)
-        array_eigs_B = np.array(eigs_B, dtype=object)
-        if np.any((array_eigs_A.reshape(-1, 1) - array_eigs_B) == 0):
-            raise ValueError("The subspaces must not share eigenvalues.")
-    else:
-        if np.any(np.isclose(eigs_A.reshape(-1, 1), eigs_B)):
-            raise ValueError("The subspaces must not share eigenvalues.")
+    diags = []
+    for block in h_0:
+        if zero == block or block is np.ma.masked:
+            diags.append(np.array(0))
+            continue
+        eigs = block.diagonal()
+        if is_sympy:
+            eigs = np.array(eigs, dtype=object)
+        diags.append(eigs)
 
-    return h_0_AA.diagonal(), h_0_BB.diagonal()
+    compare = np.equal if is_sympy else np.isclose
+    if np.any(compare(diags[0].reshape(-1, 1), diags[1].reshape(1, -1))):
+        raise ValueError("The subspaces must not share eigenvalues.")
+
+    return tuple(diags)
 
 
 def _convert_if_zero(value: Any, atol=1e-12):

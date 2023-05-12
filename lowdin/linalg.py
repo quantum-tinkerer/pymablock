@@ -166,6 +166,8 @@ def aslinearoperator(A):
 
 def is_diagonal(A):
     """Check if A is diagonal."""
+    if zero == A or A is np.ma.masked:
+        return True
     if isinstance(A, sympy.MatrixBase):
         return A.is_diagonal()
     elif isinstance(A, np.ndarray):
