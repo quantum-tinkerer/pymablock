@@ -21,13 +21,13 @@ sys.path.insert(0, package_path)
 
 # -- Project information -----------------------------------------------------
 
-project = 'lowdin'
-copyright = '2023, .'
-author = '.'
-gitlab_url = 'https://gitlab.kwant-project.org/qt/lowdin'
+project = "lowdin"
+copyright = "2023, ."
+author = "."
+gitlab_url = "https://gitlab.kwant-project.org/qt/lowdin"
 
 # The full version, including alpha/beta/rc tags
-release = '.'
+release = "."
 
 
 # -- General configuration ---------------------------------------------------
@@ -43,13 +43,17 @@ extensions = [
     "sphinx.ext.viewcode",
     "myst_nb",
 ]
+myst_enable_extensions = [
+    "dollarmath",
+    "amsmath",
+]
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
 
 default_role = "autolink"
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -62,21 +66,21 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_book_theme'
+html_theme = "sphinx_book_theme"
 
 html_theme_options = {
-    'repository_url': 'https://gitlab.kwant-project.org/qt/lowdin',
-    'use_repository_button': True,
-    'use_issues_button': True,
-    'use_edit_page_button': True,
-    'path_to_docs': 'docs/source',
-    'repository_branch': 'main',
-    'use_download_button': True,
-    'home_page_in_toc': True,
+    "repository_url": "https://gitlab.kwant-project.org/qt/lowdin",
+    "use_repository_button": True,
+    "use_issues_button": True,
+    "use_edit_page_button": True,
+    "path_to_docs": "docs/source",
+    "repository_branch": "main",
+    "use_download_button": True,
+    "home_page_in_toc": True,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_build/html/_static']
-html_css_files = ['css/custom.css']
+html_static_path = ["_build/html/_static"]
+html_css_files = ["css/custom.css"]
