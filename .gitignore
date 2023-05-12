@@ -159,6 +159,8 @@ notes/*.pdf
 *.xml
 htmlcov/
 coverage/
+.coverage
+prof/
 
 # docs
 docs/build/
