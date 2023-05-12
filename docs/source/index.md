@@ -22,18 +22,18 @@ CHANGELOG.md
 
 ## What is _Lowdin_?
 
-_Lowdin_ is a Python package that does quasi-degenerate perturbation theory.
-It provides series of block operators that may contain numerical or symbolic
-values, and two algorithms that allow to efficiently block-diagonalize
-numerical and symbolic Hamiltonians with multivariate perturbations.
+_Lowdin_ is a Python package that constructs effective models using
+quasi-degenerate perturbation theory.
+It handles both numerical and symbolic inputs, and it efficiently
+block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
+order.
 
-
-Doing perturbation theory is a three step process:
+Building an effective model using _Lowdin_ is a three step process:
 * Define a Hamiltonian
 * Call `block_diagonalize`
-* Request the perturbative corrections to the Hamiltonian
+* Request the desired order of the effective Hamiltonian
 
-```
+```python
 from lowdin import block_diagonalize
 
 # Define perturbation theory
@@ -44,68 +44,63 @@ H_AA_4 = H_tilde[0, 0, 4]
 ```
 
 ## Why _Lowdin_?
+Here is why you should use _Lowdin_:
 
-* _Lowdin_ is efficient
+* Do not reinvent the wheel
 
-  It provides taylored algorithms for different Hamiltonians.
-* _Lowidn_ handles symbolic and numeric computations
+  _Lowdin_ provides a tested reference implementation
+*  Apply to any problem
 
-  It works with `numpy` arrays, `scipy` sparse arrays, and `sympy` matrices and
-  quantum operators.
-* _Lowdin_ is well tested
+  _Lowdin_ supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and quantum operators
+* Speed up your code
 
-  Its tests make it reliable for an arbitrary number of perturbations.
+  Due to several optimizations, _Lowdin_ can reliable handle both higher orders and large Hamiltonian sizes
 
 ## How does _Lowdin_ work?
 
-_Lowdin_ provides series of block operators to do perturbation theory.
-By decomposing a Hamiltonian into a block-diagonal unperturbed component and
-perturbative orders, _Lowdin_ allows to access any block and order of the
-transformed block-diagonalized Hamiltonian. The results are cached and
-additional orders may be requested by reusing previously computed orders.
-
+_Lowdin_ considers a Hamiltonian as a series of {math}`2\times 2` block operators with
+the zeroth order block-diagonal.
 To carry out the block-diagonalization procedure, _Lowdin_ finds a minimal
-unitary transformation that iteratively block-diagonalizes the Hamiltonian at
-every order.
-Like with Lowdin perturbation theory or the Schrieffer–Wolff transformation,
-_Lowdin_ solves Sylvester's equation at every order to find the off-diagonal
-terms of the transformation.
-At the same time, it imposes unitarity at every order to find the diagonal
-terms of the transformation.
+unitary transformation that cancels the off-diagonal block of the Hamiltonian
+order by order.
+The result of this procedure is a perturbative series of the transformed
+block-diagonal Hamiltonian.
+
+```{math}
+\begin{gather}
+H = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
+U = \sum_{i=0}^\infty U_n,\\
+\tilde{H} = U^\dagger H U=\sum_{i=0}\begin{pmatrix}\tilde{H}_i^{AA} & 0 \\ 0 & \tilde{H}_i^{BB}\end{pmatrix}.
+\end{gather}
+```
+
+Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation,
+_Lowdin_ solves Sylvester's equation and imposes unitarity at every order.
 However, differently from other approaches, _Lowdin_ uses efficient algorithms
-that do not waste computational efforts by choosing an appropriate
-parametrization of the series for the unitary transformation.
+by choosing an appropriate parametrization of the series of the unitary
+transformation.
 As a consequence, the computational cost of every order scales linearly with
-the order, while the resulting block-diagonalized Hamiltonian is still the same.
+the order, while the algorithms are still mathematically equivalent.
 
-The two main algorithms, `general` and `expanded`, rely on decomposing the
-unitary transformation as a series of Hermitian block diagonal {math}`U` and
-skew-Hermitian block off-diagonal {math}`V` terms,
+## The algorithms
 
+The two main algorithms, `general` and `expanded`, rely on decomposing
+{math}`U` as a series of Hermitian block diagonal {math}`W` and
+skew-Hermitian block off-diagonal {math}`V` terms.
+The transformed Hamiltonian is a Cauchy product
 ```{math}
-\tilde{H} = (U + V)^\dagger H (U + V),
-\quad U = \sum_{i=0}^\infty U_n,
-\quad V = \sum_{i=0}^\infty V_n,
+\tilde{H}_{n} = \sum_{i=0}^n (W_{n-i} - V_{n-i}) H_0 (W_i + V_i) +
+\sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_p (W_i + V_i).
 ```
-where {math}`H` is the original Hamiltonian and {math}`\tilde{H}` is its
-block-diagonalized form.
-It follows that every order {math}`n` of the transformed Hamiltonian is
-computed as a Cauchy product between the series
-```{math}
-\tilde{H}_{n} = \sum_{i=0}^n (U_{n-i} - V_{n-i}) H_0 (U_i + V_i) +
-\sum_{i=0}^{n-1} (U_{n-i-1} - V_{n-i-1}) H_p (U_i + V_i),
-```
-where {math}`H_0` is the unperturbed Hamiltonian and {math}`H_p` is a first
-order univariate perturbation.
 
 Consequently, the orders of the unitary transformation are solutions to
 ```{math}
-U_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(U_{n-i}U_i - V_{n-i}V_i), \quad \text{unitarity} \\
+W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i), \quad \text{unitarity} \\
 H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}, \quad \text{Sylvester's equation}
 ```
 where
 ```{math}
-Y_{n} = \sum_{i=1}^{n-1}\left[U_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB} H_0^{BB}U_i^{BB}\right].
+Y_{n} = \sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB} H_0^{BB}W_i^{BB}\right].
 ```
 
 While `general` implements the procedure outlined here directly, `expanded`
