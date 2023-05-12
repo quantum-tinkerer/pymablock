@@ -11,8 +11,6 @@ kernelspec:
   name: python3
 ---
 
-+++
-
 # Bilayer-graphene in tight-binding approximation
 
 ```{code-cell} ipython3
@@ -22,17 +20,13 @@ import scipy
 import kwant
 
 from lowdin import block_diagonalization
-
-sympy.init_printing(use_latex="mathjax")
 ```
-
-+++
 
 ## The set-up
 
-Over the past few years, graphene was at the forefront in materials research. From its marvelous properties as conductor (REF) to its surprising features when stacked on top of each other in particular ways (REF), graphene has many interesting aspect to study. The one feature that we want to take a closer look on are the emergent Dirac cones at the, so called, $K$-point, one of the points on the boundary of the Brillouin zone.
-In this point, the two energy bands of single layer graphene touch (at $E=0$) and in its vicinity, say a small vector $\vec{q}$ away, the dispersion is linear. This constitutes a Dirac cone and is one of the peculiar features linked to topology (REF). 
-Since we hinted earlier that stacking multiple layers of graphene can change the electronic properties significantly, one can ask the question what happens with the Dirac cone in said $K$-point when we introduce a second layer of graphene into the mix. 
+Over the past few years, graphene was at the forefront in materials research. From its [interesting properties as conductor](http://dx.doi.org/10.1103/PhysRevB.78.085415) to its [surprising features when stacked on top of each other in particular ways](https://doi.org/10.1038/s41563-020-00840-0), graphene has many interesting aspect to study. The one feature that we want to take a closer look on are the emergent Dirac cones at the, so called, $K$-point, one of the points on the boundary of the Brillouin zone.
+In this point, the two energy bands of single layer graphene touch (at $E=0$) and in its vicinity, say a small vector $\vec{q}$ away, the dispersion is linear. This constitutes a Dirac cone and is one of the peculiar features [linked to topology](https://doi.org/10.1103/PhysRevD.13.3398). 
+Since we hinted earlier that stacking multiple layers of graphene can change the electronic properties significantly, one can ask the question what happens with the Dirac cone in said $K$-point when we introduce a second layer of graphene into the mix.
 
 +++
 
@@ -41,7 +35,7 @@ We begin in real space where we consider the different allowed hoppings seperate
 $$\{c_{B1}, c_{B2}, c_{T1}, c_{T2}\}.$$
 We consider $c_{B1}$ atom to be in the 3-vertex of the bottom layer and fix our coordinate system such that the origin coincides with its position. We place the second layer of graphene on top such that the $c_{T1}$ carbon atom, which itself sits in the 3-vertex of the top layer which is rotated by an angle of $60\degree$ with respect to the bottom layer, at $(0, 0, b)^T$.
 
-Within the two layers, the nearest neighbour hopping amplitudes are all equal and we denote them by $t_i$. Between the layers, we only consider the hopping between the $c_{B1}$ and $c_{T1}$ atoms and denote its hopping amplitude by $t_l$. All other hoppings are kept at zero which means that we will not recover socalled _trigonal warping_ (REF). Lastly, we also apply a back gate volatage to our bilayer sample which leads to different on-site potentials of the two layers. We keep that at zero for the bottom layer and retain a finite on-site potential $A$ in the top layer. 
+Within the two layers, the nearest neighbour hopping amplitudes are all equal and we denote them by $t_i$. Between the layers, we only consider the hopping between the $c_{B1}$ and $c_{T1}$ atoms and denote its hopping amplitude by $t_l$. All other hoppings are kept at zero which means that we will not recover socalled [_trigonal warping_](https://doi.org/10.1016/j.ssc.2007.03.054). Lastly, we also apply a back gate volatage to our bilayer sample which leads to different on-site potentials of the two layers. We keep that at zero for the bottom layer and retain a finite on-site potential $A$ in the top layer. 
 
 Preforming a Fourier transform in the $x-$ and $y-$directions, we recover the Bloch-Hamiltonian of the system, reading
 \begin{align}
