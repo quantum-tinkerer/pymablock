@@ -11,16 +11,8 @@ kernelspec:
   name: python3
 ---
 
-```{code-cell} ipython3
-import numpy as np
-import sympy
-import scipy
-import kwant
 
-from lowdin import block_diagonalization
-```
-
-# Bilayer Grahepene in tight-binding approximation
+# Bilayer Graphene in tight-binding approximation
 
 +++
 
@@ -29,6 +21,17 @@ We begin in real space where we consider the different allowed hoppings seperate
 $$\{c_{B1}, c_{B2}, c_{T1}, c_{T2}\}.$$
 We set $c_{B1}$ to be in the origin and $c_{T1}$ to be on top of $B1$ at $(0,0,b)^T$, where $b$ is the distance between the two layers.
 The hoppings between nearest neighbors are the same (covalent carbon bonds) in plane, but differ out of plane. We also allow for a back gate potential which we set to zero in the bottom layer and to a finite value in the top layer.
+
+```{code-cell} ipython3
+import numpy as np
+import sympy
+import scipy
+import kwant
+
+from lowdin import block_diagonalization
+
+sympy.init_printing(use_latex="mathjax")
+```
 
 +++
 
@@ -71,7 +74,7 @@ H = sympy.Matrix([[0,f_12,f_13,0],
                   [0,0,A/2,f_34],
                   [0,0,0,A/2]])
 H += H.conjugate().T
-display(H)
+H
 ```
 
 Let us see if we indeed find the Dirac cones in the $K$ point:
