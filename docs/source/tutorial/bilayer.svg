@@ -24,9 +24,9 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="1.6391093"
-     inkscape:cx="22.878279"
-     inkscape:cy="258.67707"
+     inkscape:zoom="9.4465414"
+     inkscape:cx="230.71936"
+     inkscape:cy="193.61583"
      inkscape:window-width="1854"
      inkscape:window-height="1016"
      inkscape:window-x="0"
@@ -53,25 +53,6 @@
          d="M 0,0 5,-5 -12.5,0 5,5 Z"
          transform="scale(-0.5)"
          id="path83" />
-    </marker>
-    <marker
-       style="overflow:visible"
-       id="DartArrow"
-       refX="0"
-       refY="0"
-       orient="auto-start-reverse"
-       inkscape:stockid="Dart arrow"
-       markerWidth="8.75"
-       markerHeight="5"
-       viewBox="0 0 8.75 5"
-       inkscape:isstock="true"
-       inkscape:collect="always"
-       preserveAspectRatio="xMidYMid">
-      <path
-         style="fill:context-stroke;fill-rule:evenodd;stroke:none"
-         d="M 0,0 5,-5 -12.5,0 5,5 Z"
-         transform="scale(-0.5)"
-         id="path6" />
     </marker>
   </defs>
   <g
@@ -808,7 +789,7 @@
       </g>
     </g>
     <path
-       style="fill:#000000;stroke-width:1;stroke-linecap:round;marker-end:url(#DartArrow);stroke-dasharray:none"
+       style="fill:#000000;stroke-width:1;stroke-linecap:round;marker-end:;stroke-dasharray:none"
        d="M 136.75191,136.30515 158.97444,97.765515"
        id="path80" />
     <path
