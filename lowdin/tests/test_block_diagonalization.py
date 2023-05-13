@@ -230,11 +230,13 @@ def symbolic_hamiltonian(request):
     sigma_x = sympy.Matrix([[0, 1], [1, 0]])
     sigma_y = sympy.Matrix([[0, -1j], [1j, 0]])
     sigma_z = sympy.Matrix([[1, 0], [0, -1]])
+    # Also test that having zero terms in the Hamiltonian is fine by having a
+    # zero block of the 0th order term.
     hamiltonian_2 = {
+        sympy.Rational(1): beta * sympy.Matrix([[0, 0], [0, 1]]),
         k_x**2: h**2 * sympy.Identity(2) / (2 * m),
         k_y**2: h**2 * sympy.Identity(2) / (2 * m),
         k_z**2: h**2 * sympy.Identity(2) / (2 * m),
-        sympy.Rational(1): beta * sigma_z,
         k_z: alpha * sigma_z,
         k_x: alpha * sigma_x,
         k_y: alpha * sigma_y,
@@ -431,7 +433,10 @@ def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -
 
 
 def test_check_unitary(
-    general_output: BlockSeries, wanted_orders: tuple[int, ...]
+    general_output: tuple[BlockSeries, BlockSeries, BlockSeries],
+    wanted_orders: tuple[int, ...],
+    N_A: Optional[int] = None,
+    N_B: Optional[int] = None,
 ) -> None:
     """
     Test that the transformation is unitary.
@@ -446,8 +451,8 @@ def test_check_unitary(
     zero_order = (0,) * len(wanted_orders)
     H_tilde, U, U_adjoint = general_output
 
-    N_A = H_tilde[(0, 0) + zero_order].shape[0]
-    N_B = H_tilde[(1, 1) + zero_order].shape[0]
+    N_A = N_A or H_tilde[(0, 0) + zero_order].shape[0]
+    N_B = N_B or H_tilde[(1, 1) + zero_order].shape[0]
     n_infinite = H_tilde.n_infinite
 
     identity = BlockSeries(
@@ -1188,7 +1193,7 @@ def test_block_diagonalize_symbolic_hamiltonian(
     assert H_tilde.n_infinite == len(symbols)
     assert H_tilde.dimension_names == symbols
     test_check_AB([H_tilde, U, U_adjoint], (1,) * len(symbols))
-    test_check_unitary([H_tilde, U, U_adjoint], (1,) * len(symbols))
+    test_check_unitary([H_tilde, U, U_adjoint], (1,) * len(symbols), 1, 1)
 
     # Test if subspace_indices are provided
     hamiltonian, symbols, subspace_eigenvectors, subspace_indices = symbolic_hamiltonian
@@ -1199,7 +1204,7 @@ def test_block_diagonalize_symbolic_hamiltonian(
     assert H_tilde.n_infinite == len(symbols)
     assert H_tilde.dimension_names == symbols
     test_check_AB([H_tilde, U, U_adjoint], (1,) * len(symbols))
-    test_check_unitary([H_tilde, U, U_adjoint], (1,) * len(symbols))
+    test_check_unitary([H_tilde, U, U_adjoint], (1,) * len(symbols), 1, 1)
 
 
 def test_unknown_data_type():
