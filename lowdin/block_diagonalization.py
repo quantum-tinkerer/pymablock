@@ -554,9 +554,11 @@ def symbolic(
     """
     subs = {}
 
-    # Initialize symbols for terms in H
+    # Initialize symbols for terms in H. Ensure that H_0 is there.
+    h_0_indices = [(i, i) + (0,) * H.n_infinite for i in range(2)]
+
     def placeholder_eval(*index):
-        if zero == (actual_value := H[index]):
+        if zero == (actual_value := H[index]) and index not in h_0_indices:
             return zero
         operator_type = HermitianOperator if index[0] == index[1] else Operator
         placeholder = operator_type(f"H_{{{index}}}")
@@ -569,8 +571,7 @@ def symbolic(
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
     )
-    h_0_AA = H_placeholder[(0, 0) + (0,) * H.n_infinite]
-    h_0_BB = H_placeholder[(1, 1) + (0,) * H.n_infinite]
+    h_0 = [H_placeholder[index] for index in h_0_indices]
 
     # Solve for symbols representing H and V (off-diagonal block of U)
     H_tilde, U, U_adjoint = general(
@@ -585,7 +586,7 @@ def symbolic(
         if index[:2] == (0, 1):
             V = Operator(f"V_{{{index[2:]}}}")
             # Apply h_0_AA * V - V * h_0_BB = rhs to eliminate h_0 terms
-            Y = _commute_h0_away(old_U_eval(*index), h_0_AA, h_0_BB, Y_data)
+            Y = _commute_h0_away(old_U_eval(*index), *h_0, Y_data)
             if zero == Y:
                 return zero
             Y_data[V] = Y
@@ -597,7 +598,7 @@ def symbolic(
     old_H_tilde_eval = H_tilde.eval
 
     def H_tilde_eval(*index):
-        return _commute_h0_away(old_H_tilde_eval(*index), h_0_AA, h_0_BB, Y_data)
+        return _commute_h0_away(old_H_tilde_eval(*index), *h_0, Y_data)
 
     H_tilde.eval = H_tilde_eval
 
