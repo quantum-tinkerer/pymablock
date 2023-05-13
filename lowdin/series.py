@@ -103,14 +103,17 @@ class BlockSeries:
         self.dimension_names = dimension_names or ()
 
     def __getitem__(
-        self, item: int | slice | tuple[int | slice, ...]
+        self, item: int | slice | tuple[int | list[int, ...] | slice, ...]
     ) -> ma.MaskedArray[Any] | Any:
         """
-        Evaluate the series at the given index, following numpy's indexing rules.
+        Evaluate the series at indices, following numpy's indexing rules.
 
         Parameters
         ----------
-        item : index at which to evaluate the series.
+        item :
+            Numpy-style index. If only the finite dimensions are specified, the
+            result is a BlockSeries view with the infinite dimensions left
+            intact.
 
         Returns
         -------
@@ -118,6 +121,23 @@ class BlockSeries:
         """
         if not isinstance(item, tuple):  # Allow indexing with integer
             item = (item,)
+
+        if len(item) == len(self.shape):
+            # Make an intermediate scalar BlockSeries that packs all finite
+            # dimensions into a single item
+            packed = BlockSeries(
+                eval=lambda *index: self[item + index],
+                shape=(),
+                n_infinite=self.n_infinite,
+            )
+            return BlockSeries(
+                eval=lambda *index: packed[index[-self.n_infinite :]][
+                    index[: -self.n_infinite]
+                ],
+                shape=np.empty(self.shape)[item].shape,
+                n_infinite=self.n_infinite,
+                dimension_names=self.dimension_names,
+            )
 
         self._check_finite(item[-self.n_infinite :])
         self._check_number_perturbations(item)

@@ -41,6 +41,13 @@ def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) 
         assert type(e) == shape
 
 
+def test_infinite_views():
+    test = BlockSeries(lambda *x: x, data=None, shape=(3, 3, 3), n_infinite=2)
+    np.testing.assert_equal(
+        test[:, :, 0][:, :, [2, 1, 0], :3], test[:, :, 0, [2, 1, 0], :3]
+    )
+
+
 def test_fibonacci_series() -> None:
     """Test that we can implement the Fibonacci series."""
     F = BlockSeries(
