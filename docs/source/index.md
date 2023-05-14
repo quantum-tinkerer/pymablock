@@ -49,17 +49,21 @@ Here is why you should use _Lowdin_:
 * Do not reinvent the wheel
 
   _Lowdin_ provides a tested reference implementation
+
 *  Apply to any problem
 
-  _Lowdin_ supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and quantum operators
+  _Lowdin_ supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
+  quantum operators
+
 * Speed up your code
 
-  Due to several optimizations, _Lowdin_ can reliable handle both higher orders and large Hamiltonian sizes
+  Due to several optimizations, _Lowdin_ can reliable handle both higher orders
+  and large Hamiltonian sizes
 
 ## How does _Lowdin_ work?
 
-_Lowdin_ considers a Hamiltonian as a series of {math}`2\times 2` block operators with
-the zeroth order block-diagonal.
+_Lowdin_ considers a Hamiltonian as a series of {math}`2\times 2` block operators
+with the zeroth order block-diagonal.
 To carry out the block-diagonalization procedure, _Lowdin_ finds a minimal
 unitary transformation that cancels the off-diagonal block of the Hamiltonian
 order by order.
@@ -84,16 +88,18 @@ the order, while the algorithms are still mathematically equivalent.
 
 ## The algorithms
 
-The two main algorithms, `general` and `expanded`, rely on decomposing
-{math}`U` as a series of Hermitian block diagonal {math}`W` and
-skew-Hermitian block off-diagonal {math}`V` terms.
-The transformed Hamiltonian is a Cauchy product
+_Lowdin_ algorithms rely on decomposing {math}`U` as a series of Hermitian
+block diagonal {math}`W` and skew-Hermitian block off-diagonal {math}`V` terms.
+The transformed Hamiltonian is a Cauchy product between the series of
+{math}`U^\dagger`, {math}`H`, and {math}`U`.
+For example, for a single first order perturbation {math}`H_p`, the transformed
+Hamiltonian is
 ```{math}
 \tilde{H}_{n} = \sum_{i=0}^n (W_{n-i} - V_{n-i}) H_0 (W_i + V_i) +
 \sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_p (W_i + V_i).
 ```
 
-Consequently, the orders of the unitary transformation are solutions to
+_Lowdin_ finds the orders of {math}`W` and {math}`V` as a solution to
 ```{math}
 W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i), \quad \text{unitarity} \\
 H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}, \quad \text{Sylvester's equation}
@@ -103,11 +109,12 @@ where
 Y_{n} = \sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB} H_0^{BB}W_i^{BB}\right].
 ```
 
-While `general` implements the procedure outlined here directly, `expanded`
-initializes a fully symbolic Hamiltonian and derives general expressions
-for {math}`\tilde{H}`.
+While the `general` algorithm implements the procedure outlined here directly,
+`expanded` initializes a fully symbolic Hamiltonian and derives general
+expressions for {math}`\tilde{H}`.
 Additionaly, it simplifies {math}`\tilde{H}_{n}` and the unitary transformation
-such that they only depend on {math}`V` and the perturbation {math}`H_p`.
+such that they only depend on {math}`V` and the perturbation {math}`H_p`, but
+not on {math}`H_0`.
 As an example, these are the corrections to the effective Hamiltonian up to fourth
 order using `expanded`.
 
@@ -147,7 +154,7 @@ for order in range(max_order):
     display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
 ```
 Finally, `expanded` replaces the specifics of `H` into the simplified expressions,
-never requiring to compute products within the auxiliary `B` subspace.
+without computing products within the auxiliary `B` subspace.
 This makes `expanded` efficient for lower order numerical computations and
 symbolic ones, while `general` is suitable for higher orders.
 
