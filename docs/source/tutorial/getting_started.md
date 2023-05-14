@@ -29,8 +29,8 @@ Along with _Lowdin_, we'll also need `numpy` to handle numerical dense arrays,
 ```{code-cell} ipython3
 
 import numpy as np
-import sympy
 import scipy
+import sympy
 ```
 
 ## Minimal example
@@ -40,7 +40,7 @@ with two subspaces {math}`A` and {math}`B`, coupled by a perturbation.
 
 ### 1. Define a Hamiltonian
 
-Let's start by defining a Hamiltonian and a perturbation.
+Let's start by defining a Hamiltonian and a random perturbation.
 
 ```{code-cell} ipython3
 
@@ -92,7 +92,10 @@ H_tilde, U, U_adjoint = block_diagonalize(hamiltonian, subspace_indices=[0, 0, 1
 
 This defines the algorithm to use, and how to project the unperturbed
 Hamiltonian into subspaces, but it does not cost computational resources yet.
-None of the perturbative orders has been computed at this point.
+The transformed Hamiltonian has not been computed at this point.
+
+`block_diagonalize` takes Hamiltonians in various forms, see its
+[documentation](../documentation/lowdin) for more information.
 
 ### 3. Get the perturbative results
 
@@ -103,7 +106,7 @@ For example, we obtain a second order correction to the occupied subspace as
 ```{code-cell} ipython3
 H_tilde[0, 0, 2]
 ```
-where `(0, 0)` indicates the {math}`AA` block, and `2` refers to the second order
+where `(0, 0)` is the {math}`AA` block, and `2` refers to the second order
 correction.
 
 _Lowdin_ uses `numpy`'s convention on
