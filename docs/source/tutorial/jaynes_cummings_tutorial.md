@@ -13,98 +13,109 @@ kernelspec:
 
 # Jaynes-Cummings model
 
-**TODO: Write intro about JC Hamiltonian**
+In this tutorial we demonstrate how to get a CQED effective Hamiltonian using
+_Lowdin_ with bosonic operators.
+As an example, we use the Jaynes-Cummings model, which describes a two-level
+bosonic system coupled by ladder operators.
 
-**Important aspects:**
-* Demonstrate how the package applies to any input that can be added and multiplied
-* Demonstrate usefulness of package
+Let's start by importing the `sympy` functions we need to define the Hamiltonian.
 
 ```{code-cell} ipython3
-from operator import mul
-
 import sympy
+from sympy import Matrix, Symbol, sqrt
 from sympy.physics.quantum.boson import BosonOp, BosonFockKet
 from sympy.physics.quantum import qapply, Dagger
-
-from lowdin.block_diagonalization import to_BlockSeries, expanded
 ```
+
+## Define the Hamiltonian
+
+We define the onsite energy {math}`\omega_r`, the energy gap {math}`\omega_q`,
+the perturbative parameter {math}`g`, and {math}`a`, the bosonic annihilation
+operator.
 
 ```{code-cell} ipython3
 # resonator frequency, qubit frequency, Rabi coupling
-wr, wq, g = sympy.symbols(r"\omega_r, \omega_q, g", real=True)
+wr = Symbol(r'\omega_r', real=True)
+wq = Symbol(r'\omega_q', real=True)
+g = Symbol(r'g', real=True)
 
 # resonator photon annihilation operator
 a = BosonOp("a")
 ```
 
-We define the initial Hamiltonian by specifying the perturbation and unperturbed
-Hamiltonian in the different subspaces, occupied ({math}`AA`), unoccupied ({math}`BB`), and mixing
-terms ({math}`AB`/{math}`BA`).
+The Hamiltonian reads
 
 ```{code-cell} ipython3
-H_0_AA = wr * Dagger(a) * a + wq / 2
-H_0_BB = wr * Dagger(a) * a - wq / 2
-H_p_AB = {(1,): g * Dagger(a)}
-H_p_BA = {(1,): g * a}
-H_p_AA = {}
-H_p_BB = {}
+H_0 = [[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]]
+H_p = [[0,  g * Dagger(a)], [g * a, 0]]
 
-H = to_BlockSeries(H_0_AA, H_0_BB, H_p_AA, H_p_BB, H_p_AB)
+Matrix(H_0) + Matrix(H_p)
 ```
+where the basis is the one of the occupied and unoccupied subspaces.
 
-To use Lowdin we need to solve Sylvester's Equation
+## Custom Sylvester's equation solver
+
+To use _Lowdin_, we need a custom solver for Sylvester's equation that can
+compute the energies of the subspaces using bosonic operators.
+We need to define a `solve_sylvester` function that takes {math}`Y` and returns
+{math}`V` such that
 
 ```{math}
-H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1}.
-```
-
-Therefore, we define a custom function that takes {math}`Y` and returns {math}`V` such that
-
-```{math}
+H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1} \\
 (V_{n+1}^{AB})_{x,y} = (Y_{n+1})_{x,y} / (E_x - E_y).
 ```
-We solve Sylvester's Equation using `sympy` bosonic operators as follows:
+
+We implement
 
 ```{code-cell} ipython3
-n = sympy.symbols("n", integer=True, positive=True)
+n = Symbol("n", integer=True, positive=True)
 basis_ket = BosonFockKet(n)
 
 def expectation_value(v, operator):
     return qapply(Dagger(v) * operator * v).simplify()
 
-def norm(v):
-    return sympy.sqrt(expectation_value(v, 1).factor()).doit()
-
-def solve_sylvester(rhs):
+def solve_sylvester(Y):
     """
     Solves Sylvester's Equation
-    rhs : zero or sympy expression
+    Y : sympy expression
 
     Returns:
-    V : zero or sympy expression for off-diagonal block of unitary transformation
+    V : sympy expression for off-diagonal block of unitary transformation
     """
-    E_i = expectation_value(basis_ket, H_0_AA)
+    E_i = expectation_value(basis_ket, H_0[0][0])
     V = []
-    for term in rhs.expand().as_ordered_terms():
+    for term in Y.expand().as_ordered_terms():
         term_on_basis = qapply(term * basis_ket).doit()
         normalized_ket = term_on_basis.as_ordered_factors()[-1]
-        E_j = expectation_value(normalized_ket, H_0_BB)
+        E_j = expectation_value(normalized_ket, H_0[1][1])
         V.append(term / (E_j - E_i))
     return sum(V)
 ```
 
-We define the block-diagonalization of `H` by defining,
+## Perturbative results
+
+We can now set the block-diagonalization routine by defining,
 
 ```{code-cell} ipython3
-H_tilde, U, U_adjoint = expanded(H, solve_sylvester=solve_sylvester, op=mul)
+from lowdin import block_diagonalize
+
+H_tilde, U, U_adjoint = block_diagonalize(
+    [H_0, H_p], solve_sylvester=solve_sylvester, symbols=[g]
+)
 ```
 
-where `H_tilde` is the transformed Hamiltonian, `U` is the unitary transformation, and
-`U_adjoint` it the conjugate transpose of `U`.
+where `H_tilde` is the transformed Hamiltonian, `U` is the unitary
+transformation, and `U_adjoint` it the conjugate transpose of `U`.
 
-For example, to request the 2nd order correction to the occupied subspace of the
-Hamiltonian, you may execute:
+For example, to request the 2nd order correction to the occupied subspace of
+the Hamiltonian, you may execute:
 
 ```{code-cell} ipython3
 H_tilde[0, 0, 2].expand().simplify()
+```
+
+The 4th order correction is
+
+```{code-cell} ipython3
+H_tilde[0, 0, 4].expand().simplify()
 ```

@@ -1,8 +1,7 @@
 # Lowdin tutorial
 
 ```{toctree}
-:hidden:
-:caption: Tutorial
+:maxdepth: 3
 
 getting_started.md
 symbolic_hamiltonians.md

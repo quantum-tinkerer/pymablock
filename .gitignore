@@ -164,3 +164,4 @@ prof/
 
 # docs
 docs/build/
+.virtual_documents/

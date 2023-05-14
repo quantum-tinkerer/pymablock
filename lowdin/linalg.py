@@ -164,7 +164,7 @@ def aslinearoperator(A):
     return scipy_aslinearoperator(A)
 
 
-def is_diagonal(A):
+def is_diagonal(A, atol=1e-12):
     """Check if A is diagonal."""
     if zero == A or A is np.ma.masked:
         return True
@@ -173,7 +173,7 @@ def is_diagonal(A):
     elif isinstance(A, np.ndarray):
         # Create a view of the offdiagonal array elements
         offdiagonal = A.reshape(-1)[:-1].reshape(len(A) - 1, len(A) + 1)[:, 1:]
-        return not np.any(offdiagonal)
+        return not np.any(np.round(offdiagonal, int(-np.log10(atol))))
     elif sparse.issparse(A):
         A = sparse.dia_array(A)
         return not any(A.offsets)
