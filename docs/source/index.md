@@ -50,7 +50,7 @@ Here is why you should use _Lowdin_:
 
   _Lowdin_ provides a tested reference implementation
 
-*  Apply to any problem
+* Apply to any problem
 
   _Lowdin_ supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
   quantum operators
@@ -58,7 +58,7 @@ Here is why you should use _Lowdin_:
 * Speed up your code
 
   Due to several optimizations, _Lowdin_ can reliable handle both higher orders
-  and large Hamiltonian sizes
+  and large Hamiltonians
 
 ## How does _Lowdin_ work?
 
@@ -67,13 +67,19 @@ with the zeroth order block-diagonal.
 To carry out the block-diagonalization procedure, _Lowdin_ finds a minimal
 unitary transformation that cancels the off-diagonal block of the Hamiltonian
 order by order.
+
+```{math}
+\begin{gather}
+H = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
+U = \sum_{i=0}^\infty U_n
+\end{gather}
+```
+
 The result of this procedure is a perturbative series of the transformed
 block-diagonal Hamiltonian.
 
 ```{math}
 \begin{gather}
-H = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
-U = \sum_{i=0}^\infty U_n,\\
 \tilde{H} = U^\dagger H U=\sum_{i=0}\begin{pmatrix}\tilde{H}_i^{AA} & 0 \\ 0 & \tilde{H}_i^{BB}\end{pmatrix}.
 \end{gather}
 ```
@@ -88,18 +94,20 @@ the order, while the algorithms are still mathematically equivalent.
 
 ## The algorithms
 
-_Lowdin_ algorithms rely on decomposing {math}`U` as a series of Hermitian
-block diagonal {math}`W` and skew-Hermitian block off-diagonal {math}`V` terms.
+_Lowdin_ algorithms, `general` and `expanded`, rely on decomposing {math}`U` as
+a series of Hermitian block diagonal {math}`W` and skew-Hermitian block
+off-diagonal {math}`V` terms.
 The transformed Hamiltonian is a Cauchy product between the series of
 {math}`U^\dagger`, {math}`H`, and {math}`U`.
 For example, for a single first order perturbation {math}`H_p`, the transformed
-Hamiltonian is
+Hamiltonian at order {math}`n` is
 ```{math}
 \tilde{H}_{n} = \sum_{i=0}^n (W_{n-i} - V_{n-i}) H_0 (W_i + V_i) +
 \sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_p (W_i + V_i).
 ```
 
-_Lowdin_ finds the orders of {math}`W` and {math}`V` as a solution to
+To block diagonalize {math}`H_0 + H_p`, _Lowdin_ finds the orders of {math}`W`
+and {math}`V` as a solution to
 ```{math}
 W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i), \quad \text{unitarity} \\
 H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}, \quad \text{Sylvester's equation}
@@ -115,8 +123,8 @@ expressions for {math}`\tilde{H}`.
 Additionaly, it simplifies {math}`\tilde{H}_{n}` and the unitary transformation
 such that they only depend on {math}`V` and the perturbation {math}`H_p`, but
 not on {math}`H_0`.
-As an example, these are the corrections to the effective Hamiltonian up to fourth
-order using `expanded`.
+As an example, the corrections to the effective Hamiltonian up to fourth
+order using `expanded` are
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -153,33 +161,25 @@ for order in range(max_order):
     result = Symbol(fr'\tilde{{H}}_{order}^{{AA}}')
     display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
 ```
-Finally, `expanded` replaces the specifics of `H` into the simplified expressions,
-without computing products within the auxiliary `B` subspace.
+Finally, `expanded` replaces the problem-specific `H` into the simplified
+{math}`\tilde{H}`, without computing products within the auxiliary `B` subspace.
 This makes `expanded` efficient for lower order numerical computations and
 symbolic ones, while `general` is suitable for higher orders.
 
 
 ##  How to use _Lowdin_ on large numerical Hamiltonians?
 
-The most expensive parts of the algorithm for large matrices are solving
-Sylvester's equation and the matrix products within the auxiliary `B` subspace.
-By calling `block_diagonalize` and providing the eigenvectors of the effective
-`A` subspace, _Lowdin_ runs in `implicit` mode without needing the eigenvectors
-of the auxiliary subspace.
-For this, _Lowdin_ wraps the `B` subspace components of the Hamiltonian into
-``scipy.sparse.LinearOperator`` and chooses an efficient
-[MUMPS](https://mumps-solver.org/index.php)-based solver.
-This allows an efficient calculation of the perturbative corrections to the
-effective subspace.
-
-Additionaly, there is an experimental solver that uses the
-[Hybrid Kernel Polynomial Method](https://arxiv.org/abs/1909.09649).
-
+Solving Sylvester's equation and computing the matrix products within the
+auxiliary subspace are the most expensive steps of the algorithms for large
+matrices.
+If the eigenvectors of the effective subspace are provided, _Lowdin_ will
+choose an efficient
+[MUMPS](https://mumps-solver.org/index.php)-based solver to speed up.
 
 ## What does _Lowdin_ not do?
 
-_Lowdin_ is not able to treat time-dependent perturbations yet, or work with
-more than two subspaces.
+* _Lowdin_ is not able to treat time-dependent perturbations yet
+* _Lowdin_ does not block diagonalize on more than two subspaces simultaneously
 
 ## Installation
 
