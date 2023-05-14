@@ -26,6 +26,8 @@ The physics of this system is not crucial for us, but here are the main features
 - The interlayer hopping couples atoms that are on top of each other with amplitude $t_2$.
 - The layers have a potential $\pm m$ that we introduce to make the problem a bit more complex.
 
+If you want to get a more systematic introduction to the bilayer graphene and its k.p model, you can check out [this review](https://iopscience.iop.org/article/10.1088/0034-4885/76/5/056503).
+
 Let's start from defining the Hamiltonian. We will use sympy, and therefore the code is somewhat verbose.
 Still, while it may seem like a waste for a problem of this scale, as complexity increases, using symbolic calculations starts paying off.
 
