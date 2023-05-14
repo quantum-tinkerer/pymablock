@@ -169,12 +169,14 @@ symbolic ones, while `general` is suitable for higher orders.
 
 ##  How to use _Lowdin_ on large numerical Hamiltonians?
 
-Solving Sylvester's equation and computing the matrix products within the
-auxiliary subspace are the most expensive steps of the algorithms for large
-matrices.
-If the eigenvectors of the effective subspace are provided, _Lowdin_ will
-choose an efficient
-[MUMPS](https://mumps-solver.org/index.php)-based solver to speed up.
+Solving Sylvester's equation and computing the matrix products are the most
+expensive steps of the algorithms for large Hamiltonians.
+_Lowdin_ can efficiently construct an effective Hamiltonian of a small subspace
+even when the full Hamiltonian is a sparse matrix that is too costly to
+diagonalize.
+It does so by exploiting the low rank structure of {math}`U`, and
+by using the sparse solver [MUMPS](https://mumps-solver.org/index.php) to
+compute the Green's function.
 
 ## What does _Lowdin_ not do?
 
