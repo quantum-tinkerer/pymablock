@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-# Induced gap and crossed Andreev reflection
+# Induced gap in a double quantum dot
 
 This tutorial demonstrates how to efficiently use big numerical Hamiltonians,
 and how _Lowdin_ integrates with [Kwant](https://kwant-project.org/).
