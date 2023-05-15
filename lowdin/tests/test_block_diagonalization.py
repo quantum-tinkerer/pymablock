@@ -1170,7 +1170,7 @@ def test_block_diagonalize_hamiltonian_diagonal(
     test_check_unitary([H_tilde, U, U_adjoint], wanted_orders)
 
 
-def test_block_diagonalize_symbolic_hamiltonian(
+def test_block_diagonalize_hamiltonian_symbolic(
     symbolic_hamiltonian: tuple[sympy.Matrix | dict, list[sympy.Symbol]],
 ):
     """
@@ -1205,6 +1205,11 @@ def test_block_diagonalize_symbolic_hamiltonian(
     assert H_tilde.dimension_names == symbols
     test_check_AB([H_tilde, U, U_adjoint], (1,) * len(symbols))
     test_check_unitary([H_tilde, U, U_adjoint], (1,) * len(symbols), 1, 1)
+
+    # Raise if eigenvectors are not orthonormal
+    with pytest.raises(ValueError):
+        faulted_eigenvectors = [2 * evecs for evecs in subspace_eigenvectors]
+        block_diagonalize(hamiltonian, subspace_eigenvectors=faulted_eigenvectors)
 
 
 def test_unknown_data_type():
