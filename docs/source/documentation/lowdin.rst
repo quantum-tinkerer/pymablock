@@ -1,5 +1,5 @@
-Documentation
-=============
+Reference documentation
+=======================
 
 Block diagonalization
 ---------------------
