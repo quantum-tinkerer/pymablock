@@ -35,8 +35,7 @@ We begin with the basic imports
 
 ```{code-cell} ipython3
 import numpy as np
-import sympy
-from sympy import Symbol, symbols, Matrix, sqrt, Eq, exp, I
+from sympy import Symbol, symbols, Matrix, sqrt, Eq, exp, I, pi, Add, MatAdd
 from sympy.physics.vector import ReferenceFrame
 ```
 
@@ -46,7 +45,7 @@ Now we are ready to define all the parameters and the hamiltonian $H$
 k_x, k_y, t_1, t_2, m = symbols("k_x k_y t_1 t_2 m", real=True)
 alpha = Symbol(r"\alpha")
 
-H = sympy.Matrix(
+H = Matrix(
     [[m, t_1 * alpha, 0, 0],
      [t_1 * alpha.conjugate(), m, t_2, 0],
      [0, t_2, -m, t_1 * alpha],
@@ -63,7 +62,7 @@ $\mathbf{k}$-vector, making $k_x$ and $k_y$ the perturbative parameters.
 N = ReferenceFrame("N")
 a_1 = (sqrt(3) * N.y + N.x) / 2
 a_2 = (sqrt(3) * N.y - N.x) / 2
-k = (4 * sympy.pi / 3 + k_x) * N.x + k_y * N.y
+k = (4 * pi / 3 + k_x) * N.x + k_y * N.y
 
 alpha_k = (1 + exp(I * k.dot(a_1)) + exp(I * k.dot(a_2))).expand(complex=True, trig=True)
 Eq(alpha, alpha_k, evaluate=False)
@@ -79,7 +78,7 @@ vecs
 And we have everything ready to perform block diagonalization.
 
 Observe two things:
-- We substitude $\alpha(k)$ into the Hamiltonian
+- We substitute $\alpha(k)$ into the Hamiltonian
 - We specify which symbols are treated as perturbative parameters using `symbols` keyword
 
 ```{code-cell} ipython3
@@ -95,8 +94,9 @@ H_tilde = block_diagonalize(
 Now we are ready to specify which calculation to perform.
 
 Let us group the terms by total power of momentum.
-For now this requires an explicit manipulation of the indices, but in the
-future we may implement convenience functions for this task.
+For now this requires an explicit manipulation of the indices, which are in the
+order given by `symbols`.
+In the future, we may implement convenience functions for this task.
 
 ```{code-cell} ipython3
 k_powers = np.mgrid[:4, :4]
@@ -106,16 +106,16 @@ print(f"{k_square = }")
 print(f"{k_cube = }")
 ```
 
-Before you saw that `H_tilde`, when queried, returns the results in a masked
+Before you saw that querying `H_tilde` returns the results in a masked
 numpy array.
-Now to gather different terms we define a convenience function for summing
+Now, to gather different terms, we define a convenience function for summing
 several orders together.
 This uses the `.compressed()` method of masked numpy arrays, and simplifies the
 resulting expression.
 
 ```{code-cell} ipython3
 def H_tilde_AA(*orders):
-    return sympy.Add(*H_tilde[0, 0, orders[0], orders[1], orders[2]].compressed()).simplify()
+    return Add(*H_tilde[0, 0, orders[0], orders[1], orders[2]].compressed()).simplify()
 ```
 
 Finally, we are ready to obtain the result.
@@ -125,7 +125,7 @@ mass_term = H_tilde_AA([0], [0], [1])
 kinetic = H_tilde_AA(*k_square, 0)
 mass_correction = H_tilde_AA(*k_square, 1)
 cubic = H_tilde_AA(*k_cube, 0)
-sympy.MatAdd(mass_term + kinetic, mass_correction + cubic, evaluate=False)
+MatAdd(mass_term + kinetic, mass_correction + cubic, evaluate=False)
 ```
 
 The first term contains the standard quadratic dispersion of bilayer graphene
