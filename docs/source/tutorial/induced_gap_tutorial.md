@@ -13,9 +13,12 @@ kernelspec:
 
 # Induced gap and crossed Andreev reflection
 
-**Important aspects:**
-* Demonstrate how the package applies to big numerical Hamiltonians
-* Demonstrate how it integrates with Kwant.
+This tutorial demonstrates how to efficiently use big numerical Hamiltonians,
+and how _Lowdin_ integrates with [Kwant](https://kwant-project.org/).
+As an example, we will consider a tight binding model of a quantum dot and
+a superconductor with a tunnel barrier in between.
+
+Let's start by importing the necessary packages
 
 ```{code-cell} ipython3
 import tinyarray as ta
@@ -28,6 +31,9 @@ import kwant
 from lowdin import block_diagonalize
 ```
 
+Following [Kwant's tutorials](https://kwant-project.org/doc/1/tutorial/) we
+start by defining the lattice
+
 ```{code-cell} ipython3
 sigma_z = ta.array([[1, 0], [0, -1]], float)
 sigma_x = ta.array([[0, 1], [1, 0]], float)
@@ -35,7 +41,11 @@ sigma_x = ta.array([[0, 1], [1, 0]], float)
 syst = kwant.Builder()
 lat = kwant.lattice.square(norbs=2)
 L, W = 100, 20
+```
 
+Next, we define the onsite potential for the quantum dot and superconductor
+
+```{code-cell} ipython3
 def normal_onsite(site, mu_n, t):
     return (-mu_n + 4 * t) * sigma_z
 
@@ -44,16 +54,29 @@ def sc_onsite(site, mu_sc, Delta, t):
 
 syst[lat.shape((lambda pos: abs(pos[1]) < W and abs(pos[0]) < L), (0, 0))] = normal_onsite
 syst[lat.shape((lambda pos: abs(pos[1]) < W and abs(pos[0]) < L / 3), (0, 0))] = sc_onsite
+```
+
+and the hoppings
+
+```{code-cell} ipython3
 syst[lat.neighbors()] = lambda site1, site2, t: -t * sigma_z
 
 def barrier(site1, site2):
     return (abs(site1.pos[0]) - L / 3) * (abs(site2.pos[0]) - L / 3) < 0
 
 syst[(hop for hop in syst.hoppings() if barrier(*hop))] = lambda site1, site2, t_barrier: -t_barrier * sigma_z
+```
+
+We can now finalize the system and visualize it
+
+```{code-cell} ipython3
 syst = syst.finalized()
 
 kwant.plot(syst);
 ```
+
+To get the Hamiltonian, we use the following values for $\mu_n$, $\mu_{sc}$,
+$\Delta$, $t$, and $t_{\text{barrier}}$
 
 ```{code-cell} ipython3
 params = dict(
@@ -69,14 +92,28 @@ barrier = syst.hamiltonian_submatrix(params={**{p: 0 for p in params.keys()}, "t
 delta_mu = kwant.operator.Density(syst, (lambda site: sigma_z * site.pos[0] / L)).tocoo().real
 ```
 
+The Hamiltonian is large
+
+```{code-cell} ipython3
+h_0.size
+```
+
+Therefore, we will use of the implicit mode of _Lowdin_ in order to block
+diagonalize the Hamiltonian.
+For this, we need orthonormal eigenvectors of the relevant subspace, associated
+with the $4$ eigenvalues closest to $E=0$.
+
 ```{code-cell} ipython3
 vals, vecs = eigsh(h_0, k=4, sigma=0)
-vecs, _ = scipy.linalg.qr(vecs, mode="economic")
+vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize
 ```
+
+We can now define the block diagonalization routine
 
 ```{code-cell} ipython3
 H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
 ```
+
 
 ```{code-cell} ipython3
 fill_value = np.zeros((), dtype=object)
