@@ -37,6 +37,9 @@ We begin with the basic imports
 import numpy as np
 from sympy import Symbol, symbols, Matrix, sqrt, Eq, exp, I, pi, Add, MatAdd
 from sympy.physics.vector import ReferenceFrame
+
+import sympy
+sympy.init_printing(use_latex="mathjax")
 ```
 
 Now we are ready to define all the parameters and the hamiltonian $H$
