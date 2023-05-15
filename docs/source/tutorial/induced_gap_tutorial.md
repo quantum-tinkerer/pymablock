@@ -40,7 +40,7 @@ sigma_x = ta.array([[0, 1], [1, 0]], float)
 
 syst = kwant.Builder()
 lat = kwant.lattice.square(norbs=2)
-L, W = 100, 20
+L, W = 200, 40
 ```
 
 Next, we define the onsite potential for the quantum dot and superconductor
@@ -92,7 +92,7 @@ barrier = syst.hamiltonian_submatrix(params={**{p: 0 for p in params.keys()}, "t
 delta_mu = kwant.operator.Density(syst, (lambda site: sigma_z * site.pos[0] / L)).tocoo().real
 ```
 
-The Hamiltonian is large
+The Hamiltonian is large, more than what diagonalization can handle without extra effort
 
 ```{code-cell} ipython3
 h_0.size
@@ -108,20 +108,22 @@ vals, vecs = eigsh(h_0, k=4, sigma=0)
 vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize
 ```
 
-We can now define the block diagonalization routine
+We can now define the block diagonalization routine and compute the few lowest orders of the effective Hamiltonian.
 
 ```{code-cell} ipython3
+%%time
+
 H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
-```
 
-
-```{code-cell} ipython3
+# Combine all the perturbative terms into a single 4D array
 fill_value = np.zeros((), dtype=object)
 fill_value[()] = np.zeros_like(H_tilde[0, 0, 0, 0])
 H_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :2], fill_value).tolist())
 ```
 
+We see that we have obtained the effective model in only a few seconds.
+
 ```{code-cell} ipython3
 H_tilde[np.abs(H_tilde) < 1e-15] = 0
-H_tilde
+H_tilde.round(3)
 ```
