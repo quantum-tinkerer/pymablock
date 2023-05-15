@@ -1342,5 +1342,6 @@ def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
     elif isinstance(subspace_eigenvectors[0], sympy.MatrixBase):
         all_vecs = sympy.Matrix.hstack(*subspace_eigenvectors)
         overlap = Dagger(all_vecs) @ all_vecs
-        if overlap == sympy.eye(all_vecs.shape[1]) is False:
+        # Use sympy three-valued logic
+        if sympy.Eq(overlap, sympy.eye(all_vecs.shape[1])) == False:  # noqa: E712
             raise ValueError("Eigenvectors must be orthonormal.")
