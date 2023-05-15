@@ -14,7 +14,7 @@ kernelspec:
 # Induced gap and crossed Andreev reflection
 
 This tutorial demonstrates how to efficiently use big numerical Hamiltonians,
-and how _Lowdin_ integrates with [Kwant](https://kwant-project.org/).
+and how _Pymablock_ integrates with [Kwant](https://kwant-project.org/).
 As an example, we will consider a tight binding model of a quantum dot and
 a superconductor with a tunnel barrier in between.
 
@@ -28,7 +28,7 @@ from scipy.sparse.linalg import eigsh
 import numpy as np
 import kwant
 
-from lowdin import block_diagonalize
+from pymablock import block_diagonalize
 ```
 
 Following [Kwant's tutorials](https://kwant-project.org/doc/1/tutorial/) we
@@ -98,7 +98,7 @@ The Hamiltonian is large, more than what diagonalization can handle without extr
 h_0.size
 ```
 
-Therefore, we will use of the implicit mode of _Lowdin_ in order to block
+Therefore, we will use of the implicit mode of _Pymablock_ in order to block
 diagonalize the Hamiltonian.
 For this, we need orthonormal eigenvectors of the relevant subspace, associated
 with the $4$ eigenvalues closest to $E=0$.

@@ -11,7 +11,7 @@ from scipy import sparse
 from kwant.linalg import mumps
 import sympy
 
-from lowdin.series import zero, one
+from pymablock.series import zero, one
 
 # Monkey-patch LinearOperator to support right multiplication
 # TODO: Remove this when we depend on scipy >= 1.11
@@ -157,7 +157,7 @@ class ComplementProjector(LinearOperator):
 def aslinearoperator(A):
     """
     Same as `scipy.sparse.linalg.aslinearoperator`, but with passthrough for
-    `~lowdin.series.zero`.
+    `~pymablock.series.zero`.
     """
     if zero == A or A is one:
         return A

@@ -4,7 +4,7 @@ from scipy import sparse
 from scipy.sparse.linalg import aslinearoperator
 import sympy
 
-from lowdin import linalg
+from pymablock import linalg
 
 
 def test_linear_operator_rmatmul_patched():

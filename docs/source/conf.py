@@ -13,18 +13,18 @@
 import os
 import sys
 
-import lowdin  # noqa: F401
+import pymablock  # noqa: F401
 
-package_path = os.path.abspath("../lowdin")
+package_path = os.path.abspath("../pymablock")
 sys.path.insert(0, package_path)
 
 
 # -- Project information -----------------------------------------------------
 
-project = "lowdin"
+project = "pymablock"
 copyright = "2023, ."
 author = "."
-gitlab_url = "https://gitlab.kwant-project.org/qt/lowdin"
+gitlab_url = "https://gitlab.kwant-project.org/qt/pymablock"
 
 # The full version, including alpha/beta/rc tags
 release = "."
@@ -69,7 +69,7 @@ exclude_patterns = []
 html_theme = "sphinx_book_theme"
 
 html_theme_options = {
-    "repository_url": "https://gitlab.kwant-project.org/qt/lowdin",
+    "repository_url": "https://gitlab.kwant-project.org/qt/pymablock",
     "use_repository_button": True,
     "use_issues_button": True,
     "use_edit_page_button": True,

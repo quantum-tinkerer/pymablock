@@ -8,7 +8,7 @@ from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
-from lowdin.block_diagonalization import (
+from pymablock.block_diagonalization import (
     block_diagonalize,
     general,
     expanded,
@@ -18,8 +18,8 @@ from lowdin.block_diagonalization import (
     solve_sylvester_diagonal,
     hamiltonian_to_BlockSeries,
 )
-from lowdin.series import BlockSeries, cauchy_dot_product, zero, one
-from lowdin.linalg import ComplementProjector
+from pymablock.series import BlockSeries, cauchy_dot_product, zero, one
+from pymablock.linalg import ComplementProjector
 
 
 @pytest.fixture(scope="module", params=[(3,), (2, 2)])
@@ -364,7 +364,7 @@ def compare_series(
     Function that compares two BlockSeries with each other
 
     Two series are compared for a given list of wanted orders in all orders.
-    The test first checks for `~lowdin.series.one` objects since these are
+    The test first checks for `~pymablock.series.one` objects since these are
     not masked by the resulting masked arrays. For numeric types, numpy
     arrays, `scipy.sparse.linalg.LinearOperator` types, and scipy.sparse.sp_Matrix,
     the evaluated object is converted to a dense array by multiplying with dense
@@ -373,9 +373,9 @@ def compare_series(
     Parameters:
     --------------
     series1:
-        First `~lowdin.series.BlockSeries` to compare
+        First `~pymablock.series.BlockSeries` to compare
     series2:
-        Second `~lowdin.series.BlockSeries` to compare
+        Second `~pymablock.series.BlockSeries` to compare
     wanted_orders:
         Order until which to compare the series
     atol:

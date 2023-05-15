@@ -1,9 +1,4 @@
-# # The polynomial alternative to Lowdin perturbation theory
-#
-# See [this hackmd](https://hackmd.io/Rpt2C8oOQ2SGkGS9OYrlfQ?view)
-# for the motivation and the expressions
-
-
+# Algorithms for quasi-degenerate perturbation theory
 from operator import matmul, mul
 from functools import reduce
 from typing import Any, Optional, Callable
@@ -14,14 +9,14 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger, Operator, HermitianOperator
 
-from lowdin.linalg import (
+from pymablock.linalg import (
     ComplementProjector,
     aslinearoperator,
     is_diagonal,
     direct_greens_function,
 )
-from lowdin.kpm import greens_function, rescale
-from lowdin.series import (
+from pymablock.kpm import greens_function, rescale
+from pymablock.series import (
     BlockSeries,
     zero,
     one,
@@ -53,7 +48,7 @@ def block_diagonalize(
     Schrieffer-Wolff transformation, or van Vleck transformation.
 
     Calling this function does not yet perform the computation. Instead, it
-    defines the computation as a `~lowdin.series.BlockSeries` object, which
+    defines the computation as a `~pymablock.series.BlockSeries` object, which
     can be evaluated at any order.
 
     This function accepts a Hamiltonian in several formats and it first
@@ -77,7 +72,7 @@ def block_diagonalize(
     ----------
     hamiltonian :
         Full symbolic or numeric Hamiltonian to block diagonalize.
-        The Hamiltonian is normalized to a `~lowdin.series.BlockSeries` by
+        The Hamiltonian is normalized to a `~pymablock.series.BlockSeries` by
         separating it into effective and auxiliary subspaces.
 
         Supported formats:
@@ -103,9 +98,9 @@ def block_diagonalize(
         - If a `sympy.Matrix`,
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
-            `~lowdin.series.BlockSeries` is done by Taylor expanding on
+            `~pymablock.series.BlockSeries` is done by Taylor expanding on
             ``symbols`` to the desired order.
-        - If a `~lowdin.series.BlockSeries`, it is returned unchanged.
+        - If a `~pymablock.series.BlockSeries`, it is returned unchanged.
     algorithm :
         Name of the function that block diagonalizes a Hamiltonian.
         Options are "general" and "expanded".
@@ -131,8 +126,8 @@ def block_diagonalize(
         Mutually exclusive with ``subspace_eigenvectors``.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
-        See docstrings of `~lowdin.block_diagonalization.solve_sylvester_KPM`
-        and `~lowdin.block_diagonalization.solve_sylvester_direct` for details.
+        See docstrings of `~pymablock.block_diagonalization.solve_sylvester_KPM`
+        and `~pymablock.block_diagonalization.solve_sylvester_direct` for details.
     direct_solver:
         Whether to use the direct solver for the implicit method. Otherwise,
         the KPM solver, an experimental solver, is used.
@@ -148,11 +143,11 @@ def block_diagonalize(
 
     Returns
     -------
-    H_tilde : `~lowdin.series.BlockSeries`
+    H_tilde : `~pymablock.series.BlockSeries`
         Block diagonalized Hamiltonian.
-    U : `~lowdin.series.BlockSeries`
+    U : `~pymablock.series.BlockSeries`
         Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
-    U_adjoint : `~lowdin.series.BlockSeries`
+    U_adjoint : `~pymablock.series.BlockSeries`
         Adjoint of U.
 
     """
@@ -259,7 +254,7 @@ def hamiltonian_to_BlockSeries(
     ----------
     hamiltonian :
         Full symbolic or numeric Hamiltonian to block diagonalize.
-        The Hamiltonian is normalized to a `~lowdin.series.BlockSeries` by
+        The Hamiltonian is normalized to a `~pymablock.series.BlockSeries` by
         separating it into effective and auxiliary subspaces.
 
         Supported formats:
@@ -286,7 +281,7 @@ def hamiltonian_to_BlockSeries(
         - If a `sympy.Matrix`,
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
-            `~lowdin.series.BlockSeries` is done by Taylor expanding on
+            `~pymablock.series.BlockSeries` is done by Taylor expanding on
             ``symbols`` to the desired order.
     subspace_eigenvectors :
         A tuple with orthonormal eigenvectors to project the Hamiltonian on
@@ -316,7 +311,7 @@ def hamiltonian_to_BlockSeries(
 
     Returns
     -------
-    H : `~lowdin.series.BlockSeries`
+    H : `~pymablock.series.BlockSeries`
         Initial Hamiltonian in the format required by algorithms, such
         that the unperturbed Hamiltonian is block diagonal.
     """
@@ -448,11 +443,11 @@ def general(
 
     Returns
     -------
-    H_tilde : `~lowdin.series.BlockSeries`
+    H_tilde : `~pymablock.series.BlockSeries`
         Block diagonalized Hamiltonian.
-    U : `~lowdin.series.BlockSeries`
+    U : `~pymablock.series.BlockSeries`
         Unitary that block diagonalizes H such that ``H_tilde = U^H H U``.
-    U_adjoint : `~lowdin.series.BlockSeries`
+    U_adjoint : `~pymablock.series.BlockSeries`
         Adjoint of ``U``.
     """
     if operator is None:
@@ -537,12 +532,12 @@ def symbolic(
 
     Returns
     -------
-    H_tilde : `~lowdin.series.BlockSeries`
+    H_tilde : `~pymablock.series.BlockSeries`
         Symbolic diagonalized Hamiltonian.
-    U : `~lowdin.series.BlockSeries`
+    U : `~pymablock.series.BlockSeries`
         Symbolic unitary matrix that block diagonalizes H such that
         ``U * H * U^H = H_tilde``.
-    U_adjoint : `~lowdin.series.BlockSeries`
+    U_adjoint : `~pymablock.series.BlockSeries`
         Symbolic adjoint of ``U``. Its diagonal blocks are Hermitian and its
         off-diagonal blocks (V) are anti-Hermitian.
     Y_data : `dict`
@@ -633,12 +628,12 @@ def expanded(
 
     Returns
     -------
-    H_tilde : `~lowdin.series.BlockSeries`
+    H_tilde : `~pymablock.series.BlockSeries`
         Diagonalized Hamiltonian.
-    U : `~lowdin.series.BlockSeries`
+    U : `~pymablock.series.BlockSeries`
         Unitary matrix that block diagonalizes H such that
         ``U * H * U^H = H_tilde``.
-    U_adjoint : `~lowdin.series.BlockSeries`
+    U_adjoint : `~pymablock.series.BlockSeries`
         Adjoint of ``U``.
     """
     if operator is None:
@@ -704,13 +699,13 @@ def implicit(
 
     Returns
     -------
-    H_tilde : `~lowdin.series.BlockSeries`
+    H_tilde : `~pymablock.series.BlockSeries`
         Full block-diagonalized Hamiltonian of the problem. The ``(0, 0)`` block
         (A subspace) is a numpy array, while the ``(1, 1)`` block (B subspace)
         is a ``scipy.sparse.LinearOperator``.
-    U : `~lowdin.series.BlockSeries`
+    U : `~pymablock.series.BlockSeries`
         Unitary that block diagonalizes the initial Hamiltonian.
-    U_adjoint : `~lowdin.series.BlockSeries`
+    U_adjoint : `~pymablock.series.BlockSeries`
         Adjoint of ``U``.
     """
     if algorithm not in ("general", "expanded"):
@@ -928,7 +923,7 @@ def solve_sylvester_direct(
         Eigenvectors of the effective subspace of the unperturbed Hamiltonian.
     **solver_options :
         Keyword arguments to pass to the solver ``eps`` and ``atol``, see
-        `lowdin.linalg.direct_greens_function`.
+        `pymablock.linalg.direct_greens_function`.
 
     Returns
     -------
@@ -1080,7 +1075,7 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
 
     Returns
     -------
-    H : `~lowdin.series.BlockSeries`
+    H : `~pymablock.series.BlockSeries`
     """
     n_infinite = len(hamiltonian) - 1  # All the perturbations are 1st order
     zeroth_order = (0,) * n_infinite
@@ -1122,7 +1117,7 @@ def _dict_to_BlockSeries(
 
     Returns
     -------
-    H : `~lowdin.series.BlockSeries`
+    H : `~pymablock.series.BlockSeries`
     """
     key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
     if any(key_types):
@@ -1204,7 +1199,7 @@ def _sympy_to_BlockSeries(
 
     Returns
     -------
-    H : `~lowdin.series.BlockSeries`
+    H : `~pymablock.series.BlockSeries`
     """
     if symbols is None:
         symbols = tuple(list(hamiltonian.free_symbols))  # All symbols are perturbative

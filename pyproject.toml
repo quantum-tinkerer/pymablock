@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "lowdin"
+name = "pymablock"
 authors = [
   {name="Cool Authors"},
 ]
@@ -19,8 +19,8 @@ dependencies = [
 version = "0.0.1"
 
 [project.urls]
-"Homepage" = "https://gitlab.kwant-project.org/qt/lowdin"
-"Bug Tracker" = "https://gitlab.kwant-project.org/qt/lowdin/-/issues"
+"Homepage" = "https://gitlab.kwant-project.org/qt/pymablock"
+"Bug Tracker" = "https://gitlab.kwant-project.org/qt/pymablock/-/issues"
 
 [tool.ruff]
 line-length = 90

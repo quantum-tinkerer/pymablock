@@ -13,28 +13,28 @@ kernelspec:
 :caption: Contents
 
 tutorial/tutorial.md
-documentation/lowdin.rst
+documentation/pymablock.rst
 CITING.md
 CHANGELOG.md
 ```
 
-# _Lowdin_
+# _Pymablock_
 
-## What is _Lowdin_?
+## What is _Pymablock_?
 
-_Lowdin_ is a Python package that constructs effective models using
+_Pymablock_ is a Python package that constructs effective models using
 quasi-degenerate perturbation theory.
 It handles both numerical and symbolic inputs, and it efficiently
 block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
 order.
 
-Building an effective model using _Lowdin_ is a three step process:
+Building an effective model using _Pymablock_ is a three step process:
 * Define a Hamiltonian
 * Call `block_diagonalize`
 * Request the desired order of the effective Hamiltonian
 
 ```python
-from lowdin import block_diagonalize
+from pymablock import block_diagonalize
 
 # Define perturbation theory
 H_tilde, *_ = block_diagonalize([h_0, h_p], subspace_eigenvectors=[vecs_A, vecs_B])
@@ -43,28 +43,28 @@ H_tilde, *_ = block_diagonalize([h_0, h_p], subspace_eigenvectors=[vecs_A, vecs_
 H_AA_4 = H_tilde[0, 0, 4]
 ```
 
-## Why _Lowdin_?
-Here is why you should use _Lowdin_:
+## Why _Pymablock_?
+Here is why you should use _Pymablock_:
 
 * Do not reinvent the wheel
 
-  _Lowdin_ provides a tested reference implementation
+  _Pymablock_ provides a tested reference implementation
 
 * Apply to any problem
 
-  _Lowdin_ supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
+  _Pymablock_ supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
   quantum operators
 
 * Speed up your code
 
-  Due to several optimizations, _Lowdin_ can reliable handle both higher orders
+  Due to several optimizations, _Pymablock_ can reliable handle both higher orders
   and large Hamiltonians
 
-## How does _Lowdin_ work?
+## How does _Pymablock_ work?
 
-_Lowdin_ considers a Hamiltonian as a series of {math}`2\times 2` block operators
+_Pymablock_ considers a Hamiltonian as a series of {math}`2\times 2` block operators
 with the zeroth order block-diagonal.
-To carry out the block-diagonalization procedure, _Lowdin_ finds a minimal
+To carry out the block-diagonalization procedure, _Pymablock_ finds a minimal
 unitary transformation that cancels the off-diagonal block of the Hamiltonian
 order by order.
 
@@ -85,8 +85,8 @@ block-diagonal Hamiltonian.
 ```
 
 Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation,
-_Lowdin_ solves Sylvester's equation and imposes unitarity at every order.
-However, differently from other approaches, _Lowdin_ uses efficient algorithms
+_Pymablock_ solves Sylvester's equation and imposes unitarity at every order.
+However, differently from other approaches, _Pymablock_ uses efficient algorithms
 by choosing an appropriate parametrization of the series of the unitary
 transformation.
 As a consequence, the computational cost of every order scales linearly with
@@ -94,7 +94,7 @@ the order, while the algorithms are still mathematically equivalent.
 
 ## The algorithms
 
-_Lowdin_ algorithms, `general` and `expanded`, rely on decomposing {math}`U` as
+_Pymablock_ algorithms, `general` and `expanded`, rely on decomposing {math}`U` as
 a series of Hermitian block diagonal {math}`W` and skew-Hermitian block
 off-diagonal {math}`V` terms.
 The transformed Hamiltonian is a Cauchy product between the series of
@@ -106,7 +106,7 @@ Hamiltonian at order {math}`n` is
 \sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_p (W_i + V_i).
 ```
 
-To block diagonalize {math}`H_0 + H_p`, _Lowdin_ finds the orders of {math}`W`
+To block diagonalize {math}`H_0 + H_p`, _Pymablock_ finds the orders of {math}`W`
 and {math}`V` as a solution to
 ```{math}
 W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i), \quad \text{unitarity} \\
@@ -133,7 +133,7 @@ from operator import mul
 
 from sympy import Symbol, Eq
 
-from lowdin.block_diagonalization import BlockSeries, symbolic
+from pymablock.block_diagonalization import BlockSeries, symbolic
 
 H = BlockSeries(
     data={
@@ -167,21 +167,21 @@ This makes `expanded` efficient for lower order numerical computations and
 symbolic ones, while `general` is suitable for higher orders.
 
 
-##  How to use _Lowdin_ on large numerical Hamiltonians?
+##  How to use _Pymablock_ on large numerical Hamiltonians?
 
 Solving Sylvester's equation and computing the matrix products are the most
 expensive steps of the algorithms for large Hamiltonians.
-_Lowdin_ can efficiently construct an effective Hamiltonian of a small subspace
+_Pymablock_ can efficiently construct an effective Hamiltonian of a small subspace
 even when the full Hamiltonian is a sparse matrix that is too costly to
 diagonalize.
 It does so by exploiting the low rank structure of {math}`U`, and
 by using the sparse solver [MUMPS](https://mumps-solver.org/index.php) to
 compute the Green's function.
 
-## What does _Lowdin_ not do?
+## What does _Pymablock_ not do?
 
-* _Lowdin_ is not able to treat time-dependent perturbations yet
-* _Lowdin_ does not block diagonalize on more than two subspaces simultaneously
+* _Pymablock_ is not able to treat time-dependent perturbations yet
+* _Pymablock_ does not block diagonalize on more than two subspaces simultaneously
 
 ## Installation
 
@@ -191,4 +191,4 @@ compute the Green's function.
 Follow the instructions in [citing](CITING.md) if you want to cite us.
 
 ## Contributing
-`lowdin` is on Gitlab.
+`pymablock` is on Gitlab.

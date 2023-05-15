@@ -13,7 +13,7 @@ kernelspec:
 
 # k.p model of bilayer graphene
 
-This tutorial demonstrates how to use symbolic expressions as input to _Lowdin_. As an example, we construct the k.p Hamiltonian of bilayer graphene, starting from its tight binding dispersion.
+This tutorial demonstrates how to use symbolic expressions as input to _Pymablock_. As an example, we construct the k.p Hamiltonian of bilayer graphene, starting from its tight binding dispersion.
 
 The crystal structure and the hoppings of bilayer graphene are shown in the figure
 
@@ -82,7 +82,7 @@ Observe two things:
 - We specify which symbols are treated as perturbative parameters using `symbols` keyword
 
 ```{code-cell} ipython3
-from lowdin import block_diagonalize
+from pymablock import block_diagonalize
 
 H_tilde = block_diagonalize(
     H.subs({alpha: alpha_k}),

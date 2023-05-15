@@ -1,4 +1,4 @@
-"Lowdin perturbation theory"
+"Quasi-degenerate perturbation theory"
 
 from .block_diagonalization import (
     block_diagonalize,

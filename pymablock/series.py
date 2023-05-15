@@ -231,7 +231,7 @@ def cauchy_dot_product(
 
     Returns
     -------
-    `~lowdin.series.BlockSeries`
+    `~pymablock.series.BlockSeries`
         A new series that is the Cauchy dot product of the given series.
     """
     if len(series) < 2:

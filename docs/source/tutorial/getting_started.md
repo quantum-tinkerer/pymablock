@@ -14,16 +14,16 @@ mystnb:
 ---
 # Getting started
 
-## Lowdin basics
+## pymablock basics
 
-Getting started with _Lowdin_ is simple, let's start by importing it
+Getting started with _Pymablock_ is simple, let's start by importing it
 
 ```{code-cell} ipython3
 
-import lowdin
+import pymablock
 ```
 
-Along with _Lowdin_, we'll also need `numpy` to handle numerical dense arrays,
+Along with _Pymablock_, we'll also need `numpy` to handle numerical dense arrays,
 `scipy` to use numerical sparse arrays, and `sympy` for symbolic mathematics.
 
 ```{code-cell} ipython3
@@ -78,12 +78,12 @@ The unperturbed Hamiltonian **must** have at least two subspaces separated by
 an energy gap.
 ```
 
-### 2. Set up _Lowdin_
+### 2. Set up _Pymablock_
 
-To set up the _Lowdin_ algorithms, we define the block diagonalization routine.
+To set up the _Pymablock_ algorithms, we define the block diagonalization routine.
 ```{code-cell} ipython3
 
-from lowdin import block_diagonalize
+from pymablock import block_diagonalize
 
 hamiltonian = [H_0, H_1]
 
@@ -95,7 +95,7 @@ Hamiltonian into subspaces, but it does not cost computational resources yet.
 The transformed Hamiltonian has not been computed at this point.
 
 `block_diagonalize` takes Hamiltonians in various forms, see its
-[documentation](../documentation/lowdin) for more information.
+[documentation](../documentation/pymablock) for more information.
 
 ### 3. Get the perturbative results
 
@@ -109,7 +109,7 @@ H_tilde[0, 0, 2]
 where `(0, 0)` is the {math}`AA` block, and `2` refers to the second order
 correction.
 
-_Lowdin_ uses `numpy`'s convention on
+_Pymablock_ uses `numpy`'s convention on
 [indexing](https://numpy.org/devdocs/user/basics.indexing.html).
 Therefore, all the corrections to the occupied subspace to 2th order can be
 computed like
@@ -186,12 +186,12 @@ ax_2.set_xticks([])
 ax_2.set_yticks([]);
 ```
 
-### 2. Set up _Lowdin_
+### 2. Set up _Pymablock_
 
 To set up the block diagonalization routine we define
 ```{code-cell} ipython3
 
-from lowdin import block_diagonalize
+from pymablock import block_diagonalize
 
 hamiltonian = [H_0, H_1, H_2]
 _, evecs = np.linalg.eigh(H_0)

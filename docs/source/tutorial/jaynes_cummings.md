@@ -14,7 +14,7 @@ kernelspec:
 # Jaynes-Cummings model
 
 In this tutorial we demonstrate how to get a CQED effective Hamiltonian using
-_Lowdin_ with bosonic operators.
+_Pymablock_ with bosonic operators.
 As an example, we use the Jaynes-Cummings model, which describes a two-level
 bosonic system coupled by ladder operators.
 
@@ -55,7 +55,7 @@ where the basis is the one of the occupied and unoccupied subspaces.
 
 ## Custom Sylvester's equation solver
 
-To use _Lowdin_, we need a custom solver for Sylvester's equation that can
+To use _Pymablock_, we need a custom solver for Sylvester's equation that can
 compute the energies of the subspaces using bosonic operators.
 We need to define a `solve_sylvester` function that takes {math}`Y` and returns
 {math}`V` such that
@@ -97,7 +97,7 @@ def solve_sylvester(Y):
 We can now set the block-diagonalization routine by defining,
 
 ```{code-cell} ipython3
-from lowdin import block_diagonalize
+from pymablock import block_diagonalize
 
 H_tilde, U, U_adjoint = block_diagonalize(
     [H_0, H_p], solve_sylvester=solve_sylvester, symbols=[g]

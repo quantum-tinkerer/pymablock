@@ -4,7 +4,7 @@ from operator import mul
 import numpy as np
 import pytest
 
-from lowdin.series import BlockSeries, cauchy_dot_product
+from pymablock.series import BlockSeries, cauchy_dot_product
 
 
 @pytest.fixture(

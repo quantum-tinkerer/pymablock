@@ -4,7 +4,7 @@ Reference documentation
 Block diagonalization
 ---------------------
 
-.. automodule:: lowdin
+.. automodule:: pymablock
    :members:
    :undoc-members:
    :show-inheritance:
@@ -12,14 +12,14 @@ Block diagonalization
 Solvers to Sylvester equation
 -----------------------------
 
-.. automodule:: lowdin.block_diagonalization
+.. automodule:: pymablock.block_diagonalization
    :members: solve_sylvester_diagonal, solve_sylvester_direct, solve_sylvester_KPM
    :undoc-members:
    :show-inheritance:
 
 Linear algebra
 --------------
-.. automodule:: lowdin.linalg
+.. automodule:: pymablock.linalg
    :members: aslinearoperator, direct_greens_function
    :undoc-members:
    :show-inheritance:
@@ -27,7 +27,7 @@ Linear algebra
 Series
 ------
 
-.. automodule:: lowdin.series
+.. automodule:: pymablock.series
    :members:
    :undoc-members:
    :show-inheritance:
