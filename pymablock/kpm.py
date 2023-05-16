@@ -1,4 +1,4 @@
-from typing import Optional, Callable
+from typing import Optional, Callable, Union
 from collections.abc import Iterator
 
 from scipy import sparse
@@ -6,7 +6,7 @@ import numpy as np
 
 
 def greens_function(
-    hamiltonian: np.ndarray | sparse.spmatrix,
+    hamiltonian: Union[np.ndarray, sparse.spmatrix],
     energy: float,
     vector: np.ndarray,
     num_moments: int = 100,
@@ -96,10 +96,10 @@ def kpm_vectors(
 
 
 def rescale(
-    hamiltonian: np.ndarray | sparse.spmatrix,
+    hamiltonian: Union[np.ndarray, sparse.spmatrix],
     eps: Optional[float] = 0.01,
     bounds: Optional[tuple[float, float]] = None,
-) -> tuple[np.ndarray | sparse.spmatrix, tuple[float, float]]:
+) -> tuple[Union[np.ndarray, sparse.spmatrix], tuple[float, float]]:
     """Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
 
     Adapted with modifications from kwant.kpm

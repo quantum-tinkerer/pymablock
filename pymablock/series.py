@@ -1,7 +1,7 @@
 from itertools import product, compress
 from functools import reduce
 from operator import matmul
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Callable, Union
 
 import numpy as np
 import numpy.ma as ma
@@ -84,7 +84,7 @@ class BlockSeries:
         data: Optional[dict[tuple[int, ...], Any]] = None,
         shape: tuple[int, ...] = (),
         n_infinite: int = 1,
-        dimension_names: Optional[tuple[str | sympy.Symbol, ...]] = None,
+        dimension_names: Optional[tuple[Union[str, sympy.Symbol], ...]] = None,
     ) -> None:
         """An infinite series that caches its items.
         The series has finite and infinite dimensions.
@@ -103,8 +103,8 @@ class BlockSeries:
         self.dimension_names = dimension_names or ()
 
     def __getitem__(
-        self, item: int | slice | tuple[int | list[int, ...] | slice, ...]
-    ) -> ma.MaskedArray[Any] | Any:
+        self, item: Union[int, slice, tuple[Union[int, list[int], slice], ...]]
+    ) -> Union[ma.MaskedArray[Any], Any]:
         """
         Evaluate the series at indices, following numpy's indexing rules.
 
@@ -174,7 +174,7 @@ class BlockSeries:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
 
-    def _check_finite(self, orders: tuple[int | slice, ...]):
+    def _check_finite(self, orders: tuple[Union[int, slice], ...]):
         """
         Check that the indices of the infinite dimension are finite and positive.
 
@@ -189,7 +189,7 @@ class BlockSeries:
                 elif isinstance(order.start, int) and order.start < 0:
                     raise IndexError("Cannot evaluate negative order")
 
-    def _check_number_perturbations(self, item: tuple[int | slice, ...]):
+    def _check_number_perturbations(self, item: tuple[Union[int, slice], ...]):
         """
         Check that the number of indices is correct.
 
