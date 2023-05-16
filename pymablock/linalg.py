@@ -8,7 +8,6 @@ from scipy.sparse import spmatrix, identity
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 from scipy import sparse
-from kwant.linalg import mumps
 import sympy
 
 from pymablock.series import zero, one
@@ -90,6 +89,14 @@ def direct_greens_function(
     greens_function : `Callable[[np.ndarray], np.ndarray]`
         Function that computes the Green's function at a given energy.
     """
+    try:
+        from kwant.linalg import mumps
+    except ImportError:
+        raise ImportError(
+            "Kwant is installed without MUMPS support: cannot use the direct"
+            " solver. See https://gitlab.kwant-project.org/qt/lowdin/-/issues/66"
+            " for more information."
+        )
     original_type = h.dtype
     h_is_real = np.issubdtype(original_type, np.floating)
     h = h.astype(complex)  # Kwant MUMPS wrapper only has complex bindings.

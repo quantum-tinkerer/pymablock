@@ -1,3 +1,6 @@
+import builtins
+
+from pytest import raises
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy import sparse
@@ -59,3 +62,13 @@ def test_is_diagonal():
     sympy_matrix = sympy.Matrix(array)
     assert not linalg.is_diagonal(sympy_matrix)
     assert linalg.is_diagonal(sympy.Matrix.diag(*sympy_matrix.diagonal()))
+
+
+def test_no_mumps(monkeypatch):
+    def __import__(*args, **kwargs):
+        raise ImportError
+
+    with monkeypatch.context() as monkeypatch:
+        monkeypatch.setattr(builtins, "__import__", __import__)
+        with raises(ImportError):
+            linalg.direct_greens_function(sparse.diags([1, 2, 3]))
