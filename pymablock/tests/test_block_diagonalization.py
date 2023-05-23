@@ -1271,3 +1271,14 @@ def test_zero_h_0():
         [[term[:2, :2], term[2:, :2]], [term[:2, :2], term[2:, 2:]]] for term in h
     ]
     block_diagonalize(h_blocked)[0][:, :, 3]
+
+
+def test_single_symbol_input():
+    a = sympy.Symbol("a")
+    H = sympy.Matrix([[a, 0], [0, sympy.Symbol("b")]])
+    H_tilde = block_diagonalize(H, symbols=a, subspace_indices=[0, 1])[0]
+    assert H_tilde.shape == (2, 2)
+    assert H_tilde.n_infinite == 1
+    assert H_tilde.dimension_names == [a]
+    # Check that execution doesn't raise
+    H_tilde[:, :, 3]

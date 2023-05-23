@@ -38,7 +38,7 @@ def block_diagonalize(
     subspace_indices: Optional[tuple[int, ...] | np.ndarray] = None,
     direct_solver: bool = True,
     solver_options: Optional[dict] = None,
-    symbols: list[sympy.Symbol] = None,
+    symbols: Optional[sympy.Symbol | list[sympy.Symbol]] = None,
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
@@ -133,10 +133,10 @@ def block_diagonalize(
         the KPM solver, an experimental solver, is used.
         Deaults to True.
     symbols :
-        List of symbols that label the perturbative parameters of a symbolic
-        Hamiltonian. The order of the symbols is mapped to the indices of the
-        Hamiltonian. If None, the perturbative parameters are taken from the
-        unperturbed Hamiltonian.
+        A sympy symbol or a list of symbols that label the perturbative
+        parameters of a symbolic Hamiltonian. The order of the symbols is mapped
+        to the indices of the Hamiltonian. If None, the perturbative parameters
+        are taken from the unperturbed Hamiltonian.
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used
         to validate that the unperturbed Hamiltonian is block-diagonal.
@@ -151,6 +151,9 @@ def block_diagonalize(
         Adjoint of U.
 
     """
+    if isinstance(symbols, sympy.Symbol):
+        symbols = [symbols]
+
     use_implicit = False
     if subspace_eigenvectors is not None:
         _check_orthonormality(subspace_eigenvectors, atol=atol)
