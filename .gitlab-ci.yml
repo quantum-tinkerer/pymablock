@@ -7,22 +7,6 @@ variables:
 before_script:
   - shopt -s nullglob  # sane behaviour when globs do not match
 
-.pdf-build:
-  script:
-    - cd $CWD
-    - if [ -d images ]; then
-    -   cd images
-    -   for image in *.svg; do
-    -     inkscape -Dz --export-pdf="${image%.*}" $image
-    -   done
-    -   cd ..
-    -  fi
-    - for tex in *.tex; do
-    -   if grep "documentclass" $tex >/dev/null; then
-    -     latexmk -pdf $tex
-    -   fi
-    - done
-
 run tests:
   script:
     - pip install pytest-cov pytest-randomly pytest-repeat pytest-ruff
@@ -45,19 +29,3 @@ run docs:
   artifacts:
     paths:
       - docs/build
-
-pages:
-  extends: .pdf-build
-  variables:
-    CWD: notes
-  needs:
-    - run tests
-    - run docs
-  after_script:
-    - mkdir public
-    - cp notes/*.pdf public
-    - cp -r htmlcov public/
-    - cp -r docs/build public/
-  artifacts:
-    paths:
-      - public
