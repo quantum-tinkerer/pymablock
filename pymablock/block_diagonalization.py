@@ -112,8 +112,8 @@ def block_diagonalize(
         Options are "general" and "expanded".
     solve_sylvester :
         Function (callable) to use that solves the Sylvester equations.
-        If None, the default function is used for the unperturbed 
-        Hamiltonian. If not the full eigenspace of the unperturbed 
+        If None, the default function is used for the unperturbed
+        Hamiltonian. If not the full eigenspace of the unperturbed
         Hamiltonian is given, the default is specified by `direct_solver`.
         Else, full diagonalization is performed.
     subspace_eigenvectors :
@@ -126,10 +126,10 @@ def block_diagonalize(
         incomplete.
         Mutually exclusive with ``subspace_indices``.
     subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the belonging of the 
+        If the unperturbed Hamiltonian is diagonal, the belonging of the
         diagonal elements, and thereby eigenvectors, to the different subspaces
-        can be specified. The belonging of the elements is labeled by either 
-        0 for the A (effective) or 1 for the B (auxilliary) subspace. 
+        can be specified. The belonging of the elements is labeled by either
+        0 for the A (effective) or 1 for the B (auxilliary) subspace.
         Mutually exclusive with ``subspace_eigenvectors``.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
@@ -309,10 +309,10 @@ def hamiltonian_to_BlockSeries(
         incomplete.
         Mutually exclusive with ``subspace_indices``.
     subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the belonging of the 
+        If the unperturbed Hamiltonian is diagonal, the belonging of the
         diagonal elements, and thereby eigenvectors, to the different subspaces
-        can be specified. The belonging of the elements is labeled by either 
-        0 for the A (effective) or 1 for the B (auxilliary) subspace per element. 
+        can be specified. The belonging of the elements is labeled by either
+        0 for the A (effective) or 1 for the B (auxilliary) subspace per element.
         Mutually exclusive with ``subspace_eigenvectors``.
     implicit :
         Whether to wrap the Hamiltonian of the BB subspace into a linear operator.
@@ -535,7 +535,7 @@ def symbolic(
 
     This function uses symbolic algebra to compute the block diagonalization,
     producing formulas that contain the orders of the perturbation and the
-    off-diagonal (V) block of the unitary transformation ``U``.
+    off-diagonal blocks of the unitary transformation ``U``.
 
     This function is general, therefore the solutions to the Sylvester equation
     are not computed. Instead, the solutions are stored in a dictionary that
@@ -544,7 +544,7 @@ def symbolic(
     Parameters
     ----------
     H :
-        The Hamiltonian. The algorithm only checks which terms are present in
+        The perturbed Hamiltonian. The algorithm only checks which terms are present in
         the Hamiltonian, but does not substitute them.
 
     Returns
