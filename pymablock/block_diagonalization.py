@@ -112,9 +112,10 @@ def block_diagonalize(
         Options are "general" and "expanded".
     solve_sylvester :
         Function (callable) to use that solves the Sylvester equations.
-        If None, the default function is used for a diagonal Hamiltonian or,
-        unless the implicit method is used. In that case, the default function
-        is the direct solver.
+        If None, the default function is used for the unperturbed 
+        Hamiltonian. If not the full eigenspace of the unperturbed 
+        Hamiltonian is given, the default is specified by `direct_solver`.
+        Else, full diagonalization is performed.
     subspace_eigenvectors :
         A tuple with orthonormal eigenvectors to project the Hamiltonian on
         and separate it into the A (effective) and B (auxiliary) blocks.
@@ -125,18 +126,18 @@ def block_diagonalize(
         incomplete.
         Mutually exclusive with ``subspace_indices``.
     subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the ``subspace_eigenvectors`` may be
-        provided. Indices 0 and 1 are reserved for the A (effective) and B
-        effective subspaces, respectively.
+        If the unperturbed Hamiltonian is diagonal, the belonging of the 
+        diagonal elements, and thereby eigenvectors, to the different subspaces
+        can be specified. The belonging of the elements is labeled by either 
+        0 for the A (effective) or 1 for the B (auxilliary) subspace. 
         Mutually exclusive with ``subspace_eigenvectors``.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
         See docstrings of `~pymablock.block_diagonalization.solve_sylvester_KPM`
         and `~pymablock.block_diagonalization.solve_sylvester_direct` for details.
     direct_solver:
-        Whether to use the direct solver for the implicit method. Otherwise,
-        the KPM solver, an experimental solver, is used.
+        Whether to use the direct, MUMPS supported, solver for the implicit method.
+        Otherwise, the KPM solver, an experimental solver, is used.
         Deaults to True.
     symbols :
         A sympy symbol or a list of symbols that label the perturbative
@@ -327,7 +328,7 @@ def hamiltonian_to_BlockSeries(
     Returns
     -------
     H : `~pymablock.series.BlockSeries`
-        Initial Hamiltonian in the format required by algorithms, such
+        Initial Hamiltonian in the format required by the algorithms, such
         that the unperturbed Hamiltonian is block diagonal.
     """
     if subspace_eigenvectors is not None and subspace_indices is not None:
