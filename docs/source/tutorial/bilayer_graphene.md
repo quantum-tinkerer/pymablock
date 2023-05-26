@@ -28,7 +28,7 @@ The physics of this system is not crucial for us, but here are the main features
 
 If you want to get a more systematic introduction to the bilayer graphene and its k.p model, you can check out [this review](https://iopscience.iop.org/article/10.1088/0034-4885/76/5/056503).
 
-Let's start from defining the Hamiltonian. We will use sympy, and therefore the code is somewhat verbose.
+Let's start from defining the Hamiltonian. We will use (sympy)[https://www.sympy.org/], and therefore the code is somewhat verbose.
 Still, while it may seem like a waste for a problem of this scale, as complexity increases, using symbolic calculations starts paying off.
 
 We begin with the basic imports
@@ -42,7 +42,7 @@ import sympy
 sympy.init_printing(use_latex="mathjax")
 ```
 
-Now we are ready to define all the parameters and the hamiltonian $H$
+Note that we only use a limited number of sympy's features, namely the (symbols)[https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols], (matrices)[https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html], and (coordinate systems)[https://docs.sympy.org/latest/modules/physics/vector/vectors.html]. Now we are ready to define all the parameters and the hamiltonian $H$
 
 ```{code-cell} ipython3
 k_x, k_y, t_1, t_2, m = symbols("k_x k_y t_1 t_2 m", real=True)
