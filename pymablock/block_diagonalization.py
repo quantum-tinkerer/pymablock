@@ -46,25 +46,27 @@ def block_diagonalize(
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    Compute the block diagonalization of a Hamiltonian order by order.
+    Compute a block diagonal Hamiltonian and its diagonalizing transformation
+    from a general Hamiltonian order by order.
 
-    This uses quasi-degenerate perturbation theory known as Lowdin perturbation,
-    Schrieffer-Wolff transformation, or van Vleck transformation.
+    The algorithm performs quasi-degenerate perturbation theory known as Lowdin
+    perturbation theory, Schrieffer-Wolff transformation, or van Vleck
+    transformation.
 
-    Calling this function does not yet perform the computation. Instead, it
-    defines the computation as a `~pymablock.series.BlockSeries` object, which
-    can be evaluated at any order.
+    Calling `block_diagonalize` does not yet perform the computation. Instead,
+    the function defines the computation as a `~pymablock.series.BlockSeries`
+    object, which can be evaluated explicitly at any order.
 
-    This function accepts a Hamiltonian in several formats and it first
+    `block_diagonalize` accepts a Hamiltonian in several formats and it first
     brings it to the eigenbasis of the unperturbed Hamiltonian if the blocks,
     eigenvectors or indices of the eigenvalues are provided, see below.
-    Then, the perturbation theory is performed and the Hamiltonian is
+    Next, the perturbation theory is performed and the Hamiltonian is
     block-diagonalized.
 
     The block diagonalization is performed using the "expanded" or "general"
-    algorithm. The former is better suited for lower orders numerical
+    algorithm. The former is better suited for lower order numerical
     calculations and symbolic ones. The latter is better suited for higher
-    orders numerical calculations.
+    order numerical calculations.
 
     For large numerical calculations with a sparse Hamiltonian and a low
     dimensional relevant subspace, the algorithm uses an implicit representation
@@ -81,15 +83,15 @@ def block_diagonalize(
 
         Supported formats:
 
-        - If a list,
-            it is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where ``h_0``
+        - A list,
+            is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where ``h_0``
             is the unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first
             order perturbations. The elements ``h_i`` may be `~sympy.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, ``h_i`` may be a list of lists with the Hamiltonian blocks.
-        - If a dictionary,
-            it is assumed to be of the form
+        - A dictionary,
+            is assumed to be of the form
             ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or
             ``{1: h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians.
             In the former case, the keys must be tuples of integers indicating
@@ -99,25 +101,25 @@ def block_diagonalize(
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, ``h_i`` may be a list of lists with the Hamiltonian blocks.
-        - If a `sympy.Matrix`,
+        - A `sympy.Matrix`,
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
             `~pymablock.series.BlockSeries` is done by Taylor expanding on
             ``symbols`` to the desired order.
-        - If a `~pymablock.series.BlockSeries`, it is returned unchanged.
+        - A `~pymablock.series.BlockSeries`, is returned unchanged.
     algorithm :
-        Name of the function that block diagonalizes a Hamiltonian.
+        Name of the function that block diagonalizes the Hamiltonian.
         Options are "general" and "expanded".
     solve_sylvester :
-        Function to use for solving Sylvester's equation.
+        Function (callable) to use that solves the Sylvester equations.
         If None, the default function is used for a diagonal Hamiltonian or,
         unless the implicit method is used. In that case, the default function
         is the direct solver.
     subspace_eigenvectors :
         A tuple with orthonormal eigenvectors to project the Hamiltonian on
-        and separate it into blocks. The first element of the tuple has the
-        eigenvectors of the A (effective) subspace, and the second element
-        has the eigenvectors of the B (auxiliary) subspace.
+        and separate it into the A (effective) and B (auxiliary) blocks.
+        The first element of the tuple has the eigenvectors of the A
+        subspace, and the second element has the eigenvectors of the B subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
         For implicit, the (partial) auxiliary subspace may be missing or
         incomplete.
