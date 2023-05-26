@@ -1,0 +1,16 @@
+name: pymablock-docs
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+  - kwant
+  - sphinx-book-theme
+  - myst-nb
+  - sympy
+  - numpy
+  - scipy
+  - matplotlib-base
+  - pip:
+    - ..
