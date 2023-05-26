@@ -624,7 +624,7 @@ def expanded(
     operator: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    The algorithm for computing block diagonalization of a Hamiltonian.
+    Algorithm for computing block diagonalization of a Hamiltonian.
 
     Unlike the `general` algorithm, this algorithm does not perform
     multiplications by the unperturbed Hamiltonian. This comes at the cost of
@@ -699,7 +699,7 @@ def implicit(
     """
     Block diagonalize a Hamiltonian without explicitly forming BB matrices.
 
-    This function uses either "general" or "expanded" algorithm to block
+    This function uses either the "general" or "expanded" algorithm to block
     diagonalize, but does not compute products within the B (auxiliary)
     subspace. Instead these matrices are wrapped in
     `~scipy.sparse.linalg.LinearOperator` and combined to keep them low rank.
