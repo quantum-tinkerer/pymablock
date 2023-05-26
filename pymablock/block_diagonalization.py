@@ -309,10 +309,10 @@ def hamiltonian_to_BlockSeries(
         incomplete.
         Mutually exclusive with ``subspace_indices``.
     subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the `subspace_eigenvectors` may be
-        provided. Indices 0 and 1 are reserved for the A and B subspaces,
-        respectively.
+        If the unperturbed Hamiltonian is diagonal, the belonging of the 
+        diagonal elements, and thereby eigenvectors, to the different subspaces
+        can be specified. The belonging of the elements is labeled by either 
+        0 for the A (effective) or 1 for the B (auxilliary) subspace per element. 
         Mutually exclusive with ``subspace_eigenvectors``.
     implicit :
         Whether to wrap the Hamiltonian of the BB subspace into a linear operator.
@@ -435,14 +435,14 @@ def general(
     operator: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    The algorithm for computing block diagonalization of a Hamiltonian.
+    Algorithm for computing block diagonalization of a Hamiltonian.
 
     It parameterizes the unitary transformation as a series of block matrices.
     It computes them order by order by imposing unitarity and the
     block-diagonality of the transformed Hamiltonian.
 
     The computational cost of this algorithm scales favorably with the order
-    of the perturbation. However, it performs unncessary matrix products at
+    of the perturbation. However, it performs superflous matrix products at
     lowest orders, and keeps the unperturbed Hamiltonian in the numerator. This
     makes this algorithm better suited for higher order numerical calculations.
 
