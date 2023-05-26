@@ -1,7 +1,7 @@
 # Algorithms for quasi-degenerate perturbation theory
 from operator import matmul, mul
 from functools import reduce
-from typing import Any, Optional, Callable
+from typing import Any, Optional, Callable, Union
 from copy import copy
 
 import numpy as np
@@ -30,12 +30,12 @@ __all__ = ["block_diagonalize", "general", "expanded", "symbolic", "implicit"]
 
 ### The main function for end-users.
 def block_diagonalize(
-    hamiltonian: list[Any, list] | dict | BlockSeries | sympy.Matrix,
+    hamiltonian: Union[list[Any, list], dict, BlockSeries, sympy.Matrix],
     *,
     algorithm: Optional[str] = None,
     solve_sylvester: Optional[Callable] = None,
-    subspace_eigenvectors: Optional[tuple[np.ndarray | sympy.Matrix, ...]] = None,
-    subspace_indices: Optional[tuple[int, ...] | np.ndarray] = None,
+    subspace_eigenvectors: Optional[tuple[Union[np.ndarray, sympy.Matrix], ...]] = None,
+    subspace_indices: Optional[Union[tuple[int, ...], np.ndarray]] = None,
     direct_solver: bool = True,
     solver_options: Optional[dict] = None,
     symbols: Optional[sympy.Symbol | list[sympy.Symbol]] = None,
@@ -239,7 +239,7 @@ def block_diagonalize(
 
 ### Converting different formats to BlockSeries
 def hamiltonian_to_BlockSeries(
-    hamiltonian: list[Any, list[Any]] | dict | BlockSeries | sympy.Matrix,
+    hamiltonian: Union[list[Any, list[Any]], dict, BlockSeries, sympy.Matrix],
     *,
     subspace_eigenvectors: Optional[tuple[Any, Any]] = None,
     subspace_indices: Optional[tuple[int, ...]] = None,
@@ -763,8 +763,8 @@ def implicit(
 
 ### Different formats and algorithms of solving Sylvester equation.
 def solve_sylvester_diagonal(
-    eigs_A: np.ndarray | sympy.MatrixBase,
-    eigs_B: np.ndarray | sympy.MatrixBase,
+    eigs_A: Union[np.ndarray, sympy.MatrixBase],
+    eigs_B: Union[np.ndarray, sympy.MatrixBase],
     vecs_B: Optional[np.ndarray] = None,
 ) -> Callable:
     """
@@ -789,8 +789,8 @@ def solve_sylvester_diagonal(
     """
 
     def solve_sylvester(
-        Y: np.ndarray | sparse.csr_array | sympy.MatrixBase,
-    ) -> np.ndarray | sparse.csr_array | sympy.MatrixBase:
+        Y: Union[np.ndarray, sparse.csr_array, sympy.MatrixBase],
+    ) -> Union[np.ndarray, sparse.csr_array, sympy.MatrixBase]:
         if vecs_B is not None:
             energy_denominators = 1 / (eigs_A[:, None] - eigs_B[None, :])
             return ((Y @ vecs_B) * energy_denominators) @ Dagger(vecs_B)
@@ -819,7 +819,7 @@ def solve_sylvester_diagonal(
 
 
 def solve_sylvester_KPM(
-    h_0: np.ndarray | sparse.spmatrix,
+    h_0: Union[np.ndarray, sparse.spmatrix],
     subspace_eigenvectors: tuple[np.ndarray, ...],
     solver_options: Optional[dict] = None,
 ) -> Callable:
@@ -994,7 +994,7 @@ def _commute_h0_away(
 
 def _update_subs(
     Y_data: dict[Operator, Any],
-    subs: dict[Operator | HermitianOperator, Any],
+    subs: dict[Union[Operator, HermitianOperator], Any],
     solve_sylvester: Callable,
     operator: Callable,
 ) -> None:
@@ -1019,7 +1019,7 @@ def _update_subs(
 
 
 def _replace(
-    expr: Any, subs: dict[Operator | HermitianOperator, Any], operator: Callable
+    expr: Any, subs: dict[Union[Operator, HermitianOperator], Any], operator: Callable
 ) -> Any:
     """
     Substitute terms in an expression and multiply them accordingly.
@@ -1232,7 +1232,7 @@ def _sympy_to_BlockSeries(
 
 
 def _subspaces_from_indices(
-    subspace_indices: tuple[int, ...] | np.ndarray,
+    subspace_indices: Union[tuple[int, ...], np.ndarray],
     symbolic: Optional[bool] = False,
 ) -> tuple[sparse.csr_array, sparse.csr_array]:
     """

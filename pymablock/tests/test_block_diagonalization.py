@@ -1,5 +1,5 @@
 from itertools import count, permutations
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 import pytest
 import numpy as np
@@ -121,7 +121,7 @@ def general_output(H: BlockSeries) -> BlockSeries:
 @pytest.fixture(scope="module", params=[0, 1])
 def generate_kpm_hamiltonian(
     Ns: tuple[int, int], wanted_orders: tuple[int, ...], request: Any
-) -> tuple[list | dict, np.ndarray, np.ndarray]:
+) -> tuple[Union[list, dict], np.ndarray, np.ndarray]:
     """
     Generate random BlockSeries Hamiltonian in the format required by the implicit
     algorithm (full Hamitonians in the (0,0) block).
@@ -1145,7 +1145,7 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
 
 
 def test_block_diagonalize_hamiltonian_diagonal(
-    diagonal_hamiltonian: tuple | list, wanted_orders: tuple[int, ...]
+    diagonal_hamiltonian: Union[tuple, list], wanted_orders: tuple[int, ...]
 ):
     """
     Test that `block_diagonalize` chooses the right algorithm and the
@@ -1171,7 +1171,7 @@ def test_block_diagonalize_hamiltonian_diagonal(
 
 
 def test_block_diagonalize_hamiltonian_symbolic(
-    symbolic_hamiltonian: tuple[sympy.Matrix | dict, list[sympy.Symbol]],
+    symbolic_hamiltonian: tuple[Union[sympy.Matrix, dict], list[sympy.Symbol]],
 ):
     """
     Test that `block_diagonalize` chooses the right algorithm and the
