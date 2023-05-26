@@ -261,8 +261,8 @@ def hamiltonian_to_BlockSeries(
     """
     Normalize a Hamiltonian to be used by the algorithms.
 
-    This function projects the Hamiltonian onto the effective and auxiliary
-    subspaces, depending on the inputs, see below.
+    'hamiltonian_to_BlockSeries' projects the Hamiltonian onto the
+    effective and auxiliary subspaces, depending on the inputs, see below.
 
     Parameters
     ----------
@@ -273,16 +273,16 @@ def hamiltonian_to_BlockSeries(
 
         Supported formats:
 
-        - If a list,
-            it is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where h_0
+        - A list,
+            is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where h_0
             is the unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first
             order perturbations. The elements ``h_i`` may be `~sympy.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
             blocks.
-        - If a dictionary,
-            it is assumed to be of the form
+        - A dictionary,
+            is assumed to be of the form
             ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or
             ``{1: h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians.
             In the former case, the keys must be tuples of integers indicating
@@ -292,11 +292,12 @@ def hamiltonian_to_BlockSeries(
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
-        - If a `sympy.Matrix`,
-            unless a list of ``symbols`` is provided as perturbative parameters,
-            all symbols will be treated as perturbative. The normalization to
-            `~pymablock.series.BlockSeries` is done by Taylor expanding on
-            ``symbols`` to the desired order.
+        - A `sympy.Matrix`,
+            all symbols will be treated as perturbative, unless a list of
+            ``symbols`` is provided as perturbative parameters. The
+            normalization to `~pymablock.series.BlockSeries` is done by
+            Taylor expanding the matrix in the perturbative parameters
+            to desired order.
     subspace_eigenvectors :
         A tuple with orthonormal eigenvectors to project the Hamiltonian on
         and separate it into blocks. The first element of the tuple has the
