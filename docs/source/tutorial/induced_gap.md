@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.14.4
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -27,6 +27,7 @@ import scipy.linalg
 from scipy.sparse.linalg import eigsh
 import numpy as np
 import kwant
+import matplotlib.pyplot as plt
 
 from pymablock import block_diagonalize
 ```
@@ -72,11 +73,12 @@ We can now finalize the system and visualize it
 ```{code-cell} ipython3
 syst = syst.finalized()
 
-kwant.plot(syst);
+kwant.plot(syst, fig_size=(10, 6), site_color=(lambda site: abs(syst.sites[site].pos[0]) < L/3), colorbar=False)
+plt.show()
 ```
 
 To get the Hamiltonian, we use the following values for $\mu_n$, $\mu_{sc}$,
-$\Delta$, $t$, and $t_{\text{barrier}}$
+$\Delta$, $t$, and $t_{\text{barrier}}$. We extract the barrier on its own to treat its presense perturbatively. Additionally, we apply a linear change of the chemical potential along the length of the system to model a weak electric field.
 
 ```{code-cell} ipython3
 params = dict(
@@ -100,7 +102,7 @@ h_0.size
 
 Therefore, we will use of the implicit mode of _Pymablock_ in order to block
 diagonalize the Hamiltonian.
-For this, we need orthonormal eigenvectors of the relevant subspace, associated
+To consider the low energy degrees of freedom, we need orthonormal eigenvectors of the relevant subspace, associated
 with the $4$ eigenvalues closest to $E=0$.
 
 ```{code-cell} ipython3
@@ -114,16 +116,44 @@ We can now define the block diagonalization routine and compute the few lowest o
 %%time
 
 H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
+```
+
+We see that we have obtained the effective model in only a few seconds. For convenience, we collect the first three orders in each parameter in an appropriately sized tensor.
+
+```{code-cell} ipython3
+:tags: []
 
 # Combine all the perturbative terms into a single 4D array
 fill_value = np.zeros((), dtype=object)
 fill_value[()] = np.zeros_like(H_tilde[0, 0, 0, 0])
-H_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :2], fill_value).tolist())
+H_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :3], fill_value).tolist())
 ```
 
-We see that we have obtained the effective model in only a few seconds.
+We can now, for instance, calculate the gap energy in the dot depending on the barrier coupling
 
 ```{code-cell} ipython3
-H_tilde[np.abs(H_tilde) < 1e-15] = 0
-H_tilde.round(3)
+:tags: []
+
+def effective_energies(barrier_value, delta_mu_value):
+    parms = barrier_value**np.arange(3).reshape(-1,1,1,1)*delta_mu_value**np.arange(3).reshape(1,-1,1,1)
+    h_evaluate = np.sum(H_tilde*parms,axis=(0,1))
+    return scipy.linalg.eigh(h_evaluate)[0]
 ```
+
+```{code-cell} ipython3
+:tags: []
+
+barrier_vals = np.array([0,0.5,1])
+delta_mu_vals = np.linspace(0,10e-4,num=101)
+
+results = [np.array([effective_energies(bar, dmu) for dmu in delta_mu_vals]) for bar in barrier_vals]
+
+plt.figure(figsize=(10,6),dpi=200)
+color_cycle= ["#5790fc", "#f89c20", "#e42536"]
+[[plt.plot(delta_mu_vals, results[j][:,i], color=color_cycle[j]) for i in range(4)]for j in range(3)]
+plt.xlabel(r'$\delta_\mu$')
+plt.ylabel(r'$E$')
+plt.show()
+```
+
+As expected, the degeneracy because of the asymetry is lifted when the dots are coupled to the superconductor. In addition, we recognize how the proximity gap of the dots increases with the coupling strength.
