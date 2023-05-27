@@ -21,6 +21,11 @@ run tests:
         coverage_format: cobertura
         path: coverage.xml
 
+run nox:
+  script:
+    - pip install nox
+    - nox -s tests
+
 run docs:
   script:
     - pip install sphinx sphinx-book-theme myst-nb
