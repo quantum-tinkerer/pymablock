@@ -38,7 +38,7 @@ def block_diagonalize(
     subspace_indices: Optional[Union[tuple[int, ...], np.ndarray]] = None,
     direct_solver: bool = True,
     solver_options: Optional[dict] = None,
-    symbols: Optional[sympy.Symbol | list[sympy.Symbol]] = None,
+    symbols: Optional[Union[sympy.Symbol, list[sympy.Symbol]]] = None,
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
