@@ -104,7 +104,7 @@ class BlockSeries:
 
     def __getitem__(
         self, item: Union[int, slice, tuple[Union[int, list[int], slice], ...]]
-    ) -> Union[ma.MaskedArray[Any], Any]:
+    ) -> Any:
         """
         Evaluate the series at indices, following numpy's indexing rules.
 
