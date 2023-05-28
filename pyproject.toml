@@ -25,3 +25,17 @@ version = "0.0.1"
 
 [tool.ruff]
 line-length = 90
+
+[tool.mypy]
+# Not using mypy yet, but this is a start.
+python_version = "3.9"
+allow_redefinition = true
+[[tool.mypy.overrides]]
+module = [
+  "scipy",
+  "scipy.sparse",
+  "scipy.sparse.linalg",
+  "scipy.sparse.linalg._interface",
+  "kwant.linalg",
+]
+ignore_missing_imports = true

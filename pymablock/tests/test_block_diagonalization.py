@@ -103,7 +103,7 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
 
 
 @pytest.fixture(scope="module")
-def general_output(H: BlockSeries) -> BlockSeries:
+def general_output(H: BlockSeries) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Return the transformed Hamiltonian.
 
@@ -279,7 +279,7 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
         index = block + (0,) * H.n_infinite
         np.testing.assert_allclose(H[index].diagonal(), eigvals)
     for block in ((0, 1), (1, 0)):
-        zero == H[block + (0,) * H.n_infinite]
+        assert zero == H[block + (0,) * H.n_infinite]
     with pytest.raises(ValueError):
         H = hamiltonian_to_BlockSeries(hamiltonian)
         H[(0, 0) + (0,) * H.n_infinite]
@@ -316,7 +316,7 @@ def test_input_hamiltonian_from_subspaces():
             np.testing.assert_allclose(H[index].diagonal(), eigvals)
         for block in ((0, 1), (1, 0)):
             index = block + (0,) * H.n_infinite
-            zero == H[index]
+            assert zero == H[index]
 
 
 def test_input_hamiltonian_blocks():
@@ -357,8 +357,8 @@ def compare_series(
     series1: BlockSeries,
     series2: BlockSeries,
     wanted_orders: tuple[int, ...],
-    atol: Optional[float] = 1e-15,
-    rtol: Optional[float] = 0,
+    atol: float = 1e-15,
+    rtol: float = 0,
 ) -> None:
     """
     Function that compares two BlockSeries with each other
@@ -379,9 +379,9 @@ def compare_series(
     wanted_orders:
         Order until which to compare the series
     atol:
-        Optional absolute tolerance for numeric comparison
+        Absolute tolerance for numeric comparison
     rtol:
-        Optional relative tolerance for numeric comparison
+        Relative tolerance for numeric comparison
     """
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     all_elements = (slice(None),) * len(series1.shape)
