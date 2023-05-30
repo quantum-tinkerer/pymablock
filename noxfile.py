@@ -31,3 +31,22 @@ def tests(session, numpy, scipy, sympy):
     )
 
     session.run("pytest", "--ruff")
+
+
+@nox.session(venv_backend="mamba")
+def tests_without_kwant(session):
+    session.run(
+        "mamba",
+        "install",
+        "-y",
+        "numpy==1.24.0",
+        "scipy==1.10.0",
+        "sympy==1.12.0",
+        "packaging==22.0",
+    )
+    session.run("pip", "install", "-e", ".")
+    session.run(
+        "pip", "install", "pytest", "pytest-cov", "pytest-randomly", "pytest-ruff"
+    )
+
+    session.run("pytest", "--ruff")
