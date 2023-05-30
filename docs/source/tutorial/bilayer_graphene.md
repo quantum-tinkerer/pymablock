@@ -13,9 +13,12 @@ kernelspec:
 
 # k.p model of bilayer graphene
 
-This tutorial demonstrates how to use symbolic expressions as input to _Pymablock_. As an example, we construct the k.p Hamiltonian of bilayer graphene, starting from its tight binding dispersion.
+This tutorial demonstrates how to use symbolic expressions as input
+to _Pymablock_. As an example, we construct the k.p Hamiltonian of
+bilayer graphene, starting from its tight binding dispersion.
 
-The crystal structure and the hoppings of bilayer graphene are shown in the figure
+The crystal structure and the hoppings of bilayer graphene are shown
+in the figure
 
 ![crystal structure and hopping of bilayer grahene](bilayer.svg)
 
@@ -26,10 +29,14 @@ The physics of this system is not crucial for us, but here are the main features
 - The interlayer hopping couples atoms that are on top of each other with amplitude $t_2$.
 - The layers have a potential $\pm m$ that we introduce to make the problem a bit more complex.
 
-If you want to get a more systematic introduction to the bilayer graphene and its k.p model, you can check out [this review](https://iopscience.iop.org/article/10.1088/0034-4885/76/5/056503).
+If you want to get a more systematic introduction to the bilayer
+graphene and its k.p model, you can check out [this review](https://iopscience.iop.org/article/10.1088/0034-4885/76/5/056503).
 
-Let's start from defining the Hamiltonian. We will use (sympy)[https://www.sympy.org/], and therefore the code is somewhat verbose.
-Still, while it may seem like a waste for a problem of this scale, as complexity increases, using symbolic calculations starts paying off.
+Let's start from defining the Hamiltonian. We will use the [package `sympy`](https://www.sympy.org/)
+for symbolic computation and manipulation which can make the code somewhat
+verbose.
+Still, while it may seem like a waste for a problem of this scale, as
+complexity increases, using symbolic calculations starts paying off.
 
 We begin with the basic imports
 
@@ -42,7 +49,7 @@ import sympy
 sympy.init_printing(use_latex="mathjax")
 ```
 
-Note that we only use a limited number of sympy's features, namely the [symbols](https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols), [matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html), and [coordinate systems](https://docs.sympy.org/latest/modules/physics/vector/vectors.html). Now we are ready to define all the parameters and the hamiltonian $H$
+Now we are ready to define all the parameters and the hamiltonian $H$
 
 ```{code-cell} ipython3
 k_x, k_y, t_1, t_2, m = symbols("k_x k_y t_1 t_2 m", real=True)
@@ -57,7 +64,7 @@ H = Matrix(
 Eq(symbols("H"), H, evaluate=False)
 ```
 
-Here we collected all momentum-dependent factors into $\alpha$.
+Note how we introduced the quantities in the Hamiltonian, such as the mass terms, as `sympy` [symbols](https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols). In particular, we collected all momentum-dependent factors into the symbol $\alpha$.
 We also make $\mathbf{K}=(4\pi/3, 0)$ the reference point for the
 $\mathbf{k}$-vector, making $k_x$ and $k_y$ the perturbative parameters.
 
@@ -71,7 +78,8 @@ alpha_k = (1 + exp(I * k.dot(a_1)) + exp(I * k.dot(a_2))).expand(complex=True, t
 Eq(alpha, alpha_k, evaluate=False)
 ```
 
-Now we obtain the eigenvectors of the unperturbed Hamiltonian
+Now we obtain the eigenvectors of the unperturbed Hamiltonian by [substituting](https://docs.sympy.org/latest/tutorials/intro-tutorial/basic_operations.html#substitution) $\alpha$ and $m$ with our previous definitions and [diagonalizing](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html#eigenvalues-eigenvectors-and-diagonalization) the result using the
+`.diagonalize()` property carried by `sympy` matrices. The list index `[0]` specifies that we are only interested in the (normalized) eigenvectors.
 
 ```{code-cell} ipython3
 vecs = H.subs({alpha: 0, m: 0}).diagonalize(normalize=True)[0]
@@ -99,7 +107,6 @@ Now we are ready to specify which calculation to perform.
 Let us group the terms by total power of momentum.
 For now this requires an explicit manipulation of the indices, which are in the
 order given by `symbols`.
-In the future, we may implement convenience functions for this task.
 
 ```{code-cell} ipython3
 k_powers = np.mgrid[:4, :4]
