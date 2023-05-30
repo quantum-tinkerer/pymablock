@@ -34,3 +34,14 @@ run docs:
   artifacts:
     paths:
       - docs/build
+
+pages:
+  needs:
+    - run tests
+    - run docs
+  script:
+    - cp -r htmlcov public/
+    - cp -r docs/build public/
+  artifacts:
+    paths:
+      - public
