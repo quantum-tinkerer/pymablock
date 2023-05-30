@@ -22,9 +22,16 @@ run tests:
         path: coverage.xml
 
 run nox:
+  parallel:
+    matrix:
+      - NOXSESSION:
+        - "tests(minimal)"
+        - "tests(mid)"
+        - "tests(latest)"
+        - "tests_without_kwant"
   script:
     - pip install nox
-    - nox
+    - nox -s $NOXSESSION
 
 run docs:
   script:

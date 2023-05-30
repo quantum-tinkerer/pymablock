@@ -9,6 +9,7 @@ import nox
         ("3.10", "1.24", "1.10", "1.10"),
         ("3.11", "1.24", "1.10", "1.12"),
     ],
+    ids=["minimal", "mid", "latest"],
 )
 def tests(session, numpy, scipy, sympy):
     session.run(
