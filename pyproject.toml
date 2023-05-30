@@ -12,10 +12,10 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.23",
-    "scipy",
-    "sympy",
-    "kwant",  # For KPM
-    "packaging",  # For version parsing
+    "scipy>=1.8",
+    "sympy>=1.10",
+    "kwant>=1.4.3",  # For KPM
+    "packaging>=22.0",  # For version parsing
 ]
 version = "0.0.1"
 
