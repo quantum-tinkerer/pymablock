@@ -14,9 +14,9 @@ from pymablock import linalg
 try:
     import kwant  # noqa: F401
 
-    kwant_installed = True
+    kwant_available = True
 except ImportError:
-    kwant_installed = False
+    kwant_available = False
 
 
 def test_linear_operator_rmatmul_patched():
@@ -26,7 +26,7 @@ def test_linear_operator_rmatmul_patched():
     assert_allclose(array @ operator, array @ array)
 
 
-@pytest.mark.skipif(not kwant_installed, reason="kwant not installed")
+@pytest.mark.skipif(not kwant_available, reason="kwant not installed")
 def test_direct_greens_function():
     n = 100
     E = np.random.randn(n)
@@ -41,7 +41,7 @@ def test_direct_greens_function():
     assert_allclose(h @ sol - E[n0] * sol, vec)
 
 
-@pytest.mark.skipif(not kwant_installed, reason="kwant not installed")
+@pytest.mark.skipif(not kwant_available, reason="kwant not installed")
 def test_direct_greens_function_dtype():
     n = 10
     E = np.random.randn(n).astype(np.float16)
