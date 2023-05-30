@@ -23,11 +23,11 @@ from pymablock.linalg import ComplementProjector
 
 
 try:
-    import kwant  # noqa: F401
+    from kwant.linalg import mumps  # noqa: F401
 
-    kwant_available = True
+    mumps_available = True
 except ImportError:
-    kwant_available = False
+    mumps_available = False
 
 
 @pytest.fixture(scope="module", params=[(3,), (2, 2)])
@@ -969,7 +969,7 @@ def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     )
 
 
-@pytest.mark.skipif(not kwant_available, reason="kwant not installed")
+@pytest.mark.skipif(not mumps_available, reason="mumps not installed")
 def test_solve_sylvester_direct_vs_diagonal() -> None:
     n = 300
     a_dim = 5
