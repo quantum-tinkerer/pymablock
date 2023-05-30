@@ -13,9 +13,9 @@ kernelspec:
 
 # Induced gap in a double quantum dot
 
-This tutorial demonstrates how to efficiently use big numerical Hamiltonians,
-and how _Pymablock_ integrates with [Kwant](https://kwant-project.org/).
-As an example, we will consider a tight binding model of a quantum dot and
+This tutorial demonstrates how to efficiently build effective models from big numerical
+Hamiltonians, and how _Pymablock_ integrates with [Kwant](https://kwant-project.org/).
+As an example, we consider a tight binding model of a quantum dot and
 a superconductor with a tunnel barrier in between.
 
 Let's start by importing the necessary packages
@@ -78,8 +78,11 @@ kwant.plot(syst, fig_size=(10, 6), site_color=(lambda site: abs(syst.sites[site]
 plt.show()
 ```
 
-To get the Hamiltonian, we use the following values for $\mu_n$, $\mu_{sc}$,
-$\Delta$, $t$, and $t_{\text{barrier}}$.
+The regions to the left and right that are shaded darker represent the
+two quantum dots while the lighter region in the center constitutes the
+superconducting region.
+To get the Hamiltonian, we use the following values for $\mu_n$,
+$\mu_{sc}$, $\Delta$, $t$, and $t_{\text{barrier}}$.
 
 ```{code-cell} ipython3
 params = dict(
@@ -127,38 +130,44 @@ We see that we have obtained the effective model in only a few seconds. For conv
 # Combine all the perturbative terms into a single 4D array
 fill_value = np.zeros((), dtype=object)
 fill_value[()] = np.zeros_like(H_tilde[0, 0, 0, 0])
-H_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :3], fill_value).tolist())
+h_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :3], fill_value).tolist())
 ```
 
-We can now, for instance, calculate the gap energy in the dot depending on the barrier coupling
+We can now compute the low energy spectrum
 
 ```{code-cell} ipython3
 :tags: []
 
-def effective_energies(barrier_value, delta_mu_value):
-    parms = barrier_value**np.arange(3).reshape(-1,1,1,1)*delta_mu_value**np.arange(3).reshape(1,-1,1,1)
-    h_evaluate = np.sum(H_tilde*parms,axis=(0,1))
-    return scipy.linalg.eigh(h_evaluate)[0]
+def effective_energies(h_tilde, barrier, delta_mu):
+    barrier_powers = barrier ** np.arange(3).reshape(-1, 1, 1, 1)
+    delta_mu_powers = delta_mu ** np.arange(3).reshape(1, -1, 1, 1)
+    return scipy.linalg.eigvalsh(
+        np.sum(h_tilde * barrier_powers * delta_mu_powers, axis=(0, 1))
+    )
 ```
 
 ```{code-cell} ipython3
 :tags: []
 
-barrier_vals = np.array([0, 0.5, 1])
+barrier_vals = np.array([0, 0.5, .75])
 delta_mu_vals = np.linspace(0, 10e-4, num=101)
 results = [
-    np.array([effective_energies(bar, dmu) for dmu in delta_mu_vals])
+    np.array([effective_energies(h_tilde, bar, dmu) for dmu in delta_mu_vals])
     for bar in barrier_vals
 ]
 
 plt.figure(figsize=(10, 6), dpi=200)
 [
-    [plt.plot(delta_mu_vals, results[j][:, i], color=color_cycle[j]) for i in range(4)]
-    for j in range(3)
+    plt.plot(delta_mu_vals, result, color=color, label=[f"$t_b={barrier}$"] + 3 * [None])
+    for result, color, barrier in zip(results, color_cycle, barrier_vals)
 ]
 plt.xlabel(r"$\delta_\mu$")
 plt.ylabel(r"$E$")
-plt.show()
+plt.legend();
 ```
 
-As expected, the degeneracy because of the asymetry is lifted when the dots are coupled to the superconductor. In addition, we recognize how the proximity gap of the dots increases with the coupling strength.
+As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the dots are coupled to the superconductor. In addition, we observe how the proximity gap of the dots increases with the coupling strength.
+
+```{code-cell} ipython3
+
+```
