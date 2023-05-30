@@ -22,7 +22,7 @@ def tests(session, numpy, scipy, sympy):
         f"numpy=={numpy}",
         f"scipy=={scipy}",
         f"sympy=={sympy}",
-        "packaging==23.1.0",
+        "packaging==22.0",
         "kwant",
     )
     session.run("pip", "install", "-e", ".")
