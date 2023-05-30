@@ -5,13 +5,9 @@ import nox
 @nox.parametrize(
     "python,numpy,scipy,sympy",
     [
-        (python, numpy, scipy, sympy)
-        for python, numpy, scipy, sympy in zip(
-            ("3.9", "3.10", "3.11"),
-            ("1.23.0", "1.24.0", "1.24.0"),
-            ("1.8.0", "1.10.0", "1.10.0"),
-            ("1.10.0", "1.10.0", "1.12.0"),
-        )
+        ("3.9", "1.23.0", "1.8.0", "1.10.0"),
+        ("3.10", "1.24", "1.10", "1.10"),
+        ("3.11", "1.24", "1.10", "1.12"),
     ],
 )
 def tests(session, numpy, scipy, sympy):
