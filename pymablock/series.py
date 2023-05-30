@@ -1,7 +1,7 @@
 from itertools import product, compress
 from functools import reduce
 from operator import matmul
-from typing import Any, Optional, Callable, Union
+from typing import Any, Optional, Callable, Union, Iterable
 
 import numpy as np
 import numpy.ma as ma
@@ -9,6 +9,10 @@ import sympy
 from sympy.physics.quantum import Dagger
 
 __all__ = ["BlockSeries", "cauchy_dot_product", "one", "zero"]
+
+# Common types
+OneItem = Union[int, slice, list[int]]
+Item = Union[OneItem, tuple[OneItem, ...]]
 
 
 class Pending:
@@ -55,7 +59,7 @@ zero = Zero()
 _mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[bool])
 
 
-def _zero_sum(terms: list[Any]) -> Any:
+def _zero_sum(terms: Iterable[Any]) -> Any:
     """
     Sum that returns a singleton zero if empty and omits zero terms
 
@@ -80,7 +84,7 @@ def safe_divide(numerator, denominator):
 class BlockSeries:
     def __init__(
         self,
-        eval: Optional[Callable[[tuple[int, ...]], Any]] = None,
+        eval: Optional[Callable] = None,
         data: Optional[dict[tuple[int, ...], Any]] = None,
         shape: tuple[int, ...] = (),
         n_infinite: int = 1,
@@ -102,9 +106,7 @@ class BlockSeries:
         self.n_infinite = n_infinite
         self.dimension_names = dimension_names or ()
 
-    def __getitem__(
-        self, item: Union[int, slice, tuple[Union[int, list[int], slice], ...]]
-    ) -> Union[ma.MaskedArray[Any], Any]:
+    def __getitem__(self, item: Item) -> Any:
         """
         Evaluate the series at indices, following numpy's indexing rules.
 
@@ -174,7 +176,7 @@ class BlockSeries:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
 
-    def _check_finite(self, orders: tuple[Union[int, slice], ...]):
+    def _check_finite(self, orders: tuple[OneItem, ...]):
         """
         Check that the indices of the infinite dimension are finite and positive.
 
@@ -189,7 +191,7 @@ class BlockSeries:
                 elif isinstance(order.start, int) and order.start < 0:
                     raise IndexError("Cannot evaluate negative order")
 
-    def _check_number_perturbations(self, item: tuple[Union[int, slice], ...]):
+    def _check_number_perturbations(self, item: tuple[OneItem, ...]):
         """
         Check that the number of indices is correct.
 
@@ -209,7 +211,7 @@ def cauchy_dot_product(
     operator: Optional[Callable] = None,
     hermitian: bool = False,
     exclude_last: Optional[list[bool]] = None,
-):
+) -> BlockSeries:
     """
     Multivariate Cauchy product of BlockSeries.
 
@@ -234,8 +236,10 @@ def cauchy_dot_product(
     `~pymablock.series.BlockSeries`
         A new series that is the Cauchy dot product of the given series.
     """
+    if not series:
+        raise ValueError("Need at least one series to multiply")
     if len(series) < 2:
-        return series[0] if series else one
+        return series[0]
     if operator is None:
         operator = matmul
     if exclude_last is None:
@@ -328,7 +332,7 @@ def product_by_order(
         values[(slice(None), slice(None)) + (-1,) * len(orders)] = ma.masked
 
     # Fill these with the evaluated data
-    for values, factor in zip(data, series):
+    for values, factor in zip(data, series):  # type: ignore
         values[ma.where(values)] = factor[ma.where(values)]
 
     terms = []
@@ -336,7 +340,7 @@ def product_by_order(
     for combination in product(*(ma.ndenumerate(factor) for factor in data)):
         combination = list(combination)
         starts, ends = zip(*(key[:-n_infinite] for key, _ in combination))
-        if starts[1:] != ends[:-1]:
+        if starts[1:] != ends[:-1]:  # type: ignore
             continue
         key = tuple(key[-n_infinite:] for key, _ in combination)
         if list(map(sum, zip(*key))) != orders:  # Vector sum of key

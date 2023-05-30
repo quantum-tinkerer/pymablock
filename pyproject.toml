@@ -11,10 +11,10 @@ description = "Lowdin perturbation theory"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-    "numpy",
-    "scipy",
-    "kwant",  # For KPM
-    "packaging",  # For version parsing
+    "numpy>=1.23",
+    "scipy>=1.8",
+    "sympy>=1.10",
+    "packaging>=22.0",  # For version parsing
 ]
 version = "0.0.1"
 
@@ -24,3 +24,17 @@ version = "0.0.1"
 
 [tool.ruff]
 line-length = 90
+
+[tool.mypy]
+# Not using mypy yet, but this is a start.
+python_version = "3.9"
+allow_redefinition = true
+[[tool.mypy.overrides]]
+module = [
+  "scipy",
+  "scipy.sparse",
+  "scipy.sparse.linalg",
+  "scipy.sparse.linalg._interface",
+  "kwant.linalg",
+]
+ignore_missing_imports = true

@@ -2,6 +2,7 @@
 from operator import matmul, mul
 from functools import reduce
 from typing import Any, Optional, Callable, Union
+from collections.abc import Sequence
 from copy import copy
 
 import numpy as np
@@ -27,18 +28,21 @@ from pymablock.series import (
 
 __all__ = ["block_diagonalize", "general", "expanded", "symbolic", "implicit"]
 
+# Common types
+Eigenvectors = tuple[Union[np.ndarray, sympy.Matrix], ...]
+
 
 ### The main function for end-users.
 def block_diagonalize(
-    hamiltonian: Union[list[Any, list], dict, BlockSeries, sympy.Matrix],
+    hamiltonian: Union[list, dict, BlockSeries, sympy.Matrix],
     *,
     algorithm: Optional[str] = None,
     solve_sylvester: Optional[Callable] = None,
-    subspace_eigenvectors: Optional[tuple[Union[np.ndarray, sympy.Matrix], ...]] = None,
+    subspace_eigenvectors: Optional[Eigenvectors] = None,
     subspace_indices: Optional[Union[tuple[int, ...], np.ndarray]] = None,
     direct_solver: bool = True,
     solver_options: Optional[dict] = None,
-    symbols: Optional[sympy.Symbol | list[sympy.Symbol]] = None,
+    symbols: Optional[Union[sympy.Symbol, Sequence[sympy.Symbol]]] = None,
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
@@ -161,6 +165,7 @@ def block_diagonalize(
         use_implicit = num_vectors < subspace_eigenvectors[0].shape[0]
 
     if use_implicit:
+        assert subspace_eigenvectors is not None  # for mypy
         # Build solve_sylvester
         if isinstance(hamiltonian, list):
             h_0 = hamiltonian[0]
@@ -182,6 +187,10 @@ def block_diagonalize(
                 "`subspace_eigenvectors` does not match the shape of `h_0`."
             )
         if solve_sylvester is None:
+            if not all(isinstance(vecs, np.ndarray) for vecs in subspace_eigenvectors):
+                raise TypeError(
+                    "Implicit problem requires numpy arrays for eigenvectors."
+                )
             if direct_solver:
                 solve_sylvester = solve_sylvester_direct(
                     h_0,
@@ -230,7 +239,7 @@ def block_diagonalize(
             solve_sylvester=solve_sylvester,
             algorithm=algorithm,
         )
-    return globals()[algorithm](
+    return _algorithms[algorithm](
         H,
         solve_sylvester=solve_sylvester,
         operator=operator,
@@ -239,7 +248,7 @@ def block_diagonalize(
 
 ### Converting different formats to BlockSeries
 def hamiltonian_to_BlockSeries(
-    hamiltonian: Union[list[Any, list[Any]], dict, BlockSeries, sympy.Matrix],
+    hamiltonian: Union[list, dict, BlockSeries, sympy.Matrix],
     *,
     subspace_eigenvectors: Optional[tuple[Any, Any]] = None,
     subspace_indices: Optional[tuple[int, ...]] = None,
@@ -335,6 +344,7 @@ def hamiltonian_to_BlockSeries(
         pass
     else:
         raise TypeError("Unrecognized type for Hamiltonian.")
+    assert isinstance(hamiltonian, BlockSeries)  # for mypy type checking
 
     if hamiltonian.shape and to_split:
         raise ValueError(
@@ -493,7 +503,7 @@ def general(
         exclude_last=[True, False, True],
     )
 
-    def eval(*index: tuple[int, ...]) -> Any:
+    def eval(*index: int) -> Any:
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
             return safe_divide(-identity[index], 2)
@@ -674,6 +684,9 @@ def expanded(
     return H_tilde, U, U_adjoint
 
 
+_algorithms = {"general": general, "expanded": expanded}
+
+
 def implicit(
     H: BlockSeries,
     solve_sylvester: Callable,
@@ -711,9 +724,9 @@ def implicit(
     U_adjoint : `~pymablock.series.BlockSeries`
         Adjoint of ``U``.
     """
-    if algorithm not in ("general", "expanded"):
+    if algorithm not in _algorithms:
         raise ValueError(f"Unsupported algorithm: {algorithm}")
-    algorithm = globals()[algorithm]
+    algorithm = _algorithms[algorithm]
     H_tilde_temporary, U, U_adjoint = algorithm(H, solve_sylvester=solve_sylvester)
 
     # Create series wrapped in linear operators to avoid forming explicit matrices
@@ -1097,7 +1110,7 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
 
 def _dict_to_BlockSeries(
     hamiltonian: dict[tuple[int, ...], Any],
-    symbols: Optional[tuple[sympy.Symbol]] = None,
+    symbols: Optional[Sequence[sympy.Symbol]] = None,
     atol: float = 1e-12,
 ) -> BlockSeries:
     """
@@ -1188,7 +1201,7 @@ def _symbolic_keys_to_tuples(
 
 def _sympy_to_BlockSeries(
     hamiltonian: sympy.MatrixBase,
-    symbols: list[sympy.Symbol] = None,
+    symbols: Optional[Sequence[sympy.Symbol]] = None,
 ) -> BlockSeries:
     """
     Parameters
