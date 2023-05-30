@@ -24,7 +24,7 @@ run tests:
 run nox:
   script:
     - pip install nox
-    - nox -s tests
+    - nox
 
 run docs:
   script:
