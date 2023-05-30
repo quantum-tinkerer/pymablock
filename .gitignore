@@ -149,11 +149,6 @@ auto
 *~
 \#*#
 
-
-
-# this project
-notes/*.pdf
-
 # pytest
 .pytest_cache/
 *.xml
@@ -166,3 +161,6 @@ prof/
 # docs
 docs/build/
 .virtual_documents/
+
+# hatch-vcs
+pymablock/_version.py

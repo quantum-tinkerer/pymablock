@@ -1,9 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "pymablock"
+dynamic = ["version"]
 authors = [
   {name="Cool Authors"},
 ]
@@ -16,7 +17,12 @@ dependencies = [
     "sympy>=1.10",
     "packaging>=22.0",  # For version parsing
 ]
-version = "0.0.1"
+[tool.hatch.version]
+source = "vcs"
+[tool.hatch.build.hooks.vcs]
+version-file = "pymablock/_version.py"
+[tool.hatch.metadata.hooks.vcs.urls]
+source_archive = "https://gitlab.kwant-project.org/qt/pymablock/-/archive/{commit_hash}/pymablock-{commit_hash}.tar.gz"
 
 [project.urls]
 "Homepage" = "https://gitlab.kwant-project.org/qt/pymablock"
