@@ -1,9 +1,5 @@
 image: gitlab.kwant-project.org:5005/qt/research-docker
 
-variables:
-  GIT_SUBMODULE_STRATEGY: recursive
-  EXEC_TIMEOUT: 180
-
 before_script:
   - shopt -s nullglob  # sane behaviour when globs do not match
 
@@ -22,6 +18,9 @@ run tests:
         path: coverage.xml
 
 run nox:
+  variables:
+    GIT_STRATEGY: clone
+    CONDA_PKGS_DIRS: micromamba_root/pkgs
   parallel:
     matrix:
       - NOXSESSION:
@@ -29,9 +28,15 @@ run nox:
         - "tests(mid)"
         - "tests(latest)"
         - "tests_without_kwant"
+  before_script:
+    - micromamba install -c conda-forge -r micromamba_root -y mamba pip nox git
   script:
-    - pip install nox
-    - nox -s $NOXSESSION
+    - export MAMBA_ROOT_PREFIX="micromamba_root"; nox -s $NOXSESSION
+  image: "mambaorg/micromamba:1.4.3"
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - micromamba_root
 
 run docs:
   script:
