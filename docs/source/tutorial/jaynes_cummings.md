@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.14.4
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -18,7 +18,7 @@ _Pymablock_ with bosonic operators.
 As an example, we use the Jaynes-Cummings model, which describes a two-level
 bosonic system coupled by ladder operators.
 
-Let's start by importing the `sympy` functions we need to define the Hamiltonian.
+Let's start by importing the `sympy` functions we need to define the Hamiltonian. We will make use of `sympy`'s [quantum mechanics facility](https://docs.sympy.org/latest/modules/physics/quantum/index.html) as well as its [matrix facility](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html)
 
 ```{code-cell} ipython3
 import sympy
@@ -29,8 +29,8 @@ from sympy.physics.quantum import qapply, Dagger
 
 ## Define the Hamiltonian
 
-We define the onsite energy {math}`\omega_r`, the energy gap {math}`\omega_q`,
-the perturbative parameter {math}`g`, and {math}`a`, the bosonic annihilation
+We define the onsite energy $\omega_r$, the energy gap $\omega_q$,
+the perturbative parameter $g$, and $a$, the bosonic annihilation
 operator.
 
 ```{code-cell} ipython3
@@ -51,14 +51,15 @@ H_p = [[0,  g * Dagger(a)], [g * a, 0]]
 
 Matrix(H_0) + Matrix(H_p)
 ```
+
 where the basis is the one of the occupied and unoccupied subspaces.
 
 ## Custom Sylvester's equation solver
 
 To use _Pymablock_, we need a custom solver for Sylvester's equation that can
 compute the energies of the subspaces using bosonic operators.
-We need to define a `solve_sylvester` function that takes {math}`Y` and returns
-{math}`V` such that
+We need to define a `solve_sylvester` function that takes $Y$, the right hand side containing only lower orders of the expansion, and returns
+$V$, the off-diagonal block of the block diagonalizing transformation of the next higher order, such that
 
 ```{math}
 H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1} \\

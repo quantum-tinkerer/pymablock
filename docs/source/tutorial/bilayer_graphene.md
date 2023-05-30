@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.14.4
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -42,7 +42,7 @@ import sympy
 sympy.init_printing(use_latex="mathjax")
 ```
 
-Note that we only use a limited number of sympy's features, namely the (symbols)[https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols], (matrices)[https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html], and (coordinate systems)[https://docs.sympy.org/latest/modules/physics/vector/vectors.html]. Now we are ready to define all the parameters and the hamiltonian $H$
+Note that we only use a limited number of sympy's features, namely the [symbols](https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols), [matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html), and [coordinate systems](https://docs.sympy.org/latest/modules/physics/vector/vectors.html). Now we are ready to define all the parameters and the hamiltonian $H$
 
 ```{code-cell} ipython3
 k_x, k_y, t_1, t_2, m = symbols("k_x k_y t_1 t_2 m", real=True)

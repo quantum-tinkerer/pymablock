@@ -4,14 +4,13 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.14.4
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
   name: python3
-mystnb:
-    execution_mode: 'inline'
 ---
+
 # Getting started
 
 ## pymablock basics
@@ -19,7 +18,6 @@ mystnb:
 Getting started with _Pymablock_ is simple, let's start by importing it
 
 ```{code-cell} ipython3
-
 import pymablock
 ```
 
@@ -27,7 +25,6 @@ Along with _Pymablock_, we'll also need `numpy` to handle numerical dense arrays
 `scipy` to use numerical sparse arrays, and `sympy` for symbolic mathematics.
 
 ```{code-cell} ipython3
-
 import numpy as np
 import scipy
 import sympy
@@ -36,14 +33,13 @@ import sympy
 ## Minimal example
 
 The most minimal example to apply perturbation theory is a diagonal Hamiltonian
-with two subspaces {math}`A` and {math}`B`, coupled by a perturbation.
+with two subspaces $A$ and $B$, coupled by a perturbation.
 
 ### 1. Define a Hamiltonian
 
 Let's start by defining a Hamiltonian and a random perturbation.
 
 ```{code-cell} ipython3
-
 # Diagonal unperturbed Hamiltonian
 H_0 = np.diag([-1., -1., 1., 1.]) # shape (4, 4)
 
@@ -53,7 +49,7 @@ H_1 += H_1.conj().T
 H_1 = 0.2 * H_1
 ```
 
-While {math}`H_0` has subspaces separated in energy, {math}`H_1` couples them.
+While $H_0$ has subspaces separated in energy, $H_1$ couples them.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -81,8 +77,8 @@ an energy gap.
 ### 2. Set up _Pymablock_
 
 To set up the _Pymablock_ algorithms, we define the block diagonalization routine.
-```{code-cell} ipython3
 
+```{code-cell} ipython3
 from pymablock import block_diagonalize
 
 hamiltonian = [H_0, H_1]
@@ -103,22 +99,27 @@ To get perturbative corrections to the Hamiltonian, we index the transformed
 Hamiltonian indicating the block and order of the correction.
 
 For example, we obtain a second order correction to the occupied subspace as
+
 ```{code-cell} ipython3
 H_tilde[0, 0, 2]
 ```
-where `(0, 0)` is the {math}`AA` block, and `2` refers to the second order
+
+where `(0, 0)` is the $AA$ block, and `2` refers to the second order
 correction.
 
 _Pymablock_ uses `numpy`'s convention on
 [indexing](https://numpy.org/devdocs/user/basics.indexing.html).
 Therefore, all the corrections to the occupied subspace to 2th order can be
 computed like
+
 ```{code-cell} ipython3
 H_tilde[0, 0, :3]
 ```
+
 The output is a `numpy.MaskedArray` where `zero` values are masked.
 
 The final block-diagonalized Hamiltonian up to second order looks like
+
 ```{code-cell} ipython3
 :tags: [hide-input]
 
@@ -139,14 +140,15 @@ ax_2.set_yticks([]);
 
 ## A non-diagonal Hamiltonian with multivariate perturbations
 
-In general, {math}`H_0` is not in its eigenbasis, and if this is the case, we have
+In general, $H_0$ is not in its eigenbasis, and if this is the case, we have
 several options.
 One option is to provide a customized `solve_sylvester` function to `block_diagonalize`.
-A better option is to bring {math}`H_0` and {math}`H_1` to the eigenbasis of
-{math}`H_0` by providing the eigenvectors to `block_diagonalize` directly.
+A better option is to bring $H_0$ and $H_1$ to the eigenbasis of
+$H_0$ by providing the eigenvectors to `block_diagonalize` directly.
 
 ### 1. Define a Hamiltonian
 Let's initialize a random Hamiltonian and two perturbations
+
 ```{code-cell} ipython3
 # Define a random Hamiltonian
 H_0 = np.random.random((5, 5)) + 1j * np.random.random((5, 5))
@@ -162,7 +164,8 @@ H_2 += H_2.conj().T
 H_2 = 0.2 * H_2
 ```
 
-This time, {math}`H_0` is not in its eigenbasis
+This time, $H_0$ is not in its eigenbasis
+
 ```{code-cell} ipython3
 :tags: [hide-input]
 
@@ -189,8 +192,8 @@ ax_2.set_yticks([]);
 ### 2. Set up _Pymablock_
 
 To set up the block diagonalization routine we define
-```{code-cell} ipython3
 
+```{code-cell} ipython3
 from pymablock import block_diagonalize
 
 hamiltonian = [H_0, H_1, H_2]
@@ -201,6 +204,7 @@ H_tilde, U, U_adjoint = block_diagonalize(
   hamiltonian, subspace_eigenvectors=subspace_eigenvectors
 )
 ```
+
 where `subspace_eigenvectors` contains the eigenvectors of the lower energy
 and higher energy subspaces of `H_0`.
 
@@ -234,16 +238,17 @@ Once again, `H_tilde` is empty since none of the corrections have been requested
 H_tilde._data
 ```
 
-We can get the corrections to the {math}`AA` block by specifying the individual
+We can get the corrections to the $AA$ block by specifying the individual
 order of each perturbation. For example, we can request the second order
 correction on the first perturbation and third order correction on the
 second perturbation as,
+
 ```{code-cell} ipython3
 H_tilde[0, 0, 2, 3]
 ```
 
-
 The final block-diagonalized Hamiltonian up to second order looks like
+
 ```{code-cell} ipython3
 :tags: [hide-input]
 

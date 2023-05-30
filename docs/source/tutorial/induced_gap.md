@@ -28,6 +28,7 @@ from scipy.sparse.linalg import eigsh
 import numpy as np
 import kwant
 import matplotlib.pyplot as plt
+color_cycle= ["#5790fc", "#f89c20", "#e42536"]
 
 from pymablock import block_diagonalize
 ```
@@ -78,7 +79,7 @@ plt.show()
 ```
 
 To get the Hamiltonian, we use the following values for $\mu_n$, $\mu_{sc}$,
-$\Delta$, $t$, and $t_{\text{barrier}}$. We extract the barrier on its own to treat its presense perturbatively. Additionally, we apply a linear change of the chemical potential along the length of the system to model a weak electric field.
+$\Delta$, $t$, and $t_{\text{barrier}}$.
 
 ```{code-cell} ipython3
 params = dict(
@@ -110,7 +111,7 @@ vals, vecs = eigsh(h_0, k=4, sigma=0)
 vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize
 ```
 
-We can now define the block diagonalization routine and compute the few lowest orders of the effective Hamiltonian.
+We can now define the block diagonalization routine and compute the few lowest orders of the effective Hamiltonian. The barrier and applied dot asymmetry are treated perturbatively.
 
 ```{code-cell} ipython3
 %%time
@@ -143,16 +144,20 @@ def effective_energies(barrier_value, delta_mu_value):
 ```{code-cell} ipython3
 :tags: []
 
-barrier_vals = np.array([0,0.5,1])
-delta_mu_vals = np.linspace(0,10e-4,num=101)
+barrier_vals = np.array([0, 0.5, 1])
+delta_mu_vals = np.linspace(0, 10e-4, num=101)
+results = [
+    np.array([effective_energies(bar, dmu) for dmu in delta_mu_vals])
+    for bar in barrier_vals
+]
 
-results = [np.array([effective_energies(bar, dmu) for dmu in delta_mu_vals]) for bar in barrier_vals]
-
-plt.figure(figsize=(10,6),dpi=200)
-color_cycle= ["#5790fc", "#f89c20", "#e42536"]
-[[plt.plot(delta_mu_vals, results[j][:,i], color=color_cycle[j]) for i in range(4)]for j in range(3)]
-plt.xlabel(r'$\delta_\mu$')
-plt.ylabel(r'$E$')
+plt.figure(figsize=(10, 6), dpi=200)
+[
+    [plt.plot(delta_mu_vals, results[j][:, i], color=color_cycle[j]) for i in range(4)]
+    for j in range(3)
+]
+plt.xlabel(r"$\delta_\mu$")
+plt.ylabel(r"$E$")
 plt.show()
 ```
 
