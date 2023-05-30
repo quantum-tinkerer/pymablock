@@ -1,5 +1,6 @@
 import builtins
 
+import pytest
 from pytest import raises
 import numpy as np
 from numpy.testing import assert_allclose
@@ -10,6 +11,14 @@ import sympy
 from pymablock import linalg
 
 
+try:
+    import kwant  # noqa: F401
+
+    kwant_installed = True
+except ImportError:
+    kwant_installed = False
+
+
 def test_linear_operator_rmatmul_patched():
     """Test that LinearOperator implement right multiplication"""
     array = np.random.randn(3, 3) + 1j * np.random.randn(3, 3)
@@ -17,6 +26,7 @@ def test_linear_operator_rmatmul_patched():
     assert_allclose(array @ operator, array @ array)
 
 
+@pytest.mark.skipif(not kwant_installed, reason="kwant not installed")
 def test_direct_greens_function():
     n = 100
     E = np.random.randn(n)
@@ -31,6 +41,7 @@ def test_direct_greens_function():
     assert_allclose(h @ sol - E[n0] * sol, vec)
 
 
+@pytest.mark.skipif(not kwant_installed, reason="kwant not installed")
 def test_direct_greens_function_dtype():
     n = 10
     E = np.random.randn(n).astype(np.float16)

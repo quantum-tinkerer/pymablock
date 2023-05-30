@@ -22,6 +22,14 @@ from pymablock.series import BlockSeries, cauchy_dot_product, zero, one
 from pymablock.linalg import ComplementProjector
 
 
+try:
+    import kwant  # noqa: F401
+
+    kwant_installed = True
+except ImportError:
+    kwant_installed = False
+
+
 @pytest.fixture(scope="module", params=[(3,), (2, 2)])
 def wanted_orders(request):
     """
@@ -961,6 +969,7 @@ def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     )
 
 
+@pytest.mark.skipif(not kwant_installed, reason="kwant not installed")
 def test_solve_sylvester_direct_vs_diagonal() -> None:
     n = 300
     a_dim = 5
