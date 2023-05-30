@@ -22,13 +22,14 @@ sys.path.insert(0, package_path)
 # -- Project information -----------------------------------------------------
 
 project = "pymablock"
-copyright = "2023, ."
-author = "."
+copyright = "2023, Pymablock developers"
+author = "Pymablock developers"
 gitlab_url = "https://gitlab.kwant-project.org/qt/pymablock"
 
 # The full version, including alpha/beta/rc tags
-release = "."
-
+release = pymablock.__version__
+major, minor = pymablock.__version_tuple__[:2]
+version = f"{major}.{minor}"
 
 # -- General configuration ---------------------------------------------------
 
