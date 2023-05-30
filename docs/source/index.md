@@ -16,6 +16,7 @@ kernelspec:
 :caption: Contents
 
 tutorial/tutorial.md
+background/bachkround.md
 documentation/pymablock.rst
 CITING.md
 CHANGELOG.md
