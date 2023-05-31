@@ -6,9 +6,9 @@ build-backend = "hatchling.build"
 name = "pymablock"
 dynamic = ["version"]
 authors = [
-  {name="Cool Authors"},
+  {name="Pymablock developers"},
 ]
-description = "Lowdin perturbation theory"
+description = "Numerical and symbolic implementation of quasi-degenerate perturbation theory"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
