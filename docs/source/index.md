@@ -11,6 +11,8 @@ kernelspec:
   name: python3
 ---
 
++++ {"tags": [], "user_expressions": []}
+
 ```{toctree}
 :hidden:
 :caption: Contents
@@ -100,34 +102,37 @@ the order, while the algorithms are still mathematically equivalent.
 
 The algorithms of _Pymablock_ rely on decomposing the block
 diagonalizing unitary transformation, $U$, as a series of Hermitian
-block diagonal $W$ and skew-Hermitian block off-diagonal $V$ terms.
-The transformed Hamiltonian is a (Cauchy product)[https://en.wikipedia.org/wiki/Cauchy_product]
+block diagonal $W$ and skew-Hermitian, block off-diagonal, $V$ terms.
+The transformed Hamiltonian is a [Cauchy product](https://en.wikipedia.org/wiki/Cauchy_product)
 between the series of $U^\dagger$, $H$, and $U$.
 For example, for a single first order perturbation $H_p$, the transformed
 Hamiltonian at order $n$ is
 ```{math}
+\begin{align}
 \tilde{H}_{n} = \sum_{i=0}^n (W_{n-i} - V_{n-i}) H_0 (W_i + V_i) +
 \sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_p (W_i + V_i).
+\end{align}
 ```
 
 To block diagonalize $H_0 + H_p$, _Pymablock_ finds the orders of $W$
 and $V$ as a solution to
 ```{math}
-W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i), \quad \text{unitarity} \\
-H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}, \quad \text{Sylvester's equation}
+\begin{align}
+W_{n} &= - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i), & \quad &\text{unitarity} \\
+H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} &= Y_{n}, & \quad &\text{Sylvester's equation}
+\end{align}
 ```
 where
 ```{math}
 Y_{n} = \sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB} H_0^{BB}W_i^{BB}\right].
 ```
 
-_Pymablock_ has two principal algorithms, `general` and `expanded`, on which the
-other, more specialized, algorithms `implicit` and `symbolic` rely.
+_Pymablock_ has two principal algorithms, `general` and `expanded`.
 While the `general` algorithm implements the procedure outlined here directly,
 `expanded` initializes a fully symbolic Hamiltonian and derives general
 expressions for $\tilde{H}$.
 Additionaly, it simplifies $\tilde{H}_{n}$ and the unitary transformation by 
-using the commutation relations of $H_0$ to eliminate it from the equations
+using Sylvester's equation for $H_0$ to eliminate it from the equations
 and regroup the remaining terms. That way, $\tilde{H}_n$ only depends on $V$
 and the perturbation $H_p$, but not on $H_0$, reducing the overall number of 
 matrix-vector products that need to be performed.
@@ -170,6 +175,8 @@ for order in range(max_order):
     display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
 ```
 
++++ {"user_expressions": []}
+
 Finally, `expanded` replaces the problem-specific $H$ into the simplified
 $\tilde{H}$, without computing products within the auxiliary $B$ subspace.
 This makes `expanded` efficient for lower order numerical computations and
@@ -182,8 +189,8 @@ Solving Sylvester's equation and computing the matrix products are the most
 expensive steps of the algorithms for large Hamiltonians.
 _Pymablock_ can efficiently construct an effective Hamiltonian of a small subspace
 even when the full Hamiltonian is a sparse matrix that is too costly to
-diagonalize.
-It does so by exploiting the low rank structure of $U$, and
+diagonalize. This functionality is provided by the `implicit` function.
+It exploits the low rank structure of $U$, and
 by using the sparse solver [MUMPS](https://mumps-solver.org/index.php) to
 compute the Green's function.
 
@@ -201,3 +208,7 @@ Follow the instructions in [citing](CITING.md) if you want to cite us.
 
 ## Contributing
 `pymablock` is on Gitlab.
+
+```{code-cell} ipython3
+
+```
