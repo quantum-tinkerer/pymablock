@@ -18,7 +18,7 @@ _Pymablock_ with bosonic operators.
 As an example, we use the Jaynes-Cummings model, which describes a two-level
 bosonic system coupled by ladder operators.
 
-Let's start by importing the `sympy` functions we need to define the Hamiltonian. We will make use of `sympy`'s [quantum mechanics facility](https://docs.sympy.org/latest/modules/physics/quantum/index.html) as well as its [matrix facility](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html)
+Let's start by importing the `sympy` functions we need to define the Hamiltonian. We will make use of `sympy`'s [quantum mechanics module](https://docs.sympy.org/latest/modules/physics/quantum/index.html) and [matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html)
 
 ```{code-cell} ipython3
 import sympy
