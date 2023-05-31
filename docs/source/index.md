@@ -100,8 +100,8 @@ the order, while the algorithms are still mathematically equivalent.
 
 ## The algorithms
 
-The algorithms of _Pymablock_ rely on decomposing the block
-diagonalizing unitary transformation, $U$, as a series of Hermitian
+The algorithms of _Pymablock_ rely on decomposing $U$, the unitary transformation
+that block diagonalizes the Hamiltonian, as a series of Hermitian
 block diagonal $W$ and skew-Hermitian, block off-diagonal, $V$ terms.
 The transformed Hamiltonian is a [Cauchy product](https://en.wikipedia.org/wiki/Cauchy_product)
 between the series of $U^\dagger$, $H$, and $U$.
