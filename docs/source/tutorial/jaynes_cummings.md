@@ -60,13 +60,14 @@ where the basis is the one of the occupied and unoccupied subspaces.
 
 To use _Pymablock_, we need a custom solver for Sylvester's equation that can
 compute the energies of the subspaces using bosonic operators.
-We need to define a `solve_sylvester` function that takes $Y_{n+1}$, the right hand side of Sylvester's equation containing only lower orders of the expansion, and returns
-$V_{n+1}$, the off-diagonal block of the block diagonalizing transformation of the next higher order, such that
+We need to define a `solve_sylvester` function that takes $Y_{n+1}$ and returns
+$V_{n+1}$,
 
 ```{math}
 H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1} \\
-(V_{n+1}^{AB})_{x,y} = (Y_{n+1})_{x,y} / (E_x - E_y).
+(V_{n+1}^{AB})_{x,y} = (Y_{n+1})_{x,y} / (E_x - E_y),
 ```
+where $Y_{n+1}$ is the right hand side of Sylvester's equation, and $V_{n+1}$ is the block off-diagonal block of the transformation that block diagonalizes the Hamiltonian.
 
 We implement
 
