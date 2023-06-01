@@ -123,6 +123,8 @@ For this, we need the orthonormal eigenvectors of the relevant subspace,
 associated with the $4$ eigenvalues closest to $E=0$.
 
 ```{code-cell} ipython3
+%%time
+
 vals, vecs = eigsh(h_0, k=4, sigma=0)
 vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize
 ```
@@ -132,12 +134,9 @@ orders of the effective Hamiltonian.
 The barrier and applied dot asymmetry are treated perturbatively.
 
 ```{code-cell} ipython3
-%%time
-
 H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
 ```
 
-We see that we have obtained the effective model in only a few seconds.
 For convenience, we collect the first three orders on each parameter in an appropriately sized tensor.
 
 ```{code-cell} ipython3
@@ -149,7 +148,9 @@ fill_value[()] = np.zeros_like(H_tilde[0, 0, 0, 0])
 h_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :3], fill_value).tolist())
 ```
 
-We can now compute the low energy spectrum
+We see that we have obtained the effective model in only a few seconds.
+We can now compute the low energy spectrum by amplifiying the perturbative
+corrections by the magnitude of each perturbation.
 
 ```{code-cell} ipython3
 def effective_energies(h_tilde, barrier, delta_mu):
@@ -160,7 +161,7 @@ def effective_energies(h_tilde, barrier, delta_mu):
     )
 ```
 
-and plot it
+We plot the spectrum
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -182,4 +183,10 @@ plt.ylabel(r"$E$")
 plt.legend();
 ```
 
-As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the dots are coupled to the superconductor. In addition, we observe how the proximity gap of the dots increases with the coupling strength.
+As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the
+dots are coupled to the superconductor.
+In addition, we observe how the proximity gap of the dots increases with the
+coupling strength.
+Finally, we see that computing the spectrum perturbatively using `pymablock`
+is **faster** than repeatedly using sparse diagonalization for a set of
+parameters.
