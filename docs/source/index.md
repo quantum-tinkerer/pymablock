@@ -70,8 +70,8 @@ Here is why you should use _Pymablock_:
 _Pymablock_ considers a Hamiltonian as a series of $2\times 2$ block operators
 with the zeroth order block-diagonal.
 To carry out the block-diagonalization procedure, _Pymablock_ finds a minimal
-unitary transformation that cancels the off-diagonal block of the Hamiltonian
-order by order.
+unitary transformation $U$ that cancels the off-diagonal block of the
+Hamiltonian order by order.
 
 \begin{gather}
 H = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
@@ -123,9 +123,12 @@ H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}, \quad &\text{Sylvester's equa
 
 where
 
-\begin{equation}
-Y_{n} = \sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB} H_0^{BB}W_i^{BB}\right].
-\end{equation}
+\begin{gather}
+Y_{n} =
+\sum_{i=1}^{n-1} \left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB} H_0^{BB}W_i^{BB}\right] \\
++ \sum_{i=0}^{n-1} \left[W_{n-i-1}^{AA}H_p^{AA}V_i^{AB}+W_{n-i-1}^{AA}H_p^{AB}W_i^{BB}
+- V_{n-i-1}^{AB}(H_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB} H_p^{BB}W_i^{BB}\right].
+\end{gather}
 
 _Pymablock_ has two algorithms, `general` and `expanded`.
 While the `general` algorithm implements the procedure outlined here directly,
