@@ -17,25 +17,27 @@ kernelspec:
 
 (sec:derivation)=
 ## Unitarity condition
-We use $U=W+V$ where $W^\dagger=W$ is hermitian, $V^\dagger=-V$ is anti hermitian, and
+We use $U=W+V$ where $W^\dagger=W$ and $V^\dagger=-V$. Also, we let
 $W_n,V_n\propto \lambda^n$. Unitarity requires
-$(W+V)^\dagger (W+V)=1$ yielding $W_0=1$, $V=0$, and
+$(W+V)^\dagger (W+V)=1$. Expanding in orders this reads
 
 ```{math}
 :label: unitarity
 \begin{align}
 \forall (n \geq 1):\quad \sum_{i=0}^n (W_{n-i} - V_{n-i})(W_i + V_i) &= 0\\
 \Rightarrow \sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i + V_i) +
-(W_{n-i} + V_{n-i})(W_i - V_i)\right] &= 0\\
+(W_{n-i} + V_{n-i})(W_i - V_i)\right] &= 0.\\
 \end{align}
 ```
-
-Solving the latter for $W_n$ results on the constraint stated in THE INDEX. 
+We observe that $W_0=1$, $V=0$. Using this observation and solving eq. 
+{eq}`unitarity` for $W_n$ results in the constraint stated in THE INDEX. 
 The result is convenient since $W_n$ only consists of terms of lower order
 than itself.
 
 The condition for $V_n$ follows from EFFECTIVEH and
 
+```{math}
+:label: W_V_block
 \begin{align}
 V_n &= \begin{pmatrix}
 0 & V_n^{AB}\\
@@ -47,6 +49,7 @@ W_n^{AA} & 0 \\
 0 & W_n^{BB}
 \end{pmatrix}
 \end{align}
+```
 
 where the structure of $W_n$ is a consequence of eq. UNITARITY and the structure
 of the $V_n$.
@@ -69,8 +72,7 @@ H_p^{BB}W_i^{BB}\bigg]\\
 
 where the terms on the right-hand side of the equation are combined to $Y_n$ in eq. SYLVESTERS EQUATION
 
-+++ {"user_expressions": []}
-
++++ {"jp-MarkdownHeadingCollapsed": true, "tags": [], "user_expressions": []}
 
 ## The polynomial and Schrieffer-Wolff representation
 
@@ -86,8 +88,8 @@ overall phase in block matrix space.
 
 ### Proof:
 
-Assume $\mathcal{S}\in\mathbb{C}^{N\times N}$ solves {eq}`w_conditions` and
-eq. {eq}`v_condition` for some $\mathcal{H}$. We rewrite
+Assume $\mathcal{S}$ solves {eq}`unitarity` and
+eq. {eq}`v_condition` for some $H$. We rewrite
 
 ```{math}
 :label: exp_s_expansion
@@ -98,40 +100,40 @@ U=\exp{\left(\mathcal{S}\right)}=\exp{\left(\sum_{i=0}^\infty
 \end{align}
 ```
 
-where $\mathcal{S}_n\in\mathbb{C}^{N\times N}$ inherits the property
-$\mathcal{S}_n^\dagger=-\mathcal{S}_n$. We truncate the series at some finite
-$n$.
-To establish coincidence of the two formulations it suffices to show that a
-truncated series of eq. {eq}`exp_s_expansion` only containes terms that are
-block diagonal and hermitian or block offdiagonal and anti hermitian as
-outlined in the parametrization presented above.
-Observe that, through the multinomial theorem, each generated term of the
-truncated expansion of {eq}`exp_s_expansion` at a given order consists out of
-itself and its order reversed partner.
-Furthermore observe
+where $\mathcal{S}_n$ inherits the anti Hermiticity from $S$. We truncate the
+series at some finite $n$.
+
+To establish coincidence of the two formulations it suffices to show that said
+truncated series only containes terms that are either block diagonal and
+hermitian or block offdiagonal and anti hermitian as presented in eq. 
+{eq}`W_V_block`. Through the multinomial theorem, each generated term of the
+truncated expansion at a given order consists out of itself and its order 
+reversed partner.
+Furthermore observe how
 
 ```{math}
 :label: s_relation
 \begin{align}
 \prod_{\sum_i k_i=N}\mathcal{S}_{k_i} = (-1)^N\left(\prod_{\sum_ik_i=N}
-S_{k_{N-i}}\right)^\dagger
+S_{k_{N-i}}\right)^\dagger,
 \end{align}
 ```
 
-for all $n\in\mathbb{N}$. The indices in the previous equation refer to all
+for all $n\in\mathbb{N}$. The indexation refers to all
 vectors $\vec{k}\in\{\mathbb{N}^N:\sum_ik_i=N\}$ that are permissible by the
-multinomial theorem. To realize that eq. {eq}`s_relation` is true note that the
+multinomial theorem. 
+
+To see that eq. {eq}`s_relation` is true observe that the
 adjoint operation, on one hand, maps $k_i\rightarrow k_{N-i}$ reversing the
-order of the terms, and, on the other hand, because of the anti hermiticity
-property we collect a minus for each factor in the product. In conjunction with
-the earlier observation that each term comes with its reversed partner and the
-fact that even number products of purely block offdiagonal matrices lead to a
-purely block diagonal matrix we can conclude that a truncation of the series
-{eq}`exp_s_expansion` only contains purely block diagonal unitaries or purely
-block offdiagonal anti hermitian matrices. Since at $\lambda=0$ both
-parametrizations must be proportional to the identity we can conclude
-coincidence of both forumulations up to a trivial global phase of the unitary
-$U$.
+order of the terms, and, on the other hand, leads to a minus
+for each factor in the product due to the anti Hermiticity. Since each term
+comes with its reversed partner and even number products of purely block
+offdiagonal matrices yield a purely block diagonal matrix, we conclude that 
+a truncation of the series {eq}`exp_s_expansion` only contains purely block
+diagonal unitaries or purely block offdiagonal anti hermitian matrices.
+Since at $\lambda=0$ both parametrizations must be proportional to the 
+identity we can conclude coincidence of both forumulations up to a trivial
+global phase of the unitary $U$.
 
 We want to point out that this proof establishes coincidence of the two
 parametrizations given the same basis ordering of the original Hamiltonian
@@ -149,25 +151,48 @@ Since this class of gauges is constraint to be block diagonal (basis reordering
 does not lead to coupling of the $A$ and $B$ spaces) and therefore proportional
 to identity in block matrix space the statement of the proof remains valid.
 
-+++ {"tags": [], "user_expressions": []}
++++ {"tags": [], "jp-MarkdownHeadingCollapsed": true, "user_expressions": []}
 
 (sec:kpm)=
 ## Extanding the method to non diagonal Hamiltonians
 
-While in section {ref}`sec:derivation` we assumed that $\mathcal{H}_0$ is
-already diagonalized, and therefore the spectrum and eigenbasis known in
-entirety, here we drop this constraint. The full problem can still be solved
-for an effective lower dimensional Hamiltionian than the original one.
-The sacrifice for this convenience is however the loss of meaning of the $BB$
-block of the effective Hamiltonian.
+Consider $H_0|i\rangle=E_i|i\rangle$ where 
+$|i\rangle \in \mathcal{N}=\mathcal{N}_A\cup \mathcal{N}_B$ and
+$\mathcal{N}_A\subset \mathcal{N}$, i.e. we do not posses the 
+entire spectrum of $H_0$. Yet, we can still obtain an effective
+Hamiltonian from the states that are known.
 
-Consider $\mathcal{H}_0\in\mathbb{C}^{N \times N}$ where $N>>1$ and we only
-posses parts of the spectrum, $\mathcal{H}_0|i\rangle=E_i|i\rangle$ where
-$i\in\mathcal{N}_A\subset\{i:i\in \mathbb{N}^+, i\leq N\}$.
-Even only possessing a limited set
+Let us define
+```{math}
+:label: pojectors
+\begin{align}
+\mathcal{P}_B &= (1-\mathcal{P}_A) = 
+\left(1 - \sum_{i\in\mathcal{N}_A}| i \rangle\langle i |\right)
+\end{align}
+```
+
+We can now recast the block diagonalization problem to solve
+the ammended Hamiltonian
+```{math}
+:label: accounting_hamiltonian
+\begin{align}
+\begin{pmatrix}
+ H^{AA} & H_A \mathcal{P}_B \\
+\mathcal{P}_B H_A^\dagger   &
+\mathcal{P}_B H \mathcal{P}_B 
+\end{pmatrix}
+\end{align}
+```
+where $H^{AA}=\sum_{i\in\mathcal{N}_A}E_i|i \rangle\langle i|$
+and $H_A=\sum_{i\in\mathcal{N}_A} \langle i|H$ is projected
+into the $\mathcal{N}_A$ states from the left. Block 
+diagonalizing this ammended representation of the problem
+still yields a valid effective Hamiltonian in the $AA$ subspace.
+Furthermore, since $H$ is typically sparse and $\mathcal{P}_A$
+is small compared to the full problem, the solution
+to this problem can be implemented very efficiently.
 
 +++ {"user_expressions": []}
-
 
 ## References
 (bravyi_divincenzo_loss)=
