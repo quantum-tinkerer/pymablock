@@ -52,11 +52,11 @@ def block_diagonalize(
     perturbation theory, Schrieffer-Wolff transformation, or van Vleck
     transformation.
 
-    Calling `block_diagonalize` does not yet perform the computation. Instead,
+    This function does not yet perform the computation. Instead,
     the function defines the computation as a `~pymablock.series.BlockSeries`
-    object, which can be evaluated explicitly at any order.
+    object, which can be evaluated at any order.
 
-    `block_diagonalize` accepts a Hamiltonian in several formats and it first
+    This function accepts a Hamiltonian in several formats and it first
     brings it to the eigenbasis of the unperturbed Hamiltonian if the blocks,
     eigenvectors or indices of the eigenvalues are provided, see below.
     Next, the perturbation theory is performed and the Hamiltonian is
@@ -65,7 +65,7 @@ def block_diagonalize(
     The block diagonalization is performed using the "expanded" or "general"
     algorithm. The former is better suited for lower order numerical
     calculations and symbolic ones. The latter is better suited for higher
-    order numerical calculations.
+    order or numerical calculations.
 
     For large numerical calculations with a sparse Hamiltonian and a low
     dimensional relevant subspace, the algorithm uses an implicit representation
