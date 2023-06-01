@@ -51,7 +51,7 @@ block diagonal (lifting this asumption is discussed in section {ref}`sec:kpm`).
 The off diagonal blocks in eq. {eq}`hamiltonian` facilitate the need for
 _quasidegenerate perturbation theory_, i.e. a unitary transformation
 $U\in \mathbb{C}^{N\times N}$ that block diagonalizes $\mathcal{H}$
-erturbatively in $\lambda$ to yield
+perturbatively in $\lambda$ to yield
 
 ```{math}
 :label: effective_hamiltonian
@@ -77,7 +77,8 @@ $(W+V)^\dagger (W+V)=1$ yielding $W_0=1$, $V=0$, and
 :label: unitarity
 \begin{align}
 \forall (n \geq 1):\quad \sum_{i=0}^n (W_{n-i} - V_{n-i})(W_i + V_i) &= 0\\
-\Rightarrow \sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i + V_i) + (W_{n-i} + V_{n-i})(W_i - V_i)\right] &= 0\\
+\Rightarrow \sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i + V_i) +
+(W_{n-i} + V_{n-i})(W_i - V_i)\right] &= 0\\
 \Rightarrow 2 W_n &= -\sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i).
 \end{align}
 ```
@@ -125,7 +126,7 @@ V_{n-i}^{AB}(V_i^{AB})^\dagger\right)\\
 \end{align}
 ```
 
-an d
+and
 
 ```{math}
 :label: v_condition
@@ -133,8 +134,10 @@ an d
 0 = \tilde{\mathcal{H}}^{(n)AB}&=[\mathcal{H}_0,V_n]^{AB} +
 \sum_{i=1}^{n-1}\left[W_{n-i}^{AA}\mathcal{H}_0^{AA}V_i^{AB}-V_{n-i}^{AB}
 \mathcal{H}_0^{BB}W_i^{BB}\right] \\
-&+\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}\mathcal{H}_p^{AA}V_i^{AB}+W_{n-i-1}^{AA}\mathcal{H}_p^{AB}W_i^{BB}
--V_{n-i-1}^{AB}(\mathcal{H}_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB} \mathcal{H}_p^{BB}W_i^{BB}\bigg]\\
+&+\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}\mathcal{H}_p^{AA}V_i^{AB}+W_{n-i-1}^{AA}
+\mathcal{H}_p^{AB}W_i^{BB}
+-V_{n-i-1}^{AB}(\mathcal{H}_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
+\mathcal{H}_p^{BB}W_i^{BB}\bigg]\\
 &\equiv \mathcal{H}_0^{AA} V_n^{AB} - V_n^{AB} \mathcal{H}_0^{BB} - Y_n.
 \end{align}
 ```
@@ -164,7 +167,9 @@ eq. {eq}`v_condition` for some $\mathcal{H}$. We rewrite
 ```{math}
 :label: exp_s_expansion
 \begin{align}
-U=\exp{\left(\mathcal{S}\right)}=\exp{\left(\sum_{i=0}^\infty \mathcal{S}_n\right)}=1+\sum_{n=1}^\infty \left[\frac{1}{n!}\left(\sum_{j=1}^\infty \mathcal{S}_n\right)^n\right]
+U=\exp{\left(\mathcal{S}\right)}=\exp{\left(\sum_{i=0}^\infty
+\mathcal{S}_n\right)}=1+\sum_{n=1}^\infty \left[\frac{1}{n!}
+\left(\sum_{j=1}^\infty \mathcal{S}_n\right)^n\right]
 \end{align}
 ```
 
@@ -183,7 +188,8 @@ Furthermore observe
 ```{math}
 :label: s_relation
 \begin{align}
-\prod_{\sum_i k_i=N}\mathcal{S}_{k_i} = (-1)^N\left(\prod_{\sum_ik_i=N}S_{k_{N-i}}\right)^\dagger
+\prod_{\sum_i k_i=N}\mathcal{S}_{k_i} = (-1)^N\left(\prod_{\sum_ik_i=N}
+S_{k_{N-i}}\right)^\dagger
 \end{align}
 ```
 
@@ -217,8 +223,6 @@ form
 Since this class of gauges is constraint to be block diagonal (basis reordering
 does not lead to coupling of the $A$ and $B$ spaces) and therefore proportional
 to identity in block matrix space the statement of the proof remains valid.
-
-+++ {"user_expressions": []}
 
 (sec:kpm)=
 ## Extanding the method to non diagonal Hamiltonians
