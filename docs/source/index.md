@@ -226,8 +226,7 @@ installed [via conda](https://kwant-project.org/install#conda) in order to use
 Follow the instructions in [citing](CITING.md) if you want to cite us.
 
 ## Contributing
-`pymablock` is on Gitlab.
 
-```{code-cell} ipython3
-
-```
+_Pymablock_ is an open source package, and we invite you to contribute!
+You contribute by opening [issues](https://gitlab.kwant-project.org/qt/pymablock/-/issues),
+fixing them, and spreading the word about `pymablock`.
