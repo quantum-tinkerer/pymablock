@@ -18,11 +18,15 @@ _Pymablock_ with bosonic operators.
 As an example, we use the Jaynes-Cummings model, which describes a two-level
 bosonic system coupled by ladder operators.
 
-Let's start by importing the `sympy` functions we need to define the Hamiltonian. We will make use of `sympy`'s [quantum mechanics module](https://docs.sympy.org/latest/modules/physics/quantum/index.html) and [matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html)
+Let's start by importing the `sympy` functions we need to define the Hamiltonian.
+We will make use of `sympy`'s
+[quantum mechanics module](https://docs.sympy.org/latest/modules/physics/quantum/index.html)
+and its
+[matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html).
 
 ```{code-cell} ipython3
 import sympy
-from sympy import Matrix, Symbol, sqrt
+from sympy import Matrix, Symbol, sqrt, Eq
 from sympy.physics.quantum.boson import BosonOp, BosonFockKet
 from sympy.physics.quantum import qapply, Dagger
 ```
@@ -52,8 +56,6 @@ H_p = [[0,  g * Dagger(a)], [g * a, 0]]
 Matrix(H_0) + Matrix(H_p)
 ```
 
-+++ {"tags": [], "user_expressions": []}
-
 where the basis is the one of the occupied and unoccupied subspaces.
 
 ## Custom Sylvester's equation solver
@@ -67,7 +69,9 @@ $V_{n+1}$,
 H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1} \\
 (V_{n+1}^{AB})_{x,y} = (Y_{n+1})_{x,y} / (E_x - E_y),
 ```
-where $Y_{n+1}$ is the right hand side of Sylvester's equation, and $V_{n+1}$ is the block off-diagonal block of the transformation that block diagonalizes the Hamiltonian.
+where $Y_{n+1}$ is the right hand side of Sylvester's equation, and $V_{n+1}$
+is the block off-diagonal block of the transformation that block diagonalizes
+the Hamiltonian.
 
 We implement
 
@@ -96,11 +100,19 @@ def solve_sylvester(Y):
     return sum(V)
 ```
 
-## Perturbative results
+```{important}
+Note that this Sylvester's solver is specific to the Jaynes-Cummings Hamiltonian.
+Adapting this tutorial to a different CQED Hamiltonian would require adapting
+`solve_sylvester` accordingly.
+```
+
+## Get the Hamiltonian corrections
 
 We can now set the block-diagonalization routine by defining,
 
 ```{code-cell} ipython3
+%%time
+
 from pymablock import block_diagonalize
 
 H_tilde, U, U_adjoint = block_diagonalize(
@@ -115,11 +127,22 @@ For example, to request the 2nd order correction to the occupied subspace of
 the Hamiltonian, you may execute:
 
 ```{code-cell} ipython3
-H_tilde[0, 0, 2].expand().simplify()
+%%time
+
+Eq(Symbol(r'\tilde{H}_{2}^{AA}'), H_tilde[0, 0, 2].expand().simplify(), evaluate=False)
 ```
 
-The 4th order correction is
+Note how the result is computed in **less than a second!**
+We may also request 4th and 6th order corrections without waiting much longer.
 
 ```{code-cell} ipython3
-H_tilde[0, 0, 4].expand().simplify()
+%%time
+
+Eq(Symbol(r'\tilde{H}_{4}^{AA}'), H_tilde[0, 0, 4].expand().simplify(), evaluate=False)
+```
+
+```{code-cell} ipython3
+%%time
+
+Eq(Symbol(r'\tilde{H}_{6}^{AA}'), H_tilde[0, 0, 6].expand().simplify(), evaluate=False)
 ```
