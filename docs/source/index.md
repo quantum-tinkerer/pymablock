@@ -131,10 +131,10 @@ _Pymablock_ has two principal algorithms, `general` and `expanded`.
 While the `general` algorithm implements the procedure outlined here directly,
 `expanded` initializes a fully symbolic Hamiltonian and derives general
 expressions for $\tilde{H}$.
-Additionaly, it simplifies $\tilde{H}_{n}$ and the unitary transformation by 
+Additionaly, it simplifies $\tilde{H}_{n}$ and the unitary transformation by
 using Sylvester's equation for $H_0$ to eliminate it from the equations
 and regroup the remaining terms. That way, $\tilde{H}_n$ only depends on $V$
-and the perturbation $H_p$, but not on $H_0$, reducing the overall number of 
+and the perturbation $H_p$, but not on $H_0$, reducing the overall number of
 matrix-vector products that need to be performed.
 As an example, the corrections to the effective Hamiltonian up to fourth
 order using `expanded` are
