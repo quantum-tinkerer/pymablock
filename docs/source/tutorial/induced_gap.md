@@ -14,7 +14,8 @@ kernelspec:
 # Induced gap in a double quantum dot
 
 This tutorial demonstrates how to efficiently build effective models from big numerical
-Hamiltonians, and how _Pymablock_ integrates with [Kwant](https://kwant-project.org/).
+Hamiltonians.
+It also shows how _Pymablock_ integrates with [Kwant](https://kwant-project.org/).
 As an example, we consider a tight binding model of a quantum dot and
 a superconductor with a tunnel barrier in between.
 
@@ -78,9 +79,8 @@ kwant.plot(syst, fig_size=(10, 6), site_color=(lambda site: abs(syst.sites[site]
 plt.show()
 ```
 
-The regions to the left and right that are shaded darker represent the
-two quantum dots while the lighter region in the center constitutes the
-superconducting region.
+The quantum dots are at the right and left, in the dark regions.
+The superconductor is at the center, in the light region.
 To get the Hamiltonian, we use the following values for $\mu_n$,
 $\mu_{sc}$, $\Delta$, $t$, and $t_{\text{barrier}}$.
 
@@ -92,29 +92,44 @@ params = dict(
     t=1.,
     t_barrier=0.1,
 )
+```
 
+However, the Hamiltonian for these values is **too large**, we need more than
+60 GiB of memory to alllocate it.
+We can instead get the unperturbed Hamiltonian and use of the `implicit` mode of
+_Pymablock_ in order to block diagonalize the full Hamiltonian for an
+interesting subspace.
+
+The unperturbed Hamiltonian is that where $\mu_n = \mu_{sc} = \Delta = t = 0$
+and $t_{\text{barrier}} = 1$.
+
+```{code-cell} ipython3
 h_0 = syst.hamiltonian_submatrix(params={**params, "t_barrier": 0}, sparse=True).real
-barrier = syst.hamiltonian_submatrix(params={**{p: 0 for p in params.keys()}, "t_barrier": 1}, sparse=True).real
+barrier = syst.hamiltonian_submatrix(
+    params={**{p: 0 for p in params.keys()}, "t_barrier": 1}, sparse=True
+).real
 delta_mu = kwant.operator.Density(syst, (lambda site: sigma_z * site.pos[0] / L)).tocoo().real
 ```
 
-The Hamiltonian is large, more than what diagonalization can handle without extra effort
+We see that it is indeed large, more than what diagonalization can handle
+without extra effort
 
 ```{code-cell} ipython3
-h_0.size
+h_0.size  # number of non-zero entries
 ```
 
-Therefore, we will use of the implicit mode of _Pymablock_ in order to block
-diagonalize the Hamiltonian.
-To consider the low energy degrees of freedom, we need orthonormal eigenvectors of the relevant subspace, associated
-with the $4$ eigenvalues closest to $E=0$.
+Therefore, we will use _Pymablock_ and consider the low energy degrees of freedom.
+For this, we need the orthonormal eigenvectors of the relevant subspace,
+associated with the $4$ eigenvalues closest to $E=0$.
 
 ```{code-cell} ipython3
 vals, vecs = eigsh(h_0, k=4, sigma=0)
 vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize
 ```
 
-We can now define the block diagonalization routine and compute the few lowest orders of the effective Hamiltonian. The barrier and applied dot asymmetry are treated perturbatively.
+We can now define the block diagonalization routine and compute the few lowest
+orders of the effective Hamiltonian.
+The barrier and applied dot asymmetry are treated perturbatively.
 
 ```{code-cell} ipython3
 %%time
@@ -122,10 +137,11 @@ We can now define the block diagonalization routine and compute the few lowest o
 H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
 ```
 
-We see that we have obtained the effective model in only a few seconds. For convenience, we collect the first three orders in each parameter in an appropriately sized tensor.
+We see that we have obtained the effective model in only a few seconds.
+For convenience, we collect the first three orders on each parameter in an appropriately sized tensor.
 
 ```{code-cell} ipython3
-:tags: []
+%%time
 
 # Combine all the perturbative terms into a single 4D array
 fill_value = np.zeros((), dtype=object)
@@ -136,8 +152,6 @@ h_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :3], fill_value).tolist())
 We can now compute the low energy spectrum
 
 ```{code-cell} ipython3
-:tags: []
-
 def effective_energies(h_tilde, barrier, delta_mu):
     barrier_powers = barrier ** np.arange(3).reshape(-1, 1, 1, 1)
     delta_mu_powers = delta_mu ** np.arange(3).reshape(1, -1, 1, 1)
@@ -146,8 +160,10 @@ def effective_energies(h_tilde, barrier, delta_mu):
     )
 ```
 
+and plot it
+
 ```{code-cell} ipython3
-:tags: []
+:tags: [hide-input]
 
 barrier_vals = np.array([0, 0.5, .75])
 delta_mu_vals = np.linspace(0, 10e-4, num=101)
