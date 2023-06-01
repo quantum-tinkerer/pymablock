@@ -32,7 +32,7 @@ The physics of this system is not crucial for us, but here are the main features
 If you want to get a more systematic introduction to the bilayer
 graphene and its k.p model, you can check out [this review](https://iopscience.iop.org/article/10.1088/0034-4885/76/5/056503).
 
-Let's start from defining the Hamiltonian. We will use the [package `sympy`](https://www.sympy.org/)
+Let's start from defining the Hamiltonian. We will use [`sympy`](https://www.sympy.org/)
 for symbolic computation and manipulation which can make the code somewhat
 verbose.
 Still, while it may seem like a waste for a problem of this scale, as
@@ -64,7 +64,9 @@ H = Matrix(
 Eq(symbols("H"), H, evaluate=False)
 ```
 
-Note how we introduced the quantities in the Hamiltonian, such as the mass terms, as `sympy` [symbols](https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols). In particular, we collected all momentum-dependent factors into the symbol $\alpha$.
+Note that the Hamiltonian elements are `sympy` [symbols](https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols).
+We collected all momentum-dependent factors into the symbol $\alpha$.
+
 We also make $\mathbf{K}=(4\pi/3, 0)$ the reference point for the
 $\mathbf{k}$-vector, making $k_x$ and $k_y$ the perturbative parameters.
 
@@ -78,15 +80,19 @@ alpha_k = (1 + exp(I * k.dot(a_1)) + exp(I * k.dot(a_2))).expand(complex=True, t
 Eq(alpha, alpha_k, evaluate=False)
 ```
 
-Now we obtain the eigenvectors of the unperturbed Hamiltonian by [substituting](https://docs.sympy.org/latest/tutorials/intro-tutorial/basic_operations.html#substitution) $\alpha$ and $m$ with our previous definitions and [diagonalizing](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html#eigenvalues-eigenvectors-and-diagonalization) the result using the
-`.diagonalize()` property carried by `sympy` matrices. The list index `[0]` specifies that we are only interested in the (normalized) eigenvectors.
+Now we obtain the eigenvectors of the unperturbed Hamiltonian by
+[substituting](https://docs.sympy.org/latest/tutorials/intro-tutorial/basic_operations.html#substitution)
+$\alpha$ and $m$ and
+[diagonalizing](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html#eigenvalues-eigenvectors-and-diagonalization) the result using
+`.diagonalize()` from `sympy`.
 
 ```{code-cell} ipython3
 vecs = H.subs({alpha: 0, m: 0}).diagonalize(normalize=True)[0]
 vecs
 ```
 
-And we have everything ready to perform block diagonalization.
+The index `[0]` picks the normalized eigenvectors, which are the columns in `vecs`.
+we now have everything ready to perform block diagonalization.
 
 Observe two things:
 - We substitute $\alpha(k)$ into the Hamiltonian
@@ -104,7 +110,9 @@ H_tilde = block_diagonalize(
 
 Now we are ready to specify which calculation to perform.
 
-Let us group the terms by total power of momentum.
+To compute the standard quadratic dispersion of bilayer graphene and trigonal
+warping, we need corrections up to third order in momentum.
+Let us then group the terms by total power of momentum.
 For now this requires an explicit manipulation of the indices, which are in the
 order given by `symbols`.
 
@@ -116,12 +124,13 @@ print(f"{k_square = }")
 print(f"{k_cube = }")
 ```
 
-Before you saw that querying `H_tilde` returns the results in a masked
+Before we saw that querying `H_tilde` returns the results in a masked
 numpy array.
 Now, to gather different terms, we define a convenience function for summing
 several orders together.
-This uses the `.compressed()` method of masked numpy arrays, and simplifies the
-resulting expression.
+This uses the
+[`.compressed()`](https://numpy.org/doc/stable/reference/generated/numpy.ma.MaskedArray.compressed.html)
+method of masked numpy arrays, and simplifies the resulting expression.
 
 ```{code-cell} ipython3
 def H_tilde_AA(*orders):
