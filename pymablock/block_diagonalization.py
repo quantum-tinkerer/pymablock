@@ -46,8 +46,7 @@ def block_diagonalize(
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    Compute a block diagonal Hamiltonian and its diagonalizing transformation
-    from a general Hamiltonian order by order.
+    Block diagonalize perturbed Hamiltonian order by order.
 
     The algorithm performs quasi-degenerate perturbation theory known as Lowdin
     perturbation theory, Schrieffer-Wolff transformation, or van Vleck
