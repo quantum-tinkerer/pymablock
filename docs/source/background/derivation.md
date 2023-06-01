@@ -155,6 +155,8 @@ Since this class of gauges is constraint to be block diagonal (basis reordering 
 
 While in section {ref}`sec:derivation` we assumed that $\mathcal{H}_0$ is already diagonalized, and therefore the spectrum and eigenbasis known in entirety, here we drop this constraint. The full problem can still be solved for an effective lower dimensional Hamiltionian than the original one. The sacrifice for this convenience is however the loss of meaning of the $BB$ block of the effective Hamiltonian.
 
+Consider $\mathcal{H}_0\in\mathbb{C}^{N \times N}$ where $N>>1$ and we only posses parts of the spectrum, $\mathcal{H}_0|i\rangle=E_i|i\rangle$ where $i\in\mathcal{N}_A\subset\{i:i\in \mathbb{N}^+, i\leq N\}$. Even only possessing a limited set 
+
 
 +++ {"user_expressions": []}
 
