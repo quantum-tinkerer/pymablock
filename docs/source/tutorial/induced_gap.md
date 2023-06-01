@@ -183,7 +183,3 @@ plt.legend();
 ```
 
 As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the dots are coupled to the superconductor. In addition, we observe how the proximity gap of the dots increases with the coupling strength.
-
-```{code-cell} ipython3
-
-```

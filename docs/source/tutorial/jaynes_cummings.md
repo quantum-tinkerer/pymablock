@@ -132,7 +132,7 @@ the Hamiltonian, you may execute:
 Eq(Symbol(r'\tilde{H}_{2}^{AA}'), H_tilde[0, 0, 2].expand().simplify(), evaluate=False)
 ```
 
-Note how the result is computed in **less than a second!**
+The result is computed in **less than a second!**
 We may also request 4th and 6th order corrections without waiting much longer.
 
 ```{code-cell} ipython3

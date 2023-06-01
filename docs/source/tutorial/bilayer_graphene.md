@@ -64,7 +64,7 @@ H = Matrix(
 Eq(symbols("H"), H, evaluate=False)
 ```
 
-Note that the Hamiltonian elements are `sympy` [symbols](https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols).
+The Hamiltonian elements are `sympy` [symbols](https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols).
 We collected all momentum-dependent factors into the symbol $\alpha$.
 
 We also make $\mathbf{K}=(4\pi/3, 0)$ the reference point for the

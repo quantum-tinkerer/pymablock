@@ -105,6 +105,7 @@ block diagonal $W$ and skew-Hermitian and block off-diagonal $V$ terms.
 The transformed Hamiltonian is a
 [Cauchy product](https://en.wikipedia.org/wiki/Cauchy_product)
 between the series of $U^\dagger$, $H$, and $U$.
+
 For example, for a single first order perturbation $H_p$, the transformed
 Hamiltonian at order $n$ is
 
@@ -142,7 +143,7 @@ As an example, the corrections to the effective Hamiltonian up to fourth
 order using `expanded` are
 
 ```{code-cell} ipython3
-:tags: [hide-input]
+:tags: [remove-input]
 
 from operator import mul
 
