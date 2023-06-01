@@ -202,6 +202,24 @@ compute the Green's function.
 
 ## Installation
 
+To install `pymablock`, prefer using `conda`
+
+```
+conda install pymablock
+```
+
+Alternatively, you use `pip`
+
+```
+pip install pymablock
+```
+
+```{important}
+Be aware that the using `pymablock` on large Hamiltonians requires `Kwant`
+installed [via conda](https://kwant-project.org/install#conda) in order to use
+[MUMPS](https://mumps-solver.org/index.php). Make sure you have the correct
+`Kwant` installed if you use `pip` to install `pymablock`.
+```
 
 ## Citing
 
