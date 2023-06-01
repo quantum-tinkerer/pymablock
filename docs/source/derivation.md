@@ -11,66 +11,14 @@ kernelspec:
   name: python3
 ---
 
++++ {"user_expressions": []}
+
 # Polynomial form of the block diagonalizing transformation
 
 (sec:derivation)=
-## Derivation
-
-The solution of a stationary Schödinger equation for the Hamiltonian
-$\mathcal{H}_0\in \mathbb{C}^{n \times n}$ in quantum mechanics generally
-yields infinitely many states $|i\rangle$, satisying
-$\mathcal{H}_0|i \rangle=E_i |i \rangle$, that can be occupied by particles.
-Typically, however, one is only interested in a small number of states
-$|i\rangle \in A=\{i\in\mathbb{N}^+: i\leq N_A\}$ and discards the remaining
-states $|i\rangle\in B=\{i\in\mathbb{N}^+:i\notin A\}$ since, in an eigenbasis,
-these share no overlap with the subspace of interest as
-$\langle i, j\rangle=\delta_{i,j}$.
-A general perturbation $\mathcal{H}_p\in \mathbb{C}^{N\times N}$ that
-polynomially depends on a perturbation parameter $\lambda$ changes this and
-leads to mixing of the previously orthogonal states.
-Writing the Hamiltonian $\mathcal{H}=\mathcal{H}_0+\mathcal{H}_p$ in terms of
-the block indices $A$ and $B$ yields
-
-```{math}
-:label: hamiltonian
-\begin{align}
-\mathcal{H}=
-\begin{pmatrix}
-\mathcal{H}^{AA} & \mathcal{H}^{AB} \\
-\mathcal{H}^{BA} & \mathcal{H}^{BB}
-\end{pmatrix}=
-\begin{pmatrix}
-\mathcal{H}_0^{AA}+\mathcal{H}_p^{AA} & \mathcal{H}_p^{AB} \\
-\mathcal{H}_p^{BA} & \mathcal{H}^{BB}+\mathcal{H}_p^{BB}
-\end{pmatrix}
-\end{align}
-```
-
-where we assume that $\mathcal{H}_0$ has already been doagonalized and is hence
-block diagonal (lifting this asumption is discussed in section {ref}`sec:kpm`).
-The off diagonal blocks in eq. {eq}`hamiltonian` facilitate the need for
-_quasidegenerate perturbation theory_, i.e. a unitary transformation
-$U\in \mathbb{C}^{N\times N}$ that block diagonalizes $\mathcal{H}$
-perturbatively in $\lambda$ to yield
-
-```{math}
-:label: effective_hamiltonian
-\begin{align}
-\tilde{\mathcal{H}}=U^\dagger \mathcal{H} U
-\end{align}
-```
-
-where $\tilde{\mathcal{H}}$, in the following referred to as
-_effective Hamiltonian_, is block diagonal in $A$ and $B$.
-We address this problem by letting
-
-\begin{align}
-\tilde{\mathcal{H}} = U^\dagger \mathcal{H} U = (W + V)^\dagger \mathcal{H}
-(W + V),\quad W = \sum_{i=0}^\infty W_n, \quad V = \sum_{i=0}^\infty V_n,
-\end{align}
-
-where $W^\dagger=W$ is hermitian, $V^\dagger=-V$ is anti hermitian, and
-$W_n,V_n\propto \lambda^n$. Due to unitarity, we require
+## Unitarity condition
+We use $U=W+V$ where $W^\dagger=W$ is hermitian, $V^\dagger=-V$ is anti hermitian, and
+$W_n,V_n\propto \lambda^n$. Unitarity requires
 $(W+V)^\dagger (W+V)=1$ yielding $W_0=1$, $V=0$, and
 
 ```{math}
@@ -79,25 +27,14 @@ $(W+V)^\dagger (W+V)=1$ yielding $W_0=1$, $V=0$, and
 \forall (n \geq 1):\quad \sum_{i=0}^n (W_{n-i} - V_{n-i})(W_i + V_i) &= 0\\
 \Rightarrow \sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i + V_i) +
 (W_{n-i} + V_{n-i})(W_i - V_i)\right] &= 0\\
-\Rightarrow 2 W_n &= -\sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i).
 \end{align}
 ```
 
-where we added the hermitian conjugate of itself to the equation to arrive at
-the second identity.
-Note how the unitary $W_n$ now only depends on lower orders of the expansion.
-To determine the $V_n$ that block diagonalize the perturbed Hamiltonian we go
-back to {eq}`hamiltonian` and plug in the expanded forms of $W$ and $V$, and
-truncate the series at some $n$ to give
+Solving the latter for $W_n$ results on the constraint stated in THE INDEX. 
+The result is convenient since $W_n$ only consists of terms of lower order
+than itself.
 
-\begin{align}
-\tilde{\mathcal{H}}^{(n)} = \sum_{i=0}^n (W_{n-i} - V_{n-i})
-\mathcal{H}_0 (W_i + V_i) + \sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1})
-\mathcal{H}_p (W_i + V_i).
-\end{align}
-
-We choose the gauge of the operators $W$ and $V$ in block matrix space such
-that we can write
+The condition for $V_n$ follows from EFFECTIVEH and
 
 \begin{align}
 V_n &= \begin{pmatrix}
@@ -111,41 +48,29 @@ W_n^{AA} & 0 \\
 \end{pmatrix}
 \end{align}
 
-The second identity is a consequence of eq. {eq}`unitarity` and the structure
-
-of the $V_n$. We can now write down the conditions for each of the three
-unknowns $W_n^{AA}$, $W_n^{BB}$, and $V_n^{AB}$ reading
-
-```{math}
-:label: w_conditions
-\begin{align}
--2W_n^{AA} &= \sum_{i=1}^{n-1} \left(W_{n-i}^{AA}W_i^{AA} +
-V_{n-i}^{AB}(V_i^{AB})^\dagger\right)\\
--2W_n^{BB} &= \sum_{i=1}^{n-1} \left(W_{n-i}^{BB}W_i^{BB} +
-( V_{n-i}^{AB})^\dagger V_{i}^{AB}\right)
-\end{align}
-```
-
-and
+where the structure of $W_n$ is a consequence of eq. UNITARITY and the structure
+of the $V_n$.
+Performing the block matrix multiplication for $\tilde{H}^{AB}_n$ and requiring 
+$\tilde{H}^{AB}_n=0$ leads to Sylvester's equation for $V_n$ reading
 
 ```{math}
 :label: v_condition
 \begin{align}
-0 = \tilde{\mathcal{H}}^{(n)AB}&=[\mathcal{H}_0,V_n]^{AB} +
-\sum_{i=1}^{n-1}\left[W_{n-i}^{AA}\mathcal{H}_0^{AA}V_i^{AB}-V_{n-i}^{AB}
-\mathcal{H}_0^{BB}W_i^{BB}\right] \\
-&+\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}\mathcal{H}_p^{AA}V_i^{AB}+W_{n-i-1}^{AA}
-\mathcal{H}_p^{AB}W_i^{BB}
--V_{n-i-1}^{AB}(\mathcal{H}_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
-\mathcal{H}_p^{BB}W_i^{BB}\bigg]\\
-&\equiv \mathcal{H}_0^{AA} V_n^{AB} - V_n^{AB} \mathcal{H}_0^{BB} - Y_n.
+ H_0^{AA} V_n^{AB} - V_n^{AB} H_0^{BB}=&-
+\sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB}
+H_0^{BB}W_i^{BB}\right] \\
+&-\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}H_p^{AA}V_i^{AB}+W_{n-i-1}^{AA}
+H_p^{AB}W_i^{BB}
+-V_{n-i-1}^{AB}(H_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
+H_p^{BB}W_i^{BB}\bigg]\\
+
 \end{align}
 ```
 
-where $Y_n$ only depends on $W_i, V_i$ to lower orders.
-Note how the structure of the previous equations is that of a Cauchy product.
-Solving these three conditions for a fixed $n$ leads to perturbative decoupling
-of the two blocks.
+where the terms on the right-hand side of the equation are combined to $Y_n$ in eq. SYLVESTERS EQUATION
+
++++ {"user_expressions": []}
+
 
 ## The polynomial and Schrieffer-Wolff representation
 
@@ -224,6 +149,8 @@ Since this class of gauges is constraint to be block diagonal (basis reordering
 does not lead to coupling of the $A$ and $B$ spaces) and therefore proportional
 to identity in block matrix space the statement of the proof remains valid.
 
++++ {"tags": [], "user_expressions": []}
+
 (sec:kpm)=
 ## Extanding the method to non diagonal Hamiltonians
 
@@ -239,8 +166,19 @@ posses parts of the spectrum, $\mathcal{H}_0|i\rangle=E_i|i\rangle$ where
 $i\in\mathcal{N}_A\subset\{i:i\in \mathbb{N}^+, i\leq N\}$.
 Even only possessing a limited set
 
++++ {"user_expressions": []}
+
+
 ## References
 (bravyi_divincenzo_loss)=
 [1] S. Bravyi, D. DiVincenzo, and D. Loss; Schrieffer–Wolff transformation for
 quantum many-body systems,
 [Annals of Physics Vol. 326 10 (2011)](https://doi.org/10.1016/j.aop.2011.06.004)
+
+```{code-cell} ipython3
+
+```
+
+```{code-cell} ipython3
+
+```
