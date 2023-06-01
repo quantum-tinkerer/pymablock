@@ -125,7 +125,7 @@ V_{n-i}^{AB}(V_i^{AB})^\dagger\right)\\
 \end{align}
 ```
 
-and
+an d
 
 ```{math}
 :label: v_condition
