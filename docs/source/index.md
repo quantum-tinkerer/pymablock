@@ -223,7 +223,13 @@ installed [via conda](https://kwant-project.org/install#conda) in order to use
 
 ## Citing
 
-Follow the instructions in [citing](CITING.md) if you want to cite us.
+If you have used _Pymablock_ for work that has lead to a scientific publication,
+please cite it as
+
+```
+TODO
+
+```
 
 ## Contributing
 

@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+authors:
+  - family-names: Araya Day
+    given-names: Isidora
+    orcid: https://orcid.org/0000-0002-2948-4198
+  - family-names: Miles
+    given-names: Sebastian
+  - family-names: Varjas
+    given-names: Daniel
+    orcid: https://orcid.org/0000-0002-3283-6182
+  - family-names: Akhmerov
+    given-names: Anton R.
+    orcid: https://orcid.org/0000-0001-8031-1340
+title: "Pymablock"
+version: 1.0.0
+doi: 10.5281/zenodo.7995684
+date-released: 2023-06-05
