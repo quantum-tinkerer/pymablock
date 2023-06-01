@@ -18,8 +18,8 @@ kernelspec:
 :caption: Contents
 
 tutorial/tutorial.md
-background/background.md
 documentation/pymablock.rst
+derivation.md
 CITING.md
 CHANGELOG.md
 ```
