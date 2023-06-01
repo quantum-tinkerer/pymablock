@@ -55,7 +55,6 @@ default_role = "autolink"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
-html_logo = "images/logo.svg"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -79,10 +78,14 @@ html_theme_options = {
     "repository_branch": "main",
     "use_download_button": True,
     "home_page_in_toc": True,
+    "logo": {
+        "image_light": "_static/logo.svg",
+        "image_dark": "_static/logo_dark.svg",
+    },
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_build/html/_static"]
+html_static_path = ["_build/html/_static", "_static"]
 html_css_files = ["css/custom.css"]
