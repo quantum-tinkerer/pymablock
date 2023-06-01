@@ -140,6 +140,8 @@ def H_tilde_AA(*orders):
 Finally, we are ready to obtain the result.
 
 ```{code-cell} ipython3
+%%time
+
 mass_term = H_tilde_AA([0], [0], [1])
 kinetic = H_tilde_AA(*k_square, 0)
 mass_correction = H_tilde_AA(*k_square, 1)
