@@ -140,12 +140,12 @@ ax_2.set_yticks([]);
 
 ## A non-diagonal Hamiltonian with multivariate perturbations
 
-In general, $H_0$ is not in its eigenbasis, and if this is the case, we have
-several options.
-One option is to provide a customized `solve_sylvester` function to
-{autolink}`~pymablock.block_diagonalize`.
-A better option is to bring $H_0$ and $H_1$ to the eigenbasis of
-$H_0$ by providing the eigenvectors to {autolink}`~pymablock.block_diagonalize` directly.
+Let us now consider a more complex example, where:
+- The unperturbed Hamiltonian is not diagonal
+- We have a multivariate perturbation
+
+Because diagonalization is both standard, and not our focus, `_Pymablock_` won't do it for us.
+However, it will properly treat a non-diagonal unperturbed Hamiltonian if we provide its eigenvectors.
 
 ### 1. Define a Hamiltonian
 Let's initialize a random Hamiltonian and two perturbations
@@ -192,28 +192,23 @@ ax_2.set_yticks([]);
 
 ### 2. Set up _Pymablock_
 
-To set up the block diagonalization routine we define
+To set up the block diagonalization routine we compute the eigenvectors of $H_0$
+and split them into two groups that define the $A$ and $B$ subspaces.
 
 ```{code-cell} ipython3
-from pymablock import block_diagonalize
-
-hamiltonian = [H_0, H_1, H_2]
 _, evecs = np.linalg.eigh(H_0)
 subspace_eigenvectors = [evecs[:, :3], evecs[:, 3:]]
 
 H_tilde, U, U_adjoint = block_diagonalize(
-  hamiltonian, subspace_eigenvectors=subspace_eigenvectors
+  hamiltonian=[H_0, H_1, H_2], subspace_eigenvectors=subspace_eigenvectors
 )
 ```
-
-where `subspace_eigenvectors` contains the eigenvectors of the lower energy
-and higher energy subspaces of `H_0`.
 
 ```{important}
 The Hamiltonian will be projected using `subspace_vectors`, such that it
 becomes diagonal. Therefore, the perturbation theory is carried out in this
 basis. In this case, `U` is the unitary transformation that block-diagonalizes
-the Hamiltonian from the eigenbasis of the projected diagonal `H_0`.
+the Hamiltonian in the eigenbasis of the projected diagonal `H_0`.
 ```
 
 ### 3. Get the perturbative results
