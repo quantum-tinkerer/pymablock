@@ -134,6 +134,8 @@ orders of the effective Hamiltonian.
 The barrier and applied dot asymmetry are treated perturbatively.
 
 ```{code-cell} ipython3
+%%time
+
 H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
 ```
 
@@ -153,6 +155,8 @@ We can now compute the low energy spectrum by amplifiying the perturbative
 corrections by the magnitude of each perturbation.
 
 ```{code-cell} ipython3
+%%time
+
 def effective_energies(h_tilde, barrier, delta_mu):
     barrier_powers = barrier ** np.arange(3).reshape(-1, 1, 1, 1)
     delta_mu_powers = delta_mu ** np.arange(3).reshape(1, -1, 1, 1)
