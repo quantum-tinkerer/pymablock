@@ -15,7 +15,7 @@ kernelspec:
 
 This tutorial demonstrates how to efficiently build effective models from big numerical
 Hamiltonians.
-It also shows how _Pymablock_ integrates with [Kwant](https://kwant-project.org/).
+It also shows how {{Pymablock}} integrates with [Kwant](https://kwant-project.org/).
 As an example, we consider a tight binding model of a quantum dot and
 a superconductor with a tunnel barrier in between.
 
@@ -97,7 +97,7 @@ params = dict(
 However, the Hamiltonian for these values is **too large**, we need more than
 60 GiB of memory to alllocate it.
 We can instead get the unperturbed Hamiltonian and use of the
-{autolink}`~pymablock.implicit` mode of _Pymablock_ in order to block
+{autolink}`~pymablock.implicit` mode of {{Pymablock}} in order to block
 diagonalize the full Hamiltonian for an interesting subspace.
 
 The unperturbed Hamiltonian is that where $\mu_n = \mu_{sc} = \Delta = t = 0$
@@ -118,7 +118,7 @@ without extra effort
 h_0.size  # number of non-zero entries
 ```
 
-Therefore, we will use _Pymablock_ and consider the low energy degrees of freedom.
+Therefore, we will use {{Pymablock}} and consider the low energy degrees of freedom.
 For this, we need the orthonormal eigenvectors of the relevant subspace,
 associated with the $4$ eigenvalues closest to $E=0$.
 

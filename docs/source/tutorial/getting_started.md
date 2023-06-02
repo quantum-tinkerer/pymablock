@@ -15,7 +15,7 @@ kernelspec:
 
 ## pymablock basics
 
-Getting started with _Pymablock_ is simple, let's start by importing it
+Getting started with {{Pymablock}} is simple, let's start by importing it
 together with `numpy`.
 
 ```{code-cell} ipython3
@@ -69,7 +69,7 @@ an energy gap.
 
 ### 2. Define the perturbative series
 
-Most _Pymablock_ users will need only one function: {autolink}`~pymablock.block_diagonalize`.
+Most {{Pymablock}} users will need only one function: {autolink}`~pymablock.block_diagonalize`.
 It converts all types of input into a solution of the perturbation theory problem:
 infinite series of $\tilde{H}$ and $U$.
 
@@ -98,7 +98,7 @@ H_tilde[0, 0, 2]
 where `(0, 0)` is the $AA$ block, and `2` refers to the second order
 correction.
 
-_Pymablock_ uses `numpy`'s convention on
+{{Pymablock}} uses `numpy`'s convention on
 [indexing](https://numpy.org/devdocs/user/basics.indexing.html).
 Therefore, all the corrections to the occupied subspace to 2th order can be
 computed like
@@ -135,7 +135,7 @@ Let us now consider a more complex example, where:
 - The unperturbed Hamiltonian is not diagonal
 - We have a multivariate perturbation
 
-Because diagonalization is both standard, and not our focus, `_Pymablock_` won't do it for us.
+Because diagonalization is both standard, and not our focus, {{Pymablock}} won't do it for us.
 However, it will properly treat a non-diagonal unperturbed Hamiltonian if we provide its eigenvectors.
 
 ### 1. Define a Hamiltonian

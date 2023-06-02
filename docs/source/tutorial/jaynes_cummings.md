@@ -14,7 +14,7 @@ kernelspec:
 # Jaynes-Cummings model
 
 In this tutorial we demonstrate how to get a CQED effective Hamiltonian using
-_Pymablock_ with bosonic operators.
+{{Pymablock}} with bosonic operators.
 As an example, we use the Jaynes-Cummings model, which describes a two-level
 bosonic system coupled by ladder operators.
 
@@ -60,7 +60,7 @@ where the basis is the one of the occupied and unoccupied subspaces.
 
 ## Custom Sylvester's equation solver
 
-To use _Pymablock_, we need a custom solver for Sylvester's equation that can
+To use {{Pymablock}}, we need a custom solver for Sylvester's equation that can
 compute the energies of the subspaces using bosonic operators.
 We need to define a `solve_sylvester` function that takes $Y_{n+1}$ and returns
 $V_{n+1}$,
