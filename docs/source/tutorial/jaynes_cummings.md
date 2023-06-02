@@ -53,7 +53,7 @@ The Hamiltonian reads
 H_0 = [[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]]
 H_p = [[0,  g * Dagger(a)], [g * a, 0]]
 
-Matrix(H_0) + Matrix(H_p)
+Eq(Symbol('H'), Matrix(H_0) + Matrix(H_p), evaluate=False)
 ```
 
 where the basis is the one of the occupied and unoccupied subspaces.
