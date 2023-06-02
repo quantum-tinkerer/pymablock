@@ -31,7 +31,7 @@ from sympy.physics.quantum.boson import BosonOp, BosonFockKet
 from sympy.physics.quantum import qapply, Dagger
 ```
 
-## Define the Hamiltonian
+## Define a second quantization Hamiltonian
 
 We define the onsite energy $\omega_r$, the energy gap $\omega_q$,
 the perturbative parameter $g$, and $a$, the bosonic annihilation

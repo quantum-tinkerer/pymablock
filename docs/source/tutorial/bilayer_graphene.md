@@ -50,6 +50,8 @@ import sympy
 sympy.init_printing(use_latex="mathjax")
 ```
 
+## Define a symbolic Hamiltonian
+
 Now we are ready to define all the parameters and the hamiltonian $H$
 
 ```{code-cell} ipython3
@@ -81,6 +83,8 @@ alpha_k = (1 + exp(I * k.dot(a_1)) + exp(I * k.dot(a_2))).expand(complex=True, t
 Eq(alpha, alpha_k, evaluate=False)
 ```
 
+## Define the perturbative series
+
 Now we obtain the eigenvectors of the unperturbed Hamiltonian by using
 {autolink}`~sympy.core.basic.Basic.subs` and
 {autolink}`~sympy.matrices.matrices.MatrixEigen.diagonalize`.
@@ -106,6 +110,8 @@ H_tilde = block_diagonalize(
     subspace_eigenvectors=[vecs[:, :2], vecs[:, 2:]]
 )[0]
 ```
+
+## Find the effective Hamiltonian
 
 Now we are ready to specify which calculation to perform.
 

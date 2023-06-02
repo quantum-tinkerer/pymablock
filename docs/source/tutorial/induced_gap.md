@@ -34,6 +34,8 @@ color_cycle= ["#5790fc", "#f89c20", "#e42536"]
 from pymablock import block_diagonalize
 ```
 
+## Define a lattice with Kwant
+
 Following [Kwant's tutorials](https://kwant-project.org/doc/1/tutorial/) we
 start by defining the lattice
 
@@ -100,6 +102,8 @@ We can instead get the unperturbed Hamiltonian and use of the
 {autolink}`~pymablock.implicit` mode of {{Pymablock}} in order to block
 diagonalize the full Hamiltonian for an interesting subspace.
 
+## Get a sparse Hamiltonian
+
 The unperturbed Hamiltonian is that where $\mu_n = \mu_{sc} = \Delta = t = 0$
 and $t_{\text{barrier}} = 1$.
 
@@ -117,6 +121,8 @@ without extra effort
 ```{code-cell} ipython3
 h_0.size  # number of non-zero entries
 ```
+
+## Define the perturbative series
 
 Therefore, we will use {{Pymablock}} and consider the low energy degrees of freedom.
 For this, we need the orthonormal eigenvectors of the relevant subspace,
@@ -139,7 +145,20 @@ The barrier and applied dot asymmetry are treated perturbatively.
 H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
 ```
 
-For convenience, we collect the first three orders on each parameter in an appropriately sized tensor.
+```{hint}
+Here we only provide the set of vectors of the interesting subspace.
+This enables the {autolink}`~pymablock.implicit` method that uses efficient
+sparse solvers for Sylvester's equation.
+```
+
+The time consumption of calling {autolink}`~pymablock.block_diagonalize` is
+only a constant overhead due to the internal separation of the Hamiltonian
+blocks and construction of `solve_sylvester`.
+
+## Get results
+
+For convenience, we collect the first three orders on each parameter in an
+appropriately sized tensor.
 
 ```{code-cell} ipython3
 %%time
