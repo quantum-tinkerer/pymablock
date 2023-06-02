@@ -26,8 +26,8 @@ CHANGELOG.md
 
 ## What is _Pymablock_?
 
-_Pymablock_ (PYthon MAtrix BLOCK-diagonalization) is a Python package that constructs effective models using
-quasi-degenerate perturbation theory.
+_Pymablock_ (Python matrix blocks) is a Python package that constructs
+effective models using quasi-degenerate perturbation theory.
 It handles both numerical and symbolic inputs, and it efficiently
 block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
 order.
@@ -130,16 +130,16 @@ Y_{n} =
 - V_{n-i-1}^{AB}(H_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB} H_p^{BB}W_i^{BB}\right].
 \end{gather}
 
-_Pymablock_ has two algorithms, `general` and `expanded`.
-While the `general` algorithm implements the procedure outlined here directly,
-`expanded` initializes a fully symbolic Hamiltonian and derives general
+_Pymablock_ has two algorithms, {autolink}`~pymablock.general` and {autolink}`~pymablock.expanded`.
+While the {autolink}`~pymablock.general` algorithm implements the procedure outlined here directly,
+{autolink}`~pymablock.expanded` initializes a fully symbolic Hamiltonian and derives general
 expressions for $\tilde{H}$.
 Additionaly, it simplifies $\tilde{H}_{n}$ and the unitary transformation
 such that they only depend on $V$ and the perturbation $H_p$, but not on $H_0$.
 This requires using Sylvester's equation for every order.
 
 As an example, the corrections to the effective Hamiltonian up to fourth
-order using `expanded` are
+order using {autolink}`~pymablock.expanded` are
 
 ```{code-cell} ipython3
 :tags: [remove-input]
@@ -177,10 +177,10 @@ for order in range(max_order):
     display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
 ```
 
-Finally, `expanded` replaces the problem-specific $H$ into the simplified
+Finally, {autolink}`~pymablock.expanded` replaces the problem-specific $H$ into the simplified
 $\tilde{H}$, without computing products within the auxiliary $B$ subspace.
-This makes `expanded` efficient for lower order numerical computations and
-symbolic ones, while `general` is suitable for higher orders.
+This makes {autolink}`~pymablock.expanded` efficient for lower order numerical computations and
+symbolic ones, while {autolink}`~pymablock.general` is suitable for higher orders.
 
 
 ##  How to use _Pymablock_ on large numerical Hamiltonians?
@@ -189,7 +189,8 @@ Solving Sylvester's equation and computing the matrix products are the most
 expensive steps of the algorithms for large Hamiltonians.
 _Pymablock_ can efficiently construct an effective Hamiltonian of a small subspace
 even when the full Hamiltonian is a sparse matrix that is too costly to
-diagonalize. This functionality is provided by the `implicit` function.
+diagonalize. This functionality is provided by the
+{autolink}`~pymablock.block_diagonalization.implicit` function.
 It exploits the low rank structure of $U$, and
 by using the sparse solver [MUMPS](https://mumps-solver.org/index.php) to
 compute the Green's function.
