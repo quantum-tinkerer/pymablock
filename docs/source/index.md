@@ -114,21 +114,20 @@ Hamiltonian at order $n$ is
 \end{align}
 
 To block diagonalize $H_0 + H_p$, {{Pymablock}} finds the orders of $W$
-and $V$ as a solution to
+such that $U$ is unitary
 
-\begin{gather}
-W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i), \quad &\text{unitarity} \\
-H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}, \quad &\text{Sylvester's equation}
-\end{gather}
+\begin{equation}
+W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i),
+\end{equation}
 
-where
+and the orders of $V$ by ensuring that the $\tilde{H}^{AB}=0$ to any order
 
-\begin{gather}
-Y_{n} =
-\sum_{i=1}^{n-1} \left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB} H_0^{BB}W_i^{BB}\right] \\
-+ \sum_{i=0}^{n-1} \left[W_{n-i-1}^{AA}H_p^{AA}V_i^{AB}+W_{n-i-1}^{AA}H_p^{AB}W_i^{BB}
-- V_{n-i-1}^{AB}(H_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB} H_p^{BB}W_i^{BB}\right].
-\end{gather}
+\begin{equation}
+H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}.
+\end{equation}
+
+This is known as [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation)
+and $Y_{n}$ is recursive on $n$.
 
 {{Pymablock}} has two algorithms, {autolink}`~pymablock.general` and {autolink}`~pymablock.expanded`.
 While the {autolink}`~pymablock.general` algorithm implements the procedure outlined here directly,
