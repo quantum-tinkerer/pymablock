@@ -19,7 +19,6 @@ kernelspec:
 tutorial/tutorial.md
 documentation/pymablock.rst
 derivation.md
-CITING.md
 CHANGELOG.md
 ```
 
