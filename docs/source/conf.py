@@ -42,6 +42,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
     "myst_nb",
 ]
 myst_enable_extensions = [
@@ -50,6 +51,14 @@ myst_enable_extensions = [
 ]
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "kwant": ("https://kwant-project.org/doc/1", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
+    "sympy": ("https://docs.sympy.org/latest/", None),
+}
 
 default_role = "autolink"
 

@@ -35,7 +35,7 @@ order.
 
 Building an effective model using _Pymablock_ is a three step process:
 * Define a Hamiltonian
-* Call `block_diagonalize`
+* Call {autolink}`~pymablock.block_diagonalize`
 * Request the desired order of the effective Hamiltonian
 
 ```python

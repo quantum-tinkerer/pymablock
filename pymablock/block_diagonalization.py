@@ -85,22 +85,24 @@ def block_diagonalize(
         - A list,
             is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where ``h_0``
             is the unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first
-            order perturbations. The elements ``h_i`` may be `~sympy.Matrix`,
-            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
-            the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian blocks.
+            order perturbations. The elements ``h_i`` may be
+            `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
+            `~scipy.sparse.spmatrix`, that require separating the unperturbed
+            Hamiltonian into effective and auxiliary subspaces. Otherwise,
+            ``h_i`` may be a list of lists with the Hamiltonian blocks.
         - A dictionary,
             is assumed to be of the form
-            ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or
-            ``{1: h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians.
-            In the former case, the keys must be tuples of integers indicating
-            the order of each perturbation. In the latter case, the keys must
-            be monomials and the indices are ordered as in `H.dimension_names`.
-            The values of the dictionary, ``h_i`` may be `~sympy.Matrix`,
+            ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or ``{1: h_0, x: h_1,
+            y: h_2}`` for symbolic Hamiltonians. In the former case, the keys
+            must be tuples of integers indicating the order of each
+            perturbation. In the latter case, the keys must be monomials and the
+            indices are ordered as in `H.dimension_names`. The values of the
+            dictionary, ``h_i`` may be `sympy.matrices.dense.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian blocks.
-        - A `sympy.Matrix`,
+            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
+            blocks.
+        - A `sympy.matrices.dense.Matrix`
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
             `~pymablock.series.BlockSeries` is done by Taylor expanding on
@@ -274,13 +276,13 @@ def hamiltonian_to_BlockSeries(
         Supported formats:
 
         - A list,
-            is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where h_0
-            is the unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first
-            order perturbations. The elements ``h_i`` may be `~sympy.Matrix`,
-            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
-            the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
-            blocks.
+            is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where h_0 is
+            the unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first
+            order perturbations. The elements ``h_i`` may be
+            `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
+            `~scipy.sparse.spmatrix`, that require separating the unperturbed
+            Hamiltonian into effective and auxiliary subspaces. Otherwise,
+            ``h_i`` may be a list of lists with the Hamiltonian blocks.
         - A dictionary,
             is assumed to be of the form
             ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or
@@ -288,11 +290,11 @@ def hamiltonian_to_BlockSeries(
             In the former case, the keys must be tuples of integers indicating
             the order of each perturbation. In the latter case, the keys must
             be monomials and the indices are ordered as in ``H.dimension_names``.
-            The values of the dictionary, h_i may be `~sympy.Matrix`,
+            The values of the dictionary, h_i may be `~sympy.matrices.dense.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
-        - A `sympy.Matrix`,
+        - A `sympy.BaseMatrix`,
             all symbols will be treated as perturbative, unless a list of
             ``symbols`` is provided as perturbative parameters. The
             normalization to `~pymablock.series.BlockSeries` is done by
