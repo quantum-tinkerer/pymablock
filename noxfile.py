@@ -9,6 +9,7 @@ import nox
         ("3.10", "1.24", "1.10", "1.10"),
         ("3.11", "1.24", "1.10", "1.12"),
     ],
+    ids=["minimal", "mid", "latest"],
 )
 def tests(session, numpy, scipy, sympy):
     session.run(
@@ -20,12 +21,13 @@ def tests(session, numpy, scipy, sympy):
         f"sympy=={sympy}",
         "packaging==22.0",
         "kwant",
+        "pytest-cov",
+        "pytest-randomly",
+        "ruff",
+        "-c",
+        "conda-forge",
     )
-    session.run("pip", "install", "-e", ".")
-    session.run(
-        "pip", "install", "pytest", "pytest-cov", "pytest-randomly", "pytest-ruff"
-    )
-
+    session.run("pip", "install", "pytest-ruff")
     session.run("pytest", "--ruff")
 
 
@@ -39,10 +41,11 @@ def tests_without_kwant(session):
         "scipy==1.10.0",
         "sympy==1.12.0",
         "packaging==22.0",
+        "pytest-cov",
+        "pytest-randomly",
+        "ruff",
+        "-c",
+        "conda-forge",
     )
-    session.run("pip", "install", "-e", ".")
-    session.run(
-        "pip", "install", "pytest", "pytest-cov", "pytest-randomly", "pytest-ruff"
-    )
-
+    session.run("pip", "install", "pytest-ruff")
     session.run("pytest", "--ruff")
