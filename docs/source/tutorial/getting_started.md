@@ -90,7 +90,7 @@ This defines the algorithm to use, and how to project the unperturbed
 Hamiltonian into subspaces, but it does not cost computational resources yet.
 The transformed Hamiltonian has not been computed at this point.
 
-`block_diagonalize` takes Hamiltonians in various forms, see its
+{autolink}`~pymablock.block_diagonalize` takes Hamiltonians in various forms, see its
 [documentation](../documentation/pymablock) for more information.
 
 ### 3. Get the perturbative results
@@ -116,7 +116,7 @@ computed like
 H_tilde[0, 0, :3]
 ```
 
-The output is a `numpy.MaskedArray` where `zero` values are masked.
+The output is a {autolink}`~numpy.ma.MaskedArray` where `zero` values are masked.
 
 The final block-diagonalized Hamiltonian up to second order looks like
 
@@ -142,9 +142,10 @@ ax_2.set_yticks([]);
 
 In general, $H_0$ is not in its eigenbasis, and if this is the case, we have
 several options.
-One option is to provide a customized `solve_sylvester` function to `block_diagonalize`.
+One option is to provide a customized `solve_sylvester` function to
+{autolink}`~pymablock.block_diagonalize`.
 A better option is to bring $H_0$ and $H_1$ to the eigenbasis of
-$H_0$ by providing the eigenvectors to `block_diagonalize` directly.
+$H_0$ by providing the eigenvectors to {autolink}`~pymablock.block_diagonalize` directly.
 
 ### 1. Define a Hamiltonian
 Let's initialize a random Hamiltonian and two perturbations
@@ -218,9 +219,9 @@ the Hamiltonian from the eigenbasis of the projected diagonal `H_0`.
 ### 3. Get the perturbative results
 
 While the number of subspaces in the Hamiltonian is finite, the order of a
-perturbative correction is infinite. `H_tilde` is a `BlockSeries` object,
-and we can access the number of its subspaces by
-calling
+perturbative correction is infinite. `H_tilde` is a
+{autolink}`~pymablock.series.BlockSeries` object, and we can access the number of its
+subspaces by calling
 
 ```{code-cell} ipython3
 H_tilde.shape

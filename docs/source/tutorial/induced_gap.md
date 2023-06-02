@@ -96,9 +96,9 @@ params = dict(
 
 However, the Hamiltonian for these values is **too large**, we need more than
 60 GiB of memory to alllocate it.
-We can instead get the unperturbed Hamiltonian and use of the `implicit` mode of
-_Pymablock_ in order to block diagonalize the full Hamiltonian for an
-interesting subspace.
+We can instead get the unperturbed Hamiltonian and use of the
+{autolink}`~pymablock.implicit` mode of _Pymablock_ in order to block
+diagonalize the full Hamiltonian for an interesting subspace.
 
 The unperturbed Hamiltonian is that where $\mu_n = \mu_{sc} = \Delta = t = 0$
 and $t_{\text{barrier}} = 1$.

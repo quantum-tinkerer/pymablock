@@ -30,7 +30,8 @@ The physics of this system is not crucial for us, but here are the main features
 - The layers have a potential $\pm m$ that we introduce to make the problem a bit more complex.
 
 If you want to get a more systematic introduction to the bilayer
-graphene and its k.p model, you can check out [this review](https://iopscience.iop.org/article/10.1088/0034-4885/76/5/056503).
+graphene and its k.p model, you can check out
+[this review](https://iopscience.iop.org/article/10.1088/0034-4885/76/5/056503).
 
 Let's start from defining the Hamiltonian. We will use [`sympy`](https://www.sympy.org/)
 for symbolic computation and manipulation which can make the code somewhat
@@ -64,7 +65,7 @@ H = Matrix(
 Eq(symbols("H"), H, evaluate=False)
 ```
 
-The Hamiltonian elements are `sympy` [symbols](https://docs.sympy.org/latest/tutorials/intro-tutorial/gotchas.html#symbols).
+The Hamiltonian elements are {autolink}`~sympy.core.symbol.symbols`.
 We collected all momentum-dependent factors into the symbol $\alpha$.
 
 We also make $\mathbf{K}=(4\pi/3, 0)$ the reference point for the
@@ -80,11 +81,9 @@ alpha_k = (1 + exp(I * k.dot(a_1)) + exp(I * k.dot(a_2))).expand(complex=True, t
 Eq(alpha, alpha_k, evaluate=False)
 ```
 
-Now we obtain the eigenvectors of the unperturbed Hamiltonian by
-[substituting](https://docs.sympy.org/latest/tutorials/intro-tutorial/basic_operations.html#substitution)
-$\alpha$ and $m$ and
-[diagonalizing](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html#eigenvalues-eigenvectors-and-diagonalization) the result using
-`.diagonalize()` from `sympy`.
+Now we obtain the eigenvectors of the unperturbed Hamiltonian by using
+{autolink}`~sympy.core.basic.Basic.subs` and
+{autolink}`~sympy.matrices.matrices.MatrixEigen.diagonalize`.
 
 ```{code-cell} ipython3
 vecs = H.subs({alpha: 0, m: 0}).diagonalize(normalize=True)[0]
@@ -128,9 +127,8 @@ Before we saw that querying `H_tilde` returns the results in a masked
 numpy array.
 Now, to gather different terms, we define a convenience function for summing
 several orders together.
-This uses the
-[`.compressed()`](https://numpy.org/doc/stable/reference/generated/numpy.ma.MaskedArray.compressed.html)
-method of masked numpy arrays, and simplifies the resulting expression.
+This uses the {autolink}`~numpy.ma.MaskedArray.compressed` method of masked
+numpy arrays, and simplifies the resulting expression.
 
 ```{code-cell} ipython3
 def H_tilde_AA(*orders):
