@@ -13,7 +13,7 @@ kernelspec:
 
 # Getting started
 
-## pymablock basics
+## Pymablock basics
 
 Getting started with {{Pymablock}} is simple, let's start by importing it
 together with `numpy`.
