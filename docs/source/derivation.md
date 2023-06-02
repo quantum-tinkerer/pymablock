@@ -1,25 +1,12 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
-
-+++ {"user_expressions": []}
-
 # Polynomial form of the block diagonalizing transformation
 
 (sec:derivation)=
 ## Unitarity condition
-We use $U=W+V$ where $W^\dagger=W$ and $V^\dagger=-V$. Also, we let
-$W_n,V_n\propto \lambda^n$. Unitarity requires
-$(W+V)^\dagger (W+V)=1$. Expanding in orders this reads
+One constraint imposed on the transformation $U$ is its unitarity
+which we made use of. Consider $U=W+V$, where $W^\dagger=W$
+and $V^\dagger=-V$. Also, we let $W_n,V_n\propto \lambda^n$.
+Unitarity then requires $(W+V)^\dagger (W+V)=1$. Expanding in
+orders this reads
 
 ```{math}
 :label: unitarity
@@ -29,12 +16,16 @@ $(W+V)^\dagger (W+V)=1$. Expanding in orders this reads
 (W_{n-i} + V_{n-i})(W_i - V_i)\right] &= 0.\\
 \end{align}
 ```
-We observe that $W_0=1$, $V=0$. Using this observation and solving eq. 
-{eq}`unitarity` for $W_n$ results in the constraint stated in THE INDEX. 
+We observe that $W_0=1$, $V=0$. Using this observation and solving Eq.
+{eq}`unitarity` for $W_n$ results in the constraint stated in THE INDEX.
 The result is convenient since $W_n$ only consists of terms of lower order
 than itself.
 
-The condition for $V_n$ follows from EFFECTIVEH and
+
+## Sylvester's equation
+The second condition constraining $U$ comes from the block diagonalization
+itself, namely that the off diagonal block are meant to vanish.
+This leads to constraints on $V_n$ that follow from EFFECTIVEH and writing
 
 ```{math}
 :label: W_V_block
@@ -51,7 +42,7 @@ W_n^{AA} & 0 \\
 \end{align}
 ```
 
-where the structure of $W_n$ is a consequence of eq. UNITARITY and the structure
+where the structure of $W_n$ is a consequence of Eq. UNITARITY and the structure
 of the $V_n$.
 Performing the block matrix multiplication for $\tilde{H}^{AB}_n$ and requiring 
 $\tilde{H}^{AB}_n=0$ leads to Sylvester's equation for $V_n$ reading
@@ -70,9 +61,7 @@ H_p^{BB}W_i^{BB}\bigg]\\
 \end{align}
 ```
 
-where the terms on the right-hand side of the equation are combined to $Y_n$ in eq. SYLVESTERS EQUATION
-
-+++ {"jp-MarkdownHeadingCollapsed": true, "tags": [], "user_expressions": []}
+where the terms on the right-hand side of the equation are combined to $Y_n$ in Eq. SYLVESTERS EQUATION
 
 ## The polynomial and Schrieffer-Wolff representation
 
@@ -89,7 +78,7 @@ overall phase in block matrix space.
 ### Proof:
 
 Assume $\mathcal{S}$ solves {eq}`unitarity` and
-eq. {eq}`v_condition` for some $H$. We rewrite
+Eq. {eq}`v_condition` for some $H$. We rewrite
 
 ```{math}
 :label: exp_s_expansion
@@ -105,7 +94,7 @@ series at some finite $n$.
 
 To establish coincidence of the two formulations it suffices to show that said
 truncated series only containes terms that are either block diagonal and
-hermitian or block offdiagonal and anti hermitian as presented in eq. 
+hermitian or block offdiagonal and anti hermitian as presented in Eq.
 {eq}`W_V_block`. Through the multinomial theorem, each generated term of the
 truncated expansion at a given order consists out of itself and its order 
 reversed partner.
@@ -123,7 +112,7 @@ for all $n\in\mathbb{N}$. The indexation refers to all
 vectors $\vec{k}\in\{\mathbb{N}^N:\sum_ik_i=N\}$ that are permissible by the
 multinomial theorem. 
 
-To see that eq. {eq}`s_relation` is true observe that the
+To see that Eq. {eq}`s_relation` is true observe that the
 adjoint operation, on one hand, maps $k_i\rightarrow k_{N-i}$ reversing the
 order of the terms, and, on the other hand, leads to a minus
 for each factor in the product due to the anti Hermiticity. Since each term
@@ -150,8 +139,6 @@ form
 Since this class of gauges is constraint to be block diagonal (basis reordering
 does not lead to coupling of the $A$ and $B$ spaces) and therefore proportional
 to identity in block matrix space the statement of the proof remains valid.
-
-+++ {"tags": [], "jp-MarkdownHeadingCollapsed": true, "user_expressions": []}
 
 (sec:kpm)=
 ## Extanding the method to non diagonal Hamiltonians
@@ -191,8 +178,6 @@ still yields a valid effective Hamiltonian in the $AA$ subspace.
 Furthermore, since $H$ is typically sparse and $\mathcal{P}_A$
 is small compared to the full problem, the solution
 to this problem can be implemented very efficiently.
-
-+++ {"user_expressions": []}
 
 ## References
 (bravyi_divincenzo_loss)=
