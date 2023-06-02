@@ -26,7 +26,7 @@ CHANGELOG.md
 
 ## What is _Pymablock_?
 
-_Pymablock_ (Python matrix blocks) is a Python package that constructs
+_Pymablock_ (Python matrix block-diagonalization) is a Python package that constructs
 effective models using quasi-degenerate perturbation theory.
 It handles both numerical and symbolic inputs, and it efficiently
 block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
@@ -190,7 +190,7 @@ expensive steps of the algorithms for large Hamiltonians.
 _Pymablock_ can efficiently construct an effective Hamiltonian of a small subspace
 even when the full Hamiltonian is a sparse matrix that is too costly to
 diagonalize. This functionality is provided by the
-{autolink}`~pymablock.block_diagonalization.implicit` function.
+{autolink}`~pymablock.implicit` function.
 It exploits the low rank structure of $U$, and
 by using the sparse solver [MUMPS](https://mumps-solver.org/index.php) to
 compute the Green's function.
