@@ -62,7 +62,7 @@ def block_diagonalize(
     Next, the perturbation theory is performed and the Hamiltonian is
     block-diagonalized.
 
-    The block diagonalization is performed using the "expanded" or "general"
+    The block diagonalization is performed using the `expanded` or `general`
     algorithm. The former is better suited for lower order numerical
     calculations and symbolic ones. The latter is better suited for higher
     order or numerical calculations.
@@ -557,7 +557,7 @@ def symbolic(
         ``U * H * U^H = H_tilde``.
     U_adjoint : `~pymablock.series.BlockSeries`
         Symbolic adjoint of ``U``. Its diagonal blocks are Hermitian and its
-        off-diagonal blocks (V) are anti-Hermitian.
+        off-diagonal blocks (``V``) are anti-Hermitian.
     Y_data : `dict`
         dictionary of ``{V: rhs}`` such that ``h_0_AA * V - V * h_0_BB = rhs``.
         It is updated whenever new terms of ``H_tilde`` or ``U`` are evaluated.
@@ -700,7 +700,7 @@ def implicit(
     """
     Block diagonalize a Hamiltonian without explicitly forming BB matrices.
 
-    This function uses either the "general" or "expanded" algorithm to block
+    This function uses either the `general` or `expanded` algorithm to block
     diagonalize, but does not compute products within the B (auxiliary)
     subspace. Instead these matrices are wrapped in
     `~scipy.sparse.linalg.LinearOperator` and combined to keep them low rank.
@@ -723,7 +723,7 @@ def implicit(
     H_tilde : `~pymablock.series.BlockSeries`
         Full block-diagonalized Hamiltonian of the problem. The ``(0, 0)`` block
         (A subspace) is a numpy array, while the ``(1, 1)`` block (B subspace)
-        is a ``scipy.sparse.LinearOperator``.
+        is a `~scipy.sparse.linalg.LinearOperator`.
     U : `~pymablock.series.BlockSeries`
         Unitary that block diagonalizes the initial Hamiltonian.
     U_adjoint : `~pymablock.series.BlockSeries`
@@ -872,7 +872,7 @@ def solve_sylvester_KPM(
 
     Returns
     ----------
-    solve_sylvester: callable
+    solve_sylvester: Callable
         Function that applies divide by energies to the right hand side of
         Sylvester's equation.
     """
@@ -948,7 +948,7 @@ def solve_sylvester_direct(
 
     Returns
     -------
-    solve_sylvester : `Callable[[np.ndarray], np.ndarray]`
+    solve_sylvester : `Callable[[numpy.ndarray], numpy.ndarray]`
         Function that solves the corresponding Sylvester equation.
     """
     projector = ComplementProjector(eigenvectors)
