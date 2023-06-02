@@ -64,7 +64,7 @@ ax_1.set_yticks([]);
 
 ```{important}
 The unperturbed Hamiltonian **must** have at least two subspaces separated by
-an energy gap.
+an energy gap in order to treat the Hamiltonian perturbatively.
 ```
 
 ### 2. Define the perturbative series
@@ -98,9 +98,26 @@ H_tilde[0, 0, 2]
 where `(0, 0)` is the $AA$ block, and `2` refers to the second order
 correction.
 
-{{Pymablock}} uses `numpy`'s convention on
+We can also check that the off-diagonal blocks of the Hamiltonian are $0$ to
+any order.
+
+```{code-cell} ipython3
+H_tilde[0, 1, 2]
+```
+
+where `(0, 1)` is the $AB$ block, and `2` refers to the second order
+correction.
+
+Just like `H_tilde`, `U` and `U_adjoint` are
+{autolink}`~pymablock.series.BlockSeries` objects too.
+In most situations these are not necessary, but they are useful to transform
+any other observable to the basis of the `H_tilde`.
+
+
+To get more than one perturbative correction at the time, we can query `H_tilde`
+using `numpy`'s convention on
 [indexing](https://numpy.org/devdocs/user/basics.indexing.html).
-Therefore, all the corrections to the occupied subspace to 2th order can be
+For example, all the corrections to the occupied subspace to 2th order can be
 computed like
 
 ```{code-cell} ipython3
