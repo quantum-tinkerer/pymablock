@@ -48,6 +48,7 @@ extensions = [
 myst_enable_extensions = [
     "dollarmath",
     "amsmath",
+    "substitution",
 ]
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
@@ -69,6 +70,11 @@ templates_path = ["_templates"]
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
+
+
+myst_substitutions = {
+    "Pymablock": '**<span style="color:#8b4aa0ff;"> Pymablock </span>**',
+}
 
 
 # -- Options for HTML output -------------------------------------------------

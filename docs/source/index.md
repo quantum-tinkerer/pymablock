@@ -22,17 +22,17 @@ derivation.md
 CHANGELOG.md
 ```
 
-# _Pymablock_
+# {{Pymablock}}
 
-## What is _Pymablock_?
+## What is {{Pymablock}}?
 
-_Pymablock_ (Python matrix block-diagonalization) is a Python package that constructs
+{{Pymablock}} (Python matrix block-diagonalization) is a Python package that constructs
 effective models using quasi-degenerate perturbation theory.
 It handles both numerical and symbolic inputs, and it efficiently
 block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
 order.
 
-Building an effective model using _Pymablock_ is a three step process:
+Building an effective model using {{Pymablock}} is a three step process:
 * Define a Hamiltonian
 * Call {autolink}`~pymablock.block_diagonalize`
 * Request the desired order of the effective Hamiltonian
@@ -47,28 +47,28 @@ H_tilde, *_ = block_diagonalize([h_0, h_p], subspace_eigenvectors=[vecs_A, vecs_
 H_AA_4 = H_tilde[0, 0, 4]
 ```
 
-## Why _Pymablock_?
-Here is why you should use _Pymablock_:
+## Why {{Pymablock}}?
+Here is why you should use {{Pymablock}}:
 
 * Do not reinvent the wheel
 
-  _Pymablock_ provides a tested reference implementation
+  {{Pymablock}} provides a tested reference implementation
 
 * Apply to any problem
 
-  _Pymablock_ supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
+  {{Pymablock}} supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
   quantum operators
 
 * Speed up your code
 
-  Due to several optimizations, _Pymablock_ can reliable handle both higher orders
+  Due to several optimizations, {{Pymablock}} can reliable handle both higher orders
   and large Hamiltonians
 
-## How does _Pymablock_ work?
+## How does {{Pymablock}} work?
 
-_Pymablock_ considers a Hamiltonian as a series of $2\times 2$ block operators
+{{Pymablock}} considers a Hamiltonian as a series of $2\times 2$ block operators
 with the zeroth order block-diagonal.
-To carry out the block-diagonalization procedure, _Pymablock_ finds a minimal
+To carry out the block-diagonalization procedure, {{Pymablock}} finds a minimal
 unitary transformation $U$ that cancels the off-diagonal block of the
 Hamiltonian order by order.
 
@@ -89,8 +89,8 @@ block-diagonal Hamiltonian.
 \end{gather}
 
 Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation,
-_Pymablock_ solves Sylvester's equation and imposes unitarity at every order.
-However, differently from other approaches, _Pymablock_ uses efficient algorithms
+{{Pymablock}} solves Sylvester's equation and imposes unitarity at every order.
+However, differently from other approaches, {{Pymablock}} uses efficient algorithms
 by choosing an appropriate parametrization of the series of the unitary
 transformation.
 As a consequence, the computational cost of every order scales linearly with
@@ -98,7 +98,7 @@ the order, while the algorithms are still mathematically equivalent.
 
 ## The algorithms
 
-The algorithms of _Pymablock_ rely on decomposing $U$, the unitary transformation
+The algorithms of {{Pymablock}} rely on decomposing $U$, the unitary transformation
 that block diagonalizes the Hamiltonian, as a series of Hermitian
 block diagonal $W$ and skew-Hermitian and block off-diagonal $V$ terms.
 The transformed Hamiltonian is a
@@ -113,7 +113,7 @@ Hamiltonian at order $n$ is
 \sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_p (W_i + V_i).
 \end{align}
 
-To block diagonalize $H_0 + H_p$, _Pymablock_ finds the orders of $W$
+To block diagonalize $H_0 + H_p$, {{Pymablock}} finds the orders of $W$
 and $V$ as a solution to
 
 \begin{gather}
@@ -130,7 +130,7 @@ Y_{n} =
 - V_{n-i-1}^{AB}(H_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB} H_p^{BB}W_i^{BB}\right].
 \end{gather}
 
-_Pymablock_ has two algorithms, {autolink}`~pymablock.general` and {autolink}`~pymablock.expanded`.
+{{Pymablock}} has two algorithms, {autolink}`~pymablock.general` and {autolink}`~pymablock.expanded`.
 While the {autolink}`~pymablock.general` algorithm implements the procedure outlined here directly,
 {autolink}`~pymablock.expanded` initializes a fully symbolic Hamiltonian and derives general
 expressions for $\tilde{H}$.
@@ -183,11 +183,11 @@ This makes {autolink}`~pymablock.expanded` efficient for lower order numerical c
 symbolic ones, while {autolink}`~pymablock.general` is suitable for higher orders.
 
 
-##  How to use _Pymablock_ on large numerical Hamiltonians?
+##  How to use {{Pymablock}} on large numerical Hamiltonians?
 
 Solving Sylvester's equation and computing the matrix products are the most
 expensive steps of the algorithms for large Hamiltonians.
-_Pymablock_ can efficiently construct an effective Hamiltonian of a small subspace
+{{Pymablock}} can efficiently construct an effective Hamiltonian of a small subspace
 even when the full Hamiltonian is a sparse matrix that is too costly to
 diagonalize. This functionality is provided by the
 {autolink}`~pymablock.implicit` function.
@@ -195,10 +195,10 @@ It exploits the low rank structure of $U$, and
 by using the sparse solver [MUMPS](https://mumps-solver.org/index.php) to
 compute the Green's function.
 
-## What does _Pymablock_ not do?
+## What does {{Pymablock}} not do?
 
-* _Pymablock_ is not able to treat time-dependent perturbations yet
-* _Pymablock_ does not block diagonalize on more than two subspaces simultaneously
+* {{Pymablock}} is not able to treat time-dependent perturbations yet
+* {{Pymablock}} does not block diagonalize on more than two subspaces simultaneously
 
 ## Installation
 
@@ -223,7 +223,7 @@ installed [via conda](https://kwant-project.org/install#conda) in order to use
 
 ## Citing
 
-If you have used _Pymablock_ for work that has lead to a scientific publication,
+If you have used {{Pymablock}} for work that has lead to a scientific publication,
 please cite it as
 
 ```
@@ -233,6 +233,6 @@ TODO
 
 ## Contributing
 
-_Pymablock_ is an open source package, and we invite you to contribute!
+{{Pymablock}} is an open source package, and we invite you to contribute!
 You contribute by opening [issues](https://gitlab.kwant-project.org/qt/pymablock/-/issues),
 fixing them, and spreading the word about `pymablock`.
