@@ -16,28 +16,21 @@ kernelspec:
 ## pymablock basics
 
 Getting started with _Pymablock_ is simple, let's start by importing it
+together with `numpy`.
 
 ```{code-cell} ipython3
 import pymablock
-```
-
-Along with _Pymablock_, we'll also need `numpy` to handle numerical dense arrays,
-`scipy` to use numerical sparse arrays, and `sympy` for symbolic mathematics.
-
-```{code-cell} ipython3
 import numpy as np
-import scipy
-import sympy
 ```
 
 ## Minimal example
 
-The most minimal example to apply perturbation theory is a diagonal Hamiltonian
-with two subspaces $A$ and $B$, coupled by a perturbation.
+Let's apply perturbation theory to a diagonal Hamiltonian with two subspaces
+$A$ and $B$, coupled by a perturbation.
 
 ### 1. Define a Hamiltonian
 
-Let's start by defining a Hamiltonian and a random perturbation.
+We by defining a Hamiltonian and a random perturbation.
 
 ```{code-cell} ipython3
 # Diagonal unperturbed Hamiltonian
@@ -74,9 +67,11 @@ The unperturbed Hamiltonian **must** have at least two subspaces separated by
 an energy gap.
 ```
 
-### 2. Set up _Pymablock_
+### 2. Define the perturbative series
 
-To set up the _Pymablock_ algorithms, we define the block diagonalization routine.
+Most _Pymablock_ users will need only one function: {autolink}`~pymablock.block_diagonalize`.
+It converts all types of input into a solution of the perturbation theory problem:
+infinite series of $\tilde{H}$ and $U$.
 
 ```{code-cell} ipython3
 from pymablock import block_diagonalize
@@ -86,12 +81,8 @@ hamiltonian = [H_0, H_1]
 H_tilde, U, U_adjoint = block_diagonalize(hamiltonian, subspace_indices=[0, 0, 1, 1])
 ```
 
-This defines the algorithm to use, and how to project the unperturbed
-Hamiltonian into subspaces, but it does not cost computational resources yet.
-The transformed Hamiltonian has not been computed at this point.
-
-{autolink}`~pymablock.block_diagonalize` takes Hamiltonians in various forms, see its
-[documentation](../documentation/pymablock) for more information.
+This does do any computations yet, and only defines the answer as an object
+that we can query.
 
 ### 3. Get the perturbative results
 
@@ -190,7 +181,7 @@ ax_2.set_xticks([])
 ax_2.set_yticks([]);
 ```
 
-### 2. Set up _Pymablock_
+### 2. Define the perturbative series
 
 To set up the block diagonalization routine we compute the eigenvectors of $H_0$
 and split them into two groups that define the $A$ and $B$ subspaces.
