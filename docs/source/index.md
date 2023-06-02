@@ -27,7 +27,7 @@ CHANGELOG.md
 
 ## What is _Pymablock_?
 
-_Pymablock_ is a Python package that constructs effective models using
+_Pymablock_ (PYthon MAtrix BLOCK-diagonalization) is a Python package that constructs effective models using
 quasi-degenerate perturbation theory.
 It handles both numerical and symbolic inputs, and it efficiently
 block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
