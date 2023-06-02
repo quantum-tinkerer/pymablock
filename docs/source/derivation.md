@@ -143,11 +143,8 @@ to identity in block matrix space the statement of the proof remains valid.
 (sec:kpm)=
 ## Extanding the method to non diagonal Hamiltonians
 
-Consider $H_0|i\rangle=E_i|i\rangle$ where 
-$|i\rangle \in \mathcal{N}=\mathcal{N}_A\cup \mathcal{N}_B$ and
-$\mathcal{N}_A\subset \mathcal{N}$, i.e. we do not posses the 
-entire spectrum of $H_0$. Yet, we can still obtain an effective
-Hamiltonian from the states that are known.
+Let $\mathcal{N}_A$ be a (proper) subset of the spectrum of $H_0$ with eigenvectors
+$H_0|i\rangle=E_i|i\rangle$. Now consider the projector
 
 Let us define
 ```{math}
