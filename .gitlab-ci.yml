@@ -40,7 +40,7 @@ run nox:
 
 run docs:
   script:
-    - pip install sphinx sphinx-book-theme myst-nb
+    - pip install sphinx sphinx-book-theme myst-nb sphinx-togglebutton
     - pip install --editable .
     - make -C docs/ html
   artifacts:

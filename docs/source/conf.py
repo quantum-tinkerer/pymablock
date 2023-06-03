@@ -44,11 +44,13 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
     "myst_nb",
+    "sphinx_togglebutton",
 ]
 myst_enable_extensions = [
     "dollarmath",
     "amsmath",
     "substitution",
+    "colon_fence",
 ]
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
