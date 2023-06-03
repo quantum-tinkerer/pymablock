@@ -17,6 +17,8 @@ In this tutorial we demonstrate how to get a CQED effective Hamiltonian using
 {{Pymablock}} with bosonic operators.
 As an example, we use the Jaynes-Cummings model, which describes a two-level
 bosonic system coupled by ladder operators.
+This tutorial shows how to use {{Pymablock}} with arbitrary object types by
+defining a custom Sylvester's equation solver.
 
 Let's start by importing the `sympy` functions we need to define the Hamiltonian.
 We will make use of `sympy`'s
@@ -101,14 +103,15 @@ def solve_sylvester(Y):
 ```
 
 ```{important}
-Note that this Sylvester's solver is specific to the Jaynes-Cummings Hamiltonian.
-Adapting this tutorial to a different CQED Hamiltonian would require adapting
+This Sylvester's solver is specific to the Jaynes-Cummings Hamiltonian.
+Using a different CQED Hamiltonian would require adapting
 `solve_sylvester` accordingly.
 ```
 
 ## Get the Hamiltonian corrections
 
-We can now set the block-diagonalization routine by defining,
+We can now define the block-diagonalization routine by calling
+{autolink}`~pymablock.block_diagonalize`
 
 ```{code-cell} ipython3
 %%time
@@ -120,11 +123,8 @@ H_tilde, U, U_adjoint = block_diagonalize(
 )
 ```
 
-where `H_tilde` is the transformed Hamiltonian, `U` is the unitary
-transformation, and `U_adjoint` it the conjugate transpose of `U`.
-
-For example, to request the 2nd order correction to the occupied subspace of
-the Hamiltonian, you may execute:
+For example, to compute the 2nd order correction of the Hamiltonian of the
+$\uparrow$ subspace we use
 
 ```{code-cell} ipython3
 %%time
@@ -132,8 +132,7 @@ the Hamiltonian, you may execute:
 Eq(Symbol(r'\tilde{H}_{2}^{AA}'), H_tilde[0, 0, 2].expand().simplify(), evaluate=False)
 ```
 
-The result is computed in **less than a second!**
-We may also request 4th and 6th order corrections without waiting much longer.
+Higher order corrections work exactly the same:
 
 ```{code-cell} ipython3
 %%time
@@ -146,3 +145,5 @@ Eq(Symbol(r'\tilde{H}_{4}^{AA}'), H_tilde[0, 0, 4].expand().simplify(), evaluate
 
 Eq(Symbol(r'\tilde{H}_{6}^{AA}'), H_tilde[0, 0, 6].expand().simplify(), evaluate=False)
 ```
+
+We see that also computing the 6th order correction takes effectively no time.
