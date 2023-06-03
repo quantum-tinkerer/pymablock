@@ -40,7 +40,11 @@ run nox:
 
 run docs:
   script:
-    - pip install sphinx sphinx-book-theme myst-nb sphinx-togglebutton
+    - pip install sphinx myst-nb sphinx-togglebutton
+    # sphinx-book-theme is installed from a fork with a fix for the issue button
+    # TODO: remove this once https://github.com/executablebooks/sphinx-book-theme/pull/740
+    # is merged
+    - pip install git+https://github.com/akhmerov/sphinx-book-theme.git@gitlab-issue-button
     - pip install --editable .
     - make -C docs/ html
   artifacts:
