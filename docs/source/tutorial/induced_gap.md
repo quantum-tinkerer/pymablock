@@ -34,7 +34,7 @@ color_cycle= ["#5790fc", "#f89c20", "#e42536"]
 from pymablock import block_diagonalize
 ```
 
-## Define a lattice with Kwant
+## Building the Hamiltonian
 
 Following [Kwant's tutorials](https://kwant-project.org/doc/1/tutorial/) we
 start by defining the lattice
@@ -90,12 +90,19 @@ kwant.plot(
 )
 
 syst = syst.finalized()
+f"The system has {len(syst.sites)} sites."
 ```
 
-The blue regiosn are the left and right quantum dots, while the superconductor
-is the red region in the middle.
+In the plot the blue regions are the left and right quantum dots, while the
+superconductor is the red region in the middle.
 
-To get the Hamiltonian, we use the following values for $\mu_n$,
+We see that the system is large: with this many sites even storing all the
+eigenvectors would take 60 GB of memory. We must therefore use sparse matrices,
+and may only compute a few eigenvectors. In this case, perturbation theory
+allows us to compute the effective Hamiltonian of the low energy degrees of
+freedom.
+
+To get the unperturbed Hamiltonian, we use the following values for $\mu_n$,
 $\mu_{sc}$, $\Delta$, $t$, and $t_{\text{barrier}}$.
 
 ```{code-cell} ipython3
@@ -106,21 +113,14 @@ params = dict(
     t=1.,
     t_barrier=0.,
 )
+
+h_0 = syst.hamiltonian_submatrix(params=params, sparse=True).real
 ```
 
-However, the Hamiltonian for these values is **too large**, we need more than
-60 GiB of memory to alllocate it.
-We can instead get the unperturbed Hamiltonian and use of the
-{autolink}`~pymablock.implicit` mode of {{Pymablock}} in order to block
-diagonalize the full Hamiltonian for an interesting subspace.
-
-## Get a sparse Hamiltonian
-
-The unperturbed Hamiltonian is that where $\mu_n = \mu_{sc} = \Delta = t = 0$
-and $t_{\text{barrier}} = 1$.
+The barrier strength and the asymmetry of the dot potentials are the two perturbations
+that we vary.
 
 ```{code-cell} ipython3
-h_0 = syst.hamiltonian_submatrix(params={**params, "t_barrier": 0}, sparse=True).real
 barrier = syst.hamiltonian_submatrix(
     params={**{p: 0 for p in params.keys()}, "t_barrier": 1}, sparse=True
 ).real
@@ -129,29 +129,32 @@ delta_mu = (
 )
 ```
 
-We see that it is indeed large, more than what diagonalization can handle
-without extra effort
-
-```{code-cell} ipython3
-h_0.size  # number of non-zero entries
-```
-
 ## Define the perturbative series
 
-Therefore, we will use {{Pymablock}} and consider the low energy degrees of freedom.
-For this, we need the orthonormal eigenvectors of the relevant subspace,
-associated with the $4$ eigenvalues closest to $E=0$.
+In the implicit mode, {{Pymablock}} computes the perturbative series without
+knowing the eigenvectors of one of the Hamiltonian subspaces.
+
+Therefore we compute 4 eigenvectors of the unperturbed Hamiltonian, which
+correspond to the 4 lowest eigenvalues closest to $E=0$.
+These are the lowest energy Andreev states in two quantum dots.
 
 ```{code-cell} ipython3
 %%time
 
 vals, vecs = eigsh(h_0, k=4, sigma=0)
-vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize
+vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize the vectors
 ```
 
-We can now define the block diagonalization routine and compute the few lowest
-orders of the effective Hamiltonian.
-The barrier and applied dot asymmetry are treated perturbatively.
+:::{Note}
+The orthogonalization is often necessary to do manually because
+`~scipy.sparse.linalg.eigsh` does not return orthogonal eigenvectors if the
+matrix is complex and eigenvalues are degenerate.
+:::
+
+We now define the block diagonalization routine and compute the few lowest
+orders of the effective Hamiltonian. Here we only provide the set of vectors of
+the interesting subspace. This selects the {autolink}`~pymablock.implicit`
+method that uses efficient sparse solvers for Sylvester's equation.
 
 ```{code-cell} ipython3
 %%time
@@ -159,19 +162,12 @@ The barrier and applied dot asymmetry are treated perturbatively.
 H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
 ```
 
-```{hint}
-Here we only provide the set of vectors of the interesting subspace.
-This enables the {autolink}`~pymablock.implicit` method that uses efficient
-sparse solvers for Sylvester's equation.
-```
-
-The time consumption of calling {autolink}`~pymablock.block_diagonalize` is
-only a constant overhead due to the internal separation of the Hamiltonian
-blocks and construction of `solve_sylvester`.
-
+Block diagonalization is now the most time consuming step because it requires
+pre-computing several decomposition of the full Hamiltonian. It is, however,
+manageable and it only produces a constant overhead.
 ## Get results
 
-For convenience, we collect the first three orders on each parameter in an
+For convenience, we collect the lowest three orders in each parameter in an
 appropriately sized tensor.
 
 ```{code-cell} ipython3
@@ -184,12 +180,10 @@ h_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :3], fill_value).tolist())
 ```
 
 We see that we have obtained the effective model in only a few seconds.
-We can now compute the low energy spectrum by amplifiying the perturbative
+We can now compute the low energy spectrum after rescaling the perturbative
 corrections by the magnitude of each perturbation.
 
 ```{code-cell} ipython3
-%%time
-
 def effective_energies(h_tilde, barrier, delta_mu):
     barrier_powers = barrier ** np.arange(3).reshape(-1, 1, 1, 1)
     delta_mu_powers = delta_mu ** np.arange(3).reshape(1, -1, 1, 1)
@@ -198,10 +192,11 @@ def effective_energies(h_tilde, barrier, delta_mu):
     )
 ```
 
-We plot the spectrum
+Finally, we plot the spectrum
 
 ```{code-cell} ipython3
 :tags: [hide-input]
+%%time
 
 barrier_vals = np.array([0, 0.5, .75])
 delta_mu_vals = np.linspace(0, 10e-4, num=101)
@@ -221,9 +216,10 @@ plt.legend();
 ```
 
 As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the
-dots are coupled to the superconductor.
-In addition, we observe how the proximity gap of the dots increases with the
-coupling strength.
-Finally, we see that computing the spectrum perturbatively using `pymablock`
-is **faster** than repeatedly using sparse diagonalization for a set of
-parameters.
+dots are coupled to the superconductor. In addition, we observe how the
+proximity gap of the dots increases with the coupling strength.
+
+We also see that computing the spectrum perturbatively is faster than repeatedly
+using sparse diagonalization for a set of parameters. In this example the total
+runtime of {{Pymablock}} would only allow us to compute the eigenvectors at
+around 5 points in the parameter space.
