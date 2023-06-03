@@ -44,7 +44,7 @@ W_n^{AA} & 0 \\
 
 where the structure of $W_n$ is a consequence of Eq. UNITARITY and the structure
 of the $V_n$.
-Performing the block matrix multiplication for $\tilde{H}^{AB}_n$ and requiring 
+Performing the block matrix multiplication for $\tilde{H}^{AB}_n$ and requiring
 $\tilde{H}^{AB}_n=0$ leads to Sylvester's equation for $V_n$ reading
 
 ```{math}
@@ -96,7 +96,7 @@ To establish coincidence of the two formulations it suffices to show that said
 truncated series only containes terms that are either block diagonal and
 hermitian or block offdiagonal and anti hermitian as presented in Eq.
 {eq}`W_V_block`. Through the multinomial theorem, each generated term of the
-truncated expansion at a given order consists out of itself and its order 
+truncated expansion at a given order consists out of itself and its order
 reversed partner.
 Furthermore observe how
 
@@ -110,17 +110,17 @@ S_{k_{N-i}}\right)^\dagger,
 
 for all $n\in\mathbb{N}$. The indexation refers to all
 vectors $\vec{k}\in\{\mathbb{N}^N:\sum_ik_i=N\}$ that are permissible by the
-multinomial theorem. 
+multinomial theorem.
 
 To see that Eq. {eq}`s_relation` is true observe that the
 adjoint operation, on one hand, maps $k_i\rightarrow k_{N-i}$ reversing the
 order of the terms, and, on the other hand, leads to a minus
 for each factor in the product due to the anti Hermiticity. Since each term
 comes with its reversed partner and even number products of purely block
-offdiagonal matrices yield a purely block diagonal matrix, we conclude that 
+offdiagonal matrices yield a purely block diagonal matrix, we conclude that
 a truncation of the series {eq}`exp_s_expansion` only contains purely block
 diagonal unitaries or purely block offdiagonal anti hermitian matrices.
-Since at $\lambda=0$ both parametrizations must be proportional to the 
+Since at $\lambda=0$ both parametrizations must be proportional to the
 identity we can conclude coincidence of both forumulations up to a trivial
 global phase of the unitary $U$.
 
@@ -150,7 +150,7 @@ Let us define
 ```{math}
 :label: pojectors
 \begin{align}
-\mathcal{P}_B &= (1-\mathcal{P}_A) = 
+\mathcal{P}_B &= (1-\mathcal{P}_A) =
 \left(1 - \sum_{i\in\mathcal{N}_A}| i \rangle\langle i |\right)
 \end{align}
 ```
@@ -163,13 +163,13 @@ the ammended Hamiltonian
 \begin{pmatrix}
  H^{AA} & H_A \mathcal{P}_B \\
 \mathcal{P}_B H_A^\dagger   &
-\mathcal{P}_B H \mathcal{P}_B 
+\mathcal{P}_B H \mathcal{P}_B
 \end{pmatrix}
 \end{align}
 ```
 where $H^{AA}=\sum_{i\in\mathcal{N}_A}E_i|i \rangle\langle i|$
 and $H_A=\sum_{i\in\mathcal{N}_A} \langle i|H$ is projected
-into the $\mathcal{N}_A$ states from the left. Block 
+into the $\mathcal{N}_A$ states from the left. Block
 diagonalizing this ammended representation of the problem
 still yields a valid effective Hamiltonian in the $AA$ subspace.
 Furthermore, since $H$ is typically sparse and $\mathcal{P}_A$
@@ -181,11 +181,3 @@ to this problem can be implemented very efficiently.
 [1] S. Bravyi, D. DiVincenzo, and D. Loss; Schrieffer–Wolff transformation for
 quantum many-body systems,
 [Annals of Physics Vol. 326 10 (2011)](https://doi.org/10.1016/j.aop.2011.06.004)
-
-```{code-cell} ipython3
-
-```
-
-```{code-cell} ipython3
-
-```
