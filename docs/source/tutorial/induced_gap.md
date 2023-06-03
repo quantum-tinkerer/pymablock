@@ -69,20 +69,32 @@ syst[lat.neighbors()] = lambda site1, site2, t: -t * sigma_z
 def barrier(site1, site2):
     return (abs(site1.pos[0]) - L / 3) * (abs(site2.pos[0]) - L / 3) < 0
 
-syst[(hop for hop in syst.hoppings() if barrier(*hop))] = lambda site1, site2, t_barrier: -t_barrier * sigma_z
+syst[(hop for hop in syst.hoppings() if barrier(*hop))] = (
+    lambda site1, site2, t_barrier: -t_barrier * sigma_z
+)
 ```
+here we make the hoppings between the quantum dots and superconductor equal to
+`t_barrier`.
 
-We can now finalize the system and visualize it
+We can now plot the system and finalize it
 
 ```{code-cell} ipython3
-syst = syst.finalized()
 
-kwant.plot(syst, fig_size=(10, 6), site_color=(lambda site: abs(syst.sites[site].pos[0]) < L/3), colorbar=False)
-plt.show()
+kwant.plot(
+    syst,
+    fig_size=(10, 6),
+    site_color=(lambda site: abs(site.pos[0]) < L / 3),
+    colorbar=False,
+    cmap="seismic",
+    hop_lw=0,
+)
+
+syst = syst.finalized()
 ```
 
-The quantum dots are at the right and left, in the dark regions.
-The superconductor is at the center, in the light region.
+The blue regiosn are the left and right quantum dots, while the superconductor
+is the red region in the middle.
+
 To get the Hamiltonian, we use the following values for $\mu_n$,
 $\mu_{sc}$, $\Delta$, $t$, and $t_{\text{barrier}}$.
 
@@ -92,7 +104,7 @@ params = dict(
     mu_sc=0.3,
     Delta=0.05,
     t=1.,
-    t_barrier=0.1,
+    t_barrier=0.,
 )
 ```
 
@@ -112,7 +124,9 @@ h_0 = syst.hamiltonian_submatrix(params={**params, "t_barrier": 0}, sparse=True)
 barrier = syst.hamiltonian_submatrix(
     params={**{p: 0 for p in params.keys()}, "t_barrier": 1}, sparse=True
 ).real
-delta_mu = kwant.operator.Density(syst, (lambda site: sigma_z * site.pos[0] / L)).tocoo().real
+delta_mu = (
+    kwant.operator.Density(syst, (lambda site: sigma_z * site.pos[0] / L)).tocoo().real
+)
 ```
 
 We see that it is indeed large, more than what diagonalization can handle

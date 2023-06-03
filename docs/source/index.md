@@ -201,10 +201,10 @@ compute the Green's function.
 
 ## Installation
 
-To install `pymablock`, prefer using `conda`
+To install `pymablock`, prefer using `mamba`/`conda`:
 
 ```
-conda install pymablock
+mamba install pymablock -c conda-forge
 ```
 
 Alternatively, you use `pip`
