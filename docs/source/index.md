@@ -96,13 +96,14 @@ transformation.
 As a consequence, the computational cost of every order scales linearly with
 the order, while the algorithms are still mathematically equivalent.
 
-To see {{Pymablock}} in action, check out the [tutorial](tutorial/tutorial.md),
-or read the [documentation](documentation/pymablock.rst).
+To see {{Pymablock}} in action, check out the [tutorial](tutorial/tutorial.md).
+See its [algorithms](algorithms.md) to learn about the underlying ideas, or read
+the [reference documentation](documentation/pymablock.rst) for the package API.
 
-## What does {{Pymablock}} not do?
+## What does {{Pymablock}} not do yet?
 
 * {{Pymablock}} is not able to treat time-dependent perturbations yet
-* {{Pymablock}} does not block diagonalize on more than two subspaces simultaneously
+* {{Pymablock}} does not block diagonalize more than two subspaces simultaneously
 
 ## Installation
 
