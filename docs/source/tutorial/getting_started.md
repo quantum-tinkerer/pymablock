@@ -37,12 +37,12 @@ We by defining a Hamiltonian and a random perturbation.
 H_0 = np.diag([-1., -1., 1., 1.]) # shape (4, 4)
 
 # Random Hermitian matrix as a perturbation
-H_1 = np.random.random((4, 4)) + 1j * np.random.random((4, 4))
+H_1 = np.random.randn(4, 4) + 1j * np.random.randn(4, 4)
 H_1 += H_1.conj().T
 H_1 = 0.2 * H_1
 ```
 
-While $H_0$ has subspaces separated in energy, $H_1$ couples them.
+While $H_0$ has two subspaces separated in energy, $H_1$ couples them.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -84,10 +84,17 @@ H_tilde, U, U_adjoint = block_diagonalize(hamiltonian, subspace_indices=[0, 0, 1
 This does do any computations yet, and only defines the answer as an object
 that we can query.
 
+Here `H_tilde` is the block-diagonalized Hamiltonian, and `U` is the unitary
+transformation that computes it from the `hamiltonian`.
+
+Most of the users will only ever need the diagonal blocks of `H_tilde`, however
+{{Pymablock}} returns the extra information in case it is needed.
+
 ### 3. Get the perturbative results
 
-To get perturbative corrections to the Hamiltonian, we index the transformed
-Hamiltonian indicating the block and order of the correction.
+To get perturbative corrections to the diagonal blocks of the Hamiltonian, we
+index the transformed Hamiltonian indicating the block and order of the
+correction.
 
 For example, we obtain a second order correction to the occupied subspace as
 
@@ -110,21 +117,22 @@ correction.
 
 Just like `H_tilde`, `U` and `U_adjoint` are
 {autolink}`~pymablock.series.BlockSeries` objects too.
-In most situations these are not necessary, but they are useful to transform
+In most situations these are not necessary, but they can be useful to transform
 any other observable to the basis of the `H_tilde`.
 
 
 To get more than one perturbative correction at the time, we can query `H_tilde`
-using `numpy`'s convention on
-[indexing](https://numpy.org/devdocs/user/basics.indexing.html).
-For example, all the corrections to the occupied subspace to 2th order can be
-computed like
+using `numpy`'s [indexing](https://numpy.org/devdocs/user/basics.indexing.html)
+convention.
+For example, all the corrections to the occupied subspace up to second order can be
+computed using
 
 ```{code-cell} ipython3
 H_tilde[0, 0, :3]
 ```
 
-The output is a {autolink}`~numpy.ma.MaskedArray` where `zero` values are masked.
+The output is a {autolink}`~numpy.ma.MaskedArray` with the same block structure
+as if we queried a numpy array with the same indices.
 
 The final block-diagonalized Hamiltonian up to second order looks like
 
