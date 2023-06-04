@@ -1,3 +1,15 @@
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.14.4
+kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: python
+  name: python3
+---
 # The algorithms
 
 The algorithms of {{Pymablock}} rely on decomposing $U$, the unitary transformation
@@ -44,9 +56,10 @@ Using that $W_0=1$, $V=0$, expanding, and solving for $W_n$ gives the Eq. {eq}`u
 
 and the orders of $V$ by requiring that $\tilde{H}^{AB}_n=0$
 
-\begin{equation}
+```{math}
+:label: sylvester
 H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}.
-\end{equation}
+```
 
 This is known as [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation)
 and $Y_{n}$ is a combination of lower order terms in $H$ and $U$.
@@ -134,72 +147,53 @@ number of terms.
 
 :::{admonition} Proof of equivalence to Schrieffer-Wolff transformation
 :class: dropdown info
+Both the {{Pymablock}} algorithm and the more commonly used Schrieffer-Wolff
+transformation find a unitary transformation $U$ such that $\tilde{H}^{AB}=0$.
+They are therefore equivalent up to a gauge choice on each subspace.
+We establish the correspondence between the two by demonstrating that this gauge
+choice is the same for both algorithms.
 
-Schrieffer-Wolff transformation parameterizes $U = \exp{S}$, where
-$S$ is a series of anti-hermitian block off-diagonal operators.
+{{Pymablock}} chooses $U=W+V$, where $W$ is block diagonal Hermitian and
+$V$ is block off-diagonal anti-Hermitian.
+Then requiring that $U$ is unitary and $\tilde{H}^{AB}=0$ to all orders defines
+a unique value for $W$ and $V$.
 
-Assume $S$ solves {eq}`unitarity` and
-Eq. {eq}`v_condition` for some $H$. We rewrite
-
+The Schrieffer-Wolff transformation parameterizes $U = \exp S$, where $S =
+\sum_n S_n$ is a series of anti-Hermitian block off-diagonal operators:
 ```{math}
 :label: exp_s_expansion
 \begin{align}
-U=\exp{\left(S\right)}=\exp{\left(\sum_{i=0}^\infty
-S_n\right)}=1+\sum_{n=1}^\infty \left[\frac{1}{n!}
+U = \exp{\left(S\right)}=\exp{\left(\sum_{i=0}^\infty
+S_n\right)} = 1+\sum_{n=1}^\infty \left[\frac{1}{n!}
 \left(\sum_{j=1}^\infty S_n\right)^n\right]
 \end{align}
 ```
+Here we consider a single perturbation for brevity.
 
-where $S_n$ inherits the anti Hermiticity from $S$. We truncate the
-series at some finite $n$.
+Because both the above approach and Schrieffer-Wolff produce a unique answer, it
+is sufficient to show that they solve the same problem under the same
+conditions.
+Some conditions are straightforwardly the same:
+- Both algorithms guarantee that $\tilde{H}^{AB} = 0$ to all orders.
+- Both algorithms guarantee that $U$ is unitary to all orders:
+  {{Pymablock}} by construction, and Schrieffer-Wolff by the
+  definition of the exponential and anti-Hermiticity of $S$.
 
-To establish coincidence of the two formulations it suffices to show that said
-truncated series only containes terms that are either block diagonal and
-hermitian or block offdiagonal and anti hermitian as presented in Eq.
-{eq}`W_V_block`. Through the multinomial theorem, each generated term of the
-truncated expansion at a given order consists out of itself and its order
-reversed partner.
-Furthermore observe how
+We are left to show that the diagonal blocks of $\exp S$ are Hermitian, while
+off-diagonal blocks are anti-Hermitian because this is the only remaining
+property of the {{Pymablock}} algorithm.
+To do so, we expand all terms in Eq. {eq}`exp_s_expansion` using the multinomial theorem.
+The result contains all possible products of $S_n$ of all lengths with fractional prefactors.
+Furthermore, for every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a
+corresponding term $S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
+If the number of $S_{k_n}$ is even, then both terms are block-diagonal since
+each $S_n$ is block off-diagonal.
+Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
+other, and therefore their sum is Hermitian.
+On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
+block off-diagonal and their sum is anti-Hermitian by the same reasoning.
 
-```{math}
-:label: s_relation
-\begin{align}
-\prod_{\sum_i k_i=N}S_{k_i} = (-1)^N\left(\prod_{\sum_ik_i=N}
-S_{k_{N-i}}\right)^\dagger,
-\end{align}
-```
-
-for all $n\in\mathbb{N}$. The indexation refers to all
-vectors $\vec{k}\in\{\mathbb{N}^N:\sum_ik_i=N\}$ that are permissible by the
-multinomial theorem.
-
-To see that Eq. {eq}`s_relation` is true observe that the
-adjoint operation, on one hand, maps $k_i\rightarrow k_{N-i}$ reversing the
-order of the terms, and, on the other hand, leads to a minus
-for each factor in the product due to the anti Hermiticity. Since each term
-comes with its reversed partner and even number products of purely block
-offdiagonal matrices yield a purely block diagonal matrix, we conclude that
-a truncation of the series {eq}`exp_s_expansion` only contains purely block
-diagonal unitaries or purely block offdiagonal anti hermitian matrices.
-Since at $\lambda=0$ both parametrizations must be proportional to the
-identity we can conclude coincidence of both forumulations up to a trivial
-global phase of the unitary $U$.
-
-We want to point out that this proof establishes coincidence of the two
-parametrizations given the same basis ordering of the original Hamiltonian
-$\mathcal{H}$. Basis reordering pertains to gauges in block matrix space of the
-form
-
-\begin{align}
-\tilde{U}=\begin{pmatrix}
-\tilde{U}^{AA} & 0 \\
-0 & \tilde{U}^{BB}
-\end{pmatrix}
-\end{align}
-
-Since this class of gauges is constraint to be block diagonal (basis reordering
-does not lead to coupling of the $A$ and $B$ spaces) and therefore proportional
-to identity in block matrix space the statement of the proof remains valid.
+This concludes the proof.
 :::
 
 ##  How to use {{Pymablock}} on large numerical Hamiltonians?
