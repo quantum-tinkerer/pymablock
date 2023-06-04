@@ -1,67 +1,6 @@
-# Polynomial form of the block diagonalizing transformation
+# Extra math
 
-(sec:derivation)=
-## Unitarity condition
-One constraint imposed on the transformation $U$ is its unitarity
-which we made use of. Consider $U=W+V$, where $W^\dagger=W$
-and $V^\dagger=-V$. Also, we let $W_n,V_n\propto \lambda^n$.
-Unitarity then requires $(W+V)^\dagger (W+V)=1$. Expanding in
-orders this reads
-
-```{math}
-:label: unitarity
-\begin{align}
-\forall (n \geq 1):\quad \sum_{i=0}^n (W_{n-i} - V_{n-i})(W_i + V_i) &= 0\\
-\Rightarrow \sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i + V_i) +
-(W_{n-i} + V_{n-i})(W_i - V_i)\right] &= 0.\\
-\end{align}
-```
-We observe that $W_0=1$, $V=0$. Using this observation and solving Eq.
-{eq}`unitarity` for $W_n$ results in the constraint stated in THE INDEX.
-The result is convenient since $W_n$ only consists of terms of lower order
-than itself.
-
-
-## Sylvester's equation
-The second condition constraining $U$ comes from the block diagonalization
-itself, namely that the off diagonal block are meant to vanish.
-This leads to constraints on $V_n$ that follow from EFFECTIVEH and writing
-
-```{math}
-:label: W_V_block
-\begin{align}
-V_n &= \begin{pmatrix}
-0 & V_n^{AB}\\
--(V_n^{AB})^\dagger & 0
-\end{pmatrix}
-\quad
-W_n = \begin{pmatrix}
-W_n^{AA} & 0 \\
-0 & W_n^{BB}
-\end{pmatrix}
-\end{align}
-```
-
-where the structure of $W_n$ is a consequence of Eq. UNITARITY and the structure
-of the $V_n$.
-Performing the block matrix multiplication for $\tilde{H}^{AB}_n$ and requiring
-$\tilde{H}^{AB}_n=0$ leads to Sylvester's equation for $V_n$ reading
-
-```{math}
-:label: v_condition
-\begin{align}
- H_0^{AA} V_n^{AB} - V_n^{AB} H_0^{BB}=&-
-\sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB}
-H_0^{BB}W_i^{BB}\right] \\
-&-\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}H_p^{AA}V_i^{AB}+W_{n-i-1}^{AA}
-H_p^{AB}W_i^{BB}
--V_{n-i-1}^{AB}(H_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
-H_p^{BB}W_i^{BB}\bigg]\\
-
-\end{align}
-```
-
-where the terms on the right-hand side of the equation are combined to $Y_n$ in Eq. SYLVESTERS EQUATION
+This note is an extension of the introduction to the theory used, and it relies on the concepts and notation introduced in [the introduction](index.md#algorithms)
 
 ## The polynomial and Schrieffer-Wolff representation
 
@@ -140,8 +79,10 @@ Since this class of gauges is constraint to be block diagonal (basis reordering
 does not lead to coupling of the $A$ and $B$ spaces) and therefore proportional
 to identity in block matrix space the statement of the proof remains valid.
 
-(sec:kpm)=
-## Extanding the method to non diagonal Hamiltonians
+(implicit)=
+## Extending the method to non diagonal Hamiltonians
+
+
 
 Let $\mathcal{N}_A$ be a (proper) subset of the spectrum of $H_0$ with eigenvectors
 $H_0|i\rangle=E_i|i\rangle$. Now consider the projector
@@ -156,7 +97,7 @@ Let us define
 ```
 
 We can now recast the block diagonalization problem to solve
-the ammended Hamiltonian
+the amended Hamiltonian
 ```{math}
 :label: accounting_hamiltonian
 \begin{align}

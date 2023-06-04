@@ -96,6 +96,7 @@ transformation.
 As a consequence, the computational cost of every order scales linearly with
 the order, while the algorithms are still mathematically equivalent.
 
+(algorithms)=
 ## The algorithms
 
 The algorithms of {{Pymablock}} rely on decomposing $U$, the unitary transformation
@@ -116,18 +117,50 @@ Hamiltonian at order $n$ is
 To block diagonalize $H_0 + H_p$, {{Pymablock}} finds the orders of $W$
 such that $U$ is unitary
 
+:::{math}
+:label: unitarity
 \begin{equation}
 W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i),
 \end{equation}
+:::
 
-and the orders of $V$ by ensuring that the $\tilde{H}^{AB}=0$ to any order
+:::{admonition} Derivation
+:class: dropdown info
+We evaluate the series
+$U^\dagger U + UU^\dagger=2$ and use that $W=W^\dagger$ and $V=-V^\dagger$ to obtain
+
+```{math}
+\begin{equation}
+\sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i + V_i) +
+(W_{n-i} + V_{n-i})(W_i - V_i)\right] = 0.\\
+\end{equation}
+```
+Using that $W_0=1$, $V=0$, expanding, and solving for $W_n$ gives the Eq. {eq}`unitarity`.
+:::
+
+and the orders of $V$ by requiring that $\tilde{H}^{AB}_n=0$
 
 \begin{equation}
 H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}.
 \end{equation}
 
 This is known as [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation)
-and $Y_{n}$ is recursive on $n$.
+and $Y_{n}$ is a combination of lower order terms in $H$ and $U$.
+
+:::{admonition} Full expression
+:class: dropdown info
+The full expression for $Y_n$ is cumbersome already in our simplest case:
+
+\begin{align}
+Y_n=&-
+\sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB}
+H_0^{BB}W_i^{BB}\right] \\
+&-\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}H_p^{AA}V_i^{AB}+W_{n-i-1}^{AA}
+H_p^{AB}W_i^{BB}
+-V_{n-i-1}^{AB}(H_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
+H_p^{BB}W_i^{BB}\bigg]
+\end{align}
+:::
 
 {{Pymablock}} has two algorithms, {autolink}`~pymablock.general` and {autolink}`~pymablock.expanded`.
 While the {autolink}`~pymablock.general` algorithm implements the procedure outlined here directly,
