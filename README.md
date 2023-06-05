@@ -6,7 +6,7 @@ It handles both numerical and symbolic inputs, and it efficiently
 block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
 order.
 
-Building an effective model using {{Pymablock}} is a three step process:
+Building an effective model using Pymablock is a three step process:
 * Define a Hamiltonian
 * Call `pymablock.block_diagonalize`
 * Request the desired order of the effective Hamiltonian
