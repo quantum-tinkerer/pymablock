@@ -247,7 +247,7 @@ ax_2.set_yticks([]);
 H_tilde._data = {}
 one = pymablock.series.one
 U._data = {key: one for key, value in U._data.items() if value is one}
-U_adjoint = {key: one for key, value in U_adjoint.items() if value is one}
+U_adjoint = {key: one for key, value in U_adjoint._data.items() if value is one}
 ```
 
 ### Querying the perturbative series
