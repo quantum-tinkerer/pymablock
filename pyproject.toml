@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pymablock"
-dynamic = ["version"]
+dynamic = ["version", "urls"]
 authors = [
   {name="Pymablock developers"},
 ]
@@ -31,8 +31,6 @@ source = "vcs"
 version-file = "pymablock/_version.py"
 [tool.hatch.metadata.hooks.vcs.urls]
 source_archive = "https://gitlab.kwant-project.org/qt/pymablock/-/archive/{commit_hash}/pymablock-{commit_hash}.tar.gz"
-
-[project.urls]
 "Documentation" = "https://pymablock.readthedocs.io/en/latest/"
 "Repository" = "https://gitlab.kwant-project.org/qt/pymablock"
 "Bug Tracker" = "https://gitlab.kwant-project.org/qt/pymablock/-/issues"
