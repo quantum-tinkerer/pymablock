@@ -36,8 +36,6 @@ graphene and its k.p model, you can check out
 Let's start from defining the Hamiltonian. We will use [`sympy`](https://www.sympy.org/)
 for symbolic computation and manipulation which can make the code somewhat
 verbose.
-Still, while it may seem like a waste for a problem of this scale, as
-complexity increases, using `sympy` for symbolic calculations starts paying off.
 
 We begin with the basic imports
 

@@ -29,7 +29,7 @@ from scipy.sparse.linalg import eigsh
 import numpy as np
 import kwant
 import matplotlib.pyplot as plt
-color_cycle= ["#5790fc", "#f89c20", "#e42536"]
+color_cycle = ["#5790fc", "#f89c20", "#e42536"]
 
 from pymablock import block_diagonalize
 ```

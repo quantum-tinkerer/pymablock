@@ -72,7 +72,7 @@ an energy gap in order to use perturbation theory.
 ### 2. Define the perturbative series
 
 Most {{Pymablock}} users will need only one function: {autolink}`~pymablock.block_diagonalize`.
-It takes all types of input and defines a solution of the perturbation theory problem as infinite series of the transformed Hamiltonian $\tilde{H}$ and the transformation $U$ that brings the Hamiltonian to the block-diagonal form.
+It takes all types of input and defines a solution of the perturbation theory problem as infinite series of the transformed Hamiltonian $\tilde{H}$ and the corresponding transformation $U$.
 
 ```{code-cell} ipython3
 from pymablock import block_diagonalize
