@@ -96,12 +96,12 @@ def block_diagonalize(
             must be tuples of integers indicating the order of each
             perturbation. In the latter case, the keys must be monomials and the
             indices are ordered as in `H.dimension_names`. The values of the
-            dictionary, ``h_i`` may be `sympy.matrices.dense.Matrix`,
+            dictionary, ``h_i`` may be `~sympy.matrices.dense.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
             blocks.
-        - A `sympy.matrices.dense.Matrix`
+        - A `~sympy.matrices.dense.Matrix`
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
             `~pymablock.series.BlockSeries` is done by Taylor expanding on
