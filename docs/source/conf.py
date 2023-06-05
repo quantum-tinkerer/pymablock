@@ -42,14 +42,29 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
+    "sphinx.ext.intersphinx",
     "myst_nb",
+    "sphinx_togglebutton",
+    "sphinx_copybutton",
+    "sphinx_tippy",
 ]
 myst_enable_extensions = [
     "dollarmath",
     "amsmath",
+    "substitution",
+    "colon_fence",
 ]
+nb_execution_timeout = 120
 autodoc_typehints = "description"
 autodoc_typehints_format = "short"
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "kwant": ("https://kwant-project.org/doc/1", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/reference", None),
+    "sympy": ("https://docs.sympy.org/latest/", None),
+}
 
 default_role = "autolink"
 
@@ -62,6 +77,11 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 
+myst_substitutions = {
+    "Pymablock": '**<span style="color:#8b4aa0ff;"> Pymablock </span>**',
+}
+
+autoclass_content = "both"
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
@@ -87,5 +107,5 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_build/html/_static", "_static"]
-html_css_files = ["css/custom.css"]
+html_static_path = ["_static"]
+html_css_files = ["local.css"]

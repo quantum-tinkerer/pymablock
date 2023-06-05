@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.5
+    jupytext_version: 1.14.4
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -13,9 +13,12 @@ kernelspec:
 
 # k.p model of bilayer graphene
 
-This tutorial demonstrates how to use symbolic expressions as input to _Pymablock_. As an example, we construct the k.p Hamiltonian of bilayer graphene, starting from its tight binding dispersion.
+This tutorial demonstrates how to use symbolic expressions as input
+to {{Pymablock}}. As an example, we construct the k.p Hamiltonian of
+bilayer graphene, starting from its tight binding dispersion.
 
-The crystal structure and the hoppings of bilayer graphene are shown in the figure
+The crystal structure and the hoppings of bilayer graphene are shown
+in the figure
 
 ![crystal structure and hopping of bilayer grahene](bilayer.svg)
 
@@ -26,27 +29,31 @@ The physics of this system is not crucial for us, but here are the main features
 - The interlayer hopping couples atoms that are on top of each other with amplitude $t_2$.
 - The layers have a potential $\pm m$ that we introduce to make the problem a bit more complex.
 
-If you want to get a more systematic introduction to the bilayer graphene and its k.p model, you can check out [this review](https://iopscience.iop.org/article/10.1088/0034-4885/76/5/056503).
+If you want to get a more systematic introduction to the bilayer
+graphene and its k.p model, you can check out
+[this review](https://iopscience.iop.org/article/10.1088/0034-4885/76/5/056503).
 
-Let's start from defining the Hamiltonian. We will use sympy, and therefore the code is somewhat verbose.
-Still, while it may seem like a waste for a problem of this scale, as complexity increases, using symbolic calculations starts paying off.
+Let's start from defining the Hamiltonian. We will use [`sympy`](https://www.sympy.org/)
+for symbolic computation and manipulation which can make the code somewhat
+verbose.
 
 We begin with the basic imports
 
 ```{code-cell} ipython3
 import numpy as np
-from sympy import Symbol, symbols, Matrix, sqrt, Eq, exp, I, pi, Add, MatAdd
+from sympy import symbols, Matrix, sqrt, Eq, exp, I, pi, Add, MatAdd
 from sympy.physics.vector import ReferenceFrame
 
 import sympy
-sympy.init_printing(use_latex="mathjax")
 ```
+
+## Define a symbolic Hamiltonian
 
 Now we are ready to define all the parameters and the hamiltonian $H$
 
 ```{code-cell} ipython3
 k_x, k_y, t_1, t_2, m = symbols("k_x k_y t_1 t_2 m", real=True)
-alpha = Symbol(r"\alpha")
+alpha = symbols(r"\alpha")
 
 H = Matrix(
     [[m, t_1 * alpha, 0, 0],
@@ -57,7 +64,9 @@ H = Matrix(
 Eq(symbols("H"), H, evaluate=False)
 ```
 
-Here we collected all momentum-dependent factors into $\alpha$.
+The Hamiltonian elements are {autolink}`~sympy.core.symbol.symbols`.
+We collected all momentum-dependent factors into the symbol $\alpha$.
+
 We also make $\mathbf{K}=(4\pi/3, 0)$ the reference point for the
 $\mathbf{k}$-vector, making $k_x$ and $k_y$ the perturbative parameters.
 
@@ -71,18 +80,22 @@ alpha_k = (1 + exp(I * k.dot(a_1)) + exp(I * k.dot(a_2))).expand(complex=True, t
 Eq(alpha, alpha_k, evaluate=False)
 ```
 
-Now we obtain the eigenvectors of the unperturbed Hamiltonian
+## Define the perturbative series
+
+Now we obtain the eigenvectors of the unperturbed Hamiltonian by substituting
+the unperturbed values ({autolink}`~sympy.core.basic.Basic.subs`) and
+diagonalizing ({autolink}`~sympy.matrices.matrices.MatrixEigen.diagonalize`).
 
 ```{code-cell} ipython3
 vecs = H.subs({alpha: 0, m: 0}).diagonalize(normalize=True)[0]
 vecs
 ```
 
-And we have everything ready to perform block diagonalization.
+After substituting the full expression for $\alpha(k)$ into the Hamiltonian, we
+are ready to `block_diagonalize` it. For that we specify which symbols are the
+perturbative parameters using `symbols` argument. The order of `symbols` is
+important: it defines the order of variables in the perturbative series.
 
-Observe two things:
-- We substitute $\alpha(k)$ into the Hamiltonian
-- We specify which symbols are treated as perturbative parameters using `symbols` keyword
 
 ```{code-cell} ipython3
 from pymablock import block_diagonalize
@@ -94,27 +107,43 @@ H_tilde = block_diagonalize(
 )[0]
 ```
 
-Now we are ready to specify which calculation to perform.
-
-Let us group the terms by total power of momentum.
-For now this requires an explicit manipulation of the indices, which are in the
-order given by `symbols`.
-In the future, we may implement convenience functions for this task.
+The names of `symbols` specifying the perturbative parameters are stored in the
+`dimension_names` attribute of the result:
 
 ```{code-cell} ipython3
+H_tilde.dimension_names
+```
+
+Now we are ready to specify which calculation to perform.
+
+To compute the standard quadratic dispersion of bilayer graphene and trigonal
+warping, we need corrections up to third order in momentum.
+Let us then group the terms by total power of momentum.
+For now this requires an explicit definition of all components, but in the future
+we plan to automate this step.
+
+```{code-cell} ipython3
+k_square = np.array([[0, 1, 2], [2, 1, 0]])
+k_cube = np.array([[0, 1, 2, 3], [3, 2, 1, 0]])
+```
+
+:::{admonition} A more general way to group by power
+:class: dropdown tip
+The above manual definition of `k_square` and `k_cube` becomes cumbersome
+for higher orders or dimensions. Instead, we can use the `np.mgrid` and select
+the terms we need by total power like this:
+```python
 k_powers = np.mgrid[:4, :4]
 k_square = k_powers[..., np.sum(k_powers, axis=0) == 2]
 k_cube = k_powers[..., np.sum(k_powers, axis=0) == 3]
-print(f"{k_square = }")
-print(f"{k_cube = }")
 ```
+:::
 
-Before you saw that querying `H_tilde` returns the results in a masked
-numpy array.
-Now, to gather different terms, we define a convenience function for summing
-several orders together.
-This uses the `.compressed()` method of masked numpy arrays, and simplifies the
-resulting expression.
+Before we saw that querying `H_tilde` returns the results in a numpy array. To
+gather different entries into one symbolic expression, we define a convenience
+function that sums several orders together. This uses the
+{autolink}`~numpy.ma.MaskedArray.compressed` method of masked numpy arrays, and
+simplifies the resulting expression.
 
 ```{code-cell} ipython3
 def H_tilde_AA(*orders):
@@ -124,6 +153,8 @@ def H_tilde_AA(*orders):
 Finally, we are ready to obtain the result.
 
 ```{code-cell} ipython3
+%%time
+
 mass_term = H_tilde_AA([0], [0], [1])
 kinetic = H_tilde_AA(*k_square, 0)
 mass_correction = H_tilde_AA(*k_square, 1)

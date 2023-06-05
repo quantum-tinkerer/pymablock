@@ -46,25 +46,23 @@ def block_diagonalize(
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    Compute the block diagonalization of a Hamiltonian order by order.
+    Find the block diagonalization of a Hamiltonian order by order.
 
-    This uses quasi-degenerate perturbation theory known as Lowdin perturbation,
-    Schrieffer-Wolff transformation, or van Vleck transformation.
+    This uses quasi-degenerate perturbation theory known as Lowdin perturbation
+    theory, Schrieffer-Wolff transformation, or van Vleck transformation.
 
-    Calling this function does not yet perform the computation. Instead, it
-    defines the computation as a `~pymablock.series.BlockSeries` object, which
-    can be evaluated at any order.
+    This function does not yet perform the computation. Instead, it defines the
+    computation as a `~pymablock.series.BlockSeries` object, which can be
+    evaluated at any order.
 
     This function accepts a Hamiltonian in several formats and it first
     brings it to the eigenbasis of the unperturbed Hamiltonian if the blocks,
     eigenvectors or indices of the eigenvalues are provided, see below.
-    Then, the perturbation theory is performed and the Hamiltonian is
-    block-diagonalized.
 
-    The block diagonalization is performed using the "expanded" or "general"
-    algorithm. The former is better suited for lower orders numerical
+    The block diagonalization is performed using the `expanded` or `general`
+    algorithm. The former is better suited for lower order numerical
     calculations and symbolic ones. The latter is better suited for higher
-    orders numerical calculations.
+    order or numerical calculations.
 
     For large numerical calculations with a sparse Hamiltonian and a low
     dimensional relevant subspace, the algorithm uses an implicit representation
@@ -81,66 +79,66 @@ def block_diagonalize(
 
         Supported formats:
 
-        - If a list,
-            it is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where ``h_0``
-            is the unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first
-            order perturbations. The elements ``h_i`` may be `~sympy.Matrix`,
+        - A list,
+            of the form ``[h_0, h_1, h_2, ...]`` where ``h_0`` is the
+            unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first order
+            perturbations. The elements ``h_i`` may be
+            `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
+            `~scipy.sparse.spmatrix`, that require separating the unperturbed
+            Hamiltonian into effective and auxiliary subspaces. Otherwise,
+            ``h_i`` may be a list of lists with the Hamiltonian blocks.
+        - A dictionary,
+            of the form ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or ``{1:
+            h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians. In the former
+            case, the keys must be tuples of integers indicating the order of
+            each perturbation. In the latter case, the keys must be monomials
+            and the indices are ordered as in `H.dimension_names`. The values
+            of the dictionary, ``h_i`` may be `~sympy.matrices.dense.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian blocks.
-        - If a dictionary,
-            it is assumed to be of the form
-            ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or
-            ``{1: h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians.
-            In the former case, the keys must be tuples of integers indicating
-            the order of each perturbation. In the latter case, the keys must
-            be monomials and the indices are ordered as in `H.dimension_names`.
-            The values of the dictionary, ``h_i`` may be `~sympy.Matrix`,
-            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
-            the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian blocks.
-        - If a `sympy.Matrix`,
+            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
+            blocks.
+        - A `~sympy.matrices.dense.Matrix`,
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
-            `~pymablock.series.BlockSeries` is done by Taylor expanding on
+            `~pymablock.series.BlockSeries` is done by Taylor expanding in
             ``symbols`` to the desired order.
-        - If a `~pymablock.series.BlockSeries`, it is returned unchanged.
+        - A `~pymablock.series.BlockSeries`,
+            returned unchanged.
     algorithm :
-        Name of the function that block diagonalizes a Hamiltonian.
+        Name of the function that block diagonalizes the Hamiltonian.
         Options are "general" and "expanded".
     solve_sylvester :
-        Function to use for solving Sylvester's equation.
-        If None, the default function is used for a diagonal Hamiltonian or,
-        unless the implicit method is used. In that case, the default function
-        is the direct solver.
+        A function that solves the Sylvester equation. If not provided,
+        it is selected automatically based on the inputs.
     subspace_eigenvectors :
-        A tuple with orthonormal eigenvectors to project the Hamiltonian on
-        and separate it into blocks. The first element of the tuple has the
-        eigenvectors of the A (effective) subspace, and the second element
-        has the eigenvectors of the B (auxiliary) subspace.
+        A tuple with orthonormal eigenvectors to project the Hamiltonian in
+        and separate it into the A (effective) and B (auxiliary) blocks.
+        The first element of the tuple has the eigenvectors of the A
+        subspace, and the second element has the eigenvectors of the B subspace.
         If None, the unperturbed Hamiltonian must be block diagonal.
         For implicit, the (partial) auxiliary subspace may be missing or
         incomplete.
         Mutually exclusive with ``subspace_indices``.
     subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the ``subspace_eigenvectors`` may be
-        provided. Indices 0 and 1 are reserved for the A (effective) and B
-        effective subspaces, respectively.
+        An array indicating which basis vector belongs to which subspace. The
+        labels are 0 for the A (effective) subspace and 1 for the B (auxiliary)
+        subspace.
+        Only applicable if the unperturbed Hamiltonian is diagonal.
         Mutually exclusive with ``subspace_eigenvectors``.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
         See docstrings of `~pymablock.block_diagonalization.solve_sylvester_KPM`
         and `~pymablock.block_diagonalization.solve_sylvester_direct` for details.
-    direct_solver:
-        Whether to use the direct solver for the implicit method. Otherwise,
-        the KPM solver, an experimental solver, is used.
-        Deaults to True.
+    direct_solver :
+        Whether to use the direct solver that relies on MUMPS (default).
+        Otherwise, the an experimental KPM solver is used. Only applicable if
+        the implicit method is used (i.e. `subspace_vectors` is incomplete)
     symbols :
-        A sympy symbol or a list of symbols that label the perturbative
-        parameters of a symbolic Hamiltonian. The order of the symbols is mapped
-        to the indices of the Hamiltonian. If None, the perturbative parameters
-        are taken from the unperturbed Hamiltonian.
+        Symbols that label the perturbative parameters of a symbolic
+        Hamiltonian. The order of the symbols is mapped to the indices of the
+        Hamiltonian, see `~pymablock.series.BlockSeries`. If None, the
+        perturbative parameters are taken from the unperturbed Hamiltonian.
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used
         to validate that the unperturbed Hamiltonian is block-diagonal.
@@ -259,73 +257,75 @@ def hamiltonian_to_BlockSeries(
     """
     Normalize a Hamiltonian to be used by the algorithms.
 
-    This function projects the Hamiltonian onto the effective and auxiliary
-    subspaces, depending on the inputs, see below.
+    This function separates the Hamiltonian into a 2x2 block form consisting of
+    effective and auxiliary subspaces based on the inputs.
 
     Parameters
     ----------
     hamiltonian :
-        Full symbolic or numeric Hamiltonian to block diagonalize.
-        The Hamiltonian is normalized to a `~pymablock.series.BlockSeries` by
+        Full symbolic or numeric Hamiltonian to block diagonalize. The
+        Hamiltonian is normalized to a `~pymablock.series.BlockSeries` by
         separating it into effective and auxiliary subspaces.
 
         Supported formats:
 
-        - If a list,
-            it is assumed to be of the form ``[h_0, h_1, h_2, ...]`` where h_0
-            is the unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first
-            order perturbations. The elements ``h_i`` may be `~sympy.Matrix`,
+        - A list,
+            of the form ``[h_0, h_1, h_2, ...]`` where ``h_0`` is the
+            unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first order
+            perturbations. The elements ``h_i`` may be
+            `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
+            `~scipy.sparse.spmatrix`, that require separating the unperturbed
+            Hamiltonian into effective and auxiliary subspaces. Otherwise,
+            ``h_i`` may be a list of lists with the Hamiltonian blocks.
+        - A dictionary,
+            of the form ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or ``{1:
+            h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians. In the former
+            case, the keys must be tuples of integers indicating the order of
+            each perturbation. In the latter case, the keys must be monomials
+            and the indices are ordered as in `H.dimension_names`. The values
+            of the dictionary, ``h_i`` may be `~sympy.matrices.dense.Matrix`,
             `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
             blocks.
-        - If a dictionary,
-            it is assumed to be of the form
-            ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or
-            ``{1: h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians.
-            In the former case, the keys must be tuples of integers indicating
-            the order of each perturbation. In the latter case, the keys must
-            be monomials and the indices are ordered as in ``H.dimension_names``.
-            The values of the dictionary, h_i may be `~sympy.Matrix`,
-            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
-            the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, h_i may be a list of lists with the Hamiltonian blocks.
-        - If a `sympy.Matrix`,
+        - A `~sympy.matrices.dense.Matrix`,
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
             `~pymablock.series.BlockSeries` is done by Taylor expanding on
             ``symbols`` to the desired order.
+        - A `~pymablock.series.BlockSeries`,
+            returned unchanged.
     subspace_eigenvectors :
-        A tuple with orthonormal eigenvectors to project the Hamiltonian on
-        and separate it into blocks. The first element of the tuple has the
-        eigenvectors of the A (effective) subspace, and the second element
-        has the eigenvectors of the B (auxiliary) subspace.
-        If None, the unperturbed Hamiltonian must be block diagonal.
-        For implicit, the (partial) auxiliary subspace may be missing or
-        incomplete.
-        Mutually exclusive with ``subspace_indices``.
+        A tuple with orthonormal eigenvectors to project the Hamiltonian on and
+        separate it into blocks. The first element of the tuple has the
+        eigenvectors of the A (effective) subspace, and the second element has
+        the eigenvectors of the B (auxiliary) subspace. If None, the unperturbed
+        Hamiltonian must be block diagonal. For implicit, the (partial)
+        auxiliary subspace may be missing or incomplete. Mutually exclusive with
+        ``subspace_indices``.
     subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the indices that label the
-        diagonal elements according to the `subspace_eigenvectors` may be
-        provided. Indices 0 and 1 are reserved for the A and B subspaces,
-        respectively.
+        An array indicating which basis vector belongs to which subspace. The
+        labels are 0 for the A (effective) subspace and 1 for the B (auxiliary)
+        subspace.
+        Only applicable if the unperturbed Hamiltonian is diagonal.
         Mutually exclusive with ``subspace_eigenvectors``.
     implicit :
-        Whether to wrap the Hamiltonian of the BB subspace into a linear operator.
+        Whether to wrap the Hamiltonian of the BB subspace into a linear
+        operator.
     symbols :
-        List of symbols that label the perturbative parameters of a symbolic
+        Symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
-        Hamiltonian. If None, the perturbative parameters are taken from the
-        unperturbed Hamiltonian.
+        Hamiltonian, see `~pymablock.series.BlockSeries`. If None, the
+        perturbative parameters are taken from the unperturbed Hamiltonian.
     atol :
-        Absolute tolerance to consider matrices as exact zeros. This is used
-        to validate that the unperturbed Hamiltonian is block-diagonal.
+        Absolute tolerance to consider matrices as exact zeros. This is used to
+        validate that the unperturbed Hamiltonian is block-diagonal.
 
     Returns
     -------
     H : `~pymablock.series.BlockSeries`
-        Initial Hamiltonian in the format required by algorithms, such
-        that the unperturbed Hamiltonian is block diagonal.
+        Initial Hamiltonian in the format required by the algorithms, such that
+        the unperturbed Hamiltonian is block diagonal.
     """
     if subspace_eigenvectors is not None and subspace_indices is not None:
         raise ValueError(
@@ -431,14 +431,14 @@ def general(
     operator: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    The algorithm for computing block diagonalization of a Hamiltonian.
+    Algorithm for computing block diagonalization of a Hamiltonian.
 
     It parameterizes the unitary transformation as a series of block matrices.
     It computes them order by order by imposing unitarity and the
     block-diagonality of the transformed Hamiltonian.
 
     The computational cost of this algorithm scales favorably with the order
-    of the perturbation. However, it performs unncessary matrix products at
+    of the perturbation. However, it performs unnecessary matrix products at
     lowest orders, and keeps the unperturbed Hamiltonian in the numerator. This
     makes this algorithm better suited for higher order numerical calculations.
 
@@ -531,7 +531,7 @@ def symbolic(
 
     This function uses symbolic algebra to compute the block diagonalization,
     producing formulas that contain the orders of the perturbation and the
-    off-diagonal (V) block of the unitary transformation ``U``.
+    off-diagonal blocks of the unitary transformation ``U``.
 
     This function is general, therefore the solutions to the Sylvester equation
     are not computed. Instead, the solutions are stored in a dictionary that
@@ -540,7 +540,7 @@ def symbolic(
     Parameters
     ----------
     H :
-        The Hamiltonian. The algorithm only checks which terms are present in
+        The perturbed Hamiltonian. The algorithm only checks which terms are present in
         the Hamiltonian, but does not substitute them.
 
     Returns
@@ -552,7 +552,7 @@ def symbolic(
         ``U * H * U^H = H_tilde``.
     U_adjoint : `~pymablock.series.BlockSeries`
         Symbolic adjoint of ``U``. Its diagonal blocks are Hermitian and its
-        off-diagonal blocks (V) are anti-Hermitian.
+        off-diagonal blocks (``V``) are anti-Hermitian.
     Y_data : `dict`
         dictionary of ``{V: rhs}`` such that ``h_0_AA * V - V * h_0_BB = rhs``.
         It is updated whenever new terms of ``H_tilde`` or ``U`` are evaluated.
@@ -620,7 +620,7 @@ def expanded(
     operator: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    The algorithm for computing block diagonalization of a Hamiltonian.
+    Algorithm for computing block diagonalization of a Hamiltonian.
 
     Unlike the `general` algorithm, this algorithm does not perform
     multiplications by the unperturbed Hamiltonian. This comes at the cost of
@@ -695,7 +695,7 @@ def implicit(
     """
     Block diagonalize a Hamiltonian without explicitly forming BB matrices.
 
-    This function uses either "general" or "expanded" algorithm to block
+    This function uses either the `general` or `expanded` algorithm to block
     diagonalize, but does not compute products within the B (auxiliary)
     subspace. Instead these matrices are wrapped in
     `~scipy.sparse.linalg.LinearOperator` and combined to keep them low rank.
@@ -718,7 +718,7 @@ def implicit(
     H_tilde : `~pymablock.series.BlockSeries`
         Full block-diagonalized Hamiltonian of the problem. The ``(0, 0)`` block
         (A subspace) is a numpy array, while the ``(1, 1)`` block (B subspace)
-        is a ``scipy.sparse.LinearOperator``.
+        is a `~scipy.sparse.linalg.LinearOperator`.
     U : `~pymablock.series.BlockSeries`
         Unitary that block diagonalizes the initial Hamiltonian.
     U_adjoint : `~pymablock.series.BlockSeries`
@@ -798,7 +798,8 @@ def solve_sylvester_diagonal(
 
     Returns
     -------
-    solve_sylvester : Function that solves Sylvester's equation.
+    solve_sylvester : `Callable`
+        Function that solves Sylvester's equation.
     """
 
     def solve_sylvester(
@@ -867,7 +868,7 @@ def solve_sylvester_KPM(
 
     Returns
     ----------
-    solve_sylvester: callable
+    solve_sylvester: Callable
         Function that applies divide by energies to the right hand side of
         Sylvester's equation.
     """
@@ -943,7 +944,7 @@ def solve_sylvester_direct(
 
     Returns
     -------
-    solve_sylvester : `Callable[[np.ndarray], np.ndarray]`
+    solve_sylvester : `Callable[[numpy.ndarray], numpy.ndarray]`
         Function that solves the corresponding Sylvester equation.
     """
     projector = ComplementProjector(eigenvectors)

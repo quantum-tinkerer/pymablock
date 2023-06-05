@@ -3,34 +3,38 @@ jupytext:
   text_representation:
     extension: .md
     format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.14.4
 kernelspec:
-  display_name: Python 3
+  display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
+
 ```{toctree}
 :hidden:
+:maxdepth: 4
 :caption: Contents
 
 tutorial/tutorial.md
+algorithms.md
 documentation/pymablock.rst
-CITING.md
 CHANGELOG.md
 ```
 
-# _Pymablock_
+# {{Pymablock}}
 
-## What is _Pymablock_?
+## What is {{Pymablock}}?
 
-_Pymablock_ is a Python package that constructs effective models using
-quasi-degenerate perturbation theory.
+{{Pymablock}} (Python matrix block-diagonalization) is a Python package that constructs
+effective models using quasi-degenerate perturbation theory.
 It handles both numerical and symbolic inputs, and it efficiently
 block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
 order.
 
-Building an effective model using _Pymablock_ is a three step process:
+Building an effective model using {{Pymablock}} is a three step process:
 * Define a Hamiltonian
-* Call `block_diagonalize`
+* Call {autolink}`~pymablock.block_diagonalize`
 * Request the desired order of the effective Hamiltonian
 
 ```python
@@ -43,152 +47,105 @@ H_tilde, *_ = block_diagonalize([h_0, h_p], subspace_eigenvectors=[vecs_A, vecs_
 H_AA_4 = H_tilde[0, 0, 4]
 ```
 
-## Why _Pymablock_?
-Here is why you should use _Pymablock_:
+## Why {{Pymablock}}?
+Here is why you should use {{Pymablock}}:
 
 * Do not reinvent the wheel
 
-  _Pymablock_ provides a tested reference implementation
+  {{Pymablock}} provides a tested reference implementation
 
 * Apply to any problem
 
-  _Pymablock_ supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
+  {{Pymablock}} supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
   quantum operators
 
 * Speed up your code
 
-  Due to several optimizations, _Pymablock_ can reliable handle both higher orders
+  Due to several optimizations, {{Pymablock}} can reliably handle both higher orders
   and large Hamiltonians
 
-## How does _Pymablock_ work?
+## How does {{Pymablock}} work?
 
-_Pymablock_ considers a Hamiltonian as a series of {math}`2\times 2` block operators
+{{Pymablock}} considers a Hamiltonian as a series of $2\times 2$ block operators
 with the zeroth order block-diagonal.
-To carry out the block-diagonalization procedure, _Pymablock_ finds a minimal
-unitary transformation that cancels the off-diagonal block of the Hamiltonian
-order by order.
+To carry out the block-diagonalization procedure, {{Pymablock}} finds a minimal
+unitary transformation $U$ that cancels the off-diagonal block of the
+Hamiltonian order by order.
 
-```{math}
 \begin{gather}
 H = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
 U = \sum_{i=0}^\infty U_n
 \end{gather}
-```
 
 The result of this procedure is a perturbative series of the transformed
 block-diagonal Hamiltonian.
 
-```{math}
 \begin{gather}
-\tilde{H} = U^\dagger H U=\sum_{i=0}\begin{pmatrix}\tilde{H}_i^{AA} & 0 \\ 0 & \tilde{H}_i^{BB}\end{pmatrix}.
+\tilde{H} = U^\dagger H U=\sum_{i=0}
+\begin{pmatrix}
+\tilde{H}_i^{AA} & 0 \\
+0 & \tilde{H}_i^{BB}
+\end{pmatrix}.
 \end{gather}
-```
 
 Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation,
-_Pymablock_ solves Sylvester's equation and imposes unitarity at every order.
-However, differently from other approaches, _Pymablock_ uses efficient algorithms
+{{Pymablock}} solves Sylvester's equation and imposes unitarity at every order.
+However, differently from other approaches, {{Pymablock}} uses efficient algorithms
 by choosing an appropriate parametrization of the series of the unitary
 transformation.
 As a consequence, the computational cost of every order scales linearly with
 the order, while the algorithms are still mathematically equivalent.
 
-## The algorithms
+To see {{Pymablock}} in action, check out the [tutorial](tutorial/tutorial.md).
+See its [algorithms](algorithms.md) to learn about the underlying ideas, or read
+the [reference documentation](documentation/pymablock.rst) for the package API.
 
-_Pymablock_ algorithms, `general` and `expanded`, rely on decomposing {math}`U` as
-a series of Hermitian block diagonal {math}`W` and skew-Hermitian block
-off-diagonal {math}`V` terms.
-The transformed Hamiltonian is a Cauchy product between the series of
-{math}`U^\dagger`, {math}`H`, and {math}`U`.
-For example, for a single first order perturbation {math}`H_p`, the transformed
-Hamiltonian at order {math}`n` is
-```{math}
-\tilde{H}_{n} = \sum_{i=0}^n (W_{n-i} - V_{n-i}) H_0 (W_i + V_i) +
-\sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_p (W_i + V_i).
-```
+## What does {{Pymablock}} not do yet?
 
-To block diagonalize {math}`H_0 + H_p`, _Pymablock_ finds the orders of {math}`W`
-and {math}`V` as a solution to
-```{math}
-W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i), \quad \text{unitarity} \\
-H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}, \quad \text{Sylvester's equation}
-```
-where
-```{math}
-Y_{n} = \sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB} H_0^{BB}W_i^{BB}\right].
-```
-
-While the `general` algorithm implements the procedure outlined here directly,
-`expanded` initializes a fully symbolic Hamiltonian and derives general
-expressions for {math}`\tilde{H}`.
-Additionaly, it simplifies {math}`\tilde{H}_{n}` and the unitary transformation
-such that they only depend on {math}`V` and the perturbation {math}`H_p`, but
-not on {math}`H_0`.
-As an example, the corrections to the effective Hamiltonian up to fourth
-order using `expanded` are
-
-```{code-cell} ipython3
-:tags: [hide-input]
-
-from operator import mul
-
-from sympy import Symbol, Eq
-
-from pymablock.block_diagonalization import BlockSeries, symbolic
-
-H = BlockSeries(
-    data={
-        (0, 0, 0): Symbol('{H_{0}^{AA}}'),
-        (1, 1, 0): Symbol('{H_{0}^{BB}}'),
-        (0, 0, 1): Symbol('{H_{p}^{AA}}'),
-        (0, 1, 1): Symbol('{H_{p}^{AB}}'),
-        (1, 1, 1): Symbol('{H_{p}^{BB}}'),
-    },
-    shape=(2, 2),
-    n_infinite=1,
-)
-
-max_order = 5
-hamiltonians = {
-  Symbol(f'H_{{{index}}}'): value for index, value in H._data.items()
-}
-offdiagonals = {
-  Symbol(f'V_{{({order},)}}'): Symbol(f'V_{order}') for order in range(max_order)
-}
-
-H_tilde, *_ = symbolic(H)
-
-for order in range(max_order):
-    result = Symbol(fr'\tilde{{H}}_{order}^{{AA}}')
-    display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
-```
-Finally, `expanded` replaces the problem-specific `H` into the simplified
-{math}`\tilde{H}`, without computing products within the auxiliary `B` subspace.
-This makes `expanded` efficient for lower order numerical computations and
-symbolic ones, while `general` is suitable for higher orders.
-
-
-##  How to use _Pymablock_ on large numerical Hamiltonians?
-
-Solving Sylvester's equation and computing the matrix products are the most
-expensive steps of the algorithms for large Hamiltonians.
-_Pymablock_ can efficiently construct an effective Hamiltonian of a small subspace
-even when the full Hamiltonian is a sparse matrix that is too costly to
-diagonalize.
-It does so by exploiting the low rank structure of {math}`U`, and
-by using the sparse solver [MUMPS](https://mumps-solver.org/index.php) to
-compute the Green's function.
-
-## What does _Pymablock_ not do?
-
-* _Pymablock_ is not able to treat time-dependent perturbations yet
-* _Pymablock_ does not block diagonalize on more than two subspaces simultaneously
+* {{Pymablock}} is not able to treat time-dependent perturbations yet
+* {{Pymablock}} does not block diagonalize more than two subspaces simultaneously
 
 ## Installation
 
+The preferred way of installing `pymablock` is to use `mamba`/`conda`:
+
+```
+mamba install pymablock -c conda-forge
+```
+
+Or use `pip`
+
+```
+pip install pymablock
+```
+
+```{important}
+Be aware that the using `pymablock` on large Hamiltonians requires `Kwant`
+with [MUMPS](https://mumps-solver.org/index.php) support.
+For this purpose, install Kwant
+[via conda](https://kwant-project.org/install#conda) in Linux and MAC OS.
+Unfortunately, MUMPS support in Kwant is not available for Windows.
+If you need it, try
+[Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).
+```
 
 ## Citing
 
-Follow the instructions in [citing](CITING.md) if you want to cite us.
+If you have used {{Pymablock}} for work that has lead to a scientific publication,
+please cite it as
+
+```
+@misc{Pymablock,
+author = {{Araya Day}, Isidora and Miles, Sebastian and Varjas, Daniel and Akhmerov, Anton R.},
+doi = {10.5281/zenodo.7995684},
+month = {6},
+title = {Pymablock},
+year = {2023}
+}
+```
 
 ## Contributing
-`pymablock` is on Gitlab.
+
+{{Pymablock}} is an open source package, and we invite you to contribute!
+You contribute by opening [issues](https://gitlab.kwant-project.org/qt/pymablock/-/issues),
+fixing them, and spreading the word about `pymablock`.

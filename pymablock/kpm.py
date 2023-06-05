@@ -12,19 +12,20 @@ def greens_function(
     num_moments: int = 100,
     energy_resolution: Optional[float] = None,
 ) -> Callable[[np.ndarray], np.ndarray]:
-    """Return a solution of (hamiltonian - energy) @ x = vector.
+    """
+    Return a solution of ``(hamiltonian - energy) @ x = vector``.
 
     Uses the Kernel polynomial method (KPM) with the Jackson kernel.
 
     Parameters
     ----------
     hamiltonian :
-        Hamiltonian with shape `(N, N)`. It is required that the Hamiltonian
-        is rescaled so that its spectrum lies in the interval `[-1, 1]`.
+        Hamiltonian with shape ``(N, N)``. It is required that the Hamiltonian
+        is rescaled so that its spectrum lies in the interval ``[-1, 1]``.
     energy :
         Rescaled energy at which to evaluate the Green's function.
     vector :
-        Vector with shape `(N,)`.
+        Vector with shape ``(N,)``.
     num_moments :
         Number of moments to use in the KPM expansion.
     energy_resolution :
@@ -33,7 +34,7 @@ def greens_function(
 
     Returns
     -------
-    solution : `~np.ndarray`
+    solution : `~numpy.ndarray`
         Solution of the linear system.
     """
     if energy_resolution is not None:
@@ -51,31 +52,28 @@ def greens_function(
 
 
 def kpm_vectors(
-    hamiltonian: np.ndarray,
+    hamiltonian: Union[np.ndarray, sparse.spmatrix],
     vectors: np.ndarray,
 ) -> Iterator[np.ndarray]:
     r"""
-    Generator of KPM vectors
+    Generator of vectors for the Kernel Polynomial Method (KPM).
 
-    This generator yields vectors as
-    .. math::
-      T_n(H) \rvert v\langle
-
-    for vectors :math:`\rvert v\langle` in ``vectors``,
-    for 'n' in '[0, max_moments]'.
+    This generator yields vectors as :math:`T_n(H) \lvert v \rangle`
+    for vectors :math:`\lvert v \rangle` in ``vectors``,
+    for ``n`` in ``[0, max_moments]``.
 
     Parameters
     ----------
     hamiltonian :
-        Hamiltonian, dense or sparse array with shape '(N, N)'.
+        Hamiltonian, dense or sparse array with shape ``(N, N)``.
     vectors :
-        Vector of length 'N' or array of vectors with shape '(M, N)'.
+        Vector of length ``N`` or array of vectors with shape ``(M, N)``.
 
     Yields
     ------
     expanded_vectors : Iterable
-        Sequence of expanded vectors of shape '(M, N)'.
-        If the input is a vector then 'M=1'.
+        Sequence of expanded vectors of shape ``(M, N)``.
+        If the input is a vector then ``M=1``.
     """
     # Internally store as column vectors
     vectors = np.atleast_2d(vectors).T
@@ -100,7 +98,8 @@ def rescale(
     eps: Optional[float] = 0.01,
     bounds: Optional[tuple[float, float]] = None,
 ) -> tuple[Union[np.ndarray, sparse.spmatrix], tuple[float, float]]:
-    """Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
+    """
+    Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
 
     Adapted with modifications from kwant.kpm
     Copyright 2011-2016 Kwant developers, BSD simplified license
@@ -158,7 +157,8 @@ def rescale(
 
 
 def jackson_kernel(N: int) -> np.ndarray:
-    """Coefficients of the Jackson kernel of length N.
+    """
+    Coefficients of the Jackson kernel of length N.
 
     Taken from Eq. (71) of `Rev. Mod. Phys., Vol. 78, No. 1 (2006)
     <https://arxiv.org/abs/cond-mat/0504627>`_.
