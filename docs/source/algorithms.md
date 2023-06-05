@@ -19,18 +19,18 @@ The transformed Hamiltonian is a
 [Cauchy product](https://en.wikipedia.org/wiki/Cauchy_product)
 between the series of $U^\dagger$, $H$, and $U$.
 
-For example, for a single first order perturbation $H_p$, the transformed
+For example, for a single first order perturbation $H_1$, the transformed
 Hamiltonian at order $n$ is
 
 :::{math}
 :label: h_tilde
 \begin{align}
 \tilde{H}_{n} = \sum_{i=0}^n (W_{n-i} - V_{n-i}) H_0 (W_i + V_i) +
-\sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_p (W_i + V_i).
+\sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_1 (W_i + V_i).
 \end{align}
 :::
 
-To block diagonalize $H_0 + H_p$, {{Pymablock}} finds the orders of $W$
+To block diagonalize $H_0 + H_1$, {{Pymablock}} finds the orders of $W$
 such that $U$ is unitary
 
 :::{math}
@@ -74,10 +74,10 @@ The full expression for $Y_n$ is cumbersome already in our simplest case:
 Y_n=&-
 \sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB}
 H_0^{BB}W_i^{BB}\right] \\
-&-\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}H_p^{AA}V_i^{AB}+W_{n-i-1}^{AA}
-H_p^{AB}W_i^{BB}
--V_{n-i-1}^{AB}(H_p^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
-H_p^{BB}W_i^{BB}\bigg]
+&-\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}H_1^{AA}V_i^{AB}+W_{n-i-1}^{AA}
+H_1^{AB}W_i^{BB}
+-V_{n-i-1}^{AB}(H_1^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
+H_1^{BB}W_i^{BB}\bigg]
 \end{align}
 :::
 ::::
@@ -86,7 +86,7 @@ H_p^{BB}W_i^{BB}\bigg]
 The {autolink}`~pymablock.general` algorithm implements the procedure outlined here directly.
 On the other hand, {autolink}`~pymablock.expanded` simplifies the expressions
 for $\tilde{H}_{n}$ (Eq. {eq}`h_tilde`) such that it only depends on $V$ and the
-perturbation $H_p$, but not explicitly on $H_0$.
+perturbation $H_1$, but not explicitly on $H_0$.
 
 :::{admonition} How this works
 :class: dropdown info
@@ -115,9 +115,9 @@ H = BlockSeries(
     data={
         (0, 0, 0): Symbol('{H_{0}^{AA}}'),
         (1, 1, 0): Symbol('{H_{0}^{BB}}'),
-        (0, 0, 1): Symbol('{H_{p}^{AA}}'),
-        (0, 1, 1): Symbol('{H_{p}^{AB}}'),
-        (1, 1, 1): Symbol('{H_{p}^{BB}}'),
+        (0, 0, 1): Symbol('{H_{1}^{AA}}'),
+        (0, 1, 1): Symbol('{H_{1}^{AB}}'),
+        (1, 1, 1): Symbol('{H_{1}^{BB}}'),
     },
     shape=(2, 2),
     n_infinite=1,
