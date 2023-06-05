@@ -164,3 +164,4 @@ docs/build/
 
 # hatch-vcs
 pymablock/_version.py
+dist/
