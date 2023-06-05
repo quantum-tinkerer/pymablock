@@ -90,15 +90,20 @@ class BlockSeries:
         n_infinite: int = 1,
         dimension_names: Optional[tuple[Union[str, sympy.Symbol], ...]] = None,
     ) -> None:
-        """An infinite series that caches its items.
+        """
+        An infinite series that caches its items.
         The series has finite and infinite dimensions.
 
         Parameters
         ----------
-        eval : Function that takes an index and returns the corresponding item.
-        data : Dictionary {index: value} to start with.
-        shape : Shape of the finite dimensions.
-        n_infinite : Number of infinite dimensions.
+        eval :
+            Function that takes an index and returns the corresponding item.
+        data :
+            Dictionary {index: value} to start with.
+        shape :
+            Shape of the finite dimensions.
+        n_infinite :
+            Number of infinite dimensions.
         """
         self.eval = (lambda *_: zero) if eval is None else eval
         self._data = data or {}
