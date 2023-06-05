@@ -134,8 +134,7 @@ def block_diagonalize(
     direct_solver :
         Whether to use the direct solver that relies on MUMPS (default).
         Otherwise, the an experimental KPM solver is used. Only applicable if
-        the implicit method is used (i.e. `subspace_vectors` is a length-1
-        tuple)
+        the implicit method is used (i.e. `subspace_vectors` is incomplete)
     symbols :
         A sympy symbol or a list of symbols that label the perturbative
         parameters of a symbolic Hamiltonian. The order of the symbols is mapped
