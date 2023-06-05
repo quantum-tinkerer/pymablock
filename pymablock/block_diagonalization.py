@@ -112,7 +112,7 @@ def block_diagonalize(
         A function that solves the Sylvester equation. If not provided,
         it is selected automatically based on the inputs.
     subspace_eigenvectors :
-        A tuple with orthonormal eigenvectors to project the Hamiltonian on
+        A tuple with orthonormal eigenvectors to project the Hamiltonian in
         and separate it into the A (effective) and B (auxiliary) blocks.
         The first element of the tuple has the eigenvectors of the A
         subspace, and the second element has the eigenvectors of the B subspace.
