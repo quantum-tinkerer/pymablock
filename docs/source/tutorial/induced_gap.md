@@ -34,7 +34,7 @@ color_cycle = ["#5790fc", "#f89c20", "#e42536"]
 from pymablock import block_diagonalize
 ```
 
-## Building the Hamiltonian
+## Building the Hamiltonian with Kwant
 
 Following [Kwant's tutorials](https://kwant-project.org/doc/1/tutorial/) we
 start by defining the lattice
