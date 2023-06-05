@@ -132,8 +132,13 @@ If you have used {{Pymablock}} for work that has lead to a scientific publicatio
 please cite it as
 
 ```
-TODO
-
+@misc{Pymablock,
+author = {{Araya Day}, Isidora and Miles, Sebastian and Varjas, Daniel and Akhmerov, Anton R.},
+doi = {10.5281/zenodo.7995684},
+month = {6},
+title = {Pymablock},
+year = {2023}
+}
 ```
 
 ## Contributing
