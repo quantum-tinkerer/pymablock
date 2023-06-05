@@ -107,6 +107,13 @@ H_tilde = block_diagonalize(
 )[0]
 ```
 
+The names of `symbols` specifying the perturbative parameters are stored in the
+`dimension_names` attribute of the result:
+
+```{code-cell} ipython3
+H_tilde.dimension_names
+```
+
 Now we are ready to specify which calculation to perform.
 
 To compute the standard quadratic dispersion of bilayer graphene and trigonal
