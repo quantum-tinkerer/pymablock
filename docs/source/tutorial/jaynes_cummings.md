@@ -124,7 +124,7 @@ H_tilde, U, U_adjoint = block_diagonalize(
 ```
 
 For example, to compute the 2nd order correction of the Hamiltonian of the
-$\uparrow$ subspace we use
+$\uparrow$ subspace (the `(0, 0)` block) we use
 
 ```{code-cell} ipython3
 %%time
