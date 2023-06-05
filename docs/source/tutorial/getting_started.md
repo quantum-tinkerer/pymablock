@@ -65,8 +65,10 @@ ax_1.set_yticks([]);
 
 :::{admonition} Subspaces must be separated
 :class: warning
-The unperturbed Hamiltonian must have at least two subspaces separated by
-an energy gap in order to use perturbation theory.
+For the perturbation theory to work, the spectra of the two subspaces must
+differ.
+The larger the smallest energy difference between the two subspaces, the
+better the perturbation theory works.
 :::
 
 ### 2. Define the perturbative series
