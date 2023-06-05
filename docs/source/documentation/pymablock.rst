@@ -16,7 +16,6 @@ Solvers of Sylvester equation
 Series
 ------
 .. autoclass:: pymablock.series.BlockSeries
-   :noindex:
 
 .. automodule:: pymablock.series
    :members: cauchy_dot_product
