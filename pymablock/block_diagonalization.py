@@ -46,15 +46,14 @@ def block_diagonalize(
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
-    Block diagonalize perturbed Hamiltonian order by order.
+    Find the block diagonalization of a Hamiltonian order by order.
 
-    The algorithm performs quasi-degenerate perturbation theory known as Lowdin
-    perturbation theory, Schrieffer-Wolff transformation, or van Vleck
-    transformation.
+    This uses quasi-degenerate perturbation theory known as Lowdin perturbation
+    theory, Schrieffer-Wolff transformation, or van Vleck transformation.
 
-    This function does not yet perform the computation. Instead,
-    the function defines the computation as a `~pymablock.series.BlockSeries`
-    object, which can be evaluated at any order.
+    This function does not yet perform the computation. Instead, it defines the
+    computation as a `~pymablock.series.BlockSeries` object, which can be
+    evaluated at any order.
 
     This function accepts a Hamiltonian in several formats and it first
     brings it to the eigenbasis of the unperturbed Hamiltonian if the blocks,
@@ -112,11 +111,8 @@ def block_diagonalize(
         Name of the function that block diagonalizes the Hamiltonian.
         Options are "general" and "expanded".
     solve_sylvester :
-        Function (callable) to use that solves the Sylvester equations.
-        If None, the default function is used for the unperturbed
-        Hamiltonian. If not the full eigenspace of the unperturbed
-        Hamiltonian is given, the default is specified by `direct_solver`.
-        Else, full diagonalization is performed.
+        A function that solves the Sylvester equation. If not provided,
+        it is selected automatically based on the inputs.
     subspace_eigenvectors :
         A tuple with orthonormal eigenvectors to project the Hamiltonian on
         and separate it into the A (effective) and B (auxiliary) blocks.
@@ -127,19 +123,19 @@ def block_diagonalize(
         incomplete.
         Mutually exclusive with ``subspace_indices``.
     subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the belonging of the
-        diagonal elements, and thereby eigenvectors, to the different subspaces
-        can be specified. The belonging of the elements is labeled by either
-        0 for the A (effective) or 1 for the B (auxilliary) subspace.
+        An array indicating which basis vector belongs to which subspace. The
+        labels are 0 for the A (effective) subspace and 1 for the B (auxiliary)
+        subspace. Only applicable if the unperturbed Hamiltonian is diagonal.
         Mutually exclusive with ``subspace_eigenvectors``.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
         See docstrings of `~pymablock.block_diagonalization.solve_sylvester_KPM`
         and `~pymablock.block_diagonalization.solve_sylvester_direct` for details.
-    direct_solver:
-        Whether to use the direct, MUMPS supported, solver for the implicit method.
-        Otherwise, the KPM solver, an experimental solver, is used.
-        Deaults to True.
+    direct_solver :
+        Whether to use the direct solver that relies on MUMPS (default).
+        Otherwise, the an experimental KPM solver is used. Only applicable if
+        the implicit method is used (i.e. `subspace_vectors` is a length-1
+        tuple)
     symbols :
         A sympy symbol or a list of symbols that label the perturbative
         parameters of a symbolic Hamiltonian. The order of the symbols is mapped
@@ -310,10 +306,9 @@ def hamiltonian_to_BlockSeries(
         incomplete.
         Mutually exclusive with ``subspace_indices``.
     subspace_indices :
-        If the unperturbed Hamiltonian is diagonal, the belonging of the
-        diagonal elements, and thereby eigenvectors, to the different subspaces
-        can be specified. The belonging of the elements is labeled by either
-        0 for the A (effective) or 1 for the B (auxilliary) subspace per element.
+        An array indicating which basis vector belongs to which subspace. The
+        labels are 0 for the A (effective) subspace and 1 for the B (auxiliary)
+        subspace. Only applicable if the unperturbed Hamiltonian is diagonal.
         Mutually exclusive with ``subspace_eigenvectors``.
     implicit :
         Whether to wrap the Hamiltonian of the BB subspace into a linear operator.
@@ -443,7 +438,7 @@ def general(
     block-diagonality of the transformed Hamiltonian.
 
     The computational cost of this algorithm scales favorably with the order
-    of the perturbation. However, it performs superflous matrix products at
+    of the perturbation. However, it performs unnecessary matrix products at
     lowest orders, and keeps the unperturbed Hamiltonian in the numerator. This
     makes this algorithm better suited for higher order numerical calculations.
 
