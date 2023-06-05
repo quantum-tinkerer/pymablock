@@ -236,6 +236,14 @@ ax_2.set_xticks([])
 ax_2.set_yticks([]);
 ```
 
+```{code-cell} ipython3
+:tags: [remove-cell]
+# Empty the data to illustrate caching clearer
+H_tilde._data = {}
+U._data = {}
+U_adjoint._data = {}
+```
+
 
 ### Querying the perturbative series
 
