@@ -140,6 +140,8 @@ for order in range(max_order):
     display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
 ```
 
+Here we omitted the superscript $AB$ on all the $V$'s for brevity.
+
 At lower orders, {autolink}`~pymablock.expanded` performs fewer operator
 products than {autolink}`~pymablock.general`, and with analytic Hamiltonians
 the resulting expressions are simpler.
