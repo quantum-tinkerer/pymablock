@@ -798,7 +798,8 @@ def solve_sylvester_diagonal(
 
     Returns
     -------
-    solve_sylvester : Function that solves Sylvester's equation.
+    solve_sylvester : `Callable`
+        Function that solves Sylvester's equation.
     """
 
     def solve_sylvester(

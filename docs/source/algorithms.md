@@ -206,7 +206,13 @@ expensive steps of the algorithms for large Hamiltonians.
 subspace even when the full Hamiltonian is a sparse matrix that is too costly to
 diagonalize.
 It does so by avoiding explicit computation of operators in $B$ subspace, and by
-utilizing the sparsity of the Hamiltonian  to compute the Green's function.
+utilizing the sparsity of the Hamiltonian to compute the Green's function.
+To do so, {{Pymablock}} uses either the [MUMPS sparse
+solver](https://mumps-solver.org/) or the [KPM
+method](https://doi.org/10.1103/RevModPhys.78.275).
+
+This approach was originally introduced in [this
+work](https://arxiv.org/abs/1909.09649).
 
 :::{admonition} Implementation details
 :class: dropdown info
@@ -237,11 +243,4 @@ V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
 
 This equation is well-defined despite $E_i - H_0$ is not invertible because
 $Y_{n}$ has no components in the $A$ subspace.
-
-To solve it efficiently, {{Pymablock}} uses either the [MUMPS sparse
-solver](https://mumps-solver.org/) or the [KPM
-method](https://doi.org/10.1103/RevModPhys.78.275).
-
-This approach was originally introduced in [this
-work](https://arxiv.org/abs/1909.09649).
 :::
