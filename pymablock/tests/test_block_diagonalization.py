@@ -933,7 +933,7 @@ def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     Test whether the KPM ready solve_sylvester gives the same result
     as solve_sylvester_diagonal when prompted with a diagonal input.
 
-    Paramaters:
+    Parameters:
     ---------
     Ns:
         tuple of dimensions of the two subspaces.
