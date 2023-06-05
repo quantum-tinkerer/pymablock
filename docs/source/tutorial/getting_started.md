@@ -240,10 +240,10 @@ ax_2.set_yticks([]);
 :tags: [remove-cell]
 # Empty the data to illustrate caching clearer
 H_tilde._data = {}
-U._data = {}
-U_adjoint._data = {}
+one = pymablock.series.one
+U._data = {key: one for key, value in U._data.items() if value is one}
+U_adjoint = {key: one for key, value in U_adjoint.items() if value is one}
 ```
-
 
 ### Querying the perturbative series
 
