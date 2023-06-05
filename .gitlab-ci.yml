@@ -46,7 +46,7 @@ run docs:
     # is merged
     - pip install git+https://github.com/akhmerov/sphinx-book-theme.git@gitlab-issue-button
     - pip install --editable .
-    - make -C docs/ html
+    - make -C docs/ html SPHINXOPTS="-W --keep-going -n"
   artifacts:
     paths:
       - docs/build
