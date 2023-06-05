@@ -19,8 +19,10 @@ The transformed Hamiltonian is a
 [Cauchy product](https://en.wikipedia.org/wiki/Cauchy_product)
 between the series of $U^\dagger$, $H$, and $U$.
 
-For example, for a single first order perturbation $H_1$, the transformed
-Hamiltonian at order $n$ is
+For brevity we use a single first order perturbation $H_1$ throughout this
+document. The generalization to multiple perturbations is straightforward.
+
+The transformed Hamiltonian at order $n$ is
 
 :::{math}
 :label: h_tilde
