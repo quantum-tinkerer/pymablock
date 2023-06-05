@@ -101,7 +101,7 @@ def block_diagonalize(
         - A `~sympy.matrices.dense.Matrix`,
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
-            `~pymablock.series.BlockSeries` is done by Taylor expanding on
+            `~pymablock.series.BlockSeries` is done by Taylor expanding in
             ``symbols`` to the desired order.
         - A `~pymablock.series.BlockSeries`,
             returned unchanged.
