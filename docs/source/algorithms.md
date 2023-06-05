@@ -163,9 +163,9 @@ The Schrieffer-Wolff transformation parameterizes $U = \exp S$, where $S =
 ```{math}
 :label: exp_s_expansion
 \begin{align}
-U = \exp{\left(S\right)}=\exp{\left(\sum_{i=0}^\infty
+U = \exp{\left(S\right)}=\exp{\left(\sum_{n=0}^\infty
 S_n\right)} = 1+\sum_{n=1}^\infty \left[\frac{1}{n!}
-\left(\sum_{j=1}^\infty S_n\right)^n\right]
+\left(\sum_{n=1}^\infty S_n\right)^n\right]
 \end{align}
 ```
 Here we consider a single perturbation for brevity.
