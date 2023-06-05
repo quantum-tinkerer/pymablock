@@ -45,6 +45,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "myst_nb",
     "sphinx_togglebutton",
+    "sphinx_copybutton",
 ]
 myst_enable_extensions = [
     "dollarmath",
