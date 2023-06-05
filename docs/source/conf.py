@@ -81,7 +81,7 @@ myst_substitutions = {
     "Pymablock": '**<span style="color:#8b4aa0ff;"> Pymablock </span>**',
 }
 
-
+autoclass_content = "both"
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
