@@ -216,7 +216,7 @@ def cauchy_dot_product(
     Multivariate Cauchy product of BlockSeries.
 
     Notes:
-    This treats a singleton `one` as the identity operator.
+    This treats a singleton ``one`` as the identity operator.
 
     Parameters
     ----------
