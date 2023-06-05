@@ -45,6 +45,7 @@ run docs:
     # TODO: remove this once https://github.com/executablebooks/sphinx-book-theme/pull/740
     # is merged
     - pip install git+https://github.com/akhmerov/sphinx-book-theme.git@gitlab-issue-button
+    - pip install sphinx-tippy
     - pip install --editable .
     - make -C docs/ html
   artifacts:

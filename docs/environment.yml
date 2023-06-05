@@ -17,4 +17,5 @@ dependencies:
     # TODO: remove this once https://github.com/executablebooks/sphinx-book-theme/pull/740
     # is merged
     - git+https://github.com/akhmerov/sphinx-book-theme.git@gitlab-issue-button
+    - sphinx-tippy
     - ..
