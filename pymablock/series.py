@@ -92,6 +92,7 @@ class BlockSeries:
     ) -> None:
         """
         An infinite series that caches its items.
+
         The series has finite and infinite dimensions.
 
         Parameters
@@ -99,11 +100,14 @@ class BlockSeries:
         eval :
             Function that takes an index and returns the corresponding item.
         data :
-            Dictionary {index: value} to start with.
+            Dictionary {index: value} with initial data of the series.
         shape :
             Shape of the finite dimensions.
         n_infinite :
             Number of infinite dimensions.
+        dimension_names :
+            Names of the infinite dimensions.
+            This is used for symbolic series.
         """
         self.eval = (lambda *_: zero) if eval is None else eval
         self._data = data or {}
@@ -218,7 +222,7 @@ def cauchy_dot_product(
     exclude_last: Optional[list[bool]] = None,
 ) -> BlockSeries:
     """
-    Multivariate Cauchy product of BlockSeries.
+    Multivariate Cauchy product of `~pymablock.series.BlockSeries`.
 
     Notes:
     This treats a singleton ``one`` as the identity operator.
