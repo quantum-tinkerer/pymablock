@@ -35,6 +35,9 @@ source_archive = "https://gitlab.kwant-project.org/qt/pymablock/-/archive/{commi
 "Repository" = "https://gitlab.kwant-project.org/qt/pymablock"
 "Bug Tracker" = "https://gitlab.kwant-project.org/qt/pymablock/-/issues"
 
+[tool.hatch.build.targets.wheel]
+packages = ["pymablock"]
+
 [tool.ruff]
 line-length = 90
 

@@ -149,7 +149,7 @@ auto
 *~
 \#*#
 
-# pytest
+# pytest and other python tools
 .pytest_cache/
 *.xml
 htmlcov/
@@ -157,6 +157,8 @@ coverage/
 .coverage
 prof/
 .nox/
+.mypy_cache/
+.ruff_cache/
 
 # docs
 docs/build/
@@ -165,3 +167,6 @@ docs/build/
 # hatch-vcs
 pymablock/_version.py
 dist/
+
+# VS Code
+.vscode/
