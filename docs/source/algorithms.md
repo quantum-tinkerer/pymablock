@@ -51,7 +51,7 @@ $U^\dagger U + UU^\dagger=2$ and use that $W=W^\dagger$ and $V=-V^\dagger$ to ob
 (W_{n-i} + V_{n-i})(W_i - V_i)\right] = 0.\\
 \end{equation}
 ```
-Using that $W_0=1$, $V=0$, expanding, and solving for $W_n$ gives the Eq. {eq}`unitarity`.
+Using that $W_0=1$, $V_0=0$, expanding, and solving for $W_n$ gives the Eq. {eq}`unitarity`.
 :::
 
 and the orders of $V$ by requiring that $\tilde{H}^{AB}_n=0$
