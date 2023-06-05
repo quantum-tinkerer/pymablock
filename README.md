@@ -8,7 +8,7 @@ order.
 
 Building an effective model using {{Pymablock}} is a three step process:
 * Define a Hamiltonian
-* Call {autolink}`~pymablock.block_diagonalize`
+* Call `pymablock.block_diagonalize`
 * Request the desired order of the effective Hamiltonian
 
 ```python
