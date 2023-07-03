@@ -41,10 +41,10 @@ run nox:
 run docs:
   script:
     - pip install sphinx myst-nb sphinx-togglebutton sphinx-tippy sphinx-copybutton
-    # sphinx-book-theme is installed from a fork with a fix for the issue button
-    # TODO: remove this once https://github.com/executablebooks/sphinx-book-theme/pull/740
-    # is merged
-    - pip install git+https://github.com/akhmerov/sphinx-book-theme.git@gitlab-issue-button
+    # sphinx-book-theme is installed from a commit a fix for the issue button
+    # TODO: remove this once sphinx-book-theme makes a release containing
+    # https://github.com/executablebooks/sphinx-book-theme/pull/740
+    - pip install git+https://github.com/executablebooks/sphinx-book-theme.git@a9794b7
     - pip install --editable .
     - make -C docs/ html SPHINXOPTS="-W --keep-going -n"
   artifacts:

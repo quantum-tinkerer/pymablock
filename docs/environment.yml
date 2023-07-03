@@ -14,9 +14,9 @@ dependencies:
   - sphinx-togglebutton
   - sphinx-copybutton
   - pip:
-    # sphinx-book-theme is installed from a fork with a fix for the issue button
-    # TODO: remove this once https://github.com/executablebooks/sphinx-book-theme/pull/740
-    # is merged
-    - git+https://github.com/akhmerov/sphinx-book-theme.git@gitlab-issue-button
+    # sphinx-book-theme is installed from a commit a fix for the issue button
+    # TODO: remove this once sphinx-book-theme makes a release containing
+    # https://github.com/executablebooks/sphinx-book-theme/pull/740
+    - git+https://github.com/executablebooks/sphinx-book-theme.git@a9794b7
     - sphinx-tippy
     - ..
