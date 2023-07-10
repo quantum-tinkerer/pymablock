@@ -70,13 +70,24 @@ run pre-commit:
       - micromamba
 
 
+run paper:
+  script:
+    - npm install -g mystmd
+    - myst build paper/paper.md
+  artifacts:
+    paths:
+      - paper/exports/paper.pdf
+      - paper/exports/paper_pdf_tex
+
 pages:
   needs:
     - run tests
     - run docs
+    - run paper
   script:
     - cp -r htmlcov public/
     - cp -r docs/build public/
+    - cp -r paper/exports public/
   artifacts:
     paths:
       - public
