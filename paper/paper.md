@@ -1,14 +1,17 @@
 ---
-version: 1
-project:
-  title: Pymablock
-  # description:
-  keywords: []
-  authors: []
-  # github:
-  # bibliography: []
+title: Pymablock
+authors:
+  - name: person
+    orcid: orcid
+    affiliation: aaaa
+    corresponding: true
+    email: myemail@gmail.com
+  - name: personita
+    orcid: orcid
+    affiliation: bbbb
 site:
-  template: book-theme
+  template: scipost-template
+  draft: true
   # title:
   # logo:
   nav: []
@@ -18,7 +21,8 @@ site:
   domains: []
 exports:
   - format: tex+pdf
-    template: dressedfez/physical_review_journals
+    drafts: true
+    template: scipost-template
     output: exports/paper.pdf
 ---
 
@@ -33,7 +37,7 @@ Here we introduce Pymablock, a Python package that constructs effective models u
 It handles both numerical and symbolic inputs, and it efficiently block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary order.
 +++
 
-## Introduction
+# Introduction
 
 Effective models enable the study of complex physical systems by reducing the space of interest to a low energy one.
 
@@ -47,19 +51,19 @@ Building an effective model with Pymablock is easy, its core is a versatile bloc
 
 (Include figure with 2 subpanels: 3 lines of code that show how to build a mode, and a scheme of the steps.)
 
-## Finding an effective model
+# Finding an effective model
 
-### Pymablock workflow
+## Pymablock workflow
 
 The workflow of Pymablock consists of three steps.
 
 Depending on the input Hamiltonian, Pymablock uses specific routines to find the effective model, so that symbolic expressions are compact and numerics are efficient.
 
-### k.p model of bilayer graphene
+## k.p model of bilayer graphene
 
 To illustrate the use of Pymablock in analytic models, we consider a k.p model of bilayer graphene.
 
-### Induced gap in a double quantum dot
+## Induced gap in a double quantum dot
 
 Large systems pose an additional challenge due to the scaling of linear algebra routines for large matrices.
 
@@ -67,7 +71,7 @@ Pymablock handles large systems by using sparse matrices and avoiding the constr
 
 We illustrate this with a model of a double quantum dot.
 
-## Pymablock algorithms
+# Pymablock algorithms
 
 Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators and finds a minimal unitary transformation that separates its subspaces.
 
@@ -80,6 +84,6 @@ Pymablock finds the unitary transformation recursively, using unitarity and solv
 Pymablock has two algorithms, general and expanded, tailored for different use cases.
 
 
-## Benchmark
+# Benchmark
 
-## Conclusion
+# Conclusion
