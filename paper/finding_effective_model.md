@@ -63,7 +63,8 @@ a_1 = (sqrt(3) * N.y + N.x) / 2
 a_2 = (sqrt(3) * N.y - N.x) / 2
 k = (4 * pi / 3 + k_x) * N.x + k_y * N.y
 
-alpha_k = (1 + exp(I * k.dot(a_1)) + exp(I * k.dot(a_2))).expand(complex=True, trig=True)
+alpha_k = (1 + exp(I * k.dot(a_1)) + exp(I * k.dot(a_2)))
+alpha_k = alpha_k.expand(complex=True, trig=True)
 Eq(alpha, alpha_k, evaluate=False)
 ```
 
@@ -154,6 +155,7 @@ We use the Kwant package [kwant](doi:10.1088/1367-2630/16/6/063065) to build the
 In the following code, we define a square lattice of $L \times W = 200 \times 40$ sites with $2$ orbitals per unit cell with the superconducting region in the middle and the quantum dots on the sides.
 
 ```{code-cell} ipython3
+
 import tinyarray as ta
 import matplotlib.backends
 import scipy.linalg
