@@ -1,7 +1,6 @@
-[# if not options.draft #]
 \documentclass[submission, Phys]{SciPost}
-[# endif #]
 
+\usepackage{minted}
 [-IMPORTS-]
 
 \binoppenalty=10000
@@ -61,7 +60,9 @@
 \noindent\rule{\textwidth}{1pt}
 \vspace{10pt}
 
-[-CONTENT-]
+[- CONTENT
+| replace("\\begin{verbatim}", "\\begin{minted}{python}")
+| replace("\\end{verbatim}", "\\end{minted}") -]
 
 [# if doc.bibliography #]
 \bibliography{[- doc.bibliography | join(", ") -]}

@@ -39,5 +39,6 @@ packages:
   - mathdesign
   - authblk
   - academicons
+  - minted
   - hyperref
 myst: v1
