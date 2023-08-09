@@ -9,9 +9,12 @@
 ## k.p model of bilayer graphene
 
 **We use bilayer graphene to illustrate how to use Pymablock with analytic models.**
-To illustrate how to use Pymablock with analytic models, we consider two layers of graphene stacked on top of each other.
-Our goal is to find the low energy model near the $K$ point, like in Ref. [McCann_2013](doi:10.1088/0034-4885/76/5/056503).
-To start, we construct the k.p Hamiltonian of bilayer graphene from the tight-binding model shown in the figure below.
+To illustrate how to use Pymablock with analytic models, we consider two layers
+of graphene stacked on top of each other.
+Our goal is to find the low energy model near the $K$ point, like in Ref.
+[McCann_2013](doi:10.1088/0034-4885/76/5/056503).
+To start, we construct the k.p Hamiltonian of bilayer graphene from the
+tight-binding model shown in the figure below.
 
 ```{figure} figures/bilayer.svg
 :name: bilayer
@@ -33,13 +36,13 @@ The physics of this system is not crucial for us, but here are the main features
 
 ### Define a symbolic Hamiltonian
 
-We define the Hamiltonian using Sympy [sympy](10.7717/peerj-cs.103), a Python package for symbolic computations.
+We define the Hamiltonian using Sympy [sympy](10.7717/peerj-cs.103), a Python
+package for symbolic computations.
 
 ```{code-cell} ipython3
 import numpy as np
 from sympy import symbols, Matrix, sqrt, Eq, exp, I, pi, Add, MatAdd
 from sympy.physics.vector import ReferenceFrame
-import sympy
 
 t_1, t_2, m = symbols("t_1 t_2 m", real=True)
 alpha = symbols(r"\alpha")
@@ -53,8 +56,9 @@ H = Matrix(
 Eq(symbols("H"), H, evaluate=False)
 ```
 
-where `\alpha` groups the momentum dependent terms in the Hamiltonian.
-We define it by making $\mathbf{K}=(4\pi/3, 0)$ the reference point for the $\mathbf{k}$-vector, making $k_x$ and $k_y$ the perturbative parameters.
+where $\alpha$ groups the momentum dependent terms in the Hamiltonian.
+We define it by making $\mathbf{K}=(4\pi/3, 0)$ the reference point for the
+$\mathbf{k}$-vector, making $k_x$ and $k_y$ the perturbative parameters.
 
 ```{code-cell} ipython3
 k_x, k_y = symbols("k_x k_y", real=True)
@@ -70,16 +74,17 @@ Eq(alpha, alpha_k, evaluate=False)
 
 ### Define the perturbative series
 
-Now we obtain the eigenvectors of the unperturbed Hamiltonian by substituting the unperturbed values (`sympy.core.basic.Basic.subs`) and diagonalizing (`~sympy.matrices.matrices.MatrixEigen.diagonalize`).
+We obtain the eigenvectors of the unperturbed Hamiltonian by substituting
+the unperturbed values $\alpha=m=0$ and diagonalizing.
 
 ```{code-cell} ipython3
 vecs = H.subs({alpha: 0, m: 0}).diagonalize(normalize=True)[0]
 vecs
 ```
 
-After substituting the full expression for $\alpha(k)$ into the Hamiltonian, we are ready to `block_diagonalize` it.
-For that we specify which symbols are the perturbative parameters using `symbols` argument. The order of `symbols` is important: it defines the order of variables in the perturbative series.
-
+Now, we substitute the full expression for $\alpha(\mathbf{k})$ into the
+Hamiltonian, and we define the block diagonalization routine by specifying that
+$k_x$, $k_y$, and $m$ are the perturbative parameters.
 
 ```{code-cell} ipython3
 from pymablock import block_diagonalize
@@ -91,42 +96,49 @@ H_tilde = block_diagonalize(
 )[0]
 ```
 
-The names of `symbols` specifying the perturbative parameters are stored in the
-`dimension_names` attribute of the result:
+Here `symbols` specifies the perturbative parameters in the order of variables
+in the perturbative series.
+The `dimension_names` attribute of the result stores their order:
 
 ```{code-cell} ipython3
 H_tilde.dimension_names
 ```
 
 Now we are ready to specify which calculation to perform.
-
-To compute the standard quadratic dispersion of bilayer graphene and trigonal warping, we need corrections up to third order in momentum.
+To compute the standard quadratic dispersion of bilayer graphene and trigonal
+warping, we need corrections up to third order in momentum.
 Let us then group the terms by total power of momentum.
-For now this requires an explicit definition of all components, but in the future we plan to automate this step.
+For now this requires an explicit definition of all components, but in the
+future we plan to automate this step.
 
 ```{code-cell} ipython3
 k_square = np.array([[0, 1, 2], [2, 1, 0]])
 k_cube = np.array([[0, 1, 2, 3], [3, 2, 1, 0]])
 ```
 
-The above manual definition of `k_square` and `k_cube` becomes cumbersome for higher orders or dimensions.
-Instead, we can use the `np.mgrid` and select the terms we need by total power like this:
-```python
+The above manual definition of `k_square` and `k_cube` becomes cumbersome for
+higher orders or dimensions.
+Instead, we can use the `np.mgrid` and select the terms we need by total power
+like this:
+
+```{code-cell} ipython3
 k_powers = np.mgrid[:4, :4]
 k_square = k_powers[..., np.sum(k_powers, axis=0) == 2]
 k_cube = k_powers[..., np.sum(k_powers, axis=0) == 3]
 ```
 
 Before we saw that querying `H_tilde` returns the results in a numpy array.
-To gather different entries into one symbolic expression, we define a convenience function that sums several orders together.
-This uses the `~numpy.ma.MaskedArray.compressed` method of masked numpy arrays, and simplifies the resulting expression.
+To gather different entries into one symbolic expression, we define a
+convenience function that sums several orders together.
+This uses the `~numpy.ma.MaskedArray.compressed` method of masked numpy arrays,
+and simplifies the resulting expression.
 
 ```{code-cell} ipython3
 def H_tilde_AA(*orders):
     return Add(*H_tilde[0, 0, orders[0], orders[1], orders[2]].compressed()).simplify()
 ```
 
-Finally, we are ready to obtain the result.
+Finally, we obtain the result.
 
 ```{code-cell} ipython3
 mass_term = H_tilde_AA([0], [0], [1])
@@ -136,23 +148,32 @@ cubic = H_tilde_AA(*k_cube, 0)
 MatAdd(mass_term + kinetic, mass_correction + cubic, evaluate=False)
 ```
 
-The first term contains the standard quadratic dispersion of bilayer graphene with a gap.
-The second term contains trigonal warping and the coupling between the gap and momentum.
+The first term contains the standard quadratic dispersion of bilayer graphene
+with a gap.
+The second term contains trigonal warping and the coupling between the gap and
+momentum.
 
 ## Induced gap in a double quantum dot
 
-**Large systems pose an additional challenge due to the scaling of linear algebra routines for large matrices.**
-Large systems pose an additional challenge due to the scaling of linear algebra routines for large matrices.
-Pymablock handles large systems by using sparse matrices and avoiding the construction of the full Hamiltonian.
-We illustrate its efficiency with a model of a double quantum dot and a superconductor with a tunnel barrier in between.
+**Large systems pose an additional challenge due to the scaling of linear
+algebra routines for large matrices.**
+Large systems pose an additional challenge due to the scaling of linear algebra
+routines for large matrices.
+Pymablock handles large systems by using sparse matrices and avoiding the
+construction of the full Hamiltonian.
+We illustrate its efficiency with a model of a double quantum dot and a
+superconductor with a tunnel barrier in between.
 
 _(Include figure with scheme of the system)_
 
 ### Building the Hamiltonian with Kwant
 
 **We use Kwant to build the Hamiltonian of the system.**
-We use the Kwant package [kwant](doi:10.1088/1367-2630/16/6/063065) to build the Hamiltonian of the system.
-In the following code, we define a square lattice of $L \times W = 200 \times 40$ sites with $2$ orbitals per unit cell with the superconducting region in the middle and the quantum dots on the sides.
+We use the Kwant package [kwant](doi:10.1088/1367-2630/16/6/063065) to build
+the Hamiltonian of the system.
+In the following code, we define a square lattice of $L \times W = 200 \times
+40$ sites with $2$ orbitals per unit cell with the superconducting region in
+the middle and the quantum dots on the sides.
 
 ```{code-cell} ipython3
 
@@ -166,7 +187,6 @@ import matplotlib.pyplot as plt
 color_cycle = ["#5790fc", "#f89c20", "#e42536"]
 
 from pymablock import block_diagonalize
-
 
 sigma_z = ta.array([[1, 0], [0, -1]], float)
 sigma_x = ta.array([[0, 1], [1, 0]], float)
@@ -193,8 +213,11 @@ syst[(hop for hop in syst.hoppings() if barrier(*hop))] = (
 )
 ```
 
-Here `mu_n` and `mu_sc` are the chemical potentials of the normal and superconducting regions, respectively, `Delta` is the superconducting gap, and `t` is the hopping amplitude within each region.
-The barrier strength between the quantum dots and the superconductor is `t_barrier`.
+Here $\mu_n$ and $\mu_{sc}$ are the chemical potentials of the normal and
+superconducting regions, respectively, $\Delta$ is the superconducting gap, and
+$t$ is the hopping amplitude within each region.
+The barrier strength between the quantum dots and the superconductor is
+$t_{barrier}$.
 
 We can now plot the system and finalize it
 
@@ -216,9 +239,11 @@ f"The system has {len(syst.sites)} sites."
 In the plot the blue regions are the left and right quantum dots, while the
 superconductor is the red region in the middle.
 
-We see that the system is large: with this many sites even storing all the eigenvectors would take 60 GB of memory. We must therefore use sparse matrices, and may only compute a few eigenvectors.
-In this case, perturbation theory allows us to compute the effective Hamiltonian of the low energy degrees of
-freedom.
+We see that the system is large: with this many sites even storing all the
+eigenvectors would take 60 GB of memory.
+We must therefore use sparse matrices, and may only compute a few eigenvectors.
+In this case, perturbation theory allows us to compute the effective
+Hamiltonian of the low energy degrees of freedom.
 
 To get the unperturbed Hamiltonian, we use the following values for $\mu_n$,
 $\mu_{sc}$, $\Delta$, $t$, and $t_{\text{barrier}}$.
@@ -235,8 +260,8 @@ params = dict(
 h_0 = syst.hamiltonian_submatrix(params=params, sparse=True).real
 ```
 
-The barrier strength and the asymmetry of the dot potentials are the two perturbations
-that we vary.
+The barrier strength and the asymmetry of the dot potentials are the two
+perturbations that we vary.
 
 ```{code-cell} ipython3
 barrier = syst.hamiltonian_submatrix(

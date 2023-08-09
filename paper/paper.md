@@ -9,8 +9,6 @@ authors:
   - name: personita
     orcid: 0000-0000-0000-0000
     affiliations: [bbbb]
-# bibliography:
-#   - references.bib
 site:
   template: scipost-template
   draft: true
