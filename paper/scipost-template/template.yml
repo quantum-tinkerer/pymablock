@@ -37,4 +37,6 @@ packages:
   - amsmath
   - mathdesign
   - authblk
+  - academicons
+  - hyperref
 myst: v1

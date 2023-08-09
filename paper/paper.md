@@ -2,13 +2,15 @@
 title: Pymablock
 authors:
   - name: person
-    orcid: orcid
-    affiliation: aaaa
+    orcid: 0000-0000-0000-0000
+    affiliations: [aaaa]
     corresponding: true
     email: myemail@gmail.com
   - name: personita
-    orcid: orcid
-    affiliation: bbbb
+    orcid: 0000-0000-0000-0000
+    affiliations: [bbbb]
+# bibliography:
+#   - references.bib
 site:
   template: scipost-template
   draft: true
