@@ -2,8 +2,8 @@
 \documentclass[submission, Phys]{SciPost}
 [# endif #]
 
-% You should have an imports section
-[- IMPORTS -]
+[-IMPORTS-]
+
 \binoppenalty=10000
 \relpenalty=10000
 
@@ -14,7 +14,8 @@
     urlcolor={blue!80!black}
 }
 
-\usepackage[bitstream-charter]{mathdesign}
+\definecolor{orcidlogocol}{HTML}{A6CE39}
+
 \urlstyle{sf}
 
 \DeclareSymbolFont{usualmathcal}{OMS}{cmsy}{m}{n}
@@ -23,19 +24,19 @@
 \begin{document}
 
 \begin{center}
-{\Large \textbf{ [-doc.title-]}}
+{\Large \textbf{[-doc.title-]}}
 \end{center}
 
-[# for author in doc.authors #]
+[# for authorx in doc.authors #]
 \author[
-        [--author.affiliations|join(', ', 'index')--]
-        [#-if author.email-#]
-        \thanks{\texttt{[-author.email-]}}
+        [--authorx.affiliations|join(', ', 'index')--]
+        [#-if authorx.email-#]
+        \thanks{\texttt{[-authorx.email-]}}
         [#-endif-#]
 ]{
-        [--author.name-]
-        [#- if author.orcid -#]
-        \href{https://orcid.org/[-author.orcid-]}{\orcidicon}
+        [--authorx.name-]
+        [#- if authorx.orcid -#]
+        \href{https://orcid.org/[-authorx.orcid-]}{\orcidicon}
         [#- endif -#]
 }
 [# endfor #]
