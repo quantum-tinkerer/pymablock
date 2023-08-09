@@ -33,6 +33,7 @@ options:
 files:
   - template.tex
   - SciPost.cls
+  - SciPost_bibstyle.bst
 packages:
   - amsmath
   - mathdesign
