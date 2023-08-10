@@ -49,6 +49,9 @@ It handles both numerical and symbolic inputs, and it efficiently block-diagonal
 ```{include} algorithms.md
 ```
 
+```{include} implementation.md
+```
+
 ```{include} benchmark.md
 ```
 
