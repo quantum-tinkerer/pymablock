@@ -170,3 +170,6 @@ dist/
 
 # VS Code
 .vscode/
+
+# myst
+exports/
