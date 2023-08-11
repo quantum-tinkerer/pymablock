@@ -47,7 +47,11 @@ It handles both numerical and symbolic inputs, and it efficiently block-diagonal
 +++
 
 
-```{include} introduction.md
+```{figure} #my-cell
+This figure has been included from finding_effective_model.ipynb
+```
+
+<!-- ```{include} introduction.md
 ```
 
 ```{include} finding_effective_model.md
@@ -63,4 +67,4 @@ It handles both numerical and symbolic inputs, and it efficiently block-diagonal
 ```
 
 ```{include} conclusion.md
-```
+``` -->
