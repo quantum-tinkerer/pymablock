@@ -1,16 +1,3 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
-
 # Algorithms for block diagonalization
 
 **Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
@@ -149,40 +136,7 @@ the simplified $\tilde{H}$.
 As an example, the corrections to the effective Hamiltonian up to fourth
 order using `pymablock.expanded` are
 
-```{code-cell} ipython3
-:tags: [remove-input]
-
-from operator import mul
-
-from sympy import Symbol, Eq
-
-from pymablock.block_diagonalization import BlockSeries, symbolic
-
-H = BlockSeries(
-    data={
-        (0, 0, 0): Symbol('{H_{0}^{AA}}'),
-        (1, 1, 0): Symbol('{H_{0}^{BB}}'),
-        (0, 0, 1): Symbol('{H_{1}^{AA}}'),
-        (0, 1, 1): Symbol('{H_{1}^{AB}}'),
-        (1, 1, 1): Symbol('{H_{1}^{BB}}'),
-    },
-    shape=(2, 2),
-    n_infinite=1,
-)
-
-max_order = 5
-hamiltonians = {
-  Symbol(f'H_{{{index}}}'): value for index, value in H._data.items()
-}
-offdiagonals = {
-  Symbol(f'V_{{({order},)}}'): Symbol(f'V_{order}') for order in range(max_order)
-}
-
-H_tilde, *_ = symbolic(H)
-
-for order in range(max_order):
-    result = Symbol(fr'\tilde{{H}}_{order}^{{AA}}')
-    display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
+```{embed} # expanded
 ```
 
 Here we omitted the superscript $AB$ on all the $V$'s for brevity.

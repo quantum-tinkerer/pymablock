@@ -23,16 +23,6 @@ exports:
   - format: tex+pdf
     template: scipost-template
     output: exports/paper.pdf
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
 ---
 
 # Pymablock
@@ -47,11 +37,7 @@ It handles both numerical and symbolic inputs, and it efficiently block-diagonal
 +++
 
 
-```{figure} #my-cell
-This figure has been included from finding_effective_model.ipynb
-```
-
-<!-- ```{include} introduction.md
+```{include} introduction.md
 ```
 
 ```{include} finding_effective_model.md
@@ -67,4 +53,4 @@ This figure has been included from finding_effective_model.ipynb
 ```
 
 ```{include} conclusion.md
-``` -->
+```
