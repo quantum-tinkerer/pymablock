@@ -1,16 +1,3 @@
----
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.14.4
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
----
-
 # Constructing an effective model
 
 ## Pymablock workflow
@@ -77,36 +64,14 @@ The physics of this system is not crucial for us, but here are the main features
 We define the Hamiltonian using the Sympy package for symbolic Python
 [sympy](10.7717/peerj-cs.103).
 
-```{code-cell} ipython3
-import numpy as np
-from sympy import symbols, Matrix, sqrt, Eq, exp, I, pi, Add, MatAdd
-from sympy.physics.vector import ReferenceFrame
-
-t_1, t_2, m = symbols("t_1 t_2 m", real=True)
-alpha = symbols(r"\alpha")
-
-H = Matrix([
-    [m, t_1 * alpha, 0, 0],
-    [t_1 * alpha.conjugate(), m, t_2, 0],
-    [0, t_2, -m, t_1 * alpha],
-    [0, 0, t_1 * alpha.conjugate(), -m]]
-)
-Eq(symbols("H"), H, evaluate=False)
+```{embed} # cell-1-finding_effective_model
 ```
 
 Here $\alpha(\mathbf{k})$ groups the momentum dependent terms in the Hamiltonian.
 We choose $\mathbf{K}=(4\pi/3, 0)$ as the reference point for the
 $\mathbf{k}$-vector, such that $k_x$ and $k_y$ are perturbative parameters.
 
-```{code-cell} ipython3
-k_x, k_y = symbols("k_x k_y", real=True)
-N = ReferenceFrame("N")
-a_1 = (sqrt(3) * N.y + N.x) / 2
-a_2 = (sqrt(3) * N.y - N.x) / 2
-k = (4 * pi / 3 + k_x) * N.x + k_y * N.y
-
-alpha_k = (1 + exp(I * k.dot(a_1)) + exp(I * k.dot(a_2))).expand(complex=True, trig=True)
-Eq(alpha, alpha_k, evaluate=False)
+```{embed} # cell-2-finding_effective_model
 ```
 
 ### Defining the perturbative series
@@ -119,31 +84,21 @@ and the subspace of interest for the effective model.
 We obtain them by substituting the unperturbed values $\alpha = m = 0$ into the
 Hamiltonian and diagonalizing it.
 
-```{code-cell} ipython3
-vecs = H.subs({alpha: 0, m: 0}).diagonalize(normalize=True)[0]
-vecs
+```{embed} # cell-3-finding_effective_model
 ```
 
 Then, we substitute the full expression for $\alpha(\mathbf{k})$ into the
 Hamiltonian, and we define the block diagonalization routine using that
 $k_x$, $k_y$, and $m$ are perturbative parameters.
 
-```{code-cell} ipython3
-from pymablock import block_diagonalize
-
-H_tilde, U, U_adjoint = block_diagonalize(
-    H.subs({alpha: alpha_k}),
-    symbols=(k_x, k_y, m),
-    subspace_eigenvectors=[vecs[:, :2], vecs[:, 2:]]
-)
+```{embed} # cell-4-finding_effective_model
 ```
 
 Here `symbols` specifies the perturbative parameters in the order of variables
 in the perturbative series.
 The `dimension_names` attribute of the result stores their order:
 
-```{code-cell} ipython3
-H_tilde.dimension_names
+```{embed} # cell-5-finding_effective_model
 ```
 
 Now we are ready to specify which calculation to perform.
@@ -153,9 +108,7 @@ Let us then group the terms by total power of momentum.
 For now this requires an explicit definition of all components, but in the
 future we plan to automate this step.
 
-```{code-cell} ipython3
-k_square = np.array([[0, 1, 2], [2, 1, 0]])
-k_cube = np.array([[0, 1, 2, 3], [3, 2, 1, 0]])
+```{embed} # cell-6-finding_effective_model
 ```
 
 The above manual definition of `k_square` and `k_cube` becomes cumbersome for
@@ -163,10 +116,7 @@ higher orders or dimensions.
 Instead, we can use the `np.mgrid` and select the terms we need by total power
 like this:
 
-```python
-k_powers = np.mgrid[:4, :4]
-k_square = k_powers[..., np.sum(k_powers, axis=0) == 2]
-k_cube = k_powers[..., np.sum(k_powers, axis=0) == 3]
+```{embed} # cell-7-finding_effective_model
 ```
 
 Before we saw that querying `H_tilde` returns the results in a numpy array.
@@ -175,19 +125,12 @@ convenience function that sums several orders together.
 This uses the `numpy.ma.MaskedArray.compressed` method of masked numpy arrays,
 and simplifies the resulting expression.
 
-```{code-cell} ipython3
-def H_tilde_AA(*orders):
-    return Add(*H_tilde[0, 0, orders[0], orders[1], orders[2]].compressed()).simplify()
+```{embed} # cell-8-finding_effective_model
 ```
 
 Finally, we are ready to obtain the result.
 
-```{code-cell} ipython3
-mass_term = H_tilde_AA([0], [0], [1])
-kinetic = H_tilde_AA(*k_square, 0)
-mass_correction = H_tilde_AA(*k_square, 1)
-cubic = H_tilde_AA(*k_cube, 0)
-MatAdd(mass_term + kinetic, mass_correction + cubic, evaluate=False)
+```{embed} # cell-9-finding_effective_model
 ```
 
 The first term contains the standard quadratic dispersion of bilayer graphene with a gap.
@@ -214,43 +157,7 @@ In the following code, we define a square lattice of $L \times W = 200 \times
 40$ sites with $2$ orbitals per unit cell with the superconducting region in
 the middle and the quantum dots on the sides.
 
-```{code-cell} ipython3
-
-import tinyarray as ta
-import matplotlib.backends
-import scipy.linalg
-from scipy.sparse.linalg import eigsh
-import numpy as np
-import kwant
-import matplotlib.pyplot as plt
-color_cycle = ["#5790fc", "#f89c20", "#e42536"]
-
-from pymablock import block_diagonalize
-
-
-sigma_z = ta.array([[1, 0], [0, -1]], float)
-sigma_x = ta.array([[0, 1], [1, 0]], float)
-
-syst = kwant.Builder()
-lat = kwant.lattice.square(norbs=2)
-L, W = 200, 40
-
-def normal_onsite(site, mu_n, t):
-    return (-mu_n + 4 * t) * sigma_z
-
-def sc_onsite(site, mu_sc, Delta, t):
-    return (-mu_sc + 4 * t) * sigma_z + Delta * sigma_x
-
-syst[lat.shape((lambda pos: abs(pos[1]) < W and abs(pos[0]) < L), (0, 0))] = normal_onsite
-syst[lat.shape((lambda pos: abs(pos[1]) < W and abs(pos[0]) < L / 3), (0, 0))] = sc_onsite
-syst[lat.neighbors()] = lambda site1, site2, t: -t * sigma_z
-
-def barrier(site1, site2):
-    return (abs(site1.pos[0]) - L / 3) * (abs(site2.pos[0]) - L / 3) < 0
-
-syst[(hop for hop in syst.hoppings() if barrier(*hop))] = (
-    lambda site1, site2, t_barrier: -t_barrier * sigma_z
-)
+```{embed} # cell-10-finding_effective_model
 ```
 
 Here `mu_n` and `mu_sc` are the chemical potentials of the normal and
@@ -260,19 +167,7 @@ The barrier strength between the quantum dots and the superconductor is `t_barri
 
 We can now plot the system and finalize it
 
-```{code-cell} ipython3
-
-kwant.plot(
-    syst,
-    fig_size=(10, 6),
-    site_color=(lambda site: abs(site.pos[0]) < L / 3),
-    colorbar=False,
-    cmap="seismic",
-    hop_lw=0,
-)
-
-syst = syst.finalized()
-f"The system has {len(syst.sites)} sites."
+```{embed} # cell-11-finding_effective_model
 ```
 
 In the plot the blue regions are the left and right quantum dots, while the
@@ -287,28 +182,13 @@ Hamiltonian of the low energy degrees of freedom.
 To get the unperturbed Hamiltonian, we use the following values for $\mu_n$,
 $\mu_{sc}$, $\Delta$, $t$, and $t_{\text{barrier}}$.
 
-```{code-cell} ipython3
-params = dict(
-    mu_n=0.05,
-    mu_sc=0.3,
-    Delta=0.05,
-    t=1.,
-    t_barrier=0.,
-)
-
-h_0 = syst.hamiltonian_submatrix(params=params, sparse=True).real
+```{embed} # cell-12-finding_effective_model
 ```
 
 The barrier strength and the asymmetry of the dot potentials are the two
 perturbations that we vary.
 
-```{code-cell} ipython3
-barrier = syst.hamiltonian_submatrix(
-    params={**{p: 0 for p in params.keys()}, "t_barrier": 1}, sparse=True
-).real
-delta_mu = (
-    kwant.operator.Density(syst, (lambda site: sigma_z * site.pos[0] / L)).tocoo().real
-)
+```{embed} # cell-13-finding_effective_model
 ```
 
 ### Define the perturbative series
@@ -320,11 +200,7 @@ Therefore we compute 4 eigenvectors of the unperturbed Hamiltonian, which
 correspond to the 4 lowest eigenvalues closest to $E=0$.
 These are the lowest energy Andreev states in two quantum dots.
 
-```{code-cell} ipython3
-%%time
-
-vals, vecs = eigsh(h_0, k=4, sigma=0)
-vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize the vectors
+```{embed} # cell-14-finding_effective_model
 ```
 
 The orthogonalization is often necessary to do manually because
@@ -337,10 +213,7 @@ Here we only provide the set of vectors of the interesting subspace.
 This selects the `pymablock.implicit` method that uses efficient sparse
 solvers for Sylvester's equation.
 
-```{code-cell} ipython3
-%%time
-
-H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
+```{embed} # cell-15-finding_effective_model
 ```
 
 Block diagonalization is now the most time consuming step because it requires
@@ -352,49 +225,19 @@ It is, however, manageable and it only produces a constant overhead.
 For convenience, we collect the lowest three orders in each parameter in an
 appropriately sized tensor.
 
-```{code-cell} ipython3
-%%time
-
-# Combine all the perturbative terms into a single 4D array
-fill_value = np.zeros((), dtype=object)
-fill_value[()] = np.zeros_like(H_tilde[0, 0, 0, 0])
-h_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :3], fill_value).tolist())
+```{embed} # cell-16-finding_effective_model
 ```
 
 We see that we have obtained the effective model in only a few seconds.
 We can now compute the low energy spectrum after rescaling the perturbative
 corrections by the magnitude of each perturbation.
 
-```{code-cell} ipython3
-def effective_energies(h_tilde, barrier, delta_mu):
-    barrier_powers = barrier ** np.arange(3).reshape(-1, 1, 1, 1)
-    delta_mu_powers = delta_mu ** np.arange(3).reshape(1, -1, 1, 1)
-    return scipy.linalg.eigvalsh(
-        np.sum(h_tilde * barrier_powers * delta_mu_powers, axis=(0, 1))
-    )
+```{embed} # cell-17-finding_effective_model
 ```
 
 Finally, we plot the spectrum
 
-```{code-cell} ipython3
-:tags: [hide-input]
-%%time
-
-barrier_vals = np.array([0, 0.5, .75])
-delta_mu_vals = np.linspace(0, 10e-4, num=101)
-results = [
-    np.array([effective_energies(h_tilde, bar, dmu) for dmu in delta_mu_vals])
-    for bar in barrier_vals
-]
-
-plt.figure(figsize=(10, 6), dpi=200)
-[
-    plt.plot(delta_mu_vals, result, color=color, label=[f"$t_b={barrier}$"] + 3 * [None])
-    for result, color, barrier in zip(results, color_cycle, barrier_vals)
-]
-plt.xlabel(r"$\delta_\mu$")
-plt.ylabel(r"$E$")
-plt.legend();
+```{embed} # cell-18-finding_effective_model
 ```
 
 As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the
