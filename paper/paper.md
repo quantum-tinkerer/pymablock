@@ -21,9 +21,18 @@ site:
   domains: []
 exports:
   - format: tex+pdf
-    drafts: true
     template: scipost-template
     output: exports/paper.pdf
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+    jupytext_version: 1.14.4
+kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: python
+  name: python3
 ---
 
 # Pymablock
@@ -40,8 +49,6 @@ It handles both numerical and symbolic inputs, and it efficiently block-diagonal
 
 ```{include} introduction.md
 ```
-
-(Include figure with 2 subpanels: 3 lines of code that show how to build a mode, and a scheme of the steps.)
 
 ```{include} finding_effective_model.md
 ```
