@@ -1,4 +1,4 @@
-\documentclass[submission, submission]{SciPost}
+\documentclass[submission, Codebases]{SciPost}
 
 \usepackage{minted}
 \usepackage{academicons}
@@ -65,7 +65,9 @@
 
 [- CONTENT
 | replace("\\begin{verbatim}", "\\begin{minted}{ipython}")
-| replace("\\end{verbatim}", "\\end{minted}") -]
+| replace("\\end{verbatim}", "\\end{minted}")
+| replace("\\texttt", "\\mintinline{python}") -]
+
 
 [# if doc.bibliography #]
 \bibliography{[- doc.bibliography | join(", ") -]}
