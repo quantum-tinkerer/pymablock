@@ -112,35 +112,17 @@ total power of momentum.
 ```{embed} # cell-6-finding_effective_model
 ```
 
-:::{admonition} Grouping higher order terms
-:class: dropdown info
-
-The above manual definition of `k_square` and `k_cube` becomes cumbersome for
-higher orders or dimensions.
-Instead, we can use the `np.mgrid` and select the terms we need by total power
-like this:
-
-```{embed} # cell-7-finding_effective_model
-```
-
-:::
-
-Before we saw that querying `H_tilde` returns the results in a numpy array.
-To gather different entries into one symbolic expression, we define a
-convenience function that sums several orders together.
-This uses the `numpy.ma.MaskedArray.compressed` method of masked numpy arrays,
-and simplifies the resulting expression.
-
-```{embed} # cell-8-finding_effective_model
-```
-
-Finally, we are ready to obtain the result.
+Querying `H_tilde` returns the results in a masked numpy array, so we
+define `H_tilde_AA` to gather different entries into one symbolic expression.
+Finally, we obtain the result.
 
 ```{embed} # cell-9-finding_effective_model
 ```
 
-The first term contains the standard quadratic dispersion of bilayer graphene with a gap.
-The second term contains trigonal warping and the coupling between the gap and momentum.
+The first term contains the standard quadratic dispersion of bilayer graphene
+with a gap.
+The second term contains trigonal warping and the coupling between the gap and
+momentum.
 
 ## Induced gap in a double quantum dot
 
