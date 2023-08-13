@@ -9,6 +9,11 @@ Building an effective model using Pymablock is a three step process:
 * Call `pymablock.block_diagonalize`
 * Request the desired order of the effective Hamiltonian
 
+
+The following code snippet shows how to use Pymablock to compute the fourth
+order correction to an effective Hamiltonian $\tilde{H}$ from a perturbation
+$H_p$ to an unperturbed Hamiltonian $H_0$.
+
 ```python
 from pymablock import block_diagonalize
 
@@ -27,8 +32,8 @@ diagonalization routines depending on the type and sparsity of the input, so
 that symbolic expressions are compact and numerics are efficient.
 This is the main function of Pymablock, and it is the only one that the user
 needs to call.
-Its output is a multivariate series whose terms are different blocks and orders
-of the effective Hamiltonian and the unitary transformation.
+It first output is a multivariate series whose terms are different blocks and
+orders of the effective Hamiltonian.
 Calling `block_diagonalize` is not computationally expensive, because the
 terms of the series are only computed when requested.
 
@@ -39,7 +44,8 @@ To illustrate how to use Pymablock with analytic models, we consider two layers
 of graphene stacked on top of each other.
 Our goal is to find the low energy model near the $\mathbf{K}$ point, following Ref.
 [McCann_2013](doi:10.1088/0034-4885/76/5/056503).
-To start, we construct the k.p Hamiltonian of bilayer graphene from the
+
+First, we construct the k.p Hamiltonian of bilayer graphene from the
 tight-binding model shown in the figure below.
 
 ```{figure} figures/bilayer.svg
@@ -51,7 +57,7 @@ tight-binding model shown in the figure below.
 Crystal structure and hoppings of bilayer graphene.
 ```
 
-The physics of this system is not crucial for us, but here are the main features:
+The main features of the model are:
 
 * The unit cell is spanned by vectors $\mathbf{a}_1 = (1/2, \sqrt{3}/2)$ and $\mathbf{a}_2=(-1/2, \sqrt{3}/2)$.
 * The unit cell contains 4 atoms with wave functions $\phi_{A,1}, \phi_{B,1}, \phi_{A,2}, \phi_{B,2}$.
@@ -61,15 +67,17 @@ The physics of this system is not crucial for us, but here are the main features
 
 ### Defining a symbolic Hamiltonian
 
-We define the Hamiltonian using the Sympy package for symbolic Python
+We define the Bloch Hamiltonian using the Sympy package for symbolic Python
 [sympy](10.7717/peerj-cs.103).
 
 ```{embed} # cell-1-finding_effective_model
 ```
 
-Here $\alpha(\mathbf{k})$ groups the momentum dependent terms in the Hamiltonian.
-We choose $\mathbf{K}=(4\pi/3, 0)$ as the reference point for the
-$\mathbf{k}$-vector, such that $k_x$ and $k_y$ are perturbative parameters.
+Here $\alpha(\mathbf{k})$ groups the momentum dependent terms in the
+Hamiltonian.
+We define $\alpha(\mathbf{k})$ by choosing $\mathbf{K}=(4\pi/3, 0)$ as the
+reference point for the k.p effective model, such that $k_x$ and $k_y$ are
+deviations from it along the $x$ and $y$ directions, respectively.
 
 ```{embed} # cell-2-finding_effective_model
 ```
@@ -79,13 +87,18 @@ $\mathbf{k}$-vector, such that $k_x$ and $k_y$ are perturbative parameters.
 <!-- **We define the perturbative series** -->
 To call `block_diagonalize`, we need the eigenvectors of the unperturbed
 Hamiltonian.
-These determine the basis in which the perturbative corrections are computed
+These determine the basis on which the perturbative corrections are computed
 and the subspace of interest for the effective model.
 We obtain them by substituting the unperturbed values $\alpha = m = 0$ into the
 Hamiltonian and diagonalizing it.
 
 ```{embed} # cell-3-finding_effective_model
 ```
+
+Each column of `vecs` is an eigenvector of the unperturbed Hamiltonian.
+The first two columns correspond to the valence band, while the last two
+columns correspond to the conduction band.
+These span the $A$ and $B$ subspaces, respectively.
 
 Then, we substitute the full expression for $\alpha(\mathbf{k})$ into the
 Hamiltonian, and we define the block diagonalization routine using that
@@ -101,15 +114,18 @@ The `dimension_names` attribute of the result stores their order:
 ```{embed} # cell-5-finding_effective_model
 ```
 
-Now we are ready to specify which calculation to perform.
-To compute the standard quadratic dispersion of bilayer graphene and trigonal
-warping, we need corrections up to third order in momentum.
-Let us then group the terms by total power of momentum.
-For now this requires an explicit definition of all components, but in the
-future we plan to automate this step.
+### Requesting the effective Hamiltonian
+
+We need corrections up to third order in momentum to compute the standard
+quadratic dispersion of bilayer graphene and trigonal warping.
+Therefore, we define second and third order terms in momentum and group them
+total power of momentum.
 
 ```{embed} # cell-6-finding_effective_model
 ```
+
+:::{admonition} Grouping higher order terms
+:class: dropdown info
 
 The above manual definition of `k_square` and `k_cube` becomes cumbersome for
 higher orders or dimensions.
@@ -118,6 +134,8 @@ like this:
 
 ```{embed} # cell-7-finding_effective_model
 ```
+
+:::
 
 Before we saw that querying `H_tilde` returns the results in a numpy array.
 To gather different entries into one symbolic expression, we define a
