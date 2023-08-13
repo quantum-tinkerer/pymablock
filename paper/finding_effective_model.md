@@ -81,7 +81,7 @@ $\mathbf{K}=(4\pi/3, 0)$ as the reference point for the k.p effective model.
 
 <!-- **We define the perturbative series** -->
 To call `block_diagonalize`, we use the eigenvectors of the unperturbed
-Hamiltonian$H(\alpha = m = 0)$.
+Hamiltonian $H(\alpha = m = 0)$.
 
 \begin{align}
 v_{A,1} &= \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \end{pmatrix} &
