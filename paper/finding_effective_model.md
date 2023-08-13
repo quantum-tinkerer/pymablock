@@ -73,46 +73,34 @@ We define the Bloch Hamiltonian using the Sympy package for symbolic Python
 ```{embed} # cell-1-finding_effective_model
 ```
 
-Here $\alpha(\mathbf{k})$ groups the momentum dependent terms in the
-Hamiltonian.
-We define $\alpha(\mathbf{k})$ by choosing $\mathbf{K}=(4\pi/3, 0)$ as the
-reference point for the k.p effective model, such that $k_x$ and $k_y$ are
-deviations from it along the $x$ and $y$ directions, respectively.
-
-```{embed} # cell-2-finding_effective_model
-```
+where $\alpha(\mathbf{k}) = 1 + e^{i \mathbf{k'} \cdot (\mathbf{a}_1 +
+\mathbf{a}_2)}$ and $\mathbf{k'} = (4\pi/3 + k_x, k_y)$, because we choose
+$\mathbf{K}=(4\pi/3, 0)$ as the reference point for the k.p effective model.
 
 ### Defining the perturbative series
 
 <!-- **We define the perturbative series** -->
-To call `block_diagonalize`, we need the eigenvectors of the unperturbed
-Hamiltonian.
+To call `block_diagonalize`, we use the eigenvectors of the unperturbed
+Hamiltonian$H(\alpha = m = 0)$.
+
+\begin{align}
+v_{A,1} &= \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \end{pmatrix} &
+v_{A,2} &= \begin{pmatrix} 0 \\ 1 \\ 0 \\ 1 \end{pmatrix} &
+v_{B,1} &= \frac{1}{\sqrt{2}} \begin{pmatrix} 0 \\ 0 \\ -1 \\ 1 \end{pmatrix} &
+v_{B,2} &= \frac{1}{\sqrt{2}} \begin{pmatrix} 0 \\ 0 \\ 1 \\ 1 \end{pmatrix}
+\end{align}
+
 These determine the basis on which the perturbative corrections are computed
-and the subspace of interest for the effective model.
-We obtain them by substituting the unperturbed values $\alpha = m = 0$ into the
-Hamiltonian and diagonalizing it.
-
-```{embed} # cell-3-finding_effective_model
-```
-
-Each column of `vecs` is an eigenvector of the unperturbed Hamiltonian.
-The first two columns correspond to the valence band, while the last two
-columns correspond to the conduction band.
-These span the $A$ and $B$ subspaces, respectively.
-
-Then, we substitute the full expression for $\alpha(\mathbf{k})$ into the
-Hamiltonian, and we define the block diagonalization routine using that
-$k_x$, $k_y$, and $m$ are perturbative parameters.
+and $A$, the subspace of interest for the effective model.
+Then, we substitute $\alpha(\mathbf{k})$ into the Hamiltonian, and define the
+block diagonalization routine using that $k_x$, $k_y$, and $m$ are perturbative
+parameters.
 
 ```{embed} # cell-4-finding_effective_model
 ```
 
 Here `symbols` specifies the perturbative parameters in the order of variables
 in the perturbative series.
-The `dimension_names` attribute of the result stores their order:
-
-```{embed} # cell-5-finding_effective_model
-```
 
 ### Requesting the effective Hamiltonian
 
