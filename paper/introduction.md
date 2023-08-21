@@ -11,30 +11,3 @@
 **We develop an efficient algorithm capable of symbolic and numeric computations and make it available in Pymablock.**
 
 **Building an effective model with Pymablock is easy, its core is a versatile block diagonalization routine.**
-
-## Installing Pymablock
-
-Pymablock is a Python package that requires Python $3.9$ or higher.
-We recommend to use `mamba`/`conda` and run the following command in the
-terminal to install Pymablock
-
-```{code}
-mamba install pymablock -c conda-forge
-```
-
-Alternatively, Pymablock can be installed with `pip` by running
-
-```{code}
-pip install pymablock
-```
-
-```{important}
-Using Pymablock on large Hamiltonians requires the Kwant package
-[kwant](doi:10.1088/1367-2630/16/6/063065) with MUMPS sparse solver
-support [mumps1](doi:10.1137/S0895479899358194),
-[mumps2](doi:10.1016/j.parco.2005.07.004).
-For this purpose, we recommend to install Kwant via conda in Linux or MAC OS.
-Unfortunately, MUMPS support in Kwant is not available for Windows.
-As an alternative, pymablock can be installed in Windows Subsystem for Linux
-(WSL).
-```
