@@ -28,8 +28,7 @@ H_AA_4 = H_tilde[0, 0, 4]
 the effective model, so that symbolic expressions are compact and numerics are
 efficient.** -->
 The function `block_diagonalize` interprets the Hamiltonian and calls the block
-diagonalization routines depending on the type and sparsity of the input, so
-that symbolic expressions are compact and numerics are efficient.
+diagonalization routines depending on the type and sparsity of the input.
 This is the main function of Pymablock, and it is the only one that the user
 needs to call.
 It first output is a multivariate series whose terms are different blocks and
@@ -45,8 +44,8 @@ of graphene stacked on top of each other.
 Our goal is to find the low energy model near the $\mathbf{K}$ point, following Ref.
 [McCann_2013](doi:10.1088/0034-4885/76/5/056503).
 
-First, we construct the k.p Hamiltonian of bilayer graphene from the
-tight-binding model shown in the figure below.
+First, we construct the Hamiltonian of bilayer graphene from its tight-binding
+model.
 
 ```{figure} figures/bilayer.svg
 :name: bilayer
@@ -81,7 +80,7 @@ $\mathbf{K}=(4\pi/3, 0)$ as the reference point for the k.p effective model.
 
 <!-- **We define the perturbative series** -->
 To call `block_diagonalize`, we use the eigenvectors of the unperturbed
-Hamiltonian $H(\alpha = m = 0)$.
+Hamiltonian $H(\alpha = m = 0)$,
 
 \begin{align}
 v_{A,1} &= \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \end{pmatrix} &
@@ -99,8 +98,7 @@ parameters.
 ```{embed} # cell-4-finding_effective_model
 ```
 
-Here `symbols` specifies the perturbative parameters in the order of variables
-in the perturbative series.
+The order of the variables in the perturbative series will be that of `symbols`.
 
 ### Requesting the effective Hamiltonian
 
@@ -114,7 +112,7 @@ total power of momentum.
 
 Querying `H_tilde` returns the results in a masked numpy array, so we
 define `H_tilde_AA` to gather different entries into one symbolic expression.
-Finally, we obtain the result.
+Finally, we obtain the result,
 
 ```{embed} # cell-9-finding_effective_model
 ```
@@ -126,7 +124,8 @@ momentum.
 
 ## Induced gap in a double quantum dot
 
-**Large systems pose an additional challenge due to the scaling of linear algebra routines for large matrices.**
+**Large systems pose an additional challenge due to the scaling of linear
+algebra routines for large matrices.**
 Large systems pose an additional challenge due to the scaling of linear algebra
 routines for large matrices.
 Pymablock handles large systems by using sparse matrices and avoiding the
@@ -148,22 +147,17 @@ the middle and the quantum dots on the sides.
 ```{embed} # cell-10-finding_effective_model
 ```
 
-Here `mu_n` and `mu_sc` are the chemical potentials of the normal and
-superconducting regions, respectively, `Delta` is the superconducting gap, and
-`t` is the hopping amplitude within each region.
-The barrier strength between the quantum dots and the superconductor is `t_barrier`.
+The chemical potentials of the normal and superconducting regions are $\mu_n$
+and $\mu_{sc}$, respectively, $\Delta$ is the superconducting gap, and $t$
+is the hopping amplitude within each region.
+The barrier strength between the quantum dots and the superconductor is
+$t_{barrier}$.
 
-We can now plot the system and finalize it
+__(Include figure with the system)__
 
-```{embed} # cell-11-finding_effective_model
-```
-
-In the plot the blue regions are the left and right quantum dots, while the
-superconductor is the red region in the middle.
-
-We see that the system is large: with this many sites even storing all the
-eigenvectors would take 60 GB of memory.
-We must therefore use sparse matrices, and may only compute a few eigenvectors.
+The system is large: with this many sites even storing all the eigenvectors
+would take $60$ GB of memory.
+Therefore, we use sparse matrices and compute only a few eigenvectors.
 In this case, perturbation theory allows us to compute the effective
 Hamiltonian of the low energy degrees of freedom.
 
