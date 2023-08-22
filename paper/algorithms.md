@@ -1,37 +1,5 @@
 # Algorithms for block diagonalization
 
-**Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
-and finds a minimal unitary transformation that separates its subspaces.**
-Pymablock considers a Hamiltonian as a series of $2\times 2$ block operators
-with the zeroth order block-diagonal.
-To carry out the block-diagonalization procedure, Pymablock finds a minimal
-unitary transformation $U$ that cancels the off-diagonal block of the
-Hamiltonian order by order.
-
-\begin{equation}
-H = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
-U = \sum_{i=0}^\infty U_n
-\end{equation}
-
-The result of this procedure is a perturbative series of the transformed
-block-diagonal Hamiltonian.
-
-\begin{equation}
-\tilde{H} = U^\dagger H U=\sum_{i=0}
-\begin{pmatrix}
-\tilde{H}_i^{AA} & 0 \\
-0 & \tilde{H}_i^{BB}
-\end{pmatrix}.
-\end{equation}
-
-Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation,
-Pymablock solves Sylvester's equation and imposes unitarity at every order.
-However, differently from other approaches, Pymablock uses efficient algorithms
-by choosing an appropriate parametrization of the series of the unitary
-transformation.
-As a consequence, the computational cost of every order scales linearly with
-the order, while the algorithms are still mathematically equivalent.
-
 **Pymablock has tailored algorithms for block diagonalization of Hamiltonians.**
 
 ## General algorithm
@@ -114,6 +82,61 @@ H_1^{BB}W_i^{BB}\bigg]
 :::
 ::::
 
+### Proof of equivalence to Schrieffer-Wolff transformation
+
+**The transformed Hamiltonian is equivalent to that of other perturbative
+methods, but the algorithm is efficient.**
+Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
+transformation find a unitary transformation $U$ such that $\tilde{H}^{AB}=0$.
+They are therefore equivalent up to a gauge choice on each subspace.
+We establish the correspondence between the two by demonstrating that this gauge
+choice is the same for both algorithms.
+
+Pymablock chooses $U=W+V$, where $W$ is block diagonal Hermitian and
+$V$ is block off-diagonal anti-Hermitian.
+Then requiring that $U$ is unitary and $\tilde{H}^{AB}=0$ to all orders defines
+a unique value for $W$ and $V$.
+
+The Schrieffer-Wolff transformation parameterizes $U = \exp S$, where $S =
+\sum_n S_n$ is a series of anti-Hermitian block off-diagonal operators:
+
+```{math}
+:label: exp_s_expansion
+\begin{align}
+U = \exp{\left(S\right)}=\exp{\left(\sum_{n=0}^\infty
+S_n\right)} = 1+\sum_{j=1}^\infty \left[\frac{1}{j!}
+\left(\sum_{n=1}^\infty S_n\right)^j\right]
+\end{align}
+```
+
+Here we consider a single perturbation for brevity.
+
+Because both the above approach and Schrieffer-Wolff produce a unique answer, it
+is sufficient to show that they solve the same problem under the same
+conditions.
+Some conditions are straightforwardly the same:
+
+- Both algorithms guarantee that $\tilde{H}^{AB} = 0$ to all orders.
+- Both algorithms guarantee that $U$ is unitary to all orders:
+  Pymablock by construction, and Schrieffer-Wolff by the
+  definition of the exponential and anti-Hermiticity of $S$.
+
+We are left to show that the diagonal blocks of $\exp S$ are Hermitian, while
+off-diagonal blocks are anti-Hermitian because this is the only remaining
+property of the Pymablock algorithm.
+To do so, we expand all terms in Eq. {eq}`exp_s_expansion` using the multinomial theorem.
+The result contains all possible products of $S_n$ of all lengths with fractional prefactors.
+Furthermore, for every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a
+corresponding term $S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
+If the number of $S_{k_n}$ is even, then both terms are block-diagonal since
+each $S_n$ is block off-diagonal.
+Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
+other, and therefore their sum is Hermitian.
+On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
+block off-diagonal and their sum is anti-Hermitian by the same reasoning.
+
+This concludes the proof.
+
 ## Expanded algorithm for analytic Hamiltonians
 
 Pymablock has two algorithms, `pymablock.general` and `pymablock.expanded`.
@@ -195,58 +218,3 @@ V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
 This equation is well-defined despite $E_i - H_0$ is not invertible because
 $Y_{n}$ has no components in the $A$ subspace.
 :::
-
-## Proof of equivalence to Schrieffer-Wolff transformation
-
-**The transformed Hamiltonian is equivalent to that of other perturbative
-methods, but the algorithm is efficient.**
-Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
-transformation find a unitary transformation $U$ such that $\tilde{H}^{AB}=0$.
-They are therefore equivalent up to a gauge choice on each subspace.
-We establish the correspondence between the two by demonstrating that this gauge
-choice is the same for both algorithms.
-
-Pymablock chooses $U=W+V$, where $W$ is block diagonal Hermitian and
-$V$ is block off-diagonal anti-Hermitian.
-Then requiring that $U$ is unitary and $\tilde{H}^{AB}=0$ to all orders defines
-a unique value for $W$ and $V$.
-
-The Schrieffer-Wolff transformation parameterizes $U = \exp S$, where $S =
-\sum_n S_n$ is a series of anti-Hermitian block off-diagonal operators:
-
-```{math}
-:label: exp_s_expansion
-\begin{align}
-U = \exp{\left(S\right)}=\exp{\left(\sum_{n=0}^\infty
-S_n\right)} = 1+\sum_{j=1}^\infty \left[\frac{1}{j!}
-\left(\sum_{n=1}^\infty S_n\right)^j\right]
-\end{align}
-```
-
-Here we consider a single perturbation for brevity.
-
-Because both the above approach and Schrieffer-Wolff produce a unique answer, it
-is sufficient to show that they solve the same problem under the same
-conditions.
-Some conditions are straightforwardly the same:
-
-- Both algorithms guarantee that $\tilde{H}^{AB} = 0$ to all orders.
-- Both algorithms guarantee that $U$ is unitary to all orders:
-  Pymablock by construction, and Schrieffer-Wolff by the
-  definition of the exponential and anti-Hermiticity of $S$.
-
-We are left to show that the diagonal blocks of $\exp S$ are Hermitian, while
-off-diagonal blocks are anti-Hermitian because this is the only remaining
-property of the Pymablock algorithm.
-To do so, we expand all terms in Eq. {eq}`exp_s_expansion` using the multinomial theorem.
-The result contains all possible products of $S_n$ of all lengths with fractional prefactors.
-Furthermore, for every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a
-corresponding term $S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
-If the number of $S_{k_n}$ is even, then both terms are block-diagonal since
-each $S_n$ is block off-diagonal.
-Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
-other, and therefore their sum is Hermitian.
-On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
-block off-diagonal and their sum is anti-Hermitian by the same reasoning.
-
-This concludes the proof.
