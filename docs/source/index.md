@@ -20,6 +20,7 @@ tutorial/tutorial.md
 algorithms.md
 documentation/pymablock.rst
 CHANGELOG.md
+authors.md
 ```
 
 # {{Pymablock}}
