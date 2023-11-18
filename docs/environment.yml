@@ -13,10 +13,10 @@ dependencies:
   - matplotlib-base
   - sphinx-togglebutton
   - sphinx-copybutton
+  - pip
   - pip:
-    # sphinx-book-theme is installed from a fork with a fix for the issue button
-    # TODO: remove this once https://github.com/executablebooks/sphinx-book-theme/pull/740
-    # is merged
-    - git+https://github.com/akhmerov/sphinx-book-theme.git@gitlab-issue-button
+    # TODO: switch to pypi once released (see also
+    # https://github.com/executablebooks/sphinx-book-theme/issues/782)
+    - git+https://github.com/executablebooks/sphinx-book-theme.git@v1.1.0rc1
     - sphinx-tippy
     - ..
