@@ -102,7 +102,14 @@ html_theme_options = {
         "image_light": "_static/logo.svg",
         "image_dark": "_static/logo_dark.svg",
     },
+    "extra_footer": (
+        '<hr><div id="matomo-opt-out"></div>'
+        '<script src="https://piwik.kwant-project.org/index.php?'
+        "module=CoreAdminHome&action=optOutJS&divId=matomo-opt-out"
+        '&language=auto&showIntro=1"></script>'
+    ),
 }
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
