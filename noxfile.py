@@ -37,6 +37,7 @@ def tests_without_kwant(session):
         "mamba",
         "install",
         "-y",
+        "python==3.11",
         "numpy==1.24.0",
         "scipy==1.10.0",
         "sympy==1.12.0",
