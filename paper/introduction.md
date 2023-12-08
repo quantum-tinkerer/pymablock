@@ -37,30 +37,35 @@ orders to depend on each other, increasing the number of computations needed.
 **We develop an efficient algorithm capable of symbolic and numeric
 computations and make it available in Pymablock.**
 In this work, we introduce an algorithm to construct effective models
-efficiently, analytically and numerically.
+efficiently.
 Our algorithm scales linearly with the perturbative order, does not require
 truncating the outputs, and treats multiple perturbations independently.
-We make the algorithm available via the open source package Pymablock, for Python
-matrix block diagonalization.
+We make the algorithm available via the open source package Pymablock, for
+Python matrix block diagonalization of numerical and symbolic Hamiltonians.
 
 **Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
 and finds a minimal unitary transformation that separates its subspaces.**
-Pymablock considers a Hamiltonian as a series of $2\times 2$ block operators
-with the zeroth order block-diagonal.
+Pymablock considers Hamiltonians as series of $2\times 2$ block operators.
+The zeroth order is block-diagonal, and the perturbative orders couple
+blocks to each other and within themselves.
 To carry out the block-diagonalization procedure, Pymablock finds a minimal
 unitary transformation $U$ that cancels the off-diagonal block of the
-Hamiltonian order by order.
+Hamiltonian order by order:
 
 \begin{equation}
 H = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
-U = \sum_{i=0}^\infty U_n
+U = \sum_{i=0}^\infty U_n,
 \end{equation}
 
+where $H_i$ and $U_i$ are proportional to an $i$-th order contribution on the
+perturbative parameter.
+Throughout this work, we use $A$ and $B$ to denote the low and high energy
+subspaces, respectively.
 The result of this procedure is a perturbative series of the transformed
 block-diagonal Hamiltonian.
 
 \begin{equation}
-\tilde{H} = U^\dagger H U=\sum_{i=0}
+\tilde{H} = U^\dagger H U=\sum_{i=0}^{\infty}
 \begin{pmatrix}
 \tilde{H}_i^{AA} & 0 \\
 0 & \tilde{H}_i^{BB}
