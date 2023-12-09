@@ -72,7 +72,7 @@ run pre-commit:
 
 run paper:
   script:
-    - npm install -g mystmd
+    - npm install -g mystmd@1.1.25
     - myst build paper/paper.md
   artifacts:
     paths:
