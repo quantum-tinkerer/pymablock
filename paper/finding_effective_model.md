@@ -9,16 +9,14 @@ Building an effective model using Pymablock is a three step process:
 * Call `pymablock.block_diagonalize`
 * Request the desired order of the effective Hamiltonian
 
-
 The following code snippet shows how to use Pymablock to compute the fourth
-order correction to an effective Hamiltonian $\tilde{H}$ from a perturbation
-$H_p$ to an unperturbed Hamiltonian $H_0$.
+order correction to an effective Hamiltonian $\tilde{H}$:
 
 ```python
 from pymablock import block_diagonalize
 
 # Define perturbation theory
-H_tilde, *_ = block_diagonalize([h_0, h_p], subspace_eigenvectors=[vecs_A, vecs_B])
+H_tilde, *_ = block_diagonalize([H_0, H_1], subspace_eigenvectors=[vecs_A, vecs_B])
 
 # Request 4th order correction to the effective Hamiltonian
 H_AA_4 = H_tilde[0, 0, 4]
@@ -27,10 +25,11 @@ H_AA_4 = H_tilde[0, 0, 4]
 <!-- **Depending on the input Hamiltonian, Pymablock uses specific routines to find
 the effective model, so that symbolic expressions are compact and numerics are
 efficient.** -->
-The function `block_diagonalize` interprets the Hamiltonian and calls the block
-diagonalization routines depending on the type and sparsity of the input.
+The function `block_diagonalize` interprets the Hamiltonian $H_0 + H_1$ and
+calls the block diagonalization routines depending on the type and sparsity of
+the input.
 This is the main function of Pymablock, and it is the only one that the user
-needs to call.
+ever needs to call.
 It first output is a multivariate series whose terms are different blocks and
 orders of the effective Hamiltonian.
 Calling `block_diagonalize` is not computationally expensive, because the
@@ -41,7 +40,7 @@ terms of the series are only computed when requested.
 <!-- **We use bilayer graphene to illustrate how to use Pymablock with analytic models.** -->
 To illustrate how to use Pymablock with analytic models, we consider two layers
 of graphene stacked on top of each other.
-Our goal is to find the low energy model near the $\mathbf{K}$ point, following Ref.
+Our goal is to find the low energy model near the $\mathbf{K}$ point
 [McCann_2013](doi:10.1088/0034-4885/76/5/056503).
 
 First, we construct the Hamiltonian of bilayer graphene from its tight-binding
@@ -80,7 +79,11 @@ $\mathbf{K}=(4\pi/3, 0)$ as the reference point for the k.p effective model.
 
 <!-- **We define the perturbative series** -->
 To call `block_diagonalize`, we use the eigenvectors of the unperturbed
-Hamiltonian $H(\alpha = m = 0)$,
+Hamiltonian at the $\mathbf{K}$ point.
+To demonstrate the capabilities of Pymablock, we use $m$ as a perturbative
+parameter too.
+The unperturbed Hamiltonian is then $H(\alpha = m = 0)$, and its eigenvectors
+are:
 
 \begin{align}
 v_{A,1} &= \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \end{pmatrix} &
@@ -112,7 +115,7 @@ total power of momentum.
 
 Querying `H_tilde` returns the results in a masked numpy array, so we
 define `H_tilde_AA` to gather different entries into one symbolic expression.
-Finally, we obtain the result,
+Finally, the result is a symbolic expression of the effective Hamiltonian.
 
 ```{embed} # cell-9-finding_effective_model
 ```
@@ -126,12 +129,12 @@ momentum.
 
 **Large systems pose an additional challenge due to the scaling of linear
 algebra routines for large matrices.**
-Large systems pose an additional challenge due to the scaling of linear algebra
-routines for large matrices.
+Large systems pose an additional challenge due to the cubic scaling of linear algebra
+routines on matrices' size.
 Pymablock handles large systems by using sparse matrices and avoiding the
 construction of the full Hamiltonian.
-We illustrate its efficiency with a model of a double quantum dot and a
-superconductor with a tunnel barrier in between.
+We illustrate its efficiency with a model of two quantum dots coupled to a
+superconductor between them.
 
 _(Include figure with scheme of the system)_
 
@@ -141,8 +144,10 @@ _(Include figure with scheme of the system)_
 We use the Kwant package [kwant](doi:10.1088/1367-2630/16/6/063065) to build
 the Hamiltonian of the system.
 In the following code, we define a square lattice of $L \times W = 200 \times
-40$ sites with $2$ orbitals per unit cell with the superconducting region in
-the middle and the quantum dots on the sides.
+40$ sites with $2$ orbitals per unit cell.
+The lattice is divided into three regions: a quantum dot on the left, a
+superconducting region in the middle, and a quantum dot on the right.
+
 
 ```{embed} # cell-10-finding_effective_model
 ```
@@ -151,7 +156,9 @@ The chemical potentials of the normal and superconducting regions are $\mu_n$
 and $\mu_{sc}$, respectively, $\Delta$ is the superconducting gap, and $t$
 is the hopping amplitude within each region.
 The barrier strength between the quantum dots and the superconductor is
-$t_{barrier}$.
+$t_{barrier}$, a parameter that we treat as a perturbation.
+We will also consider the asymmetry of the dot potentials, $\delta \mu$, as a
+perturbation.
 
 __(Include figure with the system)__
 
@@ -175,17 +182,15 @@ perturbations that we vary.
 
 ### Define the perturbative series
 
-In the implicit mode, Pymablock computes the perturbative series without
-knowing the eigenvectors of one of the Hamiltonian subspaces.
-
-Therefore we compute 4 eigenvectors of the unperturbed Hamiltonian, which
-correspond to the 4 lowest eigenvalues closest to $E=0$.
+Since the Hamiltonian is large and we are only interested in the low energy
+subspace, it is sufficient to compute the $4$ lowest eigenvectors of the
+unperturbed Hamiltonian.
 These are the lowest energy Andreev states in two quantum dots.
 
 ```{embed} # cell-14-finding_effective_model
 ```
 
-The orthogonalization is often necessary to do manually because
+TWe orthogonallize the eigenvectors manually because
 `scipy.sparse.linalg.eigsh` does not return orthogonal eigenvectors if the
 matrix is complex and eigenvalues are degenerate.
 
@@ -199,7 +204,7 @@ solvers for Sylvester's equation.
 ```
 
 Block diagonalization is now the most time consuming step because it requires
-pre-computing several decomposition of the full Hamiltonian.
+pre-computing several decompositions of the full Hamiltonian.
 It is, however, manageable and it only produces a constant overhead.
 
 ### Get results
