@@ -35,9 +35,31 @@ they can be reused in future computations for $\tilde{H}$.
 
 **Computing entries on demand is more efficient than computing all entries at
 once.**
+One advantage of computing entries on demand is that the user may skip
+computations that are not needed.
+This is because different orders of the transformed Hamiltonian are
+independent of each other.
+Therefore requesting a specific order does not require computing previous
+orders of $\tilde{H}$, but only of $U$.
+This is particularly useful when the user knows beforehand that some orders
+vanish because of symmetries, for example.
+This feature is also useful when the user desires to compute more orders than
+originally requested, because only the missing orders need to be computed.
 
-**If BlockSeries is Hermitian, we can use the conjugate transpose to speed up
-computations.**
+**We use block structure to speed up computations.**
+Another advantage of using `BlockSeries` objects is that we can use the
+block structure of every order to speed up computations.
+On the one hand, since the $AA$ and $BB$ blocks of the Hamiltonian are
+independent of each other, requesting $\tilde{H}_i^{AA}$ does not require
+computing $\tilde{H}_i^{BB}$.
+This is useful because the $BB$ block is usually much larger than the $AA$
+block, and computing it is expensive.
+On the other hand, since the algorithm deals with Hermitian and anti-Hermitian
+matrices, we can avoid computing matrix products by conjugating and
+transposing.
+This is useful when computing the entries of $U$, whose off-diagonal blocks are
+anti-Hermitian, and to speed up the computation of $\tilde{H}$, whose
+diagonal blocks are Hermitian.
 
 **Another source of speedup is the use of LinearOperator.**
 
