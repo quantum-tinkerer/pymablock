@@ -74,7 +74,8 @@ block-diagonal Hamiltonian.
 
 **Pymablock offers the same solution as traditional methods.**
 Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation,
-Pymablock solves Sylvester's equation and imposes unitarity at every order.
+Pymablock solves Sylvester's equation and ensures that the transformation
+$U$ is unitary order by order.
 However, differently from other approaches, Pymablock uses efficient algorithms
 by choosing an appropriate parametrization of the series of the unitary
 transformation.
