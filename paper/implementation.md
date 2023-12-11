@@ -7,29 +7,56 @@ For this, we have several requirements.
 Firstly, because the block-diagonalization algorithms are recursive, we need to
 store the data for each perturbative order separately.
 Secondly, because the effective Hamiltonian is only one block of the transformed
-Hamiltonian, we benefit from storing the data for each block separately,
-such that we can compute the effective Hamiltonian without computing the
-uninteresting subspace.
+Hamiltonian, it is more efficient to manipulate the data for each block
+separately.
 This is useful because the $BB$ block is usually much larger than the $AA$
 block, and computing it requires expensive matrix products.
 Moreover, Hamiltonians may have several perturbations, so we need to generalize
 the algorithms previously described to $H$ and $U$ with multiple indices.
 These requirements are met by a tensor-like object whose indices label the
 blocks and orders of a matrix series.
-By implementing addition and multiplication of these objects, we can implement
-Pymablock's algorithms avoiding unnecessary computations.
 We call this object a `BlockSeries`, the main object in Pymablock.
 
-**BlockSeries may have structure, so we use a function to compute the data on
-demand.**
-While a tensor-like object is convenient for storing the elements of the
-$\tilde{H}$ and $U$ series, it does not take full advantage of the block
-structure of these operators.
+**To implement Pymablock's algorithms, we add and multiply these tensors in a
+block-wise fashion.**
+Using the Hamiltonian and the unitary transformation as `BlockSeries` objects,
+we can explicitly compute the unitary transformation by solving equations
+{eq}`unitarity` and {eq}`sylvester` recursively.
+These determine the diagonal and off-diagonal blocks of $U$, respectively.
+However, an explicit computation is cumbersome to generalize to multiple
+indices and it requires tracking the tensors of $W$ and $V$ too.
+Instead, we define the blocks of $U$ as a product of temporary `BlockSeries`
+objects(**improve this**) such that $U^{AA}$ and $U^{BB}$ are enforce unitarity
+and $U^{AB}$ and $U^{BA}$ solve Sylvester's equation.
+To do this, we use the `cauchy_dot_product` function, which
+performs the product of `BlockSeries` objects in a block-wise fashion for a
+given order.
 
-Things to mention:
+**We manage to reduce the number of matrix products by a factor of two by
+exploiting Hermiticity.**
+Manipulating the data at a block level brings an additional advantage:
+we can use Hermiticity to halve the number of matrix products.
+We implement this at every order of the block-diagonalization algorithm, and
+in two steps.
+Firstly, since $\tilde{H}$ and $U$ are defined as a product of series whose
+diagonal blocks are Hermitian, we only need to compute half of the matrix
+products from the Cauchy product to find the $AA$ and $BB$ blocks.
+The remaining terms are defined as conjugate transposes of the ones we compute,
+which is a cheap operation.
+Secondly, since the off-diagonal blocks of $U$ are related by anti-Hermiticity,
+we only need to compute $V^{AB}$ and $V^{BA} = -(V^{AB})^{\dagger}$.
+Once again, this saves us half of the matrix products, a trick that we apply
+to $\tilde{H}^{AB} = \tilde{H}^{BA}^{\dagger}$ as well.
+
+**We use functions to compute data on demand and cache the results in a
+dictionary.**
+
+**To call the cached data, we use numpy slicing and masked arrays.**
+
+<!-- Things to mention:
 
 - Cache, orders of Htilde independent, and requesting more without having to restart
 - Linear operators
 - Use of hermiticity in cauchy products
 - Function to compute data on demand
-- Skip zero entries, call several entries at once, masked arrays
+- Skip zero entries, call several entries at once, masked arrays -->
