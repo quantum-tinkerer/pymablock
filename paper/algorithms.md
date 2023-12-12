@@ -26,7 +26,6 @@ The transformed Hamiltonian at order $n$ is
 \end{align}
 :::
 
-
 **Pymablock finds the unitary transformation recursively, using unitarity and
 solving Sylvester's equation at every order.**
 To block diagonalize $H_0 + H_1$, Pymablock finds the orders of $W$
@@ -81,6 +80,19 @@ H_1^{BB}W_i^{BB}\bigg]
 \end{align}
 :::
 ::::
+
+**Right hand side of both equations is a Cauchy product of the series of $H$ and
+$U$ that misses the last terms.**
+$V$ and $W$ only correspond to the expressions in Equations {eq}`unitarity` and
+{eq}`sylvester` if there is a single perturbation.
+In general, they are recursive in the hyperspace of orders for multiple
+perturbations.
+To generalize them, we observe that the right hand side of both equations is a
+Cauchy product of the series $U^dagger U$ and $\tilde{H}$, but without the terms
+that involve the last order of $U$ and $H$.
+Therefore, we define the diagonal and off-diagonal blocks of $U$ using an
+incomplete Cauchy product: such that every new order satisfies unitarity and
+solves Sylvester's equation.
 
 ### Proof of equivalence to Schrieffer-Wolff transformation
 
