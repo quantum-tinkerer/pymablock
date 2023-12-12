@@ -1,6 +1,29 @@
 # Implementation
 
-**We need a block series to implement the algorithms efficiently.**
+**To implement the algorithms, we need a data structure that represents a
+multidimensional series of block matrices.**
+-> Linear algebra (formats: implicit)
+-> Queryable by order and block -> complicated to give orders beforehand
+-> Cauchy product
+
+**We address this by defining a `BlockSeries` class.**
+-> Definition of how to compute new elements
+-> Cache in dictionary
+-> Numpy array element access
+-> Skip zeros when requesting arrays of data
+
+**Using the BlockSeries interface allows us to implement a range of
+optimizations that go beyond directly implementing the polynomial
+parametrization**
+
+**To deal with an implicit $B$ subspace, we use MUMPS and LinearOperators.**
+
+**Finally, we implement an overall function that interprets the user inputs and
+returns a BlockSeries for the transformed Hamiltonian.**
+
+
+**We need a multi-dimensional tensor series to implement the algorithms
+efficiently.**
 To implement the algorithms, we need a data structure that represents the
 Hamiltonian and the unitary transformation in a convenient way.
 For this, we have several requirements.
@@ -9,6 +32,8 @@ store the data for each perturbative order separately.
 Secondly, because the effective Hamiltonian is only one block of the transformed
 Hamiltonian, it is more efficient to manipulate the data for each block
 separately.
+-> More kinds of inputs.
+-> Abstract linear algebra
 This is useful because the $BB$ subspace is usually much larger than the $AA$
 subspace, and computing it requires expensive matrix products.
 Moreover, Hamiltonians may have several perturbations, so we need to generalize
@@ -41,9 +66,11 @@ Additionally, since the off-diagonal blocks of $U$ are related by anti-Hermitici
 we only need to compute $V^{AB}$ and $V^{BA} = -(V^{AB})^{\dagger}$.
 Once again, this saves half of the matrix products, a trick that we apply to
 $\tilde{H}^{AB} = \tilde{H}^{BA}^{\dagger}$ as well.
+-> Implementation of CDP is so that matrices are ordered (small first)
+-> Skipping zero entries
+-> We could implement more symmetric structures
 
-**We use functions to compute data on demand and cache the results in a
-dictionary.**
+**...**
 Despite the tensor-like structure of `BlockSeries`, we do not store the data
 in an existing tensor library.
 We need a data structure that allows us to compute the data on demand, such
@@ -60,7 +87,6 @@ between the series of $U^\dagger$, $H$, and $U$.
 Defining this series has a constant and minimal cost, but computing its
 entries has a cost that grows with indices.
 
-**To call the cached data, we implement numpy array element access.**
 
 <!-- Things to mention:
 
