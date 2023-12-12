@@ -85,14 +85,14 @@ H_1^{BB}W_i^{BB}\bigg]
 $U$ that misses the last terms.**
 $V$ and $W$ only correspond to the expressions in Equations {eq}`unitarity` and
 {eq}`sylvester` if there is a single perturbation.
-In general, they are recursive in the hyperspace of orders for multiple
-perturbations.
+In the case of multiple perturbations, they acquire an additional index for
+each perturbation and the equations are recursive in the hyperspace of orders.
 To generalize them, we observe that the right hand side of both equations is a
-Cauchy product of the series $U^dagger U$ and $\tilde{H}$, but without the terms
+Cauchy product of the series $U^{\dagger} U$ and $\tilde{H}$, but without the terms
 that involve the last order of $U$ and $H$.
 Therefore, we define the diagonal and off-diagonal blocks of $U$ using an
 incomplete Cauchy product: such that every new order satisfies unitarity and
-solves Sylvester's equation.
+solves Sylvester's equation for every order and any number of perturbations.
 
 ### Proof of equivalence to Schrieffer-Wolff transformation
 
