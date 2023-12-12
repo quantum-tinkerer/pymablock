@@ -28,8 +28,9 @@ between `BlockSeries` objects, forming a new `BlockSeries` with the result.
 We call this function `cauchy_dot_product`, and we use it to compute the
 transformed Hamiltonian too.
 
-**We manage to reduce the number of matrix products by a factor of two by
-exploiting Hermiticity.**
+**Using the BlockSeries interface allows us to implement a range of
+optimizations that go beyond directly implementing the polynomial
+parametrization**
 Manipulating the data at a block level brings an additional advantage:
 we can use Hermiticity to halve the number of matrix products.
 Because the diagonal blocks of $\tilde{H}$ and $U$ are Hermitian, we only need
