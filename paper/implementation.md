@@ -17,20 +17,17 @@ These requirements are met by a tensor-like object whose indices label the
 blocks and orders of a matrix series.
 We call this object a `BlockSeries`, the main object in Pymablock.
 
-**To implement Pymablock's algorithms, we add and multiply these tensors in a
-block-wise fashion.**
-Using the Hamiltonian and the unitary transformation as `BlockSeries` objects,
-we can explicitly compute the unitary transformation by solving equations
-{eq}`unitarity` and {eq}`sylvester` recursively.
-These determine the diagonal and off-diagonal blocks of $U$, respectively.
-However, an explicit computation is cumbersome to generalize to multiple
-indices and it requires tracking the tensors of $W$ and $V$ too.
-Instead, we define the blocks of $U$ as a product of temporary `BlockSeries`
-objects(**improve this**) such that $U^{AA}$ and $U^{BB}$ are enforce unitarity
-and $U^{AB}$ and $U^{BA}$ solve Sylvester's equation.
-To do this, we use the `cauchy_dot_product` function, which
-performs the product of `BlockSeries` objects in a block-wise fashion for a
-given order.
+**We add and multiply these tensors in a block-wise fashion.**
+To compute the unitary transformation, we need to implement the generalization
+of the algorithms described in the previous section using the `BlockSeries`.
+Therefore, we need to compute the Cauchy product between the series of
+$U^\dagger$, $H$, and $U$ excluding the terms that involve the desired order of
+$U$ and $H$ while keeping the block structure.
+We implement this by defining a function that computes the block-wise Cauchy
+product of a series of `BlockSeries` objects, forming a new `BlockSeries`
+with the result.
+We call this function `cauchy_dot_product`, and we use it to compute the
+transformed Hamiltonian too.
 
 **We manage to reduce the number of matrix products by a factor of two by
 exploiting Hermiticity.**
@@ -51,7 +48,7 @@ to $\tilde{H}^{AB} = \tilde{H}^{BA}^{\dagger}$ as well.
 **We use functions to compute data on demand and cache the results in a
 dictionary.**
 
-**To call the cached data, we use numpy slicing and masked arrays.**
+**To call the cached data, we implement numpy array element access.**
 
 <!-- Things to mention:
 
