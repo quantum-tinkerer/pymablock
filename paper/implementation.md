@@ -36,28 +36,57 @@ products between series, avoiding unnecessary operations.
 optimizations that go beyond directly implementing the polynomial
 parametrization**
 Not only does the `BlockSeries` interface allow us to implement the polynomial
-parametrization of the unitary transformation, but it allows us to implement
-several other optimizations.
-By wrapping $BB$ blocks in a SciPy LinearOperator, we can exploit
-the associativity of matrix multiplication to first multiply small matrices
-and then the large ones, saving computational time and memory.
+parametrization of the unitary transformation, but also several other
+optimizations.
+For example, we exploit Hermiticity when computing the Cauchy product of the
+diagonal blocks of $U$ and $\tilde{H}$, because we only compute half of the matrix
+products and then complex conjugate the result to obtain the rest.
+Similarly, we avoid computing $BA$ blocks of $U$ and $\tilde{H}$ by providing a
+function to the `BlockSeries` that returns the conjugate transpose of the
+respective $AB$ blocks.
+As a result, whenever we query a $BA$ block, we first compute the $AB$ block,
+store it, and then compute the $BA$ block directly.
+This procedure brings an additional advantage: because the terms that compose
+$AB$ blocks contain matrix products that first multiply small matrices and then
+the large ones, it saves computational time and memory.
 For example, the term $V_{n-i}^{AB} H_0^{BB} W_i^{BB}$ in $Y_n$ is
 systematically computed as $(V_{n-i}^{AB} H_0^{BB}) W_i^{BB}$ instead of
 $V_{n-i}^{AB} (H_0^{BB} W_i^{BB})$.
-Moreover, when forming the Cauchy product of a Hermitian block, e.g.
-diagonal blocks of $U$ and $\tilde{H}$, we only compute half of the matrix
-products, and then complex conjugate the result to obtain the rest.
-Similarly, we avoid computing $BA$ blocks of $U$ and $\tilde{H}$ by providing
-a function to the `BlockSeries` that returns the transpose of the $AB$ blocks.
-This way, whenever $BA$ blocks are requested, we first compute the $AB$ blocks,
-store them, and then compute the $BA$ blocks directly.
 This is only one example of how the `BlockSeries` interface allows us to
 implement a symmetrized algorithm, and we leave other symmetries for future
 work.
-This is an extension that would be useful for systems where $U$ or $\tilde{H}$
-vanish due to symmetries, so that the zero blocks can be skipped.
+Such an extension would be useful for systems where $U$ or $\tilde{H}$ vanish
+due to symmetries, so that the zero blocks can be skipped beforehand.
 
 **To deal with an implicit $B$ subspace, we use MUMPS and LinearOperators.**
+Due to the ability of the `BlockSeries` to represent any block structure, we
+can use it to directly implement the `implicit` algorithm.
+To do so, we construct a `BlockSeries` with the block structure indicated in
+Equation {eq}`H_implicit`, and wrap the projector $P_B$ by a
+`LinearOperator` object from `Scipy`.
+This allows us to compute matrix-vector products between $P_B$ and a vector,
+without explicitly constructing $P_B$ or any other product between elements of
+the $B$ subspace.
+For the same purpose, we use the MUMPS sparse solver
+[mumps1](doi:10.1137/S0895479899358194),
+[mumps2](doi:10.1016/j.parco.2005.07.004), or the KPM method
+[kpm](doi:10.1103/RevModPhys.78.275) to compute the Green's function of the $B$
+subspace, used to solve Sylvester's equation.
+As a consequence, the `implicit` algorithm can be used on matrices with
+millions of degrees of freedom as long as they are sparse.
 
 **Finally, we implement an overall function that interprets the user inputs and
 returns a BlockSeries for the transformed Hamiltonian.**
+On the other hand, the `general` and `expanded` algorithms require the eigenvectors
+of both subspaces, but can work with dense matrices too.
+We use the eigenvectors to project the input Hamiltonian onto the $A$ and $B$
+subspaces of $H_0$ and represent it with a `BlockSeries`, a procedure that
+works for numerical and symbolic matrices.
+Because we aim for an easy-to-use interface, we implement a function that
+interprets the user inputs and decides which algorithm to use: `expanded`
+for symbolic matrices, `general` for numerical matrices, and `implicit` if
+only the $A$ subspace is provided.
+This is `block_diagonalize`, the only function that the user needs to call.
+By default, the function finds the energy denominators using the diagonal
+elements of $H_0$, but the user can provide a custom function to compute the
+denominators instead.

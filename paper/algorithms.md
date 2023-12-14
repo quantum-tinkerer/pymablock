@@ -192,10 +192,6 @@ subspace even when the full Hamiltonian is a sparse matrix that is too costly to
 diagonalize.
 It does so by avoiding explicit computation of operators in $B$ subspace, and by
 utilizing the sparsity of the Hamiltonian to compute the Green's function.
-To do so, Pymablock uses either the MUMPS sparse solver
-[mumps1](doi:10.1137/S0895479899358194),
-[mumps2](doi:10.1016/j.parco.2005.07.004) or the KPM method
-[kpm](doi:10.1103/RevModPhys.78.275).
 
 This approach was originally introduced in Ref.
 [hybrid-kpm](doi:10.48550/arXiv.1909.09649).
@@ -205,12 +201,13 @@ This approach was originally introduced in Ref.
 We use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite
 the Hamiltonian as
 
-```{math}
+:::{math}
+:label: H_implicit
 H \to \begin{pmatrix}
 \Psi_A^\dagger H \Psi_A & \Psi_A^\dagger H P_B \\
 P_B H \Psi_A & P_B H P_B
 \end{pmatrix},
-```
+:::
 
 where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
 This Hamiltonian is larger in size than the original one because the $B$ block has
