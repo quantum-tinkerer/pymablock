@@ -33,6 +33,8 @@ Additionally, it truncates the effective Hamiltonian at every order, computing
 more terms than it needs.
 Finally, it groups all the perturbative terms into one, causing independent
 orders to depend on each other, increasing the number of computations needed.
+**Note: consider summarizing this in more general terms, and explain better
+in the benchmark section.**
 
 **We develop an efficient algorithm capable of symbolic and numeric
 computations and make it available in Pymablock.**
