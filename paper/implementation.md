@@ -59,34 +59,33 @@ Such an extension would be useful for systems where $U$ or $\tilde{H}$ vanish
 due to symmetries, so that the zero blocks can be skipped beforehand.
 
 **To deal with an implicit $B$ subspace, we use MUMPS and LinearOperators.**
-Due to the ability of the `BlockSeries` to represent any block structure, we
-can use it to directly implement the `implicit` algorithm.
-To do so, we construct a `BlockSeries` with the block structure indicated in
-Equation {eq}`H_implicit`, and wrap the projector $P_B$ by a
-`LinearOperator` object from `Scipy`.
+Because `BlockSeries` can represent any input type, we use it to directly
+implement the `implicit` algorithm.
+To do so, we construct a `BlockSeries` with the block structure in Equation
+{eq}`H_implicit`, and wrap the projector $P_B$ by a `LinearOperator` object
+from `Scipy`.
 This allows us to compute matrix-vector products between $P_B$ and a vector,
 without explicitly constructing $P_B$ or any other product between elements of
-the $B$ subspace.
+the $B$ subspace, keeping the memory usage low.
 For the same purpose, we use the MUMPS sparse solver
 [mumps1](doi:10.1137/S0895479899358194),
 [mumps2](doi:10.1016/j.parco.2005.07.004), or the KPM method
-[kpm](doi:10.1103/RevModPhys.78.275) to compute the Green's function of the $B$
-subspace, used to solve Sylvester's equation.
+[kpm](doi:10.1103/RevModPhys.78.275), to compute the Green's function of the
+$B$ subspace.
 As a consequence, the `implicit` algorithm can be used on matrices with
 millions of degrees of freedom as long as they are sparse.
 
 **Finally, we implement an overall function that interprets the user inputs and
 returns a BlockSeries for the transformed Hamiltonian.**
-On the other hand, the `general` and `expanded` algorithms require the eigenvectors
-of both subspaces, but can work with dense matrices too.
-We use the eigenvectors to project the input Hamiltonian onto the $A$ and $B$
-subspaces of $H_0$ and represent it with a `BlockSeries`, a procedure that
-works for numerical and symbolic matrices.
+On the other hand, the `general` and `expanded` algorithms explicitly
+manipulate both subspaces, but can work with dense matrices too.
+We use the eigenvectors of the $A$ and $B$ subspaces to project the input
+Hamiltonian and represent it with a `BlockSeries`, a procedure that works for
+numerical and symbolic matrices.
 Because we aim for an easy-to-use interface, we implement a function that
 interprets the user inputs and decides which algorithm to use: `expanded`
 for symbolic matrices, `general` for numerical matrices, and `implicit` if
 only the $A$ subspace is provided.
 This is `block_diagonalize`, the only function that the user needs to call.
-By default, the function finds the energy denominators using the diagonal
-elements of $H_0$, but the user can provide a custom function to compute the
-denominators instead.
+By default, `block_diagonalize` uses a default function to solve Sylvester's
+equation if $H_0$ is diagonal, but the user can provide a custom one instead.
