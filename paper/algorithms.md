@@ -1,6 +1,32 @@
 # Algorithms for block diagonalization
 
-**Pymablock has tailored algorithms for block diagonalization of Hamiltonians.**
+**There are algorithms that use different parametrizations for $U$, a
+difference that is crucial for efficiency, even though the results are
+equivalent.**
+The algorithm used to block diagonalize a Hamiltonian perturbatively is not
+unique, because different parametrizations of unitary transformation $U$ give
+rise to different recursive procedures.
+For example, the Schrieffer-Wolff transformation uses an exponential series for
+$U = e^S$, while alternative algorithms use hyperbolic functions or polynomial
+series [VanVleck1929](doi:10.1103/PhysRev.33.467),
+[Lowdin1964](doi:10.1063/1.1724312)
+[Klein1974][doi:10.1063/1.1682018],
+[Suzuki1983](doi:10.1143/PTP.70.439),
+[Shavitt1980](doi:10.1063/1.440050).
+Despite the conceptual equivalence of these algorithms and the agreement of
+their results, there is a crucial difference in their computational efficiency,
+an aspect that was previously overlooked.
+While a Schrieffer-Wolff transformation has an exponential scaling with the
+perturbative order, it is possible to improve the scaling to a linear one.
+This was shown in Ref. [Li2022](doi:10.1103/PRXQuantum.3.030313),
+where the authors reformulated the recursive procedure of the Schrieffer-Wolff
+transformation, but did not use a series for $U$.
+We design the algorithms of Pymablock so that its procedures work with series,
+and choose the parametrization that is most computationally efficient, a
+polynomial series for $U$.
+We further develop the algorithm to take advantage of the block structure of
+the Hamiltonian and unitary transformation, achieving a linear scaling with the
+perturbative order.
 
 ## General algorithm
 
