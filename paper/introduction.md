@@ -26,15 +26,15 @@ Hamiltonian for each perturbative order.
 expensive, scaling poorly for large systems and high orders.**
 Constructing an effective Hamiltonian, is however, a computationally expensive
 task.
-The Schrieffer-Wolff transformation computes each order of the unitary transformation
-from a nested commutator of previous orders, making the number of matrix
-products scale exponentially with the order.
-Additionally, it truncates the effective Hamiltonian at every order, computing
-more terms than it needs.
-Finally, it groups all the perturbative terms into one, causing independent
-orders to depend on each other, increasing the number of computations needed.
-**Note: consider summarizing this in more general terms, and explain better
-in the benchmark section.**
+This is a consequence of the exponential parametrization of the unitary
+transformation in a Schrieffer–Wolff transformation, which requires computing
+an exponentially growing number of matrix products per order.
+Big systems, like those of many-body physics, bosonic Hamiltonians, and
+otherwise large Hilbert spaces, are thus expensive to compute.
+Similarly, high orders and combined perturbations are also costly, because they
+require computing all the terms of the previous orders too.
+Aside from the scaling, a Schrieffer–Wolff transformation also requires
+truncating the results, effectively wasting computational resources.
 
 **We develop an efficient algorithm capable of symbolic and numeric
 computations and make it available in Pymablock.**
@@ -42,6 +42,9 @@ In this work, we introduce an algorithm to construct effective models
 efficiently.
 Our algorithm scales linearly with the perturbative order, does not require
 truncating the outputs, and treats multiple perturbations independently.
+Its performance makes it possible to find effective Hamiltonians for a variety
+of systems, like superconducting circuits, quantum dot physics,
+tight-binding models, k.p models, and more.
 We make the algorithm available via the open source package Pymablock, for
 Python matrix block diagonalization of numerical and symbolic Hamiltonians.
 
@@ -66,13 +69,14 @@ subspaces, respectively.
 The result of this procedure is a perturbative series of the transformed
 block-diagonal Hamiltonian.
 
-\begin{equation}
+:::{math}
+:label: eq:transformed_hamiltonian
 \tilde{H} = U^\dagger H U=\sum_{i=0}^{\infty}
 \begin{pmatrix}
 \tilde{H}_i^{AA} & 0 \\
 0 & \tilde{H}_i^{BB}
 \end{pmatrix}.
-\end{equation}
+:::
 
 **Pymablock offers the same solution as traditional methods.**
 Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation,
