@@ -2,11 +2,10 @@
 
 ## Benchmark against other algorithms
 
-**The main computational advantage of Pymablock vs SW comes from the
-parametrization of the unitary transformation.**
-Despite the similarity between Pymablock's algorithms and a Schrieffer-Wolff
-transformation, choosing a polynomial parametrization for the unitary
-transformation brings a significant computational advantage.
+**Pymablock's algorithm does not use the Schrieffer-Wolff transformation,
+because the former is inefficient.**
+The difference between Pymablock's algorithm and the Schrieffer-Wolff
+lies in the parametrization of the unitary transformation.
 In the former, the transformed Hamiltonian is given by:
 
 :::{math}
@@ -14,9 +13,9 @@ In the former, the transformed Hamiltonian is given by:
 \tilde{H} = e^S H e^{-S}
 \end{equation}
 :::
-where $S$ is a polynomial in the perturbative parameter.
+where $S$ is a polynomial series in the perturbative parameter.
 As a consequence, every new order of $S$ is determined by a recursive relation
-whose terms contain nested commutators ,
+whose terms contain nested commutators,
 making the number of matrix products grow exponentially with the order.
 Moreover, the transformed Hamiltonian is also given by a series of nested
 commutators
@@ -34,35 +33,44 @@ together.
 However, this makes it impossible to request individual order combinations,
 making it necessary to compute more terms than needed.
 
-**A SW transformation is not the only available alternative to quasi-degenerate
-perturbation theory, but the others miss versatility and efficiency too.**
-The reformulation of the Schrieffer-Wolff transformation into alternative
-parametrizations is not new [Klein1974][10.1063/1.440050],
-[Suzuki1983](doi:10.1143/PTP.70.439) [Shavitt2008](doi:10.1063/1.440050), and
-the Schrieffer-Wolff transformation itself is known as the canonical Van Vleck
-formalism [VanVleck1929](doi:10.1103/PhysRev.33.467), or Löwdin partitioning
-[Lowdn1964](doi:10.1063/1.1724312).
-However, these approaches were tailored to specific settings,
-like many-body Hamiltonians, where a generator for the unitary transformation
-or a Green's function is often needed, or to answer general questions about
-convergence of the resulting series and equivalence to other methods.
-Recently, an alternative recursive procedure was introduced by Ref.
-[Li2022](doi:10.1103/PRXQuantum.3.030313), with the goal of improving the
-scaling of diagonalization as a function of the perturbative order.
-Even though, ....
+**The main computational advantage of Pymablock comes from the
+parametrization of the unitary transformation, but the parametrization
+comes at a cost.**
+Despite the similarity between Pymablock's algorithms and a Schrieffer-Wolff
+transformation, choosing a polynomial parametrization for the unitary
+transformation reduces the scaling from exponential to linear.
+The effective Hamiltonian is equivalent to that of a Schrieffer-Wolff
+transformation, but the terms that compose it are more than those strictly
+required.
+This is because Sylvester's equation is solved more than once per new order,
+requiring additional numerators that cancel out in the final expression.
+This cancellation can be costly for symbolic computations, and it is for
+this reason that Pymablock also has an `expanded` algorithm, which
+only solves Sylvester's equation once per order.
+We leave for future work finding a parametrization that achieves the same
+computational efficiency as the `general` algorithm, but that does not require
+simplifications of the transformed Hamiltonian.
 
 **Pymablock is not only efficient, but its implementation has potential
 to be expanded to other settings, like time-dependent Hamiltonians, many-body
 Hamiltonians, and continuum Hamiltonians.** _maybe??_ or maybe in conclusion??
+Still, Pymablock supports inputs a variety of inputs, including like fermionic
+and bosonic second quantization operators without using matrix representations.
+Therefore, Pymablock can compute effective Hamiltonians for interacting
+systems, infinitely-sized Hilbert spaces, and Hamiltonians with continuum
+degrees of freedom, by defining a custom `solve_sylvester` function.
+This is advantageous over other methods, which are limited to pre-defining
+an appropriate generator for the unitary transformation.
+Similarly, this flexibility allows Pymablock to work with time-dependent
+Hamiltonians, an extension that we leave for future work.
 
 ## Time scaling
-
-Showing scaling for large implicit Hamiltonians.
 
 **To demonstrate the efficiency of the implicit algorithm, we show its time
 scaling as a function of Hamiltonian size.**
 Do we plot the Kwant tutorial here? Is there a way to count matrix products for
 example? maybe using a counter in the code?
+Showing scaling for large implicit Hamiltonians.
 
 
 ## Error scaling
