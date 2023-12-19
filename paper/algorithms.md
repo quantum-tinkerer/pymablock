@@ -1,32 +1,62 @@
 # Algorithms for block diagonalization
 
+**Pymablock's algorithm does not use the Schrieffer-Wolff transformation,
+because the former is inefficient.**
+A common approach to construct effective Hamiltonians is to use a
+Schrieffer-Wolff transformation:
+:::{math}
+\begin{equation}
+\tilde{H} = e^S H e^{-S},
+\end{equation}
+:::
+where $S = \sum_n S_n$ is an antihermitian polynomial series in the
+perturbative parameter, making $e^S$ a unitary transformation.
+In this approach, $S$ is found by ensuring unitarity and the block
+diagonalization of the Hamiltonian to every order, a procedure that amounts to
+solving a recursive equation whose terms are nested commutators between series.
+Moreover, the transformed Hamiltonian is also given by a series of nested
+commutators
+:::{math}
+\begin{equation}
+\tilde{H} = \sum_{j=0}^\infty \frac{1}{j!} \Big [H, \sum_{n=0}^{\infty} S_n \Big ]^{(j)},
+\end{equation}
+:::
+a computationally expensive expression because it requires computing
+exponentially many matrix products.
+This expression also requires truncating the series at the same order
+to which $S$ is computed, which is a waste of computational resources.
+Finally, generalizing the Schrieffer-Wolff transformation to multiple
+perturbations is only straightforward if the perturbations are bundled
+together.
+However, this makes it impossible to request individual order combinations,
+making it necessary to compute more terms than needed.
+
 **There are algorithms that use different parametrizations for $U$, a
 difference that is crucial for efficiency, even though the results are
 equivalent.**
-The algorithm used to block diagonalize a Hamiltonian perturbatively is not
-unique, because different parametrizations of unitary transformation $U$ give
-rise to different recursive procedures.
-For example, the Schrieffer-Wolff transformation uses an exponential series for
-$U = e^S$, while alternative algorithms use hyperbolic functions or polynomial
-series [VanVleck1929](doi:10.1103/PhysRev.33.467),
-[Lowdin1964](doi:10.1063/1.1724312)
-[Klein1974][doi:10.1063/1.1682018],
-[Suzuki1983](doi:10.1143/PTP.70.439),
+The algorithm used to block diagonalize a Hamiltonian perturbatively is,
+however, not unique.
+Alternative parametrizations of the unitary transformation $U$, for example,
+using hyperbolic functions or a polynomial series directly, give rise to
+different algorithms.
+These also require solving unitarity and block diagonalization conditions,
+and achieve the same effective Hamiltonian as the Schrieffer-Wolff
+transformation
+[VanVleck1929](doi:10.1103/PhysRev.33.467), [Lowdin1964](doi:10.1063/1.1724312)
+[Klein1974][doi:10.1063/1.1682018], [Suzuki1983](doi:10.1143/PTP.70.439),
 [Shavitt1980](doi:10.1063/1.440050).
 Despite the conceptual equivalence of these algorithms and the agreement of
-their results, there is a crucial difference in their computational efficiency,
-an aspect that was previously overlooked.
-While a Schrieffer-Wolff transformation has an exponential scaling with the
-perturbative order, it is possible to improve the scaling to a linear one.
-This was shown in Ref. [Li2022](doi:10.1103/PRXQuantum.3.030313),
-where the authors reformulated the recursive procedure of the Schrieffer-Wolff
-transformation, but did not use a series for $U$.
-We design the algorithms of Pymablock so that its procedures work with series,
-and choose the parametrization that is most computationally efficient, a
-polynomial series for $U$.
-We further develop the algorithm to take advantage of the block structure of
-the Hamiltonian and unitary transformation, achieving a linear scaling with the
-perturbative order.
+their results, there is a crucial difference in their computational efficiency:
+a Schrieffer-Wolff transformation has an exponential scaling with the
+perturbative order, but it can be reduced to a linear one.
+Reference [Li2022](doi:10.1103/PRXQuantum.3.030313), for example, introduces an
+algorithm with linear scaling for diagonalization of a single state by
+reformulating the recursive steps of the Schrieffer-Wolff transformation.
+Block diagonalization of a Hamiltonian, however, recovers the exponential
+scaling.
+To design the algorithms of Pymablock, we choose the parametrization that is
+most computationally efficient: linear scaling with a polynomial series for
+$U = \sum_{n=0}^{\infty} U_n$.
 
 ## General algorithm
 
@@ -38,7 +68,8 @@ The transformed Hamiltonian is a Cauchy product between the series of
 $U^\dagger$, $H$, and $U$.
 
 For brevity we use a single first order perturbation $H_1$ throughout this
-document. The generalization to multiple perturbations is straightforward.
+document. The generalization to multiple perturbations is follows naturally
+by including more indices.
 
 **The result of this procedure is a perturbative series of the transformed
 block-diagonal Hamiltonian.**
@@ -88,6 +119,8 @@ H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}.
 
 This is known as Sylvester's equation and $Y_{n}$ is a combination of lower
 order terms in $H$ and $U$.
+It follows that for every order, Sylvester's equation needs to be solved
+only once, a requirement of any algorithm that block diagonalizes a Hamiltonian.
 
 ::::{admonition} Full expression
 :class: dropdown info
@@ -113,7 +146,8 @@ $V$ and $W$ only correspond to the expressions in Equations {eq}`unitarity` and
 {eq}`sylvester` if there is a single perturbation.
 In the case of multiple perturbations, they acquire an additional index for
 each perturbation and the equations are recursive in the hyperspace of orders.
-To generalize them, we observe that the right hand side of both equations is a
+To generalize them without finding the explicit expression for $W$ and $V$,
+we observe that the right hand side of both equations is a
 Cauchy product of the series $U^{\dagger} U$ and $U^\dagger H U$, but without
 the terms that involve the last order of $U$ and $H$.
 Therefore, we define the diagonal and off-diagonal blocks of $U$ using an
@@ -177,11 +211,16 @@ This concludes the proof.
 
 ## Expanded algorithm for analytic Hamiltonians
 
-Pymablock has two algorithms, `pymablock.general` and `pymablock.expanded`.
 The `pymablock.general` algorithm implements the procedure outlined here directly.
-On the other hand, `pymablock.expanded` simplifies the expressions
-for $\tilde{H}_{n}$ (Eq. {eq}`h_tilde`) such that it only depends on $V$ and the
-perturbation $H_1$, but not explicitly on $H_0$.
+However, this may not be the most efficient algorithm for analytic Hamiltonians,
+where the priority is to obtain compact expressions right away, instead of
+simplifying them afterwards.
+To overcome this, Pymablock also has the `pymablock.expanded` algorithm, which
+returns simplified expressions for $\tilde{H}_{n}$ (Eq. {eq}`h_tilde`) such
+that $\tilde{H}_{n}$ only depends on $V$ and the perturbation $H_1$, but not
+explicitly on $H_0$.
+This way, the expressions do not contain fractions that must cancel, reducing
+the number of terms in the final result.
 
 :::{admonition} How this works
 :class: dropdown info
@@ -227,13 +266,12 @@ This approach was originally introduced in Ref.
 We use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite
 the Hamiltonian as
 
-:::{math}
-:label: H_implicit
+\begin{equation}
 H \to \begin{pmatrix}
 \Psi_A^\dagger H \Psi_A & \Psi_A^\dagger H P_B \\
 P_B H \Psi_A & P_B H P_B
 \end{pmatrix},
-:::
+\end{equation}
 
 where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
 This Hamiltonian is larger in size than the original one because the $B$ block has
