@@ -1,6 +1,6 @@
 # Tutorial
 
-The tutorials explain how {{Pymablock}} works and introduce its main features.
+The tutorials explain how Pymablock works and introduce its main features.
 
 ```{toctree}
 :maxdepth: 3

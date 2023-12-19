@@ -14,7 +14,7 @@ kernelspec:
 # k.p model of bilayer graphene
 
 This tutorial demonstrates how to use symbolic expressions as input
-to {{Pymablock}}. As an example, we construct the k.p Hamiltonian of
+to Pymablock. As an example, we construct the k.p Hamiltonian of
 bilayer graphene, starting from its tight binding dispersion.
 
 The crystal structure and the hoppings of bilayer graphene are shown

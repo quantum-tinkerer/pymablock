@@ -12,7 +12,7 @@ kernelspec:
 ---
 # The algorithms
 
-The algorithms of {{Pymablock}} rely on decomposing $U$, the unitary transformation
+The algorithms of Pymablock rely on decomposing $U$, the unitary transformation
 that block diagonalizes the Hamiltonian, as a series of Hermitian
 block diagonal $W$ and skew-Hermitian and block off-diagonal $V$ terms.
 The transformed Hamiltonian is a
@@ -32,7 +32,7 @@ The transformed Hamiltonian at order $n$ is
 \end{align}
 :::
 
-To block diagonalize $H_0 + H_1$, {{Pymablock}} finds the orders of $W$
+To block diagonalize $H_0 + H_1$, Pymablock finds the orders of $W$
 such that $U$ is unitary
 
 :::{math}
@@ -84,7 +84,7 @@ H_1^{BB}W_i^{BB}\bigg]
 :::
 ::::
 
-{{Pymablock}} has two algorithms, {autolink}`~pymablock.general` and {autolink}`~pymablock.expanded`.
+Pymablock has two algorithms, {autolink}`~pymablock.general` and {autolink}`~pymablock.expanded`.
 The {autolink}`~pymablock.general` algorithm implements the procedure outlined here directly.
 On the other hand, {autolink}`~pymablock.expanded` simplifies the expressions
 for $\tilde{H}_{n}$ (Eq. {eq}`h_tilde`) such that it only depends on $V$ and the
@@ -151,13 +151,13 @@ number of terms.
 
 :::{admonition} Proof of equivalence to Schrieffer-Wolff transformation
 :class: dropdown info
-Both the {{Pymablock}} algorithm and the more commonly used Schrieffer-Wolff
+Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
 transformation find a unitary transformation $U$ such that $\tilde{H}^{AB}=0$.
 They are therefore equivalent up to a gauge choice on each subspace.
 We establish the correspondence between the two by demonstrating that this gauge
 choice is the same for both algorithms.
 
-{{Pymablock}} chooses $U=W+V$, where $W$ is block diagonal Hermitian and
+Pymablock chooses $U=W+V$, where $W$ is block diagonal Hermitian and
 $V$ is block off-diagonal anti-Hermitian.
 Then requiring that $U$ is unitary and $\tilde{H}^{AB}=0$ to all orders defines
 a unique value for $W$ and $V$.
@@ -180,12 +180,12 @@ conditions.
 Some conditions are straightforwardly the same:
 - Both algorithms guarantee that $\tilde{H}^{AB} = 0$ to all orders.
 - Both algorithms guarantee that $U$ is unitary to all orders:
-  {{Pymablock}} by construction, and Schrieffer-Wolff by the
+  Pymablock by construction, and Schrieffer-Wolff by the
   definition of the exponential and anti-Hermiticity of $S$.
 
 We are left to show that the diagonal blocks of $\exp S$ are Hermitian, while
 off-diagonal blocks are anti-Hermitian because this is the only remaining
-property of the {{Pymablock}} algorithm.
+property of the Pymablock algorithm.
 To do so, we expand all terms in Eq. {eq}`exp_s_expansion` using the multinomial theorem.
 The result contains all possible products of $S_n$ of all lengths with fractional prefactors.
 Furthermore, for every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a
@@ -200,16 +200,16 @@ block off-diagonal and their sum is anti-Hermitian by the same reasoning.
 This concludes the proof.
 :::
 
-##  How to use {{Pymablock}} on large numerical Hamiltonians?
+##  How to use Pymablock on large numerical Hamiltonians?
 
 Solving Sylvester's equation and computing the matrix products are the most
 expensive steps of the algorithms for large Hamiltonians.
-{{Pymablock}} can efficiently construct an effective Hamiltonian of a small
+Pymablock can efficiently construct an effective Hamiltonian of a small
 subspace even when the full Hamiltonian is a sparse matrix that is too costly to
 diagonalize.
 It does so by avoiding explicit computation of operators in $B$ subspace, and by
 utilizing the sparsity of the Hamiltonian to compute the Green's function.
-To do so, {{Pymablock}} uses either the [MUMPS sparse
+To do so, Pymablock uses either the [MUMPS sparse
 solver](https://mumps-solver.org/) or the [KPM
 method](https://doi.org/10.1103/RevModPhys.78.275).
 
