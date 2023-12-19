@@ -19,3 +19,8 @@
     </script>
   <!-- End Matomo Code -->
 {% endblock %}
+
+{# Replace "Pymablock" with a stylized version for prettiness #}
+{% block content %}
+{{ super() | replace('Pymablock', '<b style="color:#8b4aa0ff;">Pymablock</b>') }}
+{% endblock %}

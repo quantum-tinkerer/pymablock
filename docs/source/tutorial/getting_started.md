@@ -15,7 +15,7 @@ kernelspec:
 
 ## Pymablock workflow
 
-Getting started with {{Pymablock}} is simple, let's start by importing it
+Getting started with Pymablock is simple, let's start by importing it
 together with `numpy`.
 
 ```{code-cell} ipython3
@@ -73,7 +73,7 @@ better the perturbation theory works.
 
 ### 2. Define the perturbative series
 
-Most {{Pymablock}} users will need only one function:
+Most Pymablock users will need only one function:
 {autolink}`~pymablock.block_diagonalize`.
 It takes all the possible types of input and defines a solution of the
 perturbation theory problem as infinite series of the transformed Hamiltonian
@@ -93,7 +93,7 @@ This does do any computations yet, and only defines the answer as an object
 that we can query.
 
 Most users will only ever need the diagonal blocks of `H_tilde`, however
-{{Pymablock}} returns the extra information in case it is needed.
+Pymablock returns the extra information in case it is needed.
 
 ### 3. Get the perturbative results
 
@@ -165,7 +165,7 @@ Let us now consider a more complex example, where:
 - There are multiple perturbative parameters
 - Some perturbations are not first order
 
-Because diagonalization is both standard, and not our focus, {{Pymablock}} won't do it for us.
+Because diagonalization is both standard, and not our focus, Pymablock won't do it for us.
 However, it will properly treat a non-diagonal unperturbed Hamiltonian if we provide its eigenvectors.
 
 ### General Hamiltonians

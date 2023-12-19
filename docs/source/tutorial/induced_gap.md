@@ -15,7 +15,7 @@ kernelspec:
 
 This tutorial demonstrates how to efficiently build effective models from big numerical
 Hamiltonians.
-It also shows how {{Pymablock}} integrates with [Kwant](https://kwant-project.org/).
+It also shows how Pymablock integrates with [Kwant](https://kwant-project.org/).
 As an example, we consider a tight binding model of a quantum dot and
 a superconductor with a tunnel barrier in between.
 
@@ -131,7 +131,7 @@ delta_mu = (
 
 ## Define the perturbative series
 
-In the implicit mode, {{Pymablock}} computes the perturbative series without
+In the implicit mode, Pymablock computes the perturbative series without
 knowing the eigenvectors of one of the Hamiltonian subspaces.
 
 Therefore we compute 4 eigenvectors of the unperturbed Hamiltonian, which
@@ -221,5 +221,5 @@ proximity gap of the dots increases with the coupling strength.
 
 We also see that computing the spectrum perturbatively is faster than repeatedly
 using sparse diagonalization for a set of parameters. In this example the total
-runtime of {{Pymablock}} would only allow us to compute the eigenvectors at
+runtime of Pymablock would only allow us to compute the eigenvectors at
 around 5 points in the parameter space.

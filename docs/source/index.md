@@ -23,17 +23,17 @@ CHANGELOG.md
 authors.md
 ```
 
-# {{Pymablock}}
+# Pymablock
 
-## What is {{Pymablock}}?
+## What is Pymablock?
 
-{{Pymablock}} (Python matrix block-diagonalization) is a Python package that constructs
+Pymablock (Python matrix block-diagonalization) is a Python package that constructs
 effective models using quasi-degenerate perturbation theory.
 It handles both numerical and symbolic inputs, and it efficiently
 block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
 order.
 
-Building an effective model using {{Pymablock}} is a three step process:
+Building an effective model using Pymablock is a three step process:
 * Define a Hamiltonian
 * Call {autolink}`~pymablock.block_diagonalize`
 * Request the desired order of the effective Hamiltonian
@@ -48,28 +48,28 @@ H_tilde, *_ = block_diagonalize([h_0, h_p], subspace_eigenvectors=[vecs_A, vecs_
 H_AA_4 = H_tilde[0, 0, 4]
 ```
 
-## Why {{Pymablock}}?
-Here is why you should use {{Pymablock}}:
+## Why Pymablock?
+Here is why you should use Pymablock:
 
 * Do not reinvent the wheel
 
-  {{Pymablock}} provides a tested reference implementation
+  Pymablock provides a tested reference implementation
 
 * Apply to any problem
 
-  {{Pymablock}} supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
+  Pymablock supports `numpy` arrays, `scipy` sparse arrays, `sympy` matrices and
   quantum operators
 
 * Speed up your code
 
-  Due to several optimizations, {{Pymablock}} can reliably handle both higher orders
+  Due to several optimizations, Pymablock can reliably handle both higher orders
   and large Hamiltonians
 
-## How does {{Pymablock}} work?
+## How does Pymablock work?
 
-{{Pymablock}} considers a Hamiltonian as a series of $2\times 2$ block operators
+Pymablock considers a Hamiltonian as a series of $2\times 2$ block operators
 with the zeroth order block-diagonal.
-To carry out the block-diagonalization procedure, {{Pymablock}} finds a minimal
+To carry out the block-diagonalization procedure, Pymablock finds a minimal
 unitary transformation $U$ that cancels the off-diagonal block of the
 Hamiltonian order by order.
 
@@ -90,21 +90,21 @@ block-diagonal Hamiltonian.
 \end{gather}
 
 Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation,
-{{Pymablock}} solves Sylvester's equation and imposes unitarity at every order.
-However, differently from other approaches, {{Pymablock}} uses efficient algorithms
+Pymablock solves Sylvester's equation and imposes unitarity at every order.
+However, differently from other approaches, Pymablock uses efficient algorithms
 by choosing an appropriate parametrization of the series of the unitary
 transformation.
 As a consequence, the computational cost of every order scales linearly with
 the order, while the algorithms are still mathematically equivalent.
 
-To see {{Pymablock}} in action, check out the [tutorial](tutorial/tutorial.md).
+To see Pymablock in action, check out the [tutorial](tutorial/tutorial.md).
 See its [algorithms](algorithms.md) to learn about the underlying ideas, or read
 the [reference documentation](documentation/pymablock.rst) for the package API.
 
-## What does {{Pymablock}} not do yet?
+## What does Pymablock not do yet?
 
-* {{Pymablock}} is not able to treat time-dependent perturbations yet
-* {{Pymablock}} does not block diagonalize more than two subspaces simultaneously
+* Pymablock is not able to treat time-dependent perturbations yet
+* Pymablock does not block diagonalize more than two subspaces simultaneously
 
 ## Installation
 
@@ -132,7 +132,7 @@ If you need it, try
 
 ## Citing
 
-If you have used {{Pymablock}} for work that has lead to a scientific publication,
+If you have used Pymablock for work that has lead to a scientific publication,
 please cite it as
 
 ```
@@ -147,6 +147,6 @@ year = {2023}
 
 ## Contributing
 
-{{Pymablock}} is an open source package, and we invite you to contribute!
+Pymablock is an open source package, and we invite you to contribute!
 You contribute by opening [issues](https://gitlab.kwant-project.org/qt/pymablock/-/issues),
 fixing them, and spreading the word about `pymablock`.
