@@ -40,9 +40,7 @@ run nox:
 
 run docs:
   script:
-    - pip install sphinx myst-nb sphinx-togglebutton sphinx-tippy sphinx-copybutton
-    # TODO: switch to sphinx-book-theme>=1.1.0 once released
-    - pip install "sphinx-book-theme>=1.1.0rc3"
+    - pip install sphinx myst-nb sphinx-togglebutton sphinx-tippy sphinx-copybutton "sphinx-book-theme>=1.1.0"
     - pip install --editable .
     - make -C docs/ html SPHINXOPTS="-W --keep-going -n"
   artifacts:

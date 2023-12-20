@@ -15,8 +15,6 @@ dependencies:
   - sphinx-copybutton
   - pip
   - pip:
-    # TODO: switch to pypi once released (see also
-    # https://github.com/executablebooks/sphinx-book-theme/issues/782)
-    - sphinx-book-theme>=1.1.0rc3
+    - sphinx-book-theme>=1.1.0
     - sphinx-tippy
     - ..
