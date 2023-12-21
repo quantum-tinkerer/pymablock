@@ -57,16 +57,16 @@ Pymablock considers Hamiltonians as series of $2\times 2$ block operators.
 The zeroth order is block-diagonal, and the perturbative orders couple
 blocks to each other and within themselves.
 To carry out the block-diagonalization procedure, Pymablock finds a minimal
-unitary transformation $U$ that cancels the off-diagonal block of the
+unitary transformation $\mathcal{U}$ that cancels the off-diagonal block of the
 Hamiltonian order by order:
 
 \begin{equation}
-H = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
-U = \sum_{i=0}^\infty U_n,
+\mathcal{H} = \begin{pmatrix}\mathcal{H}_0^{AA} & 0 \\ 0 & \mathcal{H}_0^{BB}\end{pmatrix} + \sum_{i\geq 1} \mathcal{H}_i,\quad
+\mathcal{U} = \sum_{i=0}^\infty \mathcal{U}_n,
 \end{equation}
 
-where $H_i$ and $U_i$ are proportional to an $i$-th order contribution on the
-perturbative parameter.
+where $\mathcal{H}_i$ and $\mathcal{U}_i$ are proportional to an $i$-th order
+contribution on the perturbative parameter.
 Throughout this work, we use $A$ and $B$ to denote the low and high energy
 subspaces, respectively.
 The result of this procedure is a perturbative series of the transformed
@@ -74,17 +74,17 @@ block-diagonal Hamiltonian.
 
 :::{math}
 :label: eq:transformed_hamiltonian
-\tilde{H} = U^\dagger H U=\sum_{i=0}^{\infty}
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U}=\sum_{i=0}^{\infty}
 \begin{pmatrix}
-\tilde{H}_i^{AA} & 0 \\
-0 & \tilde{H}_i^{BB}
+\tilde{\mathcal{H}}_i^{AA} & 0 \\
+0 & \tilde{\mathcal{H}}_i^{BB}
 \end{pmatrix}.
 :::
 
 **Pymablock offers the same solution as traditional methods.**
 Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation,
 Pymablock solves Sylvester's equation and ensures that the transformation
-$U$ is unitary order by order.
+$\mathcal{U}$ is unitary order by order.
 However, differently from other approaches, Pymablock uses efficient algorithms
 by choosing an appropriate parametrization of the series of the unitary
 transformation.
