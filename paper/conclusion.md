@@ -1,19 +1,29 @@
 # Conclusion
 
-**
-In summary, we have developed an efficient algorithm to construct effective
-Hamiltonians with several perturbations and of different types.
-**
-
-**Its implementation has already proven useful to study some problems in
-condensed matter physics, but we think it can be applied to many more.**
-Here I'd like to highlight the kind of problems that we have already solved
-using Pymablock, and also say that there's a lot more that can be done.
-Giving examples of the kinds of problems people still struggle with in the
-context of superconducting circuits for example, but maybe this fits better in
-the introduction.
+**We have developed an efficient algorithm to construct effective Hamiltonians
+with several perturbations and of different types.**
+In summary, we have developed an algorithm for perturbative block
+diagonalization of Hamiltonians that scales linearly with the order,
+achieving an exponential speed-up over a Schrieffer-Wolff transformation.
+We packaged this algorithm in Pymablock, a Python library that works with
+numerical and symbolic Hamiltonians, allowing for a wide range of input
+Hamiltonians.
+By using the inputs block structure, sparsity, Hermiticity, and caching of the
+results, Pymablock further speeds up its calculations.
+We have shown how Pymablock can be used to find effective Hamiltonians for
+large tight-binding Hamiltonians and for a k.p analytic model in just a few
+seconds, improving the state-of-the-art by orders of magnitude.
 
 **Pymablock is a versatile tool that can be further developed to tackle
 time-dependent Hamiltonians, many-body Hamiltonians, continuum Hamiltonians,
 multi-band Hamiltonians, symmetric Hamiltonians, non-orthogonal basis, and
 more, but we leave this for future work.**
+Pymablock's implementation is designed to be flexible and extensible, as it
+allows for custom solvers for the Sylvester equation and for arbitrary
+Hamiltonian representations.
+This flexibility allows Pymablock to be a useful tool for working with
+superconducting circuits, for example, where a bosonic second quantization
+representation is more natural.
+Similarly, Pymablock can be extended to work with time-dependent Hamiltonians,
+interacting systems, and continuum degrees of freedom, extensions that we leave
+for future work.

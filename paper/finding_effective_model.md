@@ -82,8 +82,8 @@ To call `block_diagonalize`, we use the eigenvectors of the unperturbed
 Hamiltonian at the $\mathbf{K}$ point.
 To demonstrate the capabilities of Pymablock, we use $m$ as a perturbative
 parameter too.
-The unperturbed Hamiltonian is then $H(\alpha = m = 0)$, and its eigenvectors
-are:
+The unperturbed Hamiltonian is then $H(\alpha(\mathbf{K}) = m = 0)$, and its
+eigenvectors are:
 
 \begin{align}
 v_{A,1} &= \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \end{pmatrix} &
@@ -207,7 +207,7 @@ Block diagonalization is now the most time consuming step because it requires
 pre-computing several decompositions of the full Hamiltonian.
 It is, however, manageable and it only produces a constant overhead.
 
-### Get results
+### Get the effective Hamiltonian
 
 For convenience, we collect the lowest three orders in each parameter in an
 appropriately sized tensor.
