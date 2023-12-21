@@ -18,9 +18,12 @@ Schrieffer–Wolff transformation
 [Schrieffer1966](doi:10.1103/PhysRev.149.491), [Bravyi2011](doi:10.1016/j.aop.2011.06.004)
 and Lowdin partitioning [Lowdin1951](doi:10.1063/1.1745671).
 Both methods are perturbative and, as input, they take a Hamiltonian and a
-perturbation.
+perturbation, together with the subspaces to decouple.
 Then, they find the unitary transformation that block-diagonalizes the
-Hamiltonian for each perturbative order.
+Hamiltonian for each perturbative order recursively.
+These methods are standard when working with superconducting circuits,
+quantum dot physics, density functional theory, k.p models, and other
+systems where the physics of interest lies in the low energy states.
 
 **Even though these methods are standard, their algorithm is computationally
 expensive, scaling poorly for large systems and high orders.**
@@ -43,10 +46,10 @@ efficiently.
 Our algorithm scales linearly with the perturbative order, does not require
 truncating the outputs, and treats multiple perturbations independently.
 Its performance makes it possible to find effective Hamiltonians for a variety
-of systems, like superconducting circuits, quantum dot physics,
-tight-binding models, k.p models, and more.
+of systems, numerical and symbolic, and with several perturbations.
 We make the algorithm available via the open source package Pymablock, for
-Python matrix block diagonalization of numerical and symbolic Hamiltonians.
+Python matrix block diagonalization of Hamiltonians, a versatile tool for
+the study of complex physical systems.
 
 **Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
 and finds a minimal unitary transformation that separates its subspaces.**

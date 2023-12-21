@@ -24,7 +24,6 @@ Do we plot the Kwant tutorial here? Is there a way to count matrix products for
 example? maybe using a counter in the code?
 Showing scaling for large implicit Hamiltonians.
 
-
 ## Error scaling
 
 Show error accumulation, show that the inverse of the transformation holds to numerical precision.

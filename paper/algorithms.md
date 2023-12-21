@@ -45,7 +45,7 @@ transformation
 [VanVleck1929](doi:10.1103/PhysRev.33.467), [Lowdin1964](doi:10.1063/1.1724312)
 [Klein1974][doi:10.1063/1.1682018], [Suzuki1983](doi:10.1143/PTP.70.439),
 [Shavitt1980](doi:10.1063/1.440050).
-Despite the conceptual equivalence of these algorithms and the agreement of
+Despite the conceptual equivalence of the algorithms and the agreement of
 their results, there is a crucial difference in their computational efficiency:
 a Schrieffer-Wolff transformation has an exponential scaling with the
 perturbative order, but it can be reduced to a linear one.
@@ -65,7 +65,13 @@ The algorithms of Pymablock rely on decomposing $U$, the unitary transformation
 that block diagonalizes the Hamiltonian, as a series of Hermitian
 block diagonal $W$ and skew-Hermitian and block off-diagonal $V$ terms.
 The transformed Hamiltonian is a Cauchy product between the series of
-$U^\dagger$, $H$, and $U$.
+$U^\dagger$, $H$, and $U$, a product between series defined as
+:::{math}
+:label: cauchy_product
+\begin{equation}
+(A \star B)_{n} = \sum_{i=0}^{n} A_{i} B_{n-i}.
+\end{equation}
+:::
 
 For brevity we use a single first order perturbation $H_1$ throughout this
 document. The generalization to multiple perturbations is follows naturally
@@ -74,12 +80,10 @@ by including more indices.
 **The result of this procedure is a perturbative series of the transformed
 block-diagonal Hamiltonian.**
 The transformed Hamiltonian at order $n$ is
-
 :::{math}
 :label: h_tilde
 \begin{align}
-\tilde{H}_{n} = \sum_{i=0}^n (W_{n-i} - V_{n-i}) H_0 (W_i + V_i) +
-\sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_1 (W_i + V_i).
+\tilde{H}_{n} = (U^{\dagger} H U)_{n} = \Big ( (W-V) \star H \star (W-V) \Big)_{n}.
 \end{align}
 :::
 
@@ -87,40 +91,43 @@ The transformed Hamiltonian at order $n$ is
 solving Sylvester's equation at every order.**
 To block diagonalize $H_0 + H_1$, Pymablock finds the orders of $W$
 such that $U$ is unitary
-
 :::{math}
 :label: unitarity
-\begin{equation}
-W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i),
-\end{equation}
+\begin{align}
+W_{n}^{AA} &= - \frac{1}{2} (U^{\dagger} \star U)_{\cancel{n}}^{AA}, \\
+W_{n}^{BB} &= - \frac{1}{2} (U^{\dagger} \star U)_{\cancel{n}}^{BB},
+\end{align}
 :::
+where the subscript $\cancel{n}$ indicates that the $n$th term of the first
+and last series are omitted from the Cauchy product.
 
 :::{admonition} Derivation
 :class: dropdown info
 We evaluate the series
 $U^\dagger U + UU^\dagger=2$ and use that $W=W^\dagger$ and $V=-V^\dagger$ to obtain
-
-```{math}
 \begin{equation}
 \sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i + V_i) +
 (W_{n-i} + V_{n-i})(W_i - V_i)\right] = 0.
 \end{equation}
-```
-
-Using that $W_0=1$, $V_0=0$, expanding, and solving for $W_n$ gives the Eq. {eq}`unitarity`.
+Using that $W_0=1$, $V_0=0$, expanding, and solving for $W_n$ gives
+\begin{equation}
+W_{n} &= - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i),
+\end{equation}
+a sum of Cauchy products that misses the $n \textsuperscript{th}$ term of each
+series.
+For every order, $W$ remains block-diagonal and Hermitian.
 :::
-
-and the orders of $V$ by requiring that $\tilde{H}^{AB}_n=0$
-
+Similarly, Pymablock finds the terms of $V$ by requiring that
+$\tilde{H}^{AB}_n=0$
 ```{math}
 :label: sylvester
 H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}.
 ```
-
 This is known as Sylvester's equation and $Y_{n}$ is a combination of lower
-order terms in $H$ and $U$.
-It follows that for every order, Sylvester's equation needs to be solved
-only once, a requirement of any algorithm that block diagonalizes a Hamiltonian.
+order terms in $H$ and $U$ defined as
+\begin{equation}
+Y_n = (U^\dagger \star H \star U)_{\cancel{n}}^{AB}.
+\end{equation}
 
 ::::{admonition} Full expression
 :class: dropdown info
@@ -139,20 +146,8 @@ H_1^{BB}W_i^{BB}\bigg]
 \end{align}
 :::
 ::::
-
-**Right hand side of both equations is a Cauchy product of the series of $H$ and
-$U$ that misses the last terms.**
-$V$ and $W$ only correspond to the expressions in Equations {eq}`unitarity` and
-{eq}`sylvester` if there is a single perturbation.
-In the case of multiple perturbations, they acquire an additional index for
-each perturbation and the equations are recursive in the hyperspace of orders.
-To generalize them without finding the explicit expression for $W$ and $V$,
-we observe that the right hand side of both equations is a
-Cauchy product of the series $U^{\dagger} U$ and $U^\dagger H U$, but without
-the terms that involve the last order of $U$ and $H$.
-Therefore, we define the diagonal and off-diagonal blocks of $U$ using an
-incomplete Cauchy product: such that every new order satisfies unitarity and
-solves Sylvester's equation for every order and any number of perturbations.
+It follows that for every order, Sylvester's equation needs to be solved
+only once, a requirement of any algorithm that block diagonalizes a Hamiltonian.
 
 ### Proof of equivalence to Schrieffer-Wolff transformation
 
@@ -171,7 +166,6 @@ a unique value for $W$ and $V$.
 
 The Schrieffer-Wolff transformation parameterizes $U = \exp S$, where $S =
 \sum_n S_n$ is a series of anti-Hermitian block off-diagonal operators:
-
 ```{math}
 :label: exp_s_expansion
 \begin{align}
@@ -180,7 +174,6 @@ S_n\right)} = 1+\sum_{j=1}^\infty \left[\frac{1}{j!}
 \left(\sum_{n=1}^\infty S_n\right)^j\right]
 \end{align}
 ```
-
 Here we consider a single perturbation for brevity.
 
 Because both the above approach and Schrieffer-Wolff produce a unique answer, it
@@ -265,14 +258,15 @@ This approach was originally introduced in Ref.
 :class: dropdown info
 We use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite
 the Hamiltonian as
-
+```{math}
+:label: H_implicit
 \begin{equation}
 H \to \begin{pmatrix}
 \Psi_A^\dagger H \Psi_A & \Psi_A^\dagger H P_B \\
 P_B H \Psi_A & P_B H P_B
 \end{pmatrix},
 \end{equation}
-
+```
 where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
 This Hamiltonian is larger in size than the original one because the $B$ block has
 additional null vectors corresponding to the $A$ subspace.
@@ -283,11 +277,9 @@ We then perform perturbation theory of the rewritten $H$.
 
 To solve the Sylvester's equation for the modified Hamiltonian, we write it for
 every row of $V_n^{AB}$ separately:
-
 ```{math}
 V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
 ```
-
 This equation is well-defined despite $E_i - H_0$ is not invertible because
 $Y_{n}$ has no components in the $A$ subspace.
 :::
