@@ -21,11 +21,13 @@ the transformed Hamiltonian.
 
 **We address this by defining a `BlockSeries` class.**
 To address these requirements, we define a `BlockSeries` Python class and use
-it to represent the series of $U$, $H$, and $\tilde{H}$.
+it to represent the series of $\mathcal{U}$, $\mathcal{H}$, and
+$\tilde{\mathcal{H}}$.
 A `BlockSeries` is a Python object equipped with a function to compute its
 elements and a dictionary to cache the results.
-For example, the `BlockSeries` for $\tilde{H}$ has a function that computes
-the block-wise multivariate Cauchy product of $U^\dagger H U$.
+For example, the `BlockSeries` for $\tilde{\mathcal{H}}$ has a function that
+computes the block-wise multivariate Cauchy product of $\mathcal{U}^{\dagger}
+\mathcal{H} \mathcal{U}$.
 To get the elements of the series, we implement Numpy array indexing,
 which allows us to request several elements at once by using tuples and slices.
 In this case, the `BlockSeries` returns a masked array that only contains
@@ -39,24 +41,27 @@ Not only does the `BlockSeries` interface allow us to implement the polynomial
 parametrization of the unitary transformation, but also several other
 optimizations.
 For example, we exploit Hermiticity when computing the Cauchy product of the
-diagonal blocks of $U$ and $\tilde{H}$, because we only compute half of the matrix
-products and then complex conjugate the result to obtain the rest.
-Similarly, we avoid computing $BA$ blocks of $U$ and $\tilde{H}$ by providing a
-function to the `BlockSeries` that returns the conjugate transpose of the
-respective $AB$ blocks.
+diagonal blocks of $\mathcal{U}$ and $\tilde{\mathcal{H}}$, because we only
+compute half of the matrix products and then complex conjugate the result to
+obtain the rest.
+Similarly, we avoid computing $BA$ blocks of $\mathcal{U}$ and
+$\tilde{\mathcal{H}}$ by providing a function to the `BlockSeries` that returns
+the conjugate transpose of the respective $AB$ blocks.
 As a result, whenever we query a $BA$ block, we first compute the $AB$ block,
 store it, and then compute the $BA$ block directly.
 This procedure brings an additional advantage: because the terms that compose
 $AB$ blocks contain matrix products that first multiply small matrices and then
 the large ones, it saves computational time and memory.
-For example, the term $V_{n-i}^{AB} H_0^{BB} W_i^{BB}$ in $Y_n$ is
-systematically computed as $(V_{n-i}^{AB} H_0^{BB}) W_i^{BB}$ instead of
-$V_{n-i}^{AB} (H_0^{BB} W_i^{BB})$.
+For example, the term $\mathcal{V}_{n-i}^{AB} \mathcal{H}_0^{BB}
+\mathcal{W}_i^{BB}$ in $Y_n$ is systematically computed as $(V_{n-i}^{AB}
+\mathcal{H}_0^{BB}) \mathcal{W}_i^{BB}$ instead of $\mathcal{V}_{n-i}^{AB}
+(\mathcal{H}_0^{BB} \mathcal{W}_i^{BB})$.
 This is only one example of how the `BlockSeries` interface allows us to
 implement a symmetrized algorithm, and we leave other symmetries for future
 work.
-Such an extension would be useful for systems where $U$ or $\tilde{H}$ vanish
-due to symmetries, so that the zero blocks can be skipped beforehand.
+Such an extension would be useful for systems where $\mathcal{U}$ or
+$\tilde{\mathcal{H}}$ vanish due to symmetries, so that the zero blocks can be
+skipped beforehand.
 
 **To deal with an implicit $B$ subspace, we use MUMPS and LinearOperators.**
 Because `BlockSeries` can represent any input type, we use it to directly
@@ -88,4 +93,4 @@ for symbolic matrices, `general` for numerical matrices, and `implicit` if
 only the $A$ subspace is provided.
 This is `block_diagonalize`, the only function that the user needs to call.
 By default, `block_diagonalize` uses a default function to solve Sylvester's
-equation if $H_0$ is diagonal, but the user can provide a custom one instead.
+equation if $\mathcal{H}_0$ is diagonal, but the user can provide a custom one instead.

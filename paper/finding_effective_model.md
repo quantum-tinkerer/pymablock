@@ -10,7 +10,7 @@ Building an effective model using Pymablock is a three step process:
 * Request the desired order of the effective Hamiltonian
 
 The following code snippet shows how to use Pymablock to compute the fourth
-order correction to an effective Hamiltonian $\tilde{H}$:
+order correction to an effective Hamiltonian $\tilde{\mathcal{H}}$:
 
 ```python
 from pymablock import block_diagonalize
@@ -25,9 +25,9 @@ H_AA_4 = H_tilde[0, 0, 4]
 <!-- **Depending on the input Hamiltonian, Pymablock uses specific routines to find
 the effective model, so that symbolic expressions are compact and numerics are
 efficient.** -->
-The function `block_diagonalize` interprets the Hamiltonian $H_0 + H_1$ and
-calls the block diagonalization routines depending on the type and sparsity of
-the input.
+The function `block_diagonalize` interprets the Hamiltonian $\mathcal{H}_0 +
+\mathcal{H}_1$ and calls the block diagonalization routines depending on the
+type and sparsity of the input.
 This is the main function of Pymablock, and it is the only one that the user
 ever needs to call.
 It first output is a multivariate series whose terms are different blocks and
