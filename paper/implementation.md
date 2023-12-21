@@ -52,10 +52,10 @@ store it, and then compute the $BA$ block directly.
 This procedure brings an additional advantage: because the terms that compose
 $AB$ blocks contain matrix products that first multiply small matrices and then
 the large ones, it saves computational time and memory.
-For example, the term $\mathcal{V}_{n-i}^{AB} \mathcal{H}_0^{BB}
-\mathcal{W}_i^{BB}$ in $Y_n$ is systematically computed as $(V_{n-i}^{AB}
-\mathcal{H}_0^{BB}) \mathcal{W}_i^{BB}$ instead of $\mathcal{V}_{n-i}^{AB}
-(\mathcal{H}_0^{BB} \mathcal{W}_i^{BB})$.
+For example, the term $V_{n-i}^{AB} H_0^{BB}
+W_i^{BB}$ in $Y_n$ is systematically computed as $(V_{n-i}^{AB}
+H_0^{BB}) W_i^{BB}$ instead of $V_{n-i}^{AB}
+(H_0^{BB} W_i^{BB})$.
 This is only one example of how the `BlockSeries` interface allows us to
 implement a symmetrized algorithm, and we leave other symmetries for future
 work.
@@ -93,4 +93,4 @@ for symbolic matrices, `general` for numerical matrices, and `implicit` if
 only the $A$ subspace is provided.
 This is `block_diagonalize`, the only function that the user needs to call.
 By default, `block_diagonalize` uses a default function to solve Sylvester's
-equation if $\mathcal{H}_0$ is diagonal, but the user can provide a custom one instead.
+equation if $H_0$ is diagonal, but the user can provide a custom one instead.

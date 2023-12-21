@@ -61,11 +61,11 @@ unitary transformation $\mathcal{U}$ that cancels the off-diagonal block of the
 Hamiltonian order by order:
 
 \begin{equation}
-\mathcal{H} = \begin{pmatrix}\mathcal{H}_0^{AA} & 0 \\ 0 & \mathcal{H}_0^{BB}\end{pmatrix} + \sum_{i\geq 1} \mathcal{H}_i,\quad
-\mathcal{U} = \sum_{i=0}^\infty \mathcal{U}_n,
+\mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
+\mathcal{U} = \sum_{i=0}^\infty U_n,
 \end{equation}
 
-where $\mathcal{H}_i$ and $\mathcal{U}_i$ are proportional to an $i$-th order
+where $H_i$ and $U_i$ are proportional to an $i$-th order
 contribution on the perturbative parameter.
 Throughout this work, we use $A$ and $B$ to denote the low and high energy
 subspaces, respectively.
@@ -76,8 +76,8 @@ block-diagonal Hamiltonian.
 :label: eq:transformed_hamiltonian
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U}=\sum_{i=0}^{\infty}
 \begin{pmatrix}
-\tilde{\mathcal{H}}_i^{AA} & 0 \\
-0 & \tilde{\mathcal{H}}_i^{BB}
+\tilde{H}_i^{AA} & 0 \\
+0 & \tilde{H}_i^{BB}
 \end{pmatrix}.
 :::
 

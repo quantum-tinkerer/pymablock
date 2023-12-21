@@ -18,7 +18,7 @@ Moreover, the transformed Hamiltonian is also given by a series of nested
 commutators
 :::{math}
 \begin{equation}
-\tilde{\mathcal{H}} = \sum_{j=0}^\infty \frac{1}{j!} \Big [\mathcal{H}, \sum_{n=0}^{\infty} \mathcal{S}_n \Big ]^{(j)},
+\tilde{\mathcal{H}} = \sum_{j=0}^\infty \frac{1}{j!} \Big [\mathcal{H}, \sum_{n=0}^{\infty} S_n \Big ]^{(j)},
 \end{equation}
 :::
 a computationally expensive expression because it requires computing
@@ -56,7 +56,7 @@ Block diagonalization of a Hamiltonian, however, recovers the exponential
 scaling.
 To design the algorithms of Pymablock, we choose the parametrization that is
 most computationally efficient: linear scaling with a polynomial series for
-$\mathcal{U} = \sum_{n=0}^{\infty} \mathcal{U}_n$.
+$\mathcal{U} = \sum_{n=0}^{\infty} U_n$.
 
 ## General algorithm
 
@@ -70,11 +70,11 @@ series defined as
 :::{math}
 :label: cauchy_product
 \begin{equation}
-(\mathcal{A} \star \mathcal{B})_{n} = \sum_{i=0}^{n} \mathcal{A}_{i} \mathcal{B}_{n-i}.
+(\mathcal{A} \star \mathcal{B})_{n} = \sum_{i=0}^{n} A_{i} B_{n-i}.
 \end{equation}
 :::
 
-For brevity we use a single first order perturbation $\mathcal{H}_1$ throughout this
+For brevity we use a single first order perturbation $H_1$ throughout this
 document. The generalization to multiple perturbations is follows naturally
 by including more indices.
 
@@ -83,7 +83,7 @@ block-diagonal Hamiltonian.**
 The transformed Hamiltonian at order $n$ is
 :::{math}
 :label: h_tilde
-\begin{align} \tilde{\mathcal{H}}_{n} = (\mathcal{U}^{\dagger} \mathcal{H}
+\begin{align} \tilde{H}_{n} = (\mathcal{U}^{\dagger} \mathcal{H}
 \mathcal{U})_{n} = \Big ( (\mathcal{W}-\mathcal{V}) \star \mathcal{H} \star
 (\mathcal{W}+\mathcal{V}) \Big)_{n}.
 \end{align}
@@ -91,13 +91,13 @@ The transformed Hamiltonian at order $n$ is
 
 **Pymablock finds the unitary transformation recursively, using unitarity and
 solving Sylvester's equation at every order.**
-To block diagonalize $\mathcal{H}_0 + \mathcal{H}_1$, Pymablock finds the
+To block diagonalize $H_0 + H_1$, Pymablock finds the
 orders of $\mathcal{W}$ such that $\mathcal{U}$ is unitary
 :::{math}
 :label: unitarity
 \begin{align}
-\mathcal{W}_{n}^{AA} &= - \frac{1}{2} (\mathcal{U}^{\dagger} \star \mathcal{U})_{\cancel{n}}^{AA}, \\
-\mathcal{W}_{n}^{BB} &= - \frac{1}{2} (\mathcal{U}^{\dagger} \star \mathcal{U})_{\cancel{n}}^{BB},
+W_{n}^{AA} &= - \frac{1}{2} (\mathcal{U}^{\dagger} \star \mathcal{U})_{\cancel{n}}^{AA}, \\
+W_{n}^{BB} &= - \frac{1}{2} (\mathcal{U}^{\dagger} \star \mathcal{U})_{\cancel{n}}^{BB},
 \end{align}
 :::
 where the subscript $\cancel{n}$ indicates that the $n$th term of the first
@@ -110,16 +110,16 @@ We evaluate the series $\mathcal{U}^\dagger \mathcal{U} +
 $\mathcal{W}=\mathcal{W}^\dagger$ and $\mathcal{V}=-\mathcal{V}^{\dagger}$
 to obtain
 \begin{equation}
-\sum_{i=0}^n \left[(\mathcal{W}_{n-i} - \mathcal{V}_{n-i})(\mathcal{W}_i +
-\mathcal{V}_i) + (\mathcal{W}_{n-i} + \mathcal{V}_{n-i})(\mathcal{W}_i -
-\mathcal{V}_i)\right] = 0.
+\sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i +
+V_i) + (W_{n-i} + V_{n-i})(W_i -
+V_i)\right] = 0.
 \end{equation}
-Using that $\mathcal{W}_0=1$, $\mathcal{V}_0=0$, expanding, and solving for
-$\mathcal{W}_n$ gives
+Using that $W_0=1$, $V_0=0$, expanding, and solving for
+$W_n$ gives
 \begin{equation}
-\mathcal{W}_{n} &= - \frac{1}{2}
-\sum_{i=1}^{n-1}(\mathcal{W}_{n-i}\mathcal{W}_i -
-\mathcal{V}_{n-i}\mathcal{V}_i),
+W_{n} &= - \frac{1}{2}
+\sum_{i=1}^{n-1}(W_{n-i}W_i -
+V_{n-i}V_i),
 \end{equation}
 a sum of Cauchy products that misses the $n \textsuperscript{th}$ term of each
 series.
@@ -129,28 +129,28 @@ Similarly, Pymablock finds the terms of $\mathcal{V}$ by requiring that
 $\tilde{\mathcal{H}}^{AB}_n=0$
 ```{math}
 :label: sylvester
-\mathcal{H}_0^{AA} \mathcal{V}_{n}^{AB} - V_{n}^{AB} \mathcal{H}_0^{BB} = \mathcal{Y}_{n}.
+H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}.
 ```
-This is known as Sylvester's equation and $\mathcal{Y}_{n}$ is a combination of lower
+This is known as Sylvester's equation and $Y_{n}$ is a combination of lower
 order terms in $\mathcal{H}$ and $\mathcal{U}$ defined as
 \begin{equation}
-\mathcal{Y}_n = (\mathcal{U}^\dagger \star H \star \mathcal{U})_{\cancel{n}}^{AB}.
+Y_n = (\mathcal{U}^\dagger \star \mathcal{H} \star \mathcal{U})_{\cancel{n}}^{AB}.
 \end{equation}
 
 ::::{admonition} Full expression
 :class: dropdown info
-The full expression for $\mathcal{Y}_n$ is cumbersome already in our simplest case:
+The full expression for $Y_n$ is cumbersome already in our simplest case:
 
 :::{math}
 :label: y_n
 \begin{align}
-\mathcal{Y}_n=&-
-\sum_{i=1}^{n-1}\left[\mathcal{W}_{n-i}^{AA}\mathcal{H}_0^{AA}\mathcal{V}_i^{AB}-\mathcal{V}_{n-i}^{AB}
-\mathcal{H}_0^{BB}\mathcal{W}_i^{BB}\right] \\
-&-\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}\mathcal{H}_1^{AA}\mathcal{V}_i^{AB}+W_{n-i-1}^{AA}
-\mathcal{H}_1^{AB}\mathcal{W}_i^{BB} \\
-&\quad \quad \quad -\mathcal{V}_{n-i-1}^{AB}(\mathcal{H}_1^{AB})^\dagger \mathcal{V}_i^{AB} -V_{n-i-1}^{AB}
-\mathcal{H}_1^{BB}\mathcal{W}_i^{BB}\bigg]
+Y_n=&-
+\sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB}
+H_0^{BB}W_i^{BB}\right] \\
+&-\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}H_1^{AA}V_i^{AB}+W_{n-i-1}^{AA}
+H_1^{AB}W_i^{BB} \\
+&\quad \quad \quad -V_{n-i-1}^{AB}(H_1^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
+H_1^{BB}W_i^{BB}\bigg]
 \end{align}
 :::
 ::::
@@ -175,14 +175,14 @@ Then requiring that $\mathcal{U}$ is unitary and $\tilde{\mathcal{H}}^{AB}=0$
 to all orders defines a unique value for $\mathcal{W}$ and $\mathcal{V}$.
 
 The Schrieffer-Wolff transformation parameterizes $\mathcal{U} = \exp
-\mathcal{S}$, where $\mathcal{S} = \sum_n \mathcal{S}_n$ is a series of
+\mathcal{S}$, where $\mathcal{S} = \sum_n S_n$ is a series of
 anti-Hermitian block off-diagonal operators:
 ```{math}
 :label: exp_s_expansion
 \begin{align}
 \mathcal{U} = \exp{\left(\mathcal{S}\right)}=\exp{\left(\sum_{n=0}^\infty
-\mathcal{S}_n\right)} = 1+\sum_{j=1}^\infty \left[\frac{1}{j!}
-\left(\sum_{n=1}^\infty \mathcal{S}_n\right)^j\right]
+S_n\right)} = 1+\sum_{j=1}^\infty \left[\frac{1}{j!}
+\left(\sum_{n=1}^\infty S_n\right)^j\right]
 \end{align}
 ```
 Here we consider a single perturbation for brevity.
@@ -201,14 +201,14 @@ We are left to show that the diagonal blocks of $\exp \mathcal{S}$ are
 Hermitian, while off-diagonal blocks are anti-Hermitian because this is the
 only remaining property of the Pymablock algorithm.
 To do so, we expand all terms in Eq. {eq}`exp_s_expansion` using the multinomial theorem.
-The result contains all possible products of $\mathcal{S}_n$ of all lengths with fractional prefactors.
-Furthermore, for every term $\mathcal{S}_{k_1}\mathcal{S}_{k_2}\cdots \mathcal{S}_{k_n}$, there is a
-corresponding term $\mathcal{S}_{k_n}\mathcal{S}_{k_{n-1}}\cdots \mathcal{S}_{k_1}$ with the same prefactor.
-If the number of $\mathcal{S}_{k_n}$ is even, then both terms are block-diagonal since
-each $\mathcal{S}_n$ is block off-diagonal.
-Because $\mathcal{S}_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
+The result contains all possible products of $S_n$ of all lengths with fractional prefactors.
+Furthermore, for every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a
+corresponding term $S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
+If the number of $S_{k_n}$ is even, then both terms are block-diagonal since
+each $S_n$ is block off-diagonal.
+Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
 other, and therefore their sum is Hermitian.
-On the other hand, if the number of $\mathcal{S}_{k_n}$ is odd, then the two terms are
+On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
 block off-diagonal and their sum is anti-Hermitian by the same reasoning.
 
 This concludes the proof.
@@ -220,9 +220,9 @@ However, this may not be the most efficient algorithm for analytic Hamiltonians,
 where the priority is to obtain compact expressions right away, instead of
 simplifying them afterwards.
 To overcome this, Pymablock also has the `pymablock.expanded` algorithm, which
-returns simplified expressions for $\tilde{\mathcal{H}}_{n}$ (Eq. {eq}`h_tilde`) such
-that $\tilde{\mathcal{H}}_{n}$ only depends on $\mathcal{V}$ and the perturbation $\mathcal{H}_1$, but not
-explicitly on $\mathcal{H}_0$.
+returns simplified expressions for $\tilde{H}_{n}$ (Eq. {eq}`h_tilde`) such
+that $\tilde{H}_{n}$ only depends on $\mathcal{V}$ and the perturbation $H_1$, but not
+explicitly on $H_0$.
 This way, the expressions do not contain fractions that must cancel, reducing
 the number of terms in the final result.
 
@@ -230,9 +230,9 @@ the number of terms in the final result.
 :class: dropdown info
 The `pymablock.expanded` algorithm first uses
 `pymablock.general` with a symbolic input to derive the general
-symbolic form for $\mathcal{Y}_n$ and $\tilde{\mathcal{H}}_n$.
-Then it uses the Sylvester's equation for lower orders of $\mathcal{V}_n$ to eliminate
-$\mathcal{H}_0$ from these expressions.
+symbolic form for $Y_n$ and $\tilde{H}_n$.
+Then it uses the Sylvester's equation for lower orders of $V_n$ to eliminate
+$H_0$ from these expressions.
 Finally, `pymablock.expanded` replaces the problem-specific $\mathcal{H}$ into
 the simplified $\tilde{\mathcal{H}}$.
 :::
@@ -287,10 +287,10 @@ Additionally, applying $P_B$ is efficient because $\Psi_A$ is a low rank matrix.
 We then perform perturbation theory of the rewritten $\mathcal{H}$.
 
 To solve the Sylvester's equation for the modified Hamiltonian, we write it for
-every row of $\mathcal{V}_n^{AB}$ separately:
+every row of $V_n^{AB}$ separately:
 ```{math}
-\mathcal{V}_{n, ij}^{AB} (E_i - \mathcal{H}_0) = \mathcal{Y}_{n, j}
+V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
 ```
-This equation is well-defined despite $E_i - \mathcal{H}_0$ is not invertible because
-$\mathcal{Y}_{n}$ has no components in the $A$ subspace.
+This equation is well-defined despite $E_i - H_0$ is not invertible because
+$Y_{n}$ has no components in the $A$ subspace.
 :::
