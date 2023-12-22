@@ -23,11 +23,10 @@ def tests(session, numpy, scipy, sympy):
         "kwant",
         "pytest-cov",
         "pytest-randomly",
-        "ruff",
         "-c",
         "conda-forge",
     )
-    session.run("pip", "install", "pytest-ruff")
+    session.run("pip", "install", "ruff", "pytest-ruff")
     session.run("pytest", "--ruff")
 
 
@@ -44,9 +43,8 @@ def tests_without_kwant(session):
         "packaging==22.0",
         "pytest-cov",
         "pytest-randomly",
-        "ruff",
         "-c",
         "conda-forge",
     )
-    session.run("pip", "install", "pytest-ruff")
+    session.run("pip", "install", "ruff", "pytest-ruff")
     session.run("pytest", "--ruff")
