@@ -58,17 +58,9 @@ $$
 $$
 where the first terms are block-diagonal, and therefore do not enter the equation for $\mathcal{Y}$.
 
-Alternatively, we can commute $H_0$ to the left (we used a similar trick to simplify expressions for $\mathcal{W}$), which gives
+Can we evaluate $\mathcal{F}$ quickly by using a recursive definition similar to $\mathcal{W}$? Let's try the recursive definition for $\mathcal{W}$ and substitute it into the definition of $\mathcal{F}$:
 $$
-\begin{align*}
-\tilde{\mathcal{H}}_0 &= H_0 + \mathcal{Y} + 2H_0\mathcal{W} - \mathcal{F} + (H_0\mathcal{W} - \mathcal{F})\mathcal{W} + (H_0\mathcal{W} - \mathcal{F})\mathcal{V} \\
-&-(H_0\mathcal{V} + \mathcal{Y})\mathcal{V} - (H_0\mathcal{V} + \mathcal{Y})\mathcal{W},
-\end{align*}
+-2[\mathcal{W}, H_0] = [\mathcal{W}^2 - \mathcal{V}^2, H_0] = \mathcal{W}^2H_0 - H_0\mathcal{W}^2 - \mathcal{V}^2H_0 + H_0\mathcal{V}^2 = \mathcal{W}(H_0 \mathcal{W} - \mathcal{F})-
+(\mathcal{W} H_0 + \mathcal{F})\mathcal{W}\\
+- \mathcal{V}(H_0 \mathcal{V} + \mathcal{Y}) - (\mathcal{V} H_0 - \mathcal{Y})\mathcal{V} = \{\mathcal{W},\mathcal{F}\} - \{\mathcal{V}, \mathcal{Y}\} = -2\mathcal{F}
 $$
-and accordingly
-$$
-\tilde{\mathcal{H}}_0 = (H_0 -\mathcal{W}\mathcal{F} -\mathcal{Y}\mathcal{V} - \mathcal{F}) + (\mathcal{Y} - \mathcal{F}\mathcal{V} - \mathcal{Y}\mathcal{W}),
-$$
-or in a symmetric form:
-$$
-2\tilde{\mathcal{H}}_0 = (2H_0 + [\mathcal{W}, \mathcal{F}] -\{\mathcal{V},\mathcal{Y}\}) + (2\mathcal{Y} + [\mathcal{Y}, \mathcal{W}] - \{\mathcal{F}, \mathcal{V}\}).
