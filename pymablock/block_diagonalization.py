@@ -655,6 +655,12 @@ def new_general(
         operator=operator,
     )
 
+    X_U_p_adj = cauchy_dot_product(
+        X,
+        U_p_adj,
+        operator=operator,
+    )
+
     U_adj_H_p_U = cauchy_dot_product(
         U_adj,
         H_p,
@@ -679,8 +685,8 @@ def new_general(
 
     def X_eval(*index: int) -> Any:
         if index[0] == index[1]:
-            value = U_p_adj_X[index]
-            return safe_divide(value - Dagger(value), 2)
+            value = U_p_adj_X[index] + X_U_p_adj[index]
+            return -safe_divide(value - Dagger(value), 4)
         elif index[:2] == (0, 1):
             return _zero_sum((-U_p_adj_X[index], U_adj_H_p_U[index]))
         elif index[:2] == (1, 0):
