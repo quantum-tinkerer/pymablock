@@ -87,7 +87,9 @@ hamiltonian = [H_0, H_1]
 H_tilde, U, U_adjoint = block_diagonalize(hamiltonian, subspace_indices=[0, 0, 1, 1])
 ```
 
-Here the first term in the `hamiltonian` list is the unperturbed Hamiltonian $H_0$, and the following terms are the perturbations. The `subspace_indices` argument defines to which subspace each diagonal term of $H_0$ belongs.
+Here the first term in the `hamiltonian` list is the unperturbed Hamiltonian
+$H_0$, and the following terms are the perturbations. The `subspace_indices`
+argument defines to which subspace each diagonal term of $H_0$ belongs.
 
 This does do any computations yet, and only defines the answer as an object
 that we can query.
@@ -215,13 +217,15 @@ _, evecs = np.linalg.eigh(H_00)
 subspace_eigenvectors = [evecs[:, :3], evecs[:, 3:]]
 
 H_tilde, U, U_adjoint = block_diagonalize(
-  hamiltonian=hamiltonian, subspace_eigenvectors=subspace_eigenvectors
+  hamiltonian=hamiltonian, subspace_eigenvectors=subspace_eigenvectors,
+  algorithm="general"
 )
 ```
 
 :::{important}
-{autolink}`~pymablock.block_diagonalize` transforms everything to the basis of `subspace_vectors`, such that, for example, the unperturbed Hamiltonian
-becomes diagonal.
+{autolink}`~pymablock.block_diagonalize` transforms everything to the basis of
+`subspace_vectors`, such that, for example, the unperturbed Hamiltonian becomes
+diagonal.
 
 Accordingly `U` is the unitary transformation that block-diagonalizes
 the Hamiltonian in the eigenbasis of $H_0$.
