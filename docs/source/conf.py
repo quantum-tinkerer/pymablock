@@ -111,3 +111,6 @@ html_theme_options = {
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["local.css"]
+
+# For some reason sympy.Symbol doesn't always resolve
+nitpick_ignore = [("py:class", "sympy.Symbol")]
