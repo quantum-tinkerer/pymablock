@@ -84,68 +84,34 @@ H_1^{BB}W_i^{BB}\bigg]
 :::
 ::::
 
-Pymablock has two algorithms, {autolink}`~pymablock.general` and {autolink}`~pymablock.expanded`.
+Pymablock has two algorithms, {autolink}`~pymablock.general` and FIXME.
 The {autolink}`~pymablock.general` algorithm implements the procedure outlined here directly.
-On the other hand, {autolink}`~pymablock.expanded` simplifies the expressions
+On the other hand, FIXME simplifies the expressions
 for $\tilde{H}_{n}$ (Eq. {eq}`h_tilde`) such that it only depends on $V$ and the
 perturbation $H_1$, but not explicitly on $H_0$.
 
 :::{admonition} How this works
 :class: dropdown info
-The {autolink}`~pymablock.expanded` algorithm first uses
+The FIXME algorithm first uses
 {autolink}`~pymablock.general` with a symbolic input to derive the general
 symbolic form for $Y_n$ and $\tilde{H}_n$.
 Then it uses the Sylvester's equation for lower orders of $V_n$ to eliminate
 $H_0$ from these expressions.
-Finally, {autolink}`~pymablock.expanded` replaces the problem-specific $H$ into
+Finally, FIXME replaces the problem-specific $H$ into
 the simplified $\tilde{H}$.
 :::
 
 As an example, the corrections to the effective Hamiltonian up to fourth
-order using {autolink}`~pymablock.expanded` are
+order using FIXME are
 
-```{code-cell} ipython3
-:tags: [remove-input]
-
-from operator import mul
-
-from sympy import Symbol, Eq
-
-from pymablock.block_diagonalization import BlockSeries, symbolic
-
-H = BlockSeries(
-    data={
-        (0, 0, 0): Symbol('{H_{0}^{AA}}'),
-        (1, 1, 0): Symbol('{H_{0}^{BB}}'),
-        (0, 0, 1): Symbol('{H_{1}^{AA}}'),
-        (0, 1, 1): Symbol('{H_{1}^{AB}}'),
-        (1, 1, 1): Symbol('{H_{1}^{BB}}'),
-    },
-    shape=(2, 2),
-    n_infinite=1,
-)
-
-max_order = 5
-hamiltonians = {
-  Symbol(f'H_{{{index}}}'): value for index, value in H._data.items()
-}
-offdiagonals = {
-  Symbol(f'V_{{({order},)}}'): Symbol(f'V_{order}') for order in range(max_order)
-}
-
-H_tilde, *_ = symbolic(H)
-
-for order in range(max_order):
-    result = Symbol(fr'\tilde{{H}}_{order}^{{AA}}')
-    display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
-```
+FIXME: update to show the expressions.
 
 Here we omitted the superscript $AB$ on all the $V$'s for brevity.
 
-At lower orders, {autolink}`~pymablock.expanded` performs fewer operator
+At lower orders, FIXME performs fewer operator
 products than {autolink}`~pymablock.general`, and with analytic Hamiltonians
 the resulting expressions are simpler.
-At high orders, however, {autolink}`~pymablock.expanded` requires exponentially
+At high orders, however, FIXME requires exponentially
 many terms, unlike {autolink}`~pymablock.general` which only requires a linear
 number of terms.
 

@@ -217,8 +217,7 @@ _, evecs = np.linalg.eigh(H_00)
 subspace_eigenvectors = [evecs[:, :3], evecs[:, 3:]]
 
 H_tilde, U, U_adjoint = block_diagonalize(
-  hamiltonian=hamiltonian, subspace_eigenvectors=subspace_eigenvectors,
-  algorithm="general"
+  hamiltonian=hamiltonian, subspace_eigenvectors=subspace_eigenvectors
 )
 ```
 

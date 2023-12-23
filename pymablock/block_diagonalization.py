@@ -26,7 +26,7 @@ from pymablock.series import (
     safe_divide,
 )
 
-__all__ = ["block_diagonalize", "general", "expanded", "symbolic", "implicit"]
+__all__ = ["block_diagonalize", "general", "implicit"]
 
 # Common types
 Eigenvectors = tuple[Union[np.ndarray, sympy.Matrix], ...]
@@ -36,7 +36,6 @@ Eigenvectors = tuple[Union[np.ndarray, sympy.Matrix], ...]
 def block_diagonalize(
     hamiltonian: Union[list, dict, BlockSeries, sympy.Matrix],
     *,
-    algorithm: Optional[str] = None,
     solve_sylvester: Optional[Callable] = None,
     subspace_eigenvectors: Optional[Eigenvectors] = None,
     subspace_indices: Optional[Union[tuple[int, ...], np.ndarray]] = None,
@@ -59,10 +58,6 @@ def block_diagonalize(
     brings it to the eigenbasis of the unperturbed Hamiltonian if the blocks,
     eigenvectors or indices of the eigenvalues are provided, see below.
 
-    The block diagonalization is performed using the `expanded` or `general`
-    algorithm. The former is better suited for lower order numerical
-    calculations and symbolic ones. The latter is better suited for higher
-    order or numerical calculations.
 
     For large numerical calculations with a sparse Hamiltonian and a low
     dimensional relevant subspace, the algorithm uses an implicit representation
@@ -105,9 +100,6 @@ def block_diagonalize(
             ``symbols`` to the desired order.
         - A `~pymablock.series.BlockSeries`,
             returned unchanged.
-    algorithm :
-        Name of the function that block diagonalizes the Hamiltonian.
-        Options are "general" and "expanded".
     solve_sylvester :
         A function that solves the Sylvester equation. If not provided,
         it is selected automatically based on the inputs.
@@ -226,18 +218,13 @@ def block_diagonalize(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H, atol))
 
-    if algorithm is None:
-        # symbolic expressions benefit from no H_0 in numerators
-        algorithm = "expanded" if H.dimension_names != () else "general"
-    if algorithm not in ("general", "expanded"):
-        raise ValueError(f"Unknown algorithm: {algorithm}")
     if use_implicit:
         return implicit(
             H,
             solve_sylvester=solve_sylvester,
-            algorithm=algorithm,
         )
-    return _algorithms[algorithm](
+
+    return general(
         H,
         solve_sylvester=solve_sylvester,
         operator=operator,
@@ -718,182 +705,14 @@ def new_general(
     return result
 
 
-def symbolic(
-    H: BlockSeries,
-) -> tuple[
-    BlockSeries, BlockSeries, BlockSeries, dict[Operator, Any], dict[Operator, Any]
-]:
-    """
-    General symbolic algorithm for block diagonalizing a Hamiltonian.
-
-    This function uses symbolic algebra to compute the block diagonalization,
-    producing formulas that contain the orders of the perturbation and the
-    off-diagonal blocks of the unitary transformation ``U``.
-
-    This function is general, therefore the solutions to the Sylvester equation
-    are not computed. Instead, the solutions are stored in a dictionary that
-    is updated whenever new terms of the Hamiltonian are evaluated.
-
-    Parameters
-    ----------
-    H :
-        The perturbed Hamiltonian. The algorithm only checks which terms are present in
-        the Hamiltonian, but does not substitute them.
-
-    Returns
-    -------
-    H_tilde : `~pymablock.series.BlockSeries`
-        Symbolic diagonalized Hamiltonian.
-    U : `~pymablock.series.BlockSeries`
-        Symbolic unitary matrix that block diagonalizes H such that
-        ``U * H * U^H = H_tilde``.
-    U_adjoint : `~pymablock.series.BlockSeries`
-        Symbolic adjoint of ``U``. Its diagonal blocks are Hermitian and its
-        off-diagonal blocks (``V``) are anti-Hermitian.
-    Y_data : `dict`
-        dictionary of ``{V: rhs}`` such that ``h_0_AA * V - V * h_0_BB = rhs``.
-        It is updated whenever new terms of ``H_tilde`` or ``U`` are evaluated.
-    subs : `dict`
-        Dictionary with placeholder symbols as keys and original Hamiltonian
-        terms as values.
-    """
-    subs = {}
-
-    # Initialize symbols for terms in H. Ensure that H_0 is there.
-    h_0_indices = [(i, i) + (0,) * H.n_infinite for i in range(2)]
-
-    def placeholder_eval(*index):
-        if zero == (actual_value := H[index]) and index not in h_0_indices:
-            return zero
-        operator_type = HermitianOperator if index[0] == index[1] else Operator
-        placeholder = operator_type(f"H_{{{index}}}")
-        subs[placeholder] = actual_value
-        return placeholder
-
-    H_placeholder = BlockSeries(
-        eval=placeholder_eval,
-        shape=H.shape,
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
-    )
-    h_0 = [H_placeholder[index] for index in h_0_indices]
-
-    # Solve for symbols representing H and V (off-diagonal block of U)
-    H_tilde, U, U_adjoint = general(
-        H_placeholder, solve_sylvester=(lambda x: x), operator=mul
-    )
-
-    Y_data = {}
-
-    old_U_eval = U.eval
-
-    def U_eval(*index):
-        if index[:2] == (0, 1):
-            V = Operator(f"V_{{{index[2:]}}}")
-            # Apply h_0_AA * V - V * h_0_BB = rhs to eliminate h_0 terms
-            Y = _commute_h0_away(old_U_eval(*index), *h_0, Y_data)
-            if zero == Y:
-                return zero
-            Y_data[V] = Y
-            return V
-        return old_U_eval(*index)
-
-    U.eval = U_eval
-
-    old_H_tilde_eval = H_tilde.eval
-
-    def H_tilde_eval(*index):
-        return _commute_h0_away(old_H_tilde_eval(*index), *h_0, Y_data)
-
-    H_tilde.eval = H_tilde_eval
-
-    return H_tilde, U, U_adjoint, Y_data, subs
-
-
-def expanded(
-    H: BlockSeries,
-    solve_sylvester: Optional[Callable] = None,
-    *,
-    operator: Optional[Callable] = None,
-) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """
-    Algorithm for computing block diagonalization of a Hamiltonian.
-
-    Unlike the `general` algorithm, this algorithm does not perform
-    multiplications by the unperturbed Hamiltonian. This comes at the cost of
-    needing exponentially many matrix multiplications at higher orders.
-    This makes this algorithm better suited for lower orders numerical
-    calculations and symbolic ones.
-
-    Parameters
-    ----------
-    H :
-        Initial Hamiltonian, unperturbed and perturbation.
-    solve_sylvester :
-        Function to use for solving Sylvester's equation.
-        Defaults to a function that works for diagonal unperturbed Hamiltonians.
-    operator :
-        Function to use for matrix multiplication.
-        Defaults to ``matmul``.
-
-    Returns
-    -------
-    H_tilde : `~pymablock.series.BlockSeries`
-        Diagonalized Hamiltonian.
-    U : `~pymablock.series.BlockSeries`
-        Unitary matrix that block diagonalizes H such that
-        ``U * H * U^H = H_tilde``.
-    U_adjoint : `~pymablock.series.BlockSeries`
-        Adjoint of ``U``.
-    """
-    if operator is None:
-        operator = matmul
-
-    if solve_sylvester is None:
-        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
-
-    H_tilde_s, U_s, _, Y_data, subs = symbolic(H)
-    _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, operator=operator)
-
-    def H_tilde_eval(*index):
-        H_tilde = H_tilde_s[index]
-        _update_subs(Y_data, subs, solve_sylvester, operator)
-        return _replace(H_tilde, subs, operator)
-
-    H_tilde = BlockSeries(
-        eval=H_tilde_eval,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
-        name="H_tilde",
-    )
-
-    old_U_eval = U.eval
-
-    def U_eval(*index):
-        if index[:2] == (0, 1):
-            U_s[index]  # Update Y_data
-            _update_subs(Y_data, subs, solve_sylvester, operator)
-            return subs.get(Operator(f"V_{{{index[2:]}}}"), zero)
-        return old_U_eval(*index)
-
-    U.eval = U_eval
-
-    return H_tilde, U, U_adjoint
-
-
-_algorithms = {"general": general, "expanded": expanded}
-
-
 def implicit(
     H: BlockSeries,
     solve_sylvester: Callable,
-    algorithm: str = "general",
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Block diagonalize a Hamiltonian without explicitly forming BB matrices.
 
-    This function uses either the `general` or `expanded` algorithm to block
+    This function uses either the `general` algorithm to block
     diagonalize, but does not compute products within the B (auxiliary)
     subspace. Instead these matrices are wrapped in
     `~scipy.sparse.linalg.LinearOperator` and combined to keep them low rank.
@@ -907,9 +726,6 @@ def implicit(
         Full Hamiltonian of the system.
     solve_sylvester :
         Function to use for solving Sylvester's equation.
-    algorithm :
-        Algorithm to use for diagonalization. One of "general", "expanded".
-        The "general" (default) is faster in higher orders.
 
     Returns
     -------
@@ -922,10 +738,7 @@ def implicit(
     U_adjoint : `~pymablock.series.BlockSeries`
         Adjoint of ``U``.
     """
-    if algorithm not in _algorithms:
-        raise ValueError(f"Unsupported algorithm: {algorithm}")
-    algorithm = _algorithms[algorithm]
-    H_tilde_temporary, U, U_adjoint = algorithm(H, solve_sylvester=solve_sylvester)
+    H_tilde_temporary, U, U_adjoint = general(H, solve_sylvester=solve_sylvester)
 
     # Create series wrapped in linear operators to avoid forming explicit matrices
     def linear_operator_wrapped(original):
