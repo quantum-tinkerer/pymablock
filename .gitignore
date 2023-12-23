@@ -173,3 +173,4 @@ dist/
 
 # myst
 exports/
+_build/
