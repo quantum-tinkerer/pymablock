@@ -290,7 +290,6 @@ def cauchy_dot_product(
     *series: BlockSeries,
     operator: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: Optional[list[bool]] = None,
 ) -> BlockSeries:
     """
     Multivariate Cauchy product of `~pymablock.series.BlockSeries`.
@@ -307,9 +306,6 @@ def cauchy_dot_product(
         Default is matrix multiplication matmul.
     hermitian :
         (optional) if True, hermiticity is used to reduce computations to 1/2.
-    exclude_last :
-        (optional) whether to exclude last order on each term.
-        This is useful to avoid infinite recursion on some algorithms.
 
     Returns
     -------
@@ -322,23 +318,21 @@ def cauchy_dot_product(
         return series[0]
     if operator is None:
         operator = matmul
-    if exclude_last is None:
-        # For the last term to be included, all other terms should have a non-empty
-        # 0th order. The 0th order access below may be slightly inefficient, but in
-        # practice it doesn't matter because of caching.
-        exclude_last = [False] * len(series)
-        zero_0th_orders = [
-            np.all(
-                factor[(slice(None), slice(None)) + series[0].n_infinite * (0,)].mask
-            )
-            for factor in series
-        ]
-        for i, empty in enumerate(zero_0th_orders):
-            if not empty:
-                continue
-            for j in range(len(exclude_last)):
-                if i != j:
-                    exclude_last[j] = True
+
+    # For the last term to be included, all other terms should have a non-empty
+    # 0th order. The 0th order access below may be slightly inefficient, but in
+    # practice it doesn't matter because of caching.
+    exclude_last = [False] * len(series)
+    zero_0th_orders = [
+        np.all(factor[(slice(None), slice(None)) + series[0].n_infinite * (0,)].mask)
+        for factor in series
+    ]
+    for i, empty in enumerate(zero_0th_orders):
+        if not empty:
+            continue
+        for j in range(len(exclude_last)):
+            if i != j:
+                exclude_last[j] = True
 
     starts, ends = zip(*(factor.shape for factor in series))
     start, *rest_starts = starts
