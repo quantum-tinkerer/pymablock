@@ -28,6 +28,7 @@ Now let us look at the unitary transformation of the Hamiltonian
 $$
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = (1 + \mathcal{W} - \mathcal{V}) (H_0 + \mathcal{H'}) (1 + \mathcal{W} + \mathcal{V}).
 $$
+
 Our goal is to manipulate the above expression so that the only terms containing $H_0$ are of the form $[\mathcal{V}, H_0] \equiv \mathcal{Y}$ ($\mathcal{Y}$ is off-diagonal and Hermitian).
 We start by collecting the terms containing $H_0$ in the above expression
 $$
@@ -57,7 +58,7 @@ We still have a problem of cheaply evaluating $\mathcal{Z}$ without multiplicati
 $$
 -2\mathcal{Z} = -2[\mathcal{W}, H_0] = [\mathcal{W}^2 - \mathcal{V}^2, H_0] = \mathcal{W}^2H_0 - H_0\mathcal{W}^2 - \mathcal{V}^2H_0 + H_0\mathcal{V}^2 = \mathcal{W}(H_0 \mathcal{W} + \mathcal{Z})-
 (\mathcal{W} H_0 - \mathcal{Z})\mathcal{W}\\
-- \mathcal{V}(H_0 \mathcal{V} - \mathcal{Y}) - (\mathcal{V} H_0 + \mathcal{Y})\mathcal{V} = \{\mathcal{W},\mathcal{Z}\} - \{\mathcal{V}, \mathcal{Y}\}.
+- \mathcal{V}(H_0 \mathcal{V} + \mathcal{Y}) + (\mathcal{V} H_0 - \mathcal{Y})\mathcal{V} = \{\mathcal{W},\mathcal{Z}\} - \{\mathcal{V}, \mathcal{Y}\}.
 $$
 The right hand side has no terms that contain $Z_n$ or $Y_n$, and therefore it is a cheap definition of $\mathcal{Z}$, similar to a cheap definition of $\mathcal{W}$.
 
@@ -80,6 +81,14 @@ $$
 Its diagonal blocks are $\mathcal{Z}$, while its off-diagonal blocks are $\mathcal{Y}$ (no $-$ sign between the blocks because $\mathcal{Y}$ is Hermitian!), similar to the blocks of $\mathcal{U}'$ being $\mathcal{W}$ and $\mathcal{V}$. In terms of $\mathcal{X}$, $\tilde{\mathcal{H}}_0$ becomes
 $$
 \tilde{\mathcal{H}}_0 = H_0 - \mathcal{U}'^\dagger \mathcal{X} - \mathcal{X}.
+$$
+
+$$
+\tilde{\mathcal{H}}_0 = H_0 - \mathcal{U}'^\dagger [\mathcal{U}', H_0] - [\mathcal{U}', H_0]\\
+= H_0 - \mathcal{U}'^\dagger (\mathcal{U}'H_0 - H_0\mathcal{U'}) - (\mathcal{U}'H_0 - H_0\mathcal{U'})\\
+= H_0 - \mathcal{U}'^\dagger \mathcal{U}'H_0 - \mathcal{U}'H_0 + \mathcal{U}'^\dagger H_0 \mathcal{U}' + H_0 \mathcal{U}'\\
+= H_0 - \mathcal{U}^\dagger \mathcal{U}' H_0 + \mathcal{U}^\dagger H_0 \mathcal{U}'\\
+.
 $$
 
 The above defines the full algorithm.
