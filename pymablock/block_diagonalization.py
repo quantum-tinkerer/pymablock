@@ -521,6 +521,176 @@ def general(
     return H_tilde, U, U_adjoint
 
 
+def new_general(
+    H: BlockSeries,
+    solve_sylvester: Optional[Callable] = None,
+    *,
+    operator: Optional[Callable] = None,
+) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
+    """
+    Algorithm for computing block diagonalization of a Hamiltonian.
+
+    It parameterizes the unitary transformation as a series of block matrices.
+    It computes them order by order by imposing unitarity and the
+    block-diagonality of the transformed Hamiltonian.
+
+    The computational cost of this algorithm scales favorably with the order
+    of the perturbation. However, it performs unnecessary matrix products at
+    lowest orders, and keeps the unperturbed Hamiltonian in the numerator. This
+    makes this algorithm better suited for higher order numerical calculations.
+
+    Parameters
+    ----------
+    H :
+        Initial Hamiltonian, unperturbed and perturbation.
+        The data in ``H`` can be either numerical or symbolic.
+    solve_sylvester :
+        (optional) function that solves the Sylvester equation.
+        Defaults to a function that works for diagonal unperturbed Hamiltonians.
+    operator :
+        (optional) function to use for matrix multiplication.
+        Defaults to matmul.
+
+    Returns
+    -------
+    H_tilde : `~pymablock.series.BlockSeries`
+        Block diagonalized Hamiltonian.
+    U : `~pymablock.series.BlockSeries`
+        Unitary that block diagonalizes H such that ``H_tilde = U^H H U``.
+    U_adjoint : `~pymablock.series.BlockSeries`
+        Adjoint of ``U``.
+    """
+    if operator is None:
+        operator = matmul
+
+    if solve_sylvester is None:
+        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
+
+    zero_0th_order = {
+        block + (0,) * H.n_infinite: zero for block in ((0, 0), (0, 1), (1, 0), (1, 1))
+    }
+    H_0_data = {
+        block + (0,) * H.n_infinite: H[block + (0,) * H.n_infinite]
+        for block in ((0, 0), (0, 1), (1, 0), (1, 1))
+    }
+
+    H_p = BlockSeries(
+        eval=(lambda *index: H[index]),
+        data=zero_0th_order,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
+    U_p = BlockSeries(
+        data=zero_0th_order,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
+    U = BlockSeries(
+        eval=(lambda *index: U_p[index]),
+        data={block + (0,) * H.n_infinite: one for block in ((0, 0), (1, 1))},
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
+
+    X = BlockSeries(
+        data=zero_0th_order,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
+
+    U_p_adj = BlockSeries(
+        eval=(
+            lambda *index: U[index]  # diagonal block is Hermitian
+            if index[0] == index[1]
+            else -U[index]  # off-diagonal block is anti-Hermitian
+        ),
+        data=None,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
+    U_adj = BlockSeries(
+        eval=(lambda *index: U_p_adj[index]),
+        data=None,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
+
+    X = BlockSeries(
+        data=zero_0th_order,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
+
+    # Products
+    U_p_adj_U = cauchy_dot_product(
+        U_p_adj,
+        U,
+        operator=operator,
+        hermitian=True,
+    )
+
+    U_p_adj_X = cauchy_dot_product(
+        U_p,
+        X,
+        operator=operator,
+    )
+
+    U_adj_H_p_U = cauchy_dot_product(
+        U_adj,
+        H_p,
+        U,
+        operator=operator,
+        hermitian=True,
+    )
+
+    def U_p_eval(*index: int) -> Any:
+        if index[0] == index[1]:
+            # diagonal is constrained by unitarity
+            return safe_divide(-U_p_adj_U[index], 2)
+        elif index[:2] == (0, 1):
+            # off-diagonal block nullifies the off-diagonal part of H_tilde
+            Y = X[index]
+            return -solve_sylvester(Y) if zero != Y else zero
+        elif index[:2] == (1, 0):
+            # off-diagonal of U is anti-Hermitian
+            return -Dagger(U_p[(0, 1) + tuple(index[2:])])
+
+    U_p.eval = U_p_eval
+
+    def X_eval(*index: int) -> Any:
+        if index[0] == index[1]:
+            value = U_p_adj_X[index]
+            return safe_divide(value - Dagger(value), 2)
+        elif index[:2] == (0, 1):
+            return _zero_sum(-U_p_adj_X[index], U_adj_H_p_U[index])
+        elif index[:2] == (1, 0):
+            # off-diagonal of X is Hermitian
+            return Dagger(X[(0, 1) + tuple(index[2:])])
+
+    H_tilde = BlockSeries(
+        eval=(
+            lambda *index: _zero_sum(
+                U_adj_H_p_U[index],
+                -X[index],
+                -U_p_adj_X[index],
+            )
+        ),
+        data=H_0_data,
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
+
+    return H_tilde, U, U_adj
+
+
 def symbolic(
     H: BlockSeries,
 ) -> tuple[

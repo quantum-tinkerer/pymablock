@@ -1,3 +1,4 @@
+from __future__ import annotations
 from itertools import product, compress
 from functools import reduce
 from operator import matmul
@@ -43,7 +44,7 @@ class Zero:
     This is used to avoid having to check for zero terms in the sum.
     """
 
-    def __mul__(self, other: Any = None) -> "Zero":
+    def __mul__(self, other: Any = None) -> Zero:
         return self
 
     def __add__(self, other: Any) -> Any:
@@ -53,6 +54,8 @@ class Zero:
         return isinstance(other, Zero)
 
     adjoint = conjugate = all = __neg__ = __truediv__ = __rmul__ = __mul__
+
+    __radd__ = __add__
 
 
 zero = Zero()
@@ -184,6 +187,47 @@ class BlockSeries:
         if not one_entry:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
+
+    def __add__(self, other: BlockSeries) -> BlockSeries:
+        """Add two series together.
+
+        Shapes and infinite dimensions must exactly match.
+        Does not support numpy broadcasting, but may in future.
+        """
+        if self.shape != other.shape:
+            raise ValueError("Shapes must match")
+        if self.n_infinite != other.n_infinite:
+            raise ValueError("Number of infinite dimensions must match")
+        if self.dimension_names != other.dimension_names:
+            raise ValueError("Dimension names must match")
+
+        def add(*index):
+            # first being zero is handled by Zero class, but we need to ensure
+            # that first nonzero works correctly
+            first, second = self[index], other[index]
+            if isinstance(second, Zero):
+                return first
+            return first + second
+
+        return BlockSeries(
+            eval=add,
+            shape=self.shape,
+            n_infinite=self.n_infinite,
+            dimension_names=self.dimension_names,
+        )
+
+    def __neg__(self) -> BlockSeries:
+        """Negate the series."""
+        return BlockSeries(
+            eval=lambda *index: -self[index],
+            shape=self.shape,
+            n_infinite=self.n_infinite,
+            dimension_names=self.dimension_names,
+        )
+
+    def __sub__(self, other: BlockSeries) -> BlockSeries:
+        """Subtract two series."""
+        return self + (-other)
 
     def _check_finite(self, orders: tuple[OneItem, ...]):
         """
@@ -325,7 +369,19 @@ def product_by_order(
     n_infinite = series[0].n_infinite
 
     if exclude_last is None:
-        exclude_last = [False] * len(series)
+        # For the last term to be included, all other terms should have a non-empty
+        # 0th order. The 0th order access below may be slightly inefficient, but in
+        # practice it doesn't matter because of caching.
+        zero_0th_orders = [
+            np.all(factor[(slice(None), slice(None)) + n_infinite * (0,)].mask)
+            for factor in series
+        ]
+        for i, empty in enumerate(zero_0th_orders):
+            if not empty:
+                continue
+            for j in range(len(exclude_last)):
+                if i != j:
+                    exclude_last[j] = True
 
     # Form masked arrays with correct shapes and required elements unmasked
     data = [
