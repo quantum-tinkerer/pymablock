@@ -51,12 +51,15 @@ class Zero:
     def __add__(self, other: Any) -> Any:
         return other
 
+    def __sub__(self, other: Any) -> Any:
+        return -other
+
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, Zero)
 
     adjoint = conjugate = all = __neg__ = __truediv__ = __rmul__ = __mul__
 
-    __radd__ = __add__
+    __radd__ = __rsub__ = __add__
 
 
 zero = Zero()
@@ -117,7 +120,8 @@ class BlockSeries:
             Name of the series. Used for printing.
         """
         self.eval = (lambda *_: zero) if eval is None else eval
-        self._data = data or {}
+        # Avoid accidentally mutating data
+        self._data = {} if data is None else data.copy()
         self.shape = shape
         self.n_infinite = n_infinite
         self.dimension_names = dimension_names or tuple(
@@ -319,7 +323,22 @@ def cauchy_dot_product(
     if operator is None:
         operator = matmul
     if exclude_last is None:
+        # For the last term to be included, all other terms should have a non-empty
+        # 0th order. The 0th order access below may be slightly inefficient, but in
+        # practice it doesn't matter because of caching.
         exclude_last = [False] * len(series)
+        zero_0th_orders = [
+            np.all(
+                factor[(slice(None), slice(None)) + series[0].n_infinite * (0,)].mask
+            )
+            for factor in series
+        ]
+        for i, empty in enumerate(zero_0th_orders):
+            if not empty:
+                continue
+            for j in range(len(exclude_last)):
+                if i != j:
+                    exclude_last[j] = True
 
     starts, ends = zip(*(factor.shape for factor in series))
     start, *rest_starts = starts
@@ -391,21 +410,8 @@ def product_by_order(
     hermitian = hermitian and start == end
 
     n_infinite = series[0].n_infinite
-
     if exclude_last is None:
-        # For the last term to be included, all other terms should have a non-empty
-        # 0th order. The 0th order access below may be slightly inefficient, but in
-        # practice it doesn't matter because of caching.
-        zero_0th_orders = [
-            np.all(factor[(slice(None), slice(None)) + n_infinite * (0,)].mask)
-            for factor in series
-        ]
-        for i, empty in enumerate(zero_0th_orders):
-            if not empty:
-                continue
-            for j in range(len(exclude_last)):
-                if i != j:
-                    exclude_last[j] = True
+        exclude_last = [False] * len(series)
 
     # Form masked arrays with correct shapes and required elements unmasked
     data = [
