@@ -80,8 +80,9 @@ def test_cleanup():
 def test_recursion_detection():
     """Test that BlockSeries detects recursion."""
     recursive = BlockSeries(lambda i: recursive[i], shape=(), n_infinite=1)
-    with pytest.raises(RuntimeError, match="Infinite recursion loop detected"):
+    with pytest.raises(RuntimeError) as excinfo:
         recursive[0]
+    assert "Infinite recursion loop detected in" in str(excinfo.value.__cause__)
 
 
 def test_cauchy_dot_product():

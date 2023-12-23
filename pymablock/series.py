@@ -186,8 +186,8 @@ class BlockSeries:
                 data[index] = PENDING
                 try:
                     data[index] = self.eval(*index)
-                except (RuntimeError, ValueError, TypeError) as error:
-                    # Catch basic errors with an informative message
+                except RuntimeError as error:
+                    # Catch recursion errors with an informative message
                     data.pop(index, None)
                     raise RuntimeError(f"Failed to evaluate {self}[{index}]") from error
                 except BaseException:
