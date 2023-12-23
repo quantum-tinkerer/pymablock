@@ -1,8 +1,9 @@
 from __future__ import annotations
-from itertools import product, compress
+from itertools import product, compress, chain
 from functools import reduce
 from operator import matmul
 from typing import Any, Optional, Callable, Union, Iterable
+from secrets import token_hex
 
 import numpy as np
 import numpy.ma as ma
@@ -92,6 +93,7 @@ class BlockSeries:
         shape: tuple[int, ...] = (),
         n_infinite: int = 1,
         dimension_names: Optional[tuple[Union[str, sympy.Symbol], ...]] = None,
+        name: Optional[str] = None,
     ) -> None:
         """
         An infinite series that caches its items.
@@ -111,12 +113,17 @@ class BlockSeries:
         dimension_names :
             Names of the infinite dimensions.
             This is used for symbolic series.
+        name :
+            Name of the series. Used for printing.
         """
         self.eval = (lambda *_: zero) if eval is None else eval
         self._data = data or {}
         self.shape = shape
         self.n_infinite = n_infinite
-        self.dimension_names = dimension_names or ()
+        self.dimension_names = dimension_names or tuple(
+            f"n_{i}" for i in range(n_infinite)
+        )
+        self.name = name or f"Series_{token_hex(4)}"
 
     def __getitem__(self, item: Item) -> Any:
         """
@@ -175,18 +182,32 @@ class BlockSeries:
                 data[index] = PENDING
                 try:
                     data[index] = self.eval(*index)
+                except (RuntimeError, ValueError, TypeError) as error:
+                    # Catch basic errors with an informative message
+                    data.pop(index, None)
+                    raise RuntimeError(f"Failed to evaluate {self}[{index}]") from error
                 except BaseException:
                     # Catching BaseException to clean up also after keyboard interrupt
                     data.pop(index, None)
                     raise
             if data[index] is PENDING:
-                raise RuntimeError("Infinite recursion loop detected")
+                raise RuntimeError(
+                    f"Infinite recursion loop detected in {self}[{index}]"
+                )
             trial[index] = data[index]
 
         result = trial[item]
         if not one_entry:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
+
+    def __str__(self) -> str:
+        dimensions = chain(
+            map(str, self.shape),
+            (f"{name}: ∞" for name in self.dimension_names),
+        )
+
+        return f"{self.name}_({' × '.join(dimensions)})"
 
     def __add__(self, other: BlockSeries) -> BlockSeries:
         """Add two series together.
@@ -214,6 +235,7 @@ class BlockSeries:
             shape=self.shape,
             n_infinite=self.n_infinite,
             dimension_names=self.dimension_names,
+            name=f"({self.name} + {other.name})",
         )
 
     def __neg__(self) -> BlockSeries:
@@ -223,6 +245,7 @@ class BlockSeries:
             shape=self.shape,
             n_infinite=self.n_infinite,
             dimension_names=self.dimension_names,
+            name=f"(-{self.name})",
         )
 
     def __sub__(self, other: BlockSeries) -> BlockSeries:
@@ -314,6 +337,7 @@ def cauchy_dot_product(
         shape=(start, end),
         n_infinite=series[0].n_infinite,
         dimension_names=series[0].dimension_names,
+        name=" @ ".join(factor.name for factor in series),
     )
 
     def eval(*index):

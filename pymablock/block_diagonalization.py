@@ -376,6 +376,7 @@ def hamiltonian_to_BlockSeries(
             shape=(2, 2),
             n_infinite=hamiltonian.n_infinite,
             dimension_names=symbols,
+            name="H",
         )
         return H
 
@@ -418,6 +419,7 @@ def hamiltonian_to_BlockSeries(
         shape=(2, 2),
         n_infinite=hamiltonian.n_infinite,
         dimension_names=symbols,
+        name="H",
     )
 
     return H
@@ -475,6 +477,7 @@ def general(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="U",
     )
 
     U_adjoint = BlockSeries(
@@ -487,6 +490,7 @@ def general(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="U^†",
     )
 
     # Uncorrected identity and H_tilde to compute U
@@ -518,6 +522,7 @@ def general(
     U.eval = eval
 
     H_tilde = cauchy_dot_product(U_adjoint, H, U, operator=operator, hermitian=True)
+    H_tilde.name = "H_tilde"
     return H_tilde, U, U_adjoint
 
 
@@ -580,12 +585,14 @@ def new_general(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="H'",
     )
     U_p = BlockSeries(
         data=zero_0th_order,
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="U'",
     )
     U = BlockSeries(
         eval=(lambda *index: U_p[index]),
@@ -593,6 +600,7 @@ def new_general(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="U",
     )
 
     X = BlockSeries(
@@ -600,6 +608,7 @@ def new_general(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="X",
     )
 
     U_p_adj = BlockSeries(
@@ -612,6 +621,7 @@ def new_general(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="U'^†",
     )
     U_adj = BlockSeries(
         eval=(lambda *index: U_p_adj[index]),
@@ -619,13 +629,7 @@ def new_general(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
-    )
-
-    X = BlockSeries(
-        data=zero_0th_order,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
+        name="U^†",
     )
 
     # Products
@@ -686,6 +690,7 @@ def new_general(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="H_tilde",
     )
 
     return H_tilde, U, U_adj
@@ -838,6 +843,7 @@ def expanded(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="H_tilde",
     )
 
     old_U_eval = U.eval
@@ -909,6 +915,7 @@ def implicit(
             shape=(2, 2),
             n_infinite=H.n_infinite,
             dimension_names=original.dimension_names,
+            name=original.name,
         )
         for original in (H, U, U_adjoint)
     )
@@ -939,6 +946,7 @@ def implicit(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        name="H_tilde",
     )
 
     return H_tilde, U, U_adjoint
@@ -1325,6 +1333,7 @@ def _dict_to_BlockSeries(
         shape=(),
         n_infinite=n_infinite,
         dimension_names=symbols,
+        name="H",
     )
     return H_temporary, symbols
 
@@ -1411,6 +1420,7 @@ def _sympy_to_BlockSeries(
         shape=(),
         n_infinite=len(symbols),
         dimension_names=symbols,
+        name="H",
     )
     return H
 
