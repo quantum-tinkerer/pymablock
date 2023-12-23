@@ -87,6 +87,6 @@ The above defines the full algorithm.
 2. Use their block and hermiticity structure to define their adjoints.
 3. Use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$ to define diagonal blocks of $\mathcal{U}.
 4. Use $\mathcal{V} = S(\mathcal{Y})$ (where $S$ is the solution of the Sylvester equation) for offdiagonal blocks of $\mathcal{U}$.
-5. Use $\mathcal{Z} = (\mathcal{U}'\mathcal{X} - h.c.)/2$ for diagonal blocks of $\mathcal{X}$ (note: I've obtained this by messing around with the blockwise expression, there may be an easy way to see this).
-6. Use $\mathcal{Y} = (-\mathcal{U}'\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})_{\textrm{offdiag}}$
+5. Use $\mathcal{Z} = (\mathcal{U}'^\dagger\mathcal{X} - h.c.)/2$ for diagonal blocks of $\mathcal{X}$ (note: I've obtained this by messing around with the blockwise expression, there may be an easy way to see this).
+6. Use $\mathcal{Y} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})_{\textrm{offdiag}}$
 7. Use $\tilde{\mathcal{H}} = H_0 + (- \mathcal{U}'^\dagger \mathcal{X} - \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})_\mathcal{diag}$.
