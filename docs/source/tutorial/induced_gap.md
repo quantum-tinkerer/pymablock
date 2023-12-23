@@ -153,8 +153,7 @@ matrix is complex and eigenvalues are degenerate.
 
 We now define the block diagonalization routine and compute the few lowest
 orders of the effective Hamiltonian. Here we only provide the set of vectors of
-the interesting subspace. This selects the {autolink}`~pymablock.implicit`
-method that uses efficient sparse solvers for Sylvester's equation.
+the interesting subspace.
 
 ```{code-cell} ipython3
 %%time

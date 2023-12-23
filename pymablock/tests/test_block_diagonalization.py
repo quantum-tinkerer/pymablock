@@ -11,7 +11,6 @@ from sympy.physics.quantum import Dagger
 from pymablock.block_diagonalization import (
     block_diagonalize,
     general,
-    implicit,
     solve_sylvester_KPM,
     solve_sylvester_direct,
     solve_sylvester_diagonal,
@@ -810,87 +809,6 @@ def test_solve_sylvester(
     )
 
 
-@pytest.mark.xfail(reason="Sometimes it fails due to precision.")
-def test_implicit_consistent_on_A(
-    generate_kpm_hamiltonian: tuple[
-        BlockSeries, np.ndarray, np.ndarray, np.ndarray, np.ndarray
-    ],
-    wanted_orders: tuple[int, ...],
-    a_dim: int,
-) -> None:
-    """
-    TODO: Update test to new UI.
-    Test that the implicit and general algorithms coincide.
-
-    Parameters
-    ----------
-    generate_kpm_hamiltonian:
-        Randomly generated Hamiltnonian and its eigendecomposition.
-    wanted_orders:
-        list of orders to compute.
-    a_dim:
-        Dimension of the A subspace.
-    """
-    H_input, vecs_A, eigs_A, vecs_B, eigs_B = generate_kpm_hamiltonian
-    n_infinite = H_input.n_infinite
-
-    # construct Hamiltonian for general
-    index_rows = np.eye(n_infinite, dtype=int)
-    vecs = np.concatenate((vecs_A, vecs_B), axis=-1)
-    h_0_AA = np.diag(eigs_A)
-    h_0_BB = np.diag(eigs_B)
-    h_p_AA = {
-        tuple(index_rows[index, :]): (
-            Dagger(vecs) @ H_input[tuple(index_rows[index, :])] @ vecs
-        )[:a_dim, :a_dim]
-        for index in range(n_infinite)
-    }
-    h_p_BB = {
-        tuple(index_rows[index, :]): (
-            Dagger(vecs) @ H_input[tuple(index_rows[index, :])] @ vecs
-        )[a_dim:, a_dim:]
-        for index in range(n_infinite)
-    }
-    h_p_AB = {
-        tuple(index_rows[index, :]): (
-            Dagger(vecs) @ H_input[tuple(index_rows[index, :])] @ vecs
-        )[:a_dim, a_dim:]
-        for index in range(n_infinite)
-    }
-
-    H_general = BlockSeries(
-        data={
-            (0, 0) + (0,) * n_infinite: h_0_AA,
-            (1, 1) + (0,) * n_infinite: h_0_BB,
-            **{(0, 0) + tuple(key): value for key, value in h_p_AA.items()},
-            **{(1, 1) + tuple(key): value for key, value in h_p_BB.items()},
-            **{(0, 1) + tuple(key): value for key, value in h_p_AB.items()},
-            **{(1, 0) + tuple(key): Dagger(value) for key, value in h_p_AB.items()},
-        },
-        shape=(2, 2),
-        n_infinite=n_infinite,
-    )
-
-    H_tilde_general = general(H_general)[0]
-    H_tilde_full_b = implicit(H_input, vecs_A, eigs_A, vecs_B, eigs_B)[0]
-    H_tilde_KPM = implicit(
-        H_input, vecs_A, eigs_A, solver_options={"num_moments": 5000}
-    )[0]
-    order = (0, 0) + tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    for block_full_b, block_general, block_KPM in zip(
-        H_tilde_full_b[order].compressed(),
-        H_tilde_general[order].compressed(),
-        H_tilde_KPM[order].compressed(),
-    ):
-        np.testing.assert_allclose(
-            block_full_b, block_general, atol=1e-4, err_msg=f"{order=}"
-        )
-
-        np.testing.assert_allclose(
-            block_full_b, block_KPM, atol=1e-4, err_msg=f"{order=}"
-        )
-
-
 def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     """
     Test whether the KPM ready solve_sylvester gives the same result
@@ -1204,19 +1122,22 @@ def test_unknown_data_type():
         __str__ = __repr__
 
         def __mul__(self, other):
-            return Unknown(f"{self.name} * {other}")
+            return Unknown(f"({self} * {other})")
 
         def __rmul__(self, other):
-            return Unknown(f"{other} * {self.name}")
+            return Unknown(f"({other} * {self})")
 
         def __add__(self, other):
-            return Unknown(f"{self.name} + {other}")
+            return Unknown(f"({self} + {other})")
 
         def adjoint(self):
-            return Unknown(f"{self.name}^*")
+            return Unknown(f"({self}^*)")
 
         def __neg__(self):
-            return Unknown(f"-{self.name}")
+            return Unknown(f"(-{self})")
+
+        def __sub__(self, other):
+            return Unknown(f"({self} - {other})")
 
     H = [
         [[Unknown("a"), zero], [zero, Unknown("b")]],
