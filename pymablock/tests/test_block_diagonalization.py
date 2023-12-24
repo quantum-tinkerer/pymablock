@@ -1,5 +1,5 @@
 from itertools import count, permutations
-from typing import Any, Optional, Union
+from typing import Any, Optional, Union, Callable
 
 import pytest
 import numpy as np
@@ -613,29 +613,6 @@ def test_check_diagonal_h_0_B() -> None:
         general(H)
 
 
-def double_orders(data: dict[tuple[int, ...], Any]) -> dict[tuple[int, ...], Any]:
-    """
-    Double the orders of the keys in a dictionary.
-
-    Parameters
-    ----------
-    data:
-        dictionary of the form {(block, order): value} with BlockSeries data
-
-    Returns
-    -------
-    dictionary of the form {(block, 2*order): value}
-    """
-    new_data = {}
-    for index, value in data.items():
-        if zero == value:
-            continue
-        block = index[:2]
-        order = tuple(2 * np.array(index[2:]))
-        new_data[block + order] = value
-    return new_data
-
-
 def test_doubled_orders(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     """
     Test that doubling the order of the inputs produces the same results on
@@ -649,30 +626,31 @@ def test_doubled_orders(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     wanted_orders:
         Orders to compute
     """
-    # Get the data directly to avoid defining an extra eval
-    data = H._data
+
+    def doubled_eval(H: BlockSeries) -> Callable:
+        def eval(*index):
+            element, order = index[:2], index[2:]
+            if any(i % 2 for i in order):
+                return zero
+            return H[element + tuple(i // 2 for i in order)]
+
+        return eval
+
     H_doubled = BlockSeries(
-        data=double_orders(data), shape=H.shape, n_infinite=H.n_infinite
+        eval=doubled_eval(H), shape=H.shape, n_infinite=H.n_infinite
     )
 
     H_tilde, U, _ = general(H)
+    H_tilde_doubled_directly = BlockSeries(
+        eval=doubled_eval(H_tilde), shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
+    )
+    U_doubled_directly = BlockSeries(
+        eval=doubled_eval(U), shape=U.shape, n_infinite=U.n_infinite
+    )
     H_tilde_doubled, U_doubled, _ = general(H_doubled)
 
-    blocks = np.index_exp[:2, :2]
-    orders = tuple(slice(None, order + 1, None) for order in wanted_orders)
-    doubled_orders = tuple(
-        slice(None, 2 * (order + 1), None) for order in wanted_orders
-    )
-
-    for op, op_doubled in zip((H_tilde, U), (H_tilde_doubled, U_doubled)):
-        result = op[blocks + orders].compressed()
-        result_doubled = op_doubled[blocks + doubled_orders].compressed()
-        assert len(result) == len(result_doubled)
-        for result, result_doubled in zip(result, result_doubled):
-            if isinstance(result, object):
-                assert isinstance(result_doubled, object)
-                continue
-            np.testing.assert_allclose(result, result_doubled, atol=10**-5)
+    compare_series(H_tilde_doubled_directly, H_tilde_doubled, wanted_orders)
+    compare_series(U_doubled_directly, U_doubled, wanted_orders)
 
 
 def test_check_AB_KPM(
