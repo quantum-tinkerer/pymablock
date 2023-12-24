@@ -806,7 +806,7 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     n = 30
     a_dim = 5
     # Introduce a gap between the two subspaces
-    E = np.random.randn(n) - 5 * (np.arange(n) < a_dim)
+    E = np.random.randn(n) - 10 * (np.arange(n) < a_dim)
     t = np.random.rand(n - 1) * np.exp(2j * np.pi * np.random.rand(n - 1))
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
@@ -817,8 +817,8 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     )
 
     diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
-    kpm = solve_sylvester_KPM(h, [eigvecs], {"num_moments": 1000})
-    hybrid = solve_sylvester_KPM(h, [eigvecs, eigvecs_partial], {"num_moments": 1000})
+    kpm = solve_sylvester_KPM(h, [eigvecs], {"num_moments": 2000})
+    hybrid = solve_sylvester_KPM(h, [eigvecs, eigvecs_partial], {"num_moments": 2000})
 
     y = np.random.randn(a_dim, n - a_dim) + 1j * np.random.randn(a_dim, n - a_dim)
     y = y @ Dagger(eigvecs_rest)
