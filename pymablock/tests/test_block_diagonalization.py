@@ -1,5 +1,5 @@
-from itertools import count, permutations
-from typing import Any, Optional, Union, Callable
+from itertools import count, permutations, chain
+from typing import Any, Union, Callable
 
 import pytest
 import numpy as np
@@ -20,14 +20,135 @@ from pymablock.series import BlockSeries, cauchy_dot_product, zero, one
 from pymablock.linalg import ComplementProjector
 
 
-try:
-    from kwant.linalg import mumps  # noqa: F401
+# Auxiliary comparison functions
+def compare_series(
+    series1: BlockSeries,
+    series2: BlockSeries,
+    wanted_orders: tuple[int, ...],
+    atol: float = 1e-15,
+    rtol: float = 0,
+) -> None:
+    """
+    Function that compares two BlockSeries with each other
 
-    mumps_available = True
-except ImportError:
-    mumps_available = False
+    Two series are compared for a given list of wanted orders in all orders.
+    The test first checks for `~pymablock.series.one` objects since these are
+    not masked by the resulting masked arrays. For numeric types, numpy
+    arrays, `scipy.sparse.linalg.LinearOperator` types, and scipy.sparse.sp_Matrix,
+    the evaluated object is converted to a dense array by multiplying with dense
+    identity and numrically compared up to the desired tolerance.
+
+    Missing values are converted to 0 before comparison.
+
+    Parameters:
+    --------------
+    series1:
+        First `~pymablock.series.BlockSeries` to compare
+    series2:
+        Second `~pymablock.series.BlockSeries` to compare
+    wanted_orders:
+        Order until which to compare the series
+    atol:
+        Absolute tolerance for numeric comparison
+    rtol:
+        Relative tolerance for numeric comparison
+    """
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    all_elements = (slice(None),) * len(series1.shape)
+    results = [
+        np.ndenumerate(np.ma.filled(series[all_elements + order], zero))
+        for series in (series1, series2)
+    ]
+    for (order, value1), (_, value2) in zip(*results):
+        values = [value1, value2]
+        if any(isinstance(value, type(one)) for value in values):
+            assert value1 == value2
+        elif all(isinstance(value, sympy.MatrixBase) for value in values):
+            assert value1 == value2
+        elif any(isinstance(value, sympy.MatrixBase) for value in values):
+            # The only non-symbolic option is zero
+            values.remove(zero)
+            assert values[0].is_zero_matrix
+        else:
+            # Convert all numeric types to dense arrays
+            values = [
+                value @ np.identity(value.shape[1]) if zero != value else 0
+                for value in values
+            ]
+            np.testing.assert_allclose(
+                *values, atol=atol, rtol=rtol, err_msg=f"Series unequal at {order=}"
+            )
 
 
+def is_diagonal(
+    series: BlockSeries, wanted_orders: tuple[int, ...], atol=1e-10
+) -> None:
+    """
+    Test that the offdiagonal blocks of a series are zero.
+
+    Parameters
+    ----------
+    H:
+        Hamiltonian to test
+    wanted_orders:
+        orders to compute
+    """
+    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
+    for matrix in chain(
+        series[(0, 1) + order].compressed(), series[(1, 0) + order].compressed()
+    ):
+        if isinstance(matrix, np.ndarray):
+            np.testing.assert_allclose(
+                matrix, 0, atol=atol, err_msg=f"{matrix=}, {order=}"
+            )
+        elif sparse.issparse(matrix):
+            np.testing.assert_allclose(
+                matrix.toarray(), 0, atol=atol, err_msg=f"{matrix=}, {order=}"
+            )
+        elif isinstance(matrix, sympy.MatrixBase):
+            assert matrix.is_zero_matrix
+        else:
+            raise TypeError(f"Unknown type {type(matrix)}")
+
+
+def identity_like(U: BlockSeries):
+    """An identity-like series with the same dimensions as U"""
+    return BlockSeries(
+        data={(block + U.n_infinite * (0,)): one for block in ((0, 0), (1, 1))},
+        shape=U.shape,
+        n_infinite=U.n_infinite,
+        dimension_names=U.dimension_names,
+    )
+
+
+def is_unitary(
+    U: BlockSeries,
+    U_dagger: BlockSeries,
+    wanted_orders: tuple[int, ...],
+    atol: float = 1e-15,
+) -> None:
+    """
+    Test that the transformation is unitary.
+
+    Parameters
+    ----------
+    U:
+        Transformation
+    U_dagger:
+        Adjoint transformation
+    wanted_orders:
+        Order until which to compare the series
+    atol:
+        Absolute tolerance for numeric comparison
+    rtol:
+        Relative tolerance for numeric comparison
+    """
+    identity = identity_like(U)
+    transformed = cauchy_dot_product(U_dagger, U)
+    compare_series(transformed, identity, wanted_orders, atol=atol, rtol=0)
+
+
+# Fixtures
 @pytest.fixture(scope="module", params=[(3,), (2, 2)])
 def wanted_orders(request):
     """
@@ -106,22 +227,6 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
         n_infinite=n_infinite,
     )
     return H
-
-
-@pytest.fixture(scope="module")
-def general_output(H: BlockSeries) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """
-    Return the transformed Hamiltonian.
-
-    Parameters
-    ----------
-    H: Hamiltonian
-
-    Returns
-    -------
-    transformed Hamiltonian
-    """
-    return general(H)
 
 
 @pytest.fixture(scope="module", params=[0, 1])
@@ -267,6 +372,7 @@ def symbolic_hamiltonian(request):
     return hamiltonians[request.param], symbols, subspace_eigenvectors, subspace_indices
 
 
+# Tests
 def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
     """
     Test inputs where the unperturbed Hamiltonian is diagonal.
@@ -362,91 +468,23 @@ def test_input_hamiltonian_blocks():
         assert zero == H[(1, 0) + (0,) * H.n_infinite]
 
 
-def compare_series(
-    series1: BlockSeries,
-    series2: BlockSeries,
-    wanted_orders: tuple[int, ...],
-    atol: float = 1e-15,
-    rtol: float = 0,
-) -> None:
+def test_H_tilde_diagonal(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     """
-    Function that compares two BlockSeries with each other
-
-    Two series are compared for a given list of wanted orders in all orders.
-    The test first checks for `~pymablock.series.one` objects since these are
-    not masked by the resulting masked arrays. For numeric types, numpy
-    arrays, `scipy.sparse.linalg.LinearOperator` types, and scipy.sparse.sp_Matrix,
-    the evaluated object is converted to a dense array by multiplying with dense
-    identity and numrically compared up to the desired tolerance.
-
-    Missing values are converted to 0 before comparison.
-
-    Parameters:
-    --------------
-    series1:
-        First `~pymablock.series.BlockSeries` to compare
-    series2:
-        Second `~pymablock.series.BlockSeries` to compare
-    wanted_orders:
-        Order until which to compare the series
-    atol:
-        Absolute tolerance for numeric comparison
-    rtol:
-        Relative tolerance for numeric comparison
-    """
-    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    all_elements = (slice(None),) * len(series1.shape)
-    results = [
-        np.ndenumerate(np.ma.filled(series[all_elements + order], zero))
-        for series in (series1, series2)
-    ]
-    for (order, value1), (_, value2) in zip(*results):
-        if isinstance(value1, type(one)) or isinstance(value2, type(one)):
-            assert value1 == value2
-            continue
-        # Convert all numeric types to dense arrays
-        values = [
-            value @ np.identity(value.shape[1]) if zero != value else 0
-            for value in (value1, value2)
-        ]
-        np.testing.assert_allclose(
-            *values, atol=atol, rtol=rtol, err_msg=f"Series unequal at {order=}"
-        )
-
-
-def test_check_AB(general_output: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
-    """
-    Test that H_AB is zero for a random Hamiltonian.
+    Test that H_tilde_AB is zero for a random Hamiltonian.
 
     Parameters
     ----------
-    general_output:
-        transformed Hamiltonian to test
+    H:
+        Hamiltonian to test
     wanted_orders:
         orders to compute
     """
-    H_tilde = general_output[0]
-    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    for matrix in H_tilde[(0, 1) + order].compressed():
-        if isinstance(matrix, np.ndarray):
-            np.testing.assert_allclose(
-                matrix, 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-            )
-        elif sparse.issparse(matrix):
-            np.testing.assert_allclose(
-                matrix.toarray(), 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-            )
-        elif isinstance(matrix, sympy.MatrixBase):
-            assert matrix.is_zero_matrix
-        else:
-            raise TypeError(f"Unknown type {type(matrix)}")
+    is_diagonal(general(H)[0], wanted_orders)
 
 
 def test_check_unitary(
-    general_output: tuple[BlockSeries, BlockSeries, BlockSeries],
+    H: BlockSeries,
     wanted_orders: tuple[int, ...],
-    N_A: Optional[int] = None,
-    N_B: Optional[int] = None,
 ) -> None:
     """
     Test that the transformation is unitary.
@@ -458,39 +496,26 @@ def test_check_unitary(
     wanted_orders:
         orders to compute
     """
-    zero_order = (0,) * len(wanted_orders)
-    H_tilde, U, U_adjoint = general_output
+    is_unitary(*general(H)[1:], wanted_orders, atol=1e-10)
 
-    N_A = N_A or H_tilde[(0, 0) + zero_order].shape[0]
-    N_B = N_B or H_tilde[(1, 1) + zero_order].shape[0]
-    n_infinite = H_tilde.n_infinite
 
-    identity = BlockSeries(
-        data={(0, 0) + zero_order: np.eye(N_A), (1, 1) + zero_order: np.eye(N_B)},
-        shape=(2, 2),
-        n_infinite=n_infinite,
-    )
-    transformed = cauchy_dot_product(U_adjoint, identity, U, hermitian=True)
+def test_check_invertible(
+    H: BlockSeries,
+    wanted_orders: tuple[int, ...],
+) -> None:
+    """
+    Test that the transformation is invertible, so H = U @ H_tilde @ U_dagger.
 
-    order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
-    for block in ((0, 0), (1, 1), (0, 1)):
-        result = transformed[tuple(block + order)]
-        for index, matrix in np.ma.ndenumerate(result):
-            if not any(index):
-                # Zeroth order is not zero.
-                continue
-            if isinstance(matrix, np.ndarray):
-                np.testing.assert_allclose(
-                    matrix, 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-                )
-            elif sparse.issparse(matrix):
-                np.testing.assert_allclose(
-                    matrix.toarray(), 0, atol=10**-5, err_msg=f"{matrix=}, {order=}"
-                )
-            elif isinstance(matrix, sympy.MatrixBase):
-                assert matrix.is_zero_matrix
-            else:
-                raise TypeError(f"Unknown type {type(matrix)}")
+    Parameters
+    ----------
+    H:
+        Hamiltonian
+    wanted_orders:
+        orders to compute
+    """
+    H_tilde, U, U_dagger = general(H)
+    H_reconstructed = cauchy_dot_product(U, cauchy_dot_product(H_tilde, U_dagger))
+    compare_series(H, H_reconstructed, wanted_orders, atol=1e-10)
 
 
 def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
@@ -511,6 +536,26 @@ def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     return H[(0, 0) + order]
 
 
+def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
+    """
+    Test ensuring invariance of the result upon repeated application
+
+    Tests if the unitary transform returns identity when the algorithm is applied twice
+
+    Parameters:
+    -----------
+    H:
+        Hamiltonian
+    wanted_orders:
+        list of wanted orders
+    """
+    H_tilde_1, U_1, U_adjoint_1 = general(H)
+    H_tilde_2, U_2, U_adjoint_2 = general(H_tilde_1)
+
+    compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
+    compare_series(U_2, identity_like(U_2), wanted_orders, atol=1e-10)
+
+
 def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     """
     Test that the first order is computed correctly.
@@ -529,10 +574,10 @@ def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> 
         expected = compute_first_order(H, order)
         if zero == result:
             np.testing.assert_allclose(
-                0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
+                0, expected, atol=1e-10, err_msg=f"{result=}, {expected=}"
             )
         np.testing.assert_allclose(
-            result, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
+            result, expected, atol=1e-10, err_msg=f"{result=}, {expected=}"
         )
 
 
@@ -584,10 +629,10 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
         expected = compute_second_order(H, order)
         if zero == result:
             np.testing.assert_allclose(
-                0, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
+                0, expected, atol=1e-10, err_msg=f"{result=}, {expected=}"
             )
         np.testing.assert_allclose(
-            result, expected, atol=10**-5, err_msg=f"{result=}, {expected=}"
+            result, expected, atol=1e-10, err_msg=f"{result=}, {expected=}"
         )
 
 
@@ -829,8 +874,8 @@ def test_solve_sylvester_kpm_vs_diagonal(Ns: tuple[int, int]) -> None:
     )
 
 
-@pytest.mark.skipif(not mumps_available, reason="mumps not installed")
 def test_solve_sylvester_direct_vs_diagonal() -> None:
+    pytest.importorskip("kwant.linalg.mumps", reason="mumps not installed")
     n = 300
     a_dim = 5
     E = np.random.randn(n)
@@ -911,32 +956,6 @@ def test_consistent_implicit_subspace(
             Dagger(subspace_eigenvectors[0]) @ block_B @ subspace_eigenvectors[0],
             atol=1e-8,
         )
-
-
-def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
-    """
-    Test ensuring invariance of the result upon repeated application
-
-    Tests if the unitary transform returns identity when the algorithm is applied twice
-
-    Parameters:
-    -----------
-    H:
-        Hamiltonian
-    wanted_orders:
-        list of wanted orders
-    """
-    H_tilde_1, U_1, U_adjoint_1 = general(H)
-    H_tilde_2, U_2, U_adjoint_2 = general(H_tilde_1)
-
-    zero_index = (0,) * H_tilde_1.n_infinite
-    U_target = BlockSeries(
-        data={(i, i, *zero_index): one for i in range(H_tilde_1.shape[0])},
-        shape=H_tilde_1.shape,
-        n_infinite=H_tilde_1.n_infinite,
-    )
-    compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
-    compare_series(U_2, U_target, wanted_orders, atol=1e-10)
 
 
 def test_input_hamiltonian_kpm(generate_kpm_hamiltonian):
@@ -1037,8 +1056,8 @@ def test_block_diagonalize_hamiltonian_diagonal(
     assert H_tilde.n_infinite == len(hamiltonian) - 1 == len(wanted_orders)
     # Default dimension names
     assert H_tilde.dimension_names == tuple(f"n_{i}" for i in range(H_tilde.n_infinite))
-    test_check_AB([H_tilde, U, U_adjoint], wanted_orders)
-    test_check_unitary([H_tilde, U, U_adjoint], wanted_orders)
+    is_diagonal(H_tilde, wanted_orders)
+    is_unitary(U, U_adjoint, wanted_orders)
 
 
 def test_block_diagonalize_hamiltonian_symbolic(
@@ -1063,8 +1082,8 @@ def test_block_diagonalize_hamiltonian_symbolic(
     assert H_tilde.shape == (2, 2)
     assert H_tilde.n_infinite == len(symbols)
     assert H_tilde.dimension_names == symbols
-    test_check_AB([H_tilde, U, U_adjoint], (1,) * len(symbols))
-    test_check_unitary([H_tilde, U, U_adjoint], (1,) * len(symbols), 1, 1)
+    is_diagonal(H_tilde, (1,) * len(symbols))
+    is_unitary(U, U_adjoint, (1,) * len(symbols))
 
     # Test if subspace_indices are provided
     hamiltonian, symbols, subspace_eigenvectors, subspace_indices = symbolic_hamiltonian
@@ -1074,8 +1093,8 @@ def test_block_diagonalize_hamiltonian_symbolic(
     assert H_tilde.shape == (2, 2)
     assert H_tilde.n_infinite == len(symbols)
     assert H_tilde.dimension_names == symbols
-    test_check_AB([H_tilde, U, U_adjoint], (1,) * len(symbols))
-    test_check_unitary([H_tilde, U, U_adjoint], (1,) * len(symbols), 1, 1)
+    is_diagonal(H_tilde, (1,) * len(symbols))
+    is_unitary(U, U_adjoint, (1,) * len(symbols))
 
     # Raise if eigenvectors are not orthonormal
     with pytest.raises(ValueError):
