@@ -45,7 +45,7 @@ $$
 :class: dropdown info
 Because the Cauchy is the main bottleneck of perturbation theory, let us discuss
 its complexity.
-Evaluating $\mathbf{n}$th order of $\mathcal{C}$ therefore requires $\sim\prod_i
+Evaluating $\mathbf{n}$-th order of $\mathcal{C}$ therefore requires $\sim\prod_i
 n_i = N$ multiplications of the series elements.
 A direct computation of all the possible index combinations in a higher order
 product $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher cost $\sim N^2$,
@@ -74,7 +74,7 @@ $$
 There are many ways to solve this problem that give identical expressions for
 $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
 We are searching for a procedure that satisfies two additional constraints:
-- Its only requires computing Cauchy products and therefore has the lowest
+- It only requires computing Cauchy products and therefore has the lowest
   possible scaling of complexity.
 - It does not require multiplications by $H_0$. This is because perturbation
   theory terms have energies in denominators, and those must cancel with $H_0$
@@ -89,7 +89,7 @@ $$
 $$
 
 Substituting $\mathcal{U}'$ into the unitarity condition
-$(1/2)(\mathcal{U}^\dagger \mathcal{U} + \mathcal{U}^\dagger U) = 1$ gives
+$(1/2)(\mathcal{U}^\dagger \mathcal{U} + \mathcal{U}^\dagger \mathcal{U}) = 1$ gives
 
 $$
 2\mathcal{W} = \mathcal{U}' + \mathcal{U}'^\dagger = -\mathcal{U}'^\dagger \mathcal{U}' = -\mathcal{W}^2 + \mathcal{V}^2.
