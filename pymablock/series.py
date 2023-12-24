@@ -394,7 +394,8 @@ def product_by_order(
         values = [value for _, value in combination if value is not one]
         if hermitian and key > tuple(reversed(key)):
             continue
-        term = reduce(operator, values)
+        # Take care of the case when we have a product of all ones
+        term = reduce(operator, values) if values else one
         if not hermitian or key == tuple(reversed(key)):
             terms.append(term)
         else:
