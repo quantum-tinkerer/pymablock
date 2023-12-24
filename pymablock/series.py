@@ -251,18 +251,18 @@ def cauchy_dot_product(
     """
     Multivariate Cauchy product of `~pymablock.series.BlockSeries`.
 
-    Notes:
-    This treats a singleton ``one`` as the identity operator.
+    Notes: This treats a singleton ``one`` as the identity operator.
 
     Parameters
     ----------
     series :
         Series to multiply using their block structure.
     operator :
-        (optional) Function for multiplying elements of the series.
-        Default is matrix multiplication matmul.
+        (optional) Function for multiplying elements of the series. Default is
+        matrix multiplication matmul.
     hermitian :
-        (optional) if True, hermiticity is used to reduce computations to 1/2.
+        (optional) whether to assume that the result is Hermitian in order to
+        reduce computational costs.
 
     Returns
     -------
@@ -271,10 +271,30 @@ def cauchy_dot_product(
     """
     if not series:
         raise ValueError("Need at least one series to multiply")
-    if len(series) < 2:
+    elif len(series) == 1:
         return series[0]
+    elif len(series) > 2 and not hermitian:
+        # Use associativity to reuse intermediate results This might be possible
+        # to speed up further if series had any promises about the orders they
+        # contains.
+        return cauchy_dot_product(
+            cauchy_dot_product(*series[:2], operator=operator),
+            *series[2:],
+            operator=operator,
+        )
+
     if operator is None:
         operator = matmul
+    if any(factor.dimension_names != series[0].dimension_names for factor in series):
+        raise ValueError("All series must have the same dimension names.")
+
+    starts, ends = zip(*(factor.shape for factor in series))
+    start, *rest_starts = starts
+    *rest_ends, end = ends
+    if rest_starts != rest_ends:
+        raise ValueError(
+            "Factors must have finite dimensions compatible with dot product."
+        )
 
     # For the last term to be included, all other terms should have a non-empty
     # 0th order. The 0th order access below may be slightly inefficient, but in
@@ -291,17 +311,6 @@ def cauchy_dot_product(
             if i != j:
                 exclude_last[j] = True
 
-    starts, ends = zip(*(factor.shape for factor in series))
-    start, *rest_starts = starts
-    *rest_ends, end = ends
-    if rest_starts != rest_ends:
-        raise ValueError(
-            "Factors must have finite dimensions compatible with dot product."
-        )
-
-    if len(set(factor.n_infinite for factor in series)) > 1:
-        raise ValueError("Factors must have equal number of infinite dimensions.")
-
     product = BlockSeries(
         data=None,
         shape=(start, end),
@@ -310,16 +319,55 @@ def cauchy_dot_product(
         name=" @ ".join(factor.name for factor in series),
     )
 
+    if len(series) == 2:
+
+        def eval(*index):
+            if index[0] > index[1] and hermitian:
+                return Dagger(product[(index[1], index[0], *index[2:])])
+            return product_by_order(
+                index,
+                *series,
+                operator=operator,
+                hermitian=hermitian,
+                exclude_last=exclude_last,
+            )
+
+        product.eval = eval
+        return product
+
+    # We special case the product of >2 Hermitian series to:
+    # - Either use the Hermitian implementation if the midlle series only
+    # contains fewer than 3 terms (which is a common case)
+    # - Or otherwise fall back to the non-Hermitian implementation of the
+    # product, while still reusing off-diagonal terms. This is faster in the
+    # general case.
+    nested_product = cauchy_dot_product(
+        *series,
+        operator=operator,
+        hermitian=False,
+    )
+    is_slow = False
+
     def eval(*index):
-        if index[0] > index[1] and hermitian:
+        nonlocal is_slow
+        if index[0] > index[1]:
             return Dagger(product[(index[1], index[0], *index[2:])])
-        return product_by_order(
-            index,
-            *series,
-            operator=operator,
-            hermitian=hermitian,
-            exclude_last=exclude_last,
-        )
+        if is_slow or index[0] < index[1]:
+            return nested_product[index]
+        try:
+            return product_by_order(
+                index,
+                *series,
+                operator=operator,
+                hermitian=hermitian,
+                exclude_last=exclude_last,
+                raise_when_slow=True,
+            )
+        except ValueError as e:
+            if e.args[0] != "Attempted to compute the product in an inefficient way.":
+                raise
+            is_slow = True
+            return nested_product[index]
 
     product.eval = eval
     return product
@@ -331,6 +379,7 @@ def product_by_order(
     operator: Optional[Callable] = None,
     hermitian: bool = False,
     exclude_last: Optional[list[bool]] = None,
+    raise_when_slow: bool = False,
 ) -> Any:
     """
     Compute sum of all product of factors of a wanted order.
@@ -342,13 +391,16 @@ def product_by_order(
     series :
         Series to multiply using their block structure.
     operator :
-        Function for multiplying elements of the series.
-        Default is matrix multiplication matmul.
+        Function for multiplying elements of the series. Default is matrix
+        multiplication matmul.
     hermitian :
         if True, hermiticity is used to reduce computations to 1/2.
     exclude_last :
-        whether to exclude last order on each term.
-        This is useful to avoid infinite recursion on some algorithms.
+        whether to exclude last order on each term. This is useful to avoid
+        infinite recursion on some algorithms.
+    raise_when_slow :
+        whether to raise an error we are computing a product of more than two
+        series, and the middle ones have more than 2 terms.
 
     Returns
     -------
@@ -380,6 +432,10 @@ def product_by_order(
     # Fill these with the evaluated data
     for values, factor in zip(data, series):  # type: ignore
         values[ma.where(values)] = factor[ma.where(values)]
+
+    if raise_when_slow and len(series) > 2:
+        if any(np.sum(~term.mask) > 2 for term in data[1:-1]):
+            raise ValueError("Attempted to compute the product in an inefficient way.")
 
     terms = []
     daggered_terms = []
