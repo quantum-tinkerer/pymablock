@@ -213,49 +213,6 @@ class BlockSeries:
 
         return f"{self.name}_({' × '.join(dimensions)})"
 
-    def __add__(self, other: BlockSeries) -> BlockSeries:
-        """Add two series together.
-
-        Shapes and infinite dimensions must exactly match.
-        Does not support numpy broadcasting, but may in future.
-        """
-        if self.shape != other.shape:
-            raise ValueError("Shapes must match")
-        if self.n_infinite != other.n_infinite:
-            raise ValueError("Number of infinite dimensions must match")
-        if self.dimension_names != other.dimension_names:
-            raise ValueError("Dimension names must match")
-
-        def add(*index):
-            # first being zero is handled by Zero class, but we need to ensure
-            # that first nonzero works correctly
-            first, second = self[index], other[index]
-            if isinstance(second, Zero):
-                return first
-            return first + second
-
-        return BlockSeries(
-            eval=add,
-            shape=self.shape,
-            n_infinite=self.n_infinite,
-            dimension_names=self.dimension_names,
-            name=f"({self.name} + {other.name})",
-        )
-
-    def __neg__(self) -> BlockSeries:
-        """Negate the series."""
-        return BlockSeries(
-            eval=lambda *index: -self[index],
-            shape=self.shape,
-            n_infinite=self.n_infinite,
-            dimension_names=self.dimension_names,
-            name=f"(-{self.name})",
-        )
-
-    def __sub__(self, other: BlockSeries) -> BlockSeries:
-        """Subtract two series."""
-        return self + (-other)
-
     def _check_finite(self, orders: tuple[OneItem, ...]):
         """
         Check that the indices of the infinite dimension are finite and positive.
