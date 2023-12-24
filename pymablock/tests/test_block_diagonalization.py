@@ -379,6 +379,8 @@ def compare_series(
     the evaluated object is converted to a dense array by multiplying with dense
     identity and numrically compared up to the desired tolerance.
 
+    Missing values are converted to 0 before comparison.
+
     Parameters:
     --------------
     series1:
@@ -395,21 +397,20 @@ def compare_series(
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     all_elements = (slice(None),) * len(series1.shape)
     results = [
-        np.ma.ndenumerate(series[all_elements + order]) for series in (series1, series2)
+        np.ndenumerate(np.ma.filled(series[all_elements + order], zero))
+        for series in (series1, series2)
     ]
-    for (order1, value1), (order2, value2) in zip(*results):
-        assert order1 == order2
-
+    for (order, value1), (_, value2) in zip(*results):
         if isinstance(value1, type(one)) or isinstance(value2, type(one)):
             assert value1 == value2
             continue
         # Convert all numeric types to dense arrays
+        values = [
+            value @ np.identity(value.shape[1]) if zero != value else 0
+            for value in (value1, value2)
+        ]
         np.testing.assert_allclose(
-            value1 @ np.identity(value1.shape[1]),
-            value2 @ np.identity(value2.shape[1]),
-            atol=atol,
-            rtol=rtol,
-            err_msg=f"{order1=} {order2=}",
+            *values, atol=atol, rtol=rtol, err_msg=f"Series unequal at {order=}"
         )
 
 
@@ -934,7 +935,6 @@ def test_consistent_implicit_subspace(
         )
 
 
-@pytest.mark.xfail(reason="Still converting the algorithm")
 def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     """
     Test ensuring invariance of the result upon repeated application
@@ -958,7 +958,7 @@ def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
         n_infinite=H_tilde_1.n_infinite,
     )
     compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
-    compare_series(U_2, U_target, wanted_orders)
+    compare_series(U_2, U_target, wanted_orders, atol=1e-10)
 
 
 def test_input_hamiltonian_kpm(generate_kpm_hamiltonian):
@@ -968,7 +968,7 @@ def test_input_hamiltonian_kpm(generate_kpm_hamiltonian):
     Parameters:
     -----------
     generate_kpm_hamiltonian:
-        Randomly generated Hamiltonian and its eigendeomposition.
+        Randomly generated Hamiltonian and its eigendecomposition.
     """
     hamiltonian, subspace_eigenvectors = generate_kpm_hamiltonian
     H = hamiltonian_to_BlockSeries(
