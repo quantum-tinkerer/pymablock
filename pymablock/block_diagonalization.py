@@ -458,6 +458,12 @@ def general(
         block + (0,) * H.n_infinite: H[block + (0,) * H.n_infinite]
         for block in ((0, 0), (0, 1), (1, 0), (1, 1))
     }
+    # Common series kwargs to avoid some repetition
+    series_kwargs = dict(
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
 
     implicit = isinstance(H[(1, 1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator)
     # The implicit method executes exactly the same algorithm, but with only one
@@ -478,10 +484,8 @@ def general(
         def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
             return BlockSeries(
                 eval=(lambda *index: aslinearoperator(original[index])),
-                shape=original.shape,
-                n_infinite=original.n_infinite,
-                dimension_names=original.dimension_names,
                 name=original.name,
+                **series_kwargs,
             )
 
     else:
@@ -497,33 +501,25 @@ def general(
     series["H_p"] = BlockSeries(
         eval=(lambda *index: H[index]),
         data=zero_data,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
         name="H'",
+        **series_kwargs,
     )
     series["U_p"] = BlockSeries(
         data=zero_data,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
         name="U'",
+        **series_kwargs,
     )
     series["U"] = BlockSeries(
         eval=(lambda *index: series["U_p"][index]),
         data=identity_data,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
         name="U",
+        **series_kwargs,
     )
 
     series["X"] = BlockSeries(
         data=zero_data,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
         name="X",
+        **series_kwargs,
     )
 
     series["U_p_adj"] = BlockSeries(
@@ -533,18 +529,14 @@ def general(
             else -series["U_p"][index]  # off-diagonal block is anti-Hermitian
         ),
         data=None,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
         name="U'^†",
+        **series_kwargs,
     )
     series["U_adj"] = BlockSeries(
         eval=(lambda *index: series["U_p_adj"][index]),
         data=identity_data,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
         name="U^†",
+        **series_kwargs,
     )
 
     linear_operator_series = {
@@ -631,10 +623,8 @@ def general(
     H_tilde = BlockSeries(
         eval=H_tilde_eval,
         data=H_0_data,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
         name="H_tilde",
+        **series_kwargs,
     )
 
     return H_tilde, series["U"], series["U_adj"]
