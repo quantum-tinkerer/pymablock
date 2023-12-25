@@ -62,7 +62,7 @@ Hamiltonian order by order:
 
 \begin{equation}
 \mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
-\mathcal{U} = \sum_{i=0}^\infty U_n,
+\mathcal{U} = \sum_{i=0}^\infty U_i,
 \end{equation}
 
 where $H_i$ and $U_i$ are proportional to an $i$-th order

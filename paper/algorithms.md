@@ -5,9 +5,11 @@ because the former is inefficient.**
 A common approach to construct effective Hamiltonians is to use a
 Schrieffer-Wolff transformation:
 :::{math}
-\begin{equation}
-\tilde{\mathcal{H}} = e^\mathcal{S} \mathcal{H} e^{-\mathcal{S}},
-\end{equation}
+\begin{align}
+\tilde{\mathcal{H}} = e^\mathcal{S} &\mathcal{H} e^{-\mathcal{S}}, \\
+e^{\mathcal{S}} = 1 + \mathcal{S} + \frac{1}{2!} \mathcal{S} \star \mathcal{S}
++ &\frac{1}{3!} \mathcal{S} \star \mathcal{S} \star \mathcal{S} + \cdots,
+\end{align}
 :::
 where $\mathcal{S} = \sum_n S_n$ is an antihermitian polynomial series in the
 perturbative parameter, making $e^\mathcal{S}$ a unitary transformation.
@@ -36,15 +38,24 @@ difference that is crucial for efficiency, even though the results are
 equivalent.**
 The algorithm used to block diagonalize a Hamiltonian perturbatively is,
 however, not unique.
-Alternative parametrizations of the unitary transformation $\mathcal{U}$, for example,
-using hyperbolic functions or a polynomial series directly, give rise to
-different algorithms.
-These also require solving unitarity and block diagonalization conditions,
-and achieve the same effective Hamiltonian as the Schrieffer-Wolff
-transformation
+Alternative parametrizations of the unitary transformation $\mathcal{U}$
+require solving the same unitarity and block diagonalization conditions, but
+rise to a different recursive procedure for the algorithm.
+For example, using hyperbolic functions
+\begin{equation}
+\mathcal{U} &= \cosh{\mathcal{G}} + \sinh{\mathcal{G}}, \quad
+\mathcal{G} &= \sum_{i=0}^{\infty} G_i,
+\end{equation}
+leads to recursive equations for $G_i$ that use Bernoulli numbers as
+coefficients [Shavitt1980](doi:10.1063/1.440050), while using a polynomial
+series directly
+\begin{align}
+\mathcal{U} &= \sum_{i=0}^{\infty} U_i,
+\end{align}
+gives rise to a recursive equation for $U_i$ that is free from any additional
+coefficients
 [VanVleck1929](doi:10.1103/PhysRev.33.467), [Lowdin1964](doi:10.1063/1.1724312)
-[Klein1974][doi:10.1063/1.1682018], [Suzuki1983](doi:10.1143/PTP.70.439),
-[Shavitt1980](doi:10.1063/1.440050).
+[Klein1974][doi:10.1063/1.1682018], [Suzuki1983](doi:10.1143/PTP.70.439).
 Despite the conceptual equivalence of the algorithms and the agreement of
 their results, there is a crucial difference in their computational efficiency:
 a Schrieffer-Wolff transformation has an exponential scaling with the
