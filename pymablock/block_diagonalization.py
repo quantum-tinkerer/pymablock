@@ -555,7 +555,6 @@ def general(
     needed_products = [
         (("U_p_adj", "U_p"), True),
         (("U_p_adj", "X"), False),
-        (("X", "U_p_adj"), False),
         (("U_adj", "H_p", "U"), True),
     ]
 
@@ -594,12 +593,8 @@ def general(
 
     def X_eval(*index: int) -> Any:
         if index[0] == index[1]:
-            terms = [
-                [products, linear_operator_products][index[0]][name]
-                for name in ("U_p_adj_X", "X_U_p_adj")
-            ]
-            value = terms[0][index] + terms[1][index]
-            return -safe_divide(value - Dagger(value), 4)
+            product = (products, linear_operator_products)[index[0]]["U_p_adj_X"]
+            return -safe_divide(product[index] - Dagger(product[index]), 2)
         elif index[:2] == (0, 1):
             return _zero_sum(
                 (-products["U_p_adj_X"][index], products["U_adj_H_p_U"][index])
@@ -614,6 +609,17 @@ def general(
         product = products
         if index[0] == index[1] == 1:
             product = linear_operator_products
+        if index[0] == index[1]:
+            # Because diagonal part of X is anti-Hermitian and cancels the
+            # anti-Hermitian part of U_p_adj_X, we save some computations
+            # by taking the Hermitian part of U_p_adj_X and not including X.
+            return _zero_sum(
+                (
+                    product["U_adj_H_p_U"][index],
+                    -safe_divide(product["U_p_adj_X"][index], 2),
+                    -safe_divide(Dagger(product["U_p_adj_X"][index]), 2),
+                )
+            )
         return _zero_sum(
             (
                 product["U_adj_H_p_U"][index],

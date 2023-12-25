@@ -172,51 +172,35 @@ $$
 $$
 
 Where the terms multiplied by $H_0$ cancel by unitarity.
-The expression for $\tilde{\mathcal{H}}$ does not appear Hermitian by construction, although this is an artifact of the way we eliminated $H_0$, and has no practical consequences, although it may be symmetrized for numerical stability.
+The expression for $\tilde{\mathcal{H}}$ must be Hermitian (we started with a
+Hermitian one after all).
+We can exploit this to find the recurrence relation for $\mathcal{Z}$:
 
-We compute the offdiagonal blocks of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}$ is block-diagonal, so
+$$
+0 = \tilde{\mathcal{H}}-\tilde{\mathcal{H}}^\dagger = -\mathcal{X}-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger + \mathcal{X}^\dagger\mathcal{U}'.
+$$
+
+Therefore
+
+$$
+\mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2.
+$$
+
+*This is our second secret ingredient✨*
+
+Finally, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}$ is block-diagonal and the diagonal blocks are zero, so
 
 $$
 \mathcal{Y}^{AB} = (\mathcal{Y}^{BA})^\dagger=\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}.
 $$
 
-Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack 0-th order, this defines a recurrence relation for $\mathcal{Y}$ similar to the recursive definition of $\mathcal{W}$. *This is our second secret ingredient✨*
+Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack 0-th order, this defines a recurrence relation for $\mathcal{Y}$ similar to the recursive definition of $\mathcal{W}$. *This is our last secret ingredient✨*
 
-The definition of $\mathcal{Y}$ fixes $\mathcal{V}$ as a solution of Sylvester equation:
+The final part is standard: the definition of $\mathcal{Y}$ fixes $\mathcal{V}$ as a solution of Sylvester equation:
 
 $$
 \mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB}.
 $$
-
-We are left with finding a recursive definition for $\mathcal{Z}$.
-It follows from a hard to find identity that combines ideas from the recursive
-definition of $\mathcal{U}'$ and the elimination of $H_0$ from
-$\tilde{\mathcal{H}}$:
-
-$$
-\begin{align*}
-2 \mathcal{Z}
-&= \mathcal{X} - \mathcal{X}^\dagger = \mathcal{U}'H_0 - H_0\mathcal{U}' + \mathcal{U}'^\dagger H_0 - H_0 \mathcal{U}'^\dagger\\
-&=
-    -\frac{1}{2}(\mathcal{U}'^\dagger\mathcal{U}' + \mathcal{U}'\mathcal{U}'^\dagger)H_0
-    + \frac{1}{2} H_0(\mathcal{U}'\mathcal{U}'^\dagger + \mathcal{U}'^\dagger\mathcal{U}')\\
-&=
-    -\frac{1}{2}(\mathcal{U}'^\dagger\mathcal{U}'H_0 - H_0\mathcal{U}'\mathcal{U}'^\dagger)
-    + \frac{1}{2} (-\mathcal{U}'\mathcal{U}'^\dagger H_0 + H_0\mathcal{U}'^\dagger\mathcal{U}')\\
-&=
-    -\frac{1}{2}(\mathcal{U}'^\dagger\mathcal{U}'H_0 - H_0\mathcal{U}'\mathcal{U}'^\dagger)
-    + \frac{1}{2} (-H_0\mathcal{U}'\mathcal{U}'^\dagger + \mathcal{U}'^\dagger\mathcal{U}'H_0)^\dagger\\
-&=
-    -\frac{1}{2}(\mathcal{U}'^\dagger[H_0\mathcal{U}'-\mathcal{X}] - [\mathcal{U}'H_0 + \mathcal{X}]\mathcal{U}'^\dagger)
-    + \frac{1}{2} (-[\mathcal{U}'H_0 + \mathcal{X}]\mathcal{U}'^\dagger + \mathcal{U}'^\dagger[H_0\mathcal{U}'-\mathcal{X}])^\dagger\\
-&=
-    \frac{1}{2}\{\mathcal{U}'^\dagger,\mathcal{X}\} - \textrm{h.c.}
-\end{align*}
-$$
-
-Here for the third identity we used unitarity, and in the follow-up identities we manipulated the expressions to bring $H_0$ to the middle.
-Just like before, the right hand side lacks both 0-th and $\mathbf{n}$-th order terms of individual series.
-*This is our last secret ingredient✨*
 
 ## The algorithm
 
@@ -224,7 +208,7 @@ We now have a complete algorithm:
 1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
 2. Use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$ to define diagonal blocks of $\mathcal{U}'$.
 3. Solve the Sylvester's equation $\mathcal{V}^{AB}H_0^{AA} - H_0^{BB}\mathcal{V}^{AB} = \mathcal{Y}^{AB}$ to find offdiagonal blocks of $\mathcal{U}'$.
-4. Use $\mathcal{Z} = (\{\mathcal{U}'^\dagger,\mathcal{X}\} - h.c.)/4$ for diagonal blocks of $\mathcal{X}$.
+4. Use $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2$ for diagonal blocks of $\mathcal{X}$.
 5. Use $\mathcal{Y}^{AB} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$
 6. Use $\tilde{\mathcal{H}} = H_0 + (- \mathcal{U}'^\dagger \mathcal{X} - \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})$.
 
