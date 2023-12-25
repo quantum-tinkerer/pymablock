@@ -210,7 +210,7 @@ We now have a complete algorithm:
 3. Solve the Sylvester's equation $\mathcal{V}^{AB}H_0^{AA} - H_0^{BB}\mathcal{V}^{AB} = \mathcal{Y}^{AB}$ to find offdiagonal blocks of $\mathcal{U}'$.
 4. Use $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2$ for diagonal blocks of $\mathcal{X}$.
 5. Use $\mathcal{Y}^{AB} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$
-6. Use $\tilde{\mathcal{H}} = H_0 + (- \mathcal{U}'^\dagger \mathcal{X} - \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})$.
+6. Use $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} +\textrm{h.c.})/2$.
 
 ##  How to use Pymablock on large numerical Hamiltonians?
 

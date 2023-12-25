@@ -594,7 +594,7 @@ def general(
     def X_eval(*index: int) -> Any:
         if index[0] == index[1]:
             product = (products, linear_operator_products)[index[0]]["U_p_adj_X"]
-            return -safe_divide(product[index] - Dagger(product[index]), 2)
+            return safe_divide(Dagger(product[index]) - product[index], 2)
         elif index[:2] == (0, 1):
             return _zero_sum(
                 (-products["U_p_adj_X"][index], products["U_adj_H_p_U"][index])
