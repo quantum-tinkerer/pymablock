@@ -22,8 +22,6 @@ from pymablock.series import (
     zero,
     one,
     cauchy_dot_product,
-    _zero_sum,
-    safe_divide,
 )
 
 __all__ = ["block_diagonalize", "general"]
@@ -552,7 +550,7 @@ def general(
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
             U_p_adj_U_p = [products, linear_operator_products][index[0]]["U_p_adj_U_p"]
-            return safe_divide(-U_p_adj_U_p[index], 2)
+            return _safe_divide(U_p_adj_U_p[index], -2)
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
             Y = series["X"][index]
@@ -566,10 +564,10 @@ def general(
     def X_eval(*index: int) -> Any:
         if index[0] == index[1]:
             product = (products, linear_operator_products)[index[0]]["U_p_adj_X"]
-            return safe_divide(Dagger(product[index]) - product[index], 2)
+            return _safe_divide(Dagger(product[index]) - product[index], 2)
         elif index[:2] == (0, 1):
             return _zero_sum(
-                (-products["U_p_adj_X"][index], products["U_adj_H_p_U"][index])
+                -products["U_p_adj_X"][index], products["U_adj_H_p_U"][index]
             )
         elif index[:2] == (1, 0):
             # off-diagonal of X is Hermitian
@@ -586,18 +584,16 @@ def general(
             # anti-Hermitian part of U_p_adj_X, we save some computations
             # by taking the Hermitian part of U_p_adj_X and not including X.
             return _zero_sum(
-                (
-                    product["U_adj_H_p_U"][index],
-                    -safe_divide(product["U_p_adj_X"][index], 2),
-                    -safe_divide(Dagger(product["U_p_adj_X"][index]), 2),
-                )
+                product["U_adj_H_p_U"][index],
+                _safe_divide(
+                    product["U_p_adj_X"][index] + Dagger(product["U_p_adj_X"][index]),
+                    -2,
+                ),
             )
         return _zero_sum(
-            (
-                product["U_adj_H_p_U"][index],
-                -series["X"][index],
-                -product["U_p_adj_X"][index],
-            )
+            product["U_adj_H_p_U"][index],
+            -series["X"][index],
+            -product["U_p_adj_X"][index],
         )
 
     H_tilde = BlockSeries(
@@ -1084,3 +1080,26 @@ def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
         # Use sympy three-valued logic
         if sympy.Eq(overlap, sympy.eye(all_vecs.shape[1])) == False:  # noqa: E712
             raise ValueError("Eigenvectors must be orthonormal.")
+
+
+def _zero_sum(*terms: Any) -> Any:
+    """
+    Sum that returns a singleton zero if empty and omits zero terms
+
+    Parameters
+    ----------
+    terms : Terms to sum over with zero as default value.
+
+    Returns
+    -------
+    Sum of terms, or zero if terms is empty.
+    """
+    return sum((term for term in terms if zero != term), start=zero)
+
+
+def _safe_divide(numerator, denominator):
+    """Divide unless it's impossible, then multiply by inverse."""
+    try:
+        return numerator / denominator
+    except TypeError:
+        return numerator * (1 / denominator)

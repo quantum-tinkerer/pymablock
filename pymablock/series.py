@@ -1,6 +1,6 @@
 import sys
 from operator import matmul
-from typing import Any, Optional, Callable, Union, Iterable
+from typing import Any, Optional, Callable, Union
 from secrets import token_hex
 
 if sys.version_info >= (3, 11):
@@ -67,28 +67,6 @@ class Zero:
 
 zero = Zero()
 _mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[bool])
-
-
-def _zero_sum(terms: Iterable[Any]) -> Any:
-    """
-    Sum that returns a singleton zero if empty and omits zero terms
-
-    Parameters
-    ----------
-    terms : Terms to sum over with zero as default value.
-
-    Returns
-    -------
-    Sum of terms, or zero if terms is empty.
-    """
-    return sum((term for term in terms if zero != term), start=zero)
-
-
-def safe_divide(numerator, denominator):
-    try:
-        return numerator / denominator
-    except TypeError:
-        return (1 / denominator) * numerator
 
 
 class BlockSeries:
@@ -401,8 +379,6 @@ def product_by_order(
         start, middle, *orders_1st = first_index
         orders_1st = tuple(orders_1st)
         orders_2nd = tuple(i - j for i, j in zip(orders, orders_1st))
-        if any(order < 0 for order in orders_2nd):
-            continue
         if hermitian and orders_1st > orders_2nd:
             continue
         if (other := data[1][(middle, end) + orders_2nd]) is ma.masked:
@@ -416,8 +392,8 @@ def product_by_order(
         else:
             term = operator(values[0], values[1])
         if not hermitian or orders_1st == orders_2nd:
-            result = _zero_sum((result, term))
+            result = result + term  # No += to avoid mutating data.
         else:
-            result = _zero_sum((result, term, Dagger(term)))
+            result = result + term + Dagger(term)
 
     return result
