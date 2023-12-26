@@ -327,40 +327,31 @@ def cauchy_dot_product(
         name=" @ ".join(factor.name for factor in series),
     )
 
-    if len(series) == 2:
+    # We are left to treat two cases:
+    # - A product of 2 series, whether Hermitian or not.
+    # - A product of >2 series, which is Hermitian.
 
-        def eval(*index):
-            if index[0] > index[1] and hermitian:
-                return Dagger(product[(index[1], index[0], *index[2:])])
-            return product_by_order(
-                index,
-                *series,
-                operator=operator,
-                hermitian=hermitian,
-                exclude_last=exclude_last,
-            )
-
-        product.eval = eval
-        return product
-
-    # We special case the product of >2 Hermitian series to:
-    # - Either use the Hermitian implementation if the midlle series only
-    # contains fewer than 3 terms (which is a common case)
-    # - Or otherwise fall back to the non-Hermitian implementation of the
-    # product, while still reusing off-diagonal terms. This is faster in the
+    # We optimize the product of >2 Hermitian series to:
+    # - Use the Hermitian implementation if the midlle series only
+    #   contains fewer than 3 terms (which is a common case)
+    # - Otherwise fall back to the non-Hermitian nested implementation of the
+    #   product, while still reusing off-diagonal terms. This is faster in the
     # general case.
-    nested_product = cauchy_dot_product(
-        *series,
-        operator=operator,
-        hermitian=False,
-    )
+    if len(series) > 2:
+        nested_product = cauchy_dot_product(
+            *series,
+            operator=operator,
+            hermitian=False,
+        )
+    else:
+        nested_product = None
     is_slow = False
 
     def eval(*index):
         nonlocal is_slow
-        if index[0] > index[1]:
+        if index[0] > index[1] and hermitian:
             return Dagger(product[(index[1], index[0], *index[2:])])
-        if is_slow or index[0] < index[1]:
+        if (nested_product is not None) and (is_slow or index[0] < index[1]):
             return nested_product[index]
         try:
             return product_by_order(
@@ -369,7 +360,7 @@ def cauchy_dot_product(
                 operator=operator,
                 hermitian=hermitian,
                 exclude_last=exclude_last,
-                raise_when_slow=True,
+                raise_when_slow=(len(series) > 2),
             )
         except ValueError as e:
             if e.args[0] != "Attempted to compute the product in an inefficient way.":
