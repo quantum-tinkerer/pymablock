@@ -855,7 +855,7 @@ def _dict_to_BlockSeries(
     hamiltonian: dict[tuple[int, ...], Any],
     symbols: Optional[Sequence[sympy.Symbol]] = None,
     atol: float = 1e-12,
-) -> BlockSeries:
+) -> tuple[BlockSeries, Optional[list[sympy.Symbol]]]:
     """
     Convert a dictionary of perturbations to a BlockSeries.
 
@@ -877,6 +877,9 @@ def _dict_to_BlockSeries(
     Returns
     -------
     H : `~pymablock.series.BlockSeries`
+    symbols :
+        List of symbols in the order they appear in the keys of `hamiltonian`.
+        The tuple keys of ``new_hamiltonian`` are ordered according to this list.
     """
     key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
     if any(key_types):

@@ -15,6 +15,7 @@ from pymablock.block_diagonalization import (
     solve_sylvester_direct,
     solve_sylvester_diagonal,
     hamiltonian_to_BlockSeries,
+    _dict_to_BlockSeries,
 )
 from pymablock.series import BlockSeries, cauchy_dot_product, zero, one
 
@@ -231,7 +232,7 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
 @pytest.fixture(scope="module", params=[0, 1])
 def implicit_problem(
     Ns: tuple[int, int], wanted_orders: tuple[int, ...], request: Any
-) -> tuple[Union[list, dict], np.ndarray, np.ndarray]:
+) -> tuple[list, np.ndarray, np.ndarray]:
     """
     Generate random BlockSeries Hamiltonian in the format required by the implicit
     algorithm (full Hamitonians in the (0,0) block).
@@ -247,7 +248,7 @@ def implicit_problem(
 
     Returns:
     --------
-    hamiltonian: list | dict
+    hamiltonian: list
         Unperturbed Hamiltonian and perturbation terms.
     subspace_eigenvectors: tuple
         Subspaces of the Hamiltonian.
@@ -263,7 +264,7 @@ def implicit_problem(
 
     eigs, vecs = np.linalg.eigh(h_0)
     eigs[:a_dim] -= 10
-    h_0 = vecs @ np.diag(eigs) @ Dagger(vecs)
+    h_0 = sparse.coo_matrix(vecs @ np.diag(eigs) @ Dagger(vecs))
     hamiltonian_list.append(h_0)
     hamiltonian_dict[(0,) * n_infinite] = h_0
     subspace_eigenvectors = (vecs[:, :a_dim], vecs[:, a_dim:])
@@ -855,6 +856,29 @@ def test_input_hamiltonian_implicit(implicit_problem):
             continue
         np.testing.assert_allclose(H[index], 0, atol=1e-12)
     assert isinstance(H[(1, 1) + (0,) * H.n_infinite], LinearOperator)
+
+    # Test that block_diagonalize does the same processing.
+    H_tilde, *_ = block_diagonalize(
+        hamiltonian, subspace_eigenvectors=[subspace_eigenvectors[0]]
+    )
+    # Also try that BlockSeries input works
+    if isinstance(hamiltonian, dict):
+        block_diagonalize(
+            _dict_to_BlockSeries(hamiltonian)[0],
+            subspace_eigenvectors=[subspace_eigenvectors[0]],
+        )
+    # hamiltonian is either a list or a dictionary.
+    try:
+        hamiltonian = hamiltonian[0]
+    except KeyError:
+        hamiltonian = hamiltonian[(0,) * H.n_infinite]
+    solve_sylvester = solve_sylvester_direct(hamiltonian, subspace_eigenvectors[0])
+
+    compare_series(
+        general(H, solve_sylvester=solve_sylvester)[0][0, 0],
+        H_tilde[0, 0],
+        (2,) * H.n_infinite,
+    )
 
 
 def test_input_hamiltonian_BlockSeries(H):
