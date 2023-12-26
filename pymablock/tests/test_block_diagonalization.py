@@ -79,7 +79,7 @@ def compare_series(
             )
 
 
-def is_diagonal(
+def is_diagonal_series(
     series: BlockSeries, wanted_orders: tuple[int, ...], atol=1e-10
 ) -> None:
     """
@@ -478,7 +478,7 @@ def test_H_tilde_diagonal(H: BlockSeries, wanted_orders: tuple[int, ...]) -> Non
     wanted_orders:
         orders to compute
     """
-    is_diagonal(general(H)[0], wanted_orders)
+    is_diagonal_series(general(H)[0], wanted_orders)
 
 
 def test_check_unitary(
@@ -930,7 +930,7 @@ def test_block_diagonalize_hamiltonian_diagonal(
     assert H_tilde.n_infinite == len(hamiltonian) - 1 == len(wanted_orders)
     # Default dimension names
     assert H_tilde.dimension_names == tuple(f"n_{i}" for i in range(H_tilde.n_infinite))
-    is_diagonal(H_tilde, wanted_orders)
+    is_diagonal_series(H_tilde, wanted_orders)
     is_unitary(U, U_adjoint, wanted_orders)
 
 
@@ -956,7 +956,7 @@ def test_block_diagonalize_hamiltonian_symbolic(
     assert H_tilde.shape == (2, 2)
     assert H_tilde.n_infinite == len(symbols)
     assert H_tilde.dimension_names == symbols
-    is_diagonal(H_tilde, (1,) * len(symbols))
+    is_diagonal_series(H_tilde, (1,) * len(symbols))
     is_unitary(U, U_adjoint, (1,) * len(symbols))
 
     # Test if subspace_indices are provided
@@ -967,7 +967,7 @@ def test_block_diagonalize_hamiltonian_symbolic(
     assert H_tilde.shape == (2, 2)
     assert H_tilde.n_infinite == len(symbols)
     assert H_tilde.dimension_names == symbols
-    is_diagonal(H_tilde, (1,) * len(symbols))
+    is_diagonal_series(H_tilde, (1,) * len(symbols))
     is_unitary(U, U_adjoint, (1,) * len(symbols))
 
     # Raise if eigenvectors are not orthonormal
