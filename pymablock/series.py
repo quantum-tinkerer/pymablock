@@ -290,6 +290,9 @@ def cauchy_dot_product(
 
     if operator is None:
         operator = matmul
+
+    if len(set(factor.n_infinite for factor in series)) > 1:
+        raise ValueError("Factors must have equal number of infinite dimensions.")
     if any(factor.dimension_names != series[0].dimension_names for factor in series):
         raise ValueError("All series must have the same dimension names.")
 
