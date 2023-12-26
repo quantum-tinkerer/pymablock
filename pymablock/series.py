@@ -1,6 +1,5 @@
 import sys
-from itertools import product, compress, chain
-from functools import reduce
+from itertools import compress, chain
 from operator import matmul
 from typing import Any, Optional, Callable, Union, Iterable
 from secrets import token_hex
@@ -278,95 +277,69 @@ def cauchy_dot_product(
         raise ValueError("Need at least one series to multiply")
     elif len(series) == 1:
         return series[0]
-    elif len(series) > 2 and not hermitian:
+    elif len(series) > 2:
         # Use associativity to reuse intermediate results This might be possible
         # to speed up further if series had any promises about the orders they
         # contains.
-        return cauchy_dot_product(
+        product = cauchy_dot_product(
             cauchy_dot_product(*series[:2], operator=operator),
             *series[2:],
             operator=operator,
         )
+        if not hermitian:
+            return product
+        # Same, but use Hermiticity to obtain terms with index[0] > index[1]
+        nonhermitian_eval = product.eval
+
+        def eval(*index):
+            if index[0] > index[1]:
+                return Dagger(product[(index[1], index[0], *index[2:])])
+            return nonhermitian_eval(*index)
+
+        product.eval = eval
+        return product
 
     if operator is None:
         operator = matmul
 
-    if len(set(factor.n_infinite for factor in series)) > 1:
+    first, second = series
+    if first.n_infinite != second.n_infinite:
         raise ValueError("Factors must have equal number of infinite dimensions.")
-    if any(factor.dimension_names != series[0].dimension_names for factor in series):
+    if first.dimension_names != second.dimension_names:
         raise ValueError("All series must have the same dimension names.")
 
-    starts, ends = zip(*(factor.shape for factor in series))
-    start, *rest_starts = starts
-    *rest_ends, end = ends
-    if rest_starts != rest_ends:
+    if first.shape[1] != second.shape[0]:
         raise ValueError(
             "Factors must have finite dimensions compatible with dot product."
         )
 
-    # For the last term to be included, all other terms should have a non-empty
-    # 0th order. The 0th order access below may be slightly inefficient, but in
-    # practice it doesn't matter because of caching.
-    exclude_last = [False] * len(series)
-    zero_0th_orders = [
+    # For the highest order of a factor to be included, the other factor must
+    # have at least some 0th order terms. We check this explicitly to support
+    # recurrent definitions.
+    exclude_last = [
         np.all(factor[(slice(None), slice(None)) + series[0].n_infinite * (0,)].mask)
-        for factor in series
+        for factor in (second, first)
     ]
-    for i, empty in enumerate(zero_0th_orders):
-        if not empty:
-            continue
-        for j in range(len(series)):
-            if i != j:
-                exclude_last[j] = True
 
     product = BlockSeries(
         data=None,
-        shape=(start, end),
-        n_infinite=series[0].n_infinite,
-        dimension_names=series[0].dimension_names,
-        name=" @ ".join(factor.name for factor in series),
+        shape=(first.shape[0], second.shape[1]),
+        n_infinite=first.n_infinite,
+        dimension_names=first.dimension_names,
+        name=f"{first.name} @ {second.name}",
     )
 
-    # We are left to treat two cases:
-    # - A product of 2 series, whether Hermitian or not.
-    # - A product of >2 series, which is Hermitian.
-
-    # We optimize the product of >2 Hermitian series to:
-    # - Use the Hermitian implementation if the midlle series only
-    #   contains fewer than 3 terms (which is a common case)
-    # - Otherwise fall back to the non-Hermitian nested implementation of the
-    #   product, while still reusing off-diagonal terms. This is faster in the
-    # general case.
-    if len(series) > 2:
-        nested_product = cauchy_dot_product(
-            *series,
-            operator=operator,
-            hermitian=False,
-        )
-    else:
-        nested_product = None
-    is_slow = False
-
     def eval(*index):
-        nonlocal is_slow
         if index[0] > index[1] and hermitian:
             return Dagger(product[(index[1], index[0], *index[2:])])
-        if (nested_product is not None) and (is_slow or index[0] < index[1]):
-            return nested_product[index]
-        try:
-            return product_by_order(
-                index,
-                *series,
-                operator=operator,
-                hermitian=hermitian,
-                exclude_last=exclude_last,
-                raise_when_slow=(len(series) > 2),
-            )
-        except ValueError as e:
-            if e.args[0] != "Attempted to compute the product in an inefficient way.":
-                raise
-            is_slow = True
-            return nested_product[index]
+        return product_by_order(
+            index,
+            first,
+            second,
+            operator=operator,
+            hermitian=hermitian,
+            exclude_last=exclude_last,
+        )
 
     product.eval = eval
     return product
@@ -374,11 +347,11 @@ def cauchy_dot_product(
 
 def product_by_order(
     index: tuple[int, ...],
-    *series: BlockSeries,
+    first: BlockSeries,
+    second: BlockSeries,
     operator: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: Optional[list[bool]] = None,
-    raise_when_slow: bool = False,
+    exclude_last: tuple[bool, bool] = (False, False),
 ) -> Any:
     """
     Compute sum of all product of factors of a wanted order.
@@ -387,8 +360,10 @@ def product_by_order(
     ----------
     index :
         Index of the wanted order.
-    series :
-        Series to multiply using their block structure.
+    first :
+        First factor.
+    second :
+        Second factor.
     operator :
         Function for multiplying elements of the series. Default is matrix
         multiplication matmul.
@@ -397,9 +372,6 @@ def product_by_order(
     exclude_last :
         whether to exclude last order on each term. This is useful to avoid
         infinite recursion on some algorithms.
-    raise_when_slow :
-        whether to raise an error we are computing a product of more than two
-        series, and the middle ones have more than 2 terms.
 
     Returns
     -------
@@ -410,10 +382,7 @@ def product_by_order(
         operator = matmul
     start, end, *orders = index
     hermitian = hermitian and start == end
-
-    n_infinite = series[0].n_infinite
-    if exclude_last is None:
-        exclude_last = [False] * len(series)
+    series = (first, second)
 
     # Form masked arrays with correct shapes and required elements unmasked
     data = [
@@ -424,7 +393,7 @@ def product_by_order(
         for factor in series
     ]
     data[0][np.arange(data[0].shape[0]) != start] = ma.masked
-    data[-1][:, np.arange(data[-1].shape[1]) != end] = ma.masked
+    data[1][:, np.arange(data[-1].shape[1]) != end] = ma.masked
     for values in compress(data, exclude_last):
         values[(slice(None), slice(None)) + (-1,) * len(orders)] = ma.masked
 
@@ -432,31 +401,32 @@ def product_by_order(
     for values, factor in zip(data, series):  # type: ignore
         values[ma.where(values)] = factor[ma.where(values)]
 
-    if raise_when_slow and len(series) > 2:
-        if any(np.sum(~term.mask) > 2 for term in data[1:-1]):
-            raise ValueError("Attempted to compute the product in an inefficient way.")
-
     terms = []
     daggered_terms = []
-    for combination in product(*(ma.ndenumerate(factor) for factor in data)):
-        combination = list(combination)
-        starts, ends = zip(*(key[:-n_infinite] for key, _ in combination))
-        if starts[1:] != ends[:-1]:  # type: ignore
+    for first_index, value in ma.ndenumerate(data[0]):
+        start, middle, *orders_1st = first_index
+        orders_1st = tuple(orders_1st)
+        orders_2nd = tuple(i - j for i, j in zip(orders, orders_1st))
+        if any(order < 0 for order in orders_2nd):
             continue
-        key = tuple(key[-n_infinite:] for key, _ in combination)
-        if list(map(sum, zip(*key))) != orders:  # Vector sum of key
+        if hermitian and orders_1st > orders_2nd:
             continue
-        values = [value for _, value in combination if value is not one]
-        if hermitian and key > tuple(reversed(key)):
+        if (other := data[1][(middle, end) + orders_2nd]) is ma.masked:
             continue
-        # Take care of the case when we have a product of all ones
-        term = reduce(operator, values) if values else one
-        if not hermitian or key == tuple(reversed(key)):
+        # Take care of the sentinel value one
+        values = [i for i in (value, other) if i is not one]
+        if not values:
+            term = one
+        elif len(values) == 1:
+            term = values[0]
+        else:
+            term = operator(values[0], values[1])
+        if not hermitian or orders_1st == orders_2nd:
             terms.append(term)
         else:
             daggered_terms.append(term)
+
     result = _zero_sum(daggered_terms)
-    if hermitian:
-        result = _zero_sum((result, Dagger(result)))
+    result = _zero_sum((result, Dagger(result)))
     result = _zero_sum(terms + [result])
     return result
