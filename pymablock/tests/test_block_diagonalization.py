@@ -530,8 +530,8 @@ def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     wanted_orders:
         list of wanted orders
     """
-    H_tilde_1, U_1, U_adjoint_1 = general(H)
-    H_tilde_2, U_2, U_adjoint_2 = general(H_tilde_1)
+    H_tilde_1, *_ = general(H)
+    H_tilde_2, U_2, _ = general(H_tilde_1)
 
     compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
     compare_series(U_2, identity_like(U_2), wanted_orders, atol=1e-10)

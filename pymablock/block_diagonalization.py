@@ -8,7 +8,7 @@ from copy import copy
 import numpy as np
 import sympy
 from scipy import sparse
-from sympy.physics.quantum import Dagger, Operator, HermitianOperator
+from sympy.physics.quantum import Dagger
 
 from pymablock.linalg import (
     ComplementProjector,
@@ -820,120 +820,6 @@ def solve_sylvester_direct(
 
 
 ### Auxiliary functions.
-def _commute_h0_away(
-    expr: Any, h_0_AA: Any, h_0_BB: Any, Y_data: dict[Operator, Any]
-) -> Any:
-    """
-    Simplify expression by commmuting h_0 and V using Sylvester's Equation relations.
-
-    Parameters
-    ----------
-    expr :
-        (zero or sympy) expression to simplify.
-    h_0_AA :
-        Unperturbed Hamiltonian in subspace A.
-    h_0_BB :
-        Unperturbed Hamiltonian in subspace B.
-    Y_data :
-        dictionary of ``{V: rhs}`` such that ``h_0_AA * V - V * h_0_BB = rhs``.
-
-    Returns
-    -------
-    expr : zero or sympy.expr
-        (zero or sympy) expression without ``h_0_AA`` or ``h_0_BB`` in it.
-    """
-    if zero == expr:
-        return expr
-
-    subs = {
-        **{h_0_AA * V: rhs + V * h_0_BB for V, rhs in Y_data.items()},
-        **{
-            h_0_BB * Dagger(V): -Dagger(rhs) + Dagger(V) * h_0_AA
-            for V, rhs in Y_data.items()
-        },
-    }
-
-    while (
-        any(H in expr.free_symbols for H in (h_0_AA, h_0_BB))
-        and len(expr.free_symbols) > 1
-    ):
-        expr = expr.subs(subs).expand()
-
-    return expr.expand() or zero
-
-
-def _update_subs(
-    Y_data: dict[Operator, Any],
-    subs: dict[Union[Operator, HermitianOperator], Any],
-    solve_sylvester: Callable,
-    operator: Callable,
-) -> None:
-    """
-    Store the solutions to the Sylvester equation in subs.
-
-    Parameters
-    ----------
-    Y_data :
-        dictionary of {V: rhs} such that h_0_AA * V - V * h_0_BB = rhs.
-    subs :
-        dictionary of substitutions to make.
-    solve_sylvester :
-        function to use for solving Sylvester's equation.
-    operator :
-        function to use for matrix multiplication.
-    """
-    for V, rhs in Y_data.items():
-        if V not in subs:
-            rhs = _replace(rhs, subs, operator)  # No general symbols left
-            subs[V] = solve_sylvester(rhs)
-
-
-def _replace(
-    expr: Any, subs: dict[Union[Operator, HermitianOperator], Any], operator: Callable
-) -> Any:
-    """
-    Substitute terms in an expression and multiply them accordingly.
-    Numerical prefactors are factored out of the matrix multiplication.
-
-    Parameters
-    ----------
-    expr :
-        (zero or sympy) expression in which to replace general symbols.
-    subs :
-        dictionary {symbol: value} of substitutions to make.
-    operator :
-        function to use to multiply the substituted terms.
-
-    Return
-    ------
-    zero or expr with replacements such that general symbols are not present.
-    """
-    if zero == expr:
-        return expr
-    subs = {
-        **subs,
-        **{Dagger(symbol): Dagger(expression) for symbol, expression in subs.items()},
-    }
-
-    result = []
-    for term in expr.as_ordered_terms():
-        if term.is_Mul:
-            prefactor, term = term.as_coeff_Mul()
-            numerator, denominator = sympy.fraction(prefactor)
-        else:
-            numerator = denominator = 1
-        substituted_factors = [subs[factor] for factor in term.as_ordered_factors()]
-        if any(zero == factor for factor in substituted_factors):
-            continue
-        result.append(
-            safe_divide(
-                int(numerator) * reduce(operator, substituted_factors), int(denominator)
-            )
-        )
-
-    return _zero_sum(result)
-
-
 def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     """
     Convert a list of perturbations to a dictionary.
