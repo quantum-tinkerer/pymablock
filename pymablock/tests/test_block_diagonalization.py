@@ -538,24 +538,6 @@ def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     compare_series(U_2, identity_like(U_2), wanted_orders, atol=1e-8)
 
 
-def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
-    """
-    Compute the first order correction to the Hamiltonian.
-
-    Parameters
-    ----------
-    H:
-        Hamiltonian
-    order:
-        tuple of orders to compute
-
-    Returns
-    -------
-    First order correction obtained explicitly
-    """
-    return H[(0, 0) + order]
-
-
 def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     """
     Test that the first order is computed correctly.
@@ -570,18 +552,12 @@ def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> 
     H_tilde = general(H)[0]
     Np = len(wanted_orders)
     for order in permutations((0,) * (Np - 1) + (1,)):
-        result = H_tilde[(0, 0) + order]
-        expected = compute_first_order(H, order)
-        if zero == result:
-            np.testing.assert_allclose(
-                0, expected, atol=1e-8, err_msg=f"{result=}, {expected=}"
-            )
         np.testing.assert_allclose(
-            result, expected, atol=1e-8, err_msg=f"{result=}, {expected=}"
+            H_tilde[(0, 0) + order], H[(0, 0) + order], atol=1e-8
         )
 
 
-def compute_second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
+def second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     """
     Compute the second order correction to the Hamiltonian.
 
@@ -625,14 +601,8 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     n_infinite = H.n_infinite
 
     for order in permutations((0,) * (n_infinite - 1) + (2,)):
-        result = H_tilde[(0, 0) + order]
-        expected = compute_second_order(H, order)
-        if zero == result:
-            np.testing.assert_allclose(
-                0, expected, atol=1e-8, err_msg=f"{result=}, {expected=}"
-            )
         np.testing.assert_allclose(
-            result, expected, atol=1e-8, err_msg=f"{result=}, {expected=}"
+            H_tilde[(0, 0) + order], second_order(H, order), atol=1e-8
         )
 
 
@@ -852,9 +822,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
     assert H.dimension_names == tuple(f"n_{i}" for i in range(H.n_infinite))
     for block in ((0, 1), (1, 0)):
         index = block + (0,) * H.n_infinite
-        if zero == H[index]:
-            continue
-        np.testing.assert_allclose(H[index], 0, atol=1e-12)
+        assert zero == H[index]
     assert isinstance(H[(1, 1) + (0,) * H.n_infinite], LinearOperator)
 
     # Test that block_diagonalize does the same processing.
@@ -1038,9 +1006,6 @@ def test_unknown_data_type():
 
         def __neg__(self):
             return Unknown(f"(-{self})")
-
-        def __sub__(self, other):
-            return Unknown(f"({self} - {other})")
 
     H = [
         [[Unknown("a"), zero], [zero, Unknown("b")]],
