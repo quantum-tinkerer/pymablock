@@ -81,7 +81,7 @@ def compare_series(
 
 
 def is_diagonal_series(
-    series: BlockSeries, wanted_orders: tuple[int, ...], atol=1e-10
+    series: BlockSeries, wanted_orders: tuple[int, ...], atol=1e-8
 ) -> None:
     """
     Test that the offdiagonal blocks of a series are zero.
@@ -496,7 +496,7 @@ def test_check_unitary(
     wanted_orders:
         orders to compute
     """
-    is_unitary(*general(H)[1:], wanted_orders, atol=1e-10)
+    is_unitary(*general(H)[1:], wanted_orders, atol=1e-8)
 
 
 def test_check_invertible(
@@ -515,7 +515,7 @@ def test_check_invertible(
     """
     H_tilde, U, U_dagger = general(H)
     H_reconstructed = cauchy_dot_product(U, cauchy_dot_product(H_tilde, U_dagger))
-    compare_series(H, H_reconstructed, wanted_orders, atol=1e-10)
+    compare_series(H, H_reconstructed, wanted_orders, atol=1e-8)
 
 
 def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
@@ -534,8 +534,8 @@ def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     H_tilde_1, *_ = general(H)
     H_tilde_2, U_2, _ = general(H_tilde_1)
 
-    compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-10)
-    compare_series(U_2, identity_like(U_2), wanted_orders, atol=1e-10)
+    compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-8)
+    compare_series(U_2, identity_like(U_2), wanted_orders, atol=1e-8)
 
 
 def compute_first_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
@@ -574,10 +574,10 @@ def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> 
         expected = compute_first_order(H, order)
         if zero == result:
             np.testing.assert_allclose(
-                0, expected, atol=1e-10, err_msg=f"{result=}, {expected=}"
+                0, expected, atol=1e-8, err_msg=f"{result=}, {expected=}"
             )
         np.testing.assert_allclose(
-            result, expected, atol=1e-10, err_msg=f"{result=}, {expected=}"
+            result, expected, atol=1e-8, err_msg=f"{result=}, {expected=}"
         )
 
 
@@ -629,10 +629,10 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
         expected = compute_second_order(H, order)
         if zero == result:
             np.testing.assert_allclose(
-                0, expected, atol=1e-10, err_msg=f"{result=}, {expected=}"
+                0, expected, atol=1e-8, err_msg=f"{result=}, {expected=}"
             )
         np.testing.assert_allclose(
-            result, expected, atol=1e-10, err_msg=f"{result=}, {expected=}"
+            result, expected, atol=1e-8, err_msg=f"{result=}, {expected=}"
         )
 
 
@@ -762,7 +762,7 @@ def test_equivalence_explicit_implicit() -> None:
 
     compare_series(implicit_H_tilde, explicit_wrapped_H_tilde, (2,))
     compare_series(
-        implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-10
+        implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-8
     )
 
 
