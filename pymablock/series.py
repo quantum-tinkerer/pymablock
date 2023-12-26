@@ -400,8 +400,7 @@ def product_by_order(
     for values, factor in zip(data, series):  # type: ignore
         values[ma.where(values)] = factor[ma.where(values)]
 
-    terms = []
-    daggered_terms = []
+    result = zero
     for first_index, value in ma.ndenumerate(data[0]):
         start, middle, *orders_1st = first_index
         orders_1st = tuple(orders_1st)
@@ -421,11 +420,8 @@ def product_by_order(
         else:
             term = operator(values[0], values[1])
         if not hermitian or orders_1st == orders_2nd:
-            terms.append(term)
+            result = _zero_sum((result, term))
         else:
-            daggered_terms.append(term)
+            result = _zero_sum((result, term, Dagger(term)))
 
-    result = _zero_sum(daggered_terms)
-    result = _zero_sum((result, Dagger(result)))
-    result = _zero_sum(terms + [result])
     return result
