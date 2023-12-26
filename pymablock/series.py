@@ -259,7 +259,7 @@ def cauchy_dot_product(
     Parameters
     ----------
     series :
-        Series to multiply using their block structure.
+        Series to multiply using their block structure. Must be at least two.
     operator :
         (optional) Function for multiplying elements of the series. Default is
         matrix multiplication matmul.
@@ -272,11 +272,7 @@ def cauchy_dot_product(
     `~pymablock.series.BlockSeries`
         A new series that is the Cauchy dot product of the given series.
     """
-    if not series:
-        raise ValueError("Need at least one series to multiply")
-    elif len(series) == 1:
-        return series[0]
-    elif len(series) > 2:
+    if len(series) > 2:
         # Use associativity to reuse intermediate results This might be possible
         # to speed up further if series had any promises about the orders they
         # contains.
