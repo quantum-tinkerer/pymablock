@@ -1,9 +1,14 @@
-from __future__ import annotations
+import sys
 from itertools import product, compress, chain
 from functools import reduce
 from operator import matmul
 from typing import Any, Optional, Callable, Union, Iterable
 from secrets import token_hex
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    Self = Any
 
 import numpy as np
 import numpy.ma as ma
@@ -45,7 +50,7 @@ class Zero:
     This is used to avoid having to check for zero terms in the sum.
     """
 
-    def __mul__(self, other: Any = None) -> Zero:
+    def __mul__(self, other: Any = None) -> Self:
         return self
 
     def __add__(self, other: Any) -> Any:
