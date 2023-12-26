@@ -858,9 +858,14 @@ def test_input_hamiltonian_implicit(implicit_problem):
     assert isinstance(H[(1, 1) + (0,) * H.n_infinite], LinearOperator)
 
     # Test that block_diagonalize does the same processing.
-    H_tilde, *_ = block_diagonalize(
-        hamiltonian, subspace_eigenvectors=[subspace_eigenvectors[0]]
-    )
+    try:
+        H_tilde, *_ = block_diagonalize(
+            hamiltonian, subspace_eigenvectors=[subspace_eigenvectors[0]]
+        )
+    except ImportError:
+        # We likely don't have MUMPS, let's confirm
+        pytest.importorskip("kwant.linalg.mumps", reason="mumps not installed")
+        raise
     # Also try that BlockSeries input works
     if isinstance(hamiltonian, dict):
         block_diagonalize(
