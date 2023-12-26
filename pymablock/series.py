@@ -1,5 +1,4 @@
 import sys
-from itertools import compress, chain
 from operator import matmul
 from typing import Any, Optional, Callable, Union, Iterable
 from secrets import token_hex
@@ -210,9 +209,9 @@ class BlockSeries:
         return result  # return one item
 
     def __str__(self) -> str:
-        dimensions = chain(
-            map(str, self.shape),
-            (f"{name}: ∞" for name in self.dimension_names),
+        dimensions = (
+            *map(str, self.shape),
+            *(f"{name}: ∞" for name in self.dimension_names),
         )
 
         return f"{self.name}_({' × '.join(dimensions)})"
@@ -394,8 +393,8 @@ def product_by_order(
     ]
     data[0][np.arange(data[0].shape[0]) != start] = ma.masked
     data[1][:, np.arange(data[-1].shape[1]) != end] = ma.masked
-    for values in compress(data, exclude_last):
-        values[(slice(None), slice(None)) + (-1,) * len(orders)] = ma.masked
+    for values, exclude in zip(data, exclude_last):
+        values.mask[(slice(None), slice(None)) + (-1,) * len(orders)] |= exclude
 
     # Fill these with the evaluated data
     for values, factor in zip(data, series):  # type: ignore
