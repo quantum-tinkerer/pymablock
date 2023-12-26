@@ -315,7 +315,7 @@ def cauchy_dot_product(
     for i, empty in enumerate(zero_0th_orders):
         if not empty:
             continue
-        for j in range(len(exclude_last)):
+        for j in range(len(series)):
             if i != j:
                 exclude_last[j] = True
 
