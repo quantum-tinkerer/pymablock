@@ -497,47 +497,27 @@ def general(
     # to understand otherwise. Consult the documentation in order to understand
     # the logic of what is happening.
 
-    series = {}
-    series["H_p"] = BlockSeries(
-        eval=(lambda *index: H[index]),
-        data=zero_data,
-        name="H'",
-        **series_kwargs,
-    )
-    series["U_p"] = BlockSeries(
-        data=zero_data,
-        name="U'",
-        **series_kwargs,
-    )
-    series["U"] = BlockSeries(
-        eval=(lambda *index: series["U_p"][index]),
-        data=identity_data,
-        name="U",
-        **series_kwargs,
-    )
-
-    series["X"] = BlockSeries(
-        data=zero_data,
-        name="X",
-        **series_kwargs,
-    )
-
-    series["U_p_adj"] = BlockSeries(
-        eval=(
-            lambda *index: series["U_p"][index]  # diagonal block is Hermitian
-            if index[0] == index[1]
-            else -series["U_p"][index]  # off-diagonal block is anti-Hermitian
-        ),
-        data=None,
-        name="U'^†",
-        **series_kwargs,
-    )
-    series["U_adj"] = BlockSeries(
-        eval=(lambda *index: series["U_p_adj"][index]),
-        data=identity_data,
-        name="U^†",
-        **series_kwargs,
-    )
+    series_data = {
+        "H_p": {"eval": (lambda *index: H[index]), "data": zero_data},
+        "U_p": {"data": zero_data},
+        "U": {"eval": (lambda *index: series["U_p"][index]), "data": identity_data},
+        "X": {"data": zero_data},
+        "U_p_adj": {
+            "eval": (
+                lambda *index: series["U_p"][index]
+                if index[0] == index[1]
+                else -series["U_p"][index]
+            )
+        },
+        "U_adj": {
+            "eval": (lambda *index: series["U_p_adj"][index]),
+            "data": identity_data,
+        },
+    }
+    series = {
+        key: BlockSeries(name=key, **series_kwargs, **value)
+        for key, value in series_data.items()
+    }
 
     linear_operator_series = {
         key: linear_operator_wrapped(value) for key, value in series.items()
