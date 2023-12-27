@@ -463,34 +463,6 @@ def _block_diagonalize(
         dimension_names=H.dimension_names,
     )
 
-    implicit = isinstance(H[(1, 1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator)
-    # The implicit method executes exactly the same algorithm, but with only one
-    # modification: it defines duplicates for the original series that return
-    # linear operators instead of matrices. Then whenever (1, 1) block of any
-    # matrix, including the original ones, is needed, these wrapped series are
-    # used to compute it, and otherwise the original series is used. Note that
-    # the (1, 1) block of the original series is also a linear operator.
-
-    # We handle both cases on equal footing by making the wrapper return the
-    # original series if the implicit method is not used.
-
-    # Create series wrapped in linear operators to avoid forming explicit matrices
-    if implicit:
-        if operator is not matmul:
-            raise ValueError("The implicit method only supports matrix multiplication.")
-
-        def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
-            return BlockSeries(
-                eval=(lambda *index: aslinearoperator(original[index])),
-                name=original.name,
-                **series_kwargs,
-            )
-
-    else:
-
-        def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
-            return original
-
     # The main algorithm closely follows the notation in the notes, and is hard
     # to understand otherwise. Consult the documentation in order to understand
     # the logic of what is happening.
@@ -523,10 +495,6 @@ def _block_diagonalize(
         for key, value in series_data.items()
     }
 
-    linear_operator_series = {
-        key: linear_operator_wrapped(value) for key, value in series.items()
-    }
-
     # List of products and whether they are Hermitian
     needed_products = [
         ("U'† @ U'", True),
@@ -544,24 +512,48 @@ def _block_diagonalize(
             for terms, hermitian in needed_products
         }
     )
-    if implicit:
-        linear_operator_series.update(
-            {
-                terms: cauchy_dot_product(
-                    *[linear_operator_series[term] for term in terms.split(" @ ")],
-                    operator=operator,
-                    hermitian=hermitian,
-                )
-                for terms, hermitian in needed_products
-            }
-        )
-    else:
-        linear_operator_series.update(
-            {term: series[term] for term, _ in needed_products}
+
+    # The implicit method executes exactly the same algorithm, but with only one
+    # modification: it defines duplicates for the original series that return
+    # linear operators instead of matrices. Then whenever (1, 1) block of any
+    # matrix, including the original ones, is needed, these wrapped series are
+    # used to compute it, and otherwise the original series is used. Note that
+    # the (1, 1) block of the original series is also a linear operator.
+
+    # Because BlockSeries only does anything unless it is called, we can define
+    # these duplicates without any performance penalty. If we are using explicit
+    # data, they will never be used.
+
+    if implicit := isinstance(
+        H[(1, 1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator
+    ):
+        if operator is not matmul:
+            raise ValueError("The implicit method only supports matrix multiplication.")
+
+    def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
+        return BlockSeries(
+            eval=(lambda *index: aslinearoperator(original[index])),
+            name=original.name,
+            **series_kwargs,
         )
 
+    linear_operator_series = {
+        key: linear_operator_wrapped(value) for key, value in series.items()
+    }
+
+    linear_operator_series.update(
+        {
+            terms: cauchy_dot_product(
+                *[linear_operator_series[term] for term in terms.split(" @ ")],
+                operator=operator,
+                hermitian=hermitian,
+            )
+            for terms, hermitian in needed_products
+        }
+    )
+
     def linear_operator_or_explicit(index):
-        if index[0] == index[1] == 1:
+        if index[0] == index[1] == 1 and implicit:
             return linear_operator_series
         return series
 
