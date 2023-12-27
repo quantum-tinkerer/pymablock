@@ -118,6 +118,7 @@ def identity_like(U: BlockSeries):
         shape=U.shape,
         n_infinite=U.n_infinite,
         dimension_names=U.dimension_names,
+        name="I",
     )
 
 
@@ -388,6 +389,7 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
     assert H.n_infinite == len(hamiltonian) - 1
     # Default dimension names
     assert H.dimension_names == tuple(f"n_{i}" for i in range(H.n_infinite))
+    assert H.name == "H"
     for block, eigvals in zip(((0, 0), (1, 1)), diagonals):
         index = block + (0,) * H.n_infinite
         np.testing.assert_allclose(H[index].diagonal(), eigvals)
@@ -425,6 +427,7 @@ def test_input_hamiltonian_from_subspaces():
         assert H.n_infinite == len(hamiltonian) - 1
         # Default dimension names
         assert H.dimension_names == tuple(f"n_{i}" for i in range(H.n_infinite))
+        assert H.name == "H"
         for block, eigvals in zip(((0, 0), (1, 1)), diagonals):
             index = block + (0,) * H.n_infinite
             np.testing.assert_allclose(H[index].diagonal(), eigvals)
@@ -458,6 +461,7 @@ def test_input_hamiltonian_blocks():
         assert H.n_infinite == len(hamiltonian) - 1
         # Default dimension names
         assert H.dimension_names == tuple(f"n_{i}" for i in range(H.n_infinite))
+        assert H.name == "H"
         np.testing.assert_allclose(
             H[(0, 0) + (0,) * H.n_infinite].diagonal(), np.array([-1, -1])
         )
@@ -822,6 +826,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
     assert H.n_infinite == len(hamiltonian) - 1
     # Default dimension names
     assert H.dimension_names == tuple(f"n_{i}" for i in range(H.n_infinite))
+    assert H.name == "H"
     for block in ((0, 1), (1, 0)):
         index = block + (0,) * H.n_infinite
         assert zero == H[index]
@@ -870,6 +875,7 @@ def test_input_hamiltonian_BlockSeries(H):
     assert hamiltonian.shape == H.shape
     assert hamiltonian.n_infinite == H.n_infinite
     assert hamiltonian.dimension_names == H.dimension_names
+    assert hamiltonian.name == H.name
     for block in ((0, 0), (1, 1), (0, 1), (1, 0)):
         index = block + (0,) * H.n_infinite
         if zero == H[index]:
@@ -900,6 +906,7 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
     assert H_1.shape == H_2.shape == (2, 2)
     assert H_1.n_infinite == H_2.n_infinite == len(symbols)
     assert H_1.dimension_names == H_2.dimension_names == symbols
+    assert H_1.name == H_2.name == "H"
 
     for H in (H_1, H_2):
         for block in ((0, 1), (1, 0)):
@@ -929,6 +936,7 @@ def test_block_diagonalize_hamiltonian_diagonal(
     assert H_tilde.n_infinite == len(hamiltonian) - 1 == len(wanted_orders)
     # Default dimension names
     assert H_tilde.dimension_names == tuple(f"n_{i}" for i in range(H_tilde.n_infinite))
+    assert H_tilde.name == "H_tilde"
     is_diagonal_series(H_tilde, wanted_orders)
     is_unitary(U, U_adjoint, wanted_orders)
 
@@ -955,6 +963,7 @@ def test_block_diagonalize_hamiltonian_symbolic(
     assert H_tilde.shape == (2, 2)
     assert H_tilde.n_infinite == len(symbols)
     assert H_tilde.dimension_names == symbols
+    assert H_tilde.name == "H_tilde"
     is_diagonal_series(H_tilde, (1,) * len(symbols))
     is_unitary(U, U_adjoint, (1,) * len(symbols))
 
@@ -966,6 +975,7 @@ def test_block_diagonalize_hamiltonian_symbolic(
     assert H_tilde.shape == (2, 2)
     assert H_tilde.n_infinite == len(symbols)
     assert H_tilde.dimension_names == symbols
+    assert H_tilde.name == "H_tilde"
     is_diagonal_series(H_tilde, (1,) * len(symbols))
     is_unitary(U, U_adjoint, (1,) * len(symbols))
 
@@ -1053,5 +1063,6 @@ def test_single_symbol_input():
     assert H_tilde.shape == (2, 2)
     assert H_tilde.n_infinite == 1
     assert H_tilde.dimension_names == [a]
+    assert H_tilde.name == "H_tilde"
     # Check that execution doesn't raise
     H_tilde[:, :, 3]
