@@ -34,7 +34,14 @@ $$
 where $\lambda_i$ are the perturbation parameters and $A_{n_1, n_2, \ldots,
 n_k}$ are linear operators.
 
-Series multiply according to the [Cauchy
+The problem statement, therefore, is finding $\mathcal{U}$ and
+$\tilde{\mathcal{H}}$ such that:
+
+$$
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
+$$
+
+where series multiply according to the [Cauchy
 product](https://en.wikipedia.org/wiki/Cauchy_product):
 
 $$
@@ -43,15 +50,16 @@ $$
 
 :::{admonition} Computational complexity of the Cauchy product
 :class: dropdown info
-Because the Cauchy is the main bottleneck of perturbation theory, let us discuss
-its complexity.
-Evaluating $\mathbf{n}$-th order of $\mathcal{C}$ therefore requires $\sim\prod_i
-n_i = N$ multiplications of the series elements.
-A direct computation of all the possible index combinations in a higher order
-product $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher cost $\sim N^2$,
-however if we use associativity of the product and compute this as
-$(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost stays the
-same.
+The Cauchy product is the most expensive operation in perturbation theory,
+because it involves a large number of multiplications between potentially large
+matrices, so let us discuss its complexity.
+Evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires $\sim\prod_i n_i =
+N$ multiplications of the series elements.
+A direct computation of all the possible index combinations in a product
+between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher
+cost $\sim N^2$, however if we use associativity of the product and compute
+this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost
+stays the same.
 The scaling does become slower if we need to compute a Taylor expansion of a series:
 
 $$
@@ -64,21 +72,16 @@ and reusing the previously computed results brings these costs down to $\sim
 N^2$.
 :::
 
-The problem statement, therefore, is finding $\mathcal{U}$ and
-$\tilde{\mathcal{H}}$ such that:
-
-$$
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1.
-$$
-
 There are many ways to solve this problem that give identical expressions for
 $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
 We are searching for a procedure that satisfies two additional constraints:
 - It only requires computing Cauchy products and therefore has the lowest
   possible scaling of complexity.
-- It does not require multiplications by $H_0$. This is because perturbation
-  theory terms have energies in denominators, and those must cancel with $H_0$
-  in the numerators. Muliplying by $H_0$ is therefore unnecessary work.
+- It does not require multiplications by $H_0$. This is because $n$-th order
+  corrections to $\tilde{\mathcal{H}}$ in perturbation theory carry $n$ powers
+  of energy denominators. Therefore, any additional multiplcations by $H_0$
+  must be canceled by additional energy denominators. Muliplying by $H_0$ is
+  therefore unnecessary work that gives longer intermediate expressions.
 
 ## Solution
 
