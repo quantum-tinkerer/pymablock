@@ -448,12 +448,13 @@ def _block_diagonalize(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
 
+    zeroth_order = (0,) * H.n_infinite
     zero_data = {
-        block + (0,) * H.n_infinite: zero for block in ((0, 0), (0, 1), (1, 0), (1, 1))
+        block + zeroth_order: zero for block in ((0, 0), (0, 1), (1, 0), (1, 1))
     }
-    identity_data = {block + (0,) * H.n_infinite: one for block in ((0, 0), (1, 1))}
+    identity_data = {block + zeroth_order: one for block in ((0, 0), (1, 1))}
     H_0_data = {
-        block + (0,) * H.n_infinite: H[block + (0,) * H.n_infinite]
+        block + zeroth_order: H[block + zeroth_order]
         for block in ((0, 0), (0, 1), (1, 0), (1, 1))
     }
     # Common series kwargs to avoid some repetition
@@ -524,9 +525,7 @@ def _block_diagonalize(
     # these duplicates without any performance penalty. If we are using explicit
     # data, they will never be used.
 
-    if implicit := isinstance(
-        H[(1, 1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator
-    ):
+    if implicit := isinstance(H[(1, 1) + zeroth_order], sparse.linalg.LinearOperator):
         if operator is not matmul:
             raise ValueError("The implicit method only supports matrix multiplication.")
 
