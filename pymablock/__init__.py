@@ -8,13 +8,11 @@ except ImportError:
 
 from .block_diagonalization import (
     block_diagonalize,
-    general,
 )
 from . import series
 
 __all__ = [
     "block_diagonalize",
-    "general",
     "series",
     "__version__",
     "__version_tuple__",

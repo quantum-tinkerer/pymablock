@@ -24,7 +24,7 @@ from pymablock.series import (
     cauchy_dot_product,
 )
 
-__all__ = ["block_diagonalize", "general"]
+__all__ = ["block_diagonalize"]
 
 # Common types
 Eigenvectors = tuple[Union[np.ndarray, sympy.Matrix], ...]
@@ -216,7 +216,7 @@ def block_diagonalize(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H, atol))
 
-    return general(
+    return _block_diagonalize(
         H,
         solve_sylvester=solve_sylvester,
         operator=operator,
@@ -405,7 +405,7 @@ def hamiltonian_to_BlockSeries(
 
 
 ### Block diagonalization algorithms
-def general(
+def _block_diagonalize(
     H: BlockSeries,
     solve_sylvester: Optional[Callable] = None,
     *,
