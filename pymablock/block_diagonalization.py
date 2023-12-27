@@ -8,7 +8,7 @@ from copy import copy
 import numpy as np
 import sympy
 from scipy import sparse
-from sympy.physics.quantum import Dagger, Operator, HermitianOperator
+from sympy.physics.quantum import Dagger
 
 from pymablock.linalg import (
     ComplementProjector,
@@ -22,11 +22,9 @@ from pymablock.series import (
     zero,
     one,
     cauchy_dot_product,
-    _zero_sum,
-    safe_divide,
 )
 
-__all__ = ["block_diagonalize", "general", "expanded", "symbolic", "implicit"]
+__all__ = ["block_diagonalize"]
 
 # Common types
 Eigenvectors = tuple[Union[np.ndarray, sympy.Matrix], ...]
@@ -36,7 +34,6 @@ Eigenvectors = tuple[Union[np.ndarray, sympy.Matrix], ...]
 def block_diagonalize(
     hamiltonian: Union[list, dict, BlockSeries, sympy.Matrix],
     *,
-    algorithm: Optional[str] = None,
     solve_sylvester: Optional[Callable] = None,
     subspace_eigenvectors: Optional[Eigenvectors] = None,
     subspace_indices: Optional[Union[tuple[int, ...], np.ndarray]] = None,
@@ -59,10 +56,6 @@ def block_diagonalize(
     brings it to the eigenbasis of the unperturbed Hamiltonian if the blocks,
     eigenvectors or indices of the eigenvalues are provided, see below.
 
-    The block diagonalization is performed using the `expanded` or `general`
-    algorithm. The former is better suited for lower order numerical
-    calculations and symbolic ones. The latter is better suited for higher
-    order or numerical calculations.
 
     For large numerical calculations with a sparse Hamiltonian and a low
     dimensional relevant subspace, the algorithm uses an implicit representation
@@ -105,9 +98,6 @@ def block_diagonalize(
             ``symbols`` to the desired order.
         - A `~pymablock.series.BlockSeries`,
             returned unchanged.
-    algorithm :
-        Name of the function that block diagonalizes the Hamiltonian.
-        Options are "general" and "expanded".
     solve_sylvester :
         A function that solves the Sylvester equation. If not provided,
         it is selected automatically based on the inputs.
@@ -226,18 +216,7 @@ def block_diagonalize(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H, atol))
 
-    if algorithm is None:
-        # symbolic expressions benefit from no H_0 in numerators
-        algorithm = "expanded" if H.dimension_names != () else "general"
-    if algorithm not in ("general", "expanded"):
-        raise ValueError(f"Unknown algorithm: {algorithm}")
-    if use_implicit:
-        return implicit(
-            H,
-            solve_sylvester=solve_sylvester,
-            algorithm=algorithm,
-        )
-    return _algorithms[algorithm](
+    return _block_diagonalize(
         H,
         solve_sylvester=solve_sylvester,
         operator=operator,
@@ -376,6 +355,7 @@ def hamiltonian_to_BlockSeries(
             shape=(2, 2),
             n_infinite=hamiltonian.n_infinite,
             dimension_names=symbols,
+            name="H",
         )
         return H
 
@@ -418,13 +398,14 @@ def hamiltonian_to_BlockSeries(
         shape=(2, 2),
         n_infinite=hamiltonian.n_infinite,
         dimension_names=symbols,
+        name="H",
     )
 
     return H
 
 
 ### Block diagonalization algorithms
-def general(
+def _block_diagonalize(
     H: BlockSeries,
     solve_sylvester: Optional[Callable] = None,
     *,
@@ -437,10 +418,8 @@ def general(
     It computes them order by order by imposing unitarity and the
     block-diagonality of the transformed Hamiltonian.
 
-    The computational cost of this algorithm scales favorably with the order
-    of the perturbation. However, it performs unnecessary matrix products at
-    lowest orders, and keeps the unperturbed Hamiltonian in the numerator. This
-    makes this algorithm better suited for higher order numerical calculations.
+    If the BB block of the Hamiltonian is a linear operator, the algorithm
+    avoids forming the full matrices in the BB space.
 
     Parameters
     ----------
@@ -469,309 +448,168 @@ def general(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
 
-    # Initialize the transformation as the identity operator
-    U = BlockSeries(
-        data={block + (0,) * H.n_infinite: one for block in ((0, 0), (1, 1))},
+    zeroth_order = (0,) * H.n_infinite
+    zero_data = {
+        block + zeroth_order: zero for block in ((0, 0), (0, 1), (1, 0), (1, 1))
+    }
+    identity_data = {block + zeroth_order: one for block in ((0, 0), (1, 1))}
+    H_0_data = {
+        block + zeroth_order: H[block + zeroth_order]
+        for block in ((0, 0), (0, 1), (1, 0), (1, 1))
+    }
+    # Common series kwargs to avoid some repetition
+    series_kwargs = dict(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
     )
 
-    U_adjoint = BlockSeries(
-        eval=(
-            lambda *index: U[index]  # diagonal block is Hermitian
-            if index[0] == index[1]
-            else -U[index]  # off-diagonal block is anti-Hermitian
-        ),
-        data=None,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
+    # The main algorithm closely follows the notation in the notes, and is hard
+    # to understand otherwise. Consult the docs/source/algorithms.md in order to
+    # understand the logic of what is happening.
+
+    series_data = {
+        # Only perturbative parts of H
+        "H'": {"eval": (lambda *index: H[index]), "data": zero_data},
+        # Only perturbative parts of the unitary transformation
+        "U'": {"data": zero_data},
+        # Full unitary transformation
+        "U": {"eval": (lambda *index: series["U'"][index]), "data": identity_data},
+        # Diagonal parts of U' are Hermitian, off-diagonal parts are anti-Hermitian
+        "U'†": {
+            "eval": (
+                lambda *index: series["U'"][index]
+                if index[0] == index[1]
+                else -series["U'"][index]
+            )
+        },
+        "U†": {
+            "eval": (lambda *index: series["U'†"][index]),
+            "data": identity_data,
+        },
+        # X = [U', H_0], computed using a recurrent relation. Diagonal parts are
+        # anti-Hermitian, off-diagonal parts are Hermitian.
+        "X": {"data": zero_data},
+    }
+    series = {
+        key: BlockSeries(name=key, **series_kwargs, **value)
+        for key, value in series_data.items()
+    }
+
+    # List of products and whether they are Hermitian
+    needed_products = [
+        ("U'† @ U'", True),
+        ("U'† @ X", False),
+        ("U† @ H' @ U", True),
+    ]
+
+    series.update(
+        {
+            terms: cauchy_dot_product(
+                *[series[term] for term in terms.split(" @ ")],
+                operator=operator,
+                hermitian=hermitian,
+            )
+            for terms, hermitian in needed_products
+        }
     )
 
-    # Uncorrected identity and H_tilde to compute U
-    identity = cauchy_dot_product(
-        U_adjoint, U, operator=operator, hermitian=True, exclude_last=[True, True]
+    # The implicit method executes exactly the same algorithm, but with only one
+    # modification: it defines duplicates for the original series that return
+    # linear operators instead of matrices. Then whenever (1, 1) block of any
+    # matrix, including the original ones, is needed, these wrapped series are
+    # used to compute it, and otherwise the original series is used. Note that
+    # the (1, 1) block of the original series is also a linear operator.
+
+    # Because BlockSeries only does anything unless it is called, we can define
+    # these duplicates without any performance penalty. If we are using explicit
+    # data, they will never be used.
+
+    if implicit := isinstance(H[(1, 1) + zeroth_order], sparse.linalg.LinearOperator):
+        if operator is not matmul:
+            raise ValueError("The implicit method only supports matrix multiplication.")
+
+    def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
+        return BlockSeries(
+            eval=(lambda *index: aslinearoperator(original[index])),
+            name=original.name,
+            **series_kwargs,
+        )
+
+    linear_operator_series = {
+        key: linear_operator_wrapped(value) for key, value in series.items()
+    }
+
+    linear_operator_series.update(
+        {
+            terms: cauchy_dot_product(
+                *[linear_operator_series[term] for term in terms.split(" @ ")],
+                operator=operator,
+                hermitian=hermitian,
+            )
+            for terms, hermitian in needed_products
+        }
     )
 
-    H_tilde_rec = cauchy_dot_product(
-        U_adjoint,
-        H,
-        U,
-        operator=operator,
-        hermitian=True,
-        exclude_last=[True, False, True],
-    )
+    def linear_operator_or_explicit(index):
+        if index[0] == index[1] == 1 and implicit:
+            return linear_operator_series
+        return series
 
-    def eval(*index: int) -> Any:
+    def U_p_eval(*index: int) -> Any:
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
-            return safe_divide(-identity[index], 2)
+            U_p_adj_U_p = linear_operator_or_explicit(index)["U'† @ U'"]
+            return _safe_divide(U_p_adj_U_p[index], -2)
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
-            Y = H_tilde_rec[index]
+            Y = series["X"][index]
             return -solve_sylvester(Y) if zero != Y else zero
         elif index[:2] == (1, 0):
             # off-diagonal of U is anti-Hermitian
-            return -Dagger(U[(0, 1) + tuple(index[2:])])
+            return -Dagger(series["U'"][(0, 1) + tuple(index[2:])])
 
-    U.eval = eval
+    series["U'"].eval = U_p_eval
 
-    H_tilde = cauchy_dot_product(U_adjoint, H, U, operator=operator, hermitian=True)
-    return H_tilde, U, U_adjoint
+    def X_eval(*index: int) -> Any:
+        if index[0] == index[1]:
+            product = linear_operator_or_explicit(index)["U'† @ X"]
+            return _safe_divide(Dagger(product[index]) - product[index], 2)
+        elif index[:2] == (0, 1):
+            return _zero_sum(-series["U'† @ X"][index], series["U† @ H' @ U"][index])
+        elif index[:2] == (1, 0):
+            # off-diagonal of X is Hermitian
+            return Dagger(series["X"][(0, 1) + tuple(index[2:])])
 
+    series["X"].eval = X_eval
 
-def symbolic(
-    H: BlockSeries,
-) -> tuple[
-    BlockSeries, BlockSeries, BlockSeries, dict[Operator, Any], dict[Operator, Any]
-]:
-    """
-    General symbolic algorithm for block diagonalizing a Hamiltonian.
-
-    This function uses symbolic algebra to compute the block diagonalization,
-    producing formulas that contain the orders of the perturbation and the
-    off-diagonal blocks of the unitary transformation ``U``.
-
-    This function is general, therefore the solutions to the Sylvester equation
-    are not computed. Instead, the solutions are stored in a dictionary that
-    is updated whenever new terms of the Hamiltonian are evaluated.
-
-    Parameters
-    ----------
-    H :
-        The perturbed Hamiltonian. The algorithm only checks which terms are present in
-        the Hamiltonian, but does not substitute them.
-
-    Returns
-    -------
-    H_tilde : `~pymablock.series.BlockSeries`
-        Symbolic diagonalized Hamiltonian.
-    U : `~pymablock.series.BlockSeries`
-        Symbolic unitary matrix that block diagonalizes H such that
-        ``U * H * U^H = H_tilde``.
-    U_adjoint : `~pymablock.series.BlockSeries`
-        Symbolic adjoint of ``U``. Its diagonal blocks are Hermitian and its
-        off-diagonal blocks (``V``) are anti-Hermitian.
-    Y_data : `dict`
-        dictionary of ``{V: rhs}`` such that ``h_0_AA * V - V * h_0_BB = rhs``.
-        It is updated whenever new terms of ``H_tilde`` or ``U`` are evaluated.
-    subs : `dict`
-        Dictionary with placeholder symbols as keys and original Hamiltonian
-        terms as values.
-    """
-    subs = {}
-
-    # Initialize symbols for terms in H. Ensure that H_0 is there.
-    h_0_indices = [(i, i) + (0,) * H.n_infinite for i in range(2)]
-
-    def placeholder_eval(*index):
-        if zero == (actual_value := H[index]) and index not in h_0_indices:
-            return zero
-        operator_type = HermitianOperator if index[0] == index[1] else Operator
-        placeholder = operator_type(f"H_{{{index}}}")
-        subs[placeholder] = actual_value
-        return placeholder
-
-    H_placeholder = BlockSeries(
-        eval=placeholder_eval,
-        shape=H.shape,
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
-    )
-    h_0 = [H_placeholder[index] for index in h_0_indices]
-
-    # Solve for symbols representing H and V (off-diagonal block of U)
-    H_tilde, U, U_adjoint = general(
-        H_placeholder, solve_sylvester=(lambda x: x), operator=mul
-    )
-
-    Y_data = {}
-
-    old_U_eval = U.eval
-
-    def U_eval(*index):
-        if index[:2] == (0, 1):
-            V = Operator(f"V_{{{index[2:]}}}")
-            # Apply h_0_AA * V - V * h_0_BB = rhs to eliminate h_0 terms
-            Y = _commute_h0_away(old_U_eval(*index), *h_0, Y_data)
-            if zero == Y:
-                return zero
-            Y_data[V] = Y
-            return V
-        return old_U_eval(*index)
-
-    U.eval = U_eval
-
-    old_H_tilde_eval = H_tilde.eval
-
-    def H_tilde_eval(*index):
-        return _commute_h0_away(old_H_tilde_eval(*index), *h_0, Y_data)
-
-    H_tilde.eval = H_tilde_eval
-
-    return H_tilde, U, U_adjoint, Y_data, subs
-
-
-def expanded(
-    H: BlockSeries,
-    solve_sylvester: Optional[Callable] = None,
-    *,
-    operator: Optional[Callable] = None,
-) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """
-    Algorithm for computing block diagonalization of a Hamiltonian.
-
-    Unlike the `general` algorithm, this algorithm does not perform
-    multiplications by the unperturbed Hamiltonian. This comes at the cost of
-    needing exponentially many matrix multiplications at higher orders.
-    This makes this algorithm better suited for lower orders numerical
-    calculations and symbolic ones.
-
-    Parameters
-    ----------
-    H :
-        Initial Hamiltonian, unperturbed and perturbation.
-    solve_sylvester :
-        Function to use for solving Sylvester's equation.
-        Defaults to a function that works for diagonal unperturbed Hamiltonians.
-    operator :
-        Function to use for matrix multiplication.
-        Defaults to ``matmul``.
-
-    Returns
-    -------
-    H_tilde : `~pymablock.series.BlockSeries`
-        Diagonalized Hamiltonian.
-    U : `~pymablock.series.BlockSeries`
-        Unitary matrix that block diagonalizes H such that
-        ``U * H * U^H = H_tilde``.
-    U_adjoint : `~pymablock.series.BlockSeries`
-        Adjoint of ``U``.
-    """
-    if operator is None:
-        operator = matmul
-
-    if solve_sylvester is None:
-        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
-
-    H_tilde_s, U_s, _, Y_data, subs = symbolic(H)
-    _, U, U_adjoint = general(H, solve_sylvester=solve_sylvester, operator=operator)
-
-    def H_tilde_eval(*index):
-        H_tilde = H_tilde_s[index]
-        _update_subs(Y_data, subs, solve_sylvester, operator)
-        return _replace(H_tilde, subs, operator)
-
-    H_tilde = BlockSeries(
-        eval=H_tilde_eval,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
-    )
-
-    old_U_eval = U.eval
-
-    def U_eval(*index):
-        if index[:2] == (0, 1):
-            U_s[index]  # Update Y_data
-            _update_subs(Y_data, subs, solve_sylvester, operator)
-            return subs.get(Operator(f"V_{{{index[2:]}}}"), zero)
-        return old_U_eval(*index)
-
-    U.eval = U_eval
-
-    return H_tilde, U, U_adjoint
-
-
-_algorithms = {"general": general, "expanded": expanded}
-
-
-def implicit(
-    H: BlockSeries,
-    solve_sylvester: Callable,
-    algorithm: str = "general",
-) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """
-    Block diagonalize a Hamiltonian without explicitly forming BB matrices.
-
-    This function uses either the `general` or `expanded` algorithm to block
-    diagonalize, but does not compute products within the B (auxiliary)
-    subspace. Instead these matrices are wrapped in
-    `~scipy.sparse.linalg.LinearOperator` and combined to keep them low rank.
-
-    This function is useful for large numeric Hamiltonians where the effective
-    subspace is small, but the full Hamiltonian is large.
-
-    Parameters
-    ----------
-    H :
-        Full Hamiltonian of the system.
-    solve_sylvester :
-        Function to use for solving Sylvester's equation.
-    algorithm :
-        Algorithm to use for diagonalization. One of "general", "expanded".
-        The "general" (default) is faster in higher orders.
-
-    Returns
-    -------
-    H_tilde : `~pymablock.series.BlockSeries`
-        Full block-diagonalized Hamiltonian of the problem. The ``(0, 0)`` block
-        (A subspace) is a numpy array, while the ``(1, 1)`` block (B subspace)
-        is a `~scipy.sparse.linalg.LinearOperator`.
-    U : `~pymablock.series.BlockSeries`
-        Unitary that block diagonalizes the initial Hamiltonian.
-    U_adjoint : `~pymablock.series.BlockSeries`
-        Adjoint of ``U``.
-    """
-    if algorithm not in _algorithms:
-        raise ValueError(f"Unsupported algorithm: {algorithm}")
-    algorithm = _algorithms[algorithm]
-    H_tilde_temporary, U, U_adjoint = algorithm(H, solve_sylvester=solve_sylvester)
-
-    # Create series wrapped in linear operators to avoid forming explicit matrices
-    def linear_operator_wrapped(original):
-        return lambda *index: aslinearoperator(original[index])
-
-    H_operator, U_operator, U_adjoint_operator = (
-        BlockSeries(
-            eval=linear_operator_wrapped(original),
-            shape=(2, 2),
-            n_infinite=H.n_infinite,
-            dimension_names=original.dimension_names,
+    def H_tilde_eval(*index: int) -> Any:
+        series = linear_operator_or_explicit(index)
+        if index[0] == index[1]:
+            # Because diagonal part of X is anti-Hermitian and cancels the
+            # anti-Hermitian part of U'† @ X, we save some computations
+            # by taking the Hermitian part of U'† @ X and not including X.
+            return _zero_sum(
+                series["U† @ H' @ U"][index],
+                _safe_divide(
+                    series["U'† @ X"][index] + Dagger(series["U'† @ X"][index]),
+                    -2,
+                ),
+            )
+        return _zero_sum(
+            series["U† @ H' @ U"][index],
+            -series["X"][index],
+            -series["U'† @ X"][index],
         )
-        for original in (H, U, U_adjoint)
-    )
-    identity = cauchy_dot_product(
-        U_operator, U_adjoint_operator, hermitian=True, exclude_last=[True, True]
-    )
-
-    old_U_eval = U.eval
-
-    def U_eval(*index):
-        if index[:2] == (1, 1):
-            return safe_divide(-identity[index], 2)
-        return old_U_eval(*index)
-
-    U.eval = U_eval
-
-    H_tilde_operator = cauchy_dot_product(
-        U_adjoint_operator, H_operator, U_operator, hermitian=True
-    )
-
-    def H_tilde_eval(*index):
-        if index[:2] == (1, 1):
-            return H_tilde_operator[index]
-        return H_tilde_temporary[index]
 
     H_tilde = BlockSeries(
         eval=H_tilde_eval,
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
+        data=H_0_data,
+        name="H_tilde",
+        **series_kwargs,
     )
 
-    return H_tilde, U, U_adjoint
+    return H_tilde, series["U"], series["U†"]
 
 
 ### Different formats and algorithms of solving Sylvester equation.
@@ -964,120 +802,6 @@ def solve_sylvester_direct(
 
 
 ### Auxiliary functions.
-def _commute_h0_away(
-    expr: Any, h_0_AA: Any, h_0_BB: Any, Y_data: dict[Operator, Any]
-) -> Any:
-    """
-    Simplify expression by commmuting h_0 and V using Sylvester's Equation relations.
-
-    Parameters
-    ----------
-    expr :
-        (zero or sympy) expression to simplify.
-    h_0_AA :
-        Unperturbed Hamiltonian in subspace A.
-    h_0_BB :
-        Unperturbed Hamiltonian in subspace B.
-    Y_data :
-        dictionary of ``{V: rhs}`` such that ``h_0_AA * V - V * h_0_BB = rhs``.
-
-    Returns
-    -------
-    expr : zero or sympy.expr
-        (zero or sympy) expression without ``h_0_AA`` or ``h_0_BB`` in it.
-    """
-    if zero == expr:
-        return expr
-
-    subs = {
-        **{h_0_AA * V: rhs + V * h_0_BB for V, rhs in Y_data.items()},
-        **{
-            h_0_BB * Dagger(V): -Dagger(rhs) + Dagger(V) * h_0_AA
-            for V, rhs in Y_data.items()
-        },
-    }
-
-    while (
-        any(H in expr.free_symbols for H in (h_0_AA, h_0_BB))
-        and len(expr.free_symbols) > 1
-    ):
-        expr = expr.subs(subs).expand()
-
-    return expr.expand() or zero
-
-
-def _update_subs(
-    Y_data: dict[Operator, Any],
-    subs: dict[Union[Operator, HermitianOperator], Any],
-    solve_sylvester: Callable,
-    operator: Callable,
-) -> None:
-    """
-    Store the solutions to the Sylvester equation in subs.
-
-    Parameters
-    ----------
-    Y_data :
-        dictionary of {V: rhs} such that h_0_AA * V - V * h_0_BB = rhs.
-    subs :
-        dictionary of substitutions to make.
-    solve_sylvester :
-        function to use for solving Sylvester's equation.
-    operator :
-        function to use for matrix multiplication.
-    """
-    for V, rhs in Y_data.items():
-        if V not in subs:
-            rhs = _replace(rhs, subs, operator)  # No general symbols left
-            subs[V] = solve_sylvester(rhs)
-
-
-def _replace(
-    expr: Any, subs: dict[Union[Operator, HermitianOperator], Any], operator: Callable
-) -> Any:
-    """
-    Substitute terms in an expression and multiply them accordingly.
-    Numerical prefactors are factored out of the matrix multiplication.
-
-    Parameters
-    ----------
-    expr :
-        (zero or sympy) expression in which to replace general symbols.
-    subs :
-        dictionary {symbol: value} of substitutions to make.
-    operator :
-        function to use to multiply the substituted terms.
-
-    Return
-    ------
-    zero or expr with replacements such that general symbols are not present.
-    """
-    if zero == expr:
-        return expr
-    subs = {
-        **subs,
-        **{Dagger(symbol): Dagger(expression) for symbol, expression in subs.items()},
-    }
-
-    result = []
-    for term in expr.as_ordered_terms():
-        if term.is_Mul:
-            prefactor, term = term.as_coeff_Mul()
-            numerator, denominator = sympy.fraction(prefactor)
-        else:
-            numerator = denominator = 1
-        substituted_factors = [subs[factor] for factor in term.as_ordered_factors()]
-        if any(zero == factor for factor in substituted_factors):
-            continue
-        result.append(
-            safe_divide(
-                int(numerator) * reduce(operator, substituted_factors), int(denominator)
-            )
-        )
-
-    return _zero_sum(result)
-
-
 def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     """
     Convert a list of perturbations to a dictionary.
@@ -1113,7 +837,7 @@ def _dict_to_BlockSeries(
     hamiltonian: dict[tuple[int, ...], Any],
     symbols: Optional[Sequence[sympy.Symbol]] = None,
     atol: float = 1e-12,
-) -> BlockSeries:
+) -> tuple[BlockSeries, Optional[list[sympy.Symbol]]]:
     """
     Convert a dictionary of perturbations to a BlockSeries.
 
@@ -1135,6 +859,9 @@ def _dict_to_BlockSeries(
     Returns
     -------
     H : `~pymablock.series.BlockSeries`
+    symbols :
+        List of symbols in the order they appear in the keys of `hamiltonian`.
+        The tuple keys of ``new_hamiltonian`` are ordered according to this list.
     """
     key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
     if any(key_types):
@@ -1155,6 +882,7 @@ def _dict_to_BlockSeries(
         shape=(),
         n_infinite=n_infinite,
         dimension_names=symbols,
+        name="H",
     )
     return H_temporary, symbols
 
@@ -1241,6 +969,7 @@ def _sympy_to_BlockSeries(
         shape=(),
         n_infinite=len(symbols),
         dimension_names=symbols,
+        name="H",
     )
     return H
 
@@ -1357,3 +1086,26 @@ def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
         # Use sympy three-valued logic
         if sympy.Eq(overlap, sympy.eye(all_vecs.shape[1])) == False:  # noqa: E712
             raise ValueError("Eigenvectors must be orthonormal.")
+
+
+def _zero_sum(*terms: Any) -> Any:
+    """
+    Sum that returns a singleton zero if empty and omits zero terms
+
+    Parameters
+    ----------
+    terms : Terms to sum over with zero as default value.
+
+    Returns
+    -------
+    Sum of terms, or zero if terms is empty.
+    """
+    return sum((term for term in terms if zero != term), start=zero)
+
+
+def _safe_divide(numerator, denominator):
+    """Divide unless it's impossible, then multiply by inverse."""
+    try:
+        return numerator / denominator
+    except TypeError:
+        return numerator * (1 / denominator)

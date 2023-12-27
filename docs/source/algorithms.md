@@ -10,186 +10,124 @@ kernelspec:
   language: python
   name: python3
 ---
-# The algorithms
+# The algorithm
 
-The algorithms of Pymablock rely on decomposing $U$, the unitary transformation
-that block diagonalizes the Hamiltonian, as a series of Hermitian
-block diagonal $W$ and skew-Hermitian and block off-diagonal $V$ terms.
-The transformed Hamiltonian is a
-[Cauchy product](https://en.wikipedia.org/wiki/Cauchy_product)
-between the series of $U^\dagger$, $H$, and $U$.
+## Problem formulation
 
-For brevity we use a single first order perturbation $H_1$ throughout this
-document. The generalization to multiple perturbations is straightforward.
+Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use
+callilgraphic letters to denote series) that block-diagonalizes the Hamiltonian
 
-The transformed Hamiltonian at order $n$ is
+$$
+\mathcal{H} = H_0 + \mathcal{H}',\quad H_0 = \begin{pmatrix}
+H_0^{AA} & 0\\
+0 & H_0^{BB}
+\end{pmatrix},
+$$
 
-:::{math}
-:label: h_tilde
-\begin{align}
-\tilde{H}_{n} = \sum_{i=0}^n (W_{n-i} - V_{n-i}) H_0 (W_i + V_i) +
-\sum_{i=0}^{n-1} (W_{n-i-1} - V_{n-i-1}) H_1 (W_i + V_i).
-\end{align}
-:::
+with $\mathcal{H}'$ containing an arbitrary number and orders of perturbations.
+The series here may be multivariate, and they represent sums of the form
 
-To block diagonalize $H_0 + H_1$, Pymablock finds the orders of $W$
-such that $U$ is unitary
+$$
+\mathcal{A} = \sum_{n_1=0}^\infty \sum_{n_2=0}^\infty \cdots \sum_{n_k=0}^\infty \lambda_1^{n_1} \lambda_2^{n_2} \cdots \lambda_k^{n_k} A_{n_1, n_2, \ldots, n_k},
+$$
 
-:::{math}
-:label: unitarity
-\begin{equation}
-W_{n} = - \frac{1}{2} \sum_{i=1}^{n-1}(W_{n-i}W_i - V_{n-i}V_i),
-\end{equation}
-:::
+where $\lambda_i$ are the perturbation parameters and $A_{n_1, n_2, \ldots,
+n_k}$ are linear operators.
 
-:::{admonition} Derivation
+Series multiply according to the [Cauchy
+product](https://en.wikipedia.org/wiki/Cauchy_product):
+
+$$
+\mathcal{C} = \mathcal{A}\mathcal{B} \Leftrightarrow C_\mathbf{n} = \sum_{\mathbf{m} + \mathbf{p} = \mathbf{n}} A_\mathbf{m} B_\mathbf{p}.
+$$
+
+:::{admonition} Computational complexity of the Cauchy product
 :class: dropdown info
-We evaluate the series
-$U^\dagger U + UU^\dagger=2$ and use that $W=W^\dagger$ and $V=-V^\dagger$ to obtain
+Because the Cauchy is the main bottleneck of perturbation theory, let us discuss
+its complexity.
+Evaluating $\mathbf{n}$-th order of $\mathcal{C}$ therefore requires $\sim\prod_i
+n_i = N$ multiplications of the series elements.
+A direct computation of all the possible index combinations in a higher order
+product $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher cost $\sim N^2$,
+however if we use associativity of the product and compute this as
+$(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost stays the
+same.
+The scaling does become slower if we need to compute a Taylor expansion of a series:
 
-```{math}
-\begin{equation}
-\sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i + V_i) +
-(W_{n-i} + V_{n-i})(W_i - V_i)\right] = 0.\\
-\end{equation}
-```
-Using that $W_0=1$, $V_0=0$, expanding, and solving for $W_n$ gives the Eq. {eq}`unitarity`.
+$$
+f(\mathcal{A}) = \sum_{n=0}^\infty a_n \mathcal{A}^n.
+$$
+
+Once again, a direct computation would require $\sim \exp N$ multiplications,
+however defining new series as $\mathcal{A}^{n+1} = \mathcal{A}\mathcal{A}^{n}$
+and reusing the previously computed results brings these costs down to $\sim
+N^2$.
 :::
 
-and the orders of $V$ by requiring that $\tilde{H}^{AB}_n=0$
+The problem statement, therefore, is finding $\mathcal{U}$ and
+$\tilde{\mathcal{H}}$ such that:
 
-```{math}
-:label: sylvester
-H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}.
-```
+$$
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1.
+$$
 
-This is known as [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation)
-and $Y_{n}$ is a combination of lower order terms in $H$ and $U$.
+There are many ways to solve this problem that give identical expressions for
+$\mathcal{U}$ and $\tilde{\mathcal{H}}$.
+We are searching for a procedure that satisfies two additional constraints:
+- It only requires computing Cauchy products and therefore has the lowest
+  possible scaling of complexity.
+- It does not require multiplications by $H_0$. This is because perturbation
+  theory terms have energies in denominators, and those must cancel with $H_0$
+  in the numerators. Muliplying by $H_0$ is therefore unnecessary work.
 
-::::{admonition} Full expression
-:class: dropdown info
-The full expression for $Y_n$ is cumbersome already in our simplest case:
+## Solution
 
-:::{math}
-:label: y_n
-\begin{align}
-Y_n=&-
-\sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB}
-H_0^{BB}W_i^{BB}\right] \\
-&-\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}H_1^{AA}V_i^{AB}+W_{n-i-1}^{AA}
-H_1^{AB}W_i^{BB}
--V_{n-i-1}^{AB}(H_1^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
-H_1^{BB}W_i^{BB}\bigg]
-\end{align}
-:::
-::::
+Let us separate the unitary transformation into more parts
 
-Pymablock has two algorithms, {autolink}`~pymablock.general` and {autolink}`~pymablock.expanded`.
-The {autolink}`~pymablock.general` algorithm implements the procedure outlined here directly.
-On the other hand, {autolink}`~pymablock.expanded` simplifies the expressions
-for $\tilde{H}_{n}$ (Eq. {eq}`h_tilde`) such that it only depends on $V$ and the
-perturbation $H_1$, but not explicitly on $H_0$.
+$$
+\mathcal{U} = 1 + \mathcal{U}' = 1 + \mathcal{W} + \mathcal{V},\quad \mathcal{W}^\dagger = \mathcal{W},\quad \mathcal{V}^\dagger = -\mathcal{V}.
+$$
 
-:::{admonition} How this works
-:class: dropdown info
-The {autolink}`~pymablock.expanded` algorithm first uses
-{autolink}`~pymablock.general` with a symbolic input to derive the general
-symbolic form for $Y_n$ and $\tilde{H}_n$.
-Then it uses the Sylvester's equation for lower orders of $V_n$ to eliminate
-$H_0$ from these expressions.
-Finally, {autolink}`~pymablock.expanded` replaces the problem-specific $H$ into
-the simplified $\tilde{H}$.
-:::
+Substituting $\mathcal{U}'$ into the unitarity condition
+$(1/2)(\mathcal{U}^\dagger \mathcal{U} + \mathcal{U}^\dagger \mathcal{U}) = 1$ gives
 
-As an example, the corrections to the effective Hamiltonian up to fourth
-order using {autolink}`~pymablock.expanded` are
+$$
+2\mathcal{W} = \mathcal{U}' + \mathcal{U}'^\dagger = -\mathcal{U}'^\dagger \mathcal{U}' = -\mathcal{W}^2 + \mathcal{V}^2.
+$$
 
-```{code-cell} ipython3
-:tags: [remove-input]
+We can use this to define $\mathcal{W}$ as a Taylor series in $\mathcal{V}$:
 
-from operator import mul
+$$
+\mathcal{W} = \sqrt{1 + \mathcal{V}^2} - 1 \equiv f(\mathcal{V}) \equiv \sum_n a_n \mathcal{V}^{2n},
+$$
 
-from sympy import Symbol, Eq
+however this is both computationally expensive and unnecessary.
+Indeed, because $\mathcal{U}'$ has no 0th order term, $(\mathcal{U}'^\dagger
+\mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
+$\mathcal{U}$, and therefore $\mathcal{W}$ can be computed recursively by using
+the identity above.
+We also see that $\mathcal{W}$ is fully defined by the unitarity condition,
+while we can choose $\mathcal{V}$ to block-diagonalize the Hamiltonian.
+*This recursive definition is the first secret ingredient of Pymablock✨*
 
-from pymablock.block_diagonalization import BlockSeries, symbolic
+We now additionally constrain $\mathcal{V}$ to be block off-diagonal:
+$\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$.
+This choice means that the unitary transformation has the smallest norm, and is
+equivalent to the Schrieffer-Wolff transformation.
 
-H = BlockSeries(
-    data={
-        (0, 0, 0): Symbol('{H_{0}^{AA}}'),
-        (1, 1, 0): Symbol('{H_{0}^{BB}}'),
-        (0, 0, 1): Symbol('{H_{1}^{AA}}'),
-        (0, 1, 1): Symbol('{H_{1}^{AB}}'),
-        (1, 1, 1): Symbol('{H_{1}^{BB}}'),
-    },
-    shape=(2, 2),
-    n_infinite=1,
-)
-
-max_order = 5
-hamiltonians = {
-  Symbol(f'H_{{{index}}}'): value for index, value in H._data.items()
-}
-offdiagonals = {
-  Symbol(f'V_{{({order},)}}'): Symbol(f'V_{order}') for order in range(max_order)
-}
-
-H_tilde, *_ = symbolic(H)
-
-for order in range(max_order):
-    result = Symbol(fr'\tilde{{H}}_{order}^{{AA}}')
-    display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
-```
-
-Here we omitted the superscript $AB$ on all the $V$'s for brevity.
-
-At lower orders, {autolink}`~pymablock.expanded` performs fewer operator
-products than {autolink}`~pymablock.general`, and with analytic Hamiltonians
-the resulting expressions are simpler.
-At high orders, however, {autolink}`~pymablock.expanded` requires exponentially
-many terms, unlike {autolink}`~pymablock.general` which only requires a linear
-number of terms.
-
-:::{admonition} Proof of equivalence to Schrieffer-Wolff transformation
+:::{admonition} Equivalence to Schrieffer-Wolff transformation
 :class: dropdown info
 Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
-transformation find a unitary transformation $U$ such that $\tilde{H}^{AB}=0$.
-They are therefore equivalent up to a gauge choice on each subspace.
+transformation find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
+They are therefore equivalent up to a gauge choice in each subspace.
 We establish the correspondence between the two by demonstrating that this gauge
 choice is the same for both algorithms.
 
-Pymablock chooses $U=W+V$, where $W$ is block diagonal Hermitian and
-$V$ is block off-diagonal anti-Hermitian.
-Then requiring that $U$ is unitary and $\tilde{H}^{AB}=0$ to all orders defines
-a unique value for $W$ and $V$.
+The Schrieffer-Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} = \mathcal{S}^{BB} = 0$.
 
-The Schrieffer-Wolff transformation parameterizes $U = \exp S$, where $S =
-\sum_n S_n$ is a series of anti-Hermitian block off-diagonal operators:
-```{math}
-:label: exp_s_expansion
-\begin{align}
-U = \exp{\left(S\right)}=\exp{\left(\sum_{n=0}^\infty
-S_n\right)} = 1+\sum_{j=1}^\infty \left[\frac{1}{j!}
-\left(\sum_{n=1}^\infty S_n\right)^j\right]
-\end{align}
-```
-Here we consider a single perturbation for brevity.
-
-Because both the above approach and Schrieffer-Wolff produce a unique answer, it
-is sufficient to show that they solve the same problem under the same
-conditions.
-Some conditions are straightforwardly the same:
-- Both algorithms guarantee that $\tilde{H}^{AB} = 0$ to all orders.
-- Both algorithms guarantee that $U$ is unitary to all orders:
-  Pymablock by construction, and Schrieffer-Wolff by the
-  definition of the exponential and anti-Hermiticity of $S$.
-
-We are left to show that the diagonal blocks of $\exp S$ are Hermitian, while
-off-diagonal blocks are anti-Hermitian because this is the only remaining
-property of the Pymablock algorithm.
-To do so, we expand all terms in Eq. {eq}`exp_s_expansion` using the multinomial theorem.
-The result contains all possible products of $S_n$ of all lengths with fractional prefactors.
-Furthermore, for every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a
-corresponding term $S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
+The series $\exp\mathcal{S}$ contains all possible products of $S_n$ of all lengths with fractional prefactors.
+For every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a corresponding term
+$S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
 If the number of $S_{k_n}$ is even, then both terms are block-diagonal since
 each $S_n$ is block off-diagonal.
 Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
@@ -197,8 +135,82 @@ other, and therefore their sum is Hermitian.
 On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
 block off-diagonal and their sum is anti-Hermitian by the same reasoning.
 
-This concludes the proof.
+Therefore just like in our algorithm, the diagonal blocks of $\exp S$ are
+Hermitian, while off-diagonal blocks are anti-Hermitian.
+Schieffer-Wolff transformation produces a unique answer and satisfies the same
+diagonalization requirements as our algorithm, which means that the two are
+equivalent.
 :::
+
+Now let us look at the unitary transformation of the Hamiltonian
+
+$$
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = (1 + \mathcal{U}'^\dagger) H_0 (1 + \mathcal{U}') + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}.
+$$
+
+Our goal is to define a recursive definition for $\mathcal{U}'$ that does not
+involve multiplications by $H_0$.
+We do so by defining the commutator $\mathcal{X} \equiv [\mathcal{U}', H_0]$ as
+an auxiliary varitable.
+Somewhat similarly to $\mathcal{U}'$, $\mathcal{X} = \mathcal{Y} + \mathcal{Z}$,
+where $\mathcal{Y} = [\mathcal{V}, H_0]$ is Hermitian block-offdiagonal and $\mathcal{Z} = [\mathcal{W}, H_0]$ is anti-Hermitian block-diagonal.
+Our goal is to eliminate products of $H_0$ from $\tilde{\mathcal{H}}$.
+In other words, we want to find an expression for $\tilde{\mathcal{H}}$ that
+depends on $\mathcal{X}$ and $\mathcal{U}'$, but does not contain
+multiplications by $H_0$.
+
+To utilize the commutator, we commute all $H_0$ to the right:
+
+$$
+\begin{align*}
+\mathcal{U}^\dagger H \mathcal{U}
+&= H_0 + \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
+&= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
+&= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
+&= H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+\end{align*}
+$$
+
+Where the terms multiplied by $H_0$ cancel by unitarity.
+The expression for $\tilde{\mathcal{H}}$ must be Hermitian (we started with a
+Hermitian one after all).
+We can exploit this to find the recurrence relation for $\mathcal{Z}$:
+
+$$
+0 = \tilde{\mathcal{H}}-\tilde{\mathcal{H}}^\dagger = -\mathcal{X}-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger + \mathcal{X}^\dagger\mathcal{U}'.
+$$
+
+Therefore
+
+$$
+\mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2.
+$$
+
+*This is our second secret ingredient✨*
+
+Finally, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}$ is block-diagonal and the diagonal blocks are zero, so
+
+$$
+\mathcal{Y}^{AB} = (\mathcal{Y}^{BA})^\dagger=\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}.
+$$
+
+Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack 0-th order, this defines a recurrence relation for $\mathcal{Y}$ similar to the recursive definition of $\mathcal{W}$. *This is our last secret ingredient✨*
+
+The final part is standard: the definition of $\mathcal{Y}$ fixes $\mathcal{V}$ as a solution of Sylvester equation:
+
+$$
+\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB}.
+$$
+
+## The algorithm
+
+We now have a complete algorithm:
+1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
+2. Use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$ to define diagonal blocks of $\mathcal{U}'$.
+3. Solve the Sylvester's equation $\mathcal{V}^{AB}H_0^{AA} - H_0^{BB}\mathcal{V}^{AB} = \mathcal{Y}^{AB}$ to find offdiagonal blocks of $\mathcal{U}'$.
+4. Use $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2$ for diagonal blocks of $\mathcal{X}$.
+5. Use $\mathcal{Y}^{AB} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$
+6. Use $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} +\textrm{h.c.})/2$.
 
 ##  How to use Pymablock on large numerical Hamiltonians?
 
@@ -216,17 +228,17 @@ method](https://doi.org/10.1103/RevModPhys.78.275).
 This approach was originally introduced in [this
 work](https://arxiv.org/abs/1909.09649).
 
-:::{admonition} Implementation details
+::::{admonition} Implementation details
 :class: dropdown info
 We use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite
 the Hamiltonian as
 
-```{math}
+:::{math}
 H \to \begin{pmatrix}
 \Psi_A^\dagger H \Psi_A & \Psi_A^\dagger H P_B \\
 P_B H \Psi_A & P_B H P_B
 \end{pmatrix},
-```
+:::
 
 where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
 This Hamiltonian is larger in size than the original one because the $B$ block has
@@ -239,10 +251,10 @@ We then perform perturbation theory of the rewritten $H$.
 To solve the Sylvester's equation for the modified Hamiltonian, we write it for
 every row of $V_n^{AB}$ separately:
 
-```{math}
+:::{math}
 V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
-```
+:::
 
 This equation is well-defined despite $E_i - H_0$ is not invertible because
 $Y_{n}$ has no components in the $A$ subspace.
-:::
+::::

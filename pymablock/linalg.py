@@ -133,7 +133,7 @@ def direct_greens_function(
             )
         if is_real:
             sol = sol.real
-        return sol.astype(np.find_common_type([], [original_type, vec.dtype]))
+        return sol.astype(np.result_type(original_type, vec.dtype))
 
     return greens_function
 
@@ -164,7 +164,7 @@ class ComplementProjector(LinearOperator):
 def aslinearoperator(A):
     """
     Same as `scipy.sparse.linalg.aslinearoperator`, but with passthrough for
-    `~pymablock.series.zero`.
+    `~pymablock.series.zero` and `~pymablock.series.one`.
     """
     if zero == A or A is one:
         return A
