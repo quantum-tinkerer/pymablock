@@ -534,30 +534,41 @@ def _block_diagonalize(
         ("U† @ H' @ U", True),
     ]
 
-    products = {
-        terms: cauchy_dot_product(
-            *[series[term] for term in terms.split(" @ ")],
-            operator=operator,
-            hermitian=hermitian,
-        )
-        for terms, hermitian in needed_products
-    }
-    if implicit:
-        linear_operator_products = {
+    series.update(
+        {
             terms: cauchy_dot_product(
-                *[linear_operator_series[term] for term in terms.split(" @ ")],
+                *[series[term] for term in terms.split(" @ ")],
                 operator=operator,
                 hermitian=hermitian,
             )
             for terms, hermitian in needed_products
         }
+    )
+    if implicit:
+        linear_operator_series.update(
+            {
+                terms: cauchy_dot_product(
+                    *[linear_operator_series[term] for term in terms.split(" @ ")],
+                    operator=operator,
+                    hermitian=hermitian,
+                )
+                for terms, hermitian in needed_products
+            }
+        )
     else:
-        linear_operator_products = products
+        linear_operator_series.update(
+            {term: series[term] for term, _ in needed_products}
+        )
+
+    def linear_operator_or_explicit(index):
+        if index[0] == index[1] == 1:
+            return linear_operator_series
+        return series
 
     def U_p_eval(*index: int) -> Any:
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
-            U_p_adj_U_p = [products, linear_operator_products][index[0]]["U'† @ U'"]
+            U_p_adj_U_p = linear_operator_or_explicit(index)["U'† @ U'"]
             return _safe_divide(U_p_adj_U_p[index], -2)
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
@@ -571,12 +582,10 @@ def _block_diagonalize(
 
     def X_eval(*index: int) -> Any:
         if index[0] == index[1]:
-            product = (products, linear_operator_products)[index[0]]["U'† @ X"]
+            product = linear_operator_or_explicit(index)["U'† @ X"]
             return _safe_divide(Dagger(product[index]) - product[index], 2)
         elif index[:2] == (0, 1):
-            return _zero_sum(
-                -products["U'† @ X"][index], products["U† @ H' @ U"][index]
-            )
+            return _zero_sum(-series["U'† @ X"][index], series["U† @ H' @ U"][index])
         elif index[:2] == (1, 0):
             # off-diagonal of X is Hermitian
             return Dagger(series["X"][(0, 1) + tuple(index[2:])])
@@ -584,24 +593,22 @@ def _block_diagonalize(
     series["X"].eval = X_eval
 
     def H_tilde_eval(*index: int) -> Any:
-        product = products
-        if index[0] == index[1] == 1:
-            product = linear_operator_products
+        series = linear_operator_or_explicit(index)
         if index[0] == index[1]:
             # Because diagonal part of X is anti-Hermitian and cancels the
             # anti-Hermitian part of U'† @ X, we save some computations
             # by taking the Hermitian part of U'† @ X and not including X.
             return _zero_sum(
-                product["U† @ H' @ U"][index],
+                series["U† @ H' @ U"][index],
                 _safe_divide(
-                    product["U'† @ X"][index] + Dagger(product["U'† @ X"][index]),
+                    series["U'† @ X"][index] + Dagger(series["U'† @ X"][index]),
                     -2,
                 ),
             )
         return _zero_sum(
-            product["U† @ H' @ U"][index],
+            series["U† @ H' @ U"][index],
             -series["X"][index],
-            -product["U'† @ X"][index],
+            -series["U'† @ X"][index],
         )
 
     H_tilde = BlockSeries(
