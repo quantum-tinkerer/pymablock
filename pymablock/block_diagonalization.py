@@ -496,19 +496,19 @@ def _block_diagonalize(
     # the logic of what is happening.
 
     series_data = {
-        "H_p": {"eval": (lambda *index: H[index]), "data": zero_data},
-        "U_p": {"data": zero_data},
-        "U": {"eval": (lambda *index: series["U_p"][index]), "data": identity_data},
+        "H'": {"eval": (lambda *index: H[index]), "data": zero_data},
+        "U'": {"data": zero_data},
+        "U": {"eval": (lambda *index: series["U'"][index]), "data": identity_data},
         "X": {"data": zero_data},
-        "U_p_adj": {
+        "U'†": {
             "eval": (
-                lambda *index: series["U_p"][index]
+                lambda *index: series["U'"][index]
                 if index[0] == index[1]
-                else -series["U_p"][index]
+                else -series["U'"][index]
             )
         },
-        "U_adj": {
-            "eval": (lambda *index: series["U_p_adj"][index]),
+        "U†": {
+            "eval": (lambda *index: series["U'†"][index]),
             "data": identity_data,
         },
     }
@@ -523,21 +523,23 @@ def _block_diagonalize(
 
     # List of ((term names}, Hermitian)
     needed_products = [
-        (("U_p_adj", "U_p"), True),
-        (("U_p_adj", "X"), False),
-        (("U_adj", "H_p", "U"), True),
+        ("U'† @ U'", True),
+        ("U'† @ X", False),
+        ("U† @ H' @ U", True),
     ]
 
     products = {
-        "_".join(terms): cauchy_dot_product(
-            *[series[term] for term in terms], operator=operator, hermitian=hermitian
+        terms: cauchy_dot_product(
+            *[series[term] for term in terms.split(" @ ")],
+            operator=operator,
+            hermitian=hermitian,
         )
         for terms, hermitian in needed_products
     }
     if implicit:
         linear_operator_products = {
-            "_".join(terms): cauchy_dot_product(
-                *[linear_operator_series[term] for term in terms],
+            terms: cauchy_dot_product(
+                *[linear_operator_series[term] for term in terms.split(" @ ")],
                 operator=operator,
                 hermitian=hermitian,
             )
@@ -549,7 +551,7 @@ def _block_diagonalize(
     def U_p_eval(*index: int) -> Any:
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
-            U_p_adj_U_p = [products, linear_operator_products][index[0]]["U_p_adj_U_p"]
+            U_p_adj_U_p = [products, linear_operator_products][index[0]]["U'† @ U'"]
             return _safe_divide(U_p_adj_U_p[index], -2)
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
@@ -557,17 +559,17 @@ def _block_diagonalize(
             return -solve_sylvester(Y) if zero != Y else zero
         elif index[:2] == (1, 0):
             # off-diagonal of U is anti-Hermitian
-            return -Dagger(series["U_p"][(0, 1) + tuple(index[2:])])
+            return -Dagger(series["U'"][(0, 1) + tuple(index[2:])])
 
-    series["U_p"].eval = U_p_eval
+    series["U'"].eval = U_p_eval
 
     def X_eval(*index: int) -> Any:
         if index[0] == index[1]:
-            product = (products, linear_operator_products)[index[0]]["U_p_adj_X"]
+            product = (products, linear_operator_products)[index[0]]["U'† @ X"]
             return _safe_divide(Dagger(product[index]) - product[index], 2)
         elif index[:2] == (0, 1):
             return _zero_sum(
-                -products["U_p_adj_X"][index], products["U_adj_H_p_U"][index]
+                -products["U'† @ X"][index], products["U† @ H' @ U"][index]
             )
         elif index[:2] == (1, 0):
             # off-diagonal of X is Hermitian
@@ -581,19 +583,19 @@ def _block_diagonalize(
             product = linear_operator_products
         if index[0] == index[1]:
             # Because diagonal part of X is anti-Hermitian and cancels the
-            # anti-Hermitian part of U_p_adj_X, we save some computations
-            # by taking the Hermitian part of U_p_adj_X and not including X.
+            # anti-Hermitian part of U'† @ X, we save some computations
+            # by taking the Hermitian part of U'† @ X and not including X.
             return _zero_sum(
-                product["U_adj_H_p_U"][index],
+                product["U† @ H' @ U"][index],
                 _safe_divide(
-                    product["U_p_adj_X"][index] + Dagger(product["U_p_adj_X"][index]),
+                    product["U'† @ X"][index] + Dagger(product["U'† @ X"][index]),
                     -2,
                 ),
             )
         return _zero_sum(
-            product["U_adj_H_p_U"][index],
+            product["U† @ H' @ U"][index],
             -series["X"][index],
-            -product["U_p_adj_X"][index],
+            -product["U'† @ X"][index],
         )
 
     H_tilde = BlockSeries(
@@ -603,7 +605,7 @@ def _block_diagonalize(
         **series_kwargs,
     )
 
-    return H_tilde, series["U"], series["U_adj"]
+    return H_tilde, series["U"], series["U†"]
 
 
 ### Different formats and algorithms of solving Sylvester equation.
