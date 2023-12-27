@@ -2,6 +2,7 @@ from typing import Any
 from operator import mul
 
 import numpy as np
+import sympy
 import pytest
 
 from pymablock.series import BlockSeries, cauchy_dot_product
@@ -83,6 +84,7 @@ def test_recursion_detection():
     with pytest.raises(RuntimeError) as excinfo:
         recursive[0]
     assert "Infinite recursion loop detected in" in str(excinfo.value.__cause__)
+    assert recursive.name in str(excinfo.value.__cause__)
 
 
 def test_cauchy_dot_product():
@@ -101,3 +103,16 @@ def test_cauchy_dot_product():
     )
     result = cauchy_dot_product(a, b, operator=mul)
     np.testing.assert_allclose(result[:, :, 3].astype(float), test_value @ test_value)
+
+
+def test_printing():
+    """Test that BlockSeries prints nicely."""
+    a = BlockSeries(
+        lambda *x: x,
+        data=None,
+        shape=(5, 5),
+        n_infinite=2,
+        dimension_names=("i", sympy.Symbol("j")),
+        name="test",
+    )
+    assert str(a) == "test_(5 × 5 × ∞_(i) × ∞_(j))"

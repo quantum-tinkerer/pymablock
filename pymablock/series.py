@@ -189,7 +189,7 @@ class BlockSeries:
     def __str__(self) -> str:
         dimensions = (
             *map(str, self.shape),
-            *(f"{name}: ∞" for name in self.dimension_names),
+            *(f"∞_({name})" for name in self.dimension_names),
         )
 
         return f"{self.name}_({' × '.join(dimensions)})"
