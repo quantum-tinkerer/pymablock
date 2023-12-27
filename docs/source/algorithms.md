@@ -18,7 +18,7 @@ Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use
 callilgraphic letters to denote series) that block-diagonalizes the Hamiltonian
 
 :::{math}
-:label: eq:hamiltonian
+:label: hamiltonian
 \mathcal{H} = H_0 + \mathcal{H}',\quad H_0 = \begin{pmatrix}
 H_0^{AA} & 0\\
 0 & H_0^{BB}
@@ -39,7 +39,7 @@ The problem statement, therefore, is finding $\mathcal{U}$ and
 $\tilde{\mathcal{H}}$ such that:
 
 :::{math}
-:label: eq:problem_definition
+:label: problem_definition
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1, \quad \tilde{\mathcal{H}}^{\dagger} = \tilde{\mathcal{H}},
 :::
 
@@ -92,7 +92,7 @@ To find $\mathcal{U}$, let us separate it into an identity, $\mathcal{W}$, and
 $\mathcal{V}$:
 
 :::{math}
-:label: eq:U
+:label: U
 \mathcal{U} = 1 + \mathcal{U}' = 1 + \mathcal{W} + \mathcal{V},\quad \mathcal{W}^\dagger = \mathcal{W},\quad \mathcal{V}^\dagger = -\mathcal{V}.
 :::
 
@@ -116,7 +116,7 @@ Instead, because $\mathcal{U}'$ has no 0th order term, $(\mathcal{U}'^\dagger
 $\mathcal{U}$, and therefore we recursively compute $\mathcal{W}$ as
 
 :::{math}
-:label: eq:W
+:label: W
 \mathcal{W} = -\mathcal{U}'^\dagger \mathcal{U}'/2,
 :::
 
@@ -175,7 +175,7 @@ $$
 To get rid of the terms with $H_0$, we define
 
 :::{math}
-:label: eq:XYX
+:label: XYX
 \begin{align}
 \mathcal{X} &\equiv [\mathcal{U}', H_0] = \mathcal{Y} + \mathcal{Z}, \\
 \mathcal{Y} &\equiv [\mathcal{V}, H_0] = \mathcal{Y}^\dagger,\\
@@ -188,7 +188,7 @@ diagonal.
 It follows that
 
 :::{math}
-:label: eq:H_tilde
+:label: H_tilde
 \tilde{\mathcal{H}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
 :::
 
@@ -202,7 +202,7 @@ $$
 and find a recursive definition for $\mathcal{Z}$:
 
 :::{math}
-:label: eq:Z
+:label: Z
 \mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2,
 :::
 
@@ -215,7 +215,7 @@ $\tilde{\mathcal{H}}^{AB} = 0$.
 Thus, from {eq}`H_tilde` it follows that
 
 :::{math}
-:label: eq:Y
+:label: Y
 \mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}.
 :::
 
@@ -228,7 +228,7 @@ The final part is standard: the definition of $\mathcal{Y}$ in {eq}`XYX` fixes
 $\mathcal{V}$ as a solution of:
 
 :::{math}
-:label: eq:sylvester
+:label: sylvester
 \mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB},
 :::
 
