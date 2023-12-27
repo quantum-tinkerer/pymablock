@@ -496,10 +496,13 @@ def _block_diagonalize(
     # the logic of what is happening.
 
     series_data = {
+        # Only perturbative parts of H
         "H'": {"eval": (lambda *index: H[index]), "data": zero_data},
+        # Only perturbative parts of the unitary transformation
         "U'": {"data": zero_data},
+        # Full unitary transformation
         "U": {"eval": (lambda *index: series["U'"][index]), "data": identity_data},
-        "X": {"data": zero_data},
+        # Diagonal parts of U' are Hermitian, off-diagonal parts are anti-Hermitian
         "U'†": {
             "eval": (
                 lambda *index: series["U'"][index]
@@ -511,6 +514,9 @@ def _block_diagonalize(
             "eval": (lambda *index: series["U'†"][index]),
             "data": identity_data,
         },
+        # X = [U', H_0], computed using a recurrent relation. Diagonal parts are
+        # anti-Hermitian, off-diagonal parts are Hermitian.
+        "X": {"data": zero_data},
     }
     series = {
         key: BlockSeries(name=key, **series_kwargs, **value)
@@ -521,7 +527,7 @@ def _block_diagonalize(
         key: linear_operator_wrapped(value) for key, value in series.items()
     }
 
-    # List of ((term names}, Hermitian)
+    # List of products and whether they are Hermitian
     needed_products = [
         ("U'† @ U'", True),
         ("U'† @ X", False),
