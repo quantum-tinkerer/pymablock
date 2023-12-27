@@ -17,12 +17,13 @@ kernelspec:
 Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use
 callilgraphic letters to denote series) that block-diagonalizes the Hamiltonian
 
-$$
+:::{math}
+:label: eq:hamiltonian
 \mathcal{H} = H_0 + \mathcal{H}',\quad H_0 = \begin{pmatrix}
 H_0^{AA} & 0\\
 0 & H_0^{BB}
 \end{pmatrix},
-$$
+:::
 
 with $\mathcal{H}'$ containing an arbitrary number and orders of perturbations.
 The series here may be multivariate, and they represent sums of the form
@@ -37,9 +38,10 @@ n_k}$ are linear operators.
 The problem statement, therefore, is finding $\mathcal{U}$ and
 $\tilde{\mathcal{H}}$ such that:
 
-$$
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
-$$
+:::{math}
+:label: eq:problem_definition
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1, \quad \tilde{\mathcal{H}}^{\dagger} = \tilde{\mathcal{H}},
+:::
 
 where series multiply according to the [Cauchy
 product](https://en.wikipedia.org/wiki/Cauchy_product):
@@ -75,24 +77,28 @@ N^2$.
 There are many ways to solve this problem that give identical expressions for
 $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
 We are searching for a procedure that satisfies two additional constraints:
+
 - It only requires computing Cauchy products and therefore has the lowest
   possible scaling of complexity.
 - It does not require multiplications by $H_0$. This is because $n$-th order
   corrections to $\tilde{\mathcal{H}}$ in perturbation theory carry $n$ powers
-  of energy denominators. Therefore, any additional multiplcations by $H_0$
-  must be canceled by additional energy denominators. Muliplying by $H_0$ is
-  therefore unnecessary work that gives longer intermediate expressions.
+  of energy denominators. Therefore, any additional multiplications by $H_0$
+  must cancel with additional energy denominators. Muliplying by $H_0$ is
+  therefore unnecessary work, and it gives longer intermediate expressions.
 
 ## Solution
 
-Let us separate the unitary transformation into more parts
+To find $\mathcal{U}$, let us separate it into an identity, $\mathcal{W}$, and
+$\mathcal{V}$:
 
-$$
+:::{math}
+:label: eq:U
 \mathcal{U} = 1 + \mathcal{U}' = 1 + \mathcal{W} + \mathcal{V},\quad \mathcal{W}^\dagger = \mathcal{W},\quad \mathcal{V}^\dagger = -\mathcal{V}.
-$$
+:::
 
 Substituting $\mathcal{U}'$ into the unitarity condition
 $(1/2)(\mathcal{U}^\dagger \mathcal{U} + \mathcal{U}^\dagger \mathcal{U}) = 1$ gives
+that $\mathcal{U}'$ has no 0-th order term, and
 
 $$
 2\mathcal{W} = \mathcal{U}' + \mathcal{U}'^\dagger = -\mathcal{U}'^\dagger \mathcal{U}' = -\mathcal{W}^2 + \mathcal{V}^2.
@@ -105,30 +111,43 @@ $$
 $$
 
 however this is both computationally expensive and unnecessary.
-Indeed, because $\mathcal{U}'$ has no 0th order term, $(\mathcal{U}'^\dagger
+Instead, because $\mathcal{U}'$ has no 0th order term, $(\mathcal{U}'^\dagger
 \mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
-$\mathcal{U}$, and therefore $\mathcal{W}$ can be computed recursively by using
-the identity above.
-We also see that $\mathcal{W}$ is fully defined by the unitarity condition,
-while we can choose $\mathcal{V}$ to block-diagonalize the Hamiltonian.
+$\mathcal{U}$, and therefore we recursively compute $\mathcal{W}$ as
+
+:::{math}
+:label: eq:W
+\mathcal{W} = -\mathcal{U}'^\dagger \mathcal{U}'/2,
+:::
+
+which is fully defined by the unitarity condition.
 *This recursive definition is the first secret ingredient of Pymablock✨*
 
-We now additionally constrain $\mathcal{V}$ to be block off-diagonal:
-$\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$.
-This choice means that the unitary transformation has the smallest norm, and is
-equivalent to the Schrieffer-Wolff transformation.
+On the other hand, $\mathcal{V}$ is defined by the requirement
+$\tilde{\mathcal{H}}^{AB} = 0$.
+Additionally, we constrain it to be block off-diagonal:
+$\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
+so that the unitary transformation is equivalent to the Schrieffer-Wolff
+transformation.
+In turn, it follows that $\mathcal{W}$ is block-diagonal and that the norm
+of $\mathcal{U}$ is minimal.
 
 :::{admonition} Equivalence to Schrieffer-Wolff transformation
 :class: dropdown info
 Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
-transformation find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
-They are therefore equivalent up to a gauge choice in each subspace.
-We establish the correspondence between the two by demonstrating that this gauge
+transformation find a unitary transformation $\mathcal{U}$ such that
+$\tilde{\mathcal{H}}^{AB}=0$.
+They are therefore equivalent up to a gauge choice in each subspace, $A$ and
+$B$.
+We establish the equivalence between the two by demonstrating that this gauge
 choice is the same for both algorithms.
 
-The Schrieffer-Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} = \mathcal{S}^{BB} = 0$.
+The Schrieffer-Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$,
+where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} =
+\mathcal{S}^{BB} = 0$.
 
-The series $\exp\mathcal{S}$ contains all possible products of $S_n$ of all lengths with fractional prefactors.
+The series $\exp\mathcal{S}$ contains all possible products of $S_n$ of all
+lengths with fractional prefactors.
 For every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a corresponding term
 $S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
 If the number of $S_{k_n}$ is even, then both terms are block-diagonal since
@@ -138,82 +157,95 @@ other, and therefore their sum is Hermitian.
 On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
 block off-diagonal and their sum is anti-Hermitian by the same reasoning.
 
-Therefore just like in our algorithm, the diagonal blocks of $\exp S$ are
+Therefore, just like in our algorithm, the diagonal blocks of $\exp S$ are
 Hermitian, while off-diagonal blocks are anti-Hermitian.
 Schieffer-Wolff transformation produces a unique answer and satisfies the same
 diagonalization requirements as our algorithm, which means that the two are
 equivalent.
 :::
 
-Now let us look at the unitary transformation of the Hamiltonian
+To find $\mathcal{V}$, we look for a recursive procedure that does not involve
+multiplications by $H_0$, and that follows from $\tilde{\mathcal{H}}^{AB} = 0$.
+Let us then look at the unitary transformation of the Hamiltonian:
 
 $$
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = (1 + \mathcal{U}'^\dagger) H_0 (1 + \mathcal{U}') + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}.
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = H_0 + \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}.
 $$
 
-Our goal is to define a recursive definition for $\mathcal{U}'$ that does not
-involve multiplications by $H_0$.
-We do so by defining the commutator $\mathcal{X} \equiv [\mathcal{U}', H_0]$ as
-an auxiliary varitable.
-Somewhat similarly to $\mathcal{U}'$, $\mathcal{X} = \mathcal{Y} + \mathcal{Z}$,
-where $\mathcal{Y} = [\mathcal{V}, H_0]$ is Hermitian block-offdiagonal and $\mathcal{Z} = [\mathcal{W}, H_0]$ is anti-Hermitian block-diagonal.
-Our goal is to eliminate products of $H_0$ from $\tilde{\mathcal{H}}$.
-In other words, we want to find an expression for $\tilde{\mathcal{H}}$ that
-depends on $\mathcal{X}$ and $\mathcal{U}'$, but does not contain
-multiplications by $H_0$.
+To get rid of the terms with $H_0$, we define
 
-To utilize the commutator, we commute all $H_0$ to the right:
+:::{math}
+:label: eq:XYX
+\begin{align}
+\mathcal{X} &\equiv [\mathcal{U}', H_0] = \mathcal{Y} + \mathcal{Z}, \\
+\mathcal{Y} &\equiv [\mathcal{V}, H_0] = \mathcal{Y}^\dagger,\\
+\mathcal{Z} &\equiv [\mathcal{W}, H_0] = -\mathcal{Z}^\dagger,
+\end{align}
+:::
 
-$$
-\begin{align*}
-\mathcal{U}^\dagger H \mathcal{U}
-&= H_0 + \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
-&= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
-&= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
-&= H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
-\end{align*}
-$$
+where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$ is block
+diagonal.
+It follows that
 
-Where the terms multiplied by $H_0$ cancel by unitarity.
-The expression for $\tilde{\mathcal{H}}$ must be Hermitian (we started with a
-Hermitian one after all).
-We can exploit this to find the recurrence relation for $\mathcal{Z}$:
+:::{math}
+:label: eq:H_tilde
+\tilde{\mathcal{H}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+:::
+
+where the terms multiplied by $H_0$ cancel by unitarity.
+Then, we use Hermiticity
 
 $$
-0 = \tilde{\mathcal{H}}-\tilde{\mathcal{H}}^\dagger = -\mathcal{X}-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger + \mathcal{X}^\dagger\mathcal{U}'.
+0 = \tilde{\mathcal{H}}-\tilde{\mathcal{H}}^\dagger = -\mathcal{X}-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger + \mathcal{X}^\dagger\mathcal{U}',
 $$
 
-Therefore
+and find a recursive definition for $\mathcal{Z}$:
 
-$$
-\mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2.
-$$
+:::{math}
+:label: eq:Z
+\mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2,
+:::
 
+which defines the diagonal blocks of $\mathcal{X}$ by using all blocks of the
+previous orders of $\mathcal{X}$ in the right hand side.
 *This is our second secret ingredient✨*
 
-Finally, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}$ is block-diagonal and the diagonal blocks are zero, so
+Finally, we compute the off-diagonal blocks of $\mathcal{X}$ by requiring that
+$\tilde{\mathcal{H}}^{AB} = 0$.
+Thus, from {eq}`H_tilde` it follows that
 
-$$
-\mathcal{Y}^{AB} = (\mathcal{Y}^{BA})^\dagger=\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}.
-$$
+:::{math}
+:label: eq:Y
+\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}.
+:::
 
-Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack 0-th order, this defines a recurrence relation for $\mathcal{Y}$ similar to the recursive definition of $\mathcal{W}$. *This is our last secret ingredient✨*
+Once again, despite $\mathcal{X}$ enters the right hand side, because all the
+terms lack 0-th order, this defines a recursive relation for $\mathcal{X}^{AB}$,
+and therefore $\mathcal{Y}$.
+*This is our last secret ingredient✨*
 
-The final part is standard: the definition of $\mathcal{Y}$ fixes $\mathcal{V}$ as a solution of Sylvester equation:
+The final part is standard: the definition of $\mathcal{Y}$ in {eq}`XYX` fixes
+$\mathcal{V}$ as a solution of:
 
-$$
-\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB}.
-$$
+:::{math}
+:label: eq:sylvester
+\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB},
+:::
+
+a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation).
 
 ## The algorithm
 
 We now have a complete algorithm:
+
 1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
-2. Use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$ to define diagonal blocks of $\mathcal{U}'$.
-3. Solve the Sylvester's equation $\mathcal{V}^{AB}H_0^{AA} - H_0^{BB}\mathcal{V}^{AB} = \mathcal{Y}^{AB}$ to find offdiagonal blocks of $\mathcal{U}'$.
-4. Use $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2$ for diagonal blocks of $\mathcal{X}$.
-5. Use $\mathcal{Y}^{AB} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$
-6. Use $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} +\textrm{h.c.})/2$.
+2. To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$, see {eq}`W`.
+3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $\mathcal{V}^{AB}H_0^{AA} - H_0^{BB}\mathcal{V}^{AB} = \mathcal{Y}^{AB}$. Note that {eq}`sylvester` requires $\mathcal{X}$.
+4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2$, see {eq}`Z`.
+5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
+ (-\mathcal{U}'^\dagger\mathcal{X} +
+  \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$, see {eq}`Y`.
+6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} +\textrm{h.c.})/2$, see {eq}`H_tilde`.
 
 ##  How to use Pymablock on large numerical Hamiltonians?
 
