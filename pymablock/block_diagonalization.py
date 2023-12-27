@@ -464,8 +464,8 @@ def _block_diagonalize(
     )
 
     # The main algorithm closely follows the notation in the notes, and is hard
-    # to understand otherwise. Consult the documentation in order to understand
-    # the logic of what is happening.
+    # to understand otherwise. Consult the docs/source/algorithms.md in order to
+    # understand the logic of what is happening.
 
     series_data = {
         # Only perturbative parts of H
