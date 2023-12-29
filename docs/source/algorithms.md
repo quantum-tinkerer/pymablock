@@ -255,7 +255,7 @@ definition for $\mathcal{Z}$, the anti-Hermitian part of $\mathcal{X}$:
 :::{math}
 :label: Z
 \toggle{
-  \mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = -\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X} \mathcal{U}'.
+  \mathcal{Z} = -\mathcal{U}'^\dagger\mathcal{X} + h.c.
 }{
   \begin{align}
   \mathcal{Z}
@@ -324,7 +324,7 @@ We now have a complete algorithm:
   \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
 6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} +\textrm{h.c.})/2$.
 
-##  How to use Pymablock on large numerical Hamiltonians?
+## How to use Pymablock on large numerical Hamiltonians?
 
 Solving Sylvester's equation and computing the matrix products are the most
 expensive steps of the algorithms for large Hamiltonians.
