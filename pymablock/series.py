@@ -223,6 +223,48 @@ class BlockSeries:
                 (len(item), len(self.shape), self.n_infinite),
             )
 
+class MultiplicationCounter:
+    """Dummy class to count number of performed multiplications."""
+    counter = 0 #this class atribute needs to be reset after test use
+
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return self.name
+
+    __str__ = __repr__
+
+    def __mul__(self, other):
+        if isinstance(other, type(self)):
+            MultiplicationCounter.counter += 1
+            return MultiplicationCounter(f"({self} * {other})")
+        else:
+            return MultiplicationCounter(f"({self} * {other})")
+
+    def __rmul__(self, other):
+        if isinstance(other, type(self)):
+            MultiplicationCounter.counter += 1
+            return MultiplicationCounter(f"({other} * {self})")
+        else:
+            return MultiplicationCounter(f"({other} * {self})")
+
+    def __add__(self, other):
+        return MultiplicationCounter(f"({self} + {other})")
+
+    def adjoint(self):
+        return MultiplicationCounter(f"({self}^*)")
+
+    def __neg__(self):
+        return MultiplicationCounter(f"(-{self})")
+
+    def __sub__(self, other):
+        return self + (-other)
+
+    def extract_count(self):
+        print(self.counter)
+        MultiplicationCounter.counter = 0
+
 
 def cauchy_dot_product(
     *series: BlockSeries,
