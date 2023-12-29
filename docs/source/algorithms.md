@@ -95,9 +95,22 @@ First, we use of the unitarity condition
 $\mathcal{U}^\dagger \mathcal{U} = 1$ by substituting $\mathcal{U}'$ into it
 and obtain
 
-$$
-\mathcal{W} = -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
-$$
+:::{math}
+:label: W
+\toggle{
+  \mathcal{W} = -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
+}{
+  \begin{align}
+  2 &= (1+\mathcal{U}'^{\dagger})(1+\mathcal{U}') +
+  (1+\mathcal{U}')(1+\mathcal{U}'^{\dagger}) \\
+  &= (1+\mathcal{W}-\mathcal{V})(1+\mathcal{W}+\mathcal{V}) +
+  (1+\mathcal{W}+\mathcal{V})(1+\mathcal{W}-\mathcal{V}) \\
+  \implies
+  \mathcal{W} &= -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
+  \end{align}
+}
+\endtoggle
+:::
 
 Because $\mathcal{U}'$ has no $0$-th order term, $(\mathcal{U}'^\dagger
 \mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
@@ -106,11 +119,11 @@ We can therefore compute $\mathcal{W}$ as a Cauchy product of
 $\mathcal{U}'$ with itself.
 *This recursive definition is the first secret ingredient of Pymablock✨*
 
-:::{admonition} Derivation of $\mathcal{W}$
+:::{admonition} Choosing the right definition for $\mathcal{W}$
 :class: dropdown info
 
-We use the definition of $\mathcal{W}$ as the Hermitian part of $\mathcal{U}'$,
-and the unitarity condition to find its recursive definition:
+Using the definition of $\mathcal{W}$ as the Hermitian part of $\mathcal{U}'$,
+and the unitarity condition:
 
 $$
 \begin{align}
@@ -121,7 +134,7 @@ $$
 \end{align}
 $$
 
-Alternatively, we see that we could define $\mathcal{W}$ as a Taylor series in
+we see that we could alternatively define $\mathcal{W}$ as a Taylor series in
 $\mathcal{V}$:
 
 $$
@@ -207,38 +220,28 @@ define the commutator between $\mathcal{U}'$ and $H_0$:
 
 where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block
 diagonal.
-We use $\mathcal{X}$ to get rid of products by $H_0$ in $\tilde{\mathcal{H}}$
-and find that
+We use $H_0 \mathcal{U}' = \mathcal{U}' H_0 -\mathcal{X}$ to move $H_0$ through
+to the right and use the unitarity condition to find
 
 :::{math}
 :label: H_tilde
-\tilde{\mathcal{H}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+\toggle{
+  \tilde{\mathcal{H}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+}{
+  \begin{align*}
+  \tilde{\mathcal{H}}
+  &= H_0 + \mathcal{U}'^\dagger H_0 + (H_0 \mathcal{U}') + \mathcal{U}'^\dagger H_0
+  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H'}\mathcal{U})
+  \\
+  &= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
+  &= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
+  &= H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+  \end{align*}
+}
+\endtoggle
 :::
 
 where the terms multiplied by $H_0$ cancel by unitarity.
-
-:::{admonition} Finding $\tilde{\mathcal{H}}$
-:class: dropdown info
-
-We use $H_0 \mathcal{U}' = \mathcal{U}' H_0 -\mathcal{X}$ to move $H_0$ through
-to the right:
-
-$$
-\begin{align*}
-\tilde{\mathcal{H}}
-&= H_0 + \mathcal{U}'^\dagger H_0 + (H_0 \mathcal{U}') + \mathcal{U}'^\dagger H_0
-\mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H'}\mathcal{U})
-\\
-&= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
-&= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
-&= H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
-\end{align*}
-$$
-where we used the unitarity condition $\mathcal{U}' +
-\mathcal{U}'^{\dagger} + \mathcal{U}'^{\dagger}\mathcal{U}' = 0$ in the last
-step.
-
-:::
 
 The transformed Hamiltonian does not contain products by $H_0$ anymore, but
 it does depend on $\mathcal{X}$.
@@ -247,62 +250,49 @@ definition that is free of multiplications by $H_0$.
 To find it, we apply a similar procedure to the one for finding $\mathcal{U}'$:
 we search for a recursive definition for its diagonal and off-diagonal blocks.
 Once again, we use unitarity for the diagonal blocks, and find a recursive
-definition for $\mathcal{Z}$:
+definition for $\mathcal{Z}$, the anti-Hermitian part of $\mathcal{X}$:
 
 :::{math}
 :label: Z
-\mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = -\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X} \mathcal{U}'.
+\toggle{
+  \mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = -\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X} \mathcal{U}'.
+}{
+  \begin{align}
+  \mathcal{Z}
+  &= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
+  &= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}') \mathcal{U}' \Big] \\
+  &= \frac{1}{2} (- \mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X} \mathcal{U}').
+  \end{align}
+}
+\endtoggle
 :::
 
 Similar to computing $\mathcal{W_n}$, computing $\mathcal{Z_n}$ requires lower
 orders of $\mathcal{X}$ and $\mathcal{U}'$, all blocks included.
 *This is our second secret ingredient✨*
 
-:::{admonition} Derivation of $\mathcal{Z}$
-:class: dropdown info
-
-We define $\mathcal{Z}$ as the anti-Hermitian part of $\mathcal{X}$, and
-use unitarity to find its recursive definition:
-
-$$
-\begin{align}
-\mathcal{Z}
-&= \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) \\
-&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
-&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}') \mathcal{U}' \Big] \\
-&= \frac{1}{2} (- \mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X} \mathcal{U}').
-\end{align}
-$$
-
-:::
-
 Then, we compute the off-diagonal blocks of $\mathcal{X}$ by requiring that
 $\tilde{\mathcal{H}}^{AB} = 0$ and find
 
 :::{math}
 :label: Y
-\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}.
+\toggle{
+  \mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} -
+  \mathcal{U}'^\dagger \mathcal{X})^{AB}.
+}{
+  \begin{aligned}
+  \tilde{\mathcal{H}}^{AB} &= \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} = 0 \\
+  \implies
+  \mathcal{X}^{AB} &= (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}
+  \end{aligned}
+}
+\endtoggle
 :::
 
 Once again, despite $\mathcal{X}$ enters the right hand side, because all the
 terms lack 0-th order, this defines a recursive relation for $\mathcal{X}^{AB}$,
 and therefore $\mathcal{Y}$.
 *This is our last secret ingredient✨*
-
-:::{admonition} Derivation of $\mathcal{Y}$
-:class: dropdown info
-
-Because the block-diagonal part of $\mathcal{X}$ is $\mathcal{Y}$, we compute
-it as:
-
-$$
-\begin{align}
-\tilde{\mathcal{H}}^{AB} &= \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} = 0 \\
-\implies
-\mathcal{X}^{AB} &= (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}
-\end{align}
-$$
-:::
 
 The final part is standard: the definition of $\mathcal{Y}$ in {eq}`XYX` fixes
 $\mathcal{V}$ as a solution of:
@@ -313,6 +303,13 @@ $\mathcal{V}$ as a solution of:
 :::
 
 a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation).
+The solution to this equation contains fractions whose denominators are
+energy differences between the $A$ and $B$ subspaces.
+To solve it, we need the eigenvalues of $H_0$, which we need to compute only
+once.
+Choosing the right parametrization of $\mathcal{U}$ has therefore allowed us to
+obtain expressions such that every new order of $\mathcal{V}$, and therefore
+$\tilde{\mathcal{H}}$, carries only one additional energy denominator.
 
 ## The algorithm
 
