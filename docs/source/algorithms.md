@@ -39,8 +39,8 @@ The problem statement, therefore, is finding $\mathcal{U}$ and
 $\tilde{\mathcal{H}}$ such that:
 
 :::{math}
-:label: problem_definition
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1, \quad \tilde{\mathcal{H}}^{\dagger} = \tilde{\mathcal{H}},
+:label: eq:problem_definition
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
 :::
 
 where series multiply according to the [Cauchy
@@ -62,7 +62,74 @@ between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher
 cost $\sim N^2$, however if we use associativity of the product and compute
 this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost
 stays the same.
-The scaling does become slower if we need to compute a Taylor expansion of a series:
+:::
+
+## How to solve the problem?
+
+There are many ways to solve this problem that give identical expressions for
+$\mathcal{U}$ and $\tilde{\mathcal{H}}$.
+We are searching for a procedure that satisfies two additional constraints:
+
+- All its products are Cauchy products and therefore has the lowest
+  possible scaling of complexity.
+- It does not require multiplications by $H_0$. This is because $n$-th order
+  corrections to $\tilde{\mathcal{H}}$ in perturbation theory carry $n$ powers
+  of energy denominators. Therefore, any additional multiplications by $H_0$
+  must cancel with additional energy denominators. Muliplying by $H_0$ is
+  therefore unnecessary work, and it gives longer intermediate expressions.
+
+The goal of our algorithm is thus to be efficient and to produce compact
+results that do not require further simplifications.
+
+## Our solution
+
+To find $\mathcal{U}$, let us separate it into an identity and $\mathcal{U}' =
+\mathcal{W} + \mathcal{V}$:
+
+:::{math}
+:label: U
+\mathcal{U} = 1 + \mathcal{U}' = 1 + \mathcal{W} + \mathcal{V},\quad \mathcal{W}^\dagger = \mathcal{W},\quad \mathcal{V}^\dagger = -\mathcal{V}.
+:::
+
+First, we use of the unitarity condition
+$\mathcal{U}^\dagger \mathcal{U} = 1$ by substituting $\mathcal{U}'$ into it
+and obtain
+
+$$
+\mathcal{W} = -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
+$$
+
+Because $\mathcal{U}'$ has no $0$-th order term, $(\mathcal{U}'^\dagger
+\mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
+$\mathcal{U}$ nor $\mathcal{W}$.
+We can therefore compute $\mathcal{W}$ as a Cauchy product of
+$\mathcal{U}'$ with itself.
+*This recursive definition is the first secret ingredient of Pymablock✨*
+
+:::{admonition} Derivation of $\mathcal{W}$
+:class: dropdown info
+
+We use the definition of $\mathcal{W}$ as the Hermitian part of $\mathcal{U}'$,
+and the unitarity condition to find its recursive definition:
+
+$$
+\begin{align}
+2\mathcal{W}
+= \mathcal{U}' + \mathcal{U}'^\dagger
+= -\mathcal{U}'^\dagger \mathcal{U}'
+= -\mathcal{W}^2 + \mathcal{V}^2.
+\end{align}
+$$
+
+Alternatively, we see that we could define $\mathcal{W}$ as a Taylor series in
+$\mathcal{V}$:
+
+$$
+\mathcal{W} = \sqrt{1 + \mathcal{V}^2} - 1 \equiv f(\mathcal{V}) \equiv \sum_n a_n \mathcal{V}^{2n},
+$$
+
+however the scaling of such a Cauchy product becomes slower if we need to
+compute a Taylor expansion of a series:
 
 $$
 f(\mathcal{A}) = \sum_{n=0}^\infty a_n \mathcal{A}^n.
@@ -72,64 +139,17 @@ Once again, a direct computation would require $\sim \exp N$ multiplications,
 however defining new series as $\mathcal{A}^{n+1} = \mathcal{A}\mathcal{A}^{n}$
 and reusing the previously computed results brings these costs down to $\sim
 N^2$.
+This approach would be both computationally expensive and unnecessary.
+
 :::
 
-There are many ways to solve this problem that give identical expressions for
-$\mathcal{U}$ and $\tilde{\mathcal{H}}$.
-We are searching for a procedure that satisfies two additional constraints:
-
-- It only requires computing Cauchy products and therefore has the lowest
-  possible scaling of complexity.
-- It does not require multiplications by $H_0$. This is because $n$-th order
-  corrections to $\tilde{\mathcal{H}}$ in perturbation theory carry $n$ powers
-  of energy denominators. Therefore, any additional multiplications by $H_0$
-  must cancel with additional energy denominators. Muliplying by $H_0$ is
-  therefore unnecessary work, and it gives longer intermediate expressions.
-
-## Solution
-
-To find $\mathcal{U}$, let us separate it into an identity, $\mathcal{W}$, and
-$\mathcal{V}$:
-
-:::{math}
-:label: U
-\mathcal{U} = 1 + \mathcal{U}' = 1 + \mathcal{W} + \mathcal{V},\quad \mathcal{W}^\dagger = \mathcal{W},\quad \mathcal{V}^\dagger = -\mathcal{V}.
-:::
-
-Substituting $\mathcal{U}'$ into the unitarity condition
-$(1/2)(\mathcal{U}^\dagger \mathcal{U} + \mathcal{U}^\dagger \mathcal{U}) = 1$ gives
-that $\mathcal{U}'$ has no 0-th order term, and
-
-$$
-2\mathcal{W} = \mathcal{U}' + \mathcal{U}'^\dagger = -\mathcal{U}'^\dagger \mathcal{U}' = -\mathcal{W}^2 + \mathcal{V}^2.
-$$
-
-We can use this to define $\mathcal{W}$ as a Taylor series in $\mathcal{V}$:
-
-$$
-\mathcal{W} = \sqrt{1 + \mathcal{V}^2} - 1 \equiv f(\mathcal{V}) \equiv \sum_n a_n \mathcal{V}^{2n},
-$$
-
-however this is both computationally expensive and unnecessary.
-Instead, because $\mathcal{U}'$ has no 0th order term, $(\mathcal{U}'^\dagger
-\mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
-$\mathcal{U}$, and therefore we recursively compute $\mathcal{W}$ as
-
-:::{math}
-:label: W
-\mathcal{W} = -\mathcal{U}'^\dagger \mathcal{U}'/2,
-:::
-
-which is fully defined by the unitarity condition.
-*This recursive definition is the first secret ingredient of Pymablock✨*
-
-On the other hand, $\mathcal{V}$ is defined by the requirement
-$\tilde{\mathcal{H}}^{AB} = 0$.
+To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is is
+defined by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
 Additionally, we constrain it to be block off-diagonal:
 $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
 so that the unitary transformation is equivalent to the Schrieffer-Wolff
 transformation.
-In turn, it follows that $\mathcal{W}$ is block-diagonal and that the norm
+In turn, this means that $\mathcal{W}$ is block-diagonal and that the norm
 of $\mathcal{U}$ is minimal.
 
 :::{admonition} Equivalence to Schrieffer-Wolff transformation
@@ -159,20 +179,22 @@ block off-diagonal and their sum is anti-Hermitian by the same reasoning.
 
 Therefore, just like in our algorithm, the diagonal blocks of $\exp S$ are
 Hermitian, while off-diagonal blocks are anti-Hermitian.
-Schieffer-Wolff transformation produces a unique answer and satisfies the same
+Schrieffer-Wolff transformation produces a unique answer and satisfies the same
 diagonalization requirements as our algorithm, which means that the two are
 equivalent.
 :::
 
-To find $\mathcal{V}$, we look for a recursive procedure that does not involve
-multiplications by $H_0$, and that follows from $\tilde{\mathcal{H}}^{AB} = 0$.
-Let us then look at the unitary transformation of the Hamiltonian:
+To find $\mathcal{V}$, we need to first look at the transformed Hamiltonian:
 
 $$
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = H_0 + \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}.
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = H_0 +
+\mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0
+\mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}.
 $$
 
-To get rid of the terms with $H_0$, we define
+Because we want to avoid unnecessary products by $H_0$, and the expression
+above has $H_0$ multiplied by $\mathcal{U}'$ by the left and by the right, we
+define the commutator between $\mathcal{U}'$ and $H_0$:
 
 :::{math}
 :label: XYX
@@ -183,9 +205,10 @@ To get rid of the terms with $H_0$, we define
 \end{align}
 :::
 
-where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$ is block
+where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block
 diagonal.
-It follows that
+We use $\mathcal{X}$ to get rid of products by $H_0$ in $\tilde{\mathcal{H}}$
+and find that
 
 :::{math}
 :label: H_tilde
@@ -193,26 +216,68 @@ It follows that
 :::
 
 where the terms multiplied by $H_0$ cancel by unitarity.
-Then, we use Hermiticity
+
+:::{admonition} Finding $\tilde{\mathcal{H}}$
+:class: dropdown info
+
+We use $H_0 \mathcal{U}' = \mathcal{U}' H_0 -\mathcal{X}$ to move $H_0$ through
+to the right:
 
 $$
-0 = \tilde{\mathcal{H}}-\tilde{\mathcal{H}}^\dagger = -\mathcal{X}-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger + \mathcal{X}^\dagger\mathcal{U}',
+\begin{align*}
+\tilde{\mathcal{H}}
+&= H_0 + \mathcal{U}'^\dagger H_0 + (H_0 \mathcal{U}') + \mathcal{U}'^\dagger H_0
+\mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H'}\mathcal{U})
+\\
+&= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
+&= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
+&= H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+\end{align*}
 $$
+where we used the unitarity condition $\mathcal{U}' +
+\mathcal{U}'^{\dagger} + \mathcal{U}'^{\dagger}\mathcal{U}' = 0$ in the last
+step.
 
-and find a recursive definition for $\mathcal{Z}$:
+:::
+
+The transformed Hamiltonian does not contain products by $H_0$ anymore, but
+it does depend on $\mathcal{X}$.
+Because $\mathcal{X}$ is defined using $H_0$, we need to find an alternative
+definition that is free of multiplications by $H_0$.
+To find it, we apply a similar procedure to the one for finding $\mathcal{U}'$:
+we search for a recursive definition for its diagonal and off-diagonal blocks.
+Once again, we use unitarity for the diagonal blocks, and find a recursive
+definition for $\mathcal{Z}$:
 
 :::{math}
 :label: Z
-\mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2,
+\mathcal{Z} = \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) = -\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X} \mathcal{U}'.
 :::
 
-which defines the diagonal blocks of $\mathcal{X}$ by using all blocks of the
-previous orders of $\mathcal{X}$ in the right hand side.
+Similar to computing $\mathcal{W_n}$, computing $\mathcal{Z_n}$ requires lower
+orders of $\mathcal{X}$ and $\mathcal{U}'$, all blocks included.
 *This is our second secret ingredient✨*
 
-Finally, we compute the off-diagonal blocks of $\mathcal{X}$ by requiring that
-$\tilde{\mathcal{H}}^{AB} = 0$.
-Thus, from {eq}`H_tilde` it follows that
+:::{admonition} Derivation of $\mathcal{Z}$
+:class: dropdown info
+
+We define $\mathcal{Z}$ as the anti-Hermitian part of $\mathcal{X}$, and
+use unitarity to find its recursive definition:
+
+$$
+\begin{align}
+\mathcal{Z}
+&= \frac{1}{2}(\mathcal{X} - \mathcal{X}^\dagger) \\
+&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
+&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}') \mathcal{U}' \Big] \\
+&= \frac{1}{2} (- \mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X} \mathcal{U}').
+\end{align}
+$$
+
+:::
+
+Then, we compute the off-diagonal blocks of $\mathcal{X}$ by requiring that
+$\tilde{\mathcal{H}}^{AB} = 0$ and find
 
 :::{math}
 :label: Y
@@ -223,6 +288,21 @@ Once again, despite $\mathcal{X}$ enters the right hand side, because all the
 terms lack 0-th order, this defines a recursive relation for $\mathcal{X}^{AB}$,
 and therefore $\mathcal{Y}$.
 *This is our last secret ingredient✨*
+
+:::{admonition} Derivation of $\mathcal{Y}$
+:class: dropdown info
+
+Because the block-diagonal part of $\mathcal{X}$ is $\mathcal{Y}$, we compute
+it as:
+
+$$
+\begin{align}
+\tilde{\mathcal{H}}^{AB} &= \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} = 0 \\
+\implies
+\mathcal{X}^{AB} &= (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}
+\end{align}
+$$
+:::
 
 The final part is standard: the definition of $\mathcal{Y}$ in {eq}`XYX` fixes
 $\mathcal{V}$ as a solution of:
@@ -239,13 +319,13 @@ a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation).
 We now have a complete algorithm:
 
 1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
-2. To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$, see {eq}`W`.
-3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $\mathcal{V}^{AB}H_0^{AA} - H_0^{BB}\mathcal{V}^{AB} = \mathcal{Y}^{AB}$. Note that {eq}`sylvester` requires $\mathcal{X}$.
-4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2$, see {eq}`Z`.
+2. To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
+3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $\mathcal{V}^{AB}H_0^{AA} - H_0^{BB}\mathcal{V}^{AB} = \mathcal{Y}^{AB}$. This requires $\mathcal{X}$.
+4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2$.
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
  (-\mathcal{U}'^\dagger\mathcal{X} +
-  \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$, see {eq}`Y`.
-6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} +\textrm{h.c.})/2$, see {eq}`H_tilde`.
+  \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
+6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} +\textrm{h.c.})/2$.
 
 ##  How to use Pymablock on large numerical Hamiltonians?
 
