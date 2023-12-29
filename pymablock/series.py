@@ -229,18 +229,19 @@ def _log_call(func):
     """
     Magic that logs function call into log class attribute
     """
+
     @wraps(func)
     def wrapped(*args, **kwargs):
         # We're wrapping a method, so args[0] is always self
         type(args[0]).log.append((args[0], func.__name__, args[1:], kwargs))
         return func(*args, **kwargs)
-    
+
     return wrapped
+
 
 class AlgebraElement:
     log = []
 
-    @_log_call
     def __init__(self, name):
         self.name = name
 
@@ -248,25 +249,25 @@ class AlgebraElement:
         return self.name
 
     def _repr_latex_(self):
-        return '${}$'.format(str(self.name))
+        return "${}$".format(str(self.name))
 
     __str__ = __repr__
 
     @_log_call
     def __mul__(self, other):
-            return AlgebraElement(fr"({self} \times {other})")
+        return AlgebraElement(rf"({self} \times {other})")
 
     @_log_call
     def __rmul__(self, other):
-            return AlgebraElement(fr"({other} \times {self})")
+        return AlgebraElement(rf"({other} \times {self})")
 
     @_log_call
     def __add__(self, other):
-        return AlgebraElement(fr"({self} + {other})")
+        return AlgebraElement(rf"({self} + {other})")
 
     @_log_call
     def adjoint(self):
-        return AlgebraElement(fr"({self}^\dagger)")
+        return AlgebraElement(rf"({self}^\dagger)")
 
     @_log_call
     def __neg__(self):
@@ -276,8 +277,16 @@ class AlgebraElement:
     def __sub__(self, other):
         return self + (-other)
 
+    @_log_call
+    def __truediv__(self, other):
+        if not isinstance(other, int):
+            raise ValueError("Can only divide by integers")
+        if other < 0:
+            return AlgebraElement(rf"(-{self} / {-other})")
+        return AlgebraElement(rf"({self} / {other})")
+
     def extract_log(self, method, only_count=False):
-        function_log = [elm for elm in self.log if str(method)==elm[1]]
+        function_log = [elm for elm in self.log if str(method) == elm[1]]
         if not only_count:
             return (function_log, len(function_log))
         else:
