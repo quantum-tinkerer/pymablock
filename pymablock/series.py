@@ -2,6 +2,7 @@ import sys
 from operator import matmul
 from typing import Any, Optional, Callable, Union
 from secrets import token_hex
+from functools import wraps
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -223,47 +224,67 @@ class BlockSeries:
                 (len(item), len(self.shape), self.n_infinite),
             )
 
-class MultiplicationCounter:
-    """Dummy class to count number of performed multiplications."""
-    counter = 0 #this class atribute needs to be reset after test use
 
+def _log_call(func):
+    """
+    Magic that logs function call into log class attribute
+    """
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        # We're wrapping a method, so args[0] is always self
+        type(args[0]).log.append((args[0], func.__name__, args[1:], kwargs))
+        return func(*args, **kwargs)
+    
+    return wrapped
+
+class AlgebraElement:
+    log = []
+
+    @log_call
     def __init__(self, name):
         self.name = name
 
     def __repr__(self):
         return self.name
 
+    def _repr_latex_(self):
+        return '${}$'.format(str(self.name))
+
     __str__ = __repr__
 
+    @log_call
     def __mul__(self, other):
-        if isinstance(other, type(self)):
-            MultiplicationCounter.counter += 1
-            return MultiplicationCounter(f"({self} * {other})")
-        else:
-            return MultiplicationCounter(f"({self} * {other})")
+            return AlgebraElement(fr"({self} \times {other})")
 
+    @log_call
     def __rmul__(self, other):
-        if isinstance(other, type(self)):
-            MultiplicationCounter.counter += 1
-            return MultiplicationCounter(f"({other} * {self})")
-        else:
-            return MultiplicationCounter(f"({other} * {self})")
+            return AlgebraElement(fr"({other} \times {self})")
 
+    @log_call
     def __add__(self, other):
-        return MultiplicationCounter(f"({self} + {other})")
+        return AlgebraElement(fr"({self} + {other})")
 
+    @log_call
     def adjoint(self):
-        return MultiplicationCounter(f"({self}^*)")
+        return AlgebraElement(fr"({self}^\dagger)")
 
+    @log_call
     def __neg__(self):
-        return MultiplicationCounter(f"(-{self})")
+        return AlgebraElement(f"(-{self})")
 
+    @log_call
     def __sub__(self, other):
         return self + (-other)
 
-    def extract_count(self):
-        print(self.counter)
-        MultiplicationCounter.counter = 0
+    def extract_log(self, method, only_count=False):
+        function_log = [elm for elm in self.log if str(method)==elm[1]]
+        if not only_count:
+            return (function_log, len(function_log))
+        else:
+            return len(function_log)
+
+    def clear_log(self):
+        AlgebraElement.log = []
 
 
 def cauchy_dot_product(
