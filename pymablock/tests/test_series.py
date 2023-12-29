@@ -138,12 +138,10 @@ def test_algebra_element_algebra(alphabet_of_algebra_elements:list[AlgebraElemen
     AlgebraElement.log = []
     
     t1 = a*b
-    print(t1.extract_log('__mul__', only_count=True))
     assert t1.extract_log('__mul__', only_count=True) == 1
     t1.clear_log()
     
     t2 = a*(-b)*c.adjoint()
-    print(t2.log)
     assert t2.extract_log('__mul__', only_count=True) == 2
     t2.clear_log()
     
