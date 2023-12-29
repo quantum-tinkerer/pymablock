@@ -240,7 +240,7 @@ def _log_call(func):
 class AlgebraElement:
     log = []
 
-    @log_call
+    @_log_call
     def __init__(self, name):
         self.name = name
 
@@ -252,27 +252,27 @@ class AlgebraElement:
 
     __str__ = __repr__
 
-    @log_call
+    @_log_call
     def __mul__(self, other):
             return AlgebraElement(fr"({self} \times {other})")
 
-    @log_call
+    @_log_call
     def __rmul__(self, other):
             return AlgebraElement(fr"({other} \times {self})")
 
-    @log_call
+    @_log_call
     def __add__(self, other):
         return AlgebraElement(fr"({self} + {other})")
 
-    @log_call
+    @_log_call
     def adjoint(self):
         return AlgebraElement(fr"({self}^\dagger)")
 
-    @log_call
+    @_log_call
     def __neg__(self):
         return AlgebraElement(f"(-{self})")
 
-    @log_call
+    @_log_call
     def __sub__(self, other):
         return self + (-other)
 
