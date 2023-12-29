@@ -156,8 +156,8 @@ This approach would be both computationally expensive and unnecessary.
 
 :::
 
-To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is is
-defined by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
+To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined
+by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
 Additionally, we constrain it to be block off-diagonal:
 $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
 so that the unitary transformation is equivalent to the Schrieffer-Wolff
@@ -221,7 +221,7 @@ define the commutator between $\mathcal{U}'$ and $H_0$:
 where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block
 diagonal.
 We use $H_0 \mathcal{U}' = \mathcal{U}' H_0 -\mathcal{X}$ to move $H_0$ through
-to the right and use the unitarity condition to find
+to the right and find
 
 :::{math}
 :label: H_tilde
@@ -305,7 +305,7 @@ $\mathcal{V}$ as a solution of:
 a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation).
 The solution to this equation contains fractions whose denominators are
 energy differences between the $A$ and $B$ subspaces.
-To solve it, we need the eigenvalues of $H_0$, which we need to compute only
+To solve it, we use the eigenvalues of $H_0$, which we need to compute only
 once.
 Choosing the right parametrization of $\mathcal{U}$ has therefore allowed us to
 obtain expressions such that every new order of $\mathcal{V}$, and therefore
