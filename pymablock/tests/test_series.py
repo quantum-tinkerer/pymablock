@@ -1,11 +1,12 @@
 from typing import Any
 from operator import mul
+from string import ascii_lowercase
 
 import numpy as np
 import sympy
 import pytest
 
-from pymablock.series import BlockSeries, cauchy_dot_product
+from pymablock.series import BlockSeries, cauchy_dot_product, AlgebraElement
 
 
 @pytest.fixture(
@@ -23,6 +24,16 @@ from pymablock.series import BlockSeries, cauchy_dot_product
     ],
 )
 def possible_keys_and_errors(request):
+    return request.param
+
+
+@pytest.fixture(
+    scope="module",    
+    params=[
+        AlgebraElement(letter) for letter in list(ascii_lowercase)
+    ]
+)
+def alphabet_of_algebra_elements(request):
     return request.param
 
 
@@ -116,3 +127,27 @@ def test_printing():
         name="test",
     )
     assert str(a) == "test_(5 × 5 × ∞_(i) × ∞_(j))"
+
+
+def test_algebra_element_algebra(alphabet_of_algebra_elements:list[AlgebraElement, ...]):
+    a = AlgebraElement('a')
+    b = AlgebraElement('b')
+    c = AlgebraElement('c')
+    
+    #reset log
+    AlgebraElement.log = []
+    
+    t1 = a*b
+    print(t1.extract_log('__mul__', only_count=True))
+    assert t1.extract_log('__mul__', only_count=True) == 1
+    t1.clear_log()
+    
+    t2 = a*(-b)*c.adjoint()
+    print(t2.log)
+    assert t2.extract_log('__mul__', only_count=True) == 2
+    t2.clear_log()
+    
+    t3 = (t1-c)*(t2+a)
+    assert t3.extract_log('__mul__', only_count=True) == 1
+    assert t3.extract_log('__sub__', only_count=True) == 1
+    assert t3.extract_log('__add__', only_count=True) == 2 #testing that add is in sub
