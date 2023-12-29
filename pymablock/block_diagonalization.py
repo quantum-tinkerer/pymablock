@@ -500,19 +500,15 @@ def _block_diagonalize(
     needed_products = [
         ("U'† @ U'", True),
         ("U'† @ X", False),
-        ("U† @ H' @ U", True),
+        ("H' @ U'", False),
+        ("U'† @ H' @ U'", False),
     ]
 
-    series.update(
-        {
-            terms: cauchy_dot_product(
-                *[series[term] for term in terms.split(" @ ")],
-                operator=operator,
-                hermitian=hermitian,
-            )
-            for terms, hermitian in needed_products
-        }
-    )
+    for term, hermitian in needed_products:
+        first, second = term.split(" @ ", maxsplit=1)
+        series[term] = cauchy_dot_product(
+            series[first], series[second], operator=operator, hermitian=hermitian
+        )
 
     # The implicit method executes exactly the same algorithm, but with only one
     # modification: it defines duplicates for the original series that return
@@ -540,16 +536,14 @@ def _block_diagonalize(
         key: linear_operator_wrapped(value) for key, value in series.items()
     }
 
-    linear_operator_series.update(
-        {
-            terms: cauchy_dot_product(
-                *[linear_operator_series[term] for term in terms.split(" @ ")],
-                operator=operator,
-                hermitian=hermitian,
-            )
-            for terms, hermitian in needed_products
-        }
-    )
+    for term, hermitian in needed_products:
+        first, second = term.split(" @ ", maxsplit=1)
+        linear_operator_series[term] = cauchy_dot_product(
+            linear_operator_series[first],
+            linear_operator_series[second],
+            operator=operator,
+            hermitian=hermitian,
+        )
 
     def linear_operator_or_explicit(index):
         if index[0] == index[1] == 1 and implicit:
@@ -576,7 +570,13 @@ def _block_diagonalize(
             product = linear_operator_or_explicit(index)["U'† @ X"]
             return _safe_divide(Dagger(product[index]) - product[index], 2)
         elif index[:2] == (0, 1):
-            return _zero_sum(-series["U'† @ X"][index], series["U† @ H' @ U"][index])
+            return _zero_sum(
+                -series["U'† @ X"][index],
+                series["H'"][index],
+                series["H' @ U'"][index],
+                Dagger(series["H' @ U'"][(index[1], index[0], *index[2:])]),
+                series["U'† @ H' @ U'"][index],
+            )
         elif index[:2] == (1, 0):
             # off-diagonal of X is Hermitian
             return Dagger(series["X"][(0, 1) + tuple(index[2:])])
@@ -590,14 +590,20 @@ def _block_diagonalize(
             # anti-Hermitian part of U'† @ X, we save some computations
             # by taking the Hermitian part of U'† @ X and not including X.
             return _zero_sum(
-                series["U† @ H' @ U"][index],
+                series["H'"][index],
+                series["H' @ U'"][index],
+                Dagger(series["H' @ U'"][index]),
+                series["U'† @ H' @ U'"][index],
                 _safe_divide(
                     series["U'† @ X"][index] + Dagger(series["U'† @ X"][index]),
                     -2,
                 ),
             )
         return _zero_sum(
-            series["U† @ H' @ U"][index],
+            series["H'"][index],
+            series["H' @ U'"][index],
+            Dagger(series["H' @ U'"][(index[1], index[0], *index[2:])]),
+            series["U'† @ H' @ U'"][index],
             -series["X"][index],
             -series["U'† @ X"][index],
         )
