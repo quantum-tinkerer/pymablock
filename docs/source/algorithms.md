@@ -70,8 +70,7 @@ There are many ways to solve this problem that give identical expressions for
 $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
 We are searching for a procedure that satisfies two additional constraints:
 
-- All its products are Cauchy products and therefore has the lowest
-  possible scaling of complexity.
+- It has the same complexity scaling as a Cauchy product.
 - It does not require multiplications by $H_0$. This is because $n$-th order
   corrections to $\tilde{\mathcal{H}}$ in perturbation theory carry $n$ powers
   of energy denominators. Therefore, any additional multiplications by $H_0$
@@ -98,7 +97,8 @@ and obtain
 :::{math}
 :label: W
 \toggle{
-  \mathcal{W} = -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
+  \mathcal{W} = \texttip{\color{red}{\ldots}}{click to expand} = -\frac{1}{2}
+  \mathcal{U}'^\dagger \mathcal{U}'.
 }{
   \begin{align}
   2 &= (1+\mathcal{U}'^{\dagger})(1+\mathcal{U}') +
@@ -117,7 +117,7 @@ Because $\mathcal{U}'$ has no $0$-th order term, $(\mathcal{U}'^\dagger
 $\mathcal{U}$ nor $\mathcal{W}$.
 We can therefore compute $\mathcal{W}$ as a Cauchy product of
 $\mathcal{U}'$ with itself.
-*This recursive definition is the first secret ingredient of Pymablock✨*
+*This recurrence relation is the first secret ingredient of Pymablock✨*
 
 :::{admonition} Choosing the right definition for $\mathcal{W}$
 :class: dropdown info
@@ -147,8 +147,8 @@ compute a Taylor expansion of a series:
 $$
 f(\mathcal{A}) = \sum_{n=0}^\infty a_n \mathcal{A}^n.
 $$
-
-Once again, a direct computation would require $\sim \exp N$ multiplications,
+however evaluating a Taylor expansion of a given series has a higher scaling of complexity.
+A direct computation of all possible products of terms would require $\sim \exp N$ multiplications.
 however defining new series as $\mathcal{A}^{n+1} = \mathcal{A}\mathcal{A}^{n}$
 and reusing the previously computed results brings these costs down to $\sim
 N^2$.
@@ -211,11 +211,9 @@ define the commutator between $\mathcal{U}'$ and $H_0$:
 
 :::{math}
 :label: XYX
-\begin{align}
-\mathcal{X} &\equiv [\mathcal{U}', H_0] = \mathcal{Y} + \mathcal{Z}, \\
-\mathcal{Y} &\equiv [\mathcal{V}, H_0] = \mathcal{Y}^\dagger,\\
-\mathcal{Z} &\equiv [\mathcal{W}, H_0] = -\mathcal{Z}^\dagger,
-\end{align}
+\mathcal{X} \equiv [\mathcal{U}', H_0] = \mathcal{Y} + \mathcal{Z}, \quad
+\mathcal{Y} \equiv [\mathcal{V}, H_0] = \mathcal{Y}^\dagger,\quad
+\mathcal{Z} \equiv [\mathcal{W}, H_0] = -\mathcal{Z}^\dagger,
 :::
 
 where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block
@@ -255,13 +253,14 @@ definition for $\mathcal{Z}$, the anti-Hermitian part of $\mathcal{X}$:
 :::{math}
 :label: Z
 \toggle{
-  \mathcal{Z} = -\mathcal{U}'^\dagger\mathcal{X} + h.c.
+  \mathcal{Z} = -\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.}
 }{
   \begin{align}
   \mathcal{Z}
+  &= \frac{1}{2} (\mathcal{X} + \mathcal{X}^{\dagger}) \\
   &= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
   &= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}') \mathcal{U}' \Big] \\
-  &= \frac{1}{2} (- \mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X} \mathcal{U}').
+  &= \frac{1}{2} (- \mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
   \end{align}
 }
 \endtoggle
@@ -276,17 +275,8 @@ $\tilde{\mathcal{H}}^{AB} = 0$ and find
 
 :::{math}
 :label: Y
-\toggle{
-  \mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} -
-  \mathcal{U}'^\dagger \mathcal{X})^{AB}.
-}{
-  \begin{aligned}
-  \tilde{\mathcal{H}}^{AB} &= \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} = 0 \\
-  \implies
-  \mathcal{X}^{AB} &= (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X})^{AB}
-  \end{aligned}
-}
-\endtoggle
+\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} -
+\mathcal{U}'^\dagger \mathcal{X})^{AB}.
 :::
 
 Once again, despite $\mathcal{X}$ enters the right hand side, because all the
