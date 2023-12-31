@@ -506,11 +506,6 @@ def _block_diagonalize(
             "data": zero_data,
         },
         "H' @ U'": {
-            "eval": (
-                lambda *index: _zero_sum(
-                    series["H'_diag @ U'"][index], series["H'_offdiag @ U'"][index]
-                )
-            ),
             "data": zero_data,
         },
     }
@@ -574,6 +569,12 @@ def _block_diagonalize(
         if index[0] == index[1] == 1 and implicit:
             return linear_operator_series
         return series
+
+    def H_p_U_p_eval(*index: int) -> Any:
+        which = linear_operator_or_explicit(index)
+        return _zero_sum(which["H'_diag @ U'"][index], which["H'_offdiag @ U'"][index])
+
+    series["H' @ U'"].eval = H_p_U_p_eval
 
     def U_p_eval(*index: int) -> Any:
         if index[0] == index[1]:
