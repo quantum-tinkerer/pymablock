@@ -331,6 +331,38 @@ We now have a complete algorithm:
   \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
 6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}$.
 
+:::{admonition} Extra optimization: common subexpression elimination
+:class: dropdown info
+
+We further optimize the algorithm by reusing products that are needed in several
+places.
+
+To compute $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$ faster, we express it
+using $\mathcal{A} \equiv \mathcal{H}'\mathcal{U}'$:
+
+$$
+\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} = \mathcal{H}' + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A}.
+$$
+
+To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$.
+
+To reuse these products, we separate the perturbation into diagonal and off-diagonal parts $\mathcal{H}' = \mathcal{H}'_\textrm{diag} + \mathcal{H}'_\textrm{offdiag}$.
+
+We then introduce variables $\mathcal{A} = \mathcal{H}_\textrm{diag} \mathcal{U}'$, $\mathcal{B} = \mathcal{H}_\textrm{offdiag} \mathcal{U}'$, and $\mathcal{C} = \mathcal{X} -
+\mathcal{H}'_\textrm{offdiag}$.
+This gives an updated expression for $\mathcal{Z}$:
+
+$$
+\mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) + \textrm{h.c.}.
+$$
+
+and more importantly for $\tilde{\mathcal{H}}$:
+
+$$
+\tilde{\mathcal{H}} = H_0 + \mathcal{A} + \mathcal{A}^\dagger + (\mathcal{B} + \mathcal{B}^\dagger)/2 + \mathcal{U}'^\dagger (\mathcal{A} + \mathcal{B}) - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
+$$
+:::
+
 (implicit)=
 ## How to use Pymablock on large numerical Hamiltonians?
 
