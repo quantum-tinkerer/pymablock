@@ -736,7 +736,7 @@ def test_equivalence_explicit_implicit() -> None:
 
     assert all(isinstance(implicit_H_tilde[1, 1, i], LinearOperator) for i in range(2))
 
-    compare_series(implicit_H_tilde, explicit_wrapped_H_tilde, (2,))
+    compare_series(implicit_H_tilde, explicit_wrapped_H_tilde, (2,), atol=1e-12)
     compare_series(
         implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-8
     )
