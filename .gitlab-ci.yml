@@ -42,7 +42,7 @@ run docs:
   script:
     - pip install sphinx myst-nb sphinx-togglebutton sphinx-tippy sphinx-copybutton "sphinx-book-theme>=1.1.0"
     - pip install --editable .
-    - make -C docs/ html SPHINXOPTS="-W --keep-going -n"
+    - make -C docs/ html SPHINXOPTS="-WT --keep-going -n"
   artifacts:
     paths:
       - docs/build
