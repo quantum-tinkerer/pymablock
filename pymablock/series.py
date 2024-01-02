@@ -226,71 +226,6 @@ class BlockSeries:
             )
 
 
-def _log_call(func):
-    """
-    Magic that logs function call into log class attribute
-    """
-
-    @wraps(func)
-    def wrapped(*args, **kwargs):
-        # We're wrapping a method, so args[0] is always self
-        type(args[0]).log.append((args[0], func.__name__, args[1:], kwargs))
-        return func(*args, **kwargs)
-
-    return wrapped
-
-
-class AlgebraElement:
-    log = []
-
-    def __init__(self, name):
-        self.name = name
-
-    def __repr__(self):
-        return self.name
-
-    __str__ = __repr__
-
-    @_log_call
-    def __mul__(self, other):
-        return type(self)(rf"({self} * {other})")
-
-    @_log_call
-    def __rmul__(self, other):
-        return type(self)(rf"({other} * {self})")
-
-    @_log_call
-    def __add__(self, other):
-        return type(self)(rf"({self} + {other})")
-
-    @_log_call
-    def adjoint(self):
-        return type(self)(rf"({self}^\dagger)")
-
-    @_log_call
-    def __neg__(self):
-        return type(self)(f"(-{self})")
-
-    @_log_call
-    def __sub__(self, other):
-        return self + (-other)
-
-    @_log_call
-    def __truediv__(self, other):
-        if not isinstance(other, int):
-            raise ValueError("Can only divide by integers")
-        if other < 0:
-            return type(self)(rf"(-{self} / {-other})")
-        return type(self)(rf"({self} / {other})")
-
-    def extract_log(self, method=False):
-        log_dict = dict(Counter(call[1] for call in AlgebraElement.log))
-        if method:
-            return log_dict[method]
-        else:
-            return log_dict
-
-
 def cauchy_dot_product(
     *series: BlockSeries,
     operator: Optional[Callable] = None,
@@ -464,3 +399,68 @@ def product_by_order(
             result = result + term + Dagger(term)
 
     return result
+
+
+def _log_call(func):
+    """
+    Magic that logs function call into log class attribute
+    """
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        # We're wrapping a method, so args[0] is always self
+        type(args[0]).log.append((args[0], func.__name__, args[1:], kwargs))
+        return func(*args, **kwargs)
+
+    return wrapped
+
+
+class AlgebraElement:
+    log = []
+
+    def __init__(self, name):
+        self.name = name
+
+    def __repr__(self):
+        return self.name
+
+    __str__ = __repr__
+
+    @_log_call
+    def __mul__(self, other):
+        return type(self)(rf"({self} * {other})")
+
+    @_log_call
+    def __rmul__(self, other):
+        return type(self)(rf"({other} * {self})")
+
+    @_log_call
+    def __add__(self, other):
+        return type(self)(rf"({self} + {other})")
+
+    @_log_call
+    def adjoint(self):
+        return type(self)(rf"({self}^\dagger)")
+
+    @_log_call
+    def __neg__(self):
+        return type(self)(f"(-{self})")
+
+    @_log_call
+    def __sub__(self, other):
+        return self + (-other)
+
+    @_log_call
+    def __truediv__(self, other):
+        if not isinstance(other, int):
+            raise ValueError("Can only divide by integers")
+        if other < 0:
+            return type(self)(rf"(-{self} / {-other})")
+        return type(self)(rf"({self} / {other})")
+
+    def extract_log(self, method=False):
+        log_dict = dict(Counter(call[1] for call in AlgebraElement.log))
+        if method:
+            return log_dict[method]
+        else:
+            return log_dict
