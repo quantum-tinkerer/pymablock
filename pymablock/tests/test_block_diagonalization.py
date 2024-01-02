@@ -17,7 +17,7 @@ from pymablock.block_diagonalization import (
     hamiltonian_to_BlockSeries,
     _dict_to_BlockSeries,
 )
-from pymablock.series import BlockSeries, cauchy_dot_product, zero, one
+from pymablock.series import BlockSeries, AlgebraElement, cauchy_dot_product, zero, one
 
 
 # Auxiliary comparison functions
@@ -1022,6 +1022,24 @@ def test_unknown_data_type():
     H = [
         [[Unknown("a"), zero], [zero, Unknown("b")]],
         [[Unknown("c"), Unknown("d")], [Unknown("e"), Unknown("f")]],
+    ]
+    H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x: x)
+    H_tilde[:, :, :3]
+    # Shouldn't work without the solve_sylvester function
+    with pytest.raises(NotImplementedError):
+        H_tilde, *_ = block_diagonalize(H)
+
+
+def test_algebra_element_data_type():
+    """
+    Test that the algorithm works with a class implementing algebra.
+
+    This requires a solve_sylvester function to be provided, and otherwise
+    should raise an error.
+    """
+    H = [
+        [[AlgebraElement("a"), zero], [zero, AlgebraElement("b")]],
+        [[AlgebraElement("c"), AlgebraElement("d")], [AlgebraElement("e"), AlgebraElement("f")]],
     ]
     H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x: x)
     H_tilde[:, :, :3]
