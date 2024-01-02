@@ -26,6 +26,12 @@ def possible_keys_and_errors(request):
     return request.param
 
 
+@pytest.fixture(autouse=True, scope="session")
+def clear_log():
+    yield
+    AlgebraElement.log = []
+
+
 def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) -> None:
     """
     Test that indexing works like in numpy arrays.
