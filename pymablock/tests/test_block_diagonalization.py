@@ -17,7 +17,7 @@ from pymablock.block_diagonalization import (
     hamiltonian_to_BlockSeries,
     _dict_to_BlockSeries,
 )
-from pymablock.series import BlockSeries, cauchy_dot_product, zero, one
+from pymablock.series import BlockSeries, AlgebraElement, cauchy_dot_product, zero, one
 
 
 # Auxiliary comparison functions
@@ -985,43 +985,19 @@ def test_block_diagonalize_hamiltonian_symbolic(
         block_diagonalize(hamiltonian, subspace_eigenvectors=faulted_eigenvectors)
 
 
-def test_unknown_data_type():
+def test_algebra_element_data_type():
     """
     Test that the algorithm works with a class implementing algebra.
 
     This requires a solve_sylvester function to be provided, and otherwise
     should raise an error.
     """
-
-    class Unknown:
-        """Black box class with a minimal algebraic interface."""
-
-        def __init__(self, name):
-            self.name = name
-
-        def __repr__(self):
-            return self.name
-
-        __str__ = __repr__
-
-        def __mul__(self, other):
-            return Unknown(f"({self} * {other})")
-
-        def __rmul__(self, other):
-            return Unknown(f"({other} * {self})")
-
-        def __add__(self, other):
-            return Unknown(f"({self} + {other})")
-
-        def adjoint(self):
-            return Unknown(f"({self}^*)")
-
-        def __neg__(self):
-            return Unknown(f"(-{self})")
-
     H = [
-        [[Unknown("a"), zero], [zero, Unknown("b")]],
-        [[Unknown("c"), Unknown("d")], [Unknown("e"), Unknown("f")]],
+        [[AlgebraElement("a"), zero], [zero, AlgebraElement("b")]],
+        [
+            [AlgebraElement("c"), AlgebraElement("d")],
+            [AlgebraElement("e"), AlgebraElement("f")],
+        ],
     ]
     H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x: x)
     H_tilde[:, :, :3]

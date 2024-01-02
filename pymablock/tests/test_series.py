@@ -5,7 +5,7 @@ import numpy as np
 import sympy
 import pytest
 
-from pymablock.series import BlockSeries, cauchy_dot_product
+from pymablock.series import BlockSeries, cauchy_dot_product, AlgebraElement
 
 
 @pytest.fixture(
@@ -24,6 +24,12 @@ from pymablock.series import BlockSeries, cauchy_dot_product
 )
 def possible_keys_and_errors(request):
     return request.param
+
+
+@pytest.fixture(autouse=True, scope="session")
+def clear_log():
+    yield
+    AlgebraElement.log = []
 
 
 def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) -> None:
@@ -116,3 +122,30 @@ def test_printing():
         name="test",
     )
     assert str(a) == "test_(5 × 5 × ∞_(i) × ∞_(j))"
+
+
+def test_algebra_element_algebra():
+    a = AlgebraElement("a")
+    b = AlgebraElement("b")
+    c = AlgebraElement("c")
+
+    AlgebraElement.log = []
+
+    t1 = 2 * a * b / 2
+    assert AlgebraElement.call_counts()["__mul__"] == 1
+    assert AlgebraElement.call_counts()["__rmul__"] == 1
+    assert AlgebraElement.call_counts()["__truediv__"] == 1
+    AlgebraElement.log = []
+
+    t2 = a * (-b) * c.adjoint()
+    assert AlgebraElement.call_counts()["__mul__"] == 2
+    AlgebraElement.log = []
+
+    assert t2.to_sympy() == a.to_sympy() * (-b.to_sympy()) * c.to_sympy().adjoint()
+    assert not any(symbol.is_commutative for symbol in t2.to_sympy().free_symbols)
+
+    (t1 - c) * (t2 + a)
+    assert AlgebraElement.call_counts()["__mul__"] == 1
+    assert AlgebraElement.call_counts()["__sub__"] == 1
+    # subtraction = addition of negative
+    assert AlgebraElement.call_counts()["__add__"] == 2

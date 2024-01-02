@@ -2,6 +2,8 @@ import sys
 from operator import matmul
 from typing import Any, Optional, Callable, Union
 from secrets import token_hex
+from functools import wraps
+from collections import Counter
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -397,3 +399,101 @@ def product_by_order(
             result = result + term + Dagger(term)
 
     return result
+
+
+def _log_call(func):
+    """
+    Log a method call into the class attribute.
+    """
+
+    @wraps(func)
+    def wrapped(*args, **kwargs):
+        # We're wrapping a method, so args[0] is always self
+        type(args[0]).log.append((args[0], func.__name__, args[1:], kwargs))
+        return func(*args, **kwargs)
+
+    return wrapped
+
+
+class AlgebraElement:
+    log = []
+
+    def __init__(self, name):
+        """An abstract algebra element.
+
+        Parameters
+        ----------
+        name : str
+            Name of the element.
+
+        Attributes
+        ----------
+        log : list
+            List of all algebraic method calls with the format ``(self,
+            method_name, args, kwargs)``.
+        name : str
+            Name of the element. For a result of a calculation will contain a
+            sympy-fiable formula.
+
+        Notes
+        -----
+        The two main uses of this class are:
+
+        - Obtain a symbolic expression of all computations that are performed
+          with its instances.
+        - Log all of its method calls into a class attribute.
+        """
+        self.name = name
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"AlgebraElement({self.name})"
+
+    @_log_call
+    def __mul__(self, other):
+        return type(self)(rf"({self} * {other})")
+
+    @_log_call
+    def __rmul__(self, other):
+        return type(self)(rf"({other} * {self})")
+
+    @_log_call
+    def __add__(self, other):
+        return type(self)(rf"({self} + {other})")
+
+    @_log_call
+    def adjoint(self):
+        return type(self)(rf"adjoint({self})")
+
+    @_log_call
+    def __neg__(self):
+        return type(self)(f"(-{self})")
+
+    @_log_call
+    def __sub__(self, other):
+        return self + (-other)
+
+    @_log_call
+    def __truediv__(self, other):
+        if not isinstance(other, int):
+            raise ValueError("Can only divide by integers.")
+        if other < 0:
+            return type(self)(rf"(-{self} / {-other})")
+        return type(self)(rf"({self} / {other})")
+
+    @classmethod
+    def call_counts(cls):
+        return Counter(call[1] for call in cls.log)
+
+    def to_sympy(self):
+        # Based on https://stackoverflow.com/a/32169940, CC BY-SA 3.0
+        parsed_expr = sympy.parsing.sympy_parser.parse_expr(self.name, evaluate=False)
+
+        new_locals = {
+            sym.name: sympy.Symbol(sym.name, commutative=False)
+            for sym in parsed_expr.atoms(sympy.Symbol)
+        }
+
+        return sympy.sympify(self.name, locals=new_locals)
