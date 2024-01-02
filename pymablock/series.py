@@ -286,14 +286,7 @@ class AlgebraElement:
         return type(self)(rf"({self} / {other})")
 
     def extract_log(self, method, only_count=False):
-        function_log = [elm for elm in self.log if str(method) == elm[1]]
-        if not only_count:
-            return (function_log, len(function_log))
-        else:
-            return len(function_log)
-
-    def clear_log(self):
-        AlgebraElement.log = []
+        return collections.Counter(call[1] for call in AlgebraElement.log)
 
 
 def cauchy_dot_product(
