@@ -249,18 +249,15 @@ class AlgebraElement:
     def __repr__(self):
         return self.name
 
-    def _repr_latex_(self):
-        return "${}$".format(str(self.name))
-
     __str__ = __repr__
 
     @_log_call
     def __mul__(self, other):
-        return type(self)(rf"({self} \times {other})")
+        return type(self)(rf"({self} * {other})")
 
     @_log_call
     def __rmul__(self, other):
-        return type(self)(rf"({other} \times {self})")
+        return type(self)(rf"({other} * {self})")
 
     @_log_call
     def __add__(self, other):
