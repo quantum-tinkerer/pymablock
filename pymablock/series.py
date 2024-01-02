@@ -3,6 +3,7 @@ from operator import matmul
 from typing import Any, Optional, Callable, Union
 from secrets import token_hex
 from functools import wraps
+from collections import Counter
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -285,8 +286,12 @@ class AlgebraElement:
             return type(self)(rf"(-{self} / {-other})")
         return type(self)(rf"({self} / {other})")
 
-    def extract_log(self, method, only_count=False):
-        return collections.Counter(call[1] for call in AlgebraElement.log)
+    def extract_log(self, method=False):
+        log_dict = dict(Counter(call[1] for call in AlgebraElement.log))
+        if method:
+            return log_dict[method]
+        else:
+            return log_dict
 
 
 def cauchy_dot_product(
