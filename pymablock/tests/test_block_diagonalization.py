@@ -994,7 +994,10 @@ def test_algebra_element_data_type():
     """
     H = [
         [[AlgebraElement("a"), zero], [zero, AlgebraElement("b")]],
-        [[AlgebraElement("c"), AlgebraElement("d")], [AlgebraElement("e"), AlgebraElement("f")]],
+        [
+            [AlgebraElement("c"), AlgebraElement("d")],
+            [AlgebraElement("e"), AlgebraElement("f")],
+        ],
     ]
     H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x: x)
     H_tilde[:, :, :3]
