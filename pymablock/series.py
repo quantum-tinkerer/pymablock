@@ -255,23 +255,23 @@ class AlgebraElement:
 
     @_log_call
     def __mul__(self, other):
-        return AlgebraElement(rf"({self} \times {other})")
+        return type(self)(rf"({self} \times {other})")
 
     @_log_call
     def __rmul__(self, other):
-        return AlgebraElement(rf"({other} \times {self})")
+        return type(self)(rf"({other} \times {self})")
 
     @_log_call
     def __add__(self, other):
-        return AlgebraElement(rf"({self} + {other})")
+        return type(self)(rf"({self} + {other})")
 
     @_log_call
     def adjoint(self):
-        return AlgebraElement(rf"({self}^\dagger)")
+        return type(self)(rf"({self}^\dagger)")
 
     @_log_call
     def __neg__(self):
-        return AlgebraElement(f"(-{self})")
+        return type(self)(f"(-{self})")
 
     @_log_call
     def __sub__(self, other):
@@ -282,8 +282,8 @@ class AlgebraElement:
         if not isinstance(other, int):
             raise ValueError("Can only divide by integers")
         if other < 0:
-            return AlgebraElement(rf"(-{self} / {-other})")
-        return AlgebraElement(rf"({self} / {other})")
+            return type(self)(rf"(-{self} / {-other})")
+        return type(self)(rf"({self} / {other})")
 
     def extract_log(self, method, only_count=False):
         function_log = [elm for elm in self.log if str(method) == elm[1]]
