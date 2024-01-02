@@ -138,14 +138,14 @@ def test_algebra_element_algebra(alphabet_of_algebra_elements:list[AlgebraElemen
     AlgebraElement.log = []
     
     t1 = a*b
-    assert t1.extract_log('__mul__', only_count=True) == 1
-    t1.clear_log()
+    assert t1.extract_log('__mul__') == 1
+    AlgebraElement.log = []
     
     t2 = a*(-b)*c.adjoint()
-    assert t2.extract_log('__mul__', only_count=True) == 2
-    t2.clear_log()
+    assert t2.extract_log('__mul__') == 2
+    AlgebraElement.log = []
     
     t3 = (t1-c)*(t2+a)
-    assert t3.extract_log('__mul__', only_count=True) == 1
-    assert t3.extract_log('__sub__', only_count=True) == 1
-    assert t3.extract_log('__add__', only_count=True) == 2 #testing that add is in sub
+    assert t3.extract_log('__mul__') == 1
+    assert t3.extract_log('__sub__') == 1
+    assert t3.extract_log('__add__') == 2 #testing that add is in sub
