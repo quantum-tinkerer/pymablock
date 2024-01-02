@@ -1,6 +1,5 @@
 from typing import Any
 from operator import mul
-from string import ascii_lowercase
 
 import numpy as np
 import sympy
@@ -24,16 +23,6 @@ from pymablock.series import BlockSeries, cauchy_dot_product, AlgebraElement
     ],
 )
 def possible_keys_and_errors(request):
-    return request.param
-
-
-@pytest.fixture(
-    scope="module",    
-    params=[
-        AlgebraElement(letter) for letter in list(ascii_lowercase)
-    ]
-)
-def alphabet_of_algebra_elements(request):
     return request.param
 
 
@@ -129,7 +118,7 @@ def test_printing():
     assert str(a) == "test_(5 × 5 × ∞_(i) × ∞_(j))"
 
 
-def test_algebra_element_algebra(alphabet_of_algebra_elements:list[AlgebraElement, ...]):
+def test_algebra_element_algebra():
     a = AlgebraElement('a')
     b = AlgebraElement('b')
     c = AlgebraElement('c')
