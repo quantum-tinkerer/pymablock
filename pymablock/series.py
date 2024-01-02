@@ -403,7 +403,7 @@ def product_by_order(
 
 def _log_call(func):
     """
-    Magic that logs function call into log class attribute
+    Log a method call into the class attribute.
     """
 
     @wraps(func)
@@ -419,12 +419,37 @@ class AlgebraElement:
     log = []
 
     def __init__(self, name):
+        """An abstract algebra element.
+
+        Parameters
+        ----------
+        name : str
+            Name of the element.
+
+        Attributes
+        ----------
+        log : list
+            List of all algebraic method calls with the format ``(self,
+            method_name, args, kwargs)``.
+        name : str
+            Name of the element. For a result of a calculation will contain a
+            sympy-fiable formula.
+
+        Notes
+        -----
+        The two main uses of this class are:
+
+        - Obtain a symbolic expression of all computations that are performed
+          with its instances.
+        - Log all of its method calls into a class attribute.
+        """
         self.name = name
 
-    def __repr__(self):
+    def __str__(self):
         return self.name
 
-    __str__ = __repr__
+    def __repr__(self):
+        return f"AlgebraElement({self.name})"
 
     @_log_call
     def __mul__(self, other):
@@ -440,7 +465,7 @@ class AlgebraElement:
 
     @_log_call
     def adjoint(self):
-        return type(self)(rf"({self}^\dagger)")
+        return type(self)(rf"adjoint({self})")
 
     @_log_call
     def __neg__(self):
@@ -453,14 +478,22 @@ class AlgebraElement:
     @_log_call
     def __truediv__(self, other):
         if not isinstance(other, int):
-            raise ValueError("Can only divide by integers")
+            raise ValueError("Can only divide by integers.")
         if other < 0:
             return type(self)(rf"(-{self} / {-other})")
         return type(self)(rf"({self} / {other})")
 
-    def extract_log(self, method=False):
-        log_dict = dict(Counter(call[1] for call in AlgebraElement.log))
-        if method:
-            return log_dict[method]
-        else:
-            return log_dict
+    @classmethod
+    def call_counts(cls):
+        return Counter(call[1] for call in cls.log)
+
+    def to_sympy(self):
+        # Based on https://stackoverflow.com/a/32169940, CC BY-SA 3.0
+        parsed_expr = sympy.parsing.sympy_parser.parse_expr(self.name, evaluate=False)
+
+        new_locals = {
+            sym.name: sympy.Symbol(sym.name, commutative=False)
+            for sym in parsed_expr.atoms(sympy.Symbol)
+        }
+
+        return sympy.sympify(self.name, locals=new_locals)

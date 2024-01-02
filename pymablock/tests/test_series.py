@@ -119,22 +119,27 @@ def test_printing():
 
 
 def test_algebra_element_algebra():
-    a = AlgebraElement('a')
-    b = AlgebraElement('b')
-    c = AlgebraElement('c')
-    
-    #reset log
+    a = AlgebraElement("a")
+    b = AlgebraElement("b")
+    c = AlgebraElement("c")
+
     AlgebraElement.log = []
-    
-    t1 = a*b
-    assert t1.extract_log('__mul__') == 1
+
+    t1 = 2 * a * b / 2
+    assert AlgebraElement.call_counts()["__mul__"] == 1
+    assert AlgebraElement.call_counts()["__rmul__"] == 1
+    assert AlgebraElement.call_counts()["__truediv__"] == 1
     AlgebraElement.log = []
-    
-    t2 = a*(-b)*c.adjoint()
-    assert t2.extract_log('__mul__') == 2
+
+    t2 = a * (-b) * c.adjoint()
+    assert AlgebraElement.call_counts()["__mul__"] == 2
     AlgebraElement.log = []
-    
-    t3 = (t1-c)*(t2+a)
-    assert t3.extract_log('__mul__') == 1
-    assert t3.extract_log('__sub__') == 1
-    assert t3.extract_log('__add__') == 2 #testing that add is in sub
+
+    assert t2.to_sympy() == a.to_sympy() * (-b.to_sympy()) * c.to_sympy().adjoint()
+    assert not any(symbol.is_commutative for symbol in t2.to_sympy().free_symbols)
+
+    (t1 - c) * (t2 + a)
+    assert AlgebraElement.call_counts()["__mul__"] == 1
+    assert AlgebraElement.call_counts()["__sub__"] == 1
+    # subtraction = addition of negative
+    assert AlgebraElement.call_counts()["__add__"] == 2
