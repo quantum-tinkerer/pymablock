@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - A complete description of the algorithm to the documentation, see
   [documentation](algorithms.md).
-- String representation of `~pymablock.BlockSeries` for readability.
+- String representation of {autolink}`~pymablock.BlockSeries` for readability.
 
 ### Removed
 - `expanded`, `symbolic`, `implicit`, and `general` functions and algorithms
