@@ -701,8 +701,6 @@ def solve_sylvester_KPM(
             inside an interval ``[-1, 1]``.
         - num_moments: int
             Number of moments to use for KPM.
-        - energy_resolution: float
-            Relative energy resolution of KPM. If provided, overrides ``num_moments``.
 
     Returns
     ----------
@@ -737,7 +735,6 @@ def solve_sylvester_KPM(
                     energy,
                     vector,
                     solver_options.get("num_moments", 100),
-                    solver_options.get("energy_resolution"),
                 )
                 for energy, vector in zip(eigs_A_rescaled, Y_KPM)
             ]

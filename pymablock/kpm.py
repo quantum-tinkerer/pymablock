@@ -10,7 +10,6 @@ def greens_function(
     energy: float,
     vector: np.ndarray,
     num_moments: int = 100,
-    energy_resolution: Optional[float] = None,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """
     Return a solution of ``(hamiltonian - energy) @ x = vector``.
@@ -28,69 +27,47 @@ def greens_function(
         Vector with shape ``(N,)``.
     num_moments :
         Number of moments to use in the KPM expansion.
-    energy_resolution :
-        Energy resolution to use in the KPM expansion. If specified, the
-        number of moments is chosen automatically.
 
     Returns
     -------
     solution : `~numpy.ndarray`
         Solution of the linear system.
     """
-    if energy_resolution is not None:
-        num_moments = int(np.ceil(1.6 / energy_resolution))
-
-    gs = jackson_kernel(num_moments)
-    gs[0] = gs[0] / 2
-
-    phi_e = np.arccos(energy)
-    prefactor = -2j / (np.sqrt((1 - energy) * (1 + energy)))
-    coef = gs * np.exp(-1j * np.arange(num_moments) * phi_e)
-    coef = prefactor * coef
+    prefactor = -2 / np.sqrt(1 - energy**2)
+    coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
+    coef[0] /= 2
+    coef *= jackson_kernel(num_moments)
 
     return sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
 
 
 def kpm_vectors(
     hamiltonian: Union[np.ndarray, sparse.spmatrix],
-    vectors: np.ndarray,
+    vector: np.ndarray,
 ) -> Iterator[np.ndarray]:
     r"""
     Generator of vectors for the Kernel Polynomial Method (KPM).
 
-    This generator yields vectors as :math:`T_n(H) \lvert v \rangle`
-    for vectors :math:`\lvert v \rangle` in ``vectors``,
-    for ``n`` in ``[0, max_moments]``.
+    This generator yields vectors as :math:`T_n(H) \lvert v \rangle`.
 
     Parameters
     ----------
     hamiltonian :
         Hamiltonian, dense or sparse array with shape ``(N, N)``.
-    vectors :
-        Vector of length ``N`` or array of vectors with shape ``(M, N)``.
+    vector :
+        Vector of length ``N``.
 
     Yields
     ------
     expanded_vectors : Iterable
-        Sequence of expanded vectors of shape ``(M, N)``.
-        If the input is a vector then ``M=1``.
+        Infinite sequence of Chebyshev polynomials of the Hamiltonian applied
+        to the vector.
     """
-    # Internally store as column vectors
-    vectors = np.atleast_2d(vectors).T
-    alpha_prev = np.zeros(vectors.shape, dtype=complex)
-    alpha = np.zeros(vectors.shape, dtype=complex)
-    alpha_next = np.zeros(vectors.shape, dtype=complex)
-
-    alpha[:] = vectors
-    yield alpha.T
-    alpha_prev[:] = alpha
-    alpha[:] = hamiltonian @ alpha
-    yield alpha.T
+    yield (alpha_prev := vector)
+    yield (alpha := hamiltonian @ alpha_prev)
     while True:
-        alpha_next[:] = 2 * hamiltonian @ alpha - alpha_prev
-        alpha_prev[:] = alpha
-        alpha[:] = alpha_next
-        yield alpha.T
+        alpha, alpha_prev = 2 * hamiltonian @ alpha - alpha_prev, alpha
+        yield alpha
 
 
 def rescale(
