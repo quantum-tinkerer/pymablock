@@ -3,6 +3,7 @@ from collections.abc import Iterator
 
 from scipy import sparse
 import numpy as np
+from warnings import warn
 
 
 def greens_function(
@@ -10,6 +11,7 @@ def greens_function(
     energy: float,
     vector: np.ndarray,
     num_moments: int = 100,
+    atol: float = 1e-7,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """
     Return a solution of ``(hamiltonian - energy) @ x = vector``.
@@ -38,7 +40,21 @@ def greens_function(
     coef[0] /= 2
     coef *= jackson_kernel(num_moments)
 
-    return sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
+    sol = sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
+
+    # iterative convergence
+    if (residue := np.linalg.norm((hamiltonian @ sol - energy * sol) + vector)) > atol:
+        if num_moments >= int(1e6):
+            warn(
+                f"Solution only achieved precision {residue} > {atol} at {num_moments} expansion moments."
+                " adjust eps or atol.",
+                RuntimeWarning,
+            )
+            return sol
+        else:
+            return greens_function(hamiltonian, energy, vector, num_moments * 10, atol)
+    else:
+        return sol
 
 
 def kpm_vectors(
