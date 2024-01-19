@@ -696,6 +696,8 @@ def solve_sylvester_KPM(
 
         - eps: float
             Tolerance for Hamiltonian rescaling.
+        - atol: float
+            Accepted precision of the Green's function result in 2-norm.
         - max_moments: int
             Maximum number of expansion moments of the Green's function.
 
