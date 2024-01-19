@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Improved
+
+- The implicit KPM solver now guarantees reaching a requested accuracy.
 - A new algorithm that has optimal scaling while avoiding multiplication by
   $H_0$, and supports implicit data. This combines advantages
   of all previous algorithms, and therefore supersedes them.
@@ -15,11 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than 3 series by reusing intermediate results.
 
 ### Added
+
 - A complete description of the algorithm to the documentation, see
   [documentation](algorithms.md).
 - String representation of {autolink}`~pymablock.BlockSeries` for readability.
 
 ### Removed
+
 - `expanded`, `symbolic`, `implicit`, and `general` functions and algorithms
   (functionality taken over by the new general algorithm, with
   {autolink}`~pymablock.block_diagonalize` the main interface).
