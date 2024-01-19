@@ -9,11 +9,11 @@ def greens_function(
     hamiltonian: Union[np.ndarray, sparse.spmatrix],
     energy: float,
     vector: np.ndarray,
-    num_moments: int = 100,
+    max_moments: int = int(1e6),
     atol: float = 1e-7,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """
-    Return a solution of ``(hamiltonian - energy) @ x = vector``.
+    Return a solution of ``(energy - hamiltonian) @ x = vector``.
 
     Uses the Kernel polynomial method (KPM) with the Jackson kernel.
 
@@ -26,23 +26,20 @@ def greens_function(
         Rescaled energy at which to evaluate the Green's function.
     vector :
         Vector with shape ``(N,)``.
-    num_moments :
-        Number of moments to use in the KPM expansion.
+    max_moments :
+        Maximum number of moments for the KPM expansion until which is iterated.
     atol :
-        Absolute tolerance until which the method iterates or breaks beyond a
-        maximal number of moments (1e6).
+        Accepted precision of the desired result in 2-norm.
 
     Returns
     -------
     solution : `~numpy.ndarray`
-        Solve (E - H_0) * x = v for x.
+        Solution x of (E - H_0) * x = v.
     """
     residue = np.inf
-    if not isinstance(num_moments, int):
-        num_moments = int(num_moments)
+    num_moments = 10
 
-    while residue > atol and num_moments < int(1e6):
-        print(num_moments)
+    while residue > atol and num_moments < max_moments:
         prefactor = -2 / np.sqrt(1 - energy**2)
         coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
         coef[0] /= 2
