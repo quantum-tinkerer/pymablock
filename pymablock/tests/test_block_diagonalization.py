@@ -794,8 +794,8 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     )
 
     diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
-    kpm = solve_sylvester_KPM(h, [eigvecs], {"num_moments": 2000})
-    hybrid = solve_sylvester_KPM(h, [eigvecs, eigvecs_partial], {"num_moments": 2000})
+    kpm = solve_sylvester_KPM(h, [eigvecs])
+    hybrid = solve_sylvester_KPM(h, [eigvecs, eigvecs_partial])
 
     y = np.random.randn(a_dim, n - a_dim) + 1j * np.random.randn(a_dim, n - a_dim)
     y = y @ Dagger(eigvecs_rest)
