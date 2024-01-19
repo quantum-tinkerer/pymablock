@@ -36,7 +36,6 @@ run nox:
         - "tests(minimal)"
         - "tests(mid)"
         - "tests(latest)"
-        - "tests_without_kwant"
   script:
     - micromamba install -c conda-forge -y nox mamba
     - nox -s $NOXSESSION

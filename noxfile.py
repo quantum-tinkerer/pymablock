@@ -19,27 +19,7 @@ def tests(session, numpy, scipy, sympy):
         f"numpy=={numpy}",
         f"scipy=={scipy}",
         f"sympy=={sympy}",
-        "packaging==22.0",
-        "kwant",
-        "pytest-cov",
-        "pytest-randomly",
-        "-c",
-        "conda-forge",
-    )
-    session.run("pip", "install", "ruff", "pytest-ruff")
-    session.run("pytest", "--ruff")
-
-
-@nox.session(venv_backend="mamba")
-def tests_without_kwant(session):
-    session.run(
-        "mamba",
-        "install",
-        "-y",
-        "python==3.11",
-        "numpy==1.24.0",
-        "scipy==1.10.0",
-        "sympy==1.12.0",
+        "python-mumps==0.0.1",
         "packaging==22.0",
         "pytest-cov",
         "pytest-randomly",

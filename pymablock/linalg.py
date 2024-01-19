@@ -9,6 +9,7 @@ from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 from scipy import sparse
 import sympy
+from mumps import Context as MUMPSContext
 
 from pymablock.series import zero, one
 
@@ -89,20 +90,8 @@ def direct_greens_function(
     greens_function : `Callable[[np.ndarray], np.ndarray]`
         Function that solves :math:`(E - H) sol = vec`.
     """
-    try:
-        from kwant.linalg import mumps
-    except ImportError:
-        raise ImportError(
-            "Kwant is installed without MUMPS support: cannot use the direct"
-            " solver. See https://gitlab.kwant-project.org/qt/lowdin/-/issues/66"
-            " for more information."
-        )
-    original_type = h.dtype
-    h_is_real = np.issubdtype(original_type, np.floating)
-    h = h.astype(complex)  # Kwant MUMPS wrapper only has complex bindings.
-    h = E * identity(h.shape[0], dtype=h.dtype, format="csr") - h
-    ctx = mumps.MUMPSContext()
-    ctx.analyze(h)
+    ctx = MUMPSContext()
+    ctx.set_matrix(E * identity(h.shape[0], dtype=h.dtype, format="csr") - h)
     ctx.mumps_instance.icntl[24] = 1
     if eps is not None:
         ctx.mumps_instance.cntl[3] = eps
@@ -123,7 +112,6 @@ def direct_greens_function(
         sol :
             Solution of :math:`(E - H) sol = vec`.
         """
-        is_real = np.issubdtype(vec.dtype, np.floating) and h_is_real
         sol = ctx.solve(vec)
         if (residue := np.linalg.norm(h @ sol - vec)) > atol:
             warn(
@@ -131,9 +119,7 @@ def direct_greens_function(
                 " adjust eps or atol.",
                 RuntimeWarning,
             )
-        if is_real:
-            sol = sol.real
-        return sol.astype(np.result_type(original_type, vec.dtype))
+        return sol
 
     return greens_function
 

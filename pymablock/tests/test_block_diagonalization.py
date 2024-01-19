@@ -687,9 +687,7 @@ def test_equivalence_explicit_implicit() -> None:
     The correctness of the solve_sylvester functions for the implicit problem is
     checked in a different test.
     """
-    # KPM is slower and does not guarantee convergence. Therefore we only run
-    # this test for the direct solver.
-    pytest.importorskip("kwant.linalg.mumps", reason="mumps not installed")
+    # KPM is slower. Therefore we only run this test for the direct solver.
     n = 30
     a_dim = 2
 
@@ -747,7 +745,6 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     Test whether the solve_sylvester_direct gives the result consistent with
     solve_sylvester_diagonal.
     """
-    pytest.importorskip("kwant.linalg.mumps", reason="mumps not installed")
     n = 300
     a_dim = 5
     E = np.random.randn(n)
@@ -835,14 +832,9 @@ def test_input_hamiltonian_implicit(implicit_problem):
     assert isinstance(H[(1, 1) + (0,) * H.n_infinite], LinearOperator)
 
     # Test that block_diagonalize does the same processing.
-    try:
-        H_tilde, *_ = block_diagonalize(
-            hamiltonian, subspace_eigenvectors=[subspace_eigenvectors[0]]
-        )
-    except ImportError:
-        # We likely don't have MUMPS, let's confirm
-        pytest.importorskip("kwant.linalg.mumps", reason="mumps not installed")
-        raise
+    H_tilde, *_ = block_diagonalize(
+        hamiltonian, subspace_eigenvectors=[subspace_eigenvectors[0]]
+    )
     # Also try that BlockSeries input works
     if isinstance(hamiltonian, dict):
         block_diagonalize(

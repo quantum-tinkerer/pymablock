@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Improved
 
+- Switched to the `python-mumps` wrapper for the direct solver, which is
+  available on all platforms and is more feature-complete.
 - The implicit KPM solver now guarantees reaching a requested accuracy.
 - A new algorithm that has optimal scaling while avoiding multiplication by
   $H_0$, and supports implicit data. This combines advantages
