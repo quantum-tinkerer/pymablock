@@ -1,3 +1,4 @@
+from warnings import RuntimeWarning, warn
 from typing import Optional, Callable, Union
 from collections.abc import Iterator
 
@@ -41,10 +42,12 @@ def greens_function(
 
     while residue > atol:
         if num_moments > max_moments:
-            raise RuntimeError(
+            warn(
                 f"KPM expansion did not converge to precision "
-                f"{atol} after {max_moments} moments."
+                f"{atol} after {max_moments} moments.",
+                RuntimeWarning,
             )
+            break
         prefactor = -2 / np.sqrt(1 - energy**2)
         coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
         coef[0] /= 2
