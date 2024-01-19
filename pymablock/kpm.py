@@ -36,21 +36,21 @@ def greens_function(
     Returns
     -------
     solution : `~numpy.ndarray`
-        Solution of the linear system.
+        Solve (E - H_0) * x = v for x and take negative in line with linalg.py.
     """
     residue = np.inf
     if not isinstance(num_moments, int):
         num_moments = int(num_moments)
 
-    while residue > atol or num_moments <= int(1e6):
+    while residue > atol and num_moments < int(1e6):
         print(num_moments)
         prefactor = -2 / np.sqrt(1 - energy**2)
         coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
         coef[0] /= 2
         coef *= jackson_kernel(num_moments)
 
-        sol = sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
-        residue = np.linalg.norm((hamiltonian @ sol - energy * sol) + vector)
+        sol = -sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
+        residue = np.linalg.norm((hamiltonian @ sol - energy * sol) - vector)
         num_moments *= 10
 
     return sol
