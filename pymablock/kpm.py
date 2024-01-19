@@ -1,3 +1,4 @@
+from warnings import warn
 from typing import Optional, Callable, Union
 from collections.abc import Iterator
 
@@ -9,8 +10,8 @@ def greens_function(
     hamiltonian: Union[np.ndarray, sparse.spmatrix],
     energy: float,
     vector: np.ndarray,
-    max_moments: int = int(1e6),
     atol: float = 1e-7,
+    max_moments: int = int(1e6),
 ) -> Callable[[np.ndarray], np.ndarray]:
     """
     Return a solution of ``(energy - hamiltonian) @ x = vector``.
@@ -26,10 +27,10 @@ def greens_function(
         Rescaled energy at which to evaluate the Green's function.
     vector :
         Vector with shape ``(N,)``.
-    max_moments :
-        Maximum number of moments for the KPM expansion until which is iterated.
     atol :
         Accepted precision of the desired result in 2-norm.
+    max_moments :
+        Maximum order of KPM expansion to compute.
 
     Returns
     -------
@@ -46,9 +47,16 @@ def greens_function(
         coef *= jackson_kernel(num_moments)
 
         sol = sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
-        residue = np.linalg.norm((hamiltonian @ sol - energy * sol) - vector)
+        residue = np.linalg.norm((hamiltonian @ sol - energy * sol) + vector)
         num_moments *= 10
 
+    if residue > atol and num_moments >= max_moments:
+        warn(
+            f"Solution only achieved precision {residue} > {atol} "
+            f" at {num_moments//10} expansion moments."
+            " adjust eps or atol.",
+            RuntimeWarning,
+        )
     return sol
 
 
