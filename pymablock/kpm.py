@@ -1,3 +1,4 @@
+from warnings import warn
 from typing import Optional, Callable, Union
 from collections.abc import Iterator
 
@@ -9,10 +10,11 @@ def greens_function(
     hamiltonian: Union[np.ndarray, sparse.spmatrix],
     energy: float,
     vector: np.ndarray,
-    num_moments: int = 100,
+    atol: float = 1e-7,
+    max_moments: int = int(1e6),
 ) -> Callable[[np.ndarray], np.ndarray]:
     """
-    Return a solution of ``(hamiltonian - energy) @ x = vector``.
+    Return a solution of ``(energy - hamiltonian) @ x = vector``.
 
     Uses the Kernel polynomial method (KPM) with the Jackson kernel.
 
@@ -25,20 +27,37 @@ def greens_function(
         Rescaled energy at which to evaluate the Green's function.
     vector :
         Vector with shape ``(N,)``.
-    num_moments :
-        Number of moments to use in the KPM expansion.
+    atol :
+        Accepted precision of the desired result in 2-norm.
+    max_moments :
+        Maximum order of KPM expansion to compute.
 
     Returns
     -------
     solution : `~numpy.ndarray`
-        Solution of the linear system.
+        Solution x of (E - H_0) * x = v.
     """
-    prefactor = -2 / np.sqrt(1 - energy**2)
-    coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
-    coef[0] /= 2
-    coef *= jackson_kernel(num_moments)
+    residue = np.inf
+    num_moments = 10
 
-    return sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
+    while residue > atol:
+        if num_moments > max_moments:
+            warn(
+                f"KPM expansion did not converge to precision "
+                f"{atol} after {max_moments} moments.",
+                RuntimeWarning,
+            )
+            break
+        prefactor = -2 / np.sqrt(1 - energy**2)
+        coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
+        coef[0] /= 2
+        coef *= jackson_kernel(num_moments)
+
+        sol = sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
+        residue = np.linalg.norm((hamiltonian @ sol - energy * sol) + vector)
+        num_moments *= 4
+
+    return sol
 
 
 def kpm_vectors(

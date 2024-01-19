@@ -794,8 +794,10 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     )
 
     diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
-    kpm = solve_sylvester_KPM(h, [eigvecs], {"num_moments": 2000})
-    hybrid = solve_sylvester_KPM(h, [eigvecs, eigvecs_partial], {"num_moments": 2000})
+    kpm = solve_sylvester_KPM(h, [eigvecs], solver_options={"atol": 1e-3})
+    hybrid = solve_sylvester_KPM(
+        h, [eigvecs, eigvecs_partial], solver_options={"atol": 1e-3}
+    )
 
     y = np.random.randn(a_dim, n - a_dim) + 1j * np.random.randn(a_dim, n - a_dim)
     y = y @ Dagger(eigvecs_rest)
@@ -805,8 +807,8 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     y_hybrid = hybrid(y)
 
     # Use a lower tolerance until KPM estimates error bounds.
-    np.testing.assert_allclose(y_default, y_kpm, atol=1e-2)
-    np.testing.assert_allclose(y_default, y_hybrid, atol=1e-2)
+    np.testing.assert_allclose(y_default, y_kpm, atol=1e-3)
+    np.testing.assert_allclose(y_default, y_hybrid, atol=1e-3)
 
 
 def test_input_hamiltonian_implicit(implicit_problem):

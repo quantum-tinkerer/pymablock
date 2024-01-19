@@ -122,8 +122,8 @@ def block_diagonalize(
         and `~pymablock.block_diagonalization.solve_sylvester_direct` for details.
     direct_solver :
         Whether to use the direct solver that relies on MUMPS (default).
-        Otherwise, the an experimental KPM solver is used. Only applicable if
-        the implicit method is used (i.e. `subspace_vectors` is incomplete)
+        Otherwise, the KPM solver is used. Only applicable if the implicit
+        method is used (i.e. `subspace_vectors` is incomplete)
     symbols :
         Symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
@@ -681,8 +681,6 @@ def solve_sylvester_KPM(
     General energy division for numerical problems through either full
     knowledge of the B-space or application of the KPM Green's function.
 
-    This is an experimental feature and is not yet fully supported.
-
     Parameters
     ----------
     h_0 :
@@ -696,11 +694,10 @@ def solve_sylvester_KPM(
 
         - eps: float
             Tolerance for Hamiltonian rescaling.
-        - bounds: tuple[float, float]
-            ``(E_min, E_max)`` spectral bounds of the Hamiltonian, used to rescale
-            inside an interval ``[-1, 1]``.
-        - num_moments: int
-            Number of moments to use for KPM.
+        - atol: float
+            Accepted precision of the Green's function result in 2-norm.
+        - max_moments: int
+            Maximum number of expansion moments of the Green's function.
 
     Returns
     ----------
@@ -734,7 +731,8 @@ def solve_sylvester_KPM(
                     h_rescaled_T,
                     energy,
                     vector,
-                    solver_options.get("num_moments", 100),
+                    solver_options.get("atol", 1e-5),
+                    solver_options.get("max_moments", 1e6),
                 )
                 for energy, vector in zip(eigs_A_rescaled, Y_KPM)
             ]
