@@ -1,4 +1,4 @@
-from warnings import RuntimeWarning, warn
+from warnings import warn
 from typing import Optional, Callable, Union
 from collections.abc import Iterator
 
