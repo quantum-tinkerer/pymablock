@@ -696,11 +696,8 @@ def solve_sylvester_KPM(
 
         - eps: float
             Tolerance for Hamiltonian rescaling.
-        - bounds: tuple[float, float]
-            ``(E_min, E_max)`` spectral bounds of the Hamiltonian, used to rescale
-            inside an interval ``[-1, 1]``.
-        - num_moments: int
-            Number of moments to use for KPM.
+        - max_moments: int
+            Maximum number of expansion moments of the Green's function.
 
     Returns
     ----------
