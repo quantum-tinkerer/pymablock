@@ -22,5 +22,5 @@ def test_kpm_greens_function():
     sol = G @ vec
     sol_kpm = kpm.greens_function(h, eigvals[n0], vec, num_moments=100)
 
-    assert_allclose(h @ sol_kpm - eigvals[n0] * sol_kpm, vec)
-    assert_allclose(sol_kpm, sol)
+    assert_allclose(h @ sol_kpm - eigvals[n0] * sol_kpm, -vec)
+    assert_allclose(sol_kpm, -sol)

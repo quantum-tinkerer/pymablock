@@ -3,7 +3,6 @@ from collections.abc import Iterator
 
 from scipy import sparse
 import numpy as np
-from warnings import warn
 
 
 def greens_function(
@@ -36,7 +35,7 @@ def greens_function(
     Returns
     -------
     solution : `~numpy.ndarray`
-        Solve (E - H_0) * x = v for x and take negative in line with linalg.py.
+        Solve (E - H_0) * x = v for x.
     """
     residue = np.inf
     if not isinstance(num_moments, int):
@@ -49,7 +48,7 @@ def greens_function(
         coef[0] /= 2
         coef *= jackson_kernel(num_moments)
 
-        sol = -sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
+        sol = sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
         residue = np.linalg.norm((hamiltonian @ sol - energy * sol) - vector)
         num_moments *= 10
 
