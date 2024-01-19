@@ -29,32 +29,31 @@ def greens_function(
         Vector with shape ``(N,)``.
     num_moments :
         Number of moments to use in the KPM expansion.
+    atol :
+        Absolute tolerance until which the method iterates or breaks beyond a
+        maximal number of moments (1e6).
 
     Returns
     -------
     solution : `~numpy.ndarray`
         Solution of the linear system.
     """
-    prefactor = -2 / np.sqrt(1 - energy**2)
-    coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
-    coef[0] /= 2
-    coef *= jackson_kernel(num_moments)
+    residue = np.inf
+    if not isinstance(num_moments, int):
+        num_moments = int(num_moments)
 
-    sol = sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
+    while residue > atol or num_moments <= int(1e6):
+        print(num_moments)
+        prefactor = -2 / np.sqrt(1 - energy**2)
+        coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
+        coef[0] /= 2
+        coef *= jackson_kernel(num_moments)
 
-    # iterative convergence
-    if (residue := np.linalg.norm((hamiltonian @ sol - energy * sol) + vector)) > atol:
-        if num_moments >= int(1e6):
-            warn(
-                f"Solution only achieved precision {residue} > {atol} at {num_moments} expansion moments."
-                " adjust eps or atol.",
-                RuntimeWarning,
-            )
-            return sol
-        else:
-            return greens_function(hamiltonian, energy, vector, num_moments * 10, atol)
-    else:
-        return sol
+        sol = sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
+        residue = np.linalg.norm((hamiltonian @ sol - energy * sol) + vector)
+        num_moments *= 10
+
+    return sol
 
 
 def kpm_vectors(
