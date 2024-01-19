@@ -1,4 +1,3 @@
-from warnings import warn
 from typing import Optional, Callable, Union
 from collections.abc import Iterator
 
@@ -40,7 +39,12 @@ def greens_function(
     residue = np.inf
     num_moments = 10
 
-    while residue > atol and num_moments < max_moments:
+    while residue > atol:
+        if num_moments > max_moments:
+            raise RuntimeError(
+                f"KPM expansion did not converge to precision "
+                f"{atol} after {max_moments} moments."
+            )
         prefactor = -2 / np.sqrt(1 - energy**2)
         coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
         coef[0] /= 2
@@ -48,15 +52,8 @@ def greens_function(
 
         sol = sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
         residue = np.linalg.norm((hamiltonian @ sol - energy * sol) + vector)
-        num_moments *= 10
+        num_moments *= 4
 
-    if residue > atol and num_moments >= max_moments:
-        warn(
-            f"Solution only achieved precision {residue} > {atol} "
-            f" at {num_moments//10} expansion moments."
-            " adjust eps or atol.",
-            RuntimeWarning,
-        )
     return sol
 
 
