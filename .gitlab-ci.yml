@@ -47,6 +47,18 @@ run docs:
     paths:
       - docs/build
 
+run pre-commit:
+  variables:
+    PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
+  before_script:
+    - micromamba install -c conda-forge -r micromamba_root -y mamba pip pre-commit git
+    - git config --global --add safe.directory $CI_PROJECT_DIR
+  script:
+    - pre-commit run --all-files
+  cache:
+    paths:
+      - .pre-commit-cache
+
 pages:
   needs:
     - run tests
