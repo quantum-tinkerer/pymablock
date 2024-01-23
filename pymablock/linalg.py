@@ -87,7 +87,7 @@ def direct_greens_function(
     Returns
     -------
     greens_function : `Callable[[np.ndarray], np.ndarray]`
-        Function that computes the Green's function at a given energy.
+        Function that solves :math:`(E - H) sol = vec`.
     """
     try:
         from kwant.linalg import mumps
@@ -100,7 +100,7 @@ def direct_greens_function(
     original_type = h.dtype
     h_is_real = np.issubdtype(original_type, np.floating)
     h = h.astype(complex)  # Kwant MUMPS wrapper only has complex bindings.
-    h = h - E * identity(h.shape[0], dtype=h.dtype, format="csr")
+    h = E * identity(h.shape[0], dtype=h.dtype, format="csr") - h
     ctx = mumps.MUMPSContext()
     ctx.analyze(h)
     ctx.mumps_instance.icntl[24] = 1
@@ -121,7 +121,7 @@ def direct_greens_function(
         Returns
         -------
         sol :
-            Solution of :math:`(H - E) sol = vec`.
+            Solution of :math:`(E - H) sol = vec`.
         """
         is_real = np.issubdtype(vec.dtype, np.floating) and h_is_real
         sol = ctx.solve(vec)

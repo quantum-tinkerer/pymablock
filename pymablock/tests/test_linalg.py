@@ -34,11 +34,11 @@ def test_direct_greens_function():
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
     n0 = n // 3
-    G = linalg.direct_greens_function(h, E[n0])
+    G = linalg.direct_greens_function(h, E[n0], atol=1e-7)
     vec = np.random.randn(n) + 1j * np.random.randn(n)
     vec -= (eigvecs[:, n0].conj() @ vec) * eigvecs[:, n0]
     sol = G(vec)
-    assert_allclose(h @ sol - E[n0] * sol, vec)
+    assert_allclose(h @ sol - E[n0] * sol, -vec, atol=1e-7)
 
 
 @pytest.mark.skipif(not mumps_available, reason="mumps not installed")
@@ -48,7 +48,7 @@ def test_direct_greens_function_dtype():
     np.diag(E)
     gf = linalg.direct_greens_function(sparse.diags(E), 0)
     assert gf(E).dtype == np.float16
-    assert_allclose(gf(1j * E), 1j * np.ones(n))
+    assert_allclose(gf(1j * E), -1j * np.ones(n))
     assert gf(1j * E).dtype == np.complex64
 
 
