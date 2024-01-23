@@ -790,7 +790,7 @@ def solve_sylvester_direct(
 
     def solve_sylvester(Y: np.ndarray) -> np.ndarray:
         Y = Y @ projector
-        result = np.vstack([-gf(vec) for gf, vec in zip(greens_functions, Y)])
+        result = np.vstack([gf(vec) for gf, vec in zip(greens_functions, Y)])
         return result @ projector
 
     return solve_sylvester
