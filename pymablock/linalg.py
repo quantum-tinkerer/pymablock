@@ -100,7 +100,7 @@ def direct_greens_function(
     original_type = h.dtype
     h_is_real = np.issubdtype(original_type, np.floating)
     h = h.astype(complex)  # Kwant MUMPS wrapper only has complex bindings.
-    h = h - E * identity(h.shape[0], dtype=h.dtype, format="csr")
+    h = E * identity(h.shape[0], dtype=h.dtype, format="csr") - h
     ctx = mumps.MUMPSContext()
     ctx.analyze(h)
     ctx.mumps_instance.icntl[24] = 1
