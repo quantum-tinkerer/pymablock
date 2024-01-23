@@ -121,7 +121,7 @@ def direct_greens_function(
         Returns
         -------
         sol :
-            Solution of :math:`(H - E) sol = vec`.
+            Solution of :math:`(E - H) sol = vec`.
         """
         is_real = np.issubdtype(vec.dtype, np.floating) and h_is_real
         sol = ctx.solve(vec)
