@@ -87,7 +87,7 @@ def direct_greens_function(
     Returns
     -------
     greens_function : `Callable[[np.ndarray], np.ndarray]`
-        Function that computes the Green's function at a given energy.
+        Function that solves :math:`(E - H) sol = vec`.
     """
     try:
         from kwant.linalg import mumps
