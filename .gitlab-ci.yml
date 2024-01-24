@@ -1,5 +1,15 @@
 image: mambaorg/micromamba:1.4.3
 
+cache:
+  paths:
+    - micromamba
+before_script:
+  - mkdir -p micromamba
+  - export MAMBA_ROOT_PREFIX=micromamba
+  - micromamba create -yf environment.yml
+  - eval "$(micromamba shell hook --shell bash)"
+  - micromamba activate env
+
 run tests:
   script:
     - pip install pytest-cov pytest-randomly pytest-repeat pytest-ruff
