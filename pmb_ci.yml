@@ -14,3 +14,7 @@ dependencies:
   - pre-commit
   - git
   - make
+  -pip:
+    - mkdocs
+    - mkdocs-material
+    - mkdocs-exclude
