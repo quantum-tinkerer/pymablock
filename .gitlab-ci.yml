@@ -1,7 +1,18 @@
-image: gitlab.kwant-project.org:5005/qt/research-docker
+image: mambaorg/micromamba:1.5.6-jammy
 
+cache:
+  paths:
+  - micromamba
+  - .pre-commit-cache
 before_script:
-  - shopt -s nullglob  # sane behaviour when globs do not match
+  - mkdir -p micromamba
+  - export MAMBA_ROOT_PREFIX=micromamba
+  - micromamba create -yf environment.yml
+  - eval "$(micromamba shell hook --shell bash)"
+  - git config --global --add safe.directory $CI_PROJECT_DIR
+variables:
+  PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
+
 
 run tests:
   script:
@@ -20,7 +31,7 @@ run tests:
 run nox:
   variables:
     GIT_STRATEGY: clone
-    CONDA_PKGS_DIRS: micromamba_root/pkgs
+    CONDA_PKGS_DIRS: micromamba/pkgs
   parallel:
     matrix:
       - NOXSESSION:
@@ -31,12 +42,11 @@ run nox:
   before_script:
     - micromamba install -c conda-forge -r micromamba_root -y mamba pip nox git
   script:
-    - export MAMBA_ROOT_PREFIX="micromamba_root"; nox -s $NOXSESSION
-  image: "mambaorg/micromamba:1.4.3"
+    - nox -s $NOXSESSION
   cache:
     key: "$CI_JOB_NAME"
     paths:
-      - micromamba_root
+      - micromamba
 
 run docs:
   script:
@@ -48,16 +58,8 @@ run docs:
       - docs/build
 
 run pre-commit:
-  variables:
-    PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
-  before_script:
-    - micromamba install -c conda-forge -r micromamba_root -y mamba pip pre-commit git
-    - git config --global --add safe.directory $CI_PROJECT_DIR
   script:
     - pre-commit run --all-files
-  cache:
-    paths:
-      - .pre-commit-cache
 
 pages:
   needs:
