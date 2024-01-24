@@ -1,0 +1,15 @@
+name: pmb_ci
+channels: [conda-forge]
+dependencies:
+  - pip
+  - python=3.9
+  - build
+  - numpy=1.23
+  - scipy=1.8
+  - sympy=1.10
+  - kwant=1.4
+  - packaging
+  - pytest
+  - tinyarray
+  - pre-commit
+  - git

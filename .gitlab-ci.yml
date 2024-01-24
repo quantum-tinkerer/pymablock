@@ -6,9 +6,9 @@ cache:
 before_script:
   - mkdir -p micromamba
   - export MAMBA_ROOT_PREFIX=micromamba
-  - micromamba create -yf environment.yml
+  - micromamba create -yf pmb_ci.yml
   - eval "$(micromamba shell hook --shell bash)"
-  - micromamba activate env
+  - micromamba activate pmb_ci
 
 run tests:
   script:
