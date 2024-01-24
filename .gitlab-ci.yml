@@ -42,8 +42,6 @@ run nox:
     key: "$CI_JOB_NAME"
 
 run docs:
-  before_script:
-    - apt-get install build-essential
   script:
     - pip install sphinx myst-nb sphinx-togglebutton sphinx-tippy sphinx-copybutton "sphinx-book-theme>=1.1.0"
     - pip install --editable .

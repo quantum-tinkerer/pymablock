@@ -13,3 +13,4 @@ dependencies:
   - tinyarray
   - pre-commit
   - git
+  - make
