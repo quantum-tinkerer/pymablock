@@ -49,7 +49,8 @@ run pre-commit:
   script:
     - pre-commit run --all-files
   cache:
-    - .pre-commit-cache
+    -paths:
+      - .pre-commit-cache
 
 pages:
   needs:
