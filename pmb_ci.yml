@@ -5,7 +5,7 @@ dependencies:
   - python=3.9
   - build
   - numpy=1.23
-  - scipy=1.8
+  - scipy=1.11*
   - sympy=1.10
   - kwant=1.4
   - packaging
