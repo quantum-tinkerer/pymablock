@@ -27,6 +27,7 @@ run tests:
 run nox:
   variables:
     GIT_STRATEGY: clone
+    CONDA_PKGS_DIRS: micromamba_root/pkgs
   parallel:
     matrix:
       - NOXSESSION:
