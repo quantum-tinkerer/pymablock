@@ -150,23 +150,24 @@ compute a Taylor expansion of a series:
 $$
 f(\mathcal{A}) = \sum_{n=0}^\infty a_n \mathcal{A}^n.
 $$
-however evaluating a Taylor expansion of a given series has a higher scaling of
-complexity.
+
+However, evaluating a Taylor expansion of a given series has a higher scaling
+of complexity.
 A direct computation of all possible products of terms would require $\sim \exp
 N$ multiplications.
 We improve on this by defining a new series as $\mathcal{A}^{n+1} =
 \mathcal{A}\mathcal{A}^{n}$ and reusing the previously computed results, which
 brings these costs down to $\sim N^2$.
 Using the Taylor expansion approach is therefore both more complicated and more
-computationally expensive than the recurrent definition.
+computationally expensive than the recurrent definition in {eq}`W`.
 :::
 
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined
 by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
-Additionally, we constrain it to be block off-diagonal:
+Additionally, we constrain $\mathcal{V}$ to be block off-diagonal:
 $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
-so that the unitary transformation is equivalent to the Schrieffer-Wolff
-transformation.
+so that the resulting unitary transformation is equivalent to the
+Schrieffer-Wolff transformation.
 In turn, this means that $\mathcal{W}$ is block-diagonal and that the norm
 of $\mathcal{U}$ is minimal.
 
@@ -207,12 +208,23 @@ To find $\mathcal{V}$, we need to first look at the transformed Hamiltonian:
 $$
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = H_0 +
 \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0
-\mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}.
+\mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
 $$
+where we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = H_0 +
+\mathcal{H'}$.
 
-Because we want to avoid unnecessary products by $H_0$, and the expression
-above has $H_0$ multiplied by $\mathcal{U}'$ by the left and by the right, we
-define the commutator between $\mathcal{U}'$ and $H_0$:
+Because we want to avoid unnecessary products by $H_0$, we need to get rid of
+the terms $H_0 \mathcal{U}'$ and $\mathcal{U}'^\dagger H_0$ by replacing them
+with an alternative expression.
+Our strategy will be to define a new auxiliary operator $\mathcal{X}$ that
+contains $H_0$, but that we can compute without multiplying by $H_0$.
+For now, we will assume that we have a recurrence relation to compute
+$\mathcal{X}$, and we will discuss how to find it later.
+Because the expression above has $H_0$ multiplied by $\mathcal{U}'$ by the left
+and by the right, we can only get rid of these terms by making sure that
+$H_0$ only multiplies terms by one side only.
+For this purpose, we define $\mathcal{X}$ as the commutator between
+$\mathcal{U}'$ and $H_0$:
 
 :::{math}
 :label: XYX
@@ -229,7 +241,7 @@ to the right and find
 :::{math}
 :label: H_tilde
 \toggle{
-  \tilde{\mathcal{H}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+  \tilde{\mathcal{H}} = \texttip{\color{red}{\ldots}}{click to expand} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
 }{
   \begin{align*}
   \tilde{\mathcal{H}}
@@ -246,14 +258,15 @@ to the right and find
 
 where the terms multiplied by $H_0$ cancel by unitarity.
 
-The transformed Hamiltonian does not contain products by $H_0$ anymore, but
-it does depend on $\mathcal{X}$.
-Because $\mathcal{X}$ is defined using $H_0$, we need to find an alternative
-definition that is free of multiplications by $H_0$.
-To find it, we apply a similar procedure to the one for finding $\mathcal{U}'$:
-we search for a recursive definition for its diagonal and off-diagonal blocks.
-Once again, we use unitarity for the diagonal blocks, and find a recursive
-definition for $\mathcal{Z}$, the anti-Hermitian part of $\mathcal{X}$:
+The transformed Hamiltonian does not contain products by $H_0$ anymore, but it
+does depend on $\mathcal{X}$, an auxiliary operator whose recurrent definition
+we left pending.
+To find it, we first focus on its anti-Hermitian part, $\mathcal{Z}$.
+Since recurrence relations are expressions whose right hand side contains
+Cauchy products of series that lack 0-th order terms, we need to find a way to
+make a product between series appear.
+This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U} =
+-\mathcal{U}'^\dagger \mathcal{U}$ comes in handy:
 
 :::{math}
 :label: Z
@@ -282,7 +295,7 @@ Similar to computing $\mathcal{W_n}$, computing $\mathcal{Z_n}$ requires lower
 orders of $\mathcal{X}$ and $\mathcal{U}'$, all blocks included.
 *This is our second secret ingredient✨*
 
-Then, we compute the off-diagonal blocks of $\mathcal{X}$ by requiring that
+Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that
 $\tilde{\mathcal{H}}^{AB} = 0$ and find
 
 :::{math}
