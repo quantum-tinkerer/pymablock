@@ -118,7 +118,7 @@ and obtain
 Because $\mathcal{U}'$ has no $0$-th order term, $(\mathcal{U}'^\dagger
 \mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
 $\mathcal{U}$ nor $\mathcal{W}$.
-We can therefore compute $\mathcal{W}$ as a Cauchy product of
+Therefore, we compute $\mathcal{W}$ as a Cauchy product of
 $\mathcal{U}'$ with itself.
 *This recurrence relation is the first secret ingredient of Pymablock✨*
 
@@ -150,13 +150,15 @@ compute a Taylor expansion of a series:
 $$
 f(\mathcal{A}) = \sum_{n=0}^\infty a_n \mathcal{A}^n.
 $$
-however evaluating a Taylor expansion of a given series has a higher scaling of complexity.
-A direct computation of all possible products of terms would require $\sim \exp N$ multiplications.
-however defining new series as $\mathcal{A}^{n+1} = \mathcal{A}\mathcal{A}^{n}$
-and reusing the previously computed results brings these costs down to $\sim
-N^2$.
-This approach would be both computationally expensive and unnecessary.
-
+however evaluating a Taylor expansion of a given series has a higher scaling of
+complexity.
+A direct computation of all possible products of terms would require $\sim \exp
+N$ multiplications.
+We improve on this by defining a new series as $\mathcal{A}^{n+1} =
+\mathcal{A}\mathcal{A}^{n}$ and reusing the previously computed results, which
+brings these costs down to $\sim N^2$.
+Using the Taylor expansion approach is therefore both more complicated and more
+computationally expensive than the recurrent definition.
 :::
 
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined
