@@ -61,7 +61,7 @@ A direct computation of all the possible index combinations in a product
 between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher
 cost $\sim N^2$, however if we use associativity of the product and compute
 this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost
-stays the same.
+stays $\sim N$.
 :::
 
 ## How to solve the problem?
@@ -71,11 +71,14 @@ $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
 We are searching for a procedure that satisfies two additional constraints:
 
 - It has the same complexity scaling as a Cauchy product.
-- It does not require multiplications by $H_0$. This is because $n$-th order
-  corrections to $\tilde{\mathcal{H}}$ in perturbation theory carry $n$ powers
-  of energy denominators. Therefore, any additional multiplications by $H_0$
-  must cancel with additional energy denominators. Muliplying by $H_0$ is
-  therefore unnecessary work, and it gives longer intermediate expressions.
+- It does not require multiplications by $H_0$.
+  This is because in perturbation theory, $n$-th order  corrections to
+  $\tilde{\mathcal{H}}$ carry $n$ energy denominators $1/(E_i - E_j)$
+  (see [here](https://en.wikipedia.org/wiki/Perturbation_theory_(quantum_mechanics)#Time-independent_perturbation_theory)).
+  Therefore, any additional multiplications by $H_0$ must cancel with
+  additional energy denominators.
+  Multiplying by $H_0$ is therefore unnecessary work, and it gives longer
+  intermediate expressions.
 
 The goal of our algorithm is thus to be efficient and to produce compact
 results that do not require further simplifications.
