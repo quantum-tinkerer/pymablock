@@ -15,7 +15,7 @@ kernelspec:
 ## Problem formulation
 
 Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use
-callilgraphic letters to denote series) that block-diagonalizes the Hamiltonian
+calligraphic letters to denote series) that block-diagonalizes the Hamiltonian
 
 :::{math}
 :label: hamiltonian
