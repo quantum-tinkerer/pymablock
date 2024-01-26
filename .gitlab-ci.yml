@@ -65,9 +65,10 @@ run pre-commit:
     - git config --global --add safe.directory $CI_PROJECT_DIR
     - pre-commit run --all-files
   cache:
-    key: "$CI_JOB_NAME: pre-commit"
+    key: "$CI_JOB_NAME"
     paths:
       - .pre-commit-cache
+      - micromamba
 
 
 pages:
