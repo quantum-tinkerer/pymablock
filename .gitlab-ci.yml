@@ -54,7 +54,7 @@ run docs:
   cache:
     key: "$CI_JOB_NAME"
     paths:
-        - docs-cache
+        - micromamba
 
 
 run pre-commit:
