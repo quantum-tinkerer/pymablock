@@ -258,7 +258,7 @@ definition for $\mathcal{Z}$, the anti-Hermitian part of $\mathcal{X}$:
 :::{math}
 :label: Z
 \toggle{
-  \mathcal{Z} = -\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.}
+  \mathcal{Z} = -\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}'.
 }{
   \begin{align}
   \mathcal{Z}
@@ -269,6 +269,13 @@ definition for $\mathcal{Z}$, the anti-Hermitian part of $\mathcal{X}$:
   \end{align}
 }
 \endtoggle
+:::
+
+:::{admonition} Additional optimization on $\mathcal{Z}$
+:class: dropdown info
+...
+
+\mathcal{Z} = -\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.}
 :::
 
 Similar to computing $\mathcal{W_n}$, computing $\mathcal{Z_n}$ requires lower
