@@ -305,13 +305,15 @@ $\mathcal{V}$ as a solution of:
 :::
 
 a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation).
-The solution to this equation contains fractions whose denominators are
-energy differences between the $A$ and $B$ subspaces.
-To solve it, we use the eigenvalues of $H_0$, which we need to compute only
-once.
+For a diagonal $H_0$, this equation is trivial to solve, because its solution
+is composed of fractions whose denominators are energy differences between the
+$A$ and $B$ subspaces.
+In practice, however, we do not usually have a diagonal $H_0$, and
+diagonalizing it is not always necessary, see
+[below](#how-to-use-pymablock-on-large-numerical-hamiltonians).
 Choosing the right parametrization of $\mathcal{U}$ has therefore allowed us to
 obtain expressions such that every new order of $\mathcal{V}$, and therefore
-$\tilde{\mathcal{H}}$, carries only one additional energy denominator.
+$\tilde{\mathcal{H}}$, requires solving Sylvester's equation only once.
 
 ## The algorithm
 
