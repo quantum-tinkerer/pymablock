@@ -39,7 +39,7 @@ run nox:
   cache:
     key: "$CI_JOB_NAME"
     paths:
-      - micromamba 
+      - micromamba
 
 run docs:
   script:
