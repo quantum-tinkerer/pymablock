@@ -310,7 +310,7 @@ is composed of fractions whose denominators are energy differences between the
 $A$ and $B$ subspaces.
 In practice, however, we do not usually have a diagonal $H_0$, and
 diagonalizing it is not always necessary, see
-[below](#how-to-use-pymablock-on-large-numerical-hamiltonians).
+[below](#implicit).
 Choosing the right parametrization of $\mathcal{U}$ has therefore allowed us to
 obtain expressions such that every new order of $\mathcal{V}$, and therefore
 $\tilde{\mathcal{H}}$, requires solving Sylvester's equation only once.
@@ -328,6 +328,7 @@ We now have a complete algorithm:
   \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
 6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} +\textrm{h.c.})/2$.
 
+(implicit)=
 ## How to use Pymablock on large numerical Hamiltonians?
 
 Solving Sylvester's equation and computing the matrix products are the most
