@@ -1,9 +1,5 @@
 image: mambaorg/micromamba:1.4.3
 
-cache:
-  paths:
-    - micromamba
-    - .pre-commit-cache
 before_script:
   - mkdir -p micromamba
   - export MAMBA_ROOT_PREFIX=micromamba
@@ -42,6 +38,8 @@ run nox:
     - nox -s $NOXSESSION
   cache:
     key: "$CI_JOB_NAME"
+    paths:
+      - micromamba 
 
 run docs:
   script:
@@ -60,6 +58,11 @@ run pre-commit:
     PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
   script:
     - pre-commit run --all-files
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - .pre-commit-cache
+
 
 pages:
   needs:
