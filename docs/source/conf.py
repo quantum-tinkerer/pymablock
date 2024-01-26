@@ -16,6 +16,8 @@ import sys
 import pymablock  # noqa: F401
 
 package_path = os.path.abspath("../pymablock")
+# Suppress superfluous frozen modules warning.
+os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
 sys.path.insert(0, package_path)
 
 
