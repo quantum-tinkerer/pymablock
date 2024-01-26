@@ -14,6 +14,8 @@ dependencies:
   - sphinx-togglebutton
   - sphinx-copybutton
   - pip
+  - git
+  - make
   - pip:
     - sphinx-book-theme>=1.1.0
     - sphinx-tippy

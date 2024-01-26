@@ -1,9 +1,14 @@
-image: gitlab.kwant-project.org:5005/qt/research-docker
+image: mambaorg/micromamba:1.4.3
 
 before_script:
-  - shopt -s nullglob  # sane behaviour when globs do not match
+  - mkdir -p micromamba
+  - export MAMBA_ROOT_PREFIX=micromamba
+  - micromamba create -yf docs/environment.yml
+  - eval "$(micromamba shell hook --shell bash)"
+  - micromamba activate pymablock-docs
 
 run tests:
+  # Needed because of coverage reports
   script:
     - pip install pytest-cov pytest-randomly pytest-repeat pytest-ruff
     - py.test
@@ -16,11 +21,15 @@ run tests:
       coverage_report:
         coverage_format: cobertura
         path: coverage.xml
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - micromamba
 
 run nox:
   variables:
     GIT_STRATEGY: clone
-    CONDA_PKGS_DIRS: micromamba_root/pkgs
+    CONDA_PKGS_DIRS: micromamba/pkgs
   parallel:
     matrix:
       - NOXSESSION:
@@ -28,24 +37,39 @@ run nox:
         - "tests(mid)"
         - "tests(latest)"
         - "tests_without_kwant"
-  before_script:
-    - micromamba install -c conda-forge -r micromamba_root -y mamba pip nox git
   script:
-    - export MAMBA_ROOT_PREFIX="micromamba_root"; nox -s $NOXSESSION
-  image: "mambaorg/micromamba:1.4.3"
+    - micromamba install -c conda-forge -y nox mamba
+    - nox -s $NOXSESSION
   cache:
     key: "$CI_JOB_NAME"
     paths:
-      - micromamba_root
+      - micromamba
 
 run docs:
   script:
-    - pip install sphinx myst-nb sphinx-togglebutton sphinx-tippy sphinx-copybutton "sphinx-book-theme>=1.1.0"
-    - pip install --editable .
     - make -C docs/ html SPHINXOPTS="-WT --keep-going -n"
   artifacts:
     paths:
       - docs/build
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+        - micromamba
+
+
+run pre-commit:
+  variables:
+    PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
+  script:
+    - micromamba install -c conda-forge -y mamba pip pre-commit git
+    - git config --global --add safe.directory $CI_PROJECT_DIR
+    - pre-commit run --all-files
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - .pre-commit-cache
+      - micromamba
+
 
 pages:
   needs:
