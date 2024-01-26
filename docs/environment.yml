@@ -16,8 +16,6 @@ dependencies:
   - pip
   - git
   - make
-  - nox
-  - pre-commit
   - pip:
     - sphinx-book-theme>=1.1.0
     - sphinx-tippy

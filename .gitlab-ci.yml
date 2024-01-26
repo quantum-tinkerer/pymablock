@@ -8,6 +8,7 @@ before_script:
   - micromamba activate pymablock-docs
 
 run tests:
+  # Needed because of coverage reports
   script:
     - pip install pytest-cov pytest-randomly pytest-repeat pytest-ruff
     - py.test
@@ -23,7 +24,7 @@ run tests:
   cache:
     key: "$CI_JOB_NAME"
     paths:
-      - test-cache
+      - micromamba
 
 run nox:
   variables:
@@ -37,7 +38,7 @@ run nox:
         - "tests(latest)"
         - "tests_without_kwant"
   script:
-    - micromamba install -c conda-forge -y mamba pip nox git
+    - micromamba install -c conda-forge -y nox mamba
     - nox -s $NOXSESSION
   cache:
     key: "$CI_JOB_NAME"
@@ -46,8 +47,6 @@ run nox:
 
 run docs:
   script:
-    - pip install sphinx myst-nb sphinx-togglebutton sphinx-tippy sphinx-copybutton "sphinx-book-theme>=1.1.0"
-    - pip install --editable .
     - make -C docs/ html SPHINXOPTS="-WT --keep-going -n"
   artifacts:
     paths:
@@ -66,7 +65,7 @@ run pre-commit:
     - git config --global --add safe.directory $CI_PROJECT_DIR
     - pre-commit run --all-files
   cache:
-    key: "$CI_JOB_NAME"
+    key: "$CI_JOB_NAME: pre-commit"
     paths:
       - .pre-commit-cache
 
@@ -81,7 +80,3 @@ pages:
   artifacts:
     paths:
       - public
-  cache:
-    key: "$CI_JOB_NAME"
-    paths:
-        - pages-cache
