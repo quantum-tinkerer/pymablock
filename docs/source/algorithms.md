@@ -118,8 +118,11 @@ and obtain
 Because $\mathcal{U}'$ has no $0$-th order term, $(\mathcal{U}'^\dagger
 \mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
 $\mathcal{U}$ nor $\mathcal{W}$.
-Therefore, we compute $\mathcal{W}$ as a Cauchy product of
-$\mathcal{U}'$ with itself.
+This is a key aspect of our parametrization for the unitary transformation: not
+having a $0$-th order term allows us to define series as products between
+series and compute missing orders through recurrence relations.
+In this case, we can define $\mathcal{W}$ as a Cauchy product of $\mathcal{U}'$
+with itself.
 *This recurrence relation is the first secret ingredient of Pymablock✨*
 
 :::{admonition} Choosing the right definition for $\mathcal{W}$
