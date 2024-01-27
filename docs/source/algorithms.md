@@ -271,7 +271,7 @@ This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U} =
 :::{math}
 :label: Z
 \toggle{
-  \mathcal{Z} = -\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}'.
+  \mathcal{Z} = \texttip{\color{red}{\ldots}}{click to expand} = -\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}'.
 }{
   \begin{align}
   \mathcal{Z}
