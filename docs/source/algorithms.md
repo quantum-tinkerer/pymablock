@@ -221,12 +221,12 @@ the terms $H_0 \mathcal{U}'$ and $\mathcal{U}'^\dagger H_0$ by replacing them
 with an alternative expression.
 Our strategy will be to define a new auxiliary operator $\mathcal{X}$ that
 contains $H_0$, but that we can compute without multiplying by $H_0$.
-For now, we will assume that we have a recurrence relation to compute
-$\mathcal{X}$, and we will discuss how to find it later.
+Like $\mathcal{U}'$, $\mathcal{X}$ needs to be defined via a recurrence
+relation, which we will find later.
 Because the expression above has $H_0$ multiplied by $\mathcal{U}'$ by the left
 and by the right, we can only get rid of these terms by making sure that
 $H_0$ only multiplies terms by one side only.
-For this purpose, we define $\mathcal{X}$ as the commutator between
+For this purpose, we choose $\mathcal{X}$ to be the commutator between
 $\mathcal{U}'$ and $H_0$:
 
 :::{math}
