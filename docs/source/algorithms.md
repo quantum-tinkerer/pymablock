@@ -220,7 +220,7 @@ Because we want to avoid unnecessary products by $H_0$, we need to get rid of
 the terms $H_0 \mathcal{U}'$, $\mathcal{U}'^\dagger H_0$, and
 $\mathcal{U}'^\dagger H_0 \mathcal{U}'$ by replacing them with an alternative
 expression.
-Our strategy will be to define a new auxiliary operator $\mathcal{X}$ that
+Our strategy is to define an auxiliary operator $\mathcal{X}$ that
 contains $H_0$, but that we can compute without multiplying by $H_0$.
 Like $\mathcal{U}'$, $\mathcal{X}$ needs to be defined via a recurrence
 relation, which we will find later.
