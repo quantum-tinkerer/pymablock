@@ -104,11 +104,9 @@ and obtain
   \mathcal{U}'^\dagger \mathcal{U}'.
 }{
   \begin{align}
-    - \frac{1}{2} \mathcal{U'}^\dagger \mathcal{U'} &= - \frac{1}{2} \Big[ (\mathcal{U} - 1)^\dagger (\mathcal{U} - 1) \Big] \\
-    &= - \frac{1}{2} \Big[ 2 - \mathcal{U}^\dagger - \mathcal{U} \Big] \\
-    &= - \frac{1}{2} \Big[ 2 - (1 + \mathcal{W} + \mathcal{V})^\dagger - (1 + \mathcal{W} + \mathcal{V}) \Big] \\
-    &= - \frac{1}{2} \Big[ 2 - (1 + \mathcal{W} - \mathcal{V}) - (1 + \mathcal{W} + \mathcal{V}) \Big] \\
-    &= \mathcal{W}
+    W &= \frac{1}{2}(\mathcal{U}'^\dagger + \mathcal{U}') \\
+      &= \frac{1}{2} \Big[(1 + \mathcal{U}'^\dagger)(1+\mathcal{U}') - 1 - \mathcal{U}'^\dagger \mathcal{U}' \Big] \\
+      &= -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
   \end{align}
 }
 \endtoggle
