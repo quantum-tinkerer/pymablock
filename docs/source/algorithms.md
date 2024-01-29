@@ -104,12 +104,11 @@ and obtain
   \mathcal{U}'^\dagger \mathcal{U}'.
 }{
   \begin{align}
-    1 = \mathcal{U}^\dagger \mathcal{U} &= (1 + \mathcal{U'}^\dagger)(1 + \mathcal{U'}) \\
-    &= 1 + \mathcal{U'} + \mathcal{U'}^\dagger + \mathcal{U'}^\dagger \mathcal{U'} \\
-    &= 1 + \mathcal{W} + \mathcal{V} + \mathcal{W}^\dagger + \mathcal{V}^\dagger + \mathcal{U'}^\dagger \mathcal{U'} \\
-    &= 1 + \mathcal{W} + \mathcal{V} + \mathcal{W} - \mathcal{V} + \mathcal{U'}^\dagger \mathcal{U'} \\
-    &= 1 + 2\mathcal{W} + \mathcal{U'}^\dagger \mathcal{U'} \\
-    \implies \mathcal{W} &= -\frac{1}{2} \mathcal{U'}^\dagger \mathcal{U'}
+    - \frac{1}{2} \mathcal{U'}^\dagger \mathcal{U'} &= - \frac{1}{2} \Big[ (\mathcal{U} - 1)^\dagger (\mathcal{U} - 1) \Big] \\
+    &= - \frac{1}{2} \Big[ 2 - \mathcal{U}^\dagger - \mathcal{U} \Big] \\
+    &= - \frac{1}{2} \Big[ 2 - (1 + \mathcal{W} + \mathcal{V})^\dagger - (1 + \mathcal{W} + \mathcal{V}) \Big] \\
+    &= - \frac{1}{2} \Big[ 2 - (1 + \mathcal{W} - \mathcal{V}) - (1 + \mathcal{W} + \mathcal{V}) \Big] \\
+    &= \mathcal{W}
   \end{align}
 }
 \endtoggle
@@ -332,7 +331,7 @@ We now have a complete algorithm:
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
  (-\mathcal{U}'^\dagger\mathcal{X} +
   \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
-6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} +\textrm{h.c.})/2$.
+6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}$.
 
 (implicit)=
 ## How to use Pymablock on large numerical Hamiltonians?
