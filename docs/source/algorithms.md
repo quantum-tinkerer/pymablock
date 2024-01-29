@@ -93,7 +93,7 @@ To find $\mathcal{U}$, let us separate it into an identity and $\mathcal{U}' =
 \mathcal{U} = 1 + \mathcal{U}' = 1 + \mathcal{W} + \mathcal{V},\quad \mathcal{W}^\dagger = \mathcal{W},\quad \mathcal{V}^\dagger = -\mathcal{V}.
 :::
 
-First, we use of the unitarity condition
+First, we use the unitarity condition
 $\mathcal{U}^\dagger \mathcal{U} = 1$ by substituting $\mathcal{U}'$ into it
 and obtain
 
@@ -104,12 +104,12 @@ and obtain
   \mathcal{U}'^\dagger \mathcal{U}'.
 }{
   \begin{align}
-  2 &= (1+\mathcal{U}'^{\dagger})(1+\mathcal{U}') +
-  (1+\mathcal{U}')(1+\mathcal{U}'^{\dagger}) \\
-  &= (1+\mathcal{W}-\mathcal{V})(1+\mathcal{W}+\mathcal{V}) +
-  (1+\mathcal{W}+\mathcal{V})(1+\mathcal{W}-\mathcal{V}) \\
-  \implies
-  \mathcal{W} &= -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
+    1 = \mathcal{U}^\dagger \mathcal{U} &= (1 + \mathcal{U'}^\dagger)(1 + \mathcal{U'}) \\
+    &= 1 + \mathcal{U'} + \mathcal{U'}^\dagger + \mathcal{U'}^\dagger \mathcal{U'} \\
+    &= 1 + \mathcal{W} + \mathcal{V} + \mathcal{W}^\dagger + \mathcal{V}^\dagger + \mathcal{U'}^\dagger \mathcal{U'} \\
+    &= 1 + \mathcal{W} + \mathcal{V} + \mathcal{W} - \mathcal{V} + \mathcal{U'}^\dagger \mathcal{U'} \\
+    &= 1 + 2\mathcal{W} + \mathcal{U'}^\dagger \mathcal{U'} \\
+    \implies \mathcal{W} &= -\frac{1}{2} \mathcal{U'}^\dagger \mathcal{U'}
   \end{align}
 }
 \endtoggle
@@ -117,12 +117,14 @@ and obtain
 
 Because $\mathcal{U}'$ has no $0$-th order term, $(\mathcal{U}'^\dagger
 \mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
-$\mathcal{U}$ nor $\mathcal{W}$.
-This is a key aspect of our parametrization for the unitary transformation: not
-having a $0$-th order term allows us to define series as products between
-series and compute missing orders through recurrence relations.
-In this case, we can define $\mathcal{W}$ as a Cauchy product of $\mathcal{U}'$
-with itself.
+$\mathcal{U}'$ nor $\mathcal{W}$.
+More generally, a Cauchy product $\mathcal{A}\mathcal{B}$ where $\mathcal{A}$
+and $\mathcal{B}$ have no $0$-th order terms depends on $\mathcal{A}_1, \ldots,
+\mathcal{A}_{n-1}$ and $\mathcal{B}_1, \ldots, \mathcal{B}_{n-1}$.
+This allows us to use Cauchy products to define recurrence relations, which
+we apply throughout the algorithm.
+Therefore, we compute $\mathcal{W}$ as a Cauchy product of $\mathcal{U}'$ with
+itself.
 *This recurrence relation is the first secret ingredient of Pymablock✨*
 
 :::{admonition} Choosing the right definition for $\mathcal{W}$
@@ -217,21 +219,19 @@ where we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = H_0 +
 \mathcal{H'}$.
 
 Because we want to avoid unnecessary products by $H_0$, we need to get rid of
-the terms $H_0 \mathcal{U}'$, $\mathcal{U}'^\dagger H_0$, and
-$\mathcal{U}'^\dagger H_0 \mathcal{U}'$ by replacing them with an alternative
-expression.
-Our strategy is to define an auxiliary operator $\mathcal{X}$ that
-contains $H_0$, but that we can compute without multiplying by $H_0$.
+the terms that contain it by replacing them with an alternative expression.
+Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can
+compute without ever multiplying by $H_0$.
 Like $\mathcal{U}'$, $\mathcal{X}$ needs to be defined via a recurrence
 relation, which we will find later.
 Because the expression above has $H_0$ multiplied by $\mathcal{U}'$ by the left
-and by the right, we can only get rid of these terms by making sure that
-$H_0$ only multiplies terms by one side only.
-For this purpose, we choose $\mathcal{X}$ to be the commutator between
+and by the right, we get rid of these terms by making sure that $H_0$
+multiplies terms from one side only.
+To achieve this, we choose $\mathcal{X}$ to be the commutator between
 $\mathcal{U}'$ and $H_0$:
 
 :::{math}
-:label: XYX
+:label: XYZ
 \mathcal{X} \equiv [\mathcal{U}', H_0] = \mathcal{Y} + \mathcal{Z}, \quad
 \mathcal{Y} \equiv [\mathcal{V}, H_0] = \mathcal{Y}^\dagger,\quad
 \mathcal{Z} \equiv [\mathcal{W}, H_0] = -\mathcal{Z}^\dagger,
@@ -264,13 +264,12 @@ where the terms multiplied by $H_0$ cancel by unitarity.
 
 The transformed Hamiltonian does not contain products by $H_0$ anymore, but it
 does depend on $\mathcal{X}$, an auxiliary operator whose recurrent definition
-we left pending.
+we do not know yet.
 To find it, we first focus on its anti-Hermitian part, $\mathcal{Z}$.
 Since recurrence relations are expressions whose right hand side contains
-Cauchy products of series that lack 0-th order terms, we need to find a way to
-make a product between series appear.
+Cauchy products between series, we need to find a way to make a product appear.
 This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U} =
--\mathcal{U}'^\dagger \mathcal{U}$ comes in handy:
+-\mathcal{U}'^\dagger \mathcal{U}$ comes in handy and gives:
 
 :::{math}
 :label: Z
@@ -286,13 +285,6 @@ This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U} =
   \end{align}
 }
 \endtoggle
-:::
-
-:::{admonition} Additional optimization on $\mathcal{Z}$
-:class: dropdown info
-...
-
-\mathcal{Z} = -\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.}
 :::
 
 Similar to computing $\mathcal{W_n}$, computing $\mathcal{Z_n}$ requires lower
@@ -313,7 +305,7 @@ terms lack 0-th order, this defines a recursive relation for $\mathcal{X}^{AB}$,
 and therefore $\mathcal{Y}$.
 *This is our last secret ingredient✨*
 
-The final part is standard: the definition of $\mathcal{Y}$ in {eq}`XYX` fixes
+The final part is standard: the definition of $\mathcal{Y}$ in {eq}`XYZ` fixes
 $\mathcal{V}$ as a solution of:
 
 :::{math}
@@ -321,16 +313,13 @@ $\mathcal{V}$ as a solution of:
 \mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB},
 :::
 
-a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation).
-For a diagonal $H_0$, this equation is trivial to solve, because its solution
-is composed of fractions whose denominators are energy differences between the
-$A$ and $B$ subspaces.
-In practice, however, we do not usually have a diagonal $H_0$, and
-diagonalizing it is not always necessary, see
-[below](#implicit).
-Choosing the right parametrization of $\mathcal{U}$ has therefore allowed us to
-obtain expressions such that every new order of $\mathcal{V}$, and therefore
-$\tilde{\mathcal{H}}$, requires solving Sylvester's equation only once.
+a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation),
+which we only need to solve once for every new order.
+In the eigenbasis of $H_0$, the solution of Sylvester's equation is
+$V^{AB}_{ij} = Y^{AB}_{ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of
+$H_0$.
+However, even if the eigenbasis of $H_0$ is not available, there are efficient
+algorithms to solve Sylvester's equation, see [below](#implicit).
 
 ## The algorithm
 
@@ -339,7 +328,7 @@ We now have a complete algorithm:
 1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
 2. To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
 3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $\mathcal{V}^{AB}H_0^{AA} - H_0^{BB}\mathcal{V}^{AB} = \mathcal{Y}^{AB}$. This requires $\mathcal{X}$.
-4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} - \textrm{h.c.})/2$.
+4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \textrm{h.c.})/2$.
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
  (-\mathcal{U}'^\dagger\mathcal{X} +
   \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
