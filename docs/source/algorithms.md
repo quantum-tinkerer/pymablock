@@ -278,7 +278,7 @@ This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U} =
   &= \frac{1}{2} (\mathcal{X} + \mathcal{X}^{\dagger}) \\
   &= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
   &= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}') \mathcal{U}' \Big] \\
-  &= \frac{1}{2} (- \mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
+  &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
   \end{align}
 }
 \endtoggle
@@ -336,6 +336,18 @@ We now have a complete algorithm:
 
 We further optimize the algorithm by reusing products that are needed in several
 places.
+
+Firstly, we rewrite the expressions for $\mathcal{Z}$ and $\tilde{\mathcal{H}}$
+by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ without recomputing it:
+
+$$
+\begin{gather*}
+\mathcal{Z} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}],\\
+\tilde{\mathcal{H}} = H_0 + \mathcal{U}'^\dagger \mathcal{H}' \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.}),
+\end{gather*}
+$$
+
+where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{X}$ drops out from the diagonal blocks of $\tilde{\mathcal{H}}$ because diagonal of $\mathcal{X}$ is anti-Hermitian.
 
 To compute $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$ faster, we express it
 using $\mathcal{A} \equiv \mathcal{H}'\mathcal{U}'$:
