@@ -171,7 +171,7 @@ $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
 so that the resulting unitary transformation is equivalent to the
 Schrieffer-Wolff transformation.
 In turn, this means that $\mathcal{W}$ is block-diagonal and that the norm
-of $\mathcal{U}$ is minimal.
+of $\mathcal{U}'$ is minimal.
 
 :::{admonition} Equivalence to Schrieffer-Wolff transformation
 :class: dropdown info
