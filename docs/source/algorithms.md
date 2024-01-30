@@ -104,7 +104,7 @@ and obtain
   \mathcal{U}'^\dagger \mathcal{U}'.
 }{
   \begin{align}
-    W &= \frac{1}{2}(\mathcal{U}'^\dagger + \mathcal{U}') \\
+    \mathcal{W} &= \frac{1}{2}(\mathcal{U}'^\dagger + \mathcal{U}') \\
       &= \frac{1}{2} \Big[(1 + \mathcal{U}'^\dagger)(1+\mathcal{U}') - 1 - \mathcal{U}'^\dagger \mathcal{U}' \Big] \\
       &= -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
   \end{align}
