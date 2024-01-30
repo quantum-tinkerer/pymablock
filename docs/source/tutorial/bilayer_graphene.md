@@ -114,6 +114,14 @@ The names of `symbols` specifying the perturbative parameters are stored in the
 H_tilde.dimension_names
 ```
 
+:::{admonition} All symbols are commutative
+:class: warning
+Pymablock treats all `symbols` as commutative by default.
+This means that to use non-commuting symbols, like $k_x$ and $k_y$, the
+matrices that multiply them need to follow the desired commutation rules
+instead.
+:::
+
 Now we are ready to specify which calculation to perform.
 
 To compute the standard quadratic dispersion of bilayer graphene and trigonal
