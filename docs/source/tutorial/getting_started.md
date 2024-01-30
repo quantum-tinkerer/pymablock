@@ -165,6 +165,8 @@ ax_2.set_yticks([]);
 NumPy's masked arrays are arrays where some entries are masked out because they
 are undefined, or because they are not needed, such that they are skipped in
 various operations.
+In Pymablock, we use masked arrays to skip the terms that are zero, so that
+they are skipped in summation and multiplication throughout the algorithm.
 To sum over the entries of a masked array, use `np.ma.sum(array)`, for example.
 :::
 
