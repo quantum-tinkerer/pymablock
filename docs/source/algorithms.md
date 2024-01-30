@@ -224,7 +224,7 @@ relation, which we will find later.
 Because the expression above has $H_0$ multiplied by $\mathcal{U}'$ by the left
 and by the right, we get rid of these terms by making sure that $H_0$
 multiplies terms from one side only.
-To achieve this, we choose $\mathcal{X}$ to be the commutator between
+To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commutator between
 $\mathcal{U}'$ and $H_0$:
 
 :::{math}
