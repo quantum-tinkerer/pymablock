@@ -117,9 +117,8 @@ H_tilde.dimension_names
 :::{admonition} All symbols are commutative
 :class: warning
 Pymablock treats all `symbols` as commutative by default.
-This means that to use non-commuting symbols, like $k_x$ and $k_y$, the
-matrices that multiply them need to follow the desired commutation rules
-instead.
+To use not-commutative symbols, like e.g. $x$ and $k_x$, add
+these into the Hamiltonian directly instead.
 :::
 
 Now we are ready to specify which calculation to perform.
