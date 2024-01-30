@@ -19,7 +19,7 @@ def tests(session, numpy, scipy, sympy):
         f"numpy=={numpy}",
         f"scipy=={scipy}",
         f"sympy=={sympy}",
-        "python-mumps==0.0.1",
+        "python-mumps>=0.0.1.post1,<0.1",
         "packaging==22.0",
         "pytest-cov",
         "pytest-randomly",
