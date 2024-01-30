@@ -160,6 +160,14 @@ ax_2.set_xticks([])
 ax_2.set_yticks([]);
 ```
 
+:::{admonition} Masked arrays skip entries
+:class: dropdown tip
+NumPy's masked arrays are arrays where some entries are masked out because they
+are undefined, or because they are not needed, such that they are skipped in
+various operations.
+To sum over the entries of a masked array, use `np.ma.sum(array)`, for example.
+:::
+
 ## Further capabilities
 
 Let us now consider a more complex example, where:
