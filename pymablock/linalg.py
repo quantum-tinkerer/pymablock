@@ -90,12 +90,13 @@ def direct_greens_function(
     greens_function : `Callable[[np.ndarray], np.ndarray]`
         Function that solves :math:`(E - H) sol = vec`.
     """
+    mat = E * identity(h.shape[0], dtype=h.dtype, format="csr") - h
     ctx = MUMPSContext()
-    ctx.set_matrix(E * identity(h.shape[0], dtype=h.dtype, format="csr") - h)
+    ctx.set_matrix(mat)
     ctx.mumps_instance.icntl[24] = 1
     if eps is not None:
         ctx.mumps_instance.cntl[3] = eps
-    ctx.factor(h)
+    ctx.factor()
 
     def greens_function(vec: np.ndarray) -> np.ndarray:
         """Apply the Green's function to a vector.
@@ -113,7 +114,7 @@ def direct_greens_function(
             Solution of :math:`(E - H) sol = vec`.
         """
         sol = ctx.solve(vec)
-        if (residue := np.linalg.norm(h @ sol - vec)) > atol:
+        if (residue := np.linalg.norm(mat @ sol - vec)) > atol:
             warn(
                 f"Solution only achieved precision {residue} > {atol}."
                 " adjust eps or atol.",
