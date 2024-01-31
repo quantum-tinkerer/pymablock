@@ -4,6 +4,7 @@ from functools import reduce
 from typing import Any, Optional, Callable, Union
 from collections.abc import Sequence
 from copy import copy
+from warnings import warn
 
 import numpy as np
 import sympy
@@ -1017,9 +1018,10 @@ def _extract_diagonal(
     h_0 = H[(diag_indices, diag_indices) + (0,) * H.n_infinite]
     is_sympy = any(isinstance(block, sympy.MatrixBase) for block in h_0)
     if not all(is_diagonal(h, atol) for h in h_0):
-        raise ValueError(
+        warn(
             "The unperturbed Hamiltonian must be diagonal if ``solve_sylvester``"
-            " is not provided."
+            " is not provided. The algorithm will assume that it is diagonal.",
+            UserWarning,
         )
     diags = []
     for block in h_0:
