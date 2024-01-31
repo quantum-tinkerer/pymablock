@@ -113,7 +113,10 @@ def direct_greens_function(
         sol :
             Solution of :math:`(E - H) sol = vec`.
         """
-        sol = ctx.solve(vec)
+        if np.iscomplexobj(vec) and not np.iscomplexobj(mat):
+            sol = ctx.solve(vec.real) + 1j * ctx.solve(vec.imag)
+        else:
+            sol = ctx.solve(vec)
         if (residue := np.linalg.norm(mat @ sol - vec)) > atol:
             warn(
                 f"Solution only achieved precision {residue} > {atol}."

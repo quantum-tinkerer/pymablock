@@ -740,6 +740,22 @@ def test_equivalence_explicit_implicit() -> None:
     )
 
 
+def test_dtype_mismatch_error_implicit():
+    """Test that the implicit algorithm raises an error when the dtype of the
+    Hamiltonian and perturbation do not match."""
+    h_0 = np.random.randn(4, 4)
+    h_0 += Dagger(h_0)
+    vecs = np.linalg.eigh(h_0)[1]
+    perturbation = np.random.randn(4, 4) + 1j * np.random.randn(4, 4)
+    perturbation += Dagger(perturbation)
+
+    H_tilde, *_ = block_diagonalize(
+        [h_0, perturbation], subspace_eigenvectors=[vecs[:, :1]]
+    )
+    # This should evaluate normally.
+    H_tilde[0, 0, 2]
+
+
 def test_solve_sylvester_direct_vs_diagonal() -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with

@@ -37,9 +37,7 @@ def test_direct_greens_function_dtype():
     np.diag(E)
     gf = linalg.direct_greens_function(sparse.diags(E), 0)
     assert gf(E).dtype == np.float32
-    with raises(ValueError):
-        # It is user's responsibility to provide the correct dtype.
-        gf(1j * E)
+    assert gf(1j * E).dtype == np.complex64
 
 
 def test_complement_projector():
