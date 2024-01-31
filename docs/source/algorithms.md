@@ -360,12 +360,12 @@ To further optimize the computations, we observe that some products appear both 
 
 To reuse these products, we separate the perturbation into diagonal and off-diagonal parts $\mathcal{H}' = \mathcal{H}'_\textrm{diag} + \mathcal{H}'_\textrm{offdiag}$.
 
-We then introduce variables $\mathcal{A} = \mathcal{H}_\textrm{diag} \mathcal{U}'$, $\mathcal{B} = \mathcal{H}_\textrm{offdiag} \mathcal{U}'$, and $\mathcal{C} = \mathcal{X} -
+We then introduce variables $\mathcal{A} = \mathcal{H}'_\textrm{diag} \mathcal{U}'$, $\mathcal{B} = \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$, and $\mathcal{C} = \mathcal{X} -
 \mathcal{H}'_\textrm{offdiag}$.
 This gives an updated expression for $\mathcal{Z}$:
 
 $$
-\mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) + \textrm{h.c.}.
+\mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.}.
 $$
 
 and more importantly for $\tilde{\mathcal{H}}$:
