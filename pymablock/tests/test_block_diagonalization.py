@@ -1044,3 +1044,37 @@ def test_single_symbol_input():
     assert H_tilde.name == "H_tilde"
     # Check that execution doesn't raise
     H_tilde[:, :, 3]
+
+
+def test_warning_non_diagonal_input():
+    muL, muR, B, E, t, tso, Delta = sympy.symbols(
+        "mu_L mu_R B E t t_s Delta", real=True
+    )
+    h_0 = sympy.Matrix(
+        [
+            [muL, 0, 0, 0, 0, 0, 0, 0],
+            [0, muR, 0, 0, 0, 0, 0, 0],
+            [0, 0, -muL, 0, 0, 0, 0, 0],
+            [0, 0, 0, -muR, 0, 0, 0, 0],
+            [0, 0, 0, 0, B + E, 0, 0, Delta],
+            [0, 0, 0, 0, 0, -B + E, Delta, 0],
+            [0, 0, 0, 0, 0, Delta, -B - E, 0],
+            [0, 0, 0, 0, Delta, 0, 0, B - E],
+        ]
+    )
+    h_p = sympy.Matrix(
+        [
+            [0, 0, 0, 0, sympy.I * tso, t, 0, 0],
+            [0, 0, 0, 0, -sympy.I * tso, t, 0, 0],
+            [0, 0, 0, 0, 0, 0, -sympy.I * tso, -t],
+            [0, 0, 0, 0, 0, 0, sympy.I * tso, -t],
+            [-sympy.I * tso, sympy.I * tso, 0, 0, 0, 0, 0, 0],
+            [t, t, 0, 0, 0, 0, 0, 0],
+            [0, 0, sympy.I * tso, -sympy.I * tso, 0, 0, 0, 0],
+            [0, 0, -t, -t, 0, 0, 0, 0],
+        ]
+    )
+    P, _ = h_0.diagonalize()
+
+    with pytest.warns(UserWarning):
+        block_diagonalize([h_0, h_p], subspace_eigenvectors=[P[:, :4], P[:, 4:]])[0]
