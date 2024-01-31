@@ -371,6 +371,16 @@ def hamiltonian_to_BlockSeries(
         subspace_eigenvectors = _subspaces_from_indices(
             subspace_indices, symbolic=symbolic
         )
+
+    # make subspace_eigenvectors of sympy type to numpy type
+    if subspace_eigenvectors is not None:
+        subspace_eigenvectors = [
+            np.array(subspace).astype(complex)
+            if isinstance(subspace, sympy.MatrixBase)
+            else subspace
+            for subspace in subspace_eigenvectors
+        ]
+
     if implicit:
         # Define subspace_eigenvectors for implicit
         vecs_A = subspace_eigenvectors[0]
