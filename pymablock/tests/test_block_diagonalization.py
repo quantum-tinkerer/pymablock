@@ -368,9 +368,18 @@ def symbolic_hamiltonian(request):
 
     hamiltonians = [hamiltonian_1, hamiltonian_2, hamiltonian_3]
     symbols = tuple([k_x, k_y, k_z])
-    subspace_eigenvectors = [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])]
+    subspace_eigenvectors = [
+        [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])],
+        [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])],
+        [np.array([[1], [0]]), np.array([[0], [1]])],
+    ]
     subspace_indices = [0, 1]
-    return hamiltonians[request.param], symbols, subspace_eigenvectors, subspace_indices
+    return (
+        hamiltonians[request.param],
+        symbols,
+        subspace_eigenvectors[request.param],
+        subspace_indices,
+    )
 
 
 # Tests
