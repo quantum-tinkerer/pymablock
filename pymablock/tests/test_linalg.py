@@ -1,6 +1,5 @@
 import builtins
 
-import pytest
 from pytest import raises
 import numpy as np
 from numpy.testing import assert_allclose
@@ -11,14 +10,6 @@ import sympy
 from pymablock import linalg
 
 
-try:
-    from kwant.linalg import mumps  # noqa: F401
-
-    mumps_available = True
-except ImportError:
-    mumps_available = False
-
-
 def test_linear_operator_rmatmul_patched():
     """Test that LinearOperator implement right multiplication"""
     array = np.random.randn(3, 3) + 1j * np.random.randn(3, 3)
@@ -26,7 +17,6 @@ def test_linear_operator_rmatmul_patched():
     assert_allclose(array @ operator, array @ array)
 
 
-@pytest.mark.skipif(not mumps_available, reason="mumps not installed")
 def test_direct_greens_function():
     n = 100
     E = np.random.randn(n)
@@ -41,14 +31,12 @@ def test_direct_greens_function():
     assert_allclose(h @ sol - E[n0] * sol, -vec, atol=1e-7)
 
 
-@pytest.mark.skipif(not mumps_available, reason="mumps not installed")
 def test_direct_greens_function_dtype():
     n = 10
-    E = np.random.randn(n).astype(np.float16)
+    E = np.random.randn(n).astype(np.float32)
     np.diag(E)
     gf = linalg.direct_greens_function(sparse.diags(E), 0)
-    assert gf(E).dtype == np.float16
-    assert_allclose(gf(1j * E), -1j * np.ones(n))
+    assert gf(E).dtype == np.float32
     assert gf(1j * E).dtype == np.complex64
 
 

@@ -340,9 +340,9 @@ Pymablock can efficiently construct an effective Hamiltonian of a small
 subspace even when the full Hamiltonian is a sparse matrix that is too costly to
 diagonalize.
 It does so by avoiding explicit computation of operators in $B$ subspace, and by
-utilizing the sparsity of the Hamiltonian to compute the Green's function.
-To do so, Pymablock uses either the [MUMPS sparse
-solver](https://mumps-solver.org/) or the [KPM
+utilizing the sparsity of the Hamiltonian to compute the Green's function. To do so,
+Pymablock uses either the [MUMPS sparse solver](https://mumps-solver.org/) via the
+[python-mumps](https://gitlab.kwant-project.org/kwant/python-mumps/) wrapper or the [KPM
 method](https://doi.org/10.1103/RevModPhys.78.275).
 
 This approach was originally introduced in [this

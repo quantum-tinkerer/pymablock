@@ -121,13 +121,9 @@ pip install pymablock
 ```
 
 ```{important}
-Be aware that the using `pymablock` on large Hamiltonians requires `Kwant`
-with [MUMPS](https://mumps-solver.org/index.php) support.
-For this purpose, install Kwant
-[via conda](https://kwant-project.org/install#conda) in Linux and MAC OS.
-Unfortunately, MUMPS support in Kwant is not available for Windows.
-If you need it, try
-[Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install).
+Be aware that the using `pymablock` on large Hamiltonians requires
+[MUMPS](https://mumps-solver.org/index.php) support via ``python-mumps`` package.
+It is only pip-installable on Linux, use conda on other platforms.
 ```
 
 ## Citing
