@@ -521,7 +521,6 @@ def _block_diagonalize(
         ("H'_diag @ U'", False),
         ("H'_offdiag @ U'", False),
         ("U'† @ H' @ U'", False),
-        ("U'† @ H' @ U'", False),
     ]
 
     for term, hermitian in needed_products:
