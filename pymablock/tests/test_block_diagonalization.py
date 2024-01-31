@@ -357,13 +357,13 @@ def symbolic_hamiltonian(request):
     # Symbolic Hamiltonian in dictionary of numpy.ndarray
     m = h = alpha = beta = 1  # values must be numeric, TODO: test symbolic
     hamiltonian_3 = {
-        k_x**2: h**2 * np.eye(2) / (2 * m),
-        k_y**2: h**2 * np.eye(2) / (2 * m),
-        k_z**2: h**2 * np.eye(2) / (2 * m),
-        sympy.Rational(1): beta * np.diag([-1, 1]),
-        k_z: alpha * np.diag([1, -1]),
-        k_x: alpha * np.array([[0, 1], [1, 0]]),
-        k_y: alpha * np.array([[0, -1j], [1j, 0]]),
+        k_x**2: h**2 * sympy.eye(2) / (2 * m),
+        k_y**2: h**2 * sympy.eye(2) / (2 * m),
+        k_z**2: h**2 * sympy.eye(2) / (2 * m),
+        sympy.Rational(1): beta * sympy.diag(*[-1, 1]),
+        k_z: alpha * sympy.diag(*[1, -1]),
+        k_x: alpha * sympy.Matrix([[0, 1], [1, 0]]),
+        k_y: alpha * sympy.Matrix([[0, -1j], [1j, 0]]),
     }
 
     hamiltonians = [hamiltonian_1, hamiltonian_2, hamiltonian_3]
