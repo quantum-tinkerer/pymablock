@@ -350,10 +350,10 @@ $$
 where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{X}$ drops out from the diagonal blocks of $\tilde{\mathcal{H}}$ because diagonal of $\mathcal{X}$ is anti-Hermitian.
 
 To compute $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$ faster, we express it
-using $\mathcal{A} \equiv \mathcal{H}'\mathcal{U}'$:
+using $\mathcal{F} \equiv \mathcal{H}'\mathcal{U}'$:
 
 $$
-\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} = \mathcal{H}' + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A}.
+\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} = \mathcal{H}' + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
 $$
 
 To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$.
