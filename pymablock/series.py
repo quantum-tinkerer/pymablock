@@ -189,6 +189,22 @@ class BlockSeries:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
 
+    def __contains__(self, index) -> bool:
+        """
+        Check if the given index has been evaluated.
+
+        Parameters
+        ----------
+        index :
+            Index to check.
+
+        Returns
+        -------
+        bool
+            Whether the given index has been evaluated.
+        """
+        return self._data.get(index, PENDING) is not PENDING
+
     def __str__(self) -> str:
         dimensions = (
             *map(str, self.shape),
@@ -358,9 +374,8 @@ def product_by_order(
         if hermitian and orders_1st > orders_2nd:
             continue
 
-        if (first._data.get(first_index, PENDING) is not PENDING) or (
-            second._data.get(second_index, PENDING) is PENDING
-            and orders_1st <= orders_2nd
+        if (first_index in first) or (
+            second_index not in second and orders_1st <= orders_2nd
         ):
             if (first_value := first[first_index]) is zero:
                 continue
