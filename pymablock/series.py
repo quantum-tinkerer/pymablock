@@ -1,8 +1,9 @@
 import sys
-from operator import matmul
+from operator import matmul, mul
 from typing import Any, Optional, Callable, Union
 from secrets import token_hex
-from functools import wraps
+from functools import wraps, reduce
+from itertools import product
 from collections import Counter
 
 if sys.version_info >= (3, 11):
@@ -188,6 +189,22 @@ class BlockSeries:
             return ma.masked_where(_mask(result), result)
         return result  # return one item
 
+    def __contains__(self, item) -> bool:
+        """
+        Check if the given index has been evaluated.
+
+        Parameters
+        ----------
+        item :
+            Index to check.
+
+        Returns
+        -------
+        bool
+            Whether the given index has been evaluated.
+        """
+        return self._data.get(item) is not zero
+
     def __str__(self) -> str:
         dimensions = (
             *map(str, self.shape),
@@ -288,14 +305,6 @@ def cauchy_dot_product(
             "Factors must have finite dimensions compatible with dot product."
         )
 
-    # For the highest order of a factor to be included, the other factor must
-    # have at least some 0th order terms. We check this explicitly to support
-    # recurrent definitions.
-    exclude_last = [
-        np.all(factor[(slice(None), slice(None)) + series[0].n_infinite * (0,)].mask)
-        for factor in (second, first)
-    ]
-
     product = BlockSeries(
         data=None,
         shape=(first.shape[0], second.shape[1]),
@@ -313,7 +322,6 @@ def cauchy_dot_product(
             second,
             operator=operator,
             hermitian=hermitian,
-            exclude_last=exclude_last,
         )
 
     product.eval = eval
@@ -326,10 +334,12 @@ def product_by_order(
     second: BlockSeries,
     operator: Optional[Callable] = None,
     hermitian: bool = False,
-    exclude_last: tuple[bool, bool] = (False, False),
 ) -> Any:
     """
     Compute sum of all product of factors of a wanted order.
+
+    Only queries the highest order of a series if the the other series has
+    some 0th order terms. This is needed to support recurrent definitions.
 
     Parameters
     ----------
@@ -344,9 +354,6 @@ def product_by_order(
         multiplication matmul.
     hermitian :
         if True, hermiticity is used to reduce computations to 1/2.
-    exclude_last :
-        whether to exclude last order on each term. This is useful to avoid
-        infinite recursion on some algorithms.
 
     Returns
     -------
@@ -357,36 +364,39 @@ def product_by_order(
         operator = matmul
     start, end, *orders = index
     hermitian = hermitian and start == end
-    series = (first, second)
-
-    # Form masked arrays with correct shapes and required elements unmasked
-    data = [
-        ma.ones(
-            factor.shape + tuple([dim + 1 for dim in orders]),
-            dtype=object,
-        )
-        for factor in series
-    ]
-    data[0][np.arange(data[0].shape[0]) != start] = ma.masked
-    data[1][:, np.arange(data[-1].shape[1]) != end] = ma.masked
-    for values, exclude in zip(data, exclude_last):
-        values.mask[(slice(None), slice(None)) + (-1,) * len(orders)] |= exclude
-
-    # Fill these with the evaluated data
-    for values, factor in zip(data, series):  # type: ignore
-        values[ma.where(values)] = factor[ma.where(values)]
 
     result = zero
-    for first_index, value in ma.ndenumerate(data[0]):
-        start, middle, *orders_1st = first_index
+    for middle, *orders_1st in product(
+        range(first.shape[1]), *(range(dim + 1) for dim in orders)
+    ):
         orders_1st = tuple(orders_1st)
         orders_2nd = tuple(i - j for i, j in zip(orders, orders_1st))
+        first_index = (start, middle) + orders_1st
+        second_index = (middle, end) + orders_2nd
+
         if hermitian and orders_1st > orders_2nd:
             continue
-        if (other := data[1][(middle, end) + orders_2nd]) is ma.masked:
+
+        if (first_index not in first) or (second_index not in second):
             continue
+
+        # Total complexity of computing an element is ~П(n_i + 1)²
+        def cost(orders):
+            return reduce(mul, ((i + 1) ** 2 for i in orders))
+
+        if cost(orders_1st) <= cost(orders_2nd):
+            if (first_value := first[first_index]) is zero:
+                continue
+            if (second_value := second[second_index]) is zero:
+                continue
+        else:
+            if (second_value := second[second_index]) is zero:
+                continue
+            if (first_value := first[first_index]) is zero:
+                continue
+
         # Take care of the sentinel value one
-        values = [i for i in (value, other) if i is not one]
+        values = [i for i in (first_value, second_value) if i is not one]
         if not values:
             term = one
         elif len(values) == 1:
