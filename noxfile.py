@@ -32,5 +32,5 @@ def tests(session, numpy, scipy, sympy):
         "--ruff",
         "-W",
         "error",
-        "-W ignore:ast.NameConstant:DeprecationWarning",
+        "-W ignore:ast.NameConstant:DeprecationWarning:sympy",
     )
