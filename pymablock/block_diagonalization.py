@@ -371,7 +371,6 @@ def hamiltonian_to_BlockSeries(
         subspace_eigenvectors = _subspaces_from_indices(
             subspace_indices, symbolic=symbolic
         )
-
     if implicit:
         # Define subspace_eigenvectors for implicit
         vecs_A = subspace_eigenvectors[0]
