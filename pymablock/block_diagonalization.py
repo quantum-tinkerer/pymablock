@@ -637,14 +637,7 @@ def _block_diagonalize(
                     -2,
                 ),
             )
-        return _zero_sum(
-            series["H'_offdiag"][index],
-            series["H' @ U'"][index],
-            Dagger(series["H'_diag @ U'"][(index[1], index[0], *index[2:])]),
-            series["U'† @ H' @ U'"][index],
-            -series["X"][index],
-            -series["U'† @ (X - H'_offdiag)"][index],
-        )
+        return zero
 
     H_tilde = BlockSeries(
         eval=H_tilde_eval,

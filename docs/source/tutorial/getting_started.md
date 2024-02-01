@@ -146,12 +146,10 @@ The final block-diagonalized Hamiltonian up to second order looks like this:
 :tags: [hide-input]
 
 import numpy.ma as ma
+from scipy.linalg import block_diag
 
 transformed_H = ma.sum(H_tilde[:2, :2, :3], axis=2)
-block = np.block([
-    [transformed_H[0, 0], transformed_H[0, 1]],
-    [transformed_H[1, 0], transformed_H[1, 1]]
-])
+block = block_diag(transformed_H[0, 0], transformed_H[1, 1])
 
 fix, ax_2 = plt.subplots()
 ax_2.imshow(block.real, cmap='seismic', vmin=-2, vmax=2)
