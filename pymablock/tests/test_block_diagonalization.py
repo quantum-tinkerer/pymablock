@@ -1133,11 +1133,11 @@ def test_number_products(data_regression):
         p = np.random.random(3)
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
-        elif index[0] == index[1] == 0 and p[0] > 0.6:
+        elif index[0] == index[1] == 0 and p[0] > 0.4:
             return zero
-        elif index[0] == index[1] == 1 and p[1] > 0.6:
+        elif index[0] == index[1] == 1 and p[1] > 0.4:
             return zero
-        elif index[0] == 0 and p[2] > 0.6:
+        elif index[0] == 0 and p[2] > 0.4:
             return zero
         return AlgebraElement(f"H{index}")
 
