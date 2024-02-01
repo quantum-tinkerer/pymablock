@@ -20,3 +20,14 @@ def test_kpm_greens_function():
 
     assert_allclose(h @ sol - eigvals[n0] * sol, -vec, atol=1e-7)
     assert_allclose(sol.conj() @ eigvecs[:, n0], 0, atol=1e-7)
+
+
+def test_rescale_lower_bounds():
+    n = 10
+    h = np.diag(np.linspace(0, 1, n))
+    h_rescaled, (a, b) = kpm.rescale(h, lower_bounds=[-5, 0])
+
+    assert np.abs((5.5 - b) / a) > 1
+    assert np.abs((0.01 - b) / a) < 1
+    assert np.abs((1.1 - b) / a) > 1
+    assert np.abs((-4.5 - b) / a) < 1

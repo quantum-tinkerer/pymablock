@@ -93,6 +93,7 @@ def rescale(
     hamiltonian: Union[np.ndarray, sparse.spmatrix],
     eps: Optional[float] = 0.01,
     bounds: Optional[tuple[float, float]] = None,
+    lower_bounds: Optional[tuple[float, float]] = None,
 ) -> tuple[Union[np.ndarray, sparse.spmatrix], tuple[float, float]]:
     """
     Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
@@ -110,6 +111,8 @@ def rescale(
     bounds :
         Estimated boundaries of the spectrum. If not provided the maximum and
         minimum eigenvalues are calculated.
+    lower_bounds :
+        Energy interval to definitely include within the [-1, 1] rescaled energies.
 
     Returns
     -------
@@ -138,6 +141,10 @@ def rescale(
                 "The Hamiltonian has a single eigenvalue, it is not possible to "
                 "obtain a spectral density."
             )
+
+        if lower_bounds is not None:
+            lmin = min(lmin, lower_bounds[0])
+            lmax = max(lmax, lower_bounds[1])
 
     a = np.abs(lmax - lmin) / (2.0 - eps)
     b = (lmax + lmin) / 2.0
