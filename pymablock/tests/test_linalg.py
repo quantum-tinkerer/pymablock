@@ -34,8 +34,7 @@ def test_direct_greens_function():
 def test_direct_greens_function_dtype():
     n = 10
     E = np.random.randn(n).astype(np.float32)
-    np.diag(E)
-    gf = linalg.direct_greens_function(sparse.diags(E), 0)
+    gf = linalg.direct_greens_function(sparse.diags(E), 0, atol=1e-3)
     assert gf(E).dtype == np.float32
     assert gf(1j * E).dtype == np.complex64
 
