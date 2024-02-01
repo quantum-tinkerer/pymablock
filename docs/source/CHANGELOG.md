@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of all previous algorithms, and therefore supersedes them.
 - Sped up {autolink}`~pymablock.series.cauchy_dot_product` when there are more
   than 3 series by reusing intermediate results.
+- Optimized memory usage of `~pymablock.block_diagonalize` by deleting
+  intermediate results when they are no longer needed.
 
 ### Added
 
