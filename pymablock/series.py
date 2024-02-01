@@ -338,6 +338,9 @@ def product_by_order(
     """
     Compute sum of all product of factors of a wanted order.
 
+    Only queries the highest order of a series if the the other series has
+    some 0th order terms. This is needed to support recurrent definitions.
+
     Parameters
     ----------
     index :
