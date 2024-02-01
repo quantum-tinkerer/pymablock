@@ -278,7 +278,7 @@ This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U} =
   &= \frac{1}{2} (\mathcal{X} + \mathcal{X}^{\dagger}) \\
   &= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
   &= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}') \mathcal{U}' \Big] \\
-  &= \frac{1}{2} (- \mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
+  &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
   \end{align}
 }
 \endtoggle
@@ -330,6 +330,50 @@ We now have a complete algorithm:
  (-\mathcal{U}'^\dagger\mathcal{X} +
   \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
 6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}$.
+
+:::{admonition} Extra optimization: common subexpression elimination
+:class: dropdown info
+
+We further optimize the algorithm by reusing products that are needed in several
+places.
+
+Firstly, we rewrite the expressions for $\mathcal{Z}$ and $\tilde{\mathcal{H}}$
+by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ without recomputing it:
+
+$$
+\begin{gather*}
+\mathcal{Z} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}],\\
+\tilde{\mathcal{H}} = H_0 + \mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.}),
+\end{gather*}
+$$
+
+where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{X}$ drops out from the diagonal blocks of $\tilde{\mathcal{H}}$ because diagonal of $\mathcal{X}$ is anti-Hermitian.
+
+To compute $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$ faster, we express it
+using $\mathcal{F} \equiv \mathcal{H}'\mathcal{U}'$:
+
+$$
+\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} = \mathcal{H}' + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
+$$
+
+To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$.
+
+To reuse these products, we separate the perturbation into diagonal and off-diagonal parts $\mathcal{H}' = \mathcal{H}'_\textrm{diag} + \mathcal{H}'_\textrm{offdiag}$.
+
+We then introduce variables $\mathcal{A} = \mathcal{H}'_\textrm{diag} \mathcal{U}'$, $\mathcal{B} = \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$, and $\mathcal{C} = \mathcal{X} -
+\mathcal{H}'_\textrm{offdiag}$.
+This gives an updated expression for $\mathcal{Z}$:
+
+$$
+\mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.}.
+$$
+
+and more importantly for $\tilde{\mathcal{H}}$:
+
+$$
+\tilde{\mathcal{H}} = H_0 + \mathcal{A} + \mathcal{A}^\dagger + (\mathcal{B} + \mathcal{B}^\dagger)/2 + \mathcal{U}'^\dagger (\mathcal{A} + \mathcal{B}) - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
+$$
+:::
 
 (implicit)=
 ## How to use Pymablock on large numerical Hamiltonians?
