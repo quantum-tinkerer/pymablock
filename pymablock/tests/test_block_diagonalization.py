@@ -1,4 +1,5 @@
 from itertools import permutations, chain
+from collections import Counter
 from typing import Any, Union, Callable
 
 import pytest
@@ -1095,3 +1096,42 @@ def test_warning_non_diagonal_input():
 
     with pytest.warns(UserWarning):
         block_diagonalize([h_0, h_p], subspace_eigenvectors=[P[:, :4], P[:, 4:]])[0]
+
+
+def test_number_products(data_regression):
+    """
+    Test that the number of products per order of the transformed Hamiltonian
+    is as expected.
+    This is a regression test so that we don't accidentally change the algorithm
+    in a way that increases the number of products.
+    """
+
+    def solve_sylvester(A):
+        return AlgebraElement(f"S({A})")
+
+    multiplication_counts = {}
+    for AA, BB in (
+        (AlgebraElement("H_{1,AA}"), AlgebraElement("H_{1,BB}")),
+        (zero, zero),
+    ):
+        structure = "general" if (zero == AA and zero == BB) else "off-diagonal"
+        H_tilde, *_ = block_diagonalize(
+            [
+                [
+                    [AlgebraElement("(H_{0,AA}"), zero],
+                    [zero, AlgebraElement("H_{0,BB}")],
+                ],
+                [[AA, AlgebraElement("H_{1,AB}")], [AlgebraElement("H_{1,BA}"), BB]],
+            ],
+            solve_sylvester=solve_sylvester,
+        )
+
+        AlgebraElement.log = []
+        for order in range(10):
+            H_tilde[0, 0, order]
+            key = (structure, str(order))
+            multiplication_counts[key] = Counter(
+                call[1] for call in AlgebraElement.log
+            )["__mul__"]
+
+    data_regression.check(multiplication_counts)
