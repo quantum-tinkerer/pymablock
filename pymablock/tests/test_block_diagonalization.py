@@ -1128,10 +1128,20 @@ def test_number_products(data_regression):
             return zero
         return AlgebraElement(f"H{index}")
 
+    np.random.seed(0)
+
+    def eval_randomly_sparse(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if np.random.random() > 0.6:
+            return zero
+        return AlgebraElement(f"H{index}")
+
     evals = {
         "dense_first_order": eval_dense_first_order,
         "dense_every_order": eval_dense_every_order,
         "offdiagonal": eval_offdiagonal_every_order,
+        "random": eval_randomly_sparse,
     }
 
     multiplication_counts = {}
