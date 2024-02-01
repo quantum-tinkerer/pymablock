@@ -366,20 +366,16 @@ def symbolic_hamiltonian(request):
         k_y: alpha * np.array([[0, -1j], [1j, 0]]),
     }
 
-    hamiltonians = [hamiltonian_1, hamiltonian_2, hamiltonian_3]
+    hamiltonian = [hamiltonian_1, hamiltonian_2, hamiltonian_3][request.param]
     symbols = tuple([k_x, k_y, k_z])
     subspace_eigenvectors = [sympy.Matrix([1, 0]), sympy.Matrix([0, 1])]
-    if request.param == 2:
-        subspace_eigenvectors = [
-            np.array(subspace).astype(complex) for subspace in subspace_eigenvectors
-        ]
+    if isinstance(hamiltonian, dict):
+        if not isinstance(hamiltonian[k_x], sympy.Matrix):
+            subspace_eigenvectors = [
+                np.array(vecs).astype(complex) for vecs in subspace_eigenvectors
+            ]
     subspace_indices = [0, 1]
-    return (
-        hamiltonians[request.param],
-        symbols,
-        subspace_eigenvectors,
-        subspace_indices,
-    )
+    return hamiltonian, symbols, subspace_eigenvectors, subspace_indices
 
 
 # Tests
