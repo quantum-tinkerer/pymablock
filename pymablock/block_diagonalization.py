@@ -759,7 +759,10 @@ def solve_sylvester_KPM(
 
     kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
     # Prepare the Hamiltonian for KPM by rescaling to [-1, 1]
-    h_rescaled, (a, b) = rescale(h_0, eps=solver_options.get("eps", 0.01))
+    bounds_eigs_A = [np.min(eigs_A), np.max(eigs_A)]
+    h_rescaled, (a, b) = rescale(
+        h_0, eps=solver_options.get("eps", 0.01), lower_bounds=bounds_eigs_A
+    )
     eigs_A_rescaled = (eigs_A - b) / a
     # We need to solve a transposed problem
     h_rescaled_T = h_rescaled.T
