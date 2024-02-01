@@ -318,13 +318,6 @@ def hamiltonian_to_BlockSeries(
     elif isinstance(hamiltonian, sympy.MatrixBase):
         hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
     if isinstance(hamiltonian, dict):
-        # if dict.values are numeric types convert subspace_eigenvectors
-        if subspace_eigenvectors is not None and not np.any(
-            [isinstance(h, sympy.MatrixBase) for h in hamiltonian.values()]
-        ):
-            subspace_eigenvectors = [
-                np.array(subspace).astype(complex) for subspace in subspace_eigenvectors
-            ]
         hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian, symbols, atol)
     elif isinstance(hamiltonian, BlockSeries):
         pass
