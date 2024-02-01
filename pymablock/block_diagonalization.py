@@ -1062,7 +1062,7 @@ def _extract_diagonal(
     is_sympy = any(isinstance(block, sympy.MatrixBase) for block in h_0)
     if not all(is_diagonal(h, atol) for h in h_0):
         warn(
-            "Cannot confirm that the unperturbed Hamiltonian diagonal, "
+            "Cannot confirm that the unperturbed Hamiltonian is diagonal, "
             "which is required if ``solve_sylvester`` is not provided. "
             "The algorithm will assume that it is diagonal.",
             UserWarning,

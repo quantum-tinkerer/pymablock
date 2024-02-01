@@ -27,4 +27,11 @@ def tests(session, numpy, scipy, sympy):
         "conda-forge",
     )
     session.run("pip", "install", "ruff", "pytest-ruff")
-    session.run("pytest", "--ruff")
+    session.run(
+        "pytest",
+        "--ruff",
+        "-W",
+        "error",
+        "-W",
+        "ignore:ast.NameConstant:DeprecationWarning",
+    )
