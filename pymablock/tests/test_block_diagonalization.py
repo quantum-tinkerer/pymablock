@@ -1,4 +1,5 @@
 from itertools import permutations, chain
+from collections import Counter
 from typing import Any, Union, Callable
 
 import pytest
@@ -1095,3 +1096,77 @@ def test_warning_non_diagonal_input():
 
     with pytest.warns(UserWarning):
         block_diagonalize([h_0, h_p], subspace_eigenvectors=[P[:, :4], P[:, 4:]])[0]
+
+
+def test_number_products(data_regression):
+    """
+    Test that the number of products per order of the transformed Hamiltonian
+    is as expected.
+    This is a regression test so that we don't accidentally change the algorithm
+    in a way that increases the number of products.
+    """
+
+    def solve_sylvester(A):
+        return AlgebraElement(f"S({A})")
+
+    def eval_dense_first_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        elif index[2] > 1 or any(index[3:]):
+            return zero
+        return AlgebraElement(f"H{index}")
+
+    def eval_dense_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        return AlgebraElement(f"H{index}")
+
+    def eval_offdiagonal_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        elif index[0] == index[1] and sum(index[2:]) != 0:
+            return zero
+        return AlgebraElement(f"H{index}")
+
+    def eval_randomly_sparse(*index):
+        np.random.seed(index[2])
+        p = np.random.random(3)
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        elif index[0] == index[1] == 0 and p[0] > 0.4:
+            return zero
+        elif index[0] == index[1] == 1 and p[1] > 0.4:
+            return zero
+        elif index[0] == 0 and p[2] > 0.4:
+            return zero
+        return AlgebraElement(f"H{index}")
+
+    evals = {
+        "dense_first_order": eval_dense_first_order,
+        "dense_every_order": eval_dense_every_order,
+        "offdiagonal_every_order": eval_offdiagonal_every_order,
+        "random_every_order": eval_randomly_sparse,
+    }
+
+    multiplication_counts = {}
+    for structure in evals.keys():
+        multiplication_counts[structure] = {}
+        H = BlockSeries(
+            eval=evals[structure],
+            shape=(2, 2),
+            n_infinite=1,
+        )
+
+        H_tilde, *_ = block_diagonalize(
+            H,
+            solve_sylvester=solve_sylvester,
+        )
+
+        AlgebraElement.log = []
+        for order in range(10):
+            H_tilde[0, 0, order]
+            multiplication_counts[structure][order] = Counter(
+                call[1] for call in AlgebraElement.log
+            )["__mul__"]
+
+    data_regression.check(multiplication_counts)
