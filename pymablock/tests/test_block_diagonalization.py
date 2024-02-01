@@ -1,4 +1,4 @@
-from itertools import permutations, chain, product
+from itertools import permutations, chain
 from collections import Counter
 from typing import Any, Union, Callable
 
