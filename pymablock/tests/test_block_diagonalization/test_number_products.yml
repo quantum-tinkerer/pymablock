@@ -1,0 +1,60 @@
+? - general
+  - '0'
+: 0
+? - general
+  - '1'
+: 0
+? - general
+  - '2'
+: 1
+? - general
+  - '3'
+: 2
+? - general
+  - '4'
+: 13
+? - general
+  - '5'
+: 15
+? - general
+  - '6'
+: 37
+? - general
+  - '7'
+: 40
+? - general
+  - '8'
+: 73
+? - general
+  - '9'
+: 77
+? - off-diagonal
+  - '0'
+: 0
+? - off-diagonal
+  - '1'
+: 0
+? - off-diagonal
+  - '2'
+: 1
+? - off-diagonal
+  - '3'
+: 8
+? - off-diagonal
+  - '4'
+: 25
+? - off-diagonal
+  - '5'
+: 54
+? - off-diagonal
+  - '6'
+: 95
+? - off-diagonal
+  - '7'
+: 148
+? - off-diagonal
+  - '8'
+: 213
+? - off-diagonal
+  - '9'
+: 290
