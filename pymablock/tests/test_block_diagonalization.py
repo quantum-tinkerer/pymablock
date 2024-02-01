@@ -617,9 +617,11 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
 
 def test_check_diagonal_h_0_A() -> None:
     """Test that offdiagonal h_0_AA requires solve_sylvester."""
-    with pytest.raises(ValueError):
+    with pytest.warns(
+        UserWarning, match="Cannot confirm that the unperturbed Hamiltonian diagonal"
+    ):
         H = BlockSeries(
-            data={(0, 0, 0): np.array([[1, 1], [1, 1]]), (1, 1, 0): np.eye(2)},
+            data={(0, 0, 0): np.array([[1, 1], [1, 1]]), (1, 1, 0): 3 * np.eye(2)},
             shape=(2, 2),
             n_infinite=1,
         )
@@ -628,9 +630,11 @@ def test_check_diagonal_h_0_A() -> None:
 
 def test_check_diagonal_h_0_B() -> None:
     """Test that offdiagonal h_0_BB requires solve_sylvester."""
-    with pytest.raises(ValueError):
+    with pytest.warns(
+        UserWarning, match="Cannot confirm that the unperturbed Hamiltonian diagonal"
+    ):
         H = BlockSeries(
-            data={(0, 0, 0): np.eye(2), (1, 1, 0): np.array([[1, 1], [1, 1]])},
+            data={(0, 0, 0): 3 * np.eye(2), (1, 1, 0): np.array([[1, 1], [1, 1]])},
             shape=(2, 2),
             n_infinite=1,
         )
