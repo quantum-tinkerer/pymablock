@@ -486,9 +486,11 @@ def _block_diagonalize(
         # Diagonal parts of U' are Hermitian, off-diagonal parts are anti-Hermitian
         "U'†": {
             "eval": (
-                lambda *index: series["U'"][index]
-                if index[0] == index[1]
-                else -series["U'"][index]
+                lambda *index: (
+                    series["U'"][index]
+                    if index[0] == index[1]
+                    else -series["U'"][index]
+                )
             )
         },
         "U†": {
@@ -570,9 +572,30 @@ def _block_diagonalize(
             return linear_operator_series
         return series
 
+    # We are guaranteed to use some of the intermediate results only once, see
+    # https://gitlab.kwant-project.org/qt/pymablock/-/issues/90 for how these
+    # are identified. We delete them from the series to save memory. To support
+    # the implicit method, we delete both versions at the same time.
+    #
+    # Specifically we delete the following intermediate results:
+    # H'_offdiag @ U': (1, 0)
+    # U'† @ (X - H'_offdiag): (0, 1)
+    # U'† @ H' @ U': (0, 0), (0, 1), (1, 1)
+    # U'† @ U': (0, 0), (1, 1)
+    # X: (0, 1)
+
+    def del_(series_name, index: int) -> None:
+        series[series_name].pop(index, None)
+        linear_operator_series[series_name].pop(index, None)
+
     def H_p_U_p_eval(*index: int) -> Any:
         which = linear_operator_or_explicit(index)
-        return _zero_sum(which["H'_diag @ U'"][index], which["H'_offdiag @ U'"][index])
+        result = _zero_sum(
+            which["H'_diag @ U'"][index], which["H'_offdiag @ U'"][index]
+        )
+        if index[:2] == (1, 0):
+            del_("H'_offdiag @ U'", index)
+        return result
 
     series["H' @ U'"].eval = H_p_U_p_eval
 
@@ -580,10 +603,13 @@ def _block_diagonalize(
         if index[0] == index[1]:
             # diagonal is constrained by unitarity
             U_p_adj_U_p = linear_operator_or_explicit(index)["U'† @ U'"]
-            return _safe_divide(U_p_adj_U_p[index], -2)
+            result = _safe_divide(U_p_adj_U_p[index], -2)
+            del_("U'† @ U'", index)
+            return result
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
             Y = series["X"][index]
+            del_("X", index)
             return -solve_sylvester(Y) if zero != Y else zero
         elif index[:2] == (1, 0):
             # off-diagonal of U is anti-Hermitian
@@ -601,13 +627,16 @@ def _block_diagonalize(
             return _safe_divide(Dagger(value) - value, 2)
         elif index[:2] == (0, 1):
             index_dag = (index[1], index[0], *index[2:])
-            return _zero_sum(
+            result = _zero_sum(
                 -series["U'† @ (X - H'_offdiag)"][index],
                 series["H'_offdiag @ U'"][index],
                 series["H'_diag @ U'"][index],
                 Dagger(series["H'_diag @ U'"][index_dag]),
                 series["U'† @ H' @ U'"][index],
             )
+            del_("U'† @ H' @ U'", index)
+            del_("U'† @ (X - H'_offdiag)", index)
+            return result
         elif index[:2] == (1, 0):
             # off-diagonal of X is Hermitian
             return Dagger(series["(X - H'_offdiag)"][(0, 1) + tuple(index[2:])])
@@ -620,7 +649,7 @@ def _block_diagonalize(
             # Because diagonal part of X is anti-Hermitian and cancels the
             # anti-Hermitian part of U'† @ X, we save some computations
             # by taking the Hermitian part of U'† @ X and not including X.
-            return _zero_sum(
+            result = _zero_sum(
                 series["H'_diag"][index],
                 series["H'_diag @ U'"][index] + Dagger(series["H'_diag @ U'"][index]),
                 _safe_divide(
@@ -637,6 +666,8 @@ def _block_diagonalize(
                     -2,
                 ),
             )
+            del_("U'† @ H' @ U'", index)
+            return result
         return zero
 
     H_tilde = BlockSeries(
