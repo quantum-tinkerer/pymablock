@@ -1,8 +1,8 @@
 import sys
-from operator import matmul
+from operator import matmul, mul
 from typing import Any, Optional, Callable, Union
 from secrets import token_hex
-from functools import wraps
+from functools import wraps, reduce
 from itertools import product
 from collections import Counter
 
@@ -380,7 +380,11 @@ def product_by_order(
         if (first_index not in first) or (second_index not in second):
             continue
 
-        if orders_1st <= orders_2nd:
+        # Total complexity of computing an element is ~П(n_i + 1)²
+        def cost(orders):
+            return reduce(mul, ((i + 1) ** 2 for i in orders))
+
+        if cost(orders_1st) <= cost(orders_2nd):
             if (first_value := first[first_index]) is zero:
                 continue
             if (second_value := second[second_index]) is zero:
