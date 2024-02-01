@@ -1109,40 +1109,49 @@ def test_number_products(data_regression):
     def solve_sylvester(A):
         return AlgebraElement(f"S({A})")
 
-    H_p = [
-        [
-            [zero, AlgebraElement("H_{1,AB}")],
-            [AlgebraElement("H_{0,BA}"), zero],
-        ],
-        [
-            [AlgebraElement("H_{1,AA}"), AlgebraElement("H_{1,AB}")],
-            [AlgebraElement("H_{1,BA}"), AlgebraElement("H_{1,BB}")],
-        ],
-        [
-            [zero, zero],
-            [zero, zero],
-        ],
-    ]
+    def eval_dense_first_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        elif index[2] > 1 or any(index[3:]):
+            return zero
+        return AlgebraElement(f"H{index}")
+
+    def eval_dense_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        return AlgebraElement(f"H{index}")
+
+    def eval_offdiagonal_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        elif index[0] == index[1] and sum(index[2:]) != 0:
+            return zero
+        return AlgebraElement(f"H{index}")
+
+    evals = {
+        "dense_first_order": eval_dense_first_order,
+        "dense_every_order": eval_dense_every_order,
+        "offdiagonal": eval_offdiagonal_every_order,
+    }
 
     multiplication_counts = {}
-    for i, (H_p1, H_p2) in enumerate(product(H_p, repeat=2)):
+    for structure in evals.keys():
+        multiplication_counts[structure] = {}
+        H = BlockSeries(
+            eval=evals[structure],
+            shape=(2, 2),
+            n_infinite=1,
+        )
+
         H_tilde, *_ = block_diagonalize(
-            [
-                [
-                    [AlgebraElement("(H_{0,AA}"), zero],
-                    [zero, AlgebraElement("H_{0,BB}")],
-                ],
-                H_p1,
-                H_p2,
-            ],
+            H,
             solve_sylvester=solve_sylvester,
         )
 
         AlgebraElement.log = []
-        orders1, orders2 = np.meshgrid(np.arange(10), np.arange(2))
-        for order1, order2 in zip(orders1.ravel(), orders2.ravel()):
-            H_tilde[0, 0, order1, order2]
-            multiplication_counts[(str(i), str(order1), str(order2))] = Counter(
+        for order in range(10):
+            H_tilde[0, 0, order]
+            multiplication_counts[structure][order] = Counter(
                 call[1] for call in AlgebraElement.log
             )["__mul__"]
 
