@@ -1,4 +1,4 @@
-from itertools import permutations, chain
+from itertools import permutations, chain, product
 from collections import Counter
 from typing import Any, Union, Callable
 
@@ -1109,28 +1109,40 @@ def test_number_products(data_regression):
     def solve_sylvester(A):
         return AlgebraElement(f"S({A})")
 
+    H_p = [
+        [
+            [zero, AlgebraElement("H_{1,AB}")],
+            [AlgebraElement("H_{0,BA}"), zero],
+        ],
+        [
+            [AlgebraElement("H_{1,AA}"), AlgebraElement("H_{1,AB}")],
+            [AlgebraElement("H_{1,BA}"), AlgebraElement("H_{1,BB}")],
+        ],
+        [
+            [zero, zero],
+            [zero, zero],
+        ],
+    ]
+
     multiplication_counts = {}
-    for AA, BB in (
-        (AlgebraElement("H_{1,AA}"), AlgebraElement("H_{1,BB}")),
-        (zero, zero),
-    ):
-        structure = "general" if (zero == AA and zero == BB) else "off-diagonal"
+    for i, (H_p1, H_p2) in enumerate(product(H_p, repeat=2)):
         H_tilde, *_ = block_diagonalize(
             [
                 [
                     [AlgebraElement("(H_{0,AA}"), zero],
                     [zero, AlgebraElement("H_{0,BB}")],
                 ],
-                [[AA, AlgebraElement("H_{1,AB}")], [AlgebraElement("H_{1,BA}"), BB]],
+                H_p1,
+                H_p2,
             ],
             solve_sylvester=solve_sylvester,
         )
 
         AlgebraElement.log = []
-        for order in range(10):
-            H_tilde[0, 0, order]
-            key = (structure, str(order))
-            multiplication_counts[key] = Counter(
+        orders1, orders2 = np.meshgrid(np.arange(10), np.arange(2))
+        for order1, order2 in zip(orders1.ravel(), orders2.ravel()):
+            H_tilde[0, 0, order1, order2]
+            multiplication_counts[(str(i), str(order1), str(order2))] = Counter(
                 call[1] for call in AlgebraElement.log
             )["__mul__"]
 
