@@ -39,6 +39,17 @@ version-file = "pymablock/_version.py"
 [tool.hatch.build.targets.wheel]
 packages = ["pymablock"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+  "pymablock",
+  "README.md",
+  "LICENSE",
+  "pyproject.toml",
+  "pytest.ini",
+  "AUTHORS.md",
+  "CITATION.cff",
+]
+
 [tool.ruff]
 line-length = 90
 
