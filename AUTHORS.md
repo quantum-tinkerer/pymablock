@@ -11,6 +11,7 @@
 - Pablo Pérez Piskunow
 - Kostas Vilkelis
 - Antonio Manesco
+- Hugo Kerstens
 
 ## Funding
 This project was initially developed in [Delft University of
