@@ -78,7 +78,7 @@ def block_diagonalize(
             unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first order
             perturbations. The elements ``h_i`` may be
             `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
-            `~scipy.sparse.spmatrix`, that require separating the unperturbed
+            `~scipy.sparse.sparray`, that require separating the unperturbed
             Hamiltonian into effective and auxiliary subspaces. Otherwise,
             ``h_i`` may be a list of lists with the Hamiltonian blocks.
         - A dictionary,
@@ -88,7 +88,7 @@ def block_diagonalize(
             each perturbation. In the latter case, the keys must be monomials
             and the indices are ordered as in `H.dimension_names`. The values
             of the dictionary, ``h_i`` may be `~sympy.matrices.dense.Matrix`,
-            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
+            `~numpy.ndarray`, `~scipy.sparse.sparray`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
             blocks.
@@ -254,7 +254,7 @@ def hamiltonian_to_BlockSeries(
             unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first order
             perturbations. The elements ``h_i`` may be
             `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
-            `~scipy.sparse.spmatrix`, that require separating the unperturbed
+            `~scipy.sparse.sparray`, that require separating the unperturbed
             Hamiltonian into effective and auxiliary subspaces. Otherwise,
             ``h_i`` may be a list of lists with the Hamiltonian blocks.
         - A dictionary,
@@ -264,7 +264,7 @@ def hamiltonian_to_BlockSeries(
             each perturbation. In the latter case, the keys must be monomials
             and the indices are ordered as in `H.dimension_names`. The values
             of the dictionary, ``h_i`` may be `~sympy.matrices.dense.Matrix`,
-            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
+            `~numpy.ndarray`, `~scipy.sparse.sparray`, that require separating
             the unperturbed Hamiltonian into effective and auxiliary subspaces.
             Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
             blocks.
@@ -715,7 +715,7 @@ def solve_sylvester_diagonal(
 
 
 def solve_sylvester_KPM(
-    h_0: Union[np.ndarray, sparse.spmatrix],
+    h_0: Union[np.ndarray, sparse.sparray],
     subspace_eigenvectors: tuple[np.ndarray, ...],
     solver_options: Optional[dict] = None,
 ) -> Callable:
@@ -802,7 +802,7 @@ def solve_sylvester_KPM(
 
 
 def solve_sylvester_direct(
-    h_0: sparse.spmatrix,
+    h_0: sparse.sparray,
     eigenvectors: np.ndarray,
     **solver_options: dict,
 ) -> Callable[[np.ndarray], np.ndarray]:
@@ -890,7 +890,7 @@ def _dict_to_BlockSeries(
         The keys can be tuples of integers or symbolic monomials. They
         indicate the order of the perturbation in its respective value.
         The values are the perturbations, and can be either a `~numpy.ndarray`,
-        `~scipy.sparse.csr_matrix` or a list with the blocks of the Hamiltonian.
+        `~scipy.sparse.csr_array` or a list with the blocks of the Hamiltonian.
         For example, {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2} or
         {1: h_0, x: h_1, y: h_2}.
     symbols :
@@ -943,7 +943,7 @@ def _symbolic_keys_to_tuples(
     hamiltonian :
         Dictionary with symbolic keys, each a monomial without numerical
         prefactor. The values can be either a `~numpy.ndarray`,
-        `~scipy.sparse.csr_matrix`, or a list with the blocks of the Hamiltonian.
+        `~scipy.sparse.csr_array`, or a list with the blocks of the Hamiltonian.
 
     Returns
     -------
