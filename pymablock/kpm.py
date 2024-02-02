@@ -7,7 +7,7 @@ import numpy as np
 
 
 def greens_function(
-    hamiltonian: Union[np.ndarray, sparse.sparray],
+    hamiltonian: Union[np.ndarray, sparse.spmatrix],
     energy: float,
     vector: np.ndarray,
     atol: float = 1e-7,
@@ -61,7 +61,7 @@ def greens_function(
 
 
 def kpm_vectors(
-    hamiltonian: Union[np.ndarray, sparse.sparray],
+    hamiltonian: Union[np.ndarray, sparse.spmatrix],
     vector: np.ndarray,
 ) -> Iterator[np.ndarray]:
     r"""
@@ -90,11 +90,11 @@ def kpm_vectors(
 
 
 def rescale(
-    hamiltonian: Union[np.ndarray, sparse.sparray],
+    hamiltonian: Union[np.ndarray, sparse.spmatrix],
     eps: Optional[float] = 0.01,
     bounds: Optional[tuple[float, float]] = None,
     lower_bounds: Optional[tuple[float, float]] = None,
-) -> tuple[Union[np.ndarray, sparse.sparray], tuple[float, float]]:
+) -> tuple[Union[np.ndarray, sparse.spmatrix], tuple[float, float]]:
     """
     Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
 
