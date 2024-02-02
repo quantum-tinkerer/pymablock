@@ -213,6 +213,24 @@ class BlockSeries:
 
         return f"{self.name}_({' × '.join(dimensions)})"
 
+    def pop(self, item: Item, default: Any, /) -> Any:
+        """
+        Remove and return the value for a given index.
+
+        Parameters
+        ----------
+        item :
+            Index to remove.
+        default :
+            Value to return if the index is not present.
+
+        Returns
+        -------
+        Any
+            Value for the given index.
+        """
+        return self._data.pop(item, default)
+
     def _check_finite(self, orders: tuple[OneItem, ...]):
         """
         Check that the indices of the infinite dimension are finite and positive.
