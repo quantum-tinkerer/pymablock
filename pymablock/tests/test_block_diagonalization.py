@@ -35,7 +35,7 @@ def compare_series(
     Two series are compared for a given list of wanted orders in all orders.
     The test first checks for `~pymablock.series.one` objects since these are
     not masked by the resulting masked arrays. For numeric types, numpy
-    arrays, `scipy.sparse.linalg.LinearOperator` types, and scipy.sparse.sp_Matrix,
+    arrays, `scipy.sparse.linalg.LinearOperator` types, and scipy.sparse.sparray,
     the evaluated object is converted to a dense array by multiplying with dense
     identity and numrically compared up to the desired tolerance.
 
@@ -266,7 +266,7 @@ def implicit_problem(
 
     eigs, vecs = np.linalg.eigh(h_0)
     eigs[:a_dim] -= 10
-    h_0 = sparse.coo_matrix(vecs @ np.diag(eigs) @ Dagger(vecs))
+    h_0 = sparse.coo_array(vecs @ np.diag(eigs) @ Dagger(vecs))
     hamiltonian_list.append(h_0)
     hamiltonian_dict[(0,) * n_infinite] = h_0
     subspace_eigenvectors = (vecs[:, :a_dim], vecs[:, a_dim:])
@@ -712,7 +712,7 @@ def test_equivalence_explicit_implicit() -> None:
     )
     H_0 = H[0]
     eigvals, eigvecs = np.linalg.eigh(H_0)
-    solve_sylvester = solve_sylvester_direct(sparse.coo_matrix(H_0), eigvecs[:, :a_dim])
+    solve_sylvester = solve_sylvester_direct(sparse.coo_array(H_0), eigvecs[:, :a_dim])
 
     implicit_H = hamiltonian_to_BlockSeries(
         H, subspace_eigenvectors=(eigvecs[:, :a_dim],), implicit=True

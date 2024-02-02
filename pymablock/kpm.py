@@ -150,7 +150,7 @@ def rescale(
     b = (lmax + lmin) / 2.0
 
     if sparse.issparse(hamiltonian):
-        identity = sparse.identity(hamiltonian.shape[0], format="csr")
+        identity = sparse.csr_array(sparse.identity(hamiltonian.shape[0], format="csr"))
         rescaled_h = (hamiltonian - b * identity) / a
     elif isinstance(hamiltonian, np.ndarray):
         rescaled_h = (hamiltonian - b * np.eye(hamiltonian.shape[0])) / a

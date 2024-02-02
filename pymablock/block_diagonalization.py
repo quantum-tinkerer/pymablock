@@ -914,7 +914,7 @@ def _dict_to_BlockSeries(
         The keys can be tuples of integers or symbolic monomials. They
         indicate the order of the perturbation in its respective value.
         The values are the perturbations, and can be either a `~numpy.ndarray`,
-        `~scipy.sparse.csr_matrix` or a list with the blocks of the Hamiltonian.
+        `~scipy.sparse.csr_array` or a list with the blocks of the Hamiltonian.
         For example, {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2} or
         {1: h_0, x: h_1, y: h_2}.
     symbols :
@@ -967,7 +967,7 @@ def _symbolic_keys_to_tuples(
     hamiltonian :
         Dictionary with symbolic keys, each a monomial without numerical
         prefactor. The values can be either a `~numpy.ndarray`,
-        `~scipy.sparse.csr_matrix`, or a list with the blocks of the Hamiltonian.
+        `~scipy.sparse.csr_array`, or a list with the blocks of the Hamiltonian.
 
     Returns
     -------

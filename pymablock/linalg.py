@@ -90,7 +90,7 @@ def direct_greens_function(
     greens_function : `Callable[[np.ndarray], np.ndarray]`
         Function that solves :math:`(E - H) sol = vec`.
     """
-    mat = E * identity(h.shape[0], dtype=h.dtype, format="csr") - h
+    mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     ctx = MUMPSContext()
     ctx.set_matrix(mat)
     ctx.mumps_instance.icntl[24] = 1
