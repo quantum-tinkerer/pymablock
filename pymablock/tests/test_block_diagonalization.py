@@ -1126,6 +1126,7 @@ def test_memory_usage_implicit():
     for order in range(6):
         H_tilde[0, 0, order]
         snapshots.append(tracemalloc.take_snapshot())
+    tracemalloc.stop()
 
     total_KiB = []
     for snapshot in snapshots:
