@@ -1145,7 +1145,7 @@ def test_memory_usage_implicit():
 
     total_KiB = np.array(total_KiB)
 
-    if np.any(total_KiB[0] < total_KiB[1:]):
+    if np.any(total_KiB[0] / 2 < total_KiB[1:]):
         raise ValueError("Memory usage unexpectedly high for implicit algorithm.")
 
 
