@@ -1104,6 +1104,11 @@ def test_memory_usage_implicit():
     Test that the implicit algorithm does not use more memory than expected.
     A failure of this test would indicate that the implicit algorithm is
     broken.
+
+    Observed memory usage running this test with explicit and implicit algorithms:
+    - explicit -> total_KiB = [411, 0, 312, 945, 2512, 4400, 6600]
+    - implicit -> total_KiB = [411, 0, 0, 8, 103, 115, 128]
+
     """
     a_dim, b_dim = 1, 200
     n_dim = a_dim + b_dim
