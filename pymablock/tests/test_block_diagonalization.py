@@ -1141,7 +1141,7 @@ def test_memory_usage_implicit():
         snapshot = snapshot.filter_traces([dom_filter])
         top_stats = snapshot.statistics("lineno")
         # We sum the memory usage of the top 10 traces in the snapshot
-        total_KiB.append(sum(stat.size for stat in top_stats) / (1024))
+        total_KiB.append(round(sum(stat.size for stat in top_stats) / (1024)))
 
     total_KiB = np.array(total_KiB)
 
