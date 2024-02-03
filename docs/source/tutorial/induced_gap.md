@@ -73,6 +73,7 @@ syst[(hop for hop in syst.hoppings() if barrier(*hop))] = (
     lambda site1, site2, t_barrier: -t_barrier * sigma_z
 )
 ```
+
 here we make the hoppings between the quantum dots and superconductor equal to
 `t_barrier`.
 
@@ -164,6 +165,7 @@ H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=
 Block diagonalization is now the most time consuming step because it requires
 pre-computing several decomposition of the full Hamiltonian. It is, however,
 manageable and it only produces a constant overhead.
+
 ## Get results
 
 For convenience, we collect the lowest three orders in each parameter in an

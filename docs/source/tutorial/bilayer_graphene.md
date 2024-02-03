@@ -23,6 +23,7 @@ in the figure
 ![crystal structure and hopping of bilayer grahene](bilayer.svg)
 
 The physics of this system is not crucial for us, but here are the main features:
+
 - The unit cell is spanned by vectors $\mathbf{a}_1=(1/2, \sqrt{3}/2)$ and $\mathbf{a}_2=(-1/2, \sqrt{3}/2)$.
 - The unit cell contains 4 atoms with wave functions $\phi_{A,1}, \phi_{B,1}, \phi_{A,2}, \phi_{B,2}$.
 - The hoppings within each layer are $t_1$.
@@ -96,7 +97,6 @@ are ready to `block_diagonalize` it. For that we specify which symbols are the
 perturbative parameters using `symbols` argument. The order of `symbols` is
 important: it defines the order of variables in the perturbative series.
 
-
 ```{code-cell} ipython3
 from pymablock import block_diagonalize
 
@@ -139,11 +139,13 @@ k_cube = np.array([[0, 1, 2, 3], [3, 2, 1, 0]])
 The above manual definition of `k_square` and `k_cube` becomes cumbersome
 for higher orders or dimensions. Instead, we can use the `np.mgrid` and select
 the terms we need by total power like this:
+
 ```python
 k_powers = np.mgrid[:4, :4]
 k_square = k_powers[..., np.sum(k_powers, axis=0) == 2]
 k_cube = k_powers[..., np.sum(k_powers, axis=0) == 3]
 ```
+
 :::
 
 Before we saw that querying `H_tilde` returns the results in a numpy array. To

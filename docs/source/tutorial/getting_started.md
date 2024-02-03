@@ -171,6 +171,7 @@ To sum over the entries of a masked array, use `np.ma.sum(array)`, for example.
 ## Further capabilities
 
 Let us now consider a more complex example, where:
+
 - The unperturbed Hamiltonian is not diagonal
 - There are multiple perturbative parameters
 - Some perturbations are not first order
@@ -179,6 +180,7 @@ Because diagonalization is both standard, and not our focus, Pymablock won't do 
 However, it will properly treat a non-diagonal unperturbed Hamiltonian if we provide its eigenvectors.
 
 ### General Hamiltonians
+
 Let's define a problem with two perturbative parameters:
 \begin{equation}
 H = H_{00} + \lambda_1 H_{10} + \lambda_1^2 H_{20}  + \lambda_2 H_{01}

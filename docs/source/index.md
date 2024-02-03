@@ -11,6 +11,8 @@ kernelspec:
   name: python3
 ---
 
+# Pymablock
+
 ```{toctree}
 :hidden:
 :maxdepth: 4
@@ -23,8 +25,6 @@ CHANGELOG.md
 authors.md
 ```
 
-# Pymablock
-
 ## What is Pymablock?
 
 Pymablock (Python matrix block-diagonalization) is a Python package that constructs
@@ -34,6 +34,7 @@ block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary
 order.
 
 Building an effective model using Pymablock is a three step process:
+
 * Define a Hamiltonian
 * Call {autolink}`~pymablock.block_diagonalize`
 * Request the desired order of the effective Hamiltonian
@@ -49,6 +50,7 @@ H_AA_4 = H_tilde[0, 0, 4]
 ```
 
 ## Why Pymablock?
+
 Here is why you should use Pymablock:
 
 * Do not reinvent the wheel
@@ -110,13 +112,13 @@ the [reference documentation](documentation/pymablock.rst) for the package API.
 
 The preferred way of installing `pymablock` is to use `mamba`/`conda`:
 
-```
+```bash
 mamba install pymablock -c conda-forge
 ```
 
 Or use `pip`
 
-```
+```bash
 pip install pymablock
 ```
 
@@ -131,7 +133,7 @@ It is only pip-installable on Linux, use conda on other platforms.
 If you have used Pymablock for work that has lead to a scientific publication,
 please cite it as
 
-```
+```bibtex
 @misc{Pymablock,
 author = {{Araya Day}, Isidora and Miles, Sebastian and Varjas, Daniel and Akhmerov, Anton R.},
 doi = {10.5281/zenodo.7995684},

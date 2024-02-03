@@ -318,9 +318,9 @@ $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient
 algorithms to solve Sylvester's equation, see [below](#implicit).
 
-## The algorithm
+## Actual algorithm
 
-We now have a complete algorithm:
+We now have the complete algorithm:
 
 1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
 2. To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
