@@ -1,6 +1,7 @@
 from itertools import permutations, chain
 from collections import Counter
 from typing import Any, Union, Callable
+import tracemalloc
 
 import pytest
 import numpy as np
@@ -1096,6 +1097,50 @@ def test_warning_non_diagonal_input():
 
     with pytest.warns(UserWarning):
         block_diagonalize([h_0, h_p], subspace_eigenvectors=[P[:, :4], P[:, 4:]])[0]
+
+
+def test_memory_usage_implicit():
+    """
+    Test that the implicit algorithm does not use more memory than expected.
+    A failure of this test would indicate that the implicit algorithm is
+    broken.
+    """
+    a_dim, b_dim = 1, 200
+    n_dim = a_dim + b_dim
+
+    tracemalloc.start()
+    h_0 = np.diag(np.linspace(0.1, 1, n_dim))
+    h_p = sparse.random(n_dim, n_dim, density=0.1)
+    h_p += Dagger(h_p)
+    snapshots = [tracemalloc.take_snapshot()]
+
+    eigenvectors = np.eye(n_dim)
+    subspace_eigenvectors = eigenvectors[:, :a_dim], eigenvectors[:, a_dim:]
+    hamiltonian = [sparse.csr_array(h_0), sparse.csr_array(h_p)]
+
+    H_tilde, *_ = block_diagonalize(
+        hamiltonian, subspace_eigenvectors=[subspace_eigenvectors[0]]
+    )
+    tracemalloc.clear_traces()
+
+    for order in range(6):
+        H_tilde[0, 0, order]
+        snapshots.append(tracemalloc.take_snapshot())
+
+    total_KiB = []
+    for snapshot in snapshots:
+        dom_filter = tracemalloc.DomainFilter(
+            inclusive=True, domain=np.lib.tracemalloc_domain
+        )
+        snapshot = snapshot.filter_traces([dom_filter])
+        top_stats = snapshot.statistics("lineno")
+        # We sum the memory usage of the top 10 traces in the snapshot
+        total_KiB.append(sum(stat.size for stat in top_stats) / (1024))
+
+    total_KiB = np.array(total_KiB)
+
+    if np.any(total_KiB[0] < total_KiB[1:]):
+        raise ValueError("Memory usage unexpectedly high for implicit algorithm.")
 
 
 def test_number_products(data_regression):
