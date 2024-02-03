@@ -1129,7 +1129,7 @@ def test_memory_usage_implicit():
     tracemalloc.clear_traces()
 
     for order in range(6):
-        H_tilde[0, 0, order]
+        H_tilde[:, :, order]
         snapshots.append(tracemalloc.take_snapshot())
     tracemalloc.stop()
 
