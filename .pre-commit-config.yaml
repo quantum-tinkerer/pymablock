@@ -9,7 +9,8 @@ repos:
     hooks:
     -   id: black
 -   repo: https://github.com/codespell-project/codespell
-    rev: v2.2.4
+    rev: v2.2.6
     hooks:
     -   id: codespell
-        args: ["--config", ".codespellrc"]
+        args: ["--skip", "paper/SciPost.cls,paper/SciPost_bibstyle.bst",
+        "--ignore-words-list", "NWO,nwo,Groth"]
