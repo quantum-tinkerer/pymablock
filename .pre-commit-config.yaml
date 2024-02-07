@@ -12,5 +12,6 @@ repos:
     rev: v2.2.6
     hooks:
     -   id: codespell
-        args: ["--skip", "paper/SciPost.cls,paper/SciPost_bibstyle.bst",
-        "--ignore-words-list", "NWO,nwo,Groth"]
+        args: ["--toml", "pyproject.toml"]
+        additional_dependencies:
+        - tomli
