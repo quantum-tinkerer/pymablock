@@ -1,0 +1,1074 @@
+% Created with jtex v.1.0.12
+\documentclass[submission, Codebases]{SciPost}
+
+\usepackage{minted}
+\usepackage{academicons}
+\usepackage{cancel}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%  imports  %%%%%%%%%%%%%%%%%%%
+\usepackage{framed}
+\usepackage{graphicx}
+\usepackage{natbib}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{glossaries}
+\makeglossaries
+
+
+
+\binoppenalty=10000
+\relpenalty=10000
+
+\hypersetup{
+    colorlinks,
+    linkcolor={red!50!black},
+    citecolor={blue!50!black},
+    urlcolor={blue!80!black}
+}
+
+\definecolor{orcidlogocol}{HTML}{A6CE39}
+
+\urlstyle{sf}
+
+\DeclareSymbolFont{usualmathcal}{OMS}{cmsy}{m}{n}
+\DeclareSymbolFontAlphabet{\mathcal}{usualmathcal}
+\definecolor{bg}{rgb}{0.95,0.95,0.95}
+\setminted{fontsize=\small, bgcolor=bg, baselinestretch=1, breaklines=true}
+
+\begin{document}
+
+\begin{center}
+{\Large \textbf{Pymablock}}
+\end{center}
+
+\author[1\thanks{\texttt{myemail@gmail.com}}]{person
+        %% \href{https://orcid.org/0000-0000-0000-0000}{\orcidicon}
+        %}
+\author[2]{personita
+        %% \href{https://orcid.org/0000-0000-0000-0000}{\orcidicon}
+        %}
+\affil[1]{[object Object]}
+\affil[2]{[object Object]}
+
+\begin{center}
+    \today
+\end{center}
+
+\section*{Abstract}
+{\bf
+Numerical simulations play a key role in the study of complex physical systems.
+There are many tools to simulate a system, study its symmetries, and extract its properties efficiently.
+All of these are limited by the size of the system that can be simulated and the computational resources available.
+However, many physical systems are sufficiently well described by a smaller, low energy, subspace.
+Here we introduce Pymablock, a Python package that constructs effective models using quasi-degenerate perturbation theory.
+It handles both numerical and symbolic inputs, and it efficiently block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary order.
+}
+
+\vspace{10pt}
+\noindent\rule{\textwidth}{1pt}
+\tableofcontents\thispagestyle{fancy}
+\noindent\rule{\textwidth}{1pt}
+\vspace{10pt}
+
+\section{Introduction}
+
+\subsection{Effective models}
+
+\textbf{Effective models enable the study of complex physical systems by reducing the
+space of interest to a low energy one.}
+Effective models enable the study of complex physical systems by reducing the
+dimensionality of the Hilbert space.
+The effective subspace and the remaining Hilbert space are decoupled and
+separated by an energy gap.
+As a consequence, the physics of the effective model are sufficient to describe
+the low energy properties of the original system.
+
+\textbf{To find an effective Hamiltonian, we use perturbative approaches, like a SW
+transformation or Lowdin perturbation theory.}
+Common approaches to construct an effective Hamiltonian are the Schrieffer--Wolff
+Schrieffer--Wolff transformation
+\cite{Schrieffer_1966}, \cite{Bravyi_2011}
+and Lowdin partitioning \cite{White_1950}.
+Both methods are perturbative and, as input, they take a Hamiltonian and a
+perturbation, together with the subspaces to decouple.
+Then, they find the unitary transformation that block-diagonalizes the
+Hamiltonian for each perturbative order recursively.
+These methods are standard when working with superconducting circuits,
+quantum dot physics, density functional theory, k.p models, and other
+systems where the physics of interest lies in the low energy states.
+
+\textbf{Even though these methods are standard, their algorithm is computationally
+expensive, scaling poorly for large systems and high orders.}
+Constructing an effective Hamiltonian, is however, a computationally expensive
+task.
+This is a consequence of the exponential parametrization of the unitary
+transformation in a Schrieffer--Wolff transformation, which requires computing
+an exponentially growing number of matrix products per order.
+Big systems, like those of many-body physics, bosonic Hamiltonians, and
+otherwise large Hilbert spaces, are thus expensive to compute.
+Similarly, high orders and combined perturbations are also costly, because they
+require computing all the terms of the previous orders too.
+Aside from the scaling, a Schrieffer--Wolff transformation also requires
+truncating the results, effectively wasting computational resources.
+
+\textbf{We develop an efficient algorithm capable of symbolic and numeric
+computations and make it available in Pymablock.}
+In this work, we introduce an algorithm to construct effective models
+efficiently.
+Our algorithm scales linearly with the perturbative order, does not require
+truncating the outputs, and treats multiple perturbations independently.
+Its performance makes it possible to find effective Hamiltonians for a variety
+of systems, numerical and symbolic, and with several perturbations.
+We make the algorithm available via the open source package Pymablock, for
+Python matrix block diagonalization of Hamiltonians, a versatile tool for
+the study of complex physical systems.
+
+\textbf{Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
+and finds a minimal unitary transformation that separates its subspaces.}
+Pymablock considers Hamiltonians as series of $2\times 2$ block operators.
+The zeroth order is block-diagonal, and the perturbative orders couple
+blocks to each other and within themselves.
+To carry out the block-diagonalization procedure, Pymablock finds a minimal
+unitary transformation $\mathcal{U}$ that cancels the off-diagonal block of the
+Hamiltonian order by order:
+
+\begin{equation}
+\mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
+\mathcal{U} = \sum_{i=0}^\infty U_i,
+\end{equation}
+
+where $H_i$ and $U_i$ are proportional to an $i$-th order
+contribution on the perturbative parameter.
+Throughout this work, we use $A$ and $B$ to denote the low and high energy
+subspaces, respectively.
+The result of this procedure is a perturbative series of the transformed
+block-diagonal Hamiltonian.
+
+\begin{equation}
+\label{eq:transformed_hamiltonian}
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U}=\sum_{i=0}^{\infty}
+\begin{pmatrix}
+\tilde{H}_i^{AA} & 0 \\
+0 & \tilde{H}_i^{BB}
+\end{pmatrix}.
+\end{equation}
+
+\textbf{Pymablock offers the same solution as traditional methods.}
+Similar to Lowdin perturbation theory or the Schrieffer--Wolff transformation,
+Pymablock solves Sylvester's equation and ensures that the transformation
+$\mathcal{U}$ is unitary order by order.
+However, differently from other approaches, Pymablock uses efficient algorithms
+by choosing an appropriate parametrization of the series of the unitary
+transformation.
+As a consequence, the computational cost of every order scales linearly with
+the order, while the effective Hamiltonians are still mathematically equivalent.
+
+\section{Constructing an effective model}
+
+\subsection{Pymablock workflow}
+
+\textbf{The workflow of Pymablock consists of three steps.}
+Building an effective model using Pymablock is a three step process:
+
+\begin{itemize}
+\item Define a Hamiltonian
+\item Call \mintinline{python}{pymablock.block\_diagonalize}
+\item Request the desired order of the effective Hamiltonian
+\end{itemize}
+
+The following code snippet shows how to use Pymablock to compute the fourth
+order correction to an effective Hamiltonian $\tilde{\mathcal{H}}$:
+
+\begin{minted}{ipython}
+from pymablock import block_diagonalize
+
+# Define perturbation theory
+H_tilde, *_ = block_diagonalize([H_0, H_1], subspace_eigenvectors=[vecs_A, vecs_B])
+
+# Request 4th order correction to the effective Hamiltonian
+H_AA_4 = H_tilde[0, 0, 4]
+\end{minted}
+
+%  **Depending on the input Hamiltonian, Pymablock uses specific routines to find
+% the effective model, so that symbolic expressions are compact and numerics are
+% efficient.**
+
+The function \mintinline{python}{block\_diagonalize} interprets the Hamiltonian $H_0 +
+H_1$ and calls the block diagonalization routines depending on the
+type and sparsity of the input.
+This is the main function of Pymablock, and it is the only one that the user
+ever needs to call.
+It first output is a multivariate series whose terms are different blocks and
+orders of the effective Hamiltonian.
+Calling \mintinline{python}{block\_diagonalize} is not computationally expensive, because the
+terms of the series are only computed when requested.
+
+\subsection{k.p model of bilayer graphene}
+
+%  **We use bilayer graphene to illustrate how to use Pymablock with analytic models.**
+
+To illustrate how to use Pymablock with analytic models, we consider two layers
+of graphene stacked on top of each other.
+Our goal is to find the low energy model near the $\mathbf{K}$ point
+\cite{McCann_2013}.
+
+First, we construct the Hamiltonian of bilayer graphene from its tight-binding
+model.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.3125\linewidth]{files/bilayer-8e75cc099a26505eb862ef3c5259f2a4.pdf}
+\caption[]{Crystal structure and hoppings of bilayer graphene.}
+\label{bilayer}
+\end{figure}
+
+The main features of the model are:
+
+\begin{itemize}
+\item The unit cell is spanned by vectors $\mathbf{a}_1 = (1/2, \sqrt{3}/2)$ and $\mathbf{a}_2=( -1/2, \sqrt{3}/2)$.
+\item The unit cell contains 4 atoms with wave functions $\phi_{A,1}, \phi_{B,1}, \phi_{A,2}, \phi_{B,2}$.
+\item The hoppings within each layer are $t_1$.
+\item The hopping between atoms that are on top of each other is $t_2$.
+\item The layers have an onsite potential $\pm m$.
+\end{itemize}
+
+\subsubsection{Defining a symbolic Hamiltonian}
+
+We define the Bloch Hamiltonian using the Sympy package for symbolic Python
+\cite{Meurer_2017}.
+
+\begin{minted}{ipython}
+import numpy as np
+from sympy import symbols, Matrix, sqrt, Eq, exp, I, pi, Add, MatAdd
+from sympy.physics.vector import ReferenceFrame
+
+t_1, t_2, m = symbols("t_1 t_2 m", real=True)
+alpha = symbols(r"\alpha")
+
+H = Matrix([
+    [m, t_1 * alpha, 0, 0],
+    [t_1 * alpha.conjugate(), m, t_2, 0],
+    [0, t_2, -m, t_1 * alpha],
+    [0, 0, t_1 * alpha.conjugate(), -m]]
+)
+Eq(symbols("H"), H, evaluate=False)
+\end{minted}
+
+\begin{minted}{ipython}
+Eq(H, Matrix([
+[                    m, \alpha*t_1,                     0,          0],
+[t_1*conjugate(\alpha),          m,                   t_2,          0],
+[                    0,        t_2,                    -m, \alpha*t_1],
+[                    0,          0, t_1*conjugate(\alpha),         -m]]))
+\end{minted}
+
+where $\alpha(\mathbf{k}) = 1 + e^{i \mathbf{k'} \cdot (\mathbf{a}_1 +
+\mathbf{a}_2)}$ and $\mathbf{k'} = (4\pi/3 + k_x, k_y)$, because we choose
+$\mathbf{K}=(4\pi/3, 0)$ as the reference point for the k.p effective model.
+
+\subsubsection{Defining the perturbative series}
+
+%  **We define the perturbative series**
+
+To call \mintinline{python}{block\_diagonalize}, we use the eigenvectors of the unperturbed
+Hamiltonian at the $\mathbf{K}$ point.
+To demonstrate the capabilities of Pymablock, we use $m$ as a perturbative
+parameter too.
+The unperturbed Hamiltonian is then $H(\alpha(\mathbf{K}) = m = 0)$, and its
+eigenvectors are:
+
+\begin{equation}
+\begin{align}
+v_{A,1} &= \begin{pmatrix} 1 \\ 0 \\ 0 \\ 0 \end{pmatrix} &
+v_{A,2} &= \begin{pmatrix} 0 \\ 1 \\ 0 \\ 1 \end{pmatrix} &
+v_{B,1} &= \frac{1}{\sqrt{2}} \begin{pmatrix} 0 \\ 0 \\ -1 \\ 1 \end{pmatrix} &
+v_{B,2} &= \frac{1}{\sqrt{2}} \begin{pmatrix} 0 \\ 0 \\ 1 \\ 1 \end{pmatrix}
+\end{align}
+\end{equation}
+
+These determine the basis on which the perturbative corrections are computed
+and $A$, the subspace of interest for the effective model.
+Then, we substitute $\alpha(\mathbf{k})$ into the Hamiltonian, and define the
+block diagonalization routine using that $k_x$, $k_y$, and $m$ are perturbative
+parameters.
+
+\begin{minted}{ipython}
+from pymablock import block_diagonalize
+
+H_tilde, U, U_adjoint = block_diagonalize(
+    H.subs({alpha: alpha_k}),
+    symbols=(k_x, k_y, m),
+    subspace_eigenvectors=[vecs[:, :2], vecs[:, 2:]]
+)
+\end{minted}
+
+The order of the variables in the perturbative series will be that of \mintinline{python}{symbols}.
+
+\subsubsection{Requesting the effective Hamiltonian}
+
+We need corrections up to third order in momentum to compute the standard
+quadratic dispersion of bilayer graphene and trigonal warping.
+Therefore, we define second and third order terms in momentum and group them
+total power of momentum.
+
+\begin{minted}{ipython}
+k_square = np.array([[0, 1, 2], [2, 1, 0]])
+k_cube = np.array([[0, 1, 2, 3], [3, 2, 1, 0]])
+\end{minted}
+
+Querying \mintinline{python}{H\_tilde} returns the results in a masked numpy array, so we
+define \mintinline{python}{H\_tilde\_AA} to gather different entries into one symbolic expression.
+Finally, the result is a symbolic expression of the effective Hamiltonian.
+
+\begin{minted}{ipython}
+mass_term = H_tilde_AA([0], [0], [1])
+kinetic = H_tilde_AA(*k_square, 0)
+mass_correction = H_tilde_AA(*k_square, 1)
+cubic = H_tilde_AA(*k_cube, 0)
+MatAdd(mass_term + kinetic, mass_correction + cubic, evaluate=False)
+\end{minted}
+
+\begin{minted}{ipython}
+Matrix([
+[                                                m, 3*t_1**2*( -k_x**2 - 2*I*k_x*k_y + k_y**2)/(4*t_2)],
+[3*t_1**2*( -k_x**2 + 2*I*k_x*k_y + k_y**2)/(4*t_2),                                                -m]]) + Matrix([
+[                                    3*m*t_1**2*( -k_x**2 - k_y**2)/(2*t_2**2), sqrt(3)*t_1**2*(k_x**3 - 5*I*k_x**2*k_y + 9*k_x*k_y**2 + 3*I*k_y**3)/(8*t_2)],
+[sqrt(3)*t_1**2*(k_x**3 + 5*I*k_x**2*k_y + 9*k_x*k_y**2 - 3*I*k_y**3)/(8*t_2),                                      3*m*t_1**2*(k_x**2 + k_y**2)/(2*t_2**2)]])
+\end{minted}
+
+The first term contains the standard quadratic dispersion of bilayer graphene
+with a gap.
+The second term contains trigonal warping and the coupling between the gap and
+momentum.
+
+\subsection{Induced gap in a double quantum dot}
+
+\textbf{Large systems pose an additional challenge due to the scaling of linear
+algebra routines for large matrices.}
+Large systems pose an additional challenge due to the cubic scaling of linear algebra
+routines on matrices' size.
+Pymablock handles large systems by using sparse matrices and avoiding the
+construction of the full Hamiltonian.
+We illustrate its efficiency with a model of two quantum dots coupled to a
+superconductor between them.
+
+\textit{(Include figure with scheme of the system)}
+
+\subsubsection{Building the Hamiltonian with Kwant}
+
+\textbf{We use Kwant to build the Hamiltonian of the system.}
+We use the Kwant package \cite{Groth_2014} to build
+the Hamiltonian of the system.
+In the following code, we define a square lattice of $L \times W = 200 \times
+40$ sites with 2 orbitals per unit cell.
+The lattice is divided into three regions: a quantum dot on the left, a
+superconducting region in the middle, and a quantum dot on the right.
+
+\begin{minted}{ipython}
+import tinyarray as ta
+import matplotlib.backends
+import scipy.linalg
+from scipy.sparse.linalg import eigsh
+import numpy as np
+import kwant
+import matplotlib.pyplot as plt
+color_cycle = ["#5790fc", "#f89c20", "#e42536"]
+
+from pymablock import block_diagonalize
+
+
+sigma_z = ta.array([[1, 0], [0, -1]], float)
+sigma_x = ta.array([[0, 1], [1, 0]], float)
+
+syst = kwant.Builder()
+lat = kwant.lattice.square(norbs=2)
+L, W = 200, 40
+
+def normal_onsite(site, mu_n, t):
+    return ( -mu_n + 4 * t) * sigma_z
+
+def sc_onsite(site, mu_sc, Delta, t):
+    return ( -mu_sc + 4 * t) * sigma_z + Delta * sigma_x
+
+syst[lat.shape((lambda pos: abs(pos[1]) < W and abs(pos[0]) < L), (0, 0))] = normal_onsite
+syst[lat.shape((lambda pos: abs(pos[1]) < W and abs(pos[0]) < L / 3), (0, 0))] = sc_onsite
+syst[lat.neighbors()] = lambda site1, site2, t: -t * sigma_z
+
+def barrier(site1, site2):
+    return (abs(site1.pos[0]) - L / 3) * (abs(site2.pos[0]) - L / 3) < 0
+
+syst[(hop for hop in syst.hoppings() if barrier(*hop))] = (
+    lambda site1, site2, t_barrier: -t_barrier * sigma_z
+)
+\end{minted}
+
+The chemical potentials of the normal and superconducting regions are $\mu_n$
+and $\mu_{sc}$, respectively, $\Delta$ is the superconducting gap, and $t$
+is the hopping amplitude within each region.
+The barrier strength between the quantum dots and the superconductor is
+$t_{barrier}$, a parameter that we treat as a perturbation.
+We will also consider the asymmetry of the dot potentials, $\delta \mu$, as a
+perturbation.
+
+\textbf{(Include figure with the system)}
+
+The system is large: with this many sites even storing all the eigenvectors
+would take 60 GB of memory.
+Therefore, we use sparse matrices and compute only a few eigenvectors.
+In this case, perturbation theory allows us to compute the effective
+Hamiltonian of the low energy degrees of freedom.
+
+To get the unperturbed Hamiltonian, we use the following values for $\mu_n$,
+$\mu_{sc}$, $\Delta$, $t$, and $t_{\text{barrier}}$.
+
+\begin{minted}{ipython}
+params = dict(
+    mu_n=0.05,
+    mu_sc=0.3,
+    Delta=0.05,
+    t=1.,
+    t_barrier=0.,
+)
+
+h_0 = syst.hamiltonian_submatrix(params=params, sparse=True).real
+\end{minted}
+
+The barrier strength and the asymmetry of the dot potentials are the two
+perturbations that we vary.
+
+\begin{minted}{ipython}
+barrier = syst.hamiltonian_submatrix(
+    params={**{p: 0 for p in params.keys()}, "t_barrier": 1}, sparse=True
+).real
+delta_mu = (
+    kwant.operator.Density(syst, (lambda site: sigma_z * site.pos[0] / L)).tocoo().real
+)
+\end{minted}
+
+\subsubsection{Define the perturbative series}
+
+Since the Hamiltonian is large and we are only interested in the low energy
+subspace, it is sufficient to compute the 4 lowest eigenvectors of the
+unperturbed Hamiltonian.
+These are the lowest energy Andreev states in two quantum dots.
+
+\begin{minted}{ipython}
+# %%time
+
+vals, vecs = eigsh(h_0, k=4, sigma=0)
+vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize the vectors
+\end{minted}
+
+TWe orthogonallize the eigenvectors manually because
+\mintinline{python}{scipy.sparse.linalg.eigsh} does not return orthogonal eigenvectors if the
+matrix is complex and eigenvalues are degenerate.
+
+We now define the block diagonalization routine and compute the few lowest
+orders of the effective Hamiltonian.
+Here we only provide the set of vectors of the interesting subspace.
+This selects the \mintinline{python}{pymablock.implicit} method that uses efficient sparse
+solvers for Sylvester's equation.
+
+\begin{minted}{ipython}
+# %%time
+
+H_tilde, *_ = block_diagonalize([h_0, barrier, delta_mu], subspace_eigenvectors=[vecs])
+\end{minted}
+
+Block diagonalization is now the most time consuming step because it requires
+pre-computing several decompositions of the full Hamiltonian.
+It is, however, manageable and it only produces a constant overhead.
+
+\subsubsection{Get the effective Hamiltonian}
+
+For convenience, we collect the lowest three orders in each parameter in an
+appropriately sized tensor.
+
+\begin{minted}{ipython}
+# %%time
+
+# Combine all the perturbative terms into a single 4D array
+fill_value = np.zeros((), dtype=object)
+fill_value[()] = np.zeros_like(H_tilde[0, 0, 0, 0])
+h_tilde = np.array(np.ma.filled(H_tilde[0, 0, :3, :3], fill_value).tolist())
+\end{minted}
+
+We see that we have obtained the effective model in only a few seconds.
+We can now compute the low energy spectrum after rescaling the perturbative
+corrections by the magnitude of each perturbation.
+
+\begin{minted}{ipython}
+def effective_energies(h_tilde, barrier, delta_mu):
+    barrier_powers = barrier ** np.arange(3).reshape( -1, 1, 1, 1)
+    delta_mu_powers = delta_mu ** np.arange(3).reshape(1, -1, 1, 1)
+    return scipy.linalg.eigvalsh(
+        np.sum(h_tilde * barrier_powers * delta_mu_powers, axis=(0, 1))
+    )
+\end{minted}
+
+Finally, we plot the spectrum
+
+\begin{minted}{ipython}
+# :tags: [hide -input]
+
+# %%time
+
+barrier_vals = np.array([0, 0.5, .75])
+delta_mu_vals = np.linspace(0, 10e -4, num=101)
+results = [
+    np.array([effective_energies(h_tilde, bar, dmu) for dmu in delta_mu_vals])
+    for bar in barrier_vals
+]
+
+plt.figure(figsize=(10, 6), dpi=200)
+[
+    plt.plot(delta_mu_vals, result, color=color, label=[f"$t_b={barrier}$"] + 3 * [None])
+    for result, color, barrier in zip(results, color_cycle, barrier_vals)
+]
+plt.xlabel(r"$\delta_\mu$")
+plt.ylabel(r"$E$")
+plt.legend();
+\end{minted}
+
+\includegraphics[width=0.7\linewidth]{files/95fc712be507bbaddfe033b24c38d25d.png}
+
+As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the
+dots are coupled to the superconductor. In addition, we observe how the
+proximity gap of the dots increases with the coupling strength.
+
+We also see that computing the spectrum perturbatively is faster than
+repeatedly using sparse diagonalization for a set of parameters.
+In this example the total runtime of Pymablock would only allow us to compute
+the  eigenvectors at around 5 points in the parameter space.
+
+\section{Algorithms for block diagonalization}
+
+\textbf{Pymablock's algorithm does not use the Schrieffer-Wolff transformation,
+because the former is inefficient.}
+A common approach to construct effective Hamiltonians is to use a
+Schrieffer-Wolff transformation:
+
+\begin{equation}
+\begin{align}
+\tilde{\mathcal{H}} = e^\mathcal{S} &\mathcal{H} e^{-\mathcal{S}}, \\
+e^{\mathcal{S}} = 1 + \mathcal{S} + \frac{1}{2!} \mathcal{S} \star \mathcal{S}
++ &\frac{1}{3!} \mathcal{S} \star \mathcal{S} \star \mathcal{S} + \cdots,
+\end{align}
+\end{equation}
+
+where $\mathcal{S} = \sum_n S_n$ is an antihermitian polynomial series in the
+perturbative parameter, making $e^\mathcal{S}$ a unitary transformation.
+In this approach, $\mathcal{S}$ is found by ensuring unitarity and the block
+diagonalization of the Hamiltonian to every order, a procedure that amounts to
+solving a recursive equation whose terms are nested commutators between series.
+Moreover, the transformed Hamiltonian is also given by a series of nested
+commutators
+
+\begin{equation}
+\tilde{\mathcal{H}} = \sum_{j=0}^\infty \frac{1}{j!} \Big [\mathcal{H}, \sum_{n=0}^{\infty} S_n \Big ]^{(j)},
+\end{equation}
+
+a computationally expensive expression because it requires computing
+exponentially many matrix products.
+This expression also requires truncating the series at the same order
+to which $\mathcal{S}$ is computed, which is a waste of computational resources.
+Finally, generalizing the Schrieffer-Wolff transformation to multiple
+perturbations is only straightforward if the perturbations are bundled
+together.
+However, this makes it impossible to request individual order combinations,
+making it necessary to compute more terms than needed.
+
+\textbf{There are algorithms that use different parametrizations for $\mathcal{U}$, a
+difference that is crucial for efficiency, even though the results are
+equivalent.}
+The algorithm used to block diagonalize a Hamiltonian perturbatively is,
+however, not unique.
+Alternative parametrizations of the unitary transformation $\mathcal{U}$
+require solving the same unitarity and block diagonalization conditions, but
+rise to a different recursive procedure for the algorithm.
+For example, using hyperbolic functions
+
+\begin{equation}
+\mathcal{U} &= \cosh{\mathcal{G}} + \sinh{\mathcal{G}}, \quad
+\mathcal{G} &= \sum_{i=0}^{\infty} G_i,
+\end{equation}
+
+leads to recursive equations for $G_i$ that use Bernoulli numbers as
+coefficients \cite{Shavitt_1980}, while using a polynomial
+series directly
+
+\begin{equation}
+\begin{align}
+\mathcal{U} &= \sum_{i=0}^{\infty} U_i,
+\end{align}
+\end{equation}
+
+gives rise to a recursive equation for $U_i$ that is free from any additional
+coefficients
+\cite{Van_Vleck_1929}, \cite{L_wdin_1962}
+[Klein1974][doi:10.1063/1.1682018], \cite{Suzuki_1983}.
+Despite the conceptual equivalence of the algorithms and the agreement of
+their results, there is a crucial difference in their computational efficiency:
+a Schrieffer-Wolff transformation has an exponential scaling with the
+perturbative order, but it can be reduced to a linear one.
+Reference \cite{Li_2022}, for example, introduces an
+algorithm with linear scaling for diagonalization of a single state by
+reformulating the recursive steps of the Schrieffer-Wolff transformation.
+Block diagonalization of a Hamiltonian, however, recovers the exponential
+scaling.
+To design the algorithms of Pymablock, we choose the parametrization that is
+most computationally efficient: linear scaling with a polynomial series for
+$\mathcal{U} = \sum_{n=0}^{\infty} U_n$.
+
+\subsection{General algorithm}
+
+\textbf{The algorithms of Pymablock rely on decomposing $\mathcal{U}$ into two parts.}
+The algorithms of Pymablock rely on decomposing $\mathcal{U}$, the unitary transformation
+that block diagonalizes the Hamiltonian, as a series of Hermitian
+block diagonal $\mathcal{W}$ and skew-Hermitian and block off-diagonal $\mathcal{V}$ terms.
+The transformed Hamiltonian is a Cauchy product between the series of
+$\mathcal{U}^{\dagger}$, $\mathcal{H}$, and $\mathcal{U}$, a product between
+series defined as
+
+\begin{equation}
+\label{cauchy_product}
+(\mathcal{A} \star \mathcal{B})_{n} = \sum_{i=0}^{n} A_{i} B_{n-i}.
+\end{equation}
+
+For brevity we use a single first order perturbation $H_1$ throughout this
+document. The generalization to multiple perturbations is follows naturally
+by including more indices.
+
+\textbf{The result of this procedure is a perturbative series of the transformed
+block-diagonal Hamiltonian.}
+The transformed Hamiltonian at order $n$ is
+
+\begin{equation}
+\label{h_tilde}
+\begin{align} \tilde{H}_{n} = (\mathcal{U}^{\dagger} \mathcal{H}
+\mathcal{U})_{n} = \Big ( (\mathcal{W}-\mathcal{V}) \star \mathcal{H} \star
+(\mathcal{W}+\mathcal{V}) \Big)_{n}.
+\end{align}
+\end{equation}
+
+\textbf{Pymablock finds the unitary transformation recursively, using unitarity and
+solving Sylvester's equation at every order.}
+To block diagonalize $H_0 + H_1$, Pymablock finds the
+orders of $\mathcal{W}$ such that $\mathcal{U}$ is unitary
+
+\begin{equation}
+\label{unitarity}
+\begin{align}
+W_{n}^{AA} &= - \frac{1}{2} (\mathcal{U}^{\dagger} \star \mathcal{U})_{\cancel{n}}^{AA}, \\
+W_{n}^{BB} &= - \frac{1}{2} (\mathcal{U}^{\dagger} \star \mathcal{U})_{\cancel{n}}^{BB},
+\end{align}
+\end{equation}
+
+where the subscript $\cancel{n}$ indicates that the $n$th term of the first
+and last series are omitted from the Cauchy product.
+
+\begin{framed}
+\textbf{Derivation}\\
+We evaluate the series $\mathcal{U}^\dagger \mathcal{U} +
+\mathcal{U}\mathcal{U}^\dagger=2$ and use that
+$\mathcal{W}=\mathcal{W}^\dagger$ and $\mathcal{V}= -\mathcal{V}^{\dagger}$
+to obtain
+
+\begin{equation}
+\sum_{i=0}^n \left[(W_{n-i} - V_{n-i})(W_i +
+V_i) + (W_{n-i} + V_{n-i})(W_i -
+V_i)\right] = 0.
+\end{equation}
+
+Using that $W_0=1$, $V_0=0$, expanding, and solving for
+$W_n$ gives
+
+\begin{equation}
+W_{n} &= - \frac{1}{2}
+\sum_{i=1}^{n-1}(W_{n-i}W_i -
+V_{n-i}V_i),
+\end{equation}
+
+a sum of Cauchy products that misses the $n \textsuperscript{th}$ term of each
+series.
+For every order, $\mathcal{W}$ remains block-diagonal and Hermitian.
+\end{framed}
+
+Similarly, Pymablock finds the terms of $\mathcal{V}$ by requiring that
+$\tilde{\mathcal{H}}^{AB}_n=0$
+
+\begin{equation}
+\label{sylvester}
+H_0^{AA} V_{n}^{AB} - V_{n}^{AB} H_0^{BB} = Y_{n}.
+\end{equation}
+
+This is known as Sylvester's equation and $Y_{n}$ is a combination of lower
+order terms in $\mathcal{H}$ and $\mathcal{U}$ defined as
+
+\begin{equation}
+Y_n = (\mathcal{U}^\dagger \star \mathcal{H} \star \mathcal{U})_{\cancel{n}}^{AB}.
+\end{equation}
+
+\begin{framed}
+\textbf{Full expression}\\
+The full expression for $Y_n$ is cumbersome already in our simplest case:
+
+\begin{equation}
+\label{y_n}
+\begin{align}
+Y_n=&-
+\sum_{i=1}^{n-1}\left[W_{n-i}^{AA}H_0^{AA}V_i^{AB}-V_{n-i}^{AB}
+H_0^{BB}W_i^{BB}\right] \\
+&-\sum_{i=0}^{n-1}\bigg[W_{n-i-1}^{AA}H_1^{AA}V_i^{AB}+W_{n-i-1}^{AA}
+H_1^{AB}W_i^{BB} \\
+&\quad \quad \quad -V_{n-i-1}^{AB}(H_1^{AB})^\dagger V_i^{AB} -V_{n-i-1}^{AB}
+H_1^{BB}W_i^{BB}\bigg]
+\end{align}
+\end{equation}
+\end{framed}
+
+It follows that for every order, Sylvester's equation needs to be solved
+only once, a requirement of any algorithm that block diagonalizes a Hamiltonian.
+
+\subsubsection{Proof of equivalence to Schrieffer-Wolff transformation}
+
+\textbf{The transformed Hamiltonian is equivalent to that of other perturbative
+methods, but the algorithm is efficient.}
+Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
+transformation find a unitary transformation $\mathcal{U}$ such that
+$\tilde{\mathcal{H}}^{AB}=0$.
+They are therefore equivalent up to a gauge choice on each subspace.
+We establish the correspondence between the two by demonstrating that this gauge
+choice is the same for both algorithms.
+
+Pymablock chooses $\mathcal{U}=\mathcal{W}+\mathcal{V}$, where $\mathcal{W}$ is
+block diagonal Hermitian and $\mathcal{V}$ is block off-diagonal
+anti-Hermitian.
+Then requiring that $\mathcal{U}$ is unitary and $\tilde{\mathcal{H}}^{AB}=0$
+to all orders defines a unique value for $\mathcal{W}$ and $\mathcal{V}$.
+
+The Schrieffer-Wolff transformation parameterizes $\mathcal{U} = \exp
+\mathcal{S}$, where $\mathcal{S} = \sum_n S_n$ is a series of
+anti-Hermitian block off-diagonal operators:
+
+\begin{equation}
+\label{exp_s_expansion}
+\begin{align}
+\mathcal{U} = \exp{\left(\mathcal{S}\right)}=\exp{\left(\sum_{n=0}^\infty
+S_n\right)} = 1+\sum_{j=1}^\infty \left[\frac{1}{j!}
+\left(\sum_{n=1}^\infty S_n\right)^j\right]
+\end{align}
+\end{equation}
+
+Here we consider a single perturbation for brevity.
+
+Because both the above approach and Schrieffer-Wolff produce a unique answer, it
+is sufficient to show that they solve the same problem under the same
+conditions.
+Some conditions are straightforwardly the same:
+
+\begin{itemize}
+\item Both algorithms guarantee that $\tilde{\mathcal{H}}^{AB} = 0$ to all orders.
+\item Both algorithms guarantee that $\mathcal{U}$ is unitary to all orders:
+Pymablock by construction, and Schrieffer-Wolff by the
+definition of the exponential and anti-Hermiticity of $\mathcal{S}$.
+\end{itemize}
+
+We are left to show that the diagonal blocks of $\exp \mathcal{S}$ are
+Hermitian, while off-diagonal blocks are anti-Hermitian because this is the
+only remaining property of the Pymablock algorithm.
+To do so, we expand all terms in Eq. (\ref{exp_s_expansion}) using the multinomial theorem.
+The result contains all possible products of $S_n$ of all lengths with fractional prefactors.
+Furthermore, for every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a
+corresponding term $S_{k_n}S_{k_{n -1}}\cdots S_{k_1}$ with the same prefactor.
+If the number of $S_{k_n}$ is even, then both terms are block-diagonal since
+each $S_n$ is block off-diagonal.
+Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
+other, and therefore their sum is Hermitian.
+On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
+block off-diagonal and their sum is anti-Hermitian by the same reasoning.
+
+This concludes the proof.
+
+\subsection{Expanded algorithm for analytic Hamiltonians}
+
+The \mintinline{python}{pymablock.general} algorithm implements the procedure outlined here directly.
+However, this may not be the most efficient algorithm for analytic Hamiltonians,
+where the priority is to obtain compact expressions right away, instead of
+simplifying them afterwards.
+To overcome this, Pymablock also has the \mintinline{python}{pymablock.expanded} algorithm, which
+returns simplified expressions for $\tilde{H}_{n}$ (Eq. (\ref{h_tilde})) such
+that $\tilde{H}_{n}$ only depends on $\mathcal{V}$ and the perturbation $H_1$, but not
+explicitly on $H_0$.
+This way, the expressions do not contain fractions that must cancel, reducing
+the number of terms in the final result.
+
+\begin{framed}
+\textbf{How this works}\\
+The \mintinline{python}{pymablock.expanded} algorithm first uses
+\mintinline{python}{pymablock.general} with a symbolic input to derive the general
+symbolic form for $Y_n$ and $\tilde{H}_n$.
+Then it uses the Sylvester's equation for lower orders of $V_n$ to eliminate
+$H_0$ from these expressions.
+Finally, \mintinline{python}{pymablock.expanded} replaces the problem-specific $\mathcal{H}$ into
+the simplified $\tilde{\mathcal{H}}$.
+\end{framed}
+
+As an example, the corrections to the effective Hamiltonian up to fourth
+order using \mintinline{python}{pymablock.expanded} are
+
+\begin{minted}{ipython}
+from operator import mul
+
+from sympy import Symbol, Eq
+
+from pymablock.block_diagonalization import BlockSeries, symbolic
+
+H = BlockSeries(
+    data={
+        (0, 0, 0): Symbol('{H_{0}^{AA}}'),
+        (1, 1, 0): Symbol('{H_{0}^{BB}}'),
+        (0, 0, 1): Symbol('{H_{1}^{AA}}'),
+        (0, 1, 1): Symbol('{H_{1}^{AB}}'),
+        (1, 1, 1): Symbol('{H_{1}^{BB}}'),
+    },
+    shape=(2, 2),
+    n_infinite=1,
+)
+
+max_order = 5
+hamiltonians = {
+  Symbol(f'H_{{{index}}}'): value for index, value in H._data.items()
+}
+offdiagonals = {
+  Symbol(f'V_{{({order},)}}'): Symbol(f'V_{order}') for order in range(max_order)
+}
+
+H_tilde, *_ = symbolic(H)
+
+for order in range(max_order):
+    result = Symbol(fr'\tilde{{H}}_{order}^{{AA}}')
+    display(Eq(result, H_tilde[0, 0, order].subs({**hamiltonians, **offdiagonals})))
+\end{minted}
+
+Here we omitted the superscript $AB$ on all the $\mathcal{V}$'s for brevity.
+
+At lower orders, \mintinline{python}{pymablock.expanded} performs fewer operator
+products than \mintinline{python}{pymablock.general}, and with analytic Hamiltonians
+the resulting expressions are simpler.
+At high orders, however, \mintinline{python}{pymablock.expanded} requires exponentially
+many terms, unlike \mintinline{python}{pymablock.general} which only requires a linear
+number of terms.
+
+\subsection{Implicit algorithm for large Hamiltonians}
+
+Solving Sylvester's equation and computing the matrix products are the most
+expensive steps of the algorithms for large Hamiltonians.
+Pymablock can efficiently construct an effective Hamiltonian of a small
+subspace even when the full Hamiltonian is a sparse matrix that is too costly to
+diagonalize.
+It does so by avoiding explicit computation of operators in $B$ subspace, and by
+utilizing the sparsity of the Hamiltonian to compute the Green's function.
+
+This approach was originally introduced in Ref.
+\cite{https://doi.org/10.48550/arxiv.1909.09649}.
+
+\begin{framed}
+\textbf{Implementation details}\\
+We use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite
+the Hamiltonian as
+
+\begin{equation}
+\label{H_implicit}
+\mathcal{H} \to \begin{pmatrix}
+\Psi_A^\dagger \mathcal{H} \Psi_A & \Psi_A^\dagger \mathcal{H} P_B \\
+P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
+\end{pmatrix},
+\end{equation}
+
+where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
+This Hamiltonian is larger in size than the original one because the $B$ block has
+additional null vectors corresponding to the $A$ subspace.
+This, however, allows to preserve the sparsity structure of the Hamiltonian by applying
+$P_B$ and $\mathcal{H}$ separately.
+Additionally, applying $P_B$ is efficient because $\Psi_A$ is a low rank matrix.
+We then perform perturbation theory of the rewritten $\mathcal{H}$.
+
+To solve the Sylvester's equation for the modified Hamiltonian, we write it for
+every row of $V_n^{AB}$ separately:
+
+\begin{equation}
+V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
+\end{equation}
+
+This equation is well-defined despite $E_i - H_0$ is not invertible because
+$Y_{n}$ has no components in the $A$ subspace.
+\end{framed}
+
+\section{Implementation}
+
+\textbf{To implement the algorithms, we need a data structure that represents a
+multidimensional series of block matrices.}
+To implement the algorithms, we need a data structure that represents a
+multidimensional series of operators, where dimensions label independent
+perturbations.
+Additionally, the data structure needs to label blocks, so that the algorithm
+supports several forms of input, e.g. dense arrays, sparse matrices, symbolic
+expressions, an implicit subspace, or a custom Python object.
+Manipulating blocks also allows to compute the effective Hamiltonian without
+explicitly constructing the full Hamiltonian, which is useful for Hamiltonians
+with a large $BB$ subspace that is costly to store and compute.
+To run the recursion, the series needs to be queryable by order and block.
+This is useful in cases where the user may want terms that combine different
+perturbations, or when the user wants to compute more terms than originally
+requested.
+Lastly, the data structure needs to support a block-wise multivariate Cauchy
+product, which is the main operation in the recursion and is used to compute
+the transformed Hamiltonian.
+
+\textbf{We address this by defining a \mintinline{python}{BlockSeries} class.}
+To address these requirements, we define a \mintinline{python}{BlockSeries} Python class and use
+it to represent the series of $\mathcal{U}$, $\mathcal{H}$, and
+$\tilde{\mathcal{H}}$.
+A \mintinline{python}{BlockSeries} is a Python object equipped with a function to compute its
+elements and a dictionary to cache the results.
+For example, the \mintinline{python}{BlockSeries} for $\tilde{\mathcal{H}}$ has a function that
+computes the block-wise multivariate Cauchy product of $\mathcal{U}^{\dagger}
+\mathcal{H} \mathcal{U}$.
+To get the elements of the series, we implement Numpy array indexing,
+which allows us to request several elements at once by using tuples and slices.
+In this case, the \mintinline{python}{BlockSeries} returns a masked array that only contains
+non-zero elements, a feature that we use each time we compute the Cauchy
+products between series, avoiding unnecessary operations.
+
+\textbf{Using the BlockSeries interface allows us to implement a range of
+optimizations that go beyond directly implementing the polynomial
+parametrization}
+Not only does the \mintinline{python}{BlockSeries} interface allow us to implement the polynomial
+parametrization of the unitary transformation, but also several other
+optimizations.
+For example, we exploit Hermiticity when computing the Cauchy product of the
+diagonal blocks of $\mathcal{U}$ and $\tilde{\mathcal{H}}$, because we only
+compute half of the matrix products and then complex conjugate the result to
+obtain the rest.
+Similarly, we avoid computing $BA$ blocks of $\mathcal{U}$ and
+$\tilde{\mathcal{H}}$ by providing a function to the \mintinline{python}{BlockSeries} that returns
+the conjugate transpose of the respective $AB$ blocks.
+As a result, whenever we query a $BA$ block, we first compute the $AB$ block,
+store it, and then compute the $BA$ block directly.
+This procedure brings an additional advantage: because the terms that compose
+$AB$ blocks contain matrix products that first multiply small matrices and then
+the large ones, it saves computational time and memory.
+For example, the term $V_{n -i}^{AB} H_0^{BB}
+W_i^{BB}$ in $Y_n$ is systematically computed as $(V_{n -i}^{AB}
+H_0^{BB}) W_i^{BB}$ instead of $V_{n -i}^{AB}
+(H_0^{BB} W_i^{BB})$.
+This is only one example of how the \mintinline{python}{BlockSeries} interface allows us to
+implement a symmetrized algorithm, and we leave other symmetries for future
+work.
+Such an extension would be useful for systems where $\mathcal{U}$ or
+$\tilde{\mathcal{H}}$ vanish due to symmetries, so that the zero blocks can be
+skipped beforehand.
+
+\textbf{To deal with an implicit $B$ subspace, we use MUMPS and LinearOperators.}
+Because \mintinline{python}{BlockSeries} can represent any input type, we use it to directly
+implement the \mintinline{python}{implicit} algorithm.
+To do so, we construct a \mintinline{python}{BlockSeries} with the block structure in Equation
+(\ref{H_implicit}), and wrap the projector $P_B$ by a \mintinline{python}{LinearOperator} object
+from \mintinline{python}{Scipy}.
+This allows us to compute matrix-vector products between $P_B$ and a vector,
+without explicitly constructing $P_B$ or any other product between elements of
+the $B$ subspace, keeping the memory usage low.
+For the same purpose, we use the MUMPS sparse solver
+\cite{Amestoy_2001},
+\cite{Amestoy_2006}, or the KPM method
+\cite{Wei_e_2006}, to compute the Green's function of the
+$B$ subspace.
+As a consequence, the \mintinline{python}{implicit} algorithm can be used on matrices with
+millions of degrees of freedom as long as they are sparse.
+
+\textbf{Finally, we implement an overall function that interprets the user inputs and
+returns a BlockSeries for the transformed Hamiltonian.}
+On the other hand, the \mintinline{python}{general} and \mintinline{python}{expanded} algorithms explicitly
+manipulate both subspaces, but can work with dense matrices too.
+We use the eigenvectors of the $A$ and $B$ subspaces to project the input
+Hamiltonian and represent it with a \mintinline{python}{BlockSeries}, a procedure that works for
+numerical and symbolic matrices.
+Because we aim for an easy-to-use interface, we implement a function that
+interprets the user inputs and decides which algorithm to use: \mintinline{python}{expanded}
+for symbolic matrices, \mintinline{python}{general} for numerical matrices, and \mintinline{python}{implicit} if
+only the $A$ subspace is provided.
+This is \mintinline{python}{block\_diagonalize}, the only function that the user needs to call.
+By default, \mintinline{python}{block\_diagonalize} uses a default function to solve Sylvester's
+equation if $H_0$ is diagonal, but the user can provide a custom one instead.
+
+\section{Benchmark}
+
+\subsection{Comparison to other methods}
+
+\textbf{Pymablock is not only efficient, but its implementation has potential
+to be expanded to other settings, like time-dependent Hamiltonians, many-body
+Hamiltonians, and continuum Hamiltonians.}
+Because Pymablock supports a wide range of inputs and custom solvers for
+Sylvester's equation, its application is not limited to the examples shown
+here.
+Pymablock can be used to find effective Hamiltonians for interacting systems,
+infinitely-sized Hilbert spaces, and Hamiltonians with continuum degrees of
+freedom, by providing Hamiltonians written in second quantization form.
+This is advantageous over other methods, which are limited to pre-defining
+an appropriate generator for the unitary transformation.
+Similarly, this flexibility allows Pymablock to work with time-dependent
+Hamiltonians, an extension that we leave for future work.
+
+\subsection{Time scaling}
+
+\textbf{To demonstrate the efficiency of the implicit algorithm, we show its time
+scaling as a function of Hamiltonian size.}
+Do we plot the Kwant tutorial here? Is there a way to count matrix products for
+example? maybe using a counter in the code?
+Showing scaling for large implicit Hamiltonians.
+
+\subsection{Error scaling}
+
+Show error accumulation, show that the inverse of the transformation holds to numerical precision.
+
+\section{Conclusion}
+
+\textbf{We have developed an efficient algorithm to construct effective Hamiltonians
+with several perturbations and of different types.}
+In summary, we have developed an algorithm for perturbative block
+diagonalization of Hamiltonians that scales linearly with the order,
+achieving an exponential speed-up over a Schrieffer-Wolff transformation.
+We packaged this algorithm in Pymablock, a Python library that works with
+numerical and symbolic Hamiltonians, allowing for a wide range of input
+Hamiltonians.
+By using the inputs block structure, sparsity, Hermiticity, and caching of the
+results, Pymablock further speeds up its calculations.
+We have shown how Pymablock can be used to find effective Hamiltonians for
+large tight-binding Hamiltonians and for a k.p analytic model in just a few
+seconds, improving the state-of-the-art by orders of magnitude.
+
+\textbf{Pymablock is a versatile tool that can be further developed to tackle
+time-dependent Hamiltonians, many-body Hamiltonians, continuum Hamiltonians,
+multi-band Hamiltonians, symmetric Hamiltonians, non-orthogonal basis, and
+more, but we leave this for future work.}
+Pymablock's implementation is designed to be flexible and extensible, as it
+allows for custom solvers for the Sylvester equation and for arbitrary
+Hamiltonian representations.
+This flexibility allows Pymablock to be a useful tool for working with
+superconducting circuits, for example, where a bosonic second quantization
+representation is more natural.
+Similarly, Pymablock can be extended to work with time-dependent Hamiltonians,
+interacting systems, and continuum degrees of freedom, extensions that we leave
+for future work.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%  acronyms & glossary  %%%%%%%%%%%%%
+\printglossaries
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+\bibliography{main.bib}
+
+\nolinenumbers
+
+\end{document}
