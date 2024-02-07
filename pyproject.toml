@@ -67,5 +67,5 @@ module = [
 ignore_missing_imports = true
 
 [tool.codespell]
-skip = ["paper/SciPost.cls", "paper/SciPost_bibstyle.bst"]
-ignore-words-list = ["NWO", "nwo", "Groth"]
+skip = "*.cls,*.bst"
+ignore-words-list = "nwo,groth"
