@@ -68,8 +68,9 @@ run pre-commit:
       - .pre-commit-cache
       - micromamba
 
-run paper:
+paper:
   image: registry.gitlab.com/islandoftex/images/texlive:latest
+  before_script: []
   script:
     - for tex in *.tex; do
     - if grep "documentclass" $tex >/dev/null; then
@@ -79,16 +80,12 @@ run paper:
   artifacts:
     paths:
       - paper/paper.pdf
-  cache:
-    key: "$CI_JOB_NAME"
-    paths:
-      - micromamba
 
 pages:
   needs:
     - run tests
     - run docs
-    - run paper
+    - paper
   script:
     - cp -r htmlcov public/
     - cp -r docs/build public/
