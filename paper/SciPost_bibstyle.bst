@@ -7,7 +7,7 @@
 %% merlin.mbs  (with options: `seq-no,vonx,nm-init,ed-au,nmlm,x10,x2,m10,m2,mcite,mct-6,mct-x6,dt-end,yr-com,xmth,tit-it,vol-bf,volp-com,jpg-1,num-xser,jnm-x,isbn,doi,pp,ed,abr,xedn,jabr,and-xcom,etal-xc,etal-it,eprint,url,url-blk,nfss,')
 %% ----------------------------------------
 %% *** SciPost style version 1.1 ***
-%% 
+%%
 %% Copyright 1994-2011 Patrick W Daly
  % ===============================================================
  % IMPORTANT NOTICE:
