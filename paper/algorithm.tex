@@ -235,11 +235,11 @@ This concludes the proof.
 
 \subsection{Expanded algorithm for analytic Hamiltonians}
 
-The \mintinline{python}{pymablock.general} algorithm implements the procedure outlined here directly.
+The \mintinline{python}|pymablock.general| algorithm implements the procedure outlined here directly.
 However, this may not be the most efficient algorithm for analytic Hamiltonians,
 where the priority is to obtain compact expressions right away, instead of
 simplifying them afterwards.
-To overcome this, Pymablock also has the \mintinline{python}{pymablock.expanded} algorithm, which
+To overcome this, Pymablock also has the \mintinline{python}|pymablock.expanded| algorithm, which
 returns simplified expressions for $\tilde{H}_{n}$ (Eq. (\ref{h_tilde})) such
 that $\tilde{H}_{n}$ only depends on $\mathcal{V}$ and the perturbation $H_1$, but not
 explicitly on $H_0$.
@@ -248,17 +248,17 @@ the number of terms in the final result.
 
 \begin{framed}
 \textbf{How this works}\\
-The \mintinline{python}{pymablock.expanded} algorithm first uses
-\mintinline{python}{pymablock.general} with a symbolic input to derive the general
+The \mintinline{python}|pymablock.expanded| algorithm first uses
+\mintinline{python}|pymablock.general| with a symbolic input to derive the general
 symbolic form for $Y_n$ and $\tilde{H}_n$.
 Then it uses the Sylvester's equation for lower orders of $V_n$ to eliminate
 $H_0$ from these expressions.
-Finally, \mintinline{python}{pymablock.expanded} replaces the problem-specific $\mathcal{H}$ into
+Finally, \mintinline{python}|pymablock.expanded| replaces the problem-specific $\mathcal{H}$ into
 the simplified $\tilde{\mathcal{H}}$.
 \end{framed}
 
 As an example, the corrections to the effective Hamiltonian up to fourth
-order using \mintinline{python}{pymablock.expanded} are
+order using \mintinline{python}|pymablock.expanded| are
 
 \begin{minted}{ipython}
 from operator import mul
@@ -296,11 +296,11 @@ for order in range(max_order):
 
 Here we omitted the superscript $AB$ on all the $\mathcal{V}$'s for brevity.
 
-At lower orders, \mintinline{python}{pymablock.expanded} performs fewer operator
-products than \mintinline{python}{pymablock.general}, and with analytic Hamiltonians
+At lower orders, \mintinline{python}|pymablock.expanded| performs fewer operator
+products than \mintinline{python}|pymablock.general|, and with analytic Hamiltonians
 the resulting expressions are simpler.
-At high orders, however, \mintinline{python}{pymablock.expanded} requires exponentially
-many terms, unlike \mintinline{python}{pymablock.general} which only requires a linear
+At high orders, however, \mintinline{python}|pymablock.expanded| requires exponentially
+many terms, unlike \mintinline{python}|pymablock.general| which only requires a linear
 number of terms.
 
 \subsection{Implicit algorithm for large Hamiltonians}
