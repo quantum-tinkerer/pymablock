@@ -75,7 +75,7 @@ paper:
     - cd paper
     - for tex in *.tex; do
     - if grep "documentclass" $tex >/dev/null; then
-    - latexmk -pdf $tex
+    - latexmk -pdf $tex -shell-escape
     - fi
     - done
   artifacts:
