@@ -69,7 +69,7 @@ run pre-commit:
       - micromamba
 
 paper:
-  image: registry.gitlab.com/islandoftex/images/texlive:latest
+  image: gitlab.kwant-project.org:5005/qt/research-docker
   before_script: []
   script:
     - cd paper
