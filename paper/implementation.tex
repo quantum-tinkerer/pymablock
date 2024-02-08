@@ -91,6 +91,6 @@ Because we aim for an easy-to-use interface, we implement a function that
 interprets the user inputs and decides which algorithm to use: \mintinline{python}{expanded}
 for symbolic matrices, \mintinline{python}{general} for numerical matrices, and \mintinline{python}{implicit} if
 only the $A$ subspace is provided.
-This is \mintinline{python}{block\_diagonalize}, the only function that the user needs to call.
-By default, \mintinline{python}{block\_diagonalize} uses a default function to solve Sylvester's
+This is \mintinline{python}|block\_diagonalize|, the only function that the user needs to call.
+By default, \mintinline{python}|block\_diagonalize| uses a default function to solve Sylvester's
 equation if $H_0$ is diagonal, but the user can provide a custom one instead.
