@@ -2,7 +2,7 @@
 
 \subsection{Effective models}
 
-\textbf{Effective models enable the study of complex physical systems by reducing the
+\co{Effective models enable the study of complex physical systems by reducing the
 space of interest to a low energy one.}
 Effective models enable the study of complex physical systems by reducing the
 dimensionality of the Hilbert space.
@@ -11,7 +11,7 @@ separated by an energy gap.
 As a consequence, the physics of the effective model are sufficient to describe
 the low energy properties of the original system.
 
-\textbf{To find an effective Hamiltonian, we use perturbative approaches, like a SW
+\co{To find an effective Hamiltonian, we use perturbative approaches, like a SW
 transformation or Lowdin perturbation theory.}
 Common approaches to construct an effective Hamiltonian are the Schrieffer--Wolff
 Schrieffer--Wolff transformation
@@ -25,7 +25,7 @@ These methods are standard when working with superconducting circuits,
 quantum dot physics, density functional theory, k.p models, and other
 systems where the physics of interest lies in the low energy states.
 
-\textbf{Even though these methods are standard, their algorithm is computationally
+\co{Even though these methods are standard, their algorithm is computationally
 expensive, scaling poorly for large systems and high orders.}
 Constructing an effective Hamiltonian, is however, a computationally expensive
 task.
@@ -39,7 +39,7 @@ require computing all the terms of the previous orders too.
 Aside from the scaling, a Schrieffer--Wolff transformation also requires
 truncating the results, effectively wasting computational resources.
 
-\textbf{We develop an efficient algorithm capable of symbolic and numeric
+\co{We develop an efficient algorithm capable of symbolic and numeric
 computations and make it available in Pymablock.}
 In this work, we introduce an algorithm to construct effective models
 efficiently.
@@ -51,7 +51,7 @@ We make the algorithm available via the open source package Pymablock, for
 Python matrix block diagonalization of Hamiltonians, a versatile tool for
 the study of complex physical systems.
 
-\textbf{Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
+\co{Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
 and finds a minimal unitary transformation that separates its subspaces.}
 Pymablock considers Hamiltonians as series of $2\times 2$ block operators.
 The zeroth order is block-diagonal, and the perturbative orders couple
@@ -59,19 +59,19 @@ blocks to each other and within themselves.
 To carry out the block-diagonalization procedure, Pymablock finds a minimal
 unitary transformation $\mathcal{U}$ that cancels the off-diagonal block of the
 Hamiltonian order by order:
-
+%
 \begin{equation}
 \mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
 \mathcal{U} = \sum_{i=0}^\infty U_i,
 \end{equation}
-
+%
 where $H_i$ and $U_i$ are proportional to an $i$-th order
 contribution on the perturbative parameter.
 Throughout this work, we use $A$ and $B$ to denote the low and high energy
 subspaces, respectively.
 The result of this procedure is a perturbative series of the transformed
 block-diagonal Hamiltonian.
-
+%
 \begin{equation}
 \label{eq:transformed_hamiltonian}
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U}=\sum_{i=0}^{\infty}
@@ -81,7 +81,7 @@ block-diagonal Hamiltonian.
 \end{pmatrix}.
 \end{equation}
 
-\textbf{Pymablock offers the same solution as traditional methods.}
+\co{Pymablock offers the same solution as traditional methods.}
 Similar to Lowdin perturbation theory or the Schrieffer--Wolff transformation,
 Pymablock solves Sylvester's equation and ensures that the transformation
 $\mathcal{U}$ is unitary order by order.

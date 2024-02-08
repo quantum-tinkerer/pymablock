@@ -1,6 +1,6 @@
 \section{Implementation}
 
-\textbf{To implement the algorithms, we need a data structure that represents a
+\co{To implement the algorithms, we need a data structure that represents a
 multidimensional series of block matrices.}
 To implement the algorithms, we need a data structure that represents a
 multidimensional series of operators, where dimensions label independent
@@ -19,7 +19,7 @@ Lastly, the data structure needs to support a block-wise multivariate Cauchy
 product, which is the main operation in the recursion and is used to compute
 the transformed Hamiltonian.
 
-\textbf{We address this by defining a \mintinline{python}{BlockSeries} class.}
+\co{We address this by defining a BlockSeries class.}
 To address these requirements, we define a \mintinline{python}{BlockSeries} Python class and use
 it to represent the series of $\mathcal{U}$, $\mathcal{H}$, and
 $\tilde{\mathcal{H}}$.
@@ -34,7 +34,7 @@ In this case, the \mintinline{python}{BlockSeries} returns a masked array that o
 non-zero elements, a feature that we use each time we compute the Cauchy
 products between series, avoiding unnecessary operations.
 
-\textbf{Using the BlockSeries interface allows us to implement a range of
+\co{Using the BlockSeries interface allows us to implement a range of
 optimizations that go beyond directly implementing the polynomial
 parametrization}
 Not only does the \mintinline{python}{BlockSeries} interface allow us to implement the polynomial
@@ -63,7 +63,7 @@ Such an extension would be useful for systems where $\mathcal{U}$ or
 $\tilde{\mathcal{H}}$ vanish due to symmetries, so that the zero blocks can be
 skipped beforehand.
 
-\textbf{To deal with an implicit $B$ subspace, we use MUMPS and LinearOperators.}
+\co{To deal with an implicit B subspace, we use MUMPS and LinearOperators.}
 Because \mintinline{python}{BlockSeries} can represent any input type, we use it to directly
 implement the \mintinline{python}{implicit} algorithm.
 To do so, we construct a \mintinline{python}{BlockSeries} with the block structure in Equation
@@ -80,7 +80,7 @@ $B$ subspace.
 As a consequence, the \mintinline{python}{implicit} algorithm can be used on matrices with
 millions of degrees of freedom as long as they are sparse.
 
-\textbf{Finally, we implement an overall function that interprets the user inputs and
+\co{Finally, we implement an overall function that interprets the user inputs and
 returns a BlockSeries for the transformed Hamiltonian.}
 On the other hand, the \mintinline{python}{general} and \mintinline{python}{expanded} algorithms explicitly
 manipulate both subspaces, but can work with dense matrices too.
