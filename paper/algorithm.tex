@@ -1,5 +1,56 @@
 \section{Algorithm for block diagonalization}
 
+
+\subsection{Problem statement}
+
+Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use
+calligraphic letters to denote series) that block-diagonalizes the Hamiltonian
+%
+\begin{align}
+\label{hamiltonian}
+\mathcal{H} = H_0 + \mathcal{H}',\quad H_0 = \begin{pmatrix}
+H_0^{AA} & 0\\
+0 & H_0^{BB}
+\end{pmatrix},
+\end{align}
+%
+with $\mathcal{H}'$ containing an arbitrary number and orders of perturbations.
+The series here may be multivariate, and they represent sums of the form
+%
+\begin{align}
+\mathcal{A} = \sum_{n_1=0}^\infty \sum_{n_2=0}^\infty \cdots \sum_{n_k=0}^\infty \lambda_1^{n_1} \lambda_2^{n_2} \cdots \lambda_k^{n_k} A_{n_1, n_2, \ldots, n_k},
+\end{align}
+%
+where $\lambda_i$ are the perturbation parameters and $A_{n_1, n_2, \ldots,
+n_k}$ are linear operators.
+%
+The problem statement, therefore, is finding $\mathcal{U}$ and
+$\tilde{\mathcal{H}}$ such that:
+%
+\begin{align}
+\label{eq:problem_definition}
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
+\end{align}
+%
+where series multiply according to the Cauchy product:
+%
+$$
+\mathcal{C} = \mathcal{A}\mathcal{B} \Leftrightarrow C_\mathbf{n} = \sum_{\mathbf{m} + \mathbf{p} = \mathbf{n}} A_\mathbf{m} B_\mathbf{p}.
+$$
+%
+
+The Cauchy product is the most expensive operation in perturbation theory,
+because it involves a large number of multiplications between potentially large
+matrices, so let us discuss its complexity.
+Evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires $\sim\prod_i n_i =
+N$ multiplications of the series elements.
+A direct computation of all the possible index combinations in a product
+between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher
+cost $\sim N^2$, however if we use associativity of the product and compute
+this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost
+stays $\sim N$.
+
+\subsection{Existing solutions}
 \co{Pymablock's algorithm does not use the Schrieffer-Wolff transformation,
 because the former is inefficient.}
 A common approach to construct effective Hamiltonians is to use a
@@ -7,8 +58,8 @@ Schrieffer-Wolff transformation:
 %
 \begin{align}
 \tilde{\mathcal{H}} = e^\mathcal{S} &\mathcal{H} e^{-\mathcal{S}}, \\
-e^{\mathcal{S}} = 1 + \mathcal{S} + \frac{1}{2!} \mathcal{S} \star \mathcal{S}
-+ &\frac{1}{3!} \mathcal{S} \star \mathcal{S} \star \mathcal{S} + \cdots,
+e^{\mathcal{S}} = 1 + \mathcal{S} + \frac{1}{2!} \mathcal{S} \mathcal{S}
++ &\frac{1}{3!} \mathcal{S} \mathcal{S} \mathcal{S} + \cdots,
 \end{align}
 %
 where $\mathcal{S} = \sum_n S_n$ is an antihermitian polynomial series in the
@@ -72,59 +123,7 @@ scaling.
 To design the algorithms of Pymablock, we choose the parametrization that is
 most computationally efficient and that gives the most compact results.
 
-\subsection{Problem statement}
-
-Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use
-calligraphic letters to denote series) that block-diagonalizes the Hamiltonian
-%
-\begin{align}
-\label{hamiltonian}
-\mathcal{H} = H_0 + \mathcal{H}',\quad H_0 = \begin{pmatrix}
-H_0^{AA} & 0\\
-0 & H_0^{BB}
-\end{pmatrix},
-\end{align}
-%
-with $\mathcal{H}'$ containing an arbitrary number and orders of perturbations.
-The series here may be multivariate, and they represent sums of the form
-
-$$
-\mathcal{A} = \sum_{n_1=0}^\infty \sum_{n_2=0}^\infty \cdots \sum_{n_k=0}^\infty \lambda_1^{n_1} \lambda_2^{n_2} \cdots \lambda_k^{n_k} A_{n_1, n_2, \ldots, n_k},
-$$
-
-where $\lambda_i$ are the perturbation parameters and $A_{n_1, n_2, \ldots,
-n_k}$ are linear operators.
-
-The problem statement, therefore, is finding $\mathcal{U}$ and
-$\tilde{\mathcal{H}}$ such that:
-%
-\begin{align}
-\label{eq:problem_definition}
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
-\end{align}
-%
-where series multiply according to the
-\href{https://en.wikipedia.org/wiki/Cauchy_product}{Cauchy product}:
-%
-$$
-\mathcal{C} = \mathcal{A}\mathcal{B} \Leftrightarrow C_\mathbf{n} = \sum_{\mathbf{m} + \mathbf{p} = \mathbf{n}} A_\mathbf{m} B_\mathbf{p}.
-$$
-%
-
-\textbf{Computational complexity of the Cauchy product}
-
-The Cauchy product is the most expensive operation in perturbation theory,
-because it involves a large number of multiplications between potentially large
-matrices, so let us discuss its complexity.
-Evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires $\sim\prod_i n_i =
-N$ multiplications of the series elements.
-A direct computation of all the possible index combinations in a product
-between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher
-cost $\sim N^2$, however if we use associativity of the product and compute
-this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost
-stays $\sim N$.
-
-\section{How to solve the problem?}
+\subsection{How to solve the problem?}
 
 There are many ways to solve this problem that give identical expressions for
 $\mathcal{U}$ and $\tilde{\mathcal{H}}$.

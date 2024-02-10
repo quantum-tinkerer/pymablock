@@ -54,32 +54,21 @@ the study of complex physical systems.
 \co{Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
 and finds a minimal unitary transformation that separates its subspaces.}
 Pymablock considers Hamiltonians as series of $2\times 2$ block operators.
-The zeroth order is block-diagonal, and the perturbative orders couple
-blocks to each other and within themselves.
+The zeroth order, $H_0$ is block-diagonal, and the perturbative orders couple
+blocks to each other and within themselves:
+%
+\begin{equation}
+\mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \mathcal{H}',
+\end{equation}
+%
+where we use calligraphic letters to denote series in the perturbative
+parameters, and $A$ and $B$ to denote the low and high energy subspaces.
 To carry out the block-diagonalization procedure, Pymablock finds a minimal
 unitary transformation $\mathcal{U}$ that cancels the off-diagonal block of the
-Hamiltonian order by order:
-%
-\begin{equation}
-\mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
-\mathcal{U} = \sum_{i=0}^\infty U_i,
-\end{equation}
-%
-where $H_i$ and $U_i$ are proportional to an $i$-th order
-contribution on the perturbative parameter.
-Throughout this work, we use $A$ and $B$ to denote the low and high energy
-subspaces, respectively.
+Hamiltonian order by order.
 The result of this procedure is a perturbative series of the transformed
-block-diagonal Hamiltonian.
-%
-\begin{equation}
-\label{eq:transformed_hamiltonian}
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U}=\sum_{i=0}^{\infty}
-\begin{pmatrix}
-\tilde{H}_i^{AA} & 0 \\
-0 & \tilde{H}_i^{BB}
-\end{pmatrix}.
-\end{equation}
+block-diagonal Hamiltonian $\tilde{\mathcal{H}}$, whose low energy block
+$\tilde{\mathcal{H}}^{AA}$ is the effective Hamiltonian.
 
 \co{Pymablock offers the same solution as traditional methods.}
 Similar to Lowdin perturbation theory or the Schrieffer--Wolff transformation,
