@@ -156,14 +156,14 @@ def aslinearoperator(A):
     Same as `scipy.sparse.linalg.aslinearoperator`, but with passthrough for
     `~pymablock.series.zero` and `~pymablock.series.one`.
     """
-    if zero == A or A is one:
+    if A is zero or A is one:
         return A
     return scipy_aslinearoperator(A)
 
 
 def is_diagonal(A, atol=1e-12):
     """Check if A is diagonal."""
-    if zero == A or A is np.ma.masked:
+    if A is zero or A is np.ma.masked:
         return True
     if isinstance(A, sympy.MatrixBase):
         return A.is_diagonal()

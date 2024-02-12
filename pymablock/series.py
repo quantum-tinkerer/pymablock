@@ -47,8 +47,7 @@ del One
 
 class Zero:
     """
-    A class that behaves like zero in all operations.
-    This is used to avoid having to check for zero terms in the sum.
+    A sentinel value for missing terms in series.
     """
 
     def __mul__(self, other: Any = None) -> Self:
@@ -60,16 +59,12 @@ class Zero:
     def __sub__(self, other: Any) -> Any:
         return -other
 
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, Zero)
-
-    adjoint = conjugate = all = __neg__ = __truediv__ = __rmul__ = __mul__
-
-    __radd__ = __rsub__ = __add__
+    adjoint = __neg__ = __mul__
 
 
 zero = Zero()
-_mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[bool])
+del Zero
+_mask = np.vectorize((lambda entry: entry is zero), otypes=[bool])
 
 
 class BlockSeries:
