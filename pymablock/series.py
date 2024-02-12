@@ -47,8 +47,7 @@ del One
 
 class Zero:
     """
-    A class that behaves like zero in all operations.
-    This is used to avoid having to check for zero terms in the sum.
+    A sentinel value for missing terms in series.
     """
 
     def __mul__(self, other: Any = None) -> Self:
