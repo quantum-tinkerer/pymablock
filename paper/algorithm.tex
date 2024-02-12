@@ -41,14 +41,32 @@ $$
 
 The Cauchy product is the most expensive operation in perturbation theory,
 because it involves a large number of multiplications between potentially large
-matrices, so let us discuss its complexity.
-Evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires $\sim\prod_i n_i =
-N$ multiplications of the series elements.
+matrices.
+For example, evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires
+$\sim\prod_i n_i = N$ multiplications of the series elements.
 A direct computation of all the possible index combinations in a product
 between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher
 cost $\sim N^2$, however if we use associativity of the product and compute
 this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost
 stays $\sim N$.
+
+There are many ways to solve this problem that give identical expressions for
+$\mathcal{U}$ and $\tilde{\mathcal{H}}$.
+We are searching for a procedure that satisfies two additional constraints:
+%
+\begin{itemize}
+    \item It has the same complexity scaling as a Cauchy product.
+    \item It does not require multiplications by $H_0$.
+    This is because in perturbation theory, $n$-th order  corrections to
+    $\tilde{\mathcal{H}}$ carry $n$ energy denominators $1/(E_i - E_j)$.
+    Therefore, any additional multiplications by $H_0$ must cancel with
+    additional energy denominators.
+    Multiplying by $H_0$ is therefore unnecessary work, and it gives longer
+    intermediate expressions.
+\end{itemize}
+%
+The goal of our algorithm is thus to be efficient and to produce compact
+results that do not require further simplifications.
 
 \subsection{Existing solutions}
 \co{Pymablock's algorithm does not use the Schrieffer-Wolff transformation,
@@ -81,8 +99,8 @@ to which $\mathcal{S}$ is computed, which is a waste of computational resources.
 Finally, generalizing the Schrieffer-Wolff transformation to multiple
 perturbations is only straightforward if the perturbations are bundled
 together.
-However, this makes it impossible to request individual order combinations,
-making it necessary to compute more terms than needed.
+However, this makes it impossible to request individual order combinations
+of the perturbations, making it necessary to compute more terms than needed.
 
 \co{There are algorithms that use different parametrizations for U a
 difference that is crucial for efficiency, even though the results are
@@ -90,8 +108,8 @@ equivalent.}
 The algorithm used to block diagonalize a Hamiltonian perturbatively is,
 however, not unique.
 Alternative parametrizations of the unitary transformation $\mathcal{U}$
-require solving the same unitarity and block diagonalization conditions, but
-give rise to a different recursive procedure for the algorithm.
+require solving unitarity and block diagonalization conditions too, but
+give rise to a different recursive procedure for the series elements.
 For example, using hyperbolic functions
 %
 \begin{gather}
@@ -100,8 +118,9 @@ For example, using hyperbolic functions
 \end{gather}
 %
 leads to recursive equations for $G_i$ that use Bernoulli numbers as
-coefficients \cite{Shavitt_1980}, while using a polynomial
-series directly
+prefactors for contributions from lower order terms \cite{Shavitt_1980},
+making the algorithm inefficient.
+On the other hand, using a polynomial series directly
 %
 \begin{align}
 \mathcal{U} &= \sum_{i=0}^{\infty} U_i,
@@ -111,6 +130,12 @@ gives rise to a recursive equation for $U_i$ that is free from any additional
 coefficients
 \cite{Van_Vleck_1929}, \cite{Lowdin_1962}
 \cite{Klein_1974}, \cite{Suzuki_1983}.
+This choice, however, results in an expression for $\tilde{\mathcal{H}}$ whose
+terms include products by $H_0$, and therefore requires additional
+simplifications.
+
+\co{The existing algorithms with linear scaling are not suitable for the
+construction of an effective Hamiltonian.}
 Despite the conceptual equivalence of the algorithms and the agreement of
 their results, there is a crucial difference in their computational efficiency:
 a Schrieffer-Wolff transformation has an exponential scaling with the
@@ -120,31 +145,22 @@ algorithm with linear scaling for diagonalization of a single state by
 reformulating the recursive steps of the Schrieffer-Wolff transformation.
 Block diagonalization of a Hamiltonian, however, recovers the exponential
 scaling.
-To design the algorithms of Pymablock, we choose the parametrization that is
-most computationally efficient and that gives the most compact results.
-
-\subsection{How to solve the problem?}
-
-There are many ways to solve this problem that give identical expressions for
-$\mathcal{U}$ and $\tilde{\mathcal{H}}$.
-We are searching for a procedure that satisfies two additional constraints:
+Another approach with linear scaling is that of density matrix perturbation
+theory \cite{McWeeny_1962,McWeeny_1968,Truflandier_2020}, in which the
+density matrix of a single-particle system is also a power series with
+respect to a perturbative parameter:
 %
-\begin{itemize}
-    \item It has the same complexity scaling as a Cauchy product.
-    \item It does not require multiplications by $H_0$.
-    This is because in perturbation theory, $n$-th order  corrections to
-    $\tilde{\mathcal{H}}$ carry $n$ energy denominators $1/(E_i - E_j)$
-    (see \href{https://en.wikipedia.org/wiki/Perturbation_theory_(quantum_mechanics)#Time-independent_perturbation_theory}{here}).
-    Therefore, any additional multiplications by $H_0$ must cancel with
-    additional energy denominators.
-    Multiplying by $H_0$ is therefore unnecessary work, and it gives longer
-    intermediate expressions.
-\end{itemize}
+\begin{align}
+  \mathcal{D} = \sum_{i=0}^{\infty} D_i.
+\end{align}
 %
-The goal of our algorithm is thus to be efficient and to produce compact
-results that do not require further simplifications.
+The elements of the series are found by solving two recursive conditions,
+$\mathcal{D}^2 = \mathcal{D}$ and $[\mathcal{H}, \mathcal{D}]=0$.
+This approach, however, does not provide an effective Hamiltonian, and even
+though it has a linear scaling, it deals with the entire Hilbert space, not
+only the low energy subspace.
 
-\textbf{Our solution}
+\subsection{Our solution}
 
 To find $\mathcal{U}$, let us separate it into an identity and $\mathcal{U}' =
 \mathcal{W} + \mathcal{V}$:
@@ -164,7 +180,6 @@ and obtain
   &= \frac{1}{2} \Big[(1 + \mathcal{U}'^\dagger)(1+\mathcal{U}') - 1 - \mathcal{U}'^\dagger \mathcal{U}' \Big] \\
   &= -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
 \end{align}
-
 %
 Because $\mathcal{U}'$ has no $0$-th order term, $(\mathcal{U}'^\dagger
 \mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
