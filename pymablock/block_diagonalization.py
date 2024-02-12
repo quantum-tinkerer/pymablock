@@ -202,7 +202,7 @@ def block_diagonalize(
         atol=atol,
     )
 
-    if zero != H[(0, 1) + (0,) * H.n_infinite]:
+    if H[(0, 1) + (0,) * H.n_infinite] is not zero:
         raise ValueError(
             "The off-diagonal elements of the unperturbed Hamiltonian must be zero."
         )
@@ -341,7 +341,7 @@ def hamiltonian_to_BlockSeries(
         # Hamiltonian must have 2x2 entries in each block
         def H_eval(*index):
             h = _convert_if_zero(hamiltonian[index[2:]], atol=atol)
-            if zero == h:
+            if h is zero:
                 return zero
             try:  # Hamiltonians come in blocks of 2x2
                 return _convert_if_zero(h[index[0]][index[1]], atol=atol)
@@ -383,7 +383,7 @@ def hamiltonian_to_BlockSeries(
         if left > right:
             return Dagger(H[(right, left) + tuple(index[2:])])
         original = hamiltonian[index[2:]]
-        if zero == original:
+        if original is zero:
             return zero
         if implicit and left == right == 1:
             original = aslinearoperator(original)
@@ -610,7 +610,7 @@ def _block_diagonalize(
             # off-diagonal block nullifies the off-diagonal part of H_tilde
             Y = series["X"][index]
             del_("X", index)
-            return -solve_sylvester(Y) if zero != Y else zero
+            return -solve_sylvester(Y) if Y is not zero else zero
         elif index[:2] == (1, 0):
             # off-diagonal of U is anti-Hermitian
             return -Dagger(series["U'"][(0, 1) + tuple(index[2:])])
@@ -1096,7 +1096,7 @@ def _extract_diagonal(
         )
     diags = []
     for block in h_0:
-        if zero == block or block is np.ma.masked:
+        if block is zero or block is np.ma.masked:
             diags.append(np.array(0))
             continue
         eigs = block.diagonal()
@@ -1168,7 +1168,7 @@ def _zero_sum(*terms: Any) -> Any:
     -------
     Sum of terms, or zero if terms is empty.
     """
-    return sum((term for term in terms if zero != term), start=zero)
+    return sum((term for term in terms if term is not zero), start=zero)
 
 
 def _safe_divide(numerator, denominator):

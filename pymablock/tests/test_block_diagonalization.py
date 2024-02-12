@@ -74,7 +74,7 @@ def compare_series(
         else:
             # Convert all numeric types to dense arrays
             values = [
-                value @ np.identity(value.shape[1]) if zero != value else 0
+                value @ np.identity(value.shape[1]) if value is not zero else 0
                 for value in values
             ]
             np.testing.assert_allclose(
@@ -401,7 +401,7 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
         index = block + (0,) * H.n_infinite
         np.testing.assert_allclose(H[index].diagonal(), eigvals)
     for block in ((0, 1), (1, 0)):
-        assert zero == H[block + (0,) * H.n_infinite]
+        assert H[block + (0,) * H.n_infinite] is zero
     with pytest.raises(ValueError):
         H = hamiltonian_to_BlockSeries(hamiltonian)
         H[(0, 0) + (0,) * H.n_infinite]
@@ -440,7 +440,7 @@ def test_input_hamiltonian_from_subspaces():
             np.testing.assert_allclose(H[index].diagonal(), eigvals)
         for block in ((0, 1), (1, 0)):
             index = block + (0,) * H.n_infinite
-            assert zero == H[index]
+            assert H[index] is zero
 
 
 def test_input_hamiltonian_blocks():
@@ -475,8 +475,8 @@ def test_input_hamiltonian_blocks():
         np.testing.assert_allclose(
             H[(1, 1) + (0,) * H.n_infinite].diagonal(), np.array([1, 1])
         )
-        assert zero == H[(0, 1) + (0,) * H.n_infinite]
-        assert zero == H[(1, 0) + (0,) * H.n_infinite]
+        assert H[(0, 1) + (0,) * H.n_infinite] is zero
+        assert H[(1, 0) + (0,) * H.n_infinite] is zero
 
 
 def test_H_tilde_diagonal(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
@@ -855,7 +855,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
     assert H.name == "H"
     for block in ((0, 1), (1, 0)):
         index = block + (0,) * H.n_infinite
-        assert zero == H[index]
+        assert H[index] is zero
     assert isinstance(H[(1, 1) + (0,) * H.n_infinite], LinearOperator)
 
     # Test that block_diagonalize does the same processing.
@@ -899,8 +899,8 @@ def test_input_hamiltonian_BlockSeries(H):
     assert hamiltonian.name == H.name
     for block in ((0, 0), (1, 1), (0, 1), (1, 0)):
         index = block + (0,) * H.n_infinite
-        if zero == H[index]:
-            assert zero == hamiltonian[index]
+        if H[index] is zero:
+            assert hamiltonian[index] is zero
             continue
         np.allclose(H[index], hamiltonian[index])
 
@@ -931,7 +931,7 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
 
     for H in (H_1, H_2):
         for block in ((0, 1), (1, 0)):
-            assert zero == H[block + (0,) * H.n_infinite]
+            assert H[block + (0,) * H.n_infinite] is zero
 
 
 def test_block_diagonalize_hamiltonian_diagonal(

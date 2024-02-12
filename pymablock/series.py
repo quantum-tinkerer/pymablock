@@ -60,16 +60,12 @@ class Zero:
     def __sub__(self, other: Any) -> Any:
         return -other
 
-    def __eq__(self, other: Any) -> bool:
-        return isinstance(other, Zero)
-
-    adjoint = conjugate = all = __neg__ = __truediv__ = __rmul__ = __mul__
-
-    __radd__ = __rsub__ = __add__
+    adjoint = __neg__ = __mul__
 
 
 zero = Zero()
-_mask = np.vectorize((lambda entry: isinstance(entry, Zero)), otypes=[bool])
+del Zero
+_mask = np.vectorize((lambda entry: entry is zero), otypes=[bool])
 
 
 class BlockSeries:
