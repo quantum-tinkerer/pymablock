@@ -72,7 +72,11 @@ paper:
   image: gitlab.kwant-project.org:5005/qt/research-docker
   before_script: []
   script:
-    - cd paper
+    - cd paper/figures
+    - for image in *.svg; do
+    - inkscape --batch-process -o "${image%.*}.pdf" $image
+    - done
+    - cd ..
     - for tex in *.tex; do
     - if grep "documentclass" $tex >/dev/null; then
     - latexmk -pdf $tex -shell-escape
