@@ -490,7 +490,7 @@ def test_H_tilde_diagonal(H: BlockSeries, wanted_orders: tuple[int, ...]) -> Non
     wanted_orders:
         orders to compute
     """
-    is_diagonal_series(_block_diagonalize(H)[0], wanted_orders)
+    is_diagonal_series(_block_diagonalize(H)["H_tilde"], wanted_orders)
 
 
 def test_check_unitary(
@@ -507,7 +507,12 @@ def test_check_unitary(
     wanted_orders:
         orders to compute
     """
-    is_unitary(*_block_diagonalize(H)[1:], wanted_orders, atol=1e-6)
+    is_unitary(
+        _block_diagonalize(H)["U"],
+        _block_diagonalize(H)["U†"],
+        wanted_orders,
+        atol=1e-8,
+    )
 
 
 def test_check_invertible(
@@ -524,7 +529,8 @@ def test_check_invertible(
     wanted_orders:
         orders to compute
     """
-    H_tilde, U, U_dagger = _block_diagonalize(H)
+    result = _block_diagonalize(H)
+    H_tilde, U, U_dagger = (result[key] for key in ("H_tilde", "U", "U†"))
     H_reconstructed = cauchy_dot_product(U, cauchy_dot_product(H_tilde, U_dagger))
     compare_series(H, H_reconstructed, wanted_orders, atol=1e-6)
 
@@ -542,8 +548,9 @@ def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     wanted_orders:
         list of wanted orders
     """
-    H_tilde_1, *_ = _block_diagonalize(H)
-    H_tilde_2, U_2, _ = _block_diagonalize(H_tilde_1)
+    H_tilde_1 = _block_diagonalize(H)["H_tilde"]
+    second_time = _block_diagonalize(H_tilde_1)
+    H_tilde_2, U_2 = (second_time[key] for key in ("H_tilde", "U"))
 
     compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-7)
     compare_series(U_2, identity_like(U_2), wanted_orders, atol=1e-7)
@@ -560,7 +567,7 @@ def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> 
     wanted_orders:
         orders to compute
     """
-    H_tilde = _block_diagonalize(H)[0]
+    H_tilde = _block_diagonalize(H)["H_tilde"]
     Np = len(wanted_orders)
     for order in permutations((0,) * (Np - 1) + (1,)):
         np.testing.assert_allclose(
@@ -608,7 +615,7 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     wanted_orders:
         Orders to compute
     """
-    H_tilde = _block_diagonalize(H)[0]
+    H_tilde = _block_diagonalize(H)["H_tilde"]
     n_infinite = H.n_infinite
 
     for order in permutations((0,) * (n_infinite - 1) + (2,)):
@@ -670,14 +677,16 @@ def test_doubled_orders(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
         eval=doubled_eval(H), shape=H.shape, n_infinite=H.n_infinite
     )
 
-    H_tilde, U, _ = _block_diagonalize(H)
+    result = _block_diagonalize(H)
+    H_tilde, U = (result[key] for key in ("H_tilde", "U"))
     H_tilde_doubled_directly = BlockSeries(
         eval=doubled_eval(H_tilde), shape=H_tilde.shape, n_infinite=H_tilde.n_infinite
     )
     U_doubled_directly = BlockSeries(
         eval=doubled_eval(U), shape=U.shape, n_infinite=U.n_infinite
     )
-    H_tilde_doubled, U_doubled, _ = _block_diagonalize(H_doubled)
+    result_doubled = _block_diagonalize(H_doubled)
+    H_tilde_doubled, U_doubled = (result_doubled[key] for key in ("H_tilde", "U"))
 
     compare_series(H_tilde_doubled_directly, H_tilde_doubled, wanted_orders)
     compare_series(U_doubled_directly, U_doubled, wanted_orders)
@@ -758,13 +767,13 @@ def test_equivalence_explicit_implicit() -> None:
         H, subspace_eigenvectors=(eigvecs[:, :a_dim], eigvecs[:, a_dim:])
     )
 
-    implicit_H_tilde, *_ = _block_diagonalize(
-        implicit_H, solve_sylvester=solve_sylvester
-    )
-    explicit_wrapped_H_tilde, *_ = _block_diagonalize(
+    implicit_H_tilde = _block_diagonalize(implicit_H, solve_sylvester=solve_sylvester)[
+        "H_tilde"
+    ]
+    explicit_wrapped_H_tilde = _block_diagonalize(
         explicit_wrapped_H, solve_sylvester=solve_sylvester
-    )
-    fully_explicit_H_tilde, *_ = _block_diagonalize(fully_explicit_H)
+    )["H_tilde"]
+    fully_explicit_H_tilde = _block_diagonalize(fully_explicit_H)["H_tilde"]
 
     assert all(isinstance(implicit_H_tilde[1, 1, i], LinearOperator) for i in range(2))
 
@@ -899,7 +908,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
     solve_sylvester = solve_sylvester_direct(hamiltonian, subspace_eigenvectors[0])
 
     compare_series(
-        _block_diagonalize(H, solve_sylvester=solve_sylvester)[0][0, 0],
+        _block_diagonalize(H, solve_sylvester=solve_sylvester)["H_tilde"][0, 0],
         H_tilde[0, 0],
         (2,) * H.n_infinite,
     )

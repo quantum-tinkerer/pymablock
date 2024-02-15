@@ -229,11 +229,26 @@ def block_diagonalize(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H, atol))
 
-    return _block_diagonalize(
+    H_reference = BlockSeries(
+        eval=(lambda *index: (_dummy if H[index] is not zero else zero)),
+        shape=(2, 2),
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+        name="H_reference",
+    )
+
+    result = _block_diagonalize(
         H,
         solve_sylvester=solve_sylvester,
         operator=operator,
+        reference_series=_block_diagonalize(
+            H_reference,
+            solve_sylvester=lambda Y: Y,
+            operator=mul,
+        ),
     )
+
+    return result["H_tilde"], result["U"], result["U†"]
 
 
 ### Converting different formats to BlockSeries
@@ -423,6 +438,7 @@ def _block_diagonalize(
     solve_sylvester: Optional[Callable] = None,
     *,
     operator: Optional[Callable] = None,
+    reference_series: Optional[dict[BlockSeries]] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """
     Algorithm for computing block diagonalization of a Hamiltonian.
@@ -679,7 +695,25 @@ def _block_diagonalize(
         **series_kwargs,
     )
 
-    return H_tilde, series["U"], series["U†"]
+    series["H_tilde"] = H_tilde
+
+    if reference_series is not None:
+        # Define a new eval that is only called if reference_series has a
+        # non-zero value at the given index. This guarantees that we are not
+        # going to accidentally compute the blocks that aren't needed.
+
+        def skip_zero_eval(original, reference):
+            def new_eval(*index):
+                if reference[index] is zero:
+                    return zero
+                return original(*index)
+
+            return new_eval
+
+        for name, term in series.items():
+            term.eval = skip_zero_eval(term.eval, reference_series[name])
+
+    return series
 
 
 ### Different formats and algorithms of solving Sylvester equation.
@@ -1179,3 +1213,16 @@ def _safe_divide(numerator, denominator):
         return numerator / denominator
     except TypeError:
         return numerator * (1 / denominator)
+
+
+class _Dummy:
+    """Auxiliary class to check which terms are expected to be zero."""
+
+    def __mul__(self, other=None):
+        return self
+
+    __rmul__ = __add__ = __neg__ = __sub__ = __truediv__ = adjoint = __mul__
+
+
+_dummy = _Dummy()
+del _Dummy
