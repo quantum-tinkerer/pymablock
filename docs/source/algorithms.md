@@ -265,8 +265,8 @@ we do not know yet.
 To find it, we first focus on its anti-Hermitian part, $\mathcal{Z}$.
 Since recurrence relations are expressions whose right hand side contains
 Cauchy products between series, we need to find a way to make a product appear.
-This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U} =
--\mathcal{U}'^\dagger \mathcal{U}$ comes in handy and gives:
+This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
+-\mathcal{U}'^\dagger \mathcal{U}'$ comes in handy and gives:
 
 :::{math}
 :label: Z
@@ -275,7 +275,7 @@ This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U} =
 }{
   \begin{align}
   \mathcal{Z}
-  &= \frac{1}{2} (\mathcal{X} + \mathcal{X}^{\dagger}) \\
+  &= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \\
   &= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
   &= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}') \mathcal{U}' \Big] \\
   &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
