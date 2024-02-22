@@ -172,4 +172,5 @@ axs[0].legend(frameon=False, loc="center left")
     for result, color, barrier in zip(sparse_results, color_cycle, barrier_vals)
 ]
 axs[-1].set_title(r"$\textrm{Sparse}$")
+fig.savefig("../figures/benchmark_bandstructure.pdf", bbox_inches="tight")
 # %%

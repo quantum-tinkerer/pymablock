@@ -72,7 +72,9 @@ paper:
   image: gitlab.kwant-project.org:5005/qt/research-docker
   before_script: []
   script:
-    - cd paper/figures
+    - cd paper/code_figures
+    - jupytext --to ipynb --execute *.py
+    - cd ../figures
     - for image in *.svg; do
     - inkscape --batch-process -o "${image%.*}.pdf" $image
     - done
