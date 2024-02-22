@@ -76,18 +76,18 @@ unitary transformation $U$ that cancels the off-diagonal block of the
 Hamiltonian order by order.
 
 \begin{gather}
-H = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{i\geq 1} H_i,\quad
-U = \sum_{i=0}^\infty U_n
+\mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{n\geq 1} H'_n,\quad
+\mathcal{U} = \sum_{n=0}^\infty U_n
 \end{gather}
 
 The result of this procedure is a perturbative series of the transformed
 block-diagonal Hamiltonian.
 
 \begin{gather}
-\tilde{H} = U^\dagger H U=\sum_{i=0}
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U}=\sum_{n=0}
 \begin{pmatrix}
-\tilde{H}_i^{AA} & 0 \\
-0 & \tilde{H}_i^{BB}
+\tilde{H}_n^{AA} & 0 \\
+0 & \tilde{H}_n^{BB}
 \end{pmatrix}.
 \end{gather}
 
