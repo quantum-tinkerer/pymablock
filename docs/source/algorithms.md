@@ -277,7 +277,7 @@ This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
   \mathcal{Z}
   &= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \\
   &= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
-  &= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}') \mathcal{U}' \Big] \\
+  &= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \\
   &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
   \end{align}
 }
@@ -313,7 +313,7 @@ $\mathcal{V}$ as a solution of:
 a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation),
 which we only need to solve once for every new order.
 In the eigenbasis of $H_0$, the solution of Sylvester's equation is
-$V^{AB}_{ij} = Y^{AB}_{ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of
+$V^{AB}_{\mathbf{n}, ij} = Y^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of
 $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient
 algorithms to solve Sylvester's equation, see [below](#implicit).
@@ -398,9 +398,9 @@ We use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite
 the Hamiltonian as
 
 :::{math}
-H \to \begin{pmatrix}
-\Psi_A^\dagger H \Psi_A & \Psi_A^\dagger H P_B \\
-P_B H \Psi_A & P_B H P_B
+\mathcal{H} \to \begin{pmatrix}
+\Psi_A^\dagger \mathcal{H} \Psi_A & \Psi_A^\dagger \mathcal{H} P_B \\
+P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
 \end{pmatrix},
 :::
 
@@ -408,17 +408,17 @@ where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
 This Hamiltonian is larger in size than the original one because the $B$ block has
 additional null vectors corresponding to the $A$ subspace.
 This, however, allows to preserve the sparsity structure of the Hamiltonian by applying
-$P_B$ and $H$ separately.
+$P_B$ and $\mathcal{H}$ separately.
 Additionally, applying $P_B$ is efficient because $\Psi_A$ is a low rank matrix.
-We then perform perturbation theory of the rewritten $H$.
+We then perform perturbation theory of the rewritten $\mathcal{H}$.
 
 To solve the Sylvester's equation for the modified Hamiltonian, we write it for
-every row of $V_n^{AB}$ separately:
+every row of $V_{\mathbf{n}}^{AB}$ separately:
 
 :::{math}
-V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
+V_{\mathbf{n}, ij}^{AB} (E_i - H_0) = Y_{\mathbf{n}, j}
 :::
 
 This equation is well-defined despite $E_i - H_0$ is not invertible because
-$Y_{n}$ has no components in the $A$ subspace.
+$Y_{\mathbf{n}}$ has no components in the $A$ subspace.
 ::::
