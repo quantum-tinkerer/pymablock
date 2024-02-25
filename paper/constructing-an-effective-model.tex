@@ -87,13 +87,23 @@ H = Matrix([
 Eq(symbols("H"), H, evaluate=False)
 \end{minted}
 
-\begin{minted}{ipython}
-Eq(H, Matrix([
-[                    m, \alpha*t_1,                     0,          0],
-[t_1*conjugate(\alpha),          m,                   t_2,          0],
-[                    0,        t_2,                    -m, \alpha*t_1],
-[                    0,          0, t_1*conjugate(\alpha),         -m]]))
-\end{minted}
+$$
+H =
+\begin{pmatrix}
+m & t_1 \alpha & 0 & 0\\
+t_1 \alpha^{*} & m & t_2 & 0\\
+0 & t_2 & -m & t_1 \alpha\\
+0 & 0 & t_1 \alpha^{*} & -m
+\end{pmatrix}
+$$
+%
+% \begin{minted}{ipython}
+% Eq(H, Matrix([
+% [                    m, \alpha*t_1,                     0,          0],
+% [t_1*conjugate(\alpha),          m,                   t_2,          0],
+% [                    0,        t_2,                    -m, \alpha*t_1],
+% [                    0,          0, t_1*conjugate(\alpha),         -m]]))
+% \end{minted}
 %
 where $\alpha(\mathbf{k}) = 1 + e^{i \mathbf{k'} \cdot (\mathbf{a}_1 +
 \mathbf{a}_2)}$ and $\mathbf{k'} = (4\pi/3 + k_x, k_y)$, because we choose
@@ -146,8 +156,8 @@ k_square = np.array([[0, 1, 2], [2, 1, 0]])
 k_cube = np.array([[0, 1, 2, 3], [3, 2, 1, 0]])
 \end{minted}
 %
-Querying \mintinline{python}{H\_tilde} returns the results in a masked numpy array, so we
-define \mintinline{python}{H\_tilde\_AA} to gather different entries into one symbolic expression.
+Querying \mintinline{python}{H_tilde} returns the results in a masked numpy array, so we
+define \mintinline{python}{H_tilde_AA} to gather different entries into one symbolic expression.
 Finally, the result is a symbolic expression of the effective Hamiltonian.
 %
 \begin{minted}{ipython}
@@ -158,13 +168,26 @@ cubic = H_tilde_AA(*k_cube, 0)
 MatAdd(mass_term + kinetic, mass_correction + cubic, evaluate=False)
 \end{minted}
 %
-\begin{minted}{ipython}
-Matrix([
-[                                                m, 3*t_1**2*( -k_x**2 - 2*I*k_x*k_y + k_y**2)/(4*t_2)],
-[3*t_1**2*( -k_x**2 + 2*I*k_x*k_y + k_y**2)/(4*t_2),                                                -m]]) + Matrix([
-[                                    3*m*t_1**2*( -k_x**2 - k_y**2)/(2*t_2**2), sqrt(3)*t_1**2*(k_x**3 - 5*I*k_x**2*k_y + 9*k_x*k_y**2 + 3*I*k_y**3)/(8*t_2)],
-[sqrt(3)*t_1**2*(k_x**3 + 5*I*k_x**2*k_y + 9*k_x*k_y**2 - 3*I*k_y**3)/(8*t_2),                                      3*m*t_1**2*(k_x**2 + k_y**2)/(2*t_2**2)]])
-\end{minted}
+{\small
+\begin{gather}
+\begin{pmatrix}
+m & \frac{3 t_1^2}{4 t_2} ( - k_x^2 - 2ik_x k_y + k_y^2) \\
+\frac{3 t_1^2}{4 t_2} ( - k_x^2 + 2ik_x k_y + k_y^2) & -m
+\end{pmatrix} + \nonumber \\
+\begin{pmatrix}
+\frac{3 m t_1^2}{2 t_2^2} ( - k_x^2 - k_y^2) & \frac{\sqrt{3} t_1^2}{8 t_2} (k_x^3 - 5ik_x^2 k_y + 9 k_x k_y^2 + 3ik_y^3) \\
+\frac{\sqrt{3} t_1^2}{8 t_2} (k_x^3 + 5ik_x^2 k_y + 9 k_x k_y^2 - 3ik_y^3) & \frac{3 m t_1^2}{2 t_2^2} (k_x^2 + k_y^2)
+\end{pmatrix} \nonumber
+\end{gather}
+}
+%
+% \begin{minted}{ipython}
+% Matrix([
+% [                                                m, 3*t_1**2*( -k_x**2 - 2*I*k_x*k_y + k_y**2)/(4*t_2)],
+% [3*t_1**2*( -k_x**2 + 2*I*k_x*k_y + k_y**2)/(4*t_2),                                                -m]]) + Matrix([
+% [                                    3*m*t_1**2*( -k_x**2 - k_y**2)/(2*t_2**2), sqrt(3)*t_1**2*(k_x**3 - 5*I*k_x**2*k_y + 9*k_x*k_y**2 + 3*I*k_y**3)/(8*t_2)],
+% [sqrt(3)*t_1**2*(k_x**3 + 5*I*k_x**2*k_y + 9*k_x*k_y**2 - 3*I*k_y**3)/(8*t_2),                                      3*m*t_1**2*(k_x**2 + k_y**2)/(2*t_2**2)]])
+% \end{minted}
 %
 The first term contains the standard quadratic dispersion of bilayer graphene
 with a gap.
@@ -240,7 +263,12 @@ $t_{barrier}$, a parameter that we treat as a perturbation.
 We will also consider the asymmetry of the dot potentials, $\delta \mu$, as a
 perturbation.
 %
-\textbf{(Include figure with the system)}
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{figures/benchmark_lattice.pdf}
+\caption{Kwant system, lattice}
+\label{fig:benchmark_lattice}
+\end{figure}
 %
 The system is large: with this many sites even storing all the eigenvectors
 would take 60 GB of memory.
