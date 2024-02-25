@@ -19,7 +19,8 @@ sigma_x = ta.array([[0, 1], [1, 0]], float)
 
 syst = kwant.Builder()
 lat = kwant.lattice.square(norbs=2)
-L, W = 200, 40
+L = 200
+W = L / 4
 
 
 def normal_onsite(site, mu_n, delta_mu, t):
@@ -48,6 +49,8 @@ syst[(hop for hop in syst.hoppings() if barrier(*hop))] = (
     lambda site1, site2, t_barrier: -t_barrier * sigma_z
 )
 
+# %%
+fig, ax = plt.subplots()
 kwant.plot(
     syst,
     fig_size=(10, 6),
@@ -55,10 +58,44 @@ kwant.plot(
     colorbar=False,
     cmap="seismic",
     hop_lw=0,
+    ax=ax,
+)
+ax.set_aspect("equal")
+ax.set_frame_on(False)
+ax.set_xticks([])
+ax.set_yticks([])
+
+ax.text(
+    0.5,
+    0.5,
+    r"$\mu_{\textrm{sc}}, \Delta_{\textrm{sc}}$",
+    ha="center",
+    va="center",
+    transform=ax.transAxes,
+)
+ax.text(
+    0.2,
+    0.5,
+    r"$\mu_{\textrm{N}}, \Delta_{\textrm{N}}$",
+    ha="center",
+    va="center",
+    transform=ax.transAxes,
+)
+ax.text(
+    0.8,
+    0.5,
+    r"$\mu_{\textrm{N}}, \Delta_{\textrm{N}}$",
+    ha="center",
+    va="center",
+    transform=ax.transAxes,
 )
 
-syst = syst.finalized()
-f"The system has {len(syst.sites)} sites."
+ax.text(0.5, -0.05, r"$L$", ha="center", va="center", transform=ax.transAxes)
+ax.text(0, 0.5, r"$L/4$", ha="center", va="center", transform=ax.transAxes)
+
+fig.savefig("../figures/benchmark_lattice.pdf", bbox_inches="tight")
+# %%
+sysf = syst.finalized()
 # %%
 default_params = dict(
     mu_n=0.05,
@@ -69,12 +106,12 @@ default_params = dict(
 
 params = {**default_params, "t_barrier": 0.0, "delta_mu": 0.0}
 
-h_0 = syst.hamiltonian_submatrix(params=params, sparse=True).real
+h_0 = sysf.hamiltonian_submatrix(params=params, sparse=True).real
 
-barrier = syst.hamiltonian_submatrix(
+barrier = sysf.hamiltonian_submatrix(
     params={**{p: 0 for p in params.keys()}, "t_barrier": 1}, sparse=True
 ).real
-delta_mu = syst.hamiltonian_submatrix(
+delta_mu = sysf.hamiltonian_submatrix(
     params={**{p: 0 for p in params.keys()}, "delta_mu": 1}, sparse=True
 ).real
 # %%
