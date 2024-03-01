@@ -197,9 +197,9 @@ mosaic = [
 ]
 fig, axs = plt.subplot_mosaic(
     mosaic,
-    figsize=(figwidth, 2 * figwidth / 3),
+    figsize=(figwidth, figwidth / 2),
     constrained_layout=True,
-    height_ratios=[1, 0.07, 0.3],
+    height_ratios=[1, 0.03, 0.3],
 )
 
 for label in mosaic[0]:
@@ -216,7 +216,7 @@ for label in mosaic[0]:
         linewidth=1.2,
     )
     axs[label].set_title(rf"$O(\delta \mu^{label[-1]})$")
-    axs[label].set_ylim(-0.002, 0.075)
+    axs[label].set_ylim(-0.002, 0.073)
     axs[label].set_xlim(0, mu_max)
     axs[label].set_xlabel(r"$\delta \mu$")
     axs[label].set_yticks([])
@@ -238,14 +238,14 @@ for t_label, label in zip(
     t = times.times[t_label]
     left -= np.mean(t)
     p = axs["time"].barh(
-        t_label, np.mean(t), height=0.7, left=left, alpha=0.6, xerr=np.std(t)
+        t_label, np.mean(t), height=1, left=left, alpha=0.6, xerr=np.std(t)
     )
     axs["time"].bar_label(p, labels=(label,), label_type="center")
 
 p = axs["time"].barh(
     "sparse",
     np.mean(times.times["sparse occupied eigsh"]),
-    height=0.7,
+    height=1,
     alpha=0.6,
     xerr=np.std(times.times["sparse occupied eigsh"]),
 )
@@ -256,7 +256,9 @@ axs["time"].set_yticks([])
 axs["time"].set_yticklabels([])
 axs["time"].set_xticks([0, 0.5, 1, 1.5])
 axs["time"].set_xticklabels([r"$0$", r"$1/2$", r"$1$", r"$3/2$"])
-axs["time"].set_xlabel(r"$\textrm{Time (s)}$")
+axs["time"].set_xlabel(r"$\textrm{Time (s)}$", labelpad=-6)
 axs["time"].set_xlim(0, 1.4)
 
 fig.savefig("../figures/benchmark_bandstructure.pdf", bbox_inches="tight")
+
+# %%
