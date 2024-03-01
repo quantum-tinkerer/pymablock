@@ -16,6 +16,7 @@ color_cycle_grays = matplotlib.cm.get_cmap("Greys")(np.linspace(0.1, 0.8, 20))
 figwidth = matplotlib.rcParams["figure.figsize"][0]
 
 times = Timer()
+repetitions = 40
 
 
 # %%
@@ -115,19 +116,17 @@ with times("PT occupied eigsh"):
     evals_0, evecs_0 = eigsh(h_0, k=occupied_states, sigma=-5)
 with times("PT QR"):
     evecs_0, _ = scipy.linalg.qr(evecs_0, mode="economic")  # orthogonalize the vectors
-with times("PT H_tilde"):
-    H_tilde, *_ = block_diagonalize([h_0, h_p], subspace_eigenvectors=[evecs_0])
 # %%
 mu_max = 0.2
 n_pt = 45
 n_total = 25
-n_occupied = 1
+n_occupied = repetitions
 spectra = {}
 
 
 # %%
 # Perturbation theory
-def pt_spectrum(n):
+def pt_spectrum(H_tilde, n):
     fill_value = np.zeros((), dtype=object)
     fill_value[()] = np.zeros_like(H_tilde[0, 0, 0])
     with times(f"PT {n}"):
@@ -145,8 +144,11 @@ def pt_spectrum(n):
     return np.linspace(0, mu_max, num=45), evals
 
 
-for n in range(0, 4):
-    spectra["PT " + str(n)] = pt_spectrum(n)
+for _ in range(repetitions):
+    with times("PT H_tilde"):
+        H_tilde, *_ = block_diagonalize([h_0, h_p], subspace_eigenvectors=[evecs_0])
+    for n in range(0, 4):
+        spectra["PT " + str(n)] = pt_spectrum(H_tilde, n)
 # %%
 # Sparse diagonalization for background bands
 
@@ -187,6 +189,7 @@ for key, (dmu_points, spectrum) in spectra.items():
     )
     shifted_spectra[key] = (dmu_points, shifted_spectrum)
 # %%
+# Plot the results
 mosaic = [
     ["PT 0", "PT 1", "PT 2", "PT 3"],
     [".", ".", ".", "."],
@@ -196,7 +199,7 @@ fig, axs = plt.subplot_mosaic(
     mosaic,
     figsize=(figwidth, 2 * figwidth / 3),
     constrained_layout=True,
-    height_ratios=[1, 0.1, 0.2],
+    height_ratios=[1, 0.07, 0.3],
 )
 
 for label in mosaic[0]:
@@ -212,7 +215,7 @@ for label in mosaic[0]:
         c=color_cycle_grays[15],
         linewidth=1.2,
     )
-    axs[label].set_title(rf"$n = {label[-1]}$")
+    axs[label].set_title(rf"$O(\delta \mu^{label[-1]})$")
     axs[label].set_ylim(-0.002, 0.075)
     axs[label].set_xlim(0, mu_max)
     axs[label].set_xlabel(r"$\delta \mu$")
@@ -226,17 +229,25 @@ for label in mosaic[0]:
     else:
         axs[label].set_ylabel(r"$E$")
 
-left = 0
+left = np.sum(
+    [np.mean(times.times[t_label]) for t_label in ["PT 3", "PT 2", "PT H_tilde"]]
+)
 for t_label, label in zip(
-    ["PT H_tilde", "PT 2", "PT 3"], [r"$\mathrm{PT}$", r"$n=2$", r"$n=3$"]
+    ["PT 3", "PT 2", "PT H_tilde"], [r"$n=3$", r"$n=2$", r"$\mathrm{LU}$"]
 ):
     t = times.times[t_label]
-    p = axs["time"].barh("PT", np.mean(t), height=0.5, left=left, alpha=0.6)
-    left += np.mean(t)
+    left -= np.mean(t)
+    p = axs["time"].barh(
+        t_label, np.mean(t), height=0.7, left=left, alpha=0.6, xerr=np.std(t)
+    )
     axs["time"].bar_label(p, labels=(label,), label_type="center")
 
 p = axs["time"].barh(
-    "sparse", times.times["sparse occupied eigsh"], height=0.5, alpha=0.6
+    "sparse",
+    np.mean(times.times["sparse occupied eigsh"]),
+    height=0.7,
+    alpha=0.6,
+    xerr=np.std(times.times["sparse occupied eigsh"]),
 )
 axs["time"].bar_label(p, labels=(r"$\mathrm{Sparse}$",), label_type="center")
 
@@ -246,16 +257,6 @@ axs["time"].set_yticklabels([])
 axs["time"].set_xticks([0, 0.5, 1, 1.5])
 axs["time"].set_xticklabels([r"$0$", r"$1/2$", r"$1$", r"$3/2$"])
 axs["time"].set_xlabel(r"$\textrm{Time (s)}$")
-axs["time"].set_xlim(0, times.times["sparse occupied eigsh"][0])
+axs["time"].set_xlim(0, 1.4)
 
 fig.savefig("../figures/benchmark_bandstructure.pdf", bbox_inches="tight")
-
-
-# %%
-fig, ax = plt.subplots(figsize=(figwidth, figwidth / 2))
-for t_label, t in times.times.items():
-    ax.barh(t_label, np.mean(t), label=t_label, height=0.5)
-ax.set_xlim(0, 1.5)
-
-
-# %%
