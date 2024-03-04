@@ -98,7 +98,7 @@ ax.text(
     rotation=90,
 )
 
-fig.savefig("../figures/benchmark_lattice.pdf", bbox_inches="tight")
+fig.savefig("../figures/QD_lattice.pdf", bbox_inches="tight")
 # %%
 sysf = syst.finalized()
 params = dict(mu_n=0.05, mu_sc=0.3, Delta=0.05, t=1.0, t_barrier=0.0)
