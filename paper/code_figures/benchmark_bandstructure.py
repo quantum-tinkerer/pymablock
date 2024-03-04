@@ -216,7 +216,7 @@ for label in mosaic[0]:
         linewidth=1.2,
     )
     axs[label].set_title(rf"$O(\delta \mu^{label[-1]})$")
-    axs[label].set_ylim(-0.002, 0.073)
+    axs[label].set_ylim(-0.002, 0.075)
     axs[label].set_xlim(0, mu_max)
     axs[label].set_xlabel(r"$\delta \mu$")
     axs[label].set_yticks([])

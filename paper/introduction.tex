@@ -6,10 +6,13 @@
 space of interest to a low energy one.}
 Effective models enable the study of complex physical systems by reducing the
 dimensionality of the Hilbert space.
-The effective subspace and the remaining Hilbert space are decoupled and
-separated by an energy gap.
-As a consequence, the physics of the effective model are sufficient to describe
-the low energy properties of the original system.
+Their construction separates the effective subspace from the remaining Hilbert
+space, such that low and high energy states are decoupled and separated by an
+energy gap.
+As a consequence, an effective model is sufficient to describe the low energy
+properties of the original system while also being easier to handle, because
+its eigenvalues and eigenvectors are approximate solutions to the complete
+Hamiltonian.
 
 \co{To find an effective Hamiltonian, we use perturbative approaches, like a SW
 transformation or Lowdin perturbation theory.}
@@ -17,10 +20,10 @@ Common approaches to construct an effective Hamiltonian are the Schrieffer--Wolf
 Schrieffer--Wolff transformation
 \cite{Schrieffer_1966}, \cite{Bravyi_2011}
 and Lowdin partitioning \cite{White_1950}.
-Both methods are perturbative and, as input, they take a Hamiltonian and a
-perturbation, together with the subspaces to decouple.
+Both methods are perturbative and, as input, they take a gapped Hamiltonian and
+a perturbation, together with the subspaces to decouple.
 Then, they find the unitary transformation that block-diagonalizes the
-Hamiltonian for each perturbative order recursively.
+Hamiltonian for each perturbative order.
 These methods are standard when working with superconducting circuits,
 quantum dot physics, density functional theory, k.p models, and other
 systems where the physics of interest lies in the low energy states.
@@ -29,27 +32,29 @@ systems where the physics of interest lies in the low energy states.
 expensive, scaling poorly for large systems and high orders.}
 Constructing an effective Hamiltonian, is however, a computationally expensive
 task.
-This is a consequence of the exponential parametrization of the unitary
-transformation in a Schrieffer--Wolff transformation, which requires computing
+This is a consequence of the recursive equations that define the unitary
+transformation, which require several matrix products per order.
+For example, the exponential parametrization of the unitary
+transformation in a Schrieffer--Wolff transformation requires computing
 an exponentially growing number of matrix products per order.
 Big systems, like those of many-body physics, bosonic Hamiltonians, and
 otherwise large Hilbert spaces, are thus expensive to compute.
 Similarly, high orders and combined perturbations are also costly, because they
-require computing all the terms of the previous orders too.
+require computing all the terms of smaller orders too.
 Aside from the scaling, a Schrieffer--Wolff transformation also requires
-truncating the results, effectively wasting computational resources.
+truncating the expansion for the transformed Hamiltonian, effectively wasting
+computational resources.
 
 \co{We develop an efficient algorithm capable of symbolic and numeric
 computations and make it available in Pymablock.}
 In this work, we introduce an algorithm to construct effective models
-efficiently.
+efficiently, making it possible to find effective models for systems with
+thousands of degrees of freedom in a personal computer.
 Our algorithm scales linearly with the perturbative order, does not require
 truncating the outputs, and treats multiple perturbations independently.
-Its performance makes it possible to find effective Hamiltonians for a variety
-of systems, numerical and symbolic, and with several perturbations.
 We make the algorithm available via the open source package Pymablock, for
 Python matrix block diagonalization of Hamiltonians, a versatile tool for
-the study of complex physical systems.
+the study of numerical and symbolic models.
 
 \co{Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
 and finds a minimal unitary transformation that separates its subspaces.}

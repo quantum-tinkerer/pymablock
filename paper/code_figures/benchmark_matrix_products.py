@@ -45,10 +45,10 @@ def eval_offdiagonal_every_order(*index):
 
 
 evals = {
-    "dense_first_order": eval_dense_first_order,
-    "dense_every_order": eval_dense_every_order,
-    "offdiagonal_first_order": eval_offdiagonal_first_order,
-    "offdiagonal_every_order": eval_offdiagonal_every_order,
+    r"$\mathcal{H}'_a$": eval_dense_first_order,
+    r"$\mathcal{H}'_b$": eval_dense_every_order,
+    r"$\mathcal{H}'_c$": eval_offdiagonal_first_order,
+    r"$\mathcal{H}'_d$": eval_offdiagonal_every_order,
 }
 # %%
 multiplication_counts = {}
@@ -71,24 +71,29 @@ for structure in evals.keys():
             call[1] for call in AlgebraElement.log
         )["__mul__"]
 # %%
-fig, ax = plt.subplots(figsize=(figwidth / 2, figwidth))
+mosaic = [["A", "B"]]
+fig, ax = plt.subplot_mosaic(mosaic, figsize=(figwidth, figwidth / 3))
+
 for structure, counts in multiplication_counts.items():
-    ax.plot(
+    ax["A"].plot(
         list(counts.keys()),
         list(counts.values()),
         label=None,
         linestyle="--",
         alpha=0.3,
+        linewidth=1,
     )
-    ax.scatter(
+    ax["A"].scatter(
         list(counts.keys()),
         list(counts.values()),
         label=structure,
+        s=20,
     )
-ax.set_xlabel(r"$\textrm{Order of } \tilde{\mathcal{H}}^{AA}$")
-ax.set_ylabel(r"$\# \textrm{ Multiplications}$")
-ax.legend(frameon=False, loc="upper left")
-ax.spines["right"].set_visible(False)
-ax.spines["top"].set_visible(False)
+
+ax["A"].set_xlabel(r"$\textrm{Order of } \tilde{\mathcal{H}}^{AA}$")
+ax["A"].set_ylabel(r"$\# \textrm{ Matrix products}$")
+ax["A"].legend(frameon=False, loc="upper left")
+ax["A"].spines["right"].set_visible(False)
+ax["A"].spines["top"].set_visible(False)
 fig.savefig("../figures/benchmark_matrix_products.pdf", bbox_inches="tight")
 # %%

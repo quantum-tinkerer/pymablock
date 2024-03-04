@@ -1,6 +1,5 @@
 \section{Algorithm for block diagonalization}
 
-
 \subsection{Problem statement}
 
 Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use
@@ -322,15 +321,15 @@ we do not know yet.
 To find it, we first focus on its anti-Hermitian part, $\mathcal{Z}$.
 Since recurrence relations are expressions whose right hand side contains
 Cauchy products between series, we need to find a way to make a product appear.
-This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U} =
--\mathcal{U}'^\dagger \mathcal{U}$ comes in handy and gives:
+This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
+-\mathcal{U}'^\dagger \mathcal{U}'$ comes in handy and gives:
 %
 \begin{align}
 \label{eq:Z}
 \mathcal{Z}
-&= \frac{1}{2} (\mathcal{X} + \mathcal{X}^{\dagger}) \\
+&= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \\
 &= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
-&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}') \mathcal{U}' \Big] \\
+&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \\
 &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
 \end{align}
 %
@@ -363,7 +362,7 @@ $\mathcal{V}$ as a solution of:
 a \href{https://en.wikipedia.org/wiki/Sylvester_equation}{Sylvester's equation},
 which we only need to solve once for every new order.
 In the eigenbasis of $H_0$, the solution of Sylvester's equation is
-$V^{AB}_{ij} = Y^{AB}_{ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of
+$V^{AB}_{\mathbf{n}, ij} = Y^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of
 $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient
 algorithms to solve Sylvester's equation, see below.
@@ -444,9 +443,9 @@ We use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite
 the Hamiltonian as
 %
 \begin{align}
-H \to \begin{pmatrix}
-\Psi_A^\dagger H \Psi_A & \Psi_A^\dagger H P_B \\
-P_B H \Psi_A & P_B H P_B
+\mathcal{H} \to \begin{pmatrix}
+\Psi_A^\dagger \mathcal{H} \Psi_A & \Psi_A^\dagger \mathcal{H} P_B \\
+P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
 \end{pmatrix},
 \end{align}
 %
@@ -454,9 +453,9 @@ where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
 This Hamiltonian is larger in size than the original one because the $B$ block has
 additional null vectors corresponding to the $A$ subspace.
 This, however, allows to preserve the sparsity structure of the Hamiltonian by applying
-$P_B$ and $H$ separately.
+$P_B$ and $\mathcal{H}$ separately.
 Additionally, applying $P_B$ is efficient because $\Psi_A$ is a low rank matrix.
-We then perform perturbation theory of the rewritten $H$.
+We then perform perturbation theory of the rewritten $\mathcal{H}$.
 
 To solve the Sylvester's equation for the modified Hamiltonian, we write it for
 every row of $V_n^{AB}$ separately:
