@@ -37,10 +37,8 @@ $$
 \mathcal{C} = \mathcal{A}\mathcal{B} \Leftrightarrow C_\mathbf{n} = \sum_{\mathbf{m} + \mathbf{p} = \mathbf{n}} A_\mathbf{m} B_\mathbf{p}.
 $$
 %
-
-The Cauchy product is the most expensive operation in perturbation theory,
-because it involves a large number of multiplications between potentially large
-matrices.
+This product is the most expensive operation in perturbation theory, because it
+involves a large number of multiplications between potentially large matrices.
 For example, evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires
 $\sim\prod_i n_i = N$ multiplications of the series elements.
 A direct computation of all the possible index combinations in a product
@@ -66,7 +64,6 @@ We are searching for a procedure that satisfies two additional constraints:
 %
 The goal of our algorithm is thus to be efficient and to produce compact
 results that do not require further simplifications.
-
 \subsection{Existing solutions}
 \co{Pymablock's algorithm does not use the Schrieffer-Wolff transformation,
 because the former is inefficient.}
@@ -135,10 +132,19 @@ simplifications.
 
 \co{The existing algorithms with linear scaling are not suitable for the
 construction of an effective Hamiltonian.}
-Despite the conceptual equivalence of the algorithms and the agreement of
-their results, there is a crucial difference in their computational efficiency:
-a Schrieffer-Wolff transformation has an exponential scaling with the
-perturbative order, but it can be reduced to a linear one.
+Despite the conceptual equivalence of the algorithms and the agreement of their
+results, there is a crucial difference in their computational efficiency: a
+Schrieffer-Wolff transformation has an exponential scaling with the
+perturbative order, but it can be reduced.
+C. Bloch's perturbation theory \cite{Bloch_1958}, for example,
+aims to find a similarity transform that brings the Hamiltonian to a
+block-triangular form, losing its Hermiticity and orhogonality properties.
+The iterative procedure to find the similarity transform requires computing
+fewer expressions for the series elements than the Schrieffer-Wolff
+transformation \cite{Bravyi_2011}, and the effective Hamiltonian is more
+compact.
+However, the algorithm is only useful to obtain the spectrum of the low energy
+subspace, not its wavefunctions.
 Reference \cite{Li_2022}, for example, introduces an
 algorithm with linear scaling for diagonalization of a single state by
 reformulating the recursive steps of the Schrieffer-Wolff transformation.
@@ -158,6 +164,8 @@ $\mathcal{D}^2 = \mathcal{D}$ and $[\mathcal{H}, \mathcal{D}]=0$.
 This approach, however, does not provide an effective Hamiltonian, and even
 though it has a linear scaling, it deals with the entire Hilbert space, not
 only the low energy subspace.
+We thus identify the need for an algorithm that combines linear scaling with
+the ability to construct an effective Hamiltonian.
 
 \subsection{Our solution}
 
@@ -175,8 +183,8 @@ and obtain
 %
 \begin{align}
 \label{eq:W}
-\mathcal{W} &= \frac{1}{2}(\mathcal{U}'^\dagger + \mathcal{U}') \\
-  &= \frac{1}{2} \Big[(1 + \mathcal{U}'^\dagger)(1+\mathcal{U}') - 1 - \mathcal{U}'^\dagger \mathcal{U}' \Big] \\
+\mathcal{W} &= \frac{1}{2}(\mathcal{U}'^\dagger + \mathcal{U}') \nonumber \\
+  &= \frac{1}{2} \Big[(1 + \mathcal{U}'^\dagger)(1+\mathcal{U}') - 1 - \mathcal{U}'^\dagger \mathcal{U}' \Big] \nonumber \\
   &= -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
 \end{align}
 %
@@ -189,21 +197,18 @@ and $\mathcal{B}$ have no $0$-th order terms depends on $\mathcal{A}_1, \ldots,
 This allows us to use Cauchy products to define recurrence relations, which
 we apply throughout the algorithm.
 Therefore, we compute $\mathcal{W}$ as a Cauchy product of $\mathcal{U}'$ with
-itself.
-\textbf{This recurrence relation is the first secret ingredient of Pymablock.}
+itself \footnotemark[1].
 
-
-\textbf{Choosing the right definition for $\mathcal{W}$}
-
+\footnotetext[1]{
 Using the definition of $\mathcal{W}$ as the Hermitian part of $\mathcal{U}'$,
 and the unitarity condition:
 %
-\begin{align}
+$$
 2\mathcal{W}
 = \mathcal{U}' + \mathcal{U}'^\dagger
 = -\mathcal{U}'^\dagger \mathcal{U}'
 = -\mathcal{W}^2 + \mathcal{V}^2.
-\end{align}
+$$
 %
 we see that we could alternatively define $\mathcal{W}$ as a Taylor series in
 $\mathcal{V}$:
@@ -227,17 +232,19 @@ We improve on this by defining a new series as $\mathcal{A}^{n+1} =
 \mathcal{A}\mathcal{A}^{n}$ and reusing the previously computed results, which
 brings these costs down to $\sim N^2$.
 Using the Taylor expansion approach is therefore both more complicated and more
-computationally expensive than the recurrent definition in {eq}`W`.
+computationally expensive than the recurrent definition in \ref{eq:W}.
+}
 
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined
 by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
 Additionally, we constrain $\mathcal{V}$ to be block off-diagonal:
 $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
 so that the resulting unitary transformation is equivalent to the
-Schrieffer-Wolff transformation.
+Schrieffer-Wolff transformation \footnotemark[2].
 In turn, this means that $\mathcal{W}$ is block-diagonal and that the norm
 of $\mathcal{U}'$ is minimal.
 
+\footnotetext[2]{
 \textbf{Equivalence to Schrieffer-Wolff transformation}
 Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
 transformation find a unitary transformation $\mathcal{U}$ such that
@@ -246,11 +253,9 @@ They are therefore equivalent up to a gauge choice in each subspace, $A$ and
 $B$.
 We establish the equivalence between the two by demonstrating that this gauge
 choice is the same for both algorithms.
-%
 The Schrieffer-Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$,
 where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} =
 \mathcal{S}^{BB} = 0$.
-%
 The series $\exp\mathcal{S}$ contains all possible products of $S_n$ of all
 lengths with fractional prefactors.
 For every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a corresponding term
@@ -261,23 +266,24 @@ Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
 other, and therefore their sum is Hermitian.
 On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
 block off-diagonal and their sum is anti-Hermitian by the same reasoning.
-%
 Therefore, just like in our algorithm, the diagonal blocks of $\exp S$ are
 Hermitian, while off-diagonal blocks are anti-Hermitian.
 Schrieffer-Wolff transformation produces a unique answer and satisfies the same
 diagonalization requirements as our algorithm, which means that the two are
 equivalent.
-%
+}
+
+\co{We find V and the transformed Hamiltonian.}
 To find $\mathcal{V}$, we need to first look at the transformed Hamiltonian:
 %
-$$
+\begin{align}
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = H_0 +
 \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0
 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
-$$
+\end{align}
+%
 where we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = H_0 +
 \mathcal{H'}$.
-%
 Because we want to avoid unnecessary products by $H_0$, we need to get rid of
 the terms that contain it by replacing them with an alternative expression.
 Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can
@@ -306,10 +312,10 @@ to the right and find
 \label{eq:H_tilde}
   \tilde{\mathcal{H}}
   &= H_0 + \mathcal{U}'^\dagger H_0 + (H_0 \mathcal{U}') + \mathcal{U}'^\dagger H_0
-  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H'}\mathcal{U})
+  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H'}\mathcal{U}) \nonumber
   \\
-  &= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
-  &= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
+  &= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} \nonumber \\
+  &= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} \nonumber \\
   &= H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
 \end{align}
 %
@@ -321,22 +327,21 @@ we do not know yet.
 To find it, we first focus on its anti-Hermitian part, $\mathcal{Z}$.
 Since recurrence relations are expressions whose right hand side contains
 Cauchy products between series, we need to find a way to make a product appear.
-This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
--\mathcal{U}'^\dagger \mathcal{U}'$ comes in handy and gives:
+We do so by using the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
+-\mathcal{U}'^\dagger \mathcal{U}'$ to rewrite $\mathcal{Z}$:
 %
 \begin{align}
 \label{eq:Z}
 \mathcal{Z}
-&= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \\
-&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
-&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \\
+&= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \nonumber \\
+&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \nonumber \\
+&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \nonumber \\
 &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
 \end{align}
 %
-Similar to computing $\mathcal{W_n}$, computing $\mathcal{Z_n}$ requires lower
-orders of $\mathcal{X}$ and $\mathcal{U}'$, all blocks included.
-\textbf{This is our second secret ingredient.}
-%
+Similar to computing $W_{\mathbf{n}}$, computing $Z_{\mathbf{n}}$ requires lower orders of
+$\mathcal{X}$ and $\mathcal{U}'$, all blocks included.
+This defines a recursive relation for $\mathcal{Z}$.
 Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that
 $\tilde{\mathcal{H}}^{AB} = 0$ and find
 %
@@ -349,7 +354,6 @@ $\tilde{\mathcal{H}}^{AB} = 0$ and find
 Once again, despite $\mathcal{X}$ enters the right hand side, because all the
 terms lack \nth{0} order, this defines a recursive relation for $\mathcal{X}^{AB}$,
 and therefore $\mathcal{Y}$.
-\textbf{This is our last secret ingredient}
 
 The final part is standard: the definition of $\mathcal{Y}$ in \eqref{eq:XYZ} fixes
 $\mathcal{V}$ as a solution of:
@@ -359,8 +363,7 @@ $\mathcal{V}$ as a solution of:
 \mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB},
 \end{align}
 %
-a \href{https://en.wikipedia.org/wiki/Sylvester_equation}{Sylvester's equation},
-which we only need to solve once for every new order.
+a Sylvester's equation, which we only need to solve once for every new order.
 In the eigenbasis of $H_0$, the solution of Sylvester's equation is
 $V^{AB}_{\mathbf{n}, ij} = Y^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of
 $H_0$.
@@ -382,8 +385,8 @@ We now have the complete algorithm:
      \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
     \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}$.
 \end{enumerate}
-%
-\textbf{Extra optimization: common subexpression elimination}
+
+\subsection{Extra optimization: common subexpression elimination}
 %
 We further optimize the algorithm by reusing products that are needed in several
 places.
@@ -409,38 +412,43 @@ To further optimize the computations, we observe that some products appear both 
 %
 To reuse these products, we separate the perturbation into diagonal and off-diagonal parts $\mathcal{H}' = \mathcal{H}'_\textrm{diag} + \mathcal{H}'_\textrm{offdiag}$.
 %
-We then introduce variables $\mathcal{A} = \mathcal{H}'_\textrm{diag} \mathcal{U}'$, $\mathcal{B} = \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$, and $\mathcal{C} = \mathcal{X} -
-\mathcal{H}'_\textrm{offdiag}$.
+We then introduce variables
+%
+\begin{align}
+\mathcal{A} = \mathcal{H}'_\textrm{diag} \mathcal{U}', \quad
+\mathcal{B} = \mathcal{H}'_\textrm{offdiag} \mathcal{U}', \quad
+\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag}
+\end{align}
+%
 This gives an updated expression for $\mathcal{Z}$:
 %
-$$
-\mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.}.
-$$
+\begin{align}
+\label{eq:Z_optimized}
+\mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.},
+\end{align}
 %
 and more importantly for $\tilde{\mathcal{H}}$:
 %
-$$
+\begin{align}
+\label{eq:H_tilde_optimized}
 \tilde{\mathcal{H}} = H_0 + \mathcal{A} + \mathcal{A}^\dagger + (\mathcal{B} + \mathcal{B}^\dagger)/2 + \mathcal{U}'^\dagger (\mathcal{A} + \mathcal{B}) - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
-$$
+\end{align}
 
-\subsection{How to use Pymablock on large numerical Hamiltonians?}
+\subsection{Implicit method for large Hamiltonians}
+
 Solving Sylvester's equation and computing the matrix products are the most
 expensive steps of the algorithms for large Hamiltonians.
 Pymablock can efficiently construct an effective Hamiltonian of a small
 subspace even when the full Hamiltonian is a sparse matrix that is too costly to
 diagonalize.
 It does so by avoiding explicit computation of operators in $B$ subspace, and by
-utilizing the sparsity of the Hamiltonian to compute the Green's function. To do so,
-Pymablock uses either the
-\href{https://mumps-solver.org/}{MUMPS sparse solver} via the
-\href{https://gitlab.kwant-project.org/kwant/python-mumps/}{python-mumps} wrapper or the
-\href{https://doi.org/10.1103/RevModPhys.78.275}{KPM method}.
-This approach was originally introduced in [this
-work](https://arxiv.org/abs/1909.09649).
+utilizing the sparsity of the Hamiltonian to compute the Green's function.
+To do so, Pymablock uses either the MUMPS sparse solver via the python-mumps
+wrapper or the KPM method, an approach originally introduced in
+\cite{Irfan_2019}.
 
-\textbf{Implementation details}
-We use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite
-the Hamiltonian as
+To implement this, we use the matrix $\Psi_A$ of the eigenvectors of the $A$
+subspace to rewrite the Hamiltonian as
 %
 \begin{align}
 \mathcal{H} \to \begin{pmatrix}
