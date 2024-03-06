@@ -27,7 +27,16 @@ A \mintinline{python}|BlockSeries| is a Python object equipped with a function
 to compute its elements and a dictionary to cache the results.
 For example, the \mintinline{python}|BlockSeries| for $\tilde{\mathcal{H}}$ has
 a function that computes the block-wise multivariate Cauchy product in
-Eq.~\eqref{eq:H_tilde_optimized}.
+Eq.~\eqref{eq:H_tilde_optimized}, \mintinline{python}|compute_H_tilde|.
+%
+\begin{minted}{python}
+    H_tilde = BlockSeries(
+        shape=(2, 2), # 2 blocks
+        n_infinite=1, # number of perturbative parameters
+        eval=compute_H_tilde,
+    )
+\end{minted}
+%
 To get the elements of the series, we implement Numpy array indexing,
 which allows us to request several elements at once by using tuples and slices.
 \mintinline{python}|H_tilde[0, 0, 2]| returns the $AA$ block of
@@ -70,10 +79,35 @@ skipped beforehand.
 
 \co{To deal with an implicit B subspace, we use MUMPS and LinearOperators.}
 Because \mintinline{python}|BlockSeries| can represent any input type, we use
-it to directly implement the \mintinline{python}{implicit} algorithm.
-To do so, we construct a \mintinline{python}|BlockSeries| with the block structure in Equation
-(\ref{H_implicit}), and wrap the projector $P_B$ by a \mintinline{python}{LinearOperator} object
-from \mintinline{python}{Scipy}.
+it to directly implement the implicit algorithm for large sparse Hamiltonians.
+To do this, we use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace
+to rewrite the Hamiltonian as
+%
+\begin{align}
+\mathcal{H} \to \begin{pmatrix}
+\Psi_A^\dagger \mathcal{H} \Psi_A & \Psi_A^\dagger \mathcal{H} P_B \\
+P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
+\end{pmatrix},
+\end{align}
+%
+where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
+This Hamiltonian is larger in size than the original one because the $B$ block
+has additional null vectors corresponding to the $A$ subspace.
+This, however, allows to preserve the sparsity structure of the Hamiltonian by
+applying $P_B$ and $\mathcal{H}$ separately.
+Additionally, applying $P_B$ is efficient because $\Psi_A$ is a low rank matrix.
+We then perform perturbation theory of the rewritten $\mathcal{H}$.
+To solve the Sylvester's equation for the modified Hamiltonian, we write it for
+every row of $V_n^{AB}$ separately:
+%
+\begin{align}
+V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
+\end{align}
+%
+This equation is well-defined despite $E_i - H_0$ is not invertible because
+$Y_{n}$ has no components in the $A$ subspace.
+Here we also wrap the projector $P_B$ by a \mintinline{python}{LinearOperator}
+object from \mintinline{python}{Scipy}.
 This allows us to compute matrix-vector products between $P_B$ and a vector,
 without explicitly constructing $P_B$ or any other product between elements of
 the $B$ subspace, keeping the memory usage low.
@@ -82,23 +116,22 @@ For the same purpose, we use the MUMPS sparse solver
 \cite{Amestoy_2006}, or the KPM method
 \cite{Wei_e_2006}, to compute the Green's function of the
 $B$ subspace.
-As a consequence, the \mintinline{python}{implicit} algorithm can be used on matrices with
-millions of degrees of freedom as long as they are sparse.
-\todo{Move the implicit implementation over here?}
+As a consequence, the implicit algorithm can be used on matrices with millions
+of degrees of freedom as long as they are sparse.
 
 \co{Finally, we implement an overall function that interprets the user inputs and
 returns a BlockSeries for the transformed Hamiltonian.}
-On the other hand, the \mintinline{python}{general} and \mintinline{python}{expanded} algorithms explicitly
-manipulate both subspaces, but can work with dense matrices too.
+On the other hand, the standard algorithm explicitly manipulates both subspaces,
+but can work with dense matrices too.
 We use the eigenvectors of the $A$ and $B$ subspaces to project the input
-Hamiltonian and represent it with a \mintinline{python}|BlockSeries|, a procedure that works for
-numerical and symbolic matrices.
+Hamiltonian and represent it with a \mintinline{python}|BlockSeries|, a
+procedure that works for numerical and symbolic matrices.
 Because we aim for an easy-to-use interface, we implement a function that
-interprets the user inputs and decides which algorithm to use: \mintinline{python}{expanded}
-for symbolic matrices, \mintinline{python}{general} for numerical matrices, and \mintinline{python}{implicit} if
-only the $A$ subspace is provided.
+interprets the user inputs and decides which algorithm to use: the implicit
+method if only the $A$ subspace is provided, and the standard algorithm
+otherwise.
 This is \mintinline{python}|block_diagonalize|, the only function that the user
 needs to call.
-By default, \mintinline{python}|block_diagonalize| uses a default function to
-solve Sylvester's equation if $H_0$ is diagonal, but the user can provide a
-custom one instead.
+If $H_0$ is diagonal and a custom function to solve Sylvester's equation is not
+provided to \mintinline{python}|block_diagonalize|, Pymablock uses a default
+function to compute the energy denominators.

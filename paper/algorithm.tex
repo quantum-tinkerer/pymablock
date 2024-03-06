@@ -230,14 +230,7 @@ $$
 $$
 %
 however the scaling of such a Cauchy product becomes slower if we need to
-compute a Taylor expansion of a series:
-%
-$$
-f(\mathcal{A}) = \sum_{n=0}^\infty a_n \mathcal{A}^n.
-$$
-%
-However, evaluating a Taylor expansion of a given series has a higher scaling
-of complexity.
+compute a Taylor expansion of a series.
 A direct computation of all possible products of terms would require $\sim \exp
 N$ multiplications.
 We improve on this by defining a new series as $\mathcal{A}^{n+1} =
@@ -455,37 +448,9 @@ expensive steps of the algorithms for large Hamiltonians.
 Pymablock can efficiently construct an effective Hamiltonian of a small
 subspace even when the full Hamiltonian is a sparse matrix that is too costly to
 diagonalize.
-It does so by avoiding explicit computation of operators in $B$ subspace, and by
-utilizing the sparsity of the Hamiltonian to compute the Green's function.
+It does so by avoiding explicit computation of operators in $B$ subspace, and
+by utilizing the sparsity of the Hamiltonian to compute the Green's function,
+which is the solution of Sylvester's equation.
 To do so, Pymablock uses either the MUMPS sparse solver via the python-mumps
 wrapper or the KPM method, an approach originally introduced in
 \cite{Irfan_2019}.
-
-\todo{Consider whether to move this to implementation.}
-To implement this, we use the matrix $\Psi_A$ of the eigenvectors of the $A$
-subspace to rewrite the Hamiltonian as
-%
-\begin{align}
-\mathcal{H} \to \begin{pmatrix}
-\Psi_A^\dagger \mathcal{H} \Psi_A & \Psi_A^\dagger \mathcal{H} P_B \\
-P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
-\end{pmatrix},
-\end{align}
-%
-where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
-This Hamiltonian is larger in size than the original one because the $B$ block has
-additional null vectors corresponding to the $A$ subspace.
-This, however, allows to preserve the sparsity structure of the Hamiltonian by applying
-$P_B$ and $\mathcal{H}$ separately.
-Additionally, applying $P_B$ is efficient because $\Psi_A$ is a low rank matrix.
-We then perform perturbation theory of the rewritten $\mathcal{H}$.
-
-To solve the Sylvester's equation for the modified Hamiltonian, we write it for
-every row of $V_n^{AB}$ separately:
-%
-\begin{align}
-V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
-\end{align}
-%
-This equation is well-defined despite $E_i - H_0$ is not invertible because
-$Y_{n}$ has no components in the $A$ subspace.
