@@ -12,8 +12,8 @@ color_cycle = ["#5790fc", "#f89c20", "#e42536"]
 # %%
 figwidth = matplotlib.rcParams["figure.figsize"][0]
 # %%
-sigma_z = tiniarray.array([[1, 0], [0, -1]], float)
-sigma_x = tiniarray.array([[0, 1], [1, 0]], float)
+sigma_z = tinyarray.array([[1, 0], [0, -1]], float)
+sigma_x = tinyarray.array([[0, 1], [1, 0]], float)
 
 syst = kwant.Builder()
 lat = kwant.lattice.square(norbs=2)
@@ -69,6 +69,7 @@ ax.text(
     ha="center",
     va="center",
     transform=ax.transAxes,
+    backgroundcolor="white",
 )
 ax.text(
     0.2,
@@ -77,6 +78,7 @@ ax.text(
     ha="center",
     va="center",
     transform=ax.transAxes,
+    backgroundcolor="white",
 )
 ax.text(
     0.8,
@@ -85,6 +87,7 @@ ax.text(
     ha="center",
     va="center",
     transform=ax.transAxes,
+    backgroundcolor="white",
 )
 
 ax.text(0.5, -0.1, rf"$L={L}$", ha="center", va="center", transform=ax.transAxes)

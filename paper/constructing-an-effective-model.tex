@@ -197,24 +197,24 @@ Hamiltonian of the low energy degrees of freedom only.
 To get the unperturbed Hamiltonian, we use the following values for $\mu_n$,
 $\mu_{sc}$, $\Delta$, $t$, and $t_{\text{barrier}}$.
 %
-\inputminted[firstline=103, lastline=104]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=106, lastline=107]{ipython}{code_figures/lattice_system.py}
 %
 The barrier strength and the asymmetry of the dot potentials are the two
 perturbations that we vary.
 %
-\inputminted[firstline=106, lastline=111]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=109, lastline=114]{ipython}{code_figures/lattice_system.py}
 
 Since the Hamiltonian is large and we are only interested in the low energy
 subspace, it is sufficient to compute the 4 lowest orthonormal eigenvectors of
 the unperturbed Hamiltonian.
 These are the lowest energy Andreev states in the two quantum dots.
 %
-\inputminted[firstline=113, lastline=114]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=116, lastline=117]{ipython}{code_figures/lattice_system.py}
 %
 We now define the block diagonalization routine using the implicit method,
 which we call by providing the set of vectors of the interesting subspace only.
 %
-\inputminted[firstline=116, lastline=116]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=119, lastline=119]{ipython}{code_figures/lattice_system.py}
 %
 Block diagonalization is now the most time consuming step because it requires
 pre-computing several decompositions of the full Hamiltonian.
@@ -223,13 +223,13 @@ It is, however, manageable and it only produces a constant overhead.
 To compute the spectrum, we collect the lowest three orders in each parameter
 in an appropriately sized tensor.
 %
-\inputminted[firstline=118, lastline=121]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=121, lastline=124]{ipython}{code_figures/lattice_system.py}
 %
 This takes a few seconds to compute, and we can now compute the low energy
 spectrum after rescaling the perturbative corrections by the magnitude of each
 perturbation.
 %
-\inputminted[firstline=124, lastline=129]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=127, lastline=132]{ipython}{code_figures/lattice_system.py}
 %
 Finally, we plot the spectrum.
 %
