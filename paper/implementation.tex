@@ -12,34 +12,38 @@ Manipulating blocks also allows to compute the effective Hamiltonian without
 explicitly constructing the full Hamiltonian, which is useful for Hamiltonians
 with a large $BB$ subspace that is costly to store and compute.
 To run the recursion, the series needs to be queryable by order and block.
-This is useful in cases where the user may want terms that combine different
-perturbations, or when the user wants to compute more terms than originally
-requested.
+This is also useful in cases where the user may want terms that combine
+different perturbations, or when the user wants to compute more terms than
+originally requested.
 Lastly, the data structure needs to support a block-wise multivariate Cauchy
 product, which is the main operation in the recursion and is used to compute
 the transformed Hamiltonian.
 
 \co{We address this by defining a BlockSeries class.}
-To address these requirements, we define a \mintinline{python}|BlockSeries| Python class and use
-it to represent the series of $\mathcal{U}$, $\mathcal{H}$, and
-$\tilde{\mathcal{H}}$.
-A \mintinline{python}|BlockSeries| is a Python object equipped with a function to compute its
-elements and a dictionary to cache the results.
-For example, the \mintinline{python}|BlockSeries| for $\tilde{\mathcal{H}}$ has a function that
-computes the block-wise multivariate Cauchy product of $\mathcal{U}^{\dagger}
-\mathcal{H} \mathcal{U}$.
+To address these requirements, we define a \mintinline{python}|BlockSeries|
+Python class and use it to represent the series of $\mathcal{U}$,
+$\mathcal{H}$, and $\tilde{\mathcal{H}}$.
+A \mintinline{python}|BlockSeries| is a Python object equipped with a function
+to compute its elements and a dictionary to cache the results.
+For example, the \mintinline{python}|BlockSeries| for $\tilde{\mathcal{H}}$ has
+a function that computes the block-wise multivariate Cauchy product in
+Eq.~\eqref{eq:H_tilde_optimized}.
 To get the elements of the series, we implement Numpy array indexing,
 which allows us to request several elements at once by using tuples and slices.
-In this case, the \mintinline{python}|BlockSeries| returns a masked array that only contains
-non-zero elements, a feature that we use each time we compute the Cauchy
-products between series, avoiding unnecessary operations.
+\mintinline{python}|H_tilde[0, 0, 2]| returns the $AA$ block of
+$\tilde{\mathcal{H}}$ at order 2 in the perturbation, and
+\mintinline{python}|H_tilde[0, 0, :3]| returns the $AA$ block of all orders up
+to 2 in a Numpy masked array.
+In the latter, the masked array only contains non-zero elements, a feature that
+we use each time we compute the Cauchy products between series, avoiding
+unnecessary operations.
 
 \co{Using the BlockSeries interface allows us to implement a range of
 optimizations that go beyond directly implementing the polynomial
 parametrization}
-Not only does the \mintinline{python}|BlockSeries| interface allow us to implement the polynomial
-parametrization of the unitary transformation, but also several other
-optimizations.
+Not only does the \mintinline{python}|BlockSeries| interface allow us to
+implement the polynomial parametrization of the unitary transformation, but
+also several other optimizations.
 For example, we exploit Hermiticity when computing the Cauchy product of the
 diagonal blocks of $\mathcal{U}$ and $\tilde{\mathcal{H}}$, because we only
 compute half of the matrix products and then complex conjugate the result to
@@ -62,10 +66,11 @@ work.
 Such an extension would be useful for systems where $\mathcal{U}$ or
 $\tilde{\mathcal{H}}$ vanish due to symmetries, so that the zero blocks can be
 skipped beforehand.
+\todo{Remove this paragraph?}
 
 \co{To deal with an implicit B subspace, we use MUMPS and LinearOperators.}
-Because \mintinline{python}|BlockSeries| can represent any input type, we use it to directly
-implement the \mintinline{python}{implicit} algorithm.
+Because \mintinline{python}|BlockSeries| can represent any input type, we use
+it to directly implement the \mintinline{python}{implicit} algorithm.
 To do so, we construct a \mintinline{python}|BlockSeries| with the block structure in Equation
 (\ref{H_implicit}), and wrap the projector $P_B$ by a \mintinline{python}{LinearOperator} object
 from \mintinline{python}{Scipy}.
@@ -79,6 +84,7 @@ For the same purpose, we use the MUMPS sparse solver
 $B$ subspace.
 As a consequence, the \mintinline{python}{implicit} algorithm can be used on matrices with
 millions of degrees of freedom as long as they are sparse.
+\todo{Move the implicit implementation over here?}
 
 \co{Finally, we implement an overall function that interprets the user inputs and
 returns a BlockSeries for the transformed Hamiltonian.}
@@ -91,6 +97,8 @@ Because we aim for an easy-to-use interface, we implement a function that
 interprets the user inputs and decides which algorithm to use: \mintinline{python}{expanded}
 for symbolic matrices, \mintinline{python}{general} for numerical matrices, and \mintinline{python}{implicit} if
 only the $A$ subspace is provided.
-This is \mintinline{python}|block\_diagonalize|, the only function that the user needs to call.
-By default, \mintinline{python}|block\_diagonalize| uses a default function to solve Sylvester's
-equation if $H_0$ is diagonal, but the user can provide a custom one instead.
+This is \mintinline{python}|block_diagonalize|, the only function that the user
+needs to call.
+By default, \mintinline{python}|block_diagonalize| uses a default function to
+solve Sylvester's equation if $H_0$ is diagonal, but the user can provide a
+custom one instead.
