@@ -11,7 +11,6 @@ from pymablock import block_diagonalize
 from timer import Timer
 
 # %%
-color_cycle = ["#5790fc", "#f89c20", "#e42536"]
 color_cycle_grays = matplotlib.cm.get_cmap("Greys")(np.linspace(0.1, 0.8, 20))
 figwidth = matplotlib.rcParams["figure.figsize"][0]
 
