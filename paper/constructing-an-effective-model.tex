@@ -168,7 +168,7 @@ superconductor between them.
 We use the Kwant package \cite{Groth_2014} to build the Hamiltonian of the
 system.
 In the following code, we define a square lattice of $L \times W = 200 \times
-40$ sites with 2 orbitals per unit cell.
+40$ sites with 2 orbitals per unit cell, shown in Fig.~\ref{fig:QD_lattice}.
 The lattice is divided into three regions: a quantum dot on the left, a
 superconducting region in the middle, and a quantum dot on the right.
 %
@@ -182,12 +182,6 @@ $t_{barrier}$, a parameter that we treat as a perturbation.
 We will also consider the asymmetry of the dot potentials, $\delta \mu$, as a
 perturbation.
 %
-\begin{figure}
-\centering
-\includegraphics[width=\linewidth]{figures/QD_lattice.pdf}
-\caption{Kwant system, lattice}
-\label{fig:QD_lattice}
-\end{figure}
 
 The system is large: with this many sites even storing all the eigenvectors
 would take 60 GB of memory.
@@ -197,24 +191,24 @@ Hamiltonian of the low energy degrees of freedom only.
 To get the unperturbed Hamiltonian, we use the following values for $\mu_n$,
 $\mu_{sc}$, $\Delta$, $t$, and $t_{\text{barrier}}$.
 %
-\inputminted[firstline=106, lastline=107]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=50, lastline=51]{ipython}{code_figures/lattice_system.py}
 %
 The barrier strength and the asymmetry of the dot potentials are the two
 perturbations that we vary.
 %
-\inputminted[firstline=109, lastline=114]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=53, lastline=58]{ipython}{code_figures/lattice_system.py}
 
 Since the Hamiltonian is large and we are only interested in the low energy
 subspace, it is sufficient to compute the 4 lowest orthonormal eigenvectors of
 the unperturbed Hamiltonian.
 These are the lowest energy Andreev states in the two quantum dots.
 %
-\inputminted[firstline=116, lastline=117]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=60, lastline=61]{ipython}{code_figures/lattice_system.py}
 %
 We now define the block diagonalization routine using the implicit method,
 which we call by providing the set of vectors of the interesting subspace only.
 %
-\inputminted[firstline=119, lastline=119]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=63, lastline=63]{ipython}{code_figures/lattice_system.py}
 %
 Block diagonalization is now the most time consuming step because it requires
 pre-computing several decompositions of the full Hamiltonian.
@@ -223,19 +217,19 @@ It is, however, manageable and it only produces a constant overhead.
 To compute the spectrum, we collect the lowest three orders in each parameter
 in an appropriately sized tensor.
 %
-\inputminted[firstline=121, lastline=124]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=65, lastline=68]{ipython}{code_figures/lattice_system.py}
 %
 This takes a few seconds to compute, and we can now compute the low energy
 spectrum after rescaling the perturbative corrections by the magnitude of each
 perturbation.
 %
-\inputminted[firstline=127, lastline=132]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=71, lastline=76]{ipython}{code_figures/lattice_system.py}
 %
 Finally, we plot the spectrum.
 %
 \begin{figure}[h!]
 \centering
-\includegraphics[width=\linewidth]{figures/QD_spectrum.pdf}
+\includegraphics[width=\linewidth]{figures/lattice_system.pdf}
 \caption{Low energy spectrum of the double quantum dot system.
 \todo[inline]{Fix ticks.}
 }
