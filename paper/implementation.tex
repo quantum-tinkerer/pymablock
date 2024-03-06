@@ -2,12 +2,13 @@
 
 \co{To implement the algorithms, we need a data structure that represents a
 multidimensional series of block matrices.}
-To implement the algorithms, we need a data structure that represents a
+To implement the algorithm, we need a data structure that represents a
 multidimensional series of operators, where dimensions label independent
 perturbations.
 Additionally, the data structure needs to label blocks, so that the algorithm
 supports several forms of input, e.g. dense arrays, sparse matrices, symbolic
-expressions, an implicit subspace, or a custom Python object.
+expressions, an implicit subspace, or a custom Python object that supports
+products and sums.
 Manipulating blocks also allows to compute the effective Hamiltonian without
 explicitly constructing the full Hamiltonian, which is useful for Hamiltonians
 with a large $BB$ subspace that is costly to store and compute.
