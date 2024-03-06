@@ -1,8 +1,31 @@
 \section{Constructing an effective model}
 
+To design Pymablock's algorithm, we consider scenarios in which an efficient
+procedure is needed, of which we identify two categories: problems in which one
+wants to find an interpretable effective model, and problems in which one needs
+to sample the value of an observable that is expensive to compute.
+The study of superconducting qubits, for example, lies in the first category.
+In this case, the Hamiltonian is constructed from several bosonic operators, so
+its Hilbert space is infinite-dimensional and the coupling between bosons
+makes the Hamiltonian hard to diagonalize.
+The qubits, however, are described by a few low energy states, and obtaining an
+analytical effective model is essential to interpreting their behavior, because
+it provides a clear dependence of dispersive shifts, effective couplings, and
+parasitic crosstalk couplings on the circuit's
+parameters~\cite{Li_2020,Sete_2021}.
+The same holds for circuit QED systems overall, for which computational tools
+are being actively developed~\cite{GrosGroszkowski_2021, Chitta_2022, Li_2022}.
+In the second category, we find materials and large device simulations, like
+tight-binding models of twisted bilayer graphene~\cite{Bernevig_2021} for which
+a k.p model is used, and Majorana devices~\cite{Melo_2023}, and quantum dot
+arrays.
+In these cases, we may no longer truncate the Hilbert space, and finding the
+ground state amounts to solving a sparse eigenvalue problem, which quickly
+becomes expensive due to the extensive number of sites and orbitals.
+
 Before reviewing the algorithm, we present two examples on how to use Pymablock
 to find effective models for a k.p model and a tight-binding system, with the
-purpose of illustrating the package's capabilities with symbolic Hamiltonian,
+purpose of illustrating the package's capabilities with symbolic Hamiltonians,
 large Hilbert spaces and high orders.
 
 \subsection{Pymablock workflow}
