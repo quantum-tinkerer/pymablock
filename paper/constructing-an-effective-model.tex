@@ -168,9 +168,10 @@ superconductor between them.
 We use the Kwant package \cite{Groth_2014} to build the Hamiltonian of the
 system.
 In the following code, we define a square lattice of $L \times W = 200 \times
-40$ sites with 2 orbitals per unit cell, shown in Fig.~\ref{fig:QD_lattice}.
+40$ sites with 2 orbitals per unit cell.
 The lattice is divided into three regions: a quantum dot on the left, a
-superconducting region in the middle, and a quantum dot on the right.
+superconducting region in the middle, and a quantum dot on the right,
+as shown in Fig.~\ref{fig:QD_system}.
 %
 \inputminted[firstline=15, lastline=48]{ipython}{code_figures/lattice_system.py}
 %
@@ -197,6 +198,8 @@ The barrier strength and the asymmetry of the dot potentials are the two
 perturbations that we vary.
 %
 \inputminted[firstline=53, lastline=58]{ipython}{code_figures/lattice_system.py}
+Each of these is a sparse array of size $63042 \times 63042$, with $333680$,
+$632$, and $126084$ non-zero elements, respectively.
 
 Since the Hamiltonian is large and we are only interested in the low energy
 subspace, it is sufficient to compute the 4 lowest orthonormal eigenvectors of
@@ -230,8 +233,8 @@ Finally, we plot the spectrum.
 \begin{figure}[h!]
 \centering
 \includegraphics[width=\linewidth]{figures/lattice_system.pdf}
-\caption{Low energy spectrum of the double quantum dot system.
-\todo[inline]{Fix ticks.}
+\caption{Low energy spectrum of two quantum dots coupled to a superconductor
+for three values of the barrier strength $t_{\text{barrier}} \in (0, 0.5, 0.75)$.
 }
 \label{fig:QD_spectrum}
 \end{figure}

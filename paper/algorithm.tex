@@ -245,38 +245,9 @@ by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
 Additionally, we constrain $\mathcal{V}$ to be block off-diagonal:
 $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
 so that the resulting unitary transformation is equivalent to the
-Schrieffer-Wolff transformation \footnotemark[2].
+Schrieffer-Wolff transformation.
 In turn, this means that $\mathcal{W}$ is block-diagonal and that the norm
 of $\mathcal{U}'$ is minimal.
-
-\footnotetext[2]{
-\textbf{Equivalence to Schrieffer-Wolff transformation}
-Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
-transformation find a unitary transformation $\mathcal{U}$ such that
-$\tilde{\mathcal{H}}^{AB}=0$.
-They are therefore equivalent up to a gauge choice in each subspace, $A$ and
-$B$.
-We establish the equivalence between the two by demonstrating that this gauge
-choice is the same for both algorithms.
-The Schrieffer-Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$,
-where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} =
-\mathcal{S}^{BB} = 0$.
-The series $\exp\mathcal{S}$ contains all possible products of $S_n$ of all
-lengths with fractional prefactors.
-For every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a corresponding term
-$S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
-If the number of $S_{k_n}$ is even, then both terms are block-diagonal since
-each $S_n$ is block off-diagonal.
-Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
-other, and therefore their sum is Hermitian.
-On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
-block off-diagonal and their sum is anti-Hermitian by the same reasoning.
-Therefore, just like in our algorithm, the diagonal blocks of $\exp S$ are
-Hermitian, while off-diagonal blocks are anti-Hermitian.
-Schrieffer-Wolff transformation produces a unique answer and satisfies the same
-diagonalization requirements as our algorithm, which means that the two are
-equivalent.
-}
 
 \co{We find V and the transformed Hamiltonian.}
 To find $\mathcal{V}$, we need to first look at the transformed Hamiltonian:
@@ -392,6 +363,35 @@ We now have the complete algorithm:
      \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
     \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}$.
 \end{enumerate}
+
+\subsection{Equivalence with Schrieffer-Wolff transformation}
+\co{Our algorithm is equivalent to a Schrieffer-Wolff transformation}
+Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
+transformation find a unitary transformation $\mathcal{U}$ such that
+$\tilde{\mathcal{H}}^{AB}=0$.
+They are therefore equivalent up to a gauge choice in each subspace, $A$ and
+$B$.
+
+We establish the equivalence between the two by demonstrating that this gauge
+choice is the same for both algorithms.
+The Schrieffer-Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$,
+where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} =
+\mathcal{S}^{BB} = 0$.
+The series $\exp\mathcal{S}$ contains all possible products of $S_n$ of all
+lengths with fractional prefactors.
+For every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a corresponding term
+$S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
+If the number of $S_{k_n}$ is even, then both terms are block-diagonal since
+each $S_n$ is block off-diagonal.
+Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each
+other, and therefore their sum is Hermitian.
+On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
+block off-diagonal and their sum is anti-Hermitian by the same reasoning.
+Therefore, just like in our algorithm, the diagonal blocks of $\exp S$ are
+Hermitian, while off-diagonal blocks are anti-Hermitian.
+Schrieffer-Wolff transformation produces a unique answer and satisfies the same
+diagonalization requirements as our algorithm, which means that the two produce
+the same effective Hamiltonian.
 
 \subsection{Extra optimization: common subexpression elimination}
 %
