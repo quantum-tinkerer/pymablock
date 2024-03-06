@@ -47,6 +47,8 @@ cost $\sim N^2$, however if we use associativity of the product and compute
 this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost
 stays $\sim N$.
 
+\missingfigure{Show how H is blockdiagonalized by U.}
+
 There are many ways to solve this problem that give identical expressions for
 $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
 We are searching for a procedure that satisfies two additional constraints:
@@ -232,7 +234,7 @@ We improve on this by defining a new series as $\mathcal{A}^{n+1} =
 \mathcal{A}\mathcal{A}^{n}$ and reusing the previously computed results, which
 brings these costs down to $\sim N^2$.
 Using the Taylor expansion approach is therefore both more complicated and more
-computationally expensive than the recurrent definition in \ref{eq:W}.
+computationally expensive than the recurrent definition in Eq.~\eqref{eq:W}.
 }
 
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined
@@ -321,6 +323,8 @@ to the right and find
 %
 where the terms multiplied by $H_0$ cancel by unitarity.
 
+\missingfigure{Show block structure of series.}
+
 The transformed Hamiltonian does not contain products by $H_0$ anymore, but it
 does depend on $\mathcal{X}$, an auxiliary operator whose recurrent definition
 we do not know yet.
@@ -355,8 +359,8 @@ Once again, despite $\mathcal{X}$ enters the right hand side, because all the
 terms lack \nth{0} order, this defines a recursive relation for $\mathcal{X}^{AB}$,
 and therefore $\mathcal{Y}$.
 
-The final part is standard: the definition of $\mathcal{Y}$ in \eqref{eq:XYZ} fixes
-$\mathcal{V}$ as a solution of:
+The final part is standard: the definition of $\mathcal{Y}$ in
+Eq.~\eqref{eq:XYZ} fixes $\mathcal{V}$ as a solution of:
 %
 \begin{align}
 \label{eq:sylvester}
@@ -447,6 +451,7 @@ To do so, Pymablock uses either the MUMPS sparse solver via the python-mumps
 wrapper or the KPM method, an approach originally introduced in
 \cite{Irfan_2019}.
 
+\todo{Consider whether to move this to implementation.}
 To implement this, we use the matrix $\Psi_A$ of the eigenvectors of the $A$
 subspace to rewrite the Hamiltonian as
 %
