@@ -2,7 +2,7 @@
 import numpy as np
 import scipy
 from scipy.sparse.linalg import eigsh
-import tinyarray as ta
+import tinyarray
 import kwant
 import matplotlib
 import matplotlib.pyplot as plt
@@ -12,8 +12,8 @@ color_cycle = ["#5790fc", "#f89c20", "#e42536"]
 # %%
 figwidth = matplotlib.rcParams["figure.figsize"][0]
 # %%
-sigma_z = ta.array([[1, 0], [0, -1]], float)
-sigma_x = ta.array([[0, 1], [1, 0]], float)
+sigma_z = tiniarray.array([[1, 0], [0, -1]], float)
+sigma_x = tiniarray.array([[0, 1], [1, 0]], float)
 
 syst = kwant.Builder()
 lat = kwant.lattice.square(norbs=2)
@@ -45,7 +45,7 @@ def barrier(site1, site2):
 syst[(hop for hop in syst.hoppings() if barrier(*hop))] = (
     lambda site1, site2, t_barrier: -t_barrier * sigma_z
 )
-
+sysf = syst.finalized()
 # %%
 fig, ax = plt.subplots()
 kwant.plot(
@@ -100,7 +100,6 @@ ax.text(
 
 fig.savefig("../figures/QD_lattice.pdf", bbox_inches="tight")
 # %%
-sysf = syst.finalized()
 params = dict(mu_n=0.05, mu_sc=0.3, Delta=0.05, t=1.0, t_barrier=0.0)
 h_0 = sysf.hamiltonian_submatrix(params=params, sparse=True).real
 
