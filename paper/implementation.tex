@@ -24,8 +24,8 @@ the transformed Hamiltonian.
 To address these requirements, we define a \mintinline{python}|BlockSeries|
 Python class and use it to represent the series of $\mathcal{U}$,
 $\mathcal{H}$, and $\tilde{\mathcal{H}}$.
-A \mintinline{python}|BlockSeries| is a Python object equipped with a function
-to compute its elements and a dictionary to cache the results.
+The objects of this class are equipped with a function to compute their elements
+and a dictionary to cache the results.
 For example, the \mintinline{python}|BlockSeries| for $\tilde{\mathcal{H}}$ has
 a function that computes the block-wise multivariate Cauchy product in
 Eq.~\eqref{eq:H_tilde_optimized}, \mintinline{python}|compute_H_tilde|.
@@ -35,6 +35,8 @@ Eq.~\eqref{eq:H_tilde_optimized}, \mintinline{python}|compute_H_tilde|.
         shape=(2, 2), # 2 blocks
         n_infinite=1, # number of perturbative parameters
         eval=compute_H_tilde,
+        name="H_tilde",
+        dimension_names=("lambda",),
     )
 \end{minted}
 %
@@ -46,7 +48,7 @@ $\tilde{\mathcal{H}}$ at order 2 in the perturbation, and
 to 2 in a Numpy masked array.
 In the latter, the masked array only contains non-zero elements, a feature that
 we use each time we compute the Cauchy products between series, avoiding
-unnecessary operations.
+unnecessary matrix products.
 
 \co{Using the BlockSeries interface allows us to implement a range of
 optimizations that go beyond directly implementing the polynomial
@@ -54,15 +56,14 @@ parametrization}
 Not only does the \mintinline{python}|BlockSeries| interface allow us to
 implement the polynomial parametrization of the unitary transformation, but
 also several other optimizations.
-For example, we exploit Hermiticity when computing the Cauchy product of the
-diagonal blocks of $\mathcal{U}$ and $\tilde{\mathcal{H}}$, because we only
-compute half of the matrix products and then complex conjugate the result to
-obtain the rest.
-Similarly, we avoid computing $BA$ blocks of $\mathcal{U}$ and
-$\tilde{\mathcal{H}}$ by providing a function to the \mintinline{python}|BlockSeries| that returns
-the conjugate transpose of the respective $AB$ blocks.
-As a result, whenever we query a $BA$ block, we first compute the $AB$ block,
-store it, and then compute the $BA$ block directly.
+For example, we exploit Hermiticity when computing the Cauchy product of
+$U'^{\dagger}U'$ in Eq.~\eqref{eq:W}, for which we only need to compute half of
+the matrix products that form its diagonal blocks, and then complex conjugate
+the result to obtain the rest.
+Similarly, for Hermitian and anti-Hermitian series, like the off-diagonal
+blocks of $\mathcal{X} - \mathcal{H}'_\textrm{offdiag}$ and off-diagonal blocks
+of $\mathcal{U}'$, we only compute the $AB$ blocks, and use the conjugate
+transpose to obtain the $BA$ blocks.
 This procedure brings an additional advantage: because the terms that compose
 $AB$ blocks contain matrix products that first multiply small matrices and then
 the large ones, it saves computational time and memory.
@@ -70,13 +71,12 @@ For example, the term $V_{n -i}^{AB} H_0^{BB}
 W_i^{BB}$ in $Y_n$ is systematically computed as $(V_{n -i}^{AB}
 H_0^{BB}) W_i^{BB}$ instead of $V_{n -i}^{AB}
 (H_0^{BB} W_i^{BB})$.
-This is only one example of how the \mintinline{python}|BlockSeries| interface allows us to
-implement a symmetrized algorithm, and we leave other symmetries for future
-work.
+This is only one example of how the \mintinline{python}|BlockSeries| interface
+allows us to implement a symmetrized algorithm, and we leave other symmetries
+for future work.
 Such an extension would be useful for systems where $\mathcal{U}$ or
 $\tilde{\mathcal{H}}$ vanish due to symmetries, so that the zero blocks can be
 skipped beforehand.
-\todo{Remove this paragraph?}
 
 \co{To deal with an implicit B subspace, we use MUMPS and LinearOperators.}
 Because \mintinline{python}|BlockSeries| can represent any input type, we use
