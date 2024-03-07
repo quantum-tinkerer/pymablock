@@ -123,7 +123,7 @@ ax_inset.set_yticks([])
 ax_inset.text(
     0.5,
     0.5,
-    r"$\mu_{\textrm{sc}}, \Delta_{\textrm{sc}}$",
+    r"$\mu_{\textrm{sc}}, \Delta$",
     ha="center",
     va="center",
     transform=ax_inset.transAxes,
