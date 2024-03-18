@@ -43,9 +43,9 @@ Eq.~\eqref{eq:H_tilde_optimized}, \mintinline{python}|compute_H_tilde|.
 To get the elements of the series, we implement Numpy array indexing,
 which allows us to request several elements at once by using tuples and slices.
 \mintinline{python}|H_tilde[0, 0, 2]| returns the $AA$ block of
-$\tilde{\mathcal{H}}$ at order 2 in the perturbation, and
-\mintinline{python}|H_tilde[0, 0, :3]| returns the $AA$ block of all orders up
-to 2 in a Numpy masked array.
+$\tilde{\mathcal{H}}$ proportional to $\lambda^2$, and
+\mintinline{python}|H_tilde[0, 0, :3]| returns the $AA$ block of orders
+$\lambda^0$ , $\lambda^1$, and $\lambda^2$ in a Numpy masked array.
 In the latter, the masked array only contains non-zero elements, a feature that
 we use each time we compute the Cauchy products between series, avoiding
 unnecessary matrix products.
@@ -64,19 +64,27 @@ Similarly, for Hermitian and anti-Hermitian series, like the off-diagonal
 blocks of $\mathcal{X} - \mathcal{H}'_\textrm{offdiag}$ and off-diagonal blocks
 of $\mathcal{U}'$, we only compute the $AB$ blocks, and use the conjugate
 transpose to obtain the $BA$ blocks.
-This procedure brings an additional advantage: because the terms that compose
-$AB$ blocks contain matrix products that first multiply small matrices and then
-the large ones, it saves computational time and memory.
-For example, the term $V_{n -i}^{AB} H_0^{BB}
-W_i^{BB}$ in $Y_n$ is systematically computed as $(V_{n -i}^{AB}
-H_0^{BB}) W_i^{BB}$ instead of $V_{n -i}^{AB}
-(H_0^{BB} W_i^{BB})$.
 This is only one example of how the \mintinline{python}|BlockSeries| interface
 allows us to implement a symmetrized algorithm, and we leave other symmetries
 for future work.
 Such an extension would be useful for systems where $\mathcal{U}$ or
 $\tilde{\mathcal{H}}$ vanish due to symmetries, so that the zero blocks can be
 skipped beforehand.
+
+\co{A key optimization that BlockSeries enable is the implicit treatpapment
+of the BB subspace.}
+Solving Sylvester's equation and computing the matrix products are the most
+expensive steps of the algorithms for large Hamiltonians.
+Pymablock can efficiently construct an effective Hamiltonian of a small
+subspace even when the full Hamiltonian is a sparse matrix that is too costly to
+diagonalize.
+It does so by avoiding explicit computation of operators in $B$ subspace, and
+by utilizing the sparsity of the Hamiltonian to compute the Green's function,
+which is the solution of Sylvester's equation.
+To do so, Pymablock uses either the MUMPS sparse solver via the python-mumps
+wrapper or the KPM method, an approach originally introduced in
+references~\cite{Weisse_2006, Irfan_2019}.
+
 
 \co{To deal with an implicit B subspace, we use MUMPS and LinearOperators.}
 Because \mintinline{python}|BlockSeries| can represent any input type, we use
@@ -112,11 +120,9 @@ object from \mintinline{python}{Scipy}.
 This allows us to compute matrix-vector products between $P_B$ and a vector,
 without explicitly constructing $P_B$ or any other product between elements of
 the $B$ subspace, keeping the memory usage low.
-For the same purpose, we use the MUMPS sparse solver
-\cite{Amestoy_2001},
-\cite{Amestoy_2006}, or the KPM method
-\cite{Wei_e_2006}, to compute the Green's function of the
-$B$ subspace.
+For the same purpose, we use the MUMPS sparse solver \cite{Amestoy_2001},
+\cite{Amestoy_2006}, or the KPM method \cite{Weisse_2006}, to compute the
+Green's function of the $B$ subspace.
 As a consequence, the implicit algorithm can be used on matrices with millions
 of degrees of freedom as long as they are sparse.
 
