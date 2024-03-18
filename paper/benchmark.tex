@@ -16,26 +16,45 @@ an appropriate generator for the unitary transformation.
 Similarly, this flexibility allows Pymablock to work with time-dependent
 Hamiltonians, an extension that we leave for future work.
 
+
+\co{To demonstrate the efficiency of the implicit algorithm, we show its
+time scaling compared to sparse diagonalizaton.}
+
+
+The effective Hamiltonian is constructed for the $10$ lowest energy
+states of a $52 \times 52$ 2D square lattice with a nearest-neighbor
+hopping and random on-site potential.
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{figures/benchmark_bandstructure.pdf}
-    \caption{Benchmark of Pymablock against other methods.}
+    \caption{
+        Bandstructure of an effective Hamiltonian (black) compared to exact
+        sparse diagonalization (gray).
+        The time spent in sparse diagonalization for one value of $\delta \mu$
+        (gray) is shown in the lowest panel.
+        This is also a constant overhead for the construction of the effective
+        Hamiltonian.
+        The time spent in the LU decomposition of the Hamiltonian (red) is a
+        one-time cost, together with the time spent into getting second
+        and third orders.
+        First and second order corrections are negligible, not shown.
+        }
     \label{fig:benchmark_bandstructure}
 \end{figure}
+
+\co{}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{figures/benchmark_matrix_products.pdf}
-    \caption{Benchmark of Pymablock against other methods.}
+    \caption{
+        (left) Matrix products scaling per order of $\tilde{\mathcal{H}}$.
+        (right) ???
+    }
     \label{fig:benchmark_matrix_products}
 \end{figure}
 \subsection{Time scaling}
 
-\co{To demonstrate the efficiency of the implicit algorithm, we show its time
-scaling as a function of Hamiltonian size.}
-Do we plot the Kwant tutorial here? Is there a way to count matrix products for
-example? maybe using a counter in the code?
-Showing scaling for large implicit Hamiltonians.
 
 \subsection{Error scaling}
 
