@@ -440,17 +440,3 @@ and more importantly for $\tilde{\mathcal{H}}$:
 \label{eq:H_tilde_optimized}
 \tilde{\mathcal{H}} = H_0 + \mathcal{A} + \mathcal{A}^\dagger + (\mathcal{B} + \mathcal{B}^\dagger)/2 + \mathcal{U}'^\dagger (\mathcal{A} + \mathcal{B}) - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
 \end{align}
-
-\subsection{Implicit method for large Hamiltonians}
-
-Solving Sylvester's equation and computing the matrix products are the most
-expensive steps of the algorithms for large Hamiltonians.
-Pymablock can efficiently construct an effective Hamiltonian of a small
-subspace even when the full Hamiltonian is a sparse matrix that is too costly to
-diagonalize.
-It does so by avoiding explicit computation of operators in $B$ subspace, and
-by utilizing the sparsity of the Hamiltonian to compute the Green's function,
-which is the solution of Sylvester's equation.
-To do so, Pymablock uses either the MUMPS sparse solver via the python-mumps
-wrapper or the KPM method, an approach originally introduced in
-references~\cite{Weisse_2006, Irfan_2019}.
