@@ -2,15 +2,26 @@
 
 \co{Effective models enable the study of complex physical systems by reducing the
 space of interest to a low energy one.}
-Effective models enable the study of complex physical systems by reducing the
+Effective models enable the study of complex quantum systems by reducing the
 dimensionality of the Hilbert space.
-Their construction separates the effective subspace from the remaining Hilbert
-space, such that low and high energy states are decoupled and separated by an
-energy gap.
-As a consequence, an effective model is sufficient to describe the low energy
-properties of the original system while also being easier to handle, because
-its eigenvalues and eigenvectors are approximate solutions to the complete
-Hamiltonian.
+Their construction separates the low and high energy subspaces of a
+perturbed Hamiltonian
+%
+\begin{equation}
+    \mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \mathcal{H}',
+\end{equation}
+%
+by performing a block-diagonalization, where $H_0^{AA}$ and $H_0^{BB}$ are
+separated by an energy gap, and $\mathcal{H}'$ is a series in the perturbative
+parameter.
+This procedure requires finding a series $\mathcal{U}$ that is unitary and
+that also cancels the off-diagonal block of the basis-transformed Hamiltonian
+order by order.
+The effective Hamiltonian $\tilde{\mathcal{H}}^{AA}$ is then a series in the
+perturbative parameter, whose eigenvalues and eigenvectors are approximate
+solutions to the complete Hamiltonian.
+As a consequence, the effective model is sufficient to describe the low energy
+properties of the original system while also being easier to handle.
 
 \co{To find an effective Hamiltonian, we use perturbative approaches, like a SW
 transformation or Lowdin perturbation theory.}
@@ -55,37 +66,10 @@ computations and make it available in Pymablock.}
 In this work, we introduce an algorithm to construct effective models
 efficiently, making it possible to find effective models for systems with
 thousands of degrees of freedom in a personal computer.
-Our algorithm scales linearly with the perturbative order, does not require
-truncating the outputs, and treats multiple perturbations independently.
+Our algorithm scales linearly with the perturbative order, an improvement
+we achieve by choosing an appropriate parametrization of the unitary
+transformation, while still obtaining the same effective Hamiltonian as
+a Schrieffer--Wolff transformation.
 We make the algorithm available via the open source package Pymablock, for
 Python matrix block diagonalization of Hamiltonians, a versatile tool for
 the study of numerical and symbolic models.
-
-\co{Pymablock considers a Hamiltonian as a series of $2 \times 2$ block operators
-and finds a minimal unitary transformation that separates its subspaces.}
-Pymablock considers Hamiltonians as series of $2\times 2$ block operators.
-The zeroth order, $H_0$ is block-diagonal, and the perturbative orders couple
-blocks to each other and within themselves:
-%
-\begin{equation}
-\mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \mathcal{H}',
-\end{equation}
-%
-where we use calligraphic letters to denote series in the perturbative
-parameters, and $A$ and $B$ to denote the low and high energy subspaces.
-To carry out the block-diagonalization procedure, Pymablock finds a minimal
-unitary transformation $\mathcal{U}$ that cancels the off-diagonal block of the
-Hamiltonian order by order.
-The result of this procedure is a perturbative series of the transformed
-block-diagonal Hamiltonian $\tilde{\mathcal{H}}$, whose low energy block
-$\tilde{\mathcal{H}}^{AA}$ is the effective Hamiltonian.
-
-\co{Pymablock offers the same solution as traditional methods.}
-Similar to Lowdin perturbation theory or the Schrieffer--Wolff transformation,
-Pymablock solves Sylvester's equation and ensures that the transformation
-$\mathcal{U}$ is unitary order by order.
-However, differently from other approaches, Pymablock uses efficient algorithms
-by choosing an appropriate parametrization of the series of the unitary
-transformation.
-As a consequence, the computational cost of every order scales linearly with
-the order, while the effective Hamiltonians are still mathematically equivalent.
