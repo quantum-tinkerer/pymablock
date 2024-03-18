@@ -21,21 +21,24 @@ The effective Hamiltonian $\tilde{\mathcal{H}}^{AA}$ is then a series in the
 perturbative parameter, whose eigenvalues and eigenvectors are approximate
 solutions to the complete Hamiltonian.
 As a consequence, the effective model is sufficient to describe the low energy
-properties of the original system while also being easier to handle.
+properties of the original system while also being smaller and easier to
+handle.
 
 \co{To find an effective Hamiltonian, we use perturbative approaches, like a SW
 transformation or Lowdin perturbation theory.}
-Common approaches to construct an effective Hamiltonian are the Schrieffer--Wolff
-Schrieffer--Wolff transformation
-\cite{Schrieffer_1966}, \cite{Bravyi_2011}
-and Lowdin partitioning \cite{White_1950}.
-Both methods are perturbative and, as input, they take a gapped Hamiltonian and
-a perturbation, together with the subspaces to decouple.
-Then, they find the unitary transformation that block-diagonalizes the
-Hamiltonian for each perturbative order.
-These methods are standard when working with superconducting circuits,
-quantum dot physics, density functional theory, k.p models, and other
-systems where the physics of interest lies in the low energy states.
+Common approaches to construct an effective Hamiltonian are the
+Schrieffer--Wolff transformation \cite{Schrieffer_1966}, \cite{Bravyi_2011} and
+Lowdin partitioning \cite{White_1950}.
+Both methods take a gapped Hamiltonian and a perturbation, together with the
+subspaces to decouple.
+Then, they parameterize the unitary transformation $\mathcal{U} =
+e^{-\mathcal{S}}$ and find the series $\mathcal{S}$ that decouples the $A$ and
+$B$ subspaces of $\tilde{\mathcal{H}} =
+e^{\mathcal{S}}\mathcal{H}e^{-\mathcal{S}}$.
+These methods are standard and serve as a useful tool for the study of
+superconducting circuits, quantum dot physics, density functional theory, k.p
+models, and other systems where the physics of interest lies in the low energy
+states.
 
 \co{Even though these methods are standard, their algorithm is computationally
 expensive, scaling poorly for large systems and high orders.}
@@ -48,11 +51,8 @@ transformation in a Schrieffer--Wolff transformation requires computing
 an exponentially growing number of matrix products per order.
 Big systems, like those of many-body physics, bosonic Hamiltonians, and
 otherwise large Hilbert spaces, are thus expensive to compute.
-Similarly, high orders and combined perturbations are also costly, because they
-require computing all the terms of smaller orders too.
-Aside from the scaling, a Schrieffer--Wolff transformation also requires
-truncating the expansion for the transformed Hamiltonian, effectively wasting
-computational resources.
+Similarly, finding high order corrections to the effective Hamiltonian is
+also costly, because it requires computing all the terms of smaller orders too.
 With the goal of making the construction of effective models more efficient,
 there are several algorithms that have been proposed, either by using different
 parametrizations of the unitary transformation, applying density matrix
