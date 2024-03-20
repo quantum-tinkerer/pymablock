@@ -1,36 +1,32 @@
 \section{Constructing an effective model}
 
-To design Pymablock's algorithm, we consider scenarios for which an efficient
-procedure is needed, of which we identify two categories: problems in which one
-wants to find an interpretable effective model, and problems in which one needs
-to sample the value of an observable that is expensive to compute.
-The study of superconducting qubits, for example, lies in the first category.
-In this case, the Hamiltonian is constructed from several bosonic operators, so
-its Hilbert space is infinite-dimensional, and the coupling between bosons
-makes the Hamiltonian hard to diagonalize.
-The qubits, however, are described by a few low energy states, and obtaining an
-analytical effective model is essential to interpreting their behavior,
-because the model provides a clear dependence of dispersive shifts, effective
-couplings, and parasitic crosstalk couplings on the circuit's
-parameters~\cite{Zhu_2013, Li_2020, Blais_2021, Sete_2021}.
-The same holds for circuit QED systems overall, for which computational tools
-are being actively developed~\cite{Groszkowski_2021, Chitta_2022, Li_2022}.
-In the second category, we find materials and large device simulations, like
-tight-binding models of twisted bilayer graphene~\cite{Bernevig_2021} for which
-a k.p model is used, Majorana devices~\cite{Melo_2023}, and quantum dot
-arrays.
-In these cases, we may no longer truncate the Hilbert space, and finding the
-ground state amounts to solving a sparse eigenvalue problem, which quickly
-becomes expensive due to the extensive number of sites and orbitals.
+\co{We consider scenarios for which perturbation theory is useful.}
+We illustrate the construction of effective models by considering several
+representative examples.
+The simplest application of effective models is a reduction of finite symbolic
+Hamiltonians, that appears in the derivation of low energy dispersions of materials.
+Starting from an effective tight-binding models one performs a combination of
+Taylor expansion of the Hamiltonian near a $k$-point, and eliminates several
+high energy state~\cite{McCann_2013}.
+In the study of superconducting qubits, the Hamiltonian contains
+several bosonic operators, so its Hilbert space is infinite-dimensional, and
+the coupling between bosons makes the Hamiltonian impossible to diagonalize.
+The effective qubit model describes the analytical dependence of qubit frequencies and
+couplings on the circuit parameters~\cite{Zhu_2013,Li_2020,Blais_2021,Sete_2021}.
+This allows to design circuits that realize a desired qubit Hamiltonian, as
+well ways to understand and predict qubit dynamics, for which computational
+tools are being actively developed~\cite{Groszkowski_2021,Chitta_2022,Li_2022}.
+Finally, mesoscopic quantum devices are described by a single particle tight
+binding model with short range hoppings.
+This produces a numerical Hamiltonian that is both big and sparse, which allows
+to compute a few of its states but not the full spectrum~\cite{Melo_2023}.
+Because only the low energy states contribute to observable properties,
+deriving how they couple enables a more efficient simulation of the system
+behavior.
 
-Before reviewing the algorithm, we present two examples on how to use Pymablock
-to find effective models for a k.p model and a tight-binding system, with the
-purpose of illustrating the package's capabilities with symbolic Hamiltonians,
-large Hilbert spaces and high orders.
-
-\subsection{Pymablock workflow}
-
-\co{The workflow of Pymablock consists of three steps.}
+\co{We demonstrate how Pymablock solves these problems.}
+Pymablock treats all the problems, including the ones above, using a unified
+approach.
 Building an effective model using Pymablock is a three step process:
 %
 \begin{itemize}
@@ -49,11 +45,7 @@ H_tilde, *_ = block_diagonalize([H_0, H_1], subspace_eigenvectors=[vecs_A, vecs_
 # Request 4th order correction to the effective Hamiltonian
 H_AA_4 = H_tilde[0, 0, 4]
 \end{minted}
-
-\co{Depending on the input Hamiltonian, Pymablock uses specific routines to find
-the effective model, so that symbolic expressions are compact and numerics are
-efficient.}
-
+%
 The function \mintinline{python}|block_diagonalize| interprets the Hamiltonian
 $H_0 + H_1$ as a series with two terms, zeroth and first order, and calls the
 block diagonalization routine.
@@ -61,35 +53,38 @@ This is the main function of Pymablock, and it is the only one that the user
 ever needs to call.
 Its first output is a multivariate series whose terms are different blocks and
 orders of the transformed Hamiltonian.
-Calling \mintinline{python}|block_diagonalize| does not compute the series
-elements, so the cost of the call is a constant overhead.
+Calling \mintinline{python}|block_diagonalize| only defines the computational
+problem, whereas querying the elements of \mintinline{python}|H_tilde|
+does the actual calculation of the desired order.
+This interface treats arbitrary formats of Hamiltonians and system descriptions
+on the same footing, and supports both numerical, and symbolic computations.
 
 \subsection{k.p model of bilayer graphene}
 
 \co{We use bilayer graphene to illustrate how to use Pymablock with analytic models.}
 
 To illustrate how to use Pymablock with analytic models, we consider two layers
-of graphene stacked on top of each other.
-Our goal is to find the low energy model near the $\mathbf{K}$ point
-\cite{McCann_2013}.
-First, we construct the Hamiltonian of bilayer graphene from its tight-binding
-model.
+of graphene stacked on top of each other, as shown in Fig.~\ref{fig:bilayer}.
+Our goal is to find the low energy model near the $\mathbf{K}$ point~\cite{McCann_2013}.
+To do this, we first construct the tight-binding model Hamiltonian of bilayer
+graphene.
 %
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.3125\linewidth]{figures/bilayer.pdf}
-\caption[]{Crystal structure and hoppings of bilayer graphene.}
+\caption[]{Crystal structure and hoppings of AB-stacked bilayer graphene.}
 \label{fig:bilayer}
 \end{figure}
 %
 The main features of the model are its 4-atom unit cell spanned by vectors
 $\mathbf{a}_1 = (1/2, \sqrt{3}/2)$ and $\mathbf{a}_2=( -1/2, \sqrt{3}/2)$,
-and with wave functions $\phi_{A,1}, \phi_{B,1}, \phi_{A,2}, \phi_{B,2}$.
+and with wave functions $\phi_{A,1}, \phi_{B,1}, \phi_{A,2}, \phi_{B,2}$, where
+$A$ and $B$ indiced are the two sublattices, and $1,2$ are the layers.
 The model has hoppings $t_1$ and $t_2$ within and between the layers,
 respectively, as shown in Fig.~\ref{fig:bilayer}.
-We also include an onsite potential $\pm m$ in each layer, such that the
-Hamiltonian is gapped, a requirement for perturbation theory to be valid.
+We also include a layer-dependent onsite potential $\pm m$.
 
+\co{We use sympy.}
 We define the Bloch Hamiltonian using the Sympy package for symbolic Python
 \cite{Meurer_2017}.
 %
@@ -115,25 +110,23 @@ t_1 \alpha^{*} & m & t_2 & 0\\
 \end{pmatrix}
 $$
 %
-where $\alpha(\mathbf{k}) = 1 + e^{i \mathbf{k'} \cdot (\mathbf{a}_1 +
-\mathbf{a}_2)}$ and $\mathbf{k'} = (4\pi/3 + k_x, k_y)$, such that
-$\alpha(\mathbf{K}) = 0$ and $\mathbf{K}=(4\pi/3, 0)$ is the reference point
-for the k.p effective model.
-In addition, we use $m$ as a perturbative parameter to demonstrate Pymablock's
-capabilities with several perturbations.
+where $\alpha(\mathbf{k}) = 1 + e^{i \mathbf{k} \cdot \mathbf{a}_1} + e^{\mathbf{k} \cdot
+\mathbf{a}_2}$, with $k$ the wave vector.
+We consider $\mathbf{K}=(4\pi/3, 0)$ the reference point point in $\mathbf{k}$-space:
+$\mathbf{k} = (4\pi/3 + k_x, k_y)$ because $\alpha(\mathbf{K}) = 0$, making
+$k_x$ and $k_y$ small perturbations.
+Additionally, we consider $m \ll t_2$ a perturbative parameter.
 
 \co{We define the perturbative series}
 To call \mintinline{python}|block_diagonalize|, we need to define the subspaces
 for the block diagonalization, so we compute the eigenvectors of the
 unperturbed Hamiltonian at the $\mathbf{K}$ point, $H(\alpha(\mathbf{K}) = m =
 0)$.
-This operation is a one-time cost, and due to the sparsity of $H_0$, computing
-\mintinline{Python}|vecs| is fast.
 Then, we substitute $\alpha(\mathbf{k})$ into the Hamiltonian, and define the
 block diagonalization routine using that $k_x$, $k_y$, and $m$ are perturbative
 parameters via the \mintinline{Python}|symbols| argument.
 %
-\begin{minted}{ipython}
+\begin{minted}{python}
 vecs = H.subs({alpha: 0, m: 0}).diagonalize(normalize=True)[0]
 
 H_tilde, U, U_adjoint = block_diagonalize(
@@ -145,34 +138,36 @@ H_tilde, U, U_adjoint = block_diagonalize(
 %
 The order of the variables in the perturbative series will be that of
 \mintinline{python}{symbols}.
-For example, requesting the first order term in $k_x$ and $k_y$ from the
-effective model is done by calling \mintinline{python}|H_tilde[0, 0, 1, 1, 0]|,
-where the first two indices are the block indices (AA), and the next four are
-the powers of $k_x$, $k_y$, and $m$, respectively.
+For example, requesting the term $\propto k_x^{i} k_y^{j} m^{l}$ from the
+effective model is done by calling \mintinline{python}|H_tilde[0, 0, i, j, l]|,
+where the first two indices are the block indices (AA).
+The series of the unitary transformation $U$ and $U^\dagger$ are also defined,
+and we may use them to transform other operators.
 
-We need corrections up to third order in momentum to compute the standard
+We collect corrections up to third order in momentum to compute the standard
 quadratic dispersion of bilayer graphene and trigonal warping.
 We query these terms from \mintinline{Python}|H_tilde| and those proportional
-to mass to obtain the effective Hamiltonian:
+to mass to obtain the effective Hamiltonian (shown, as produced by the
+code)\footnote{The full code is available at
+\url{https://pymablock.readthedocs.io/en/latest/tutorial/bilayer_graphene.html}.},
+:
 %
 {\small
 \begin{gather}
-\mathcal{H}^{AA} =
-\begin{pmatrix}
+\tilde{H}_{\textrm{eff}} =
+\begin{bmatrix}
 m & \frac{3 t_1^2}{4 t_2} ( - k_x^2 - 2ik_x k_y + k_y^2) \\
 \frac{3 t_1^2}{4 t_2} ( - k_x^2 + 2ik_x k_y + k_y^2) & -m
-\end{pmatrix} + \nonumber \\
-\begin{pmatrix}
+\end{bmatrix} + \nonumber \\
+\begin{bmatrix}
 \frac{3 m t_1^2}{2 t_2^2} ( - k_x^2 - k_y^2) & \frac{\sqrt{3} t_1^2}{8 t_2} (k_x^3 - 5ik_x^2 k_y + 9 k_x k_y^2 + 3ik_y^3) \\
 \frac{\sqrt{3} t_1^2}{8 t_2} (k_x^3 + 5ik_x^2 k_y + 9 k_x k_y^2 - 3ik_y^3) & \frac{3 m t_1^2}{2 t_2^2} (k_x^2 + k_y^2)
-\end{pmatrix} \nonumber
-+
-\mathcal{O}(k^4, m^2)
+\end{bmatrix} \nonumber
 \end{gather}
 }
 %
-The first term contains the standard quadratic dispersion of bilayer graphene
-with a gap.
+The first term is the standard quadratic dispersion of gapped bilayer
+graphene.
 The second term contains trigonal warping and the coupling between the gap and
 momentum.
 All the terms take less than two seconds in a personal computer to compute.
@@ -182,70 +177,73 @@ All the terms take less than two seconds in a personal computer to compute.
 \co{Large systems pose an additional challenge due to the scaling of linear
 algebra routines for large matrices.}
 Large systems pose an additional challenge due to the cubic scaling of linear
-algebra routines on matrices' size.
-To overcome this, Pymablock is equipped with an implicit method, which uses
-sparse arrays and avoids the construction of the full Hamiltonian.
-We illustrate its efficiency with a model of two quantum dots coupled to a
-superconductor between them.
+algebra routines with matrix size.
+To overcome this, Pymablock is equipped with an implicit method, which utilizes
+the sparsity of the input and avoids the construction of the full transformed
+Hamiltonian.
+We illustrate the efficiency of this method by applying it to a system of two
+quantum dots coupled to a superconductor between them, shown in
+Fig.~\ref{fig:QD_spectrum}, and described by the Bogoliubov-de Gennes Hamiltonian:
+%
+\begin{equation}
+    H_{BdG} =
+    \begin{cases}
+        (\mathbf{k}^2/2m - \mu_{sc}) \sigma_z + \Delta \sigma_x \quad & \text{for } L/3 \leq x \leq 2L/3, \\
+        (\mathbf{k}^2/2m - \mu_n) \sigma_z \quad & \text{otherwise},
+    \end{cases}
+\end{equation}
+where the Pauli matrices $\sigma_z$ and $\sigma_x$ act in the electron-hole
+space, $\mathbf{k}$ is the 2D wave vector, $m$ is the effective mass, and
+$\Delta$ the superconducting gap.
 
 \co{We use Kwant to build the Hamiltonian of the system.}
 We use the Kwant package~\cite{Groth_2014} to build the Hamiltonian of the
-system over a square lattice of $L \times W = 200 \times 40$ sites, with 2
-orbitals per unit cell~\footnote{The full code is available at
-\url{https://pymablock.readthedocs.io/en/latest/tutorial/induced_gap.html}.}.
-The lattice is divided into three regions: a quantum dot on the left, a
-superconducting region in the middle, and a quantum dot on the right,
-as shown in Fig.~\ref{fig:QD_spectrum}.
-The chemical potentials of the normal and superconducting regions are $\mu_n$
-and $\mu_{sc}$, respectively, $\Delta$ is the superconducting gap, and $t$
-is the hopping amplitude within each region.
-We consider two perturbations: the barrier strength between the quantum dots
-and the superconductor, $t_{\text{barrier}}$, and the asymmetry of the dots
-potentials, $\delta \mu$.
+system~\footnote{The full code is available at
+\url{https://pymablock.readthedocs.io/en/latest/tutorial/induced_gap.html}.},
+which we define over a square lattice of $L \times W = 200 \times 40$ sites.
+On top of this, we consider two perturbations: the barrier strength between the
+quantum dots and the superconductor, $t_{\text{barrier}}$, and an asymmetry of
+the dots potentials, $\delta \mu$.
 
-The system is large: with this many sites even storing all the eigenvectors
-would take $60$ GB of memory.
-Therefore, we use sparse matrices and compute only a few eigenvectors, because
-perturbation theory allows us to compute the effective Hamiltonian of the low
-energy degrees of freedom only.
-To get the unperturbed Hamiltonian, we use the values $\mu_n=0.05$,
-$\mu_{sc}=0.3$, $\Delta=0.05$, $t=1.0$, and $t_{\text{barrier}}=0$.
-The barrier strength and the asymmetry of the dot potentials are the two
-perturbations whose values we vary.
-Each of these is a sparse array of size $63042 \times 63042$, with $333680$
-non-zero elements for the unperturbed Hamiltonian, and $632$, and $126084$
-non-zero elements for the perturbations, respectively.
-The structure of the Hamiltonian is shown in the left panel of
-Fig.~\ref{fig:QD_spectrum}, where we use a smaller system for visualization.
-
-Since the Hamiltonian is large and we are only interested in the low energy
-subspace, it is sufficient to compute the 4 lowest orthonormal eigenvectors of
-the unperturbed Hamiltonian.
-These are the lowest energy Andreev states in the two quantum dots.
+The system is large: it is a sparse array of size $63042 \times 63042$, with
+$333680$ non-zero elements, so even storing all the eigenvectors would take
+$60$ GB of memory.
+The perturbations are also sparse, with $632$, and $126084$ non-zero elements
+for the barrier strength and the asymmetry, respectively.
+The sparsity structure of the Hamiltonian and the perturbations is shown in the
+left panel of Fig.~\ref{fig:QD_spectrum}, where we use a smaller system of $L
+\times W = 8 \times 2$ for visualization.
+Therefore, we use sparse diagonalization and compute only four eigenvectors of
+the unperturbed Hamiltonian closest to zero energy, which are the Andreev
+states of the quantum dots.
 %
 \inputminted[firstline=62, lastline=63]{ipython}{code_figures/lattice_system.py}
 %
-We now define the block diagonalization routine using the implicit method,
-which we call by providing the set of vectors of the interesting subspace only.
+We now use the block diagonalization routine and provide the computed
+eigenvectors.
 %
 \inputminted[firstline=65, lastline=65]{ipython}{code_figures/lattice_system.py}
 %
-Block diagonalization is now the most time consuming step because it requires
-pre-computing several decompositions of the full Hamiltonian.
-It is, however, manageable and it only produces a constant overhead.
+Because we only provide the low energy subspace, Pymablock uses the implicit
+method.
+Calling \mintinline{python}|block_diagonalize| is now the most time consuming
+step because it requires pre-computing several decompositions of the full
+Hamiltonian.
+It is, however, manageable and it only produces a constant overhead of less
+than three seconds.
 
 To compute the spectrum, we collect the lowest three orders in each parameter
 in an appropriately sized tensor.
 %
-\inputminted[firstline=68, lastline=70]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=71, lastline=71]{ipython}{code_figures/lattice_system.py}
 %
-This takes a few seconds to compute, and we can now compute the low energy
+This takes two more seconds to run, and we can now compute the low energy
 spectrum after rescaling the perturbative corrections by the magnitude of each
 perturbation.
 %
-\inputminted[firstline=73, lastline=78]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=74, lastline=79]{ipython}{code_figures/lattice_system.py}
 %
-Finally, we plot the spectrum.
+Finally, we plot the spectrum in Fig.~\ref{fig:QD_spectrum}.
 %
 \begin{figure}[h!]
 \centering
@@ -260,9 +258,10 @@ As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the
 dots are coupled to the superconductor.
 In addition, we observe how the proximity gap of the dots increases with the
 coupling strength.
-\todo[inline]{Add system inset.}
 
 In this example the total runtime of Pymablock would only allow us to compute
 the spectrum at around 3 points in the parameter space.
 This is demonstrates the speed of the implicit method and the efficiency of
 Pymablock's algorithm.
+
+\subsection{CQED}
