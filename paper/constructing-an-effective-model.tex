@@ -12,8 +12,9 @@ states~\cite{McCann_2013}.
 In the study of superconducting qubits, for example, the Hamiltonian contains
 several bosonic operators, so its Hilbert space is infinite-dimensional, and
 the coupling between bosons makes the Hamiltonian impossible to diagonalize.
-The effective qubit model describes the analytical dependence of qubit frequencies and
-couplings on the circuit parameters~\cite{Zhu_2013,Li_2020,Blais_2021,Sete_2021}.
+The effective qubit model describes the analytical dependence of qubit
+frequencies and couplings on the circuit
+parameters~\cite{Zhu_2013,Krantz_2019,Li_2020,Blais_2021,Sete_2021}.
 This allows to design circuits that realize a desired qubit Hamiltonian, as
 well ways to understand and predict qubit dynamics, for which computational
 tools are being actively developed~\cite{Groszkowski_2021,Chitta_2022,Li_2022}.
@@ -38,7 +39,7 @@ approach that only requires three steps:
 The following code snippet shows how to use Pymablock to compute the fourth
 order correction to an effective Hamiltonian $\tilde{\mathcal{H}}$:
 %
-\begin{minted}{ipython}
+\begin{minted}{python}
 # Define perturbation theory
 H_tilde, *_ = block_diagonalize([H_0, H_1], subspace_eigenvectors=[vecs_A, vecs_B])
 
@@ -88,7 +89,7 @@ We also include a layer-dependent onsite potential $\pm m$.
 We define the Bloch Hamiltonian using the Sympy package for symbolic Python
 \cite{Meurer_2017}.
 %
-\begin{minted}{ipython}
+\begin{minted}{python}
 t_1, t_2, m = sympy.symbols("t_1 t_2 m", real=True)
 alpha = sympy.symbols(r"\alpha")
 
@@ -216,12 +217,12 @@ Therefore, we use sparse diagonalization and compute only four eigenvectors of
 the unperturbed Hamiltonian closest to zero energy, which are the Andreev
 states of the quantum dots.
 %
-\inputminted[firstline=62, lastline=63]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=62, lastline=63]{python}{code_figures/lattice_system.py}
 %
 We now call the block diagonalization routine and provide the computed
 eigenvectors.
 %
-\inputminted[firstline=65, lastline=65]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=65, lastline=65]{python}{code_figures/lattice_system.py}
 %
 Because we only provide the low energy subspace, Pymablock uses the implicit
 method.
@@ -234,13 +235,13 @@ than three seconds.
 To compute the spectrum, we collect the lowest three orders in each parameter
 in an appropriately sized tensor.
 %
-\inputminted[firstline=71, lastline=71]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=71, lastline=71]{python}{code_figures/lattice_system.py}
 %
 This takes two more seconds to run, and we can now compute the low energy
 spectrum after rescaling the perturbative corrections by the magnitude of each
 perturbation.
 %
-\inputminted[firstline=74, lastline=79]{ipython}{code_figures/lattice_system.py}
+\inputminted[firstline=74, lastline=79]{python}{code_figures/lattice_system.py}
 %
 Finally, we plot the spectrum in Fig.~\ref{fig:QD_spectrum}.
 %
@@ -264,4 +265,70 @@ the spectrum at around $3$ points in the parameter space.
 This demonstrates the speed of the implicit method and the efficiency of
 Pymablock's algorithm.
 
-\subsection{CQED}
+\subsection{Circuit quantum electrodynamics}
+
+\co{We illustrate the potential of Pymablock as a useful tool for the design
+and control of superconducting qubits.}
+Finally, we illustrate the potential of Pymablock as a useful too for the
+design and control of superconducting qubits.
+For this, we consider two capacitively coupled transmons~\cite{Klein_1974}
+with the goal of finding the qubits effective Hamiltonian and the effective
+coupling between them.
+The Hamiltonian of the system is given by
+%
+\begin{equation}
+    \label{eq:H_transmons}
+    \mathcal{H} =\hbar \omega_1 a_1^\dagger a_1 + \hbar \omega_2 a_2^\dagger a_2 + \hbar g (a_1^\dagger a_2 + a_1 a_2^\dagger),
+\end{equation}
+%
+where $a_1$ and $a_2$ are bosonic annihilation operators for each transmon,
+$\omega_1$ and $\omega_2$ are the transmon frequencies, and $\alpha_1$ and
+$\alpha_2$ are their anharmonicities.
+The coupling strength $g$ is the term in the Hamiltonian that makes it
+impossible to diagonalize, because it couples two infinitely dimensional
+Hilbert spaces in a non-trivial way.
+Therefore, we treat $g$ as a perturbative parameter.
+
+\co{We truncate the Hamiltonian.}
+Because our goal is to find the qubits Hamiltonian, the effective subspace is
+the one spanned by the states $\ket{00}$, $\ket{01}$, $\ket{10}$, and
+$\ket{11}$ of the two transmons.
+All the other states are high energy states that belong to the $B$ subspace,
+but there are infinitely many of them, and the higher they are in energy, the
+less they contribute to the effective Hamiltonian.
+Therefore, we truncate the Hilbert space to the $N$ lowest energy states of each
+transmon and build a symbolic matrix Hamiltonian~\footnote{We build the matrix
+Hamiltonian directly from the second quantization Hamiltonian in
+Eq.~\eqref{eq:H_transmons} using Sympy's
+\mintinline{python}|sympy.physics.quantum.boson.BosonOp| objects.}.
+%
+\begin{equation}
+    \label{eq:H_transmons_matrix}
+    {\small
+    H_0 + H_1 = 
+    \left[
+        \begin{matrix}
+            0 & 0 & 0 & - g & 0 & 0 & 0 & 0\\
+            0 & \omega_{1} & g & 0 & 0 & 0 & - \sqrt{2} g & 0\\
+            0 & g & \omega_{2} & 0 & 0 & 0 & 0 & - \sqrt{2} g\\
+            - g & 0 & 0 & \omega_{1} + \omega_{2} & \sqrt{2} g & \sqrt{2} g & 0 & 0\\
+            0 & 0 & 0 & \sqrt{2} g & 2 \alpha_{1} + 2 \omega_{1} & 0 & 0 & 0\\
+            0 & 0 & 0 & \sqrt{2} g & 0 & 2 \alpha_{2} + 2 \omega_{2} & 0 & 0\\
+            0 & - \sqrt{2} g & 0 & 0 & 0 & 0 & 2 \alpha_{1} + 2 \omega_{1} + \omega_{2} & 2 g\\
+            0 & 0 & - \sqrt{2} g & 0 & 0 & 0 & 2 g & 2 \alpha_{2} + \omega_{1} + 2 \omega_{2}
+        \end{matrix}
+    \right]
+    }
+\end{equation}
+
+%
+Here we choose $N=2$ for each transmon, a number that depends on the
+specifics of the problem.
+
+\co{We call block diagonalize and compute the qubit Hamiltonian}
+Now, we are ready to call \mintinline{python}|block_diagonalize| and compute the
+effective Hamiltonian.
+%
+\inputminted[firstline=95, lastline=96]{python}{code_figures/transmons.py}
+%
+
