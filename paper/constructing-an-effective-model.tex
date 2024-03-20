@@ -3,12 +3,13 @@
 \co{We consider scenarios for which perturbation theory is useful.}
 We illustrate the construction of effective models by considering several
 representative examples.
-The simplest application of effective models is a reduction of finite symbolic
-Hamiltonians, that appears in the derivation of low energy dispersions of materials.
-Starting from an effective tight-binding models one performs a combination of
-Taylor expansion of the Hamiltonian near a $k$-point, and eliminates several
-high energy state~\cite{McCann_2013}.
-In the study of superconducting qubits, the Hamiltonian contains
+The simplest application of effective models is the reduction of finite
+symbolic Hamiltonians, which appear in the derivation of low energy
+dispersions of materials.
+Starting from a tight-binding model, one performs Taylor expansions of the
+Hamiltonian near a $k$-point, and then eliminates several high energy
+states~\cite{McCann_2013}.
+In the study of superconducting qubits, for example, the Hamiltonian contains
 several bosonic operators, so its Hilbert space is infinite-dimensional, and
 the coupling between bosons makes the Hamiltonian impossible to diagonalize.
 The effective qubit model describes the analytical dependence of qubit frequencies and
@@ -21,13 +22,12 @@ binding model with short range hoppings.
 This produces a numerical Hamiltonian that is both big and sparse, which allows
 to compute a few of its states but not the full spectrum~\cite{Melo_2023}.
 Because only the low energy states contribute to observable properties,
-deriving how they couple enables a more efficient simulation of the system
+deriving how they couple enables a more efficient simulation of the system's
 behavior.
 
 \co{We demonstrate how Pymablock solves these problems.}
 Pymablock treats all the problems, including the ones above, using a unified
-approach.
-Building an effective model using Pymablock is a three step process:
+approach that only requires three steps:
 %
 \begin{itemize}
 \item Define a Hamiltonian
@@ -79,7 +79,7 @@ graphene.
 The main features of the model are its 4-atom unit cell spanned by vectors
 $\mathbf{a}_1 = (1/2, \sqrt{3}/2)$ and $\mathbf{a}_2=( -1/2, \sqrt{3}/2)$,
 and with wave functions $\phi_{A,1}, \phi_{B,1}, \phi_{A,2}, \phi_{B,2}$, where
-$A$ and $B$ indiced are the two sublattices, and $1,2$ are the layers.
+$A$ and $B$ indices are the two sublattices, and $1,2$ are the layers.
 The model has hoppings $t_1$ and $t_2$ within and between the layers,
 respectively, as shown in Fig.~\ref{fig:bilayer}.
 We also include a layer-dependent onsite potential $\pm m$.
@@ -122,7 +122,7 @@ To call \mintinline{python}|block_diagonalize|, we need to define the subspaces
 for the block diagonalization, so we compute the eigenvectors of the
 unperturbed Hamiltonian at the $\mathbf{K}$ point, $H(\alpha(\mathbf{K}) = m =
 0)$.
-Then, we substitute $\alpha(\mathbf{k})$ into the Hamiltonian, and define the
+Then, we substitute $\alpha(\mathbf{k})$ into the Hamiltonian, and call the
 block diagonalization routine using that $k_x$, $k_y$, and $m$ are perturbative
 parameters via the \mintinline{Python}|symbols| argument.
 %
@@ -147,10 +147,9 @@ and we may use them to transform other operators.
 We collect corrections up to third order in momentum to compute the standard
 quadratic dispersion of bilayer graphene and trigonal warping.
 We query these terms from \mintinline{Python}|H_tilde| and those proportional
-to mass to obtain the effective Hamiltonian (shown, as produced by the
+to mass to obtain the effective Hamiltonian (shown as produced by the
 code)\footnote{The full code is available at
-\url{https://pymablock.readthedocs.io/en/latest/tutorial/bilayer_graphene.html}.},
-:
+\url{https://pymablock.readthedocs.io/en/latest/tutorial/bilayer_graphene.html}.}:
 %
 {\small
 \begin{gather}
@@ -202,14 +201,14 @@ system~\footnote{The full code is available at
 \url{https://pymablock.readthedocs.io/en/latest/tutorial/induced_gap.html}.},
 which we define over a square lattice of $L \times W = 200 \times 40$ sites.
 On top of this, we consider two perturbations: the barrier strength between the
-quantum dots and the superconductor, $t_{\text{barrier}}$, and an asymmetry of
+quantum dots and the superconductor, $t_b$, and an asymmetry of
 the dots potentials, $\delta \mu$.
 
 The system is large: it is a sparse array of size $63042 \times 63042$, with
 $333680$ non-zero elements, so even storing all the eigenvectors would take
 $60$ GB of memory.
 The perturbations are also sparse, with $632$, and $126084$ non-zero elements
-for the barrier strength and the asymmetry, respectively.
+for the barrier strength and the potential asymmetry, respectively.
 The sparsity structure of the Hamiltonian and the perturbations is shown in the
 left panel of Fig.~\ref{fig:QD_spectrum}, where we use a smaller system of $L
 \times W = 8 \times 2$ for visualization.
@@ -219,7 +218,7 @@ states of the quantum dots.
 %
 \inputminted[firstline=62, lastline=63]{ipython}{code_figures/lattice_system.py}
 %
-We now use the block diagonalization routine and provide the computed
+We now call the block diagonalization routine and provide the computed
 eigenvectors.
 %
 \inputminted[firstline=65, lastline=65]{ipython}{code_figures/lattice_system.py}
@@ -248,8 +247,9 @@ Finally, we plot the spectrum in Fig.~\ref{fig:QD_spectrum}.
 \begin{figure}[h!]
 \centering
 \includegraphics[width=\linewidth]{figures/lattice_system.pdf}
-\caption{Low energy spectrum of two quantum dots coupled to a superconductor
-for three values of the barrier strength $t_{\text{barrier}} \in (0, 0.5, 0.75)$.
+\caption{
+    Low energy spectrum of two quantum dots coupled to a superconductor for
+    three values of the barrier strength $t_b \in (0, 0.5, 0.75)$.
 }
 \label{fig:QD_spectrum}
 \end{figure}
@@ -260,8 +260,8 @@ In addition, we observe how the proximity gap of the dots increases with the
 coupling strength.
 
 In this example the total runtime of Pymablock would only allow us to compute
-the spectrum at around 3 points in the parameter space.
-This is demonstrates the speed of the implicit method and the efficiency of
+the spectrum at around $3$ points in the parameter space.
+This demonstrates the speed of the implicit method and the efficiency of
 Pymablock's algorithm.
 
 \subsection{CQED}
