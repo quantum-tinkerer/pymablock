@@ -1,4 +1,4 @@
-\section{Algorithm for block diagonalization}
+\section{Pymablock's algorithm}
 
 \subsection{Problem statement}
 
@@ -24,23 +24,25 @@ where $\lambda_i$ are the perturbation parameters and $A_{n_1, n_2, \ldots,
 n_k}$ are linear operators.
 %
 The problem statement, therefore, is finding $\mathcal{U}$ and
-$\tilde{\mathcal{H}}$ such that:
+$\tilde{\mathcal{H}}$ such that
 %
 \begin{align}
 \label{eq:problem_definition}
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
 \end{align}
 %
-where series multiply according to the Cauchy product:
+which is schematically shown in Fig.~\ref{fig:block_diagonalization}.
+Series multiply according to the Cauchy product:
 %
 $$
 \mathcal{C} = \mathcal{A}\mathcal{B} \Leftrightarrow C_\mathbf{n} = \sum_{\mathbf{m} + \mathbf{p} = \mathbf{n}} A_\mathbf{m} B_\mathbf{p}.
 $$
 %
-This product is the most expensive operation in perturbation theory, because it
-involves a large number of multiplications between potentially large matrices.
+The Cauchy product is the most expensive operation in perturbation theory,
+because it involves a large number of multiplications between potentially large
+matrices.
 For example, evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires
-$\sim\prod_i n_i = N$ multiplications of the series elements.
+$\sim\prod_i n_i \equiv N$ multiplications of the series elements.
 A direct computation of all the possible index combinations in a product
 between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher
 cost $\sim N^2$, however if we use associativity of the product and compute
@@ -59,28 +61,29 @@ stays $\sim N$.
 \label{fig:block_diagonalization}
 \end{figure}
 
-There are many ways to solve this problem that give identical expressions for
-$\mathcal{U}$ and $\tilde{\mathcal{H}}$.
+There are many ways to solve the problem~\eqref{eq:problem_definition} that
+give identical expressions for $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
 We are searching for a procedure that satisfies two additional constraints:
 %
 \begin{itemize}
     \item It has the same complexity scaling as a Cauchy product.
     \item It does not require multiplications by $H_0$.
-    This is because in perturbation theory, $n$-th order  corrections to
-    $\tilde{\mathcal{H}}$ carry $n$ energy denominators $1/(E_i - E_j)$.
-    Therefore, any additional multiplications by $H_0$ must cancel with
-    additional energy denominators.
-    Multiplying by $H_0$ is therefore unnecessary work, and it gives longer
-    intermediate expressions.
 \end{itemize}
 %
+The second requirement is because in perturbation theory, $n$-th order  corrections to
+$\tilde{\mathcal{H}}$ carry $n$ energy denominators $1/(E_i - E_j)$, where
+$E_i$ and $E_j$ are the eigenvalues of $H_0$ belonging to different subspaces.
+Therefore, any additional multiplications by $H_0$ must cancel with
+additional energy denominators.
+Multiplying by $H_0$ is therefore unnecessary work, and it gives longer
+intermediate expressions.
 The goal of our algorithm is thus to be efficient and to produce compact
 results that do not require further simplifications.
 \subsection{Existing solutions}
-\co{Pymablock's algorithm does not use the Schrieffer-Wolff transformation,
+\co{Pymablock's algorithm does not use the Schrieffer--Wolff transformation,
 because the former is inefficient.}
-A common approach to construct effective Hamiltonians is to use a
-Schrieffer-Wolff transformation:
+A common approach to construct effective Hamiltonians is to use the
+Schrieffer--Wolff transformation~\cite{Schrieffer_1966}:
 %
 \begin{align}
 \tilde{\mathcal{H}} = e^\mathcal{S} &\mathcal{H} e^{-\mathcal{S}}, \\
@@ -90,31 +93,28 @@ e^{\mathcal{S}} = 1 + \mathcal{S} + \frac{1}{2!} \mathcal{S} \mathcal{S}
 %
 where $\mathcal{S} = \sum_n S_n$ is an antihermitian polynomial series in the
 perturbative parameter, making $e^\mathcal{S}$ a unitary transformation.
-In this approach, $\mathcal{S}$ is found by ensuring unitarity and the block
-diagonalization of the Hamiltonian to every order, a procedure that amounts to
-solving a recursive equation whose terms are nested commutators between series.
-Moreover, the transformed Hamiltonian is also given by a series of nested
+Requiring that $\tilde{\mathcal{H}}^{AB} = 0$ gives a recursive equation for
+$S_n$, whose terms are nested commutators between the series of $\mathcal{S}$
+and $\mathcal{H}$.
+Similarly, the transformed Hamiltonian is given by a series of nested
 commutators
 %
 \begin{equation}
-\tilde{\mathcal{H}} = \sum_{j=0}^\infty \frac{1}{j!} \Big [\mathcal{H}, \sum_{n=0}^{\infty} S_n \Big ]^{(j)},
+\label{eq:SW_H}
+\tilde{\mathcal{H}} = \sum_{j=0}^\infty \frac{1}{j!} \Big [\mathcal{H}, \sum_{n=0}^{\infty} S_n \Big ]^{(j)}.
 \end{equation}
 %
-a computationally expensive expression because it requires computing
-exponentially many matrix products.
-This expression also requires truncating the series at the same order
-to which $\mathcal{S}$ is computed, which is a waste of computational resources.
-Finally, generalizing the Schrieffer-Wolff transformation to multiple
-perturbations is only straightforward if the perturbations are bundled
-together.
-However, this makes it impossible to request individual order combinations
-of the perturbations, making it necessary to compute more terms than needed.
+Regardless of the specific implementation, this expression does not meet either
+of our two requirements:
+\begin{itemize}
+  \item The direct computation of the series elements requires a $\sim \exp N$
+  multiplications, and even an optimized one has a $\sim N^2$ scaling.
+  \item Evaluating Eq.~\eqref{eq:SW_H} contains multiplications by $H_0$.
+\end{itemize}
 
 \co{There are algorithms that use different parametrizations for U a
 difference that is crucial for efficiency, even though the results are
 equivalent.}
-The algorithm used to block diagonalize a Hamiltonian perturbatively is,
-however, not unique.
 Alternative parametrizations of the unitary transformation $\mathcal{U}$
 require solving unitarity and block diagonalization conditions too, but
 give rise to a different recursive procedure for the series elements.
@@ -125,19 +125,16 @@ For example, using hyperbolic functions
 \mathcal{G} = \sum_{i=0}^{\infty} G_i,
 \end{gather}
 %
-leads to recursive equations for $G_i$ that use Bernoulli numbers as
-prefactors for contributions from lower order terms \cite{Shavitt_1980},
-making the algorithm inefficient.
+leads to different recursive expressions for $G_i$ \cite{Shavitt_1980},
+but does not change the algorithm's complexity.
 On the other hand, using a polynomial series directly
 %
 \begin{align}
 \mathcal{U} &= \sum_{i=0}^{\infty} U_i,
 \end{align}
 %
-gives rise to a recursive equation for $U_i$ that is free from any additional
-coefficients
-\cite{Van_Vleck_1929}, \cite{Lowdin_1962}
-\cite{Klein_1974}, \cite{Suzuki_1983}.
+gives rise to another recursive equation for $U_i$
+\cite{Van_Vleck_1929, Lowdin_1962, Klein_1974, Suzuki_1983}.
 This choice, however, results in an expression for $\tilde{\mathcal{H}}$ whose
 terms include products by $H_0$, and therefore requires additional
 simplifications.
@@ -146,7 +143,7 @@ simplifications.
 construction of an effective Hamiltonian.}
 Despite the conceptual equivalence of the algorithms and the agreement of their
 results, there is a crucial difference in their computational efficiency: a
-Schrieffer-Wolff transformation has an exponential scaling with the
+Schrieffer--Wolff transformation has an exponential scaling with the
 perturbative order, but it can be reduced.
 C. Bloch's perturbation theory \cite{Bloch_1958}, for example,
 aims to find a similarity transform that brings the Hamiltonian to a
@@ -159,7 +156,7 @@ However, the algorithm is only useful to obtain the spectrum of the low energy
 subspace, not its wavefunctions.
 Reference \cite{Li_2022}, for example, introduces an
 algorithm with linear scaling for diagonalization of a single state by
-reformulating the recursive steps of the Schrieffer-Wolff transformation.
+reformulating the recursive steps of the Schrieffer--Wolff transformation.
 Block diagonalization of a Hamiltonian, however, recovers the exponential
 scaling.
 Another approach with linear scaling is that of density matrix perturbation
@@ -245,7 +242,7 @@ by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
 Additionally, we constrain $\mathcal{V}$ to be block off-diagonal:
 $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
 so that the resulting unitary transformation is equivalent to the
-Schrieffer-Wolff transformation.
+Schrieffer--Wolff transformation.
 In turn, this means that $\mathcal{W}$ is block-diagonal and that the norm
 of $\mathcal{U}'$ is minimal.
 
@@ -364,8 +361,8 @@ We now have the complete algorithm:
     \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}$.
 \end{enumerate}
 
-\subsection{Equivalence with Schrieffer-Wolff transformation}
-\co{Our algorithm is equivalent to a Schrieffer-Wolff transformation}
+\subsection{Equivalence with Schrieffer--Wolff transformation}
+\co{Our algorithm is equivalent to a Schrieffer--Wolff transformation}
 Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
 transformation find a unitary transformation $\mathcal{U}$ such that
 $\tilde{\mathcal{H}}^{AB}=0$.
@@ -374,7 +371,7 @@ $B$.
 
 We establish the equivalence between the two by demonstrating that this gauge
 choice is the same for both algorithms.
-The Schrieffer-Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$,
+The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$,
 where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} =
 \mathcal{S}^{BB} = 0$.
 The series $\exp\mathcal{S}$ contains all possible products of $S_n$ of all
@@ -389,7 +386,7 @@ On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
 block off-diagonal and their sum is anti-Hermitian by the same reasoning.
 Therefore, just like in our algorithm, the diagonal blocks of $\exp S$ are
 Hermitian, while off-diagonal blocks are anti-Hermitian.
-Schrieffer-Wolff transformation produces a unique answer and satisfies the same
+Schrieffer--Wolff transformation produces a unique answer and satisfies the same
 diagonalization requirements as our algorithm, which means that the two produce
 the same effective Hamiltonian.
 
