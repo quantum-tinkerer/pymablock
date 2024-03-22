@@ -88,9 +88,9 @@ A common approach to construct effective Hamiltonians is to use the
 Schrieffer--Wolff transformation~\cite{Schrieffer_1966}:
 %
 \begin{equation}
-\tilde{\mathcal{H}} = e^\mathcal{S} &\mathcal{H} e^{-\mathcal{S}}, \\
+\tilde{\mathcal{H}} = e^\mathcal{S} \mathcal{H} e^{-\mathcal{S}}, \\
 e^{\mathcal{S}} = 1 + \mathcal{S} + \frac{1}{2!} \mathcal{S} \mathcal{S}
-+ &\frac{1}{3!} \mathcal{S} \mathcal{S} \mathcal{S} + \cdots,
++ \frac{1}{3!} \mathcal{S} \mathcal{S} \mathcal{S} + \cdots,
 \end{equation}
 %
 where $\mathcal{S} = \sum_n S_n$ is an antihermitian polynomial series in the
@@ -132,7 +132,7 @@ but does not change the algorithm's complexity.
 On the other hand, using a polynomial series directly
 %
 \begin{equation}
-\mathcal{U} &= \sum_{i=0}^{\infty} U_i,
+\mathcal{U} = \sum_{i=0}^{\infty} U_i,
 \end{equation}
 %
 gives rise to another recursive equation for $U_i$
