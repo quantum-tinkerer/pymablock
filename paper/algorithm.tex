@@ -1,24 +1,24 @@
-\section{Pymablock's algorithm}
+\section{Perturbative block-diagonalization algorithm}
 
 \subsection{Problem statement}
 
 Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use
 calligraphic letters to denote series) that block-diagonalizes the Hamiltonian
 %
-\begin{align}
-\label{hamiltonian}
+\begin{equation}
+\label{eq:hamiltonian}
 \mathcal{H} = H_0 + \mathcal{H}',\quad H_0 = \begin{pmatrix}
 H_0^{AA} & 0\\
 0 & H_0^{BB}
 \end{pmatrix},
-\end{align}
+\end{equation}
 %
 with $\mathcal{H}'$ containing an arbitrary number and orders of perturbations.
 The series here may be multivariate, and they represent sums of the form
 %
-\begin{align}
+\begin{equation}
 \mathcal{A} = \sum_{n_1=0}^\infty \sum_{n_2=0}^\infty \cdots \sum_{n_k=0}^\infty \lambda_1^{n_1} \lambda_2^{n_2} \cdots \lambda_k^{n_k} A_{n_1, n_2, \ldots, n_k},
-\end{align}
+\end{equation}
 %
 where $\lambda_i$ are the perturbation parameters and $A_{n_1, n_2, \ldots,
 n_k}$ are linear operators.
@@ -26,10 +26,10 @@ n_k}$ are linear operators.
 The problem statement, therefore, is finding $\mathcal{U}$ and
 $\tilde{\mathcal{H}}$ such that
 %
-\begin{align}
+\begin{equation}
 \label{eq:problem_definition}
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
-\end{align}
+\end{equation}
 %
 which is schematically shown in Fig.~\ref{fig:block_diagonalization}.
 Series multiply according to the Cauchy product:
@@ -66,7 +66,8 @@ give identical expressions for $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
 We are searching for a procedure that satisfies two additional constraints:
 %
 \begin{itemize}
-    \item It has the same complexity scaling as a Cauchy product.
+    \item It has the same complexity scaling as a Cauchy product, and therefore
+    $\sim N$ multiplications per additional order.
     \item It does not require multiplications by $H_0$.
 \end{itemize}
 %
@@ -79,17 +80,18 @@ Multiplying by $H_0$ is therefore unnecessary work, and it gives longer
 intermediate expressions.
 The goal of our algorithm is thus to be efficient and to produce compact
 results that do not require further simplifications.
+
 \subsection{Existing solutions}
 \co{Pymablock's algorithm does not use the Schrieffer--Wolff transformation,
 because the former is inefficient.}
 A common approach to construct effective Hamiltonians is to use the
 Schrieffer--Wolff transformation~\cite{Schrieffer_1966}:
 %
-\begin{align}
+\begin{equation}
 \tilde{\mathcal{H}} = e^\mathcal{S} &\mathcal{H} e^{-\mathcal{S}}, \\
 e^{\mathcal{S}} = 1 + \mathcal{S} + \frac{1}{2!} \mathcal{S} \mathcal{S}
 + &\frac{1}{3!} \mathcal{S} \mathcal{S} \mathcal{S} + \cdots,
-\end{align}
+\end{equation}
 %
 where $\mathcal{S} = \sum_n S_n$ is an antihermitian polynomial series in the
 perturbative parameter, making $e^\mathcal{S}$ a unitary transformation.
@@ -129,9 +131,9 @@ leads to different recursive expressions for $G_i$ \cite{Shavitt_1980},
 but does not change the algorithm's complexity.
 On the other hand, using a polynomial series directly
 %
-\begin{align}
+\begin{equation}
 \mathcal{U} &= \sum_{i=0}^{\infty} U_i,
-\end{align}
+\end{equation}
 %
 gives rise to another recursive equation for $U_i$
 \cite{Van_Vleck_1929, Lowdin_1962, Klein_1974, Suzuki_1983}.
@@ -141,190 +143,175 @@ simplifications.
 
 \co{The existing algorithms with linear scaling are not suitable for the
 construction of an effective Hamiltonian.}
-Despite the conceptual equivalence of the algorithms and the agreement of their
-results, there is a crucial difference in their computational efficiency: a
-Schrieffer--Wolff transformation has an exponential scaling with the
-perturbative order, but it can be reduced.
-C. Bloch's perturbation theory \cite{Bloch_1958}, for example,
-aims to find a similarity transform that brings the Hamiltonian to a
-block-triangular form, losing its Hermiticity and orhogonality properties.
-The iterative procedure to find the similarity transform requires computing
-fewer expressions for the series elements than the Schrieffer-Wolff
-transformation \cite{Bravyi_2011}, and the effective Hamiltonian is more
-compact.
-However, the algorithm is only useful to obtain the spectrum of the low energy
-subspace, not its wavefunctions.
-Reference \cite{Li_2022}, for example, introduces an
-algorithm with linear scaling for diagonalization of a single state by
-reformulating the recursive steps of the Schrieffer--Wolff transformation.
-Block diagonalization of a Hamiltonian, however, recovers the exponential
-scaling.
-Another approach with linear scaling is that of density matrix perturbation
-theory \cite{McWeeny_1962,McWeeny_1968,Truflandier_2020}, in which the
-density matrix of a single-particle system is also a power series with
-respect to a perturbative parameter:
+The following three algorithms satisfy both of our requirements while solving
+a related problem.
+First, density matrix perturbation
+theory~\cite{McWeeny_1962,McWeeny_1968,Truflandier_2020} constructs the density
+matrix $\mathcal{D}$ of a perturbed system as a power series with respect to a
+perturbative parameter:
 %
-\begin{align}
+\begin{equation}
   \mathcal{D} = \sum_{i=0}^{\infty} D_i.
-\end{align}
+\end{equation}
 %
 The elements of the series are found by solving two recursive conditions,
-$\mathcal{D}^2 = \mathcal{D}$ and $[\mathcal{H}, \mathcal{D}]=0$.
-This approach, however, does not provide an effective Hamiltonian, and even
-though it has a linear scaling, it deals with the entire Hilbert space, not
-only the low energy subspace.
-We thus identify the need for an algorithm that combines linear scaling with
-the ability to construct an effective Hamiltonian.
+$\mathcal{D}^2 = \mathcal{D}$ and $[\mathcal{H}, \mathcal{D}]=0$, which avoid
+multiplications by $H_0$ and require a single Cauchy product each.
+This approach, however, deals with the entire Hilbert space, rather than the
+low energy subspace, and does not provide an effective Hamiltonian.
+Second, the perturbative similarity transform by C.~Bloch~\cite{Bloch_1958,Bravyi_2011}
+constructs the effective Hamiltonian in a non-orthogonal basis, which preserves
+the Hamiltonian spectrum while breaking its hermiticity.
+Finally, the recursive Schrieffer--Wolff algorithm~\cite{Li_2022} applies the
+Schrieffer--Wolff transformation to the output of lower order iterations, and
+calculates the effective Hamiltonian at a fixed perturbation strength, rather
+than as a series.
+We thus identify the following open question: can we construct an effective
+Hamiltonian with a linear scaling algorithm that produces compact expressions?
 
-\subsection{Our solution}
+\subsection{Pymablock's algorithm}
 
-To find $\mathcal{U}$, let us separate it into an identity and $\mathcal{U}' =
-\mathcal{W} + \mathcal{V}$:
+\co{We use recursive expressions, for example, to apply the unitarity condition.}
+The first idea that Pymablock exploits is the recursive evaluation of operator
+series, which we illustrate by considering the unitarity condition.
+Let us separate the transformation $\mathcal{U}$ into an identity and
+$\mathcal{U}' = \mathcal{W} + \mathcal{V}$:
 %
-\begin{align}
+\begin{equation}
 \label{eq:U}
 \mathcal{U} = 1 + \mathcal{U}' = 1 + \mathcal{W} + \mathcal{V},\quad \mathcal{W}^\dagger = \mathcal{W},\quad \mathcal{V}^\dagger = -\mathcal{V}.
-\end{align}
+\end{equation}
 %
-First, we use the unitarity condition
-$\mathcal{U}^\dagger \mathcal{U} = 1$ by substituting $\mathcal{U}'$ into it
-and obtain
+We use the unitarity condition $\mathcal{U}^\dagger \mathcal{U} = 1$ by
+substituting $\mathcal{U}'$ into it:
 %
-\begin{align}
+\begin{gather}
+\label{eq:unitarity}
+  1 = (1 + \mathcal{U}'^\dagger)(1+\mathcal{U}') = 1 + \mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}'.
+\end{gather}
+%
+This immediately yields
+\begin{gather}
 \label{eq:W}
-\mathcal{W} &= \frac{1}{2}(\mathcal{U}'^\dagger + \mathcal{U}') \nonumber \\
-  &= \frac{1}{2} \Big[(1 + \mathcal{U}'^\dagger)(1+\mathcal{U}') - 1 - \mathcal{U}'^\dagger \mathcal{U}' \Big] \nonumber \\
-  &= -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
-\end{align}
+\mathcal{W} = \frac{1}{2}(\mathcal{U}'^\dagger + \mathcal{U}') = -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
+\end{gather}
 %
 Because $\mathcal{U}'$ has no $0$-th order term, $(\mathcal{U}'^\dagger
 \mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of
 $\mathcal{U}'$ nor $\mathcal{W}$.
+Alternatively, using Eq.~\eqref{eq:U} we could define $\mathcal{W}$ as a Taylor
+series in $\mathcal{V}$:
+%
+$$
+\mathcal{W} = \sqrt{1 + \mathcal{V}^2} - 1 \equiv f(\mathcal{V}) \equiv \sum_n a_n \mathcal{V}^{2n}.
+$$
+%
+A direct computation of all possible products of terms in this expression
+requires $\sim \exp N$ multiplications.
+A more efficient approach for evaluating this expression introduces each term
+in the sum as a new series $\mathcal{A}^{n+1} = \mathcal{A}\mathcal{A}^{n}$ and
+reuses the previously computed results.
+This optimization brings the exponential cost down to $\sim N^2$.
+However, we see that the Taylor expansion approach is both more complicated and more
+computationally expensive than the recurrent definition in Eq.~\eqref{eq:W}.
+Therefore, we use Eq.~\eqref{eq:W} to efficiently compute $\mathcal{W}$.
 More generally, a Cauchy product $\mathcal{A}\mathcal{B}$ where $\mathcal{A}$
 and $\mathcal{B}$ have no $0$-th order terms depends on $\mathcal{A}_1, \ldots,
 \mathcal{A}_{n-1}$ and $\mathcal{B}_1, \ldots, \mathcal{B}_{n-1}$.
-This allows us to use Cauchy products to define recurrence relations, which
-we apply throughout the algorithm.
-Therefore, we compute $\mathcal{W}$ as a Cauchy product of $\mathcal{U}'$ with
-itself \footnotemark[1].
+This makes it possible to use $\mathcal{AB}$ in a recurrence relation, a
+property that we exploit throughout the algorithm.
 
-\footnotetext[1]{
-Using the definition of $\mathcal{W}$ as the Hermitian part of $\mathcal{U}'$,
-and the unitarity condition:
-%
-$$
-2\mathcal{W}
-= \mathcal{U}' + \mathcal{U}'^\dagger
-= -\mathcal{U}'^\dagger \mathcal{U}'
-= -\mathcal{W}^2 + \mathcal{V}^2.
-$$
-%
-we see that we could alternatively define $\mathcal{W}$ as a Taylor series in
-$\mathcal{V}$:
-%
-$$
-\mathcal{W} = \sqrt{1 + \mathcal{V}^2} - 1 \equiv f(\mathcal{V}) \equiv \sum_n a_n \mathcal{V}^{2n},
-$$
-%
-however the scaling of such a Cauchy product becomes slower if we need to
-compute a Taylor expansion of a series.
-A direct computation of all possible products of terms would require $\sim \exp
-N$ multiplications.
-We improve on this by defining a new series as $\mathcal{A}^{n+1} =
-\mathcal{A}\mathcal{A}^{n}$ and reusing the previously computed results, which
-brings these costs down to $\sim N^2$.
-Using the Taylor expansion approach is therefore both more complicated and more
-computationally expensive than the recurrent definition in Eq.~\eqref{eq:W}.
-}
-
+\co{To fully define the unitary transformation, we make a choice for V.}
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined
 by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
 Additionally, we constrain $\mathcal{V}$ to be block off-diagonal:
-$\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
-so that the resulting unitary transformation is equivalent to the
-Schrieffer--Wolff transformation.
-In turn, this means that $\mathcal{W}$ is block-diagonal and that the norm
-of $\mathcal{U}'$ is minimal.
+$\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$, a choice we make to ensure that the
+resulting unitary transformation is equivalent to the Schrieffer--Wolff
+transformation (see section~\ref{seq:SW_equivalence}).
+In turn, this makes $\mathcal{W}$ block-diagonal and makes the norm
+of $\mathcal{U}'$ minimal.
 
 \co{We find V and the transformed Hamiltonian.}
-To find $\mathcal{V}$, we need to first look at the transformed Hamiltonian:
+The remaining condition for finding $\mathcal{U}'$ is that the transformed
+Hamiltonian
 %
-\begin{align}
+\begin{equation}
+\label{eq:H_tilde_def}
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = H_0 +
 \mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0
 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
-\end{align}
+\end{equation}
 %
-where we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = H_0 +
-\mathcal{H'}$.
-Because we want to avoid unnecessary products by $H_0$, we need to get rid of
-the terms that contain it by replacing them with an alternative expression.
+is block-diagonal, a condition that determines $\mathcal{V}$.
+Here we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = H_0 + \mathcal{H'}$.
+Because we want to avoid products by $H_0$, we need to get rid of the terms
+that contain it by replacing them with an alternative expression.
 Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can
 compute without ever multiplying by $H_0$.
 Like $\mathcal{U}'$, $\mathcal{X}$ needs to be defined via a recurrence
-relation, which we will find later.
-Because the expression above has $H_0$ multiplied by $\mathcal{U}'$ by the left
-and by the right, we get rid of these terms by making sure that $H_0$
-multiplies terms from one side only.
+relation, which we determine later.
+Because the Eq.~\eqref{eq:H_tilde_def} contains $H_0$ multiplied by
+$\mathcal{U}'$ from the left and from the right, eliminating $H_0$ requires
+moving it to the same side.
 To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commutator between
 $\mathcal{U}'$ and $H_0$:
 %
-\begin{align}
+\begin{equation}
 \label{eq:XYZ}
 \mathcal{X} \equiv [\mathcal{U}', H_0] = \mathcal{Y} + \mathcal{Z}, \quad
 \mathcal{Y} \equiv [\mathcal{V}, H_0] = \mathcal{Y}^\dagger,\quad
 \mathcal{Z} \equiv [\mathcal{W}, H_0] = -\mathcal{Z}^\dagger,
-\end{align}
+\end{equation}
 %
 where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block
 diagonal.
 We use $H_0 \mathcal{U}' = \mathcal{U}' H_0 -\mathcal{X}$ to move $H_0$ through
 to the right and find
 %
-\begin{align}
+\begin{equation}
 \label{eq:H_tilde}
+\begin{aligned}
   \tilde{\mathcal{H}}
   &= H_0 + \mathcal{U}'^\dagger H_0 + (H_0 \mathcal{U}') + \mathcal{U}'^\dagger H_0
-  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H'}\mathcal{U}) \nonumber
+  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H'}\mathcal{U})
   \\
-  &= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} \nonumber \\
-  &= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} \nonumber \\
+  &= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} \\
+  &= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} \\
   &= H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
-\end{align}
+\end{aligned}
+\end{equation}
 %
-where the terms multiplied by $H_0$ cancel by unitarity.
-
-\missingfigure{Show block structure of series.}
-
-The transformed Hamiltonian does not contain products by $H_0$ anymore, but it
+where the terms multiplied by $H_0$ cancel according to Eq.~\eqref{eq:unitarity}.
+The transformed Hamiltonian does not contain multiplications by $H_0$ anymore, but it
 does depend on $\mathcal{X}$, an auxiliary operator whose recurrent definition
 we do not know yet.
 To find it, we first focus on its anti-Hermitian part, $\mathcal{Z}$.
 Since recurrence relations are expressions whose right hand side contains
 Cauchy products between series, we need to find a way to make a product appear.
 We do so by using the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
--\mathcal{U}'^\dagger \mathcal{U}'$ to rewrite $\mathcal{Z}$:
+-\mathcal{U}'^\dagger \mathcal{U}'$ to obtain the recursive definition of $\mathcal{Z}$:
 %
-\begin{align}
+\begin{equation}
 \label{eq:Z}
+\begin{aligned}
 \mathcal{Z}
-&= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \nonumber \\
-&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \nonumber \\
-&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \nonumber \\
+&= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \\
+&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
+&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \\
 &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
-\end{align}
+\end{aligned}
+\end{equation}
 %
 Similar to computing $W_{\mathbf{n}}$, computing $Z_{\mathbf{n}}$ requires lower orders of
-$\mathcal{X}$ and $\mathcal{U}'$, all blocks included.
-This defines a recursive relation for $\mathcal{Z}$.
+$\mathcal{X}$ and $\mathcal{U}'$.
 Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that
-$\tilde{\mathcal{H}}^{AB} = 0$ and find
+$\tilde{\mathcal{H}}^{AB} = 0$ in the Eq.~\eqref{eq:H_tilde} and find
 %
-\begin{align}
+\begin{equation}
 \label{eq:Y}
 \mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} -
 \mathcal{U}'^\dagger \mathcal{X})^{AB}.
-\end{align}
+\end{equation}
 %
 Once again, despite $\mathcal{X}$ enters the right hand side, because all the
 terms lack \nth{0} order, this defines a recursive relation for $\mathcal{X}^{AB}$,
@@ -333,17 +320,15 @@ and therefore $\mathcal{Y}$.
 The final part is standard: the definition of $\mathcal{Y}$ in
 Eq.~\eqref{eq:XYZ} fixes $\mathcal{V}$ as a solution of:
 %
-\begin{align}
+\begin{equation}
 \label{eq:sylvester}
 \mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB},
-\end{align}
+\end{equation}
 %
 a Sylvester's equation, which we only need to solve once for every new order.
 In the eigenbasis of $H_0$, the solution of Sylvester's equation is
-$V^{AB}_{\mathbf{n}, ij} = Y^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of
-$H_0$.
-However, even if the eigenbasis of $H_0$ is not available, there are efficient
-algorithms to solve Sylvester's equation, see below.
+$V^{AB}_{\mathbf{n}, ij} = Y^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$
+are the eigenvalues of $H_0$.
 
 \subsection{Algorithm}
 
@@ -362,6 +347,7 @@ We now have the complete algorithm:
 \end{enumerate}
 
 \subsection{Equivalence with Schrieffer--Wolff transformation}
+\label{seq:SW_equivalence}
 \co{Our algorithm is equivalent to a Schrieffer--Wolff transformation}
 Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
 transformation find a unitary transformation $\mathcal{U}$ such that
@@ -418,22 +404,22 @@ To reuse these products, we separate the perturbation into diagonal and off-diag
 %
 We then introduce variables
 %
-\begin{align}
+\begin{equation}
 \mathcal{A} = \mathcal{H}'_\textrm{diag} \mathcal{U}', \quad
 \mathcal{B} = \mathcal{H}'_\textrm{offdiag} \mathcal{U}', \quad
 \mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag}
-\end{align}
+\end{equation}
 %
 This gives an updated expression for $\mathcal{Z}$:
 %
-\begin{align}
+\begin{equation}
 \label{eq:Z_optimized}
 \mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.},
-\end{align}
+\end{equation}
 %
 and more importantly for $\tilde{\mathcal{H}}$:
 %
-\begin{align}
+\begin{equation}
 \label{eq:H_tilde_optimized}
 \tilde{\mathcal{H}} = H_0 + \mathcal{A} + \mathcal{A}^\dagger + (\mathcal{B} + \mathcal{B}^\dagger)/2 + \mathcal{U}'^\dagger (\mathcal{A} + \mathcal{B}) - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
-\end{align}
+\end{equation}
