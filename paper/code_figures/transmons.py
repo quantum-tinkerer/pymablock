@@ -6,8 +6,16 @@ import sympy
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
+import matplotlib
+import matplotlib.pyplot as plt
 
 from pymablock import block_diagonalize
+
+color_cycle = matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
+figwidth = matplotlib.rcParams["figure.figsize"][0]
+plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}"})
+
+
 # %%
 def collect_constant(expr):
     """Collect constant terms in a fermionic expression.
@@ -51,36 +59,55 @@ def matrix_elements(ham, basis):
         The matrix elements of the operator in the given basis
     """
     all_brakets = product(basis, basis)
-    flat_matrix = [collect_constant(braket[0]*ham*Dagger(braket[1])) for braket in all_brakets]
+    flat_matrix = [
+        collect_constant(braket[0] * ham * Dagger(braket[1])) for braket in all_brakets
+    ]
     return flat_matrix
+
 
 # %%
 symbols = sympy.symbols(
-    r"\omega_{1} \omega_{2} \alpha_{1} \alpha_{2} g",
+    r"\omega_{t} \omega_{r} \alpha g",
     real=True,
     commutative=True,
-    positive=True
+    positive=True,
 )
 
-omega1, omega2, alpha1, alpha2, g = symbols
-# %%
-a_1, a_2 = BosonOp('a_1'), BosonOp('a_2')
+omega_t, omega_r, alpha, g = symbols
+# %%""
+a_t, a_r = BosonOp("a_t"), BosonOp("a_r")
 
-H_0 = []
-for a, omega, alpha in zip([a_1, a_2], [omega1, omega2], [alpha1, alpha2]):
-    H_0.append(omega * Dagger(a) * a + alpha * Dagger(a) * Dagger(a) * a * a)
-H_0 = sum(H_0)
+H_0 = (
+    -omega_t * Dagger(a_t) * a_t
+    + omega_t / 2
+    + omega_r * (Dagger(a_r) * a_r + sympy.Rational(1) / 2)
+)
+H_0 += alpha * Dagger(a_t) * Dagger(a_t) * a_t * a_t
 
-H_p = -g * a_1 * a_2 - g * Dagger(a_1) * Dagger(a_2) + g * a_1 * Dagger(a_2) + g * Dagger(a_1) * a_2
+H_p = (
+    -g * a_t * a_r
+    - g * Dagger(a_t) * Dagger(a_r)
+    + g * a_t * Dagger(a_r)
+    + g * Dagger(a_t) * a_r
+)
 
 # %%
 # Construct the matrix Hamiltonian
 H_0 = normal_ordered_form(H_0.expand(), independent=True)
 H_p = normal_ordered_form(H_p.expand(), independent=True)
 # %%
-occ_basis = [sympy.Rational(1), a_1, a_2]
-unocc_basis = [a_1 * a_2, a_1 * a_1 / sympy.sqrt(2), a_2 * a_2 / sympy.sqrt(2), a_1 * a_1 * a_2 / sympy.sqrt(2), a_1 * a_2 * a_2 / sympy.sqrt(2)]
-basis = occ_basis + unocc_basis
+basis = [
+    sympy.Rational(1),
+    a_t,
+    a_r,
+    a_t * a_r,
+    a_t * a_t / sympy.sqrt(2),
+    a_r * a_r / sympy.sqrt(2),
+    a_t * a_t * a_r / sympy.sqrt(2),
+    a_t * a_r * a_r / sympy.sqrt(2),
+    a_t * a_t * a_t / sympy.sqrt(3),
+    a_r * a_r * a_r / sympy.sqrt(3),
+]
 
 flat_matrix_0 = matrix_elements(H_0, basis)
 flat_matrix_p = matrix_elements(H_p, basis)
@@ -91,13 +118,13 @@ H_p_matrix = sympy.Matrix(np.array(flat_matrix_p).reshape(N, N))
 
 H = H_0_matrix + H_p_matrix
 # %%
-# Perturbation theory
-subspace_indices = [0, 0, 0, 1, 1, 1, 1, 1]
-H_tilde, U, U_adjoint = block_diagonalize(H, subspace_indices=indices, symbols=[g])
-# %%
-H_tilde[0, 0, 2]
-# %%
-H
-# %%
-print(sympy.latex(H))
+shifted_energies = []
+for i in range(10):
+    subspace_indices = [1] * 10
+    subspace_indices[i] = 0
+    H_tilde, U, U_adjoint = block_diagonalize(
+        H, subspace_indices=subspace_indices, symbols=[g]
+    )
+    H_eff = sympy.Add(*H_tilde[0, 0, :3].compressed())
+    shifted_energies.append(H_eff[0, 0])
 # %%

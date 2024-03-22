@@ -269,66 +269,101 @@ Pymablock's algorithm.
 
 \co{We illustrate the potential of Pymablock as a useful tool for the design
 and control of superconducting qubits.}
-Finally, we illustrate the potential of Pymablock as a useful too for the
+Finally, we illustrate the potential of Pymablock as a useful tool for the
 design and control of superconducting qubits.
-For this, we consider two capacitively coupled transmons~\cite{Klein_1974}
-with the goal of finding the qubits effective Hamiltonian and the effective
-coupling between them.
+We consider a transmon coupled to a resonator~\cite{Krantz_2019} with the goal
+of finding the frequency shift of a qubit (transmon) due to its measurement
+device (resonator).
 The Hamiltonian of the system is given by
 %
 \begin{equation}
-    \label{eq:H_transmons}
-    \mathcal{H} =\hbar \omega_1 a_1^\dagger a_1 + \hbar \omega_2 a_2^\dagger a_2 + \hbar g (a_1^\dagger a_2 + a_1 a_2^\dagger),
+    \label{eq:H_cqed}
+    \mathcal{H} =
+    \omega_t (a^{\dagger}_{t} a_{t} - \frac{1}{2})
+    + \alpha a^{\dagger}_{t} a^{\dagger}_{t} a_{t} a_{t} +
+    \omega_r (a^{\dagger}_{r} a_{r} + \frac{1}{2}) +
+    g (a^{\dagger}_{t} + a_{t}) (a^{\dagger}_{r} + a_{r}),
 \end{equation}
 %
-where $a_1$ and $a_2$ are bosonic annihilation operators for each transmon,
-$\omega_1$ and $\omega_2$ are the transmon frequencies, and $\alpha_1$ and
-$\alpha_2$ are their anharmonicities.
+where $a_t$ and $a_t$ are bosonic annihilation operators of the transmon
+and resonator, respectively, and $\omega_t$ and $\omega_r$ are their
+frequencies.
+Additionally, we consider the transmon to have an anharmonicity $\alpha$,
+so that its energy levels are not equally spaced.
 The coupling strength $g$ is the term in the Hamiltonian that makes it
 impossible to diagonalize, because it couples two infinitely dimensional
 Hilbert spaces in a non-trivial way.
 Therefore, we treat $g$ as a perturbative parameter.
+This is called the dispersive regime, an approximation that is valid when
+$g \ll \omega_{r} - \omega_{q}$.
 
 \co{We truncate the Hamiltonian.}
-Because our goal is to find the qubits Hamiltonian, the effective subspace is
-the one spanned by the states $\ket{00}$, $\ket{01}$, $\ket{10}$, and
-$\ket{11}$ of the two transmons.
-All the other states are high energy states that belong to the $B$ subspace,
-but there are infinitely many of them, and the higher they are in energy, the
-less they contribute to the effective Hamiltonian.
-Therefore, we truncate the Hilbert space to the $N$ lowest energy states of each
-transmon and build a symbolic matrix Hamiltonian~\footnote{We build the matrix
+Because our goal is to find the frequency shift of the transmon's lowest
+levels, we are only interested in the states where both the transmon and the
+resonator have few excitations ($0$, $1$ or $2$).
+All other states belong to the $B$ subspace, but there are infinitely many of
+them, and the higher they are in energy, the less they contribute to the
+effective Hamiltonian.
+Therefore, we truncate the Hilbert space to the $10$ lowest energy states of
+the system and build a symbolic matrix Hamiltonian~\footnote{We build the matrix
 Hamiltonian directly from the second quantization Hamiltonian in
-Eq.~\eqref{eq:H_transmons} using Sympy's
-\mintinline{python}|sympy.physics.quantum.boson.BosonOp| objects.}.
+Eq.~\eqref{eq:H_cqed} using
+\mintinline{python}|sympy.physics.quantum.boson.BosonOp|.}.
 %
 \begin{equation}
-    \label{eq:H_transmons_matrix}
-    {\small
-    H_0 + H_1 = 
+    \label{eq:H_cqed_matrix}
+    {\tiny
+    H =
     \left[
         \begin{matrix}
-            0 & 0 & 0 & - g & 0 & 0 & 0 & 0\\
-            0 & \omega_{1} & g & 0 & 0 & 0 & - \sqrt{2} g & 0\\
-            0 & g & \omega_{2} & 0 & 0 & 0 & 0 & - \sqrt{2} g\\
-            - g & 0 & 0 & \omega_{1} + \omega_{2} & \sqrt{2} g & \sqrt{2} g & 0 & 0\\
-            0 & 0 & 0 & \sqrt{2} g & 2 \alpha_{1} + 2 \omega_{1} & 0 & 0 & 0\\
-            0 & 0 & 0 & \sqrt{2} g & 0 & 2 \alpha_{2} + 2 \omega_{2} & 0 & 0\\
-            0 & - \sqrt{2} g & 0 & 0 & 0 & 0 & 2 \alpha_{1} + 2 \omega_{1} + \omega_{2} & 2 g\\
-            0 & 0 & - \sqrt{2} g & 0 & 0 & 0 & 2 g & 2 \alpha_{2} + \omega_{1} + 2 \omega_{2}
+            \frac{\omega_{r}}{2} - \frac{\omega_{t}}{2} & 0 & 0 & - g & 0 & 0 & 0 & 0 & 0 & 0\\
+            0 & \frac{\omega_{r}}{2} + \frac{\omega_{t}}{2} & g & 0 & 0 & 0 & - \sqrt{2} g & 0 & 0 & 0\\
+            0 & g & \frac{3 \omega_{r}}{2} - \frac{\omega_{t}}{2} & 0 & 0 & 0 & 0 & - \sqrt{2} g & 0 & 0\\
+            - g & 0 & 0 & \frac{3 \omega_{r}}{2} + \frac{\omega_{t}}{2} & \sqrt{2} g & \sqrt{2} g & 0 & 0 & 0 & 0\\
+            0 & 0 & 0 & \sqrt{2} g & 2 \alpha + \frac{\omega_{r}}{2} + \frac{3 \omega_{t}}{2} & 0 & 0 & 0 & 0 & 0\\
+            0 & 0 & 0 & \sqrt{2} g & 0 & \frac{5 \omega_{r}}{2} - \frac{\omega_{t}}{2} & 0 & 0 & 0 & 0\\
+            0 & - \sqrt{2} g & 0 & 0 & 0 & 0 & 2 \alpha + \frac{3 \omega_{r}}{2} + \frac{3 \omega_{t}}{2} & 2 g & \sqrt{6} g & 0\\
+            0 & 0 & - \sqrt{2} g & 0 & 0 & 0 & 2 g & \frac{5 \omega_{r}}{2} + \frac{\omega_{t}}{2} & 0 & \sqrt{6} g\\
+            0 & 0 & 0 & 0 & 0 & 0 & \sqrt{6} g & 0 & 12 \alpha + \omega_{r} + 5 \omega_{t} & 0\\
+            0 & 0 & 0 & 0 & 0 & 0 & 0 & \sqrt{6} g & 0 & 7 \omega_{r} - \omega_{t}
         \end{matrix}
     \right]
     }
 \end{equation}
-
 %
-Here we choose $N=2$ for each transmon, a number that depends on the
-specifics of the problem.
 
 \co{We call block diagonalize and compute the qubit Hamiltonian}
-Now, we are ready to call \mintinline{python}|block_diagonalize| and compute the
-effective Hamiltonian.
+Finally, to compute the frequency shift of each of the transmon's levels, we
+define a $1 \times 1$ block diagonalization problem for each state separately.
+To do this, we observe that $H_0$ is diagonal, and use
+`\mintinline{python}|subspace_indices|` to assign its entries to the $A$ or $B$
+subspace.
+For example, to compute the dressed frequency of the first transmon level,
+$\ket{00}$, we call
 %
-\inputminted[firstline=95, lastline=96]{python}{code_figures/transmons.py}
+\begin{minted}{python}
+indices = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1] # 00 is the first state
+H_tilde, U, U_adjoint = block_diagonalize(H, subspace_indices=indices, symbols=[g])
+sympy.Add(*H_tilde[0, 0, :3].compressed())[0, 0] # up to 2nd order
+\end{minted}
 %
-
+\begin{equation}
+    \label{eq:dressed_energy_00}
+    \tilde{\omega}_{00} = \frac{\omega_{r}}{2} + \frac{\omega_{t}}{2} + \frac{g^{2}}{- \omega_{r} + \omega_{t}},
+\end{equation}
+%
+where the shift is proportional to $g^2$.
+Repeating this process for the other levels, we find that the dressed
+frequencies are given by
+%
+\begin{align}
+    \label{eq:dressed_energy}
+    \tilde{\omega}_{10} &= \frac{\omega_{r}}{2} - \frac{\omega_{t}}{2} + \frac{2 g^{2}}{- 2 \alpha - \omega_{r} + \omega_{t}} + \frac{g^{2}}{- \omega_{r} - \omega_{t}} \\
+    \tilde{\omega}_{01} &= \frac{3 \omega_{r}}{2} + \frac{\omega_{t}}{2} + \frac{g^{2}}{\omega_{r} + \omega_{t}} + \frac{2 g^{2}}{- \omega_{r} + \omega_{t}} \\
+    \tilde{\omega}_{11} &= \frac{3 \omega_{r}}{2} - \frac{\omega_{t}}{2} + \frac{2 g^{2}}{- 2 \alpha + \omega_{r} + \omega_{t}} + \frac{g^{2}}{\omega_{r} - \omega_{t}} + \frac{2 g^{2}}{- \omega_{r} - \omega_{t}}.
+\end{align}
+In fact, the frequency shift of the transmon levels depends on the occupation
+of the resonator, a feature used to measure a qubit's state.
+In this example, we have included counter-rotating terms $\sim \omega_{r} +
+\omega_{t}$ for the purpose of illustration, but they are usually neglected in
+the dispersive regime.
