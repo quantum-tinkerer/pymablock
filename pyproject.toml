@@ -68,4 +68,4 @@ ignore_missing_imports = true
 
 [tool.codespell]
 skip = "*.cls,*.bst"
-ignore-words-list = "nwo,groth"
+ignore-words-list = "nwo,groth,ket,braket"
