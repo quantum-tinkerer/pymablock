@@ -12,6 +12,6 @@ repos:
     rev: v2.2.6
     hooks:
     -   id: codespell
-        args: ["--toml", "pyproject.toml"]
+        args: ["--toml", "pyproject.toml", "-L", "nwo,groth,ket,braket"]
         additional_dependencies:
         - tomli
