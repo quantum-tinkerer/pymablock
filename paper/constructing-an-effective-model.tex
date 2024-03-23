@@ -174,13 +174,9 @@ All the terms take less than two seconds in a personal computer to compute.
 
 \subsection{Circuit quantum electrodynamics}
 
-\co{We illustrate the potential of Pymablock as a useful tool for the design
-and control of superconducting qubits.}
-We illustrate the potential of Pymablock as a useful tool for the
-design and control of superconducting qubits.
-We consider a transmon coupled to a resonator~\cite{Krantz_2019} with the goal
-of finding the frequency shift of a qubit (transmon) due to its coupling to a
-measurement device (resonator).
+\co{We illustrate the potential of Pymablock as a useful tool for the design and control of superconducting qubits.}
+The need for an analytical expression for the effective Hamiltonian often arises in the circuit quantum electrodynamics (cQED) problems, which we illustrate by studying a transmon qubit coupled to a resonator~\cite{Krantz_2019}.
+Specifically, we choose the standard problem of finding the frequency shift of the resonator due to its coupling to the qubit, a phenomenon used to measure the qubit state~\cite{Blais_2004}.
 The Hamiltonian of the system is given by
 %
 \begin{equation}
@@ -192,76 +188,52 @@ The Hamiltonian of the system is given by
     g (a^{\dagger}_{t} + a_{t}) (a^{\dagger}_{r} + a_{r}),
 \end{equation}
 %
-where $a_t$ and $a_r$ are bosonic annihilation operators of the transmon
-and resonator, respectively, and $\omega_t$ and $\omega_r$ are their
-frequencies.
-Additionally, we consider the transmon to have an anharmonicity $\alpha$,
-so that its energy levels are not equally spaced.
-The coupling strength $g$ is the term in the Hamiltonian that makes it
-impossible to diagonalize, because it couples two infinitely dimensional
-Hilbert spaces in a non-trivial way.
-Therefore, we treat $g$ as a perturbative parameter.
+where $a_t$ and $a_r$ are bosonic annihilation operators of the transmon and resonator, respectively, and $\omega_t$ and $\omega_r$ are their frequencies.
+The transmon has an anharmonicity $\alpha$, so that its energy levels are not equally spaced.
+In presence of both the coupling $g$ between the transmon and the resonator and the anharmonicity, this Hamiltonian admits no analytical solution.
+We therefore treat $g$ as a perturbative parameter.
 
 \co{We truncate the Hamiltonian.}
-Because our goal is to find the frequency shift of the transmon's lowest
-levels, we are only interested in the states where both the transmon and the
-resonator have few excitations ($0$, $1$ or $2$).
-All other states belong to the $B$ subspace, but there are infinitely many of
-them, and the higher they are in energy, the less they contribute to the
-effective Hamiltonian.
-Therefore, we truncate the Hilbert space to the $9$ lowest energy states of the
-system and build a symbolic matrix Hamiltonian using the Sympy Python package.
+To deal with the infinite dimensional Hilbert space, we observe that the perturbation only changes the occupation numbers of the transmon and the resonator by $\pm 1$.
+Therefore computing $n$-th order corrections to the $n_0$-th state allow to disregard states with any occupation numbers larger than $n_0 + n/2$.
+We want to compute the second order correction to the levels with occupation numbers of either transmon or the resonator being $0$ and $1$.
+We accordingly truncate the Hilbert space to the lowest 3 levels of the transmon and the resonator.
+The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using the sympy~\cite{Meurer_2017}.
 
 \co{We call block diagonalize and compute the qubit Hamiltonian}
-Finally, to compute the frequency shift of each of the transmon's levels, we
-call \mintinline{python}|block_diagonalize| for each state separately,
-replicating a quasi-degenerate perturbation theory calculation for a single
-wavefunction.
-To do this, we observe that $H_0$ is diagonal, and use
-\mintinline{python}|subspace_indices| to assign the elements of its eigenbasis
-to the $A$ (0) or $B$ (1) subspace.
-For example, to compute the frequency shift $\chi = \tilde{\omega} - \omega$ of
-the first transmon level, $\ket{00}$, we call
+Finally, to compute the energy corrections of the lowest levels, we call \mintinline{python}|block_diagonalize| for each state separately, replicating a regular perturbation theory calculation for a single wavefunction.
+To do this, we observe that $H_0$ is diagonal, and use \mintinline{python}|subspace_indices| to assign the elements of its eigenbasis to the $A$ (0) or $B$ (1) subspace.
+For example, to compute the frequency shift $\chi = \tilde{\omega} - \omega$ of the first transmon level, $\ket{00}$, we call
 %
 \begin{minted}{python}
 indices = [0, 1, 1, 1, 1, 1, 1, 1, 1] # 00 is the first state in the basis
-H_tilde, U, U_adjoint = block_diagonalize(H, subspace_indices=indices, symbols=[g])
-H_eff = sympy.Add(*H_tilde[0, 0, :3].compressed()) # up to 2nd order
-H_eff[0, 0] - H[0, 0] # frequency shift chi of the 00 state
+H_tilde, *_ = block_diagonalize(H, subspace_indices=indices, symbols=[g])
+H_tilde[0, 0, 2] # 2nd order correction
 \end{minted}
 %
 \begin{equation}
     \tilde{\chi}_{00} = \frac{g^{2}}{- \omega_{r} + \omega_{t}}.
 \end{equation}
 %
-Repeating this process for the other levels requires changing
-\mintinline{python}|subspace_indices| accordingly, and we obtain the following:
+Repeating this process for the other levels requires changing \mintinline{python}|subspace_indices| accordingly, and yields the desired resonator frequency shift:
 %
-\begin{align}
-    \tilde{\chi}_{10} &= \frac{2 g^{2}}{- 2 \alpha - \omega_{r} + \omega_{t}} + \frac{g^{2}}{- \omega_{r} - \omega_{t}} \\
-    \tilde{\chi}_{01} &= \frac{g^{2}}{\omega_{r} + \omega_{t}} + \frac{2 g^{2}}{- \omega_{r} + \omega_{t}} \\
-    \tilde{\chi}_{11} &= \frac{2 g^{2}}{- 2 \alpha + \omega_{r} + \omega_{t}} + \frac{g^{2}}{\omega_{r} - \omega_{t}} + \frac{2 g^{2}}{- \omega_{r} - \omega_{t}}.
-\end{align}
-In fact, the frequency shift of the transmon levels depends on the occupation
-of the resonator, a feature used to measure a qubit's state \cite{Blais_2004}.
-In this example, we have included counter-rotating terms $\sim \omega_{r} +
-\omega_{t}$ for the purpose of illustration, but they are usually neglected in
-the dispersive regime.
-Finally, to compute higher order corrections to the qubit frequency, all we need
-to do is to increase the size of the truncated Hilbert space and request
-\mintinline{python}|H_tilde[0, 0, :n]| to the desired order $n$.
+\begin{equation}
+\begin{aligned}
+\xi = (E_{11} - E_{10}) - (E_{01} - E_{00})
+= ...
+\end{aligned}
+\end{equation}
+%
+In this example, we have included the frequently omitted counter-rotating terms $\sim a_{r} + a_{t}$ to illustrate the extensibility of Pymablock.
+Computing higher order corrections to the qubit frequency only requires increasing the size of the truncated Hilbert space and requesting \mintinline{python}|H_tilde[0, 0, n]| to the desired order $n$.
 
 \subsection{Induced gap in a double quantum dot}
 
 \co{Large systems pose an additional challenge due to the scaling of linear
 algebra routines for large matrices.}
-Large systems pose an additional challenge due to the cubic scaling of linear
-algebra routines with matrix size.
-To overcome this, Pymablock is equipped with an implicit method, which utilizes
-the sparsity of the input and avoids the construction of the full transformed
-Hamiltonian.
-We illustrate the efficiency of this method by applying it to a system of two
-quantum dots coupled to a superconductor between them, shown in
+Large systems pose an additional challenge due to the cubic scaling of linear algebra routines with matrix size.
+To overcome this, Pymablock is equipped with an implicit method, which utilizes the sparsity of the input and avoids the construction of the full transformed Hamiltonian.
+We illustrate the efficiency of this method by applying it to a system of two quantum dots coupled to a superconductor between them, shown in
 Fig.~\ref{fig:QD_spectrum}, and described by the Bogoliubov-de Gennes Hamiltonian:
 %
 \begin{equation}
@@ -271,54 +243,32 @@ Fig.~\ref{fig:QD_spectrum}, and described by the Bogoliubov-de Gennes Hamiltonia
         (\mathbf{k}^2/2m - \mu_n) \sigma_z \quad & \text{otherwise},
     \end{cases}
 \end{equation}
-where the Pauli matrices $\sigma_z$ and $\sigma_x$ act in the electron-hole
-space, $\mathbf{k}$ is the 2D wave vector, $m$ is the effective mass, and
-$\Delta$ the superconducting gap.
+where the Pauli matrices $\sigma_z$ and $\sigma_x$ act in the electron-hole space, $\mathbf{k}$ is the 2D wave vector, $m$ is the effective mass, and $\Delta$ the superconducting gap.
 
 \co{We use Kwant to build the Hamiltonian of the system.}
-We use the Kwant package~\cite{Groth_2014} to build the Hamiltonian of the
-system~\footnote{The full code is available at
-\url{https://pymablock.readthedocs.io/en/latest/tutorial/induced_gap.html}.},
-which we define over a square lattice of $L \times W = 200 \times 40$ sites.
-On top of this, we consider two perturbations: the barrier strength between the
-quantum dots and the superconductor, $t_b$, and an asymmetry of
-the dots potentials, $\delta \mu$.
+We use the Kwant package~\cite{Groth_2014} to build the Hamiltonian of the system~\footnote{The full code is available at \url{https://pymablock.readthedocs.io/en/latest/tutorial/induced_gap.html}.}, which we define over a square lattice of $L \times W = 200 \times 40$ sites.
+On top of this, we consider two perturbations: the barrier strength between the quantum dots and the superconductor, $t_b$, and an asymmetry of the dots potentials, $\delta \mu$.
 
-The system is large: it is a sparse array of size $63042 \times 63042$, with
-$333680$ non-zero elements, so even storing all the eigenvectors would take
-$60$ GB of memory.
-The perturbations are also sparse, with $632$, and $126084$ non-zero elements
-for the barrier strength and the potential asymmetry, respectively.
-The sparsity structure of the Hamiltonian and the perturbations is shown in the
-left panel of Fig.~\ref{fig:QD_spectrum}, where we use a smaller system of $L
-\times W = 8 \times 2$ for visualization.
-Therefore, we use sparse diagonalization and compute only four eigenvectors of
-the unperturbed Hamiltonian closest to zero energy, which are the Andreev
-states of the quantum dots.
+The system is large: it is a sparse array of size $63042 \times 63042$, with $333680$ non-zero elements, so even storing all the eigenvectors would take $60$ GB of memory.
+The perturbations are also sparse, with $632$, and $126084$ non-zero elements for the barrier strength and the potential asymmetry, respectively.
+The sparsity structure of the Hamiltonian and the perturbations is shown in the left panel of Fig.~\ref{fig:QD_spectrum}, where we use a smaller system of $L \times W = 8 \times 2$ for visualization.
+Therefore, we use sparse diagonalization and compute only four eigenvectors of the unperturbed Hamiltonian closest to zero energy, which are the Andreev states of the quantum dots.
 %
 \inputminted[firstline=62, lastline=63]{python}{code_figures/lattice_system.py}
 %
-We now call the block diagonalization routine and provide the computed
-eigenvectors.
+We now call the block diagonalization routine and provide the computed eigenvectors.
 %
 \inputminted[firstline=65, lastline=65]{python}{code_figures/lattice_system.py}
 %
-Because we only provide the low energy subspace, Pymablock uses the implicit
-method.
-Calling \mintinline{python}|block_diagonalize| is now the most time consuming
-step because it requires pre-computing several decompositions of the full
-Hamiltonian.
-It is, however, manageable and it only produces a constant overhead of less
-than three seconds.
+Because we only provide the low energy subspace, Pymablock uses the implicit method.
+Calling \mintinline{python}|block_diagonalize| is now the most time consuming step because it requires pre-computing several decompositions of the full Hamiltonian.
+It is, however, manageable and it only produces a constant overhead of less than three seconds.
 
-To compute the spectrum, we collect the lowest three orders in each parameter
-in an appropriately sized tensor.
+To compute the spectrum, we collect the lowest three orders in each parameter in an appropriately sized tensor.
 %
 \inputminted[firstline=71, lastline=71]{python}{code_figures/lattice_system.py}
 %
-This takes two more seconds to run, and we can now compute the low energy
-spectrum after rescaling the perturbative corrections by the magnitude of each
-perturbation.
+This takes two more seconds to run, and we can now compute the low energy spectrum after rescaling the perturbative corrections by the magnitude of each perturbation.
 %
 \inputminted[firstline=74, lastline=79]{python}{code_figures/lattice_system.py}
 %
@@ -328,18 +278,13 @@ Finally, we plot the spectrum in Fig.~\ref{fig:QD_spectrum}.
 \centering
 \includegraphics[width=\linewidth]{figures/lattice_system.pdf}
 \caption{
-    Low energy spectrum of two quantum dots coupled to a superconductor for
-    three values of the barrier strength $t_b \in (0, 0.5, 0.75)$.
+    Low energy spectrum of two quantum dots coupled to a superconductor for three values of the barrier strength $t_b \in (0, 0.5, 0.75)$.
 }
 \label{fig:QD_spectrum}
 \end{figure}
 %
-As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the
-dots are coupled to the superconductor.
-In addition, we observe how the proximity gap of the dots increases with the
-coupling strength.
+As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the dots are coupled to the superconductor.
+In addition, we observe how the proximity gap of the dots increases with the coupling strength.
 
-In this example the total runtime of Pymablock would only allow us to compute
-the spectrum at around $3$ points in the parameter space.
-This demonstrates the speed of the implicit method and the efficiency of
-Pymablock's algorithm.
+In this example the total runtime of Pymablock would only allow us to compute the spectrum at around $3$ points in the parameter space.
+This demonstrates the speed of the implicit method and the efficiency of Pymablock's algorithm.
