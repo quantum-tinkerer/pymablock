@@ -458,60 +458,28 @@ def _block_diagonalize(
         block + zeroth_order: H[block + zeroth_order]
         for block in ((0, 0), (0, 1), (1, 0), (1, 1))
     }
-    # Common series kwargs to avoid some repetition
-    series_kwargs = dict(
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
-        data=zero_data,
-    )
 
     # The main algorithm closely follows the notation in the notes, and is hard
     # to understand otherwise. Consult the docs/source/algorithms.md in order to
     # understand the logic of what is happening.
-
-    series_data = {
-        # Only perturbative parts of H
-        "H'_diag": {
-            "eval": (lambda *index: H[index] if index[0] == index[1] else zero),
-        },
-        "H'_offdiag": {
-            "eval": (lambda *index: H[index] if index[0] != index[1] else zero),
-        },
-        # Only perturbative parts of the unitary transformation
-        "U'": {"data": zero_data},
-        # Full unitary transformation
-        "U": {"eval": (lambda *index: series["U'"][index]), "data": identity_data},
-        # Diagonal parts of U' are Hermitian, off-diagonal parts are anti-Hermitian
-        "U'†": {
-            "eval": (
-                lambda *index: (
-                    series["U'"][index]
-                    if index[0] == index[1]
-                    else -series["U'"][index]
-                )
-            )
-        },
-        "U†": {
-            "eval": (lambda *index: series["U'†"][index]),
-            "data": identity_data,
-        },
-        # X = [U', H_0], computed using a recurrent relation. Diagonal parts are
-        # anti-Hermitian, off-diagonal parts are Hermitian.
-        "(X - H'_offdiag)": {},
-        "X": {
-            "eval": (
-                lambda *index: _zero_sum(
-                    series["(X - H'_offdiag)"][index], series["H'_offdiag"][index]
-                )
-            ),
-        },
-        "H' @ U'": {},
-    }
     series = {
-        key: BlockSeries(name=key, **(series_kwargs | value))
-        for key, value in series_data.items()
+        "H'_diag": _diag(H, data=zero_data),
+        "H'_offdiag": _offdiag(H, data=zero_data),
+        "U'": _series_like(H, data=zero_data),
+        "(X - H'_offdiag)": _series_like(H, data=zero_data),
+        "H' @ U'": _series_like(H, data=zero_data),
+        "H_tilde": _series_like(H, data=H_0_data),
     }
+    series["U'†"] = _series_sum(
+        _diag(series["U'"]), _offdiag(series["U'"]), coefficients=[1, -1]
+    )
+    series["U"] = _view(series["U'"], identity_data)
+    series["U†"] = _view(series["U'†"], identity_data)
+    # X = [U', H_0], computed using a recurrent relation. Diagonal parts are
+    # anti-Hermitian, off-diagonal parts are Hermitian.
+    series["X"] = _series_sum(series["(X - H'_offdiag)"], series["H'_offdiag"])
+    for name, value in series.items():
+        value.name = name
 
     # List of products and whether they are Hermitian
     needed_products = [
@@ -543,15 +511,8 @@ def _block_diagonalize(
         if operator is not matmul:
             raise ValueError("The implicit method only supports matrix multiplication.")
 
-    def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
-        return BlockSeries(
-            eval=(lambda *index: aslinearoperator(original[index])),
-            name=original.name,
-            **series_kwargs,
-        )
-
     linear_operator_series = {
-        key: linear_operator_wrapped(value) for key, value in series.items()
+        key: _linear_operator_wrapped(value) for key, value in series.items()
     }
 
     for term, hermitian in needed_products:
@@ -602,16 +563,14 @@ def _block_diagonalize(
             result = _safe_divide(U_p_adj_U_p[index], -2)
             del_("U'† @ U'", index)
             return result
-        elif index[:2] == (0, 1):
+        elif index[0] < index[1]:
             # off-diagonal block nullifies the off-diagonal part of H_tilde
             Y = series["X"][index]
             del_("X", index)
             return -solve_sylvester(Y) if Y is not zero else zero
-        elif index[:2] == (1, 0):
-            # off-diagonal of U is anti-Hermitian
-            return -Dagger(series["U'"][(0, 1) + tuple(index[2:])])
 
     series["U'"].eval = U_p_eval
+    antihermitize(series["U'"])
 
     def X_min_H_offdiag_eval(*index: int) -> Any:
         if index[0] == index[1]:
@@ -666,13 +625,9 @@ def _block_diagonalize(
             return result
         return zero
 
-    H_tilde = BlockSeries(
-        eval=H_tilde_eval,
-        name="H_tilde",
-        **(series_kwargs | dict(data=H_0_data)),
-    )
+    series["H_tilde"].eval = H_tilde_eval
 
-    return H_tilde, series["U"], series["U†"]
+    return series["H_tilde"], series["U"], series["U†"]
 
 
 ### Different formats and algorithms of solving Sylvester equation.
@@ -1172,3 +1127,161 @@ def _safe_divide(numerator, denominator):
         return numerator / denominator
     except TypeError:
         return numerator * (1 / denominator)
+
+
+def _series_like(series, eval=None, data=None):
+    """
+    Create a new series with the same properties as another series.
+
+    Does not copy data or eval.
+
+    Parameters
+    ----------
+    series : BlockSeries
+        Series to copy properties from.
+    eval : callable, optional
+        Function to use for the new series. Defaults to None.
+    data : dict, optional
+        Data to use for the new series. Defaults to an empty dictionary.
+
+    Returns
+    -------
+    BlockSeries
+        New series with the same properties as ``series``.
+    """
+    return BlockSeries(
+        shape=series.shape,
+        eval=eval,
+        name=series.name,
+        n_infinite=series.n_infinite,
+        dimension_names=series.dimension_names,
+        data=data,
+    )
+
+
+def _series_sum(*series, coefficients=None):
+    """
+    Sum of BlockSeries.
+
+    Parameters
+    ----------
+    series : BlockSeries
+        Series to sum.
+    coefficients : list of numbers, optional
+        Coefficients to multiply each series by. Defaults to 1.
+
+    Returns
+    -------
+    BlockSeries
+        Sum of series.
+    """
+    if not series:
+        raise ValueError("At least one series must be provided.")
+    if len(series) == 1:
+        return series[0]
+    if not all(s.n_infinite == series[0].n_infinite for s in series):
+        raise ValueError("All series must have the same number of infinite dimensions.")
+    if not all(s.dimension_names == series[0].dimension_names for s in series):
+        raise ValueError("All series must have the same symbols.")
+    if not all(s.shape == series[0].shape for s in series):
+        raise ValueError("All series must have the same shape.")
+
+    if coefficients is None:
+        coefficients = [1] * len(series)
+
+    def eval_sum(*index):
+        return _zero_sum(
+            s[index] if coeff == 1 else s[index] * coeff
+            for s, coeff in zip(series, coefficients)
+        )
+
+    return _series_like(series[0], eval=eval_sum)
+
+
+def _view(series, data=None):
+    """
+    Create a view of a BlockSeries.
+
+    Parameters
+    ----------
+    series : BlockSeries
+        Series to create a view of.
+
+    Returns
+    -------
+    BlockSeries
+        View of the series.
+    """
+    return _series_like(series, eval=(lambda *index: series[index]), data=data)
+
+
+def _diag(series, data=None):
+    """
+    Extract the diagonal of a BlockSeries.
+
+    Parameters
+    ----------
+    series : BlockSeries
+        Series to extract the diagonal from.
+
+    Returns
+    -------
+    BlockSeries
+        Diagonal of the series.
+    """
+    return _series_like(
+        series,
+        eval=(lambda *index: zero if index[0] != index[1] else series[index]),
+        data=data,
+    )
+
+
+def _offdiag(series, data=None):
+    """
+    Extract the off-diagonal of a BlockSeries.
+
+    Parameters
+    ----------
+    series : BlockSeries
+        Series to extract the off-diagonal from.
+
+    Returns
+    -------
+    BlockSeries
+        Off-diagonal of the series.
+    """
+    return _series_like(
+        series,
+        eval=(lambda *index: zero if index[0] == index[1] else series[index]),
+        data=data,
+    )
+
+
+def hermitize(series):
+    """Updates a series to compute its lower part by conjugating the upper."""
+    old_eval = series.eval
+
+    def new_eval(*index):
+        if index[0] > index[1]:
+            return Dagger(series[(index[1], index[0], *index[2:])])
+        return old_eval(*index)
+
+    series.eval = new_eval
+    return series
+
+
+def antihermitize(series):
+    """Updates a series to compute its lower part by negating the upper."""
+    old_eval = series.eval
+
+    def new_eval(*index):
+        if index[0] > index[1]:
+            return -Dagger(series[(index[1], index[0], *index[2:])])
+        return old_eval(*index)
+
+    series.eval = new_eval
+    return series
+
+
+def _linear_operator_wrapped(series):
+    return _series_like(series, eval=(lambda *index: aslinearoperator(series[index])))
