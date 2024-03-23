@@ -18,19 +18,6 @@ plt.rcParams.update({"text.latex.preamble": r"\usepackage{amsmath}"})
 
 # %%
 def collect_constant(expr):
-    """Collect constant terms in a fermionic expression.
-
-    Parameters
-    ==========
-
-    expr : sympy expression
-
-    Returns
-
-    =======
-
-    constant_terms : sympy expression
-    """
     expr = normal_ordered_form(expr.expand(), independent=True)
     constant_terms = []
     for term in expr.as_ordered_terms():
@@ -40,24 +27,7 @@ def collect_constant(expr):
 
 
 def matrix_elements(ham, basis):
-    """Generate the matrix elements of a fermionic operator in a given basis.
-
-    Parameters
-    ==========
-
-    ham : sympy FermionOp object
-        The operator whose matrix elements are to be calculated
-
-    basis : list of sympy FermionOp expressions
-        The basis in which the matrix elements are to be calculated
-
-    Returns
-
-    =======
-
-    matrix_elements : list of sympy expressions
-        The matrix elements of the operator in the given basis
-    """
+    """Generate the matrix elements"""
     all_brakets = product(basis, basis)
     flat_matrix = [
         collect_constant(braket[0] * ham * Dagger(braket[1])) for braket in all_brakets
@@ -105,8 +75,7 @@ basis = [
     a_r * a_r / sympy.sqrt(2),
     a_t * a_t * a_r / sympy.sqrt(2),
     a_t * a_r * a_r / sympy.sqrt(2),
-    a_t * a_t * a_t / sympy.sqrt(3),
-    a_r * a_r * a_r / sympy.sqrt(3),
+    a_t * a_t * a_r * a_r / sympy.Rational(2),
 ]
 
 flat_matrix_0 = matrix_elements(H_0, basis)
@@ -119,12 +88,24 @@ H_p_matrix = sympy.Matrix(np.array(flat_matrix_p).reshape(N, N))
 H = H_0_matrix + H_p_matrix
 # %%
 shifted_energies = []
-for i in range(10):
-    subspace_indices = [1] * 10
+for i in range(len(basis)):
+    subspace_indices = [1] * len(basis)
     subspace_indices[i] = 0
     H_tilde, U, U_adjoint = block_diagonalize(
         H, subspace_indices=subspace_indices, symbols=[g]
     )
     H_eff = sympy.Add(*H_tilde[0, 0, :3].compressed())
-    shifted_energies.append(H_eff[0, 0])
+    shifted_energies.append(H_eff[0, 0] - H[i, i])
+# %%
+# %%
+i = 0
+subspace_indices = [1] * len(basis)
+subspace_indices[i] = 0
+H_tilde, U, U_adjoint = block_diagonalize(
+    H, subspace_indices=subspace_indices, symbols=[g]
+)
+H_eff = sympy.Add(*H_tilde[0, 0, :7].compressed())
+H_eff[0, 0] - H[i, i]
+# %%
+(H_eff[0, 0] - H[i, i])
 # %%
