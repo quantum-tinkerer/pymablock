@@ -48,18 +48,6 @@ between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher
 cost $\sim N^2$, however if we use associativity of the product and compute
 this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost
 stays $\sim N$.
-%
-\begin{figure}[h!]
-\centering
-\includegraphics[width=\textwidth]{figures/diagrams_H.pdf}
-\caption{
-  Perturbative block-diagonalization of a gapped Hamiltonian with a first order
-  perturbation.
-  The effective Hamiltonian is the $2\times 2$ block in the top left corner in
-  the last panel.
-}
-\label{fig:block_diagonalization}
-\end{figure}
 
 There are many ways to solve the problem~\eqref{eq:problem_definition} that
 give identical expressions for $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
@@ -331,8 +319,7 @@ In the eigenbasis of $H_0$, the solution of Sylvester's equation is
 $V^{AB}_{\mathbf{n}, ij} = Y^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$
 are the eigenvalues of $H_0$.
 
-\subsection{Algorithm}
-
+\co{The algorithm is complete.}
 We now have the complete algorithm:
 %
 \begin{enumerate}
