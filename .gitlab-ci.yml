@@ -89,11 +89,13 @@ paper:
       - paper/paper.pdf
 
 pages:
+  before_script: []
   needs:
     - run tests
     - run docs
     - paper
   script:
+    - mkdir public
     - cp -r htmlcov public/
     - cp -r docs/build public/
     - cp -r paper/ public/
