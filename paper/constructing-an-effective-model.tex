@@ -133,7 +133,7 @@ vecs = H.subs({alpha: 0, m: 0}).diagonalize(normalize=True)[0]
 H_tilde, U, U_adjoint = block_diagonalize(
     H.subs({alpha: alpha_k}),
     symbols=(k_x, k_y, m),
-    subspace_eigenvectors=[vecs[:, :2], vecs[:, 2:]]
+    subspace_eigenvectors=[vecs[:, :2], vecs[:, 2:]] # AA, BB
 )
 \end{minted}
 %
@@ -179,8 +179,8 @@ and control of superconducting qubits.}
 We illustrate the potential of Pymablock as a useful tool for the
 design and control of superconducting qubits.
 We consider a transmon coupled to a resonator~\cite{Krantz_2019} with the goal
-of finding the frequency shift of a qubit (transmon) due to its measurement
-device (resonator).
+of finding the frequency shift of a qubit (transmon) due to its coupling to a
+measurement device (resonator).
 The Hamiltonian of the system is given by
 %
 \begin{equation}
@@ -201,8 +201,6 @@ The coupling strength $g$ is the term in the Hamiltonian that makes it
 impossible to diagonalize, because it couples two infinitely dimensional
 Hilbert spaces in a non-trivial way.
 Therefore, we treat $g$ as a perturbative parameter.
-This is called the dispersive regime, an approximation that is valid when
-$g \ll \omega_{r} - \omega_{q}$.
 
 \co{We truncate the Hamiltonian.}
 Because our goal is to find the frequency shift of the transmon's lowest
@@ -211,34 +209,33 @@ resonator have few excitations ($0$, $1$ or $2$).
 All other states belong to the $B$ subspace, but there are infinitely many of
 them, and the higher they are in energy, the less they contribute to the
 effective Hamiltonian.
-Therefore, we truncate the Hilbert space to the $9$ lowest energy states of
-the system and build a symbolic matrix Hamiltonian~\footnote{We build the $9
-\times 9$ matrix Hamiltonian directly from the second quantization Hamiltonian
-in Eq.~\eqref{eq:H_cqed} using
-\mintinline{python}|sympy.physics.quantum.boson.BosonOp|.}.
+Therefore, we truncate the Hilbert space to the $9$ lowest energy states of the
+system and build a symbolic matrix Hamiltonian using the Sympy Python package.
 
 \co{We call block diagonalize and compute the qubit Hamiltonian}
 Finally, to compute the frequency shift of each of the transmon's levels, we
-define a $1 \times 1$ block diagonalization problem for each state separately.
+call \mintinline{python}|block_diagonalize| for each state separately,
+replicating a quasi-degenerate perturbation theory calculation for a single
+wavefunction.
 To do this, we observe that $H_0$ is diagonal, and use
-\mintinline{python}|subspace_indices| to assign its entries to the $A$ or $B$
-subspace.
+\mintinline{python}|subspace_indices| to assign the elements of its eigenbasis
+to the $A$ (0) or $B$ (1) subspace.
 For example, to compute the frequency shift $\chi = \tilde{\omega} - \omega$ of
-the first transmon level, $\ket{00}$, we write
+the first transmon level, $\ket{00}$, we call
 %
 \begin{minted}{python}
-indices = [0, 1, 1, 1, 1, 1, 1, 1, 1] # 00 is the first state
-H_tilde, U, U_adjoint = block_diagonalize(H, subspace_indices=subspace_indices, symbols=[g])
+indices = [0, 1, 1, 1, 1, 1, 1, 1, 1] # 00 is the first state in the basis
+H_tilde, U, U_adjoint = block_diagonalize(H, subspace_indices=indices, symbols=[g])
 H_eff = sympy.Add(*H_tilde[0, 0, :3].compressed()) # up to 2nd order
-H_eff[0, 0] - H[i, i] # frequency shift chi
+H_eff[0, 0] - H[0, 0] # frequency shift chi of the 00 state
 \end{minted}
 %
 \begin{equation}
     \tilde{\chi}_{00} = \frac{g^{2}}{- \omega_{r} + \omega_{t}}.
 \end{equation}
 %
-Repeating this process for the other levels, we find that the frequency shifts
-are given by
+Repeating this process for the other levels requires changing
+\mintinline{python}|subspace_indices| accordingly, and we obtain the following:
 %
 \begin{align}
     \tilde{\chi}_{10} &= \frac{2 g^{2}}{- 2 \alpha - \omega_{r} + \omega_{t}} + \frac{g^{2}}{- \omega_{r} - \omega_{t}} \\
