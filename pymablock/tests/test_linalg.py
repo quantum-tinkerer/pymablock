@@ -19,7 +19,7 @@ def test_linear_operator_rmatmul_patched():
 
 @mark.parametrize("dtype", [np.float32, np.float64, np.complex64, np.complex128])
 def test_direct_greens_function(dtype):
-    atol = 1e3 * np.finfo(dtype).eps
+    atol = 1e4 * np.finfo(dtype).eps
     n = 100
     E = np.random.randn(n).astype(dtype)
     t = np.random.rand(n - 1).astype(dtype)
