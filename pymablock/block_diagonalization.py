@@ -463,6 +463,7 @@ def _block_diagonalize(
         shape=(2, 2),
         n_infinite=H.n_infinite,
         dimension_names=H.dimension_names,
+        data=zero_data,
     )
 
     # The main algorithm closely follows the notation in the notes, and is hard
@@ -473,11 +474,9 @@ def _block_diagonalize(
         # Only perturbative parts of H
         "H'_diag": {
             "eval": (lambda *index: H[index] if index[0] == index[1] else zero),
-            "data": zero_data,
         },
         "H'_offdiag": {
             "eval": (lambda *index: H[index] if index[0] != index[1] else zero),
-            "data": zero_data,
         },
         # Only perturbative parts of the unitary transformation
         "U'": {"data": zero_data},
@@ -499,21 +498,18 @@ def _block_diagonalize(
         },
         # X = [U', H_0], computed using a recurrent relation. Diagonal parts are
         # anti-Hermitian, off-diagonal parts are Hermitian.
-        "(X - H'_offdiag)": {"data": zero_data},
+        "(X - H'_offdiag)": {},
         "X": {
             "eval": (
                 lambda *index: _zero_sum(
                     series["(X - H'_offdiag)"][index], series["H'_offdiag"][index]
                 )
             ),
-            "data": zero_data,
         },
-        "H' @ U'": {
-            "data": zero_data,
-        },
+        "H' @ U'": {},
     }
     series = {
-        key: BlockSeries(name=key, **series_kwargs, **value)
+        key: BlockSeries(name=key, **(series_kwargs | value))
         for key, value in series_data.items()
     }
 
@@ -672,9 +668,8 @@ def _block_diagonalize(
 
     H_tilde = BlockSeries(
         eval=H_tilde_eval,
-        data=H_0_data,
         name="H_tilde",
-        **series_kwargs,
+        **(series_kwargs | dict(data=H_0_data)),
     )
 
     return H_tilde, series["U"], series["U†"]
