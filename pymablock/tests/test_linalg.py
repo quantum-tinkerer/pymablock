@@ -1,6 +1,6 @@
 import builtins
 
-from pytest import raises
+from pytest import raises, mark
 import numpy as np
 from numpy.testing import assert_allclose
 from scipy import sparse
@@ -17,21 +17,28 @@ def test_linear_operator_rmatmul_patched():
     assert_allclose(array @ operator, array @ array)
 
 
-def test_direct_greens_function():
+@mark.parametrize("dtype", [np.float32, np.float64, np.complex64, np.complex128])
+def test_direct_greens_function(dtype):
+    atol = 1e3 * np.finfo(dtype).eps
     n = 100
-    E = np.random.randn(n)
-    t = np.random.rand(n - 1) * np.exp(2j * np.pi * np.random.rand(n - 1))
+    E = np.random.randn(n).astype(dtype)
+    t = np.random.rand(n - 1).astype(dtype)
+    if np.iscomplexobj(E):
+        t *= np.exp(2j * np.pi * np.random.rand(n - 1))
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
     n0 = n // 3
-    G = linalg.direct_greens_function(h, E[n0], atol=1e-7)
-    vec = np.random.randn(n) + 1j * np.random.randn(n)
+    G = linalg.direct_greens_function(h, E[n0], atol=atol)
+    vec = np.random.randn(n).astype(dtype)
+    if np.iscomplexobj(vec):
+        vec += 1j * np.random.randn(n)
     vec -= (eigvecs[:, n0].conj() @ vec) * eigvecs[:, n0]
     sol = G(vec)
-    assert_allclose(h @ sol - E[n0] * sol, -vec, atol=1e-7)
+    assert_allclose(h @ sol - E[n0] * sol, -vec, atol=atol)
 
 
 def test_direct_greens_function_dtype():
+    """Test that type promotion works as expected."""
     n = 10
     E = np.random.randn(n).astype(np.float32)
     gf = linalg.direct_greens_function(sparse.diags(E), 0, atol=1e-3)
