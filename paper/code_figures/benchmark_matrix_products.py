@@ -76,16 +76,16 @@ fig, ax = plt.subplot_mosaic(mosaic, figsize=(figwidth, figwidth / 3))
 
 for structure, counts in multiplication_counts.items():
     ax["A"].plot(
-        list(counts.keys()),
-        list(counts.values()),
+        list(counts.keys())[2:],
+        list(counts.values())[2:],
         label=None,
         linestyle="--",
         alpha=0.3,
         linewidth=1,
     )
     ax["A"].scatter(
-        list(counts.keys()),
-        list(counts.values()),
+        list(counts.keys())[2:],
+        list(counts.values())[2:],
         label=structure,
         s=20,
     )
