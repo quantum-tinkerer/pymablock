@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable
 from warnings import warn
 
 from packaging.version import parse
@@ -69,7 +69,7 @@ def direct_greens_function(
     h: spmatrix,
     E: float,
     atol: float = 1e-7,
-    eps: Optional[float] = None,
+    eps: float = 0,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Compute the Green's function of a Hamiltonian using MUMPS solver.
 
@@ -80,7 +80,7 @@ def direct_greens_function(
     E :
         Energy at which to compute the Green's function.
     atol :
-        Accepted precision of the desired result in 2-norm.
+        Accepted precision of the desired result in infinity-norm.
     eps :
         Tolerance for the MUMPS solver to identify null pivots. Passed through
         to MUMPS CNTL(3), see MUMPS user guide.
@@ -91,11 +91,16 @@ def direct_greens_function(
         Function that solves :math:`(E - H) sol = vec`.
     """
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
+    is_complex = np.iscomplexobj(mat.data)
     ctx = MUMPSContext()
-    ctx.set_matrix(mat)
+    # MUMPS does not support Hermitian matrices, so we use the symmetric only with real.
+    ctx.set_matrix(mat, symmetric=not is_complex)
+    # Enable null pivot detection
     ctx.mumps_instance.icntl[24] = 1
-    if eps is not None:
-        ctx.mumps_instance.cntl[3] = eps
+    # Set tolerance for null pivot detection
+    ctx.mumps_instance.cntl[3] = eps
+    # Enable computation of the residual
+    ctx.mumps_instance.icntl[11] = 2
     ctx.factor()
 
     def greens_function(vec: np.ndarray) -> np.ndarray:
@@ -113,17 +118,27 @@ def direct_greens_function(
         sol :
             Solution of :math:`(E - H) sol = vec`.
         """
-        if np.iscomplexobj(vec) and not np.iscomplexobj(mat):
-            sol = ctx.solve(vec.real) + 1j * ctx.solve(vec.imag)
+        if np.iscomplexobj(vec) and not is_complex:
+            vec = (vec.real, vec.imag)
         else:
-            sol = ctx.solve(vec)
-        if (residue := np.linalg.norm(mat @ sol - vec)) > atol:
+            vec = (vec,)
+
+        residual = 0
+        sol = []
+        for v in vec:
+            sol.append(ctx.solve(v))
+            residual += (
+                ctx.mumps_instance.rinfog[6]  # Scaled residual
+                * ctx.mumps_instance.rinfog[4]  # ||A||_inf
+                * ctx.mumps_instance.rinfog[5]  # ||x||_inf
+            )
+        if residual > atol:
             warn(
-                f"Solution only achieved precision {residue} > {atol}."
+                f"Solution only achieved precision {residual} > {atol}."
                 " adjust eps or atol.",
                 RuntimeWarning,
             )
-        return sol
+        return sol[0] if len(sol) == 1 else sol[0] + 1j * sol[1]
 
     return greens_function
 
