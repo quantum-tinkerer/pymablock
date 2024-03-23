@@ -170,6 +170,7 @@ We thus identify the following open question: can we construct an effective
 Hamiltonian with a linear scaling algorithm that produces compact expressions?
 
 \subsection{Pymablock's algorithm}
+\label{sec:pymablock_algorithm}
 
 \co{We use recursive expressions, for example, to apply the unitarity condition.}
 The first idea that Pymablock exploits is the recursive evaluation of operator
@@ -346,15 +347,13 @@ We now have the complete algorithm:
     \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}$.
 \end{enumerate}
 
-\subsection{Equivalence with Schrieffer--Wolff transformation}
+\subsection{Equivalence to Schrieffer--Wolff transformation}
 \label{seq:SW_equivalence}
 \co{Our algorithm is equivalent to a Schrieffer--Wolff transformation}
-Both the Pymablock algorithm and the more commonly used Schrieffer-Wolff
-transformation find a unitary transformation $\mathcal{U}$ such that
-$\tilde{\mathcal{H}}^{AB}=0$.
+Pymablock's algorithm and the Schrieffer-Wolff transformation find a unitary
+transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
 They are therefore equivalent up to a gauge choice in each subspace, $A$ and
 $B$.
-
 We establish the equivalence between the two by demonstrating that this gauge
 choice is the same for both algorithms.
 The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$,
@@ -372,15 +371,14 @@ On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are
 block off-diagonal and their sum is anti-Hermitian by the same reasoning.
 Therefore, just like in our algorithm, the diagonal blocks of $\exp S$ are
 Hermitian, while off-diagonal blocks are anti-Hermitian.
-Schrieffer--Wolff transformation produces a unique answer and satisfies the same
-diagonalization requirements as our algorithm, which means that the two produce
-the same effective Hamiltonian.
+Finally, because the Schrieffer--Wolff transformation produces a unique answer
+and satisfies the same diagonalization requirements as our algorithm, the two
+produce the same effective Hamiltonian.
 
 \subsection{Extra optimization: common subexpression elimination}
-%
-We further optimize the algorithm by reusing products that are needed in several
-places.
-%
+While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our
+requirements, we optimize it further by reusing products that are needed in
+several places.
 Firstly, we rewrite the expressions for $\mathcal{Z}$ and $\tilde{\mathcal{H}}$
 by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ without recomputing it:
 %
@@ -391,14 +389,14 @@ by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ witho
 %
 where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{X}$ drops out from the diagonal blocks of $\tilde{\mathcal{H}}$ because diagonal of $\mathcal{X}$ is anti-Hermitian.
 %
-To compute $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$ faster, we express it
-using $\mathcal{F} \equiv \mathcal{H}'\mathcal{U}'$:
+Additionally, we reuse the repeated $\mathcal{F} \equiv \mathcal{H}'\mathcal{U}'$
+in
 %
 $$
 \mathcal{U}^\dagger \mathcal{H}' \mathcal{U} = \mathcal{H}' + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
 $$
 %
-To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$.
+Next, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$.
 %
 To reuse these products, we separate the perturbation into diagonal and off-diagonal parts $\mathcal{H}' = \mathcal{H}'_\textrm{diag} + \mathcal{H}'_\textrm{offdiag}$.
 %
@@ -407,7 +405,7 @@ We then introduce variables
 \begin{equation}
 \mathcal{A} = \mathcal{H}'_\textrm{diag} \mathcal{U}', \quad
 \mathcal{B} = \mathcal{H}'_\textrm{offdiag} \mathcal{U}', \quad
-\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag}
+\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag}.
 \end{equation}
 %
 This gives an updated expression for $\mathcal{Z}$:
@@ -417,7 +415,7 @@ This gives an updated expression for $\mathcal{Z}$:
 \mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.},
 \end{equation}
 %
-and more importantly for $\tilde{\mathcal{H}}$:
+and finally $\tilde{\mathcal{H}}$:
 %
 \begin{equation}
 \label{eq:H_tilde_optimized}
