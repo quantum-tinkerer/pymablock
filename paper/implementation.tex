@@ -1,96 +1,71 @@
 \section{Implementation}
+\label{sec:implementation}
 
-\co{To implement the algorithms, we need a data structure that represents a
-multidimensional series of block matrices.}
-To implement the algorithm, we need a data structure that represents a
-multidimensional series of operators, where dimensions label independent
-perturbations.
-Additionally, the data structure needs to label blocks, so that the algorithm
-supports several forms of input, e.g. dense arrays, sparse matrices, symbolic
-expressions, an implicit subspace, or a custom Python object that supports
-products and sums.
-Manipulating blocks also allows to compute the effective Hamiltonian without
-explicitly constructing the full Hamiltonian, which is useful for Hamiltonians
-with a large $BB$ subspace that is costly to store and compute.
-To run the recursion, the series needs to be queryable by order and block.
-This is also useful in cases where the user may want terms that combine
-different perturbations, or when the user wants to compute more terms than
-originally requested.
-Lastly, the data structure needs to support a block-wise multivariate Cauchy
-product, which is the main operation in the recursion and is used to compute
-the transformed Hamiltonian.
+\subsection{The data structure for block series}
+\label{sec:BlockSeries}
+
+\co{To implement the algorithms, we need a data structure that represents a multidimensional series of block matrices.}
+The optimized algorithm from the previous section requires constructing $14$ operator series, whose elements are computed using a collection of recurrence relations.
+This warrants defining a specialized data structure suitable for this task that represents a multidimensional series of operators.
+Because the recurrent relations are block-wise, the data structure needs to keep track of separate blocks.
+In order to support varied use cases, the actual representation of the operators needs to be flexible: the block may be dense arrays, sparse matrices, symbolic expressions, or more generally any object that defines addition and multiplication.
+Finally, the series needs to be queryable by order and block, so that it supports a block-wise multivariate Cauchy product---the main operation in the algorithm.
+
+\co{A recursive implementation of the algorithm is better than an explicit loop over orders.}
+The most straightforward way to implement a perturbation theory calculation is to write a function that has the desired order as an argument, computes the series up to that order, and returns the result.
+This makes it hard to reuse already computed terms for a new computation, and becomes complicated to implement in the multidimensional case when different orders in different perturbations are needed.
+We find that a recursive approach addresses these issues: within this paradigm, each series needs to define how its entries depend on lower order terms.
 
 \co{We address this by defining a BlockSeries class.}
-To address these requirements, we define a \mintinline{python}|BlockSeries|
-Python class and use it to represent the series of $\mathcal{U}$,
-$\mathcal{H}$, and $\tilde{\mathcal{H}}$.
-The objects of this class are equipped with a function to compute their elements
-and a dictionary to cache the results.
-For example, the \mintinline{python}|BlockSeries| for $\tilde{\mathcal{H}}$ has
-a function that computes the block-wise multivariate Cauchy product in
-Eq.~\eqref{eq:H_tilde_optimized}, \mintinline{python}|compute_H_tilde|.
+To address these requirements, we define a \mintinline{python}|BlockSeries| Python class and use it to represent the series of $\mathcal{U}$, $\mathcal{H}$, and $\tilde{\mathcal{H}}$, as well as the intermediate series used to define the algorithm.
+The objects of this class are equipped with a function to compute their elements and it stores the already computed results in a dictionary.
+Storing the results for reuse is necessary to optimize the evaluation of higher order terms and it allows to request additional orders without restarting the computation.
+For example, the definition of the \mintinline{python}|BlockSeries| for $\tilde{\mathcal{H}}$ has the following form:
 %
 \begin{minted}{python}
-    H_tilde = BlockSeries(
-        shape=(2, 2), # 2 blocks
-        n_infinite=1, # number of perturbative parameters
-        eval=compute_H_tilde,
-        name="H_tilde",
-        dimension_names=("lambda",),
-    )
+H_tilde = BlockSeries(
+    shape=(2, 2),  # 2x2 block matrix
+    n_infinite=n,  # number of perturbative parameters
+    eval=compute_H_tilde,  # function to compute the elements
+    name="H_tilde",
+    dimension_names=("lambda", ...),  # parameter names
+)
 \end{minted}
 %
-To get the elements of the series, we implement Numpy array indexing,
-which allows us to request several elements at once by using tuples and slices.
-\mintinline{python}|H_tilde[0, 0, 2]| returns the $AA$ block of
-$\tilde{\mathcal{H}}$ proportional to $\lambda^2$, and
-\mintinline{python}|H_tilde[0, 0, :3]| returns the $AA$ block of orders
-$\lambda^0$ , $\lambda^1$, and $\lambda^2$ in a Numpy masked array.
-In the latter, the masked array only contains non-zero elements, a feature that
-we use each time we compute the Cauchy products between series, avoiding
-unnecessary matrix products.
+Here \mintinline{python}|compute_H_tilde| is a function implementing Eq.~\eqref{eq:H_tilde_optimized} by querying other series objects.
+Calling \mintinline{python}|H_tilde[0, 0, 2]|, the second order perturbation $\sim \lambda^2$ of the $AA$ block, then does the following:
+\begin{enumerate}
+    \item Evaluates \mintinline{python}|compute_H_tilde(0, 0, 2)| if it is not already computed.
+    \item Stores the evaluation result in a dictionary.
+    \item Returns the result.
+\end{enumerate}
+To conveniently access multiple orders at once, we implement NumPy array indexing so that \mintinline{python}|H_tilde[0, 0, :3]| returns a NumPy masked array array with the orders $\sim \lambda^0$ , $\sim \lambda^1$, and $\sim \lambda^2$ of the $AA$ block.
+The masking allows to support a common use case where some orders of a series are zero, so that they are omitted from the computations.
+We expect that the \mintinline{python}|BlockSeries| data structure is suitable to represent a broad class of perturbative calculations, and we plan to extend it to support more advanced features in the future.
 
-\co{Using the BlockSeries interface allows us to implement a range of
-optimizations that go beyond directly implementing the polynomial
-parametrization}
-Not only does the \mintinline{python}|BlockSeries| interface allow us to
-implement the polynomial parametrization of the unitary transformation, but
-also several other optimizations.
-For example, we exploit Hermiticity when computing the Cauchy product of
-$U'^{\dagger}U'$ in Eq.~\eqref{eq:W}, for which we only need to compute half of
-the matrix products that form its diagonal blocks, and then complex conjugate
-the result to obtain the rest.
-Similarly, for Hermitian and anti-Hermitian series, like the off-diagonal
-blocks of $\mathcal{X} - \mathcal{H}'_\textrm{offdiag}$ and off-diagonal blocks
-of $\mathcal{U}'$, we only compute the $AB$ blocks, and use the conjugate
-transpose to obtain the $BA$ blocks.
-This is only one example of how the \mintinline{python}|BlockSeries| interface
-allows us to implement a symmetrized algorithm, and we leave other symmetries
-for future work.
-Such an extension would be useful for systems where $\mathcal{U}$ or
-$\tilde{\mathcal{H}}$ vanish due to symmetries, so that the zero blocks can be
-skipped beforehand.
+\co{Using the BlockSeries interface allows us to implement a range of optimizations that go beyond directly implementing the polynomial parametrization}
+We utilize \mintinline{python}|BlockSeries| to implement multiple other optimizations.
+For example, we exploit Hermiticity when computing the Cauchy product of $U'^{\dagger}U'$ in Eq.~\eqref{eq:W}, by only evaluating a half of the matrix products, and then complex conjugate the result to obtain the rest.
+Similarly, for Hermitian and anti-Hermitian series, like the off-diagonal blocks of $\mathcal{X}$ and $\mathcal{U}'$, we only compute the $AB$ blocks, and use the conjugate transpose to obtain the $BA$ blocks.
+This approach should also allow us to implement efficient handling of symmetry-constrained Hamiltonians, where some blocks either vanish or are equal to other blocks due to a symmetry.
+Moreover, using \mintinline{python}|BlockSeries| with custom objects yields additional information about the algorithm and accommodates its further development.
+Specifically, we have used this with a tracker object to measure the algorithm complexity (see also Sec.~\ref{sec:benchmark}) and to determine which results are only used once so that they can be immediately discarded from storage.
 
-\co{A key optimization that BlockSeries enable is the implicit treatment
-of the BB subspace.}
-Solving Sylvester's equation and computing the matrix products are the most
-expensive steps of the algorithms for large Hamiltonians.
-Pymablock can efficiently construct an effective Hamiltonian of a small
-subspace even when the full Hamiltonian is a sparse matrix that is too costly to
-diagonalize.
-It does so by avoiding explicit computation of operators in $B$ subspace, and
-by utilizing the sparsity of the Hamiltonian to compute the Green's function,
-which is the solution of Sylvester's equation.
-To do so, Pymablock uses either the MUMPS sparse solver via the python-mumps
-wrapper or the KPM method, an approach originally introduced in
-references~\cite{Weisse_2006, Irfan_2019}.
+\subsection{The implicit method for large sparse Hamiltonians}
+\label{sec:implicit}
 
+\co{Pymablock supports big sparse problems.}
+A distinguishing feature of Pymablock is its ability to handle large sparse Hamiltonians, that are too costly to diagonalize, as illustrated in Sec.~\ref{sec:induced_gap}/
+
+\co{A key optimization that BlockSeries enable is the implicit treatment of the BB subspace.}
+Solving Sylvester's equation and computing the matrix products are the most expensive steps of the algorithms for large Hamiltonians.
+Pymablock can efficiently construct an effective Hamiltonian of a small subspace even when the full Hamiltonian is a sparse matrix that is too costly to diagonalize.
+It does so by avoiding explicit computation of operators in $B$ subspace, and by utilizing the sparsity of the Hamiltonian to compute the Green's function, which is the solution of Sylvester's equation.
+To do so, Pymablock uses either the MUMPS sparse solver via the python-mumps wrapper or the KPM method, an approach originally introduced in references~\cite{Weisse_2006, Irfan_2019}.
 
 \co{To deal with an implicit B subspace, we use MUMPS and LinearOperators.}
-Because \mintinline{python}|BlockSeries| can represent any input type, we use
-it to directly implement the implicit algorithm for large sparse Hamiltonians.
-To do this, we use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace
-to rewrite the Hamiltonian as
+Because \mintinline{python}|BlockSeries| can represent any input type, we use it to directly implement the implicit algorithm for large sparse Hamiltonians.
+To do this, we use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite the Hamiltonian as
 %
 \begin{align}
 \mathcal{H} \to \begin{pmatrix}
@@ -100,45 +75,25 @@ P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
 \end{align}
 %
 where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
-This Hamiltonian is larger in size than the original one because the $B$ block
-has additional null vectors corresponding to the $A$ subspace.
-This, however, allows to preserve the sparsity structure of the Hamiltonian by
-applying $P_B$ and $\mathcal{H}$ separately.
+This Hamiltonian is larger in size than the original one because the $B$ block has additional null vectors corresponding to the $A$ subspace.
+This, however, allows to preserve the sparsity structure of the Hamiltonian by applying $P_B$ and $\mathcal{H}$ separately.
 Additionally, applying $P_B$ is efficient because $\Psi_A$ is a low rank matrix.
 We then perform perturbation theory of the rewritten $\mathcal{H}$.
-To solve the Sylvester's equation for the modified Hamiltonian, we write it for
-every row of $V_n^{AB}$ separately:
+To solve the Sylvester's equation for the modified Hamiltonian, we write it for every row of $V_n^{AB}$ separately:
 %
 \begin{align}
 V_{n, ij}^{AB} (E_i - H_0) = Y_{n, j}
 \end{align}
 %
-This equation is well-defined despite $E_i - H_0$ is not invertible because
-$Y_{n}$ has no components in the $A$ subspace.
-Here we also wrap the projector $P_B$ by a \mintinline{python}{LinearOperator}
-object from \mintinline{python}{Scipy}.
-This allows us to compute matrix-vector products between $P_B$ and a vector,
-without explicitly constructing $P_B$ or any other product between elements of
-the $B$ subspace, keeping the memory usage low.
-For the same purpose, we use the MUMPS sparse solver \cite{Amestoy_2001},
-\cite{Amestoy_2006}, or the KPM method \cite{Weisse_2006}, to compute the
-Green's function of the $B$ subspace.
-As a consequence, the implicit algorithm can be used on matrices with millions
-of degrees of freedom as long as they are sparse.
+This equation is well-defined despite $E_i - H_0$ is not invertible because $Y_{n}$ has no components in the $A$ subspace.
+Here we also wrap the projector $P_B$ by a \mintinline{python}{LinearOperator} object from \mintinline{python}{Scipy}.
+This allows us to compute matrix-vector products between $P_B$ and a vector, without explicitly constructing $P_B$ or any other product between elements of the $B$ subspace, keeping the memory usage low.
+For the same purpose, we use the MUMPS sparse solver \cite{Amestoy_2001}, \cite{Amestoy_2006}, or the KPM method \cite{Weisse_2006}, to compute the Green's function of the $B$ subspace.
+As a consequence, the implicit algorithm can be used on matrices with millions of degrees of freedom as long as they are sparse.
 
-\co{Finally, we implement an overall function that interprets the user inputs and
-returns a BlockSeries for the transformed Hamiltonian.}
-On the other hand, the standard algorithm explicitly manipulates both subspaces,
-but can work with dense matrices too.
-We use the eigenvectors of the $A$ and $B$ subspaces to project the input
-Hamiltonian and represent it with a \mintinline{python}|BlockSeries|, a
-procedure that works for numerical and symbolic matrices.
-Because we aim for an easy-to-use interface, we implement a function that
-interprets the user inputs and decides which algorithm to use: the implicit
-method if only the $A$ subspace is provided, and the standard algorithm
-otherwise.
-This is \mintinline{python}|block_diagonalize|, the only function that the user
-needs to call.
-If $H_0$ is diagonal and a custom function to solve Sylvester's equation is not
-provided to \mintinline{python}|block_diagonalize|, Pymablock uses a default
-function to compute the energy denominators.
+\co{Finally, we implement an overall function that interprets the user inputs and returns a BlockSeries for the transformed Hamiltonian.}
+On the other hand, the standard algorithm explicitly manipulates both subspaces, but can work with dense matrices too.
+We use the eigenvectors of the $A$ and $B$ subspaces to project the input Hamiltonian and represent it with a \mintinline{python}|BlockSeries|, a procedure that works for numerical and symbolic matrices.
+Because we aim for an easy-to-use interface, we implement a function that interprets the user inputs and decides which algorithm to use: the implicit method if only the $A$ subspace is provided, and the standard algorithm otherwise.
+This is \mintinline{python}|block_diagonalize|, the only function that the user needs to call.
+If $H_0$ is diagonal and a custom function to solve Sylvester's equation is not provided to \mintinline{python}|block_diagonalize|, Pymablock uses a default function to compute the energy denominators.

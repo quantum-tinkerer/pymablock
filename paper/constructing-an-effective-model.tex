@@ -58,9 +58,9 @@ This interface treats arbitrary formats of Hamiltonians and system descriptions
 on the same footing, and supports both numerical, and symbolic computations.
 
 \subsection{k.p model of bilayer graphene}
+\label{sec:bilayer_graphene}
 
 \co{We use bilayer graphene to illustrate how to use Pymablock with analytic models.}
-
 To illustrate how to use Pymablock with analytic models, we consider two layers
 of graphene stacked on top of each other, as shown in Fig.~\ref{fig:bilayer}.
 Our goal is to find the low energy model near the $\mathbf{K}$ point~\cite{McCann_2013}.
@@ -170,6 +170,7 @@ momentum.
 All the terms take less than two seconds in a personal computer to compute.
 
 \subsection{Circuit quantum electrodynamics}
+\label{sec:cqed}
 
 \co{We illustrate the potential of Pymablock as a useful tool for the design and control of superconducting qubits.}
 The need for analytical effective Hamiltonians often arises in circuit quantum electrodynamics (cQED) problems, which we illustrate by studying a transmon qubit coupled to a resonator~\cite{Krantz_2019}.
@@ -225,6 +226,7 @@ In this example, we have included the frequently omitted counter-rotating terms 
 Computing higher order corrections to the qubit frequency only requires increasing the size of the truncated Hilbert space and requesting \mintinline{python}|H_tilde[0, 0, n]| to the desired order $n$.
 
 \subsection{Induced gap in a double quantum dot}
+\label{sec:induced_gap}
 
 \co{Large systems pose an additional challenge due to the scaling of linear
 algebra routines for large matrices.}
