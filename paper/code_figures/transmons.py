@@ -52,7 +52,7 @@ H_0 = (
     + omega_t / 2
     + omega_r * (Dagger(a_r) * a_r + sympy.Rational(1) / 2)
 )
-H_0 += alpha * Dagger(a_t) * Dagger(a_t) * a_t * a_t
+H_0 += alpha * Dagger(a_t) * Dagger(a_t) * a_t * a_t / sympy.Rational(2)
 
 H_p = (
     -g * a_t * a_r
@@ -87,25 +87,14 @@ H_p_matrix = sympy.Matrix(np.array(flat_matrix_p).reshape(N, N))
 
 H = H_0_matrix + H_p_matrix
 # %%
-shifted_energies = []
-for i in range(len(basis)):
+xi = 0
+for id, sign in zip([3, 1, 2, 0], [1, -1, -1, 1]):
     subspace_indices = [1] * len(basis)
-    subspace_indices[i] = 0
+    subspace_indices[id] = 0
     H_tilde, U, U_adjoint = block_diagonalize(
         H, subspace_indices=subspace_indices, symbols=[g]
     )
-    H_eff = sympy.Add(*H_tilde[0, 0, :3].compressed())
-    shifted_energies.append(H_eff[0, 0] - H[i, i])
+    xi += sign * H_tilde[0, 0, 2][0, 0]
 # %%
-# %%
-i = 0
-subspace_indices = [1] * len(basis)
-subspace_indices[i] = 0
-H_tilde, U, U_adjoint = block_diagonalize(
-    H, subspace_indices=subspace_indices, symbols=[g]
-)
-H_eff = sympy.Add(*H_tilde[0, 0, :7].compressed())
-H_eff[0, 0] - H[i, i]
-# %%
-(H_eff[0, 0] - H[i, i])
+sympy.simplify(xi / 2)
 # %%
