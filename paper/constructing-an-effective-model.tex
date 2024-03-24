@@ -200,7 +200,7 @@ The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using sympy
 \co{We call block diagonalize and compute the qubit Hamiltonian}
 Finally, to compute the energy corrections of the lowest levels, we call \mintinline{python}|block_diagonalize| for each state separately, replicating a regular perturbation theory calculation for single wavefunctions.
 To do this, we observe that $H_0$ is diagonal, and use \mintinline{python}|subspace_indices| to assign the elements of its eigenbasis to the $A$ (0) or $B$ (1) subspace.
-For example, to compute the frequency shift $\chi = \tilde{\omega} - \omega$ of the resonator, we start by computing the second order correction to $\ket{0_{t}0_{r}}$:
+For example, to find the qubit-dependent frequency shift of the resonator $\chi = (\omega_1 - \omega_0)/2$, we start by computing the second order correction to $\ket{0_{t}0_{r}}$:
 %
 \begin{minted}{python}
 indices = [0, 1, 1, 1, 1, 1, 1, 1, 1] # 00 is the first state in the basis
@@ -209,19 +209,19 @@ H_tilde[0, 0, 2][0, 0] # 2nd order correction
 \end{minted}
 %
 \begin{equation}
-    E^{(2)}_{00} = \frac{g^{2}}{- \omega_{r} + \omega_{t}}.
+    E^{(2)}_{00} = \frac{g^{2}}{-\omega_{r} + \omega_{t}}.
 \end{equation}
 %
 Repeating this process for the other levels requires changing \mintinline{python}|subspace_indices| accordingly, and yields the desired resonator frequency shift:
 %
 \begin{equation}
 \begin{aligned}
-\chi &= \frac{1}{2} \Big[(E^{(2)}_{11} - E^{(2)}_{10}) - (E^{(2)}_{01} - E^{(2)}_{00}) \Big] \\
+\chi &= \frac{1}{2}\left[(E^{(2)}_{11} - E^{(2)}_{10}) - (E^{(2)}_{01} - E^{(2)}_{00})\right] \\
 & = - \frac{g^{2}}{\alpha + \omega_{r} - \omega_{t}} + \frac{g^{2}}{- \alpha + \omega_{r} + \omega_{t}} - \frac{g^{2}}{\omega_{r} + \omega_{t}} + \frac{g^{2}}{\omega_{r} - \omega_{t}}.
 \end{aligned}
 \end{equation}
 %
-In this example, we have included the frequently omitted counter-rotating terms $\sim a_{r} + a_{t}$ to illustrate the extensibility of Pymablock.
+In this example, we have included the frequently omitted counter-rotating terms $\sim a_{r} a_{t}$ to illustrate the extensibility of Pymablock.
 Computing higher order corrections to the qubit frequency only requires increasing the size of the truncated Hilbert space and requesting \mintinline{python}|H_tilde[0, 0, n]| to the desired order $n$.
 
 \subsection{Induced gap in a double quantum dot}
