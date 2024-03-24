@@ -172,8 +172,8 @@ All the terms take less than two seconds in a personal computer to compute.
 \subsection{Circuit quantum electrodynamics}
 
 \co{We illustrate the potential of Pymablock as a useful tool for the design and control of superconducting qubits.}
-The need for an analytical expression for the effective Hamiltonian often arises in the circuit quantum electrodynamics (cQED) problems, which we illustrate by studying a transmon qubit coupled to a resonator~\cite{Krantz_2019}.
-Specifically, we choose the standard problem of finding the frequency shift of the resonator due to its coupling to the qubit, a phenomenon used to measure the qubit state~\cite{Blais_2004}.
+The need for analytical effective Hamiltonians often arises in circuit quantum electrodynamics (cQED) problems, which we illustrate by studying a transmon qubit coupled to a resonator~\cite{Krantz_2019}.
+Specifically, we choose the standard problem of finding the frequency shift of the resonator due to its coupling to the qubit, a phenomenon used to measure the qubit's state~\cite{Blais_2004}.
 The Hamiltonian of the system is given by
 %
 \begin{equation}
@@ -195,17 +195,17 @@ To deal with the infinite dimensional Hilbert space, we observe that the perturb
 Therefore computing $n$-th order corrections to the $n_0$-th state allow to disregard states with any occupation numbers larger than $n_0 + n/2$.
 We want to compute the second order correction to the levels with occupation numbers of either transmon or the resonator being $0$ and $1$.
 We accordingly truncate the Hilbert space to the lowest 3 levels of the transmon and the resonator.
-The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using the sympy~\cite{Meurer_2017}.
+The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using sympy~\cite{Meurer_2017}.
 
 \co{We call block diagonalize and compute the qubit Hamiltonian}
-Finally, to compute the energy corrections of the lowest levels, we call \mintinline{python}|block_diagonalize| for each state separately, replicating a regular perturbation theory calculation for a single wavefunction.
+Finally, to compute the energy corrections of the lowest levels, we call \mintinline{python}|block_diagonalize| for each state separately, replicating a regular perturbation theory calculation for single wavefunctions.
 To do this, we observe that $H_0$ is diagonal, and use \mintinline{python}|subspace_indices| to assign the elements of its eigenbasis to the $A$ (0) or $B$ (1) subspace.
 For example, to compute the frequency shift $\chi = \tilde{\omega} - \omega$ of the resonator, we start by computing the second order correction to $\ket{0_{t}0_{r}}$:
 %
 \begin{minted}{python}
 indices = [0, 1, 1, 1, 1, 1, 1, 1, 1] # 00 is the first state in the basis
 H_tilde, *_ = block_diagonalize(H, subspace_indices=indices, symbols=[g])
-H_tilde[0, 0, 2] # 2nd order correction
+H_tilde[0, 0, 2][0, 0] # 2nd order correction
 \end{minted}
 %
 \begin{equation}
