@@ -265,7 +265,7 @@ alpha_values = [0.2, 0.5, 1]
 ]
 ax["B"].set_xlabel(r"$\delta \mu$")
 ax["B"].set_ylabel(r"$E$")
-# ax["B"].legend(frameon=False, bbox_to_anchor=(0, -0.2), loc="upper left", ncol=3)
+ax["B"].legend(frameon=False, bbox_to_anchor=(0.55, 0.82), fontsize=7)
 ax["B"].spines[["top", "right"]].set_visible(False)
 ax["B"].set_ylim(-0.0013, 0.0015)
 ax["B"].set_xticks([0, 10e-4])
