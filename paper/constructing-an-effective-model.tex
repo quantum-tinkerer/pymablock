@@ -214,7 +214,6 @@ We now call the block diagonalization routine and provide the computed eigenvect
 %
 \inputminted[firstline=64, lastline=64]{python}{code_figures/lattice_system.py}
 %
-\todo[inline]{Say that here $H_{01}$ and $H_{10}$ are the perturbations.}
 Because we only provide the low energy subspace, Pymablock uses the implicit method.
 Calling \mintinline{python}|block_diagonalize| is now the most time consuming step because it requires pre-computing several decompositions of the full Hamiltonian.
 It is, however, manageable and it only produces a constant overhead of less than three seconds.
@@ -227,18 +226,18 @@ This takes two more seconds to run, and we can now compute the low energy spectr
 %
 \inputminted[firstline=72, lastline=77]{python}{code_figures/lattice_system.py}
 %
-Finally, we plot the spectrum in Fig.~\ref{fig:QD_spectrum}.
+Finally, we plot the spectrum of the $2$ Andreev states in Fig.~\ref{fig:QD_spectrum}.
 %
 \begin{figure}[h!]
 \centering
 \includegraphics[width=\linewidth]{figures/lattice_system.pdf}
 \caption{
-    Low energy spectrum of two quantum dots coupled to a superconductor for three values of the barrier strength $t_b \in (0, 0.5, 0.75)$.
+    Hamiltonian (left) and Andreev levels (right) of two quantum dots coupled to a superconductor (inset).
+    The barrier $t_b$ between the dots and the superconductor, $H_{10}$, and the asymmetry $\delta \mu$ between the dots potential, $H_{01}$, are perturbations.
 }
 \label{fig:QD_spectrum}
 \end{figure}
 %
-\todo[inline]{Add label to the right panel.}
 As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the dots are coupled to the superconductor.
 In addition, we observe how the proximity gap of the dots increases with the coupling strength.
 
