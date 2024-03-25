@@ -77,10 +77,10 @@ In the code we represent the $\bar{B}\bar{B}$ operators as \mintinline{python}|L
 Storing the $\bar{A}\bar{A}$ and $\bar{A}\bar{B}$ blocks as dense matrices---efficient because these are small and dense---finishes the implementation of the Hamiltonian.
 
 \co{We use sparse or KPM solvers to compute the Green's function of the $B$ subspace.}
-To solve the Sylvester's equation we write it for every row of $V_n^{\bar{A}\bar{B}}$ separately:
+To solve the Sylvester's equation we write it for every row of $V_{\mathbf{n}}^{\bar{A}\bar{B}}$ separately:
 %
 \begin{align}
-V_{\mathbf{n}, ij}^{\bar{A}\bar{B}} (E_i - H_0) = Y^{\bar{A} \bar{B}}_{n, j}
+V_{\mathbf{n}, ij}^{\bar{A}\bar{B}} (E_i - H_0) = Y^{\bar{A} \bar{B}}_{\mathbf{n}, j}
 \end{align}
 %
 This equation has a solution despite $E_i - H_0$ not being invertible because $Y^{\bar{A}\bar{B}}_{\mathbf{n}} P_A = 0$.
