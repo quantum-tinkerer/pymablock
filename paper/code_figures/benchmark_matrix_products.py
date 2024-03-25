@@ -13,7 +13,7 @@ figwidth = matplotlib.rcParams["figure.figsize"][0]
 
 # %%
 def solve_sylvester(A):
-    return AlgebraElement(f"S({A})")
+    return AlgebraElement(f"G({A})")
 
 
 def eval_dense_first_order(*index):

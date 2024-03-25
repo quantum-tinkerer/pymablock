@@ -157,6 +157,7 @@ The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using Sympy
 Finally, to compute the energy corrections of the lowest levels, we call \mintinline{python}|block_diagonalize| for each state separately, replicating a regular perturbation theory calculation for single wavefunctions.
 To do this, we observe that $H_0$ is diagonal, and use \mintinline{python}|subspace_indices| to assign the elements of its eigenbasis to the $A$ (0) or $B$ (1) subspace.
 For example, to find the qubit-dependent frequency shift of the resonator $\chi = (\omega_1 - \omega_0)/2$, we start by computing the second order correction to $\ket{0_{t}0_{r}}$:
+\todo[inline]{Define $\omega_0$ and $\omega_1$.}
 %
 \begin{minted}{python}
 indices = [0, 1, 1, 1, 1, 1, 1, 1, 1] # 00 is the first state in the basis
@@ -168,6 +169,7 @@ H_tilde[0, 0, 2][0, 0] # 2nd order correction
     E^{(2)}_{00} = \frac{g^{2}}{-\omega_{r} + \omega_{t}}.
 \end{equation}
 %
+\todo[inline]{Clarify subspace indices and basis.}
 Repeating this process for the other levels requires changing \mintinline{python}|subspace_indices| accordingly, and yields the desired resonator frequency shift:
 %
 \begin{equation}
@@ -238,6 +240,7 @@ Finally, we plot the spectrum in Fig.~\ref{fig:QD_spectrum}.
 \label{fig:QD_spectrum}
 \end{figure}
 %
+\todo[inline]{Add label to the right panel.}
 As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the dots are coupled to the superconductor.
 In addition, we observe how the proximity gap of the dots increases with the coupling strength.
 
