@@ -156,8 +156,7 @@ The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using Sympy
 \co{We call block diagonalize and compute the qubit Hamiltonian}
 Finally, to compute the energy corrections of the lowest levels, we call \mintinline{python}|block_diagonalize| for each state separately, replicating a regular perturbation theory calculation for single wavefunctions.
 To do this, we observe that $H_0$ is diagonal, and use \mintinline{python}|subspace_indices| to assign the elements of its eigenbasis to the $A$ (0) or $B$ (1) subspace.
-For example, to find the qubit-dependent frequency shift of the resonator $\chi = (\omega_1 - \omega_0)/2$, we start by computing the second order correction to $\ket{0_{t}0_{r}}$:
-\todo[inline]{Define $\omega_0$ and $\omega_1$.}
+For example, to find the qubit-dependent frequency shift of the resonator, $\chi$, we start by computing the second order correction to $\ket{0_{t}0_{r}}$:
 %
 \begin{minted}{python}
 indices = [0, 1, 1, 1, 1, 1, 1, 1, 1] # 00 is the first state in the basis
@@ -169,8 +168,7 @@ H_tilde[0, 0, 2][0, 0] # 2nd order correction
     E^{(2)}_{00} = \frac{g^{2}}{-\omega_{r} + \omega_{t}}.
 \end{equation}
 %
-\todo[inline]{Clarify subspace indices and basis.}
-Repeating this process for the other levels requires changing \mintinline{python}|subspace_indices| accordingly, and yields the desired resonator frequency shift:
+Repeating this process for the other levels requires changing \mintinline{python}|subspace_indices| according to the basis of $H$, and yields the desired resonator frequency shift:
 %
 \begin{equation}
 \begin{aligned}
