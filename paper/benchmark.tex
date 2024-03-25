@@ -1,6 +1,26 @@
 \section{Benchmark}
 \label{sec:benchmark}
 
+- Not aware of other packages with which to compare
+- Fig 1 times
+- Fig 2 matrix products
+
+\co{Pymablock is more efficient than a direct implementation of a Schrieffer--Wolff transformation.}
+To the best of our knowledge, there are no other packages implementing arbitrary order quasi-degenerate perturbation theory.
+Literature references provide explicit expressions for the effective Hamiltonian up to fourth order, together with the procedure for obtaining higher order expressions~\cite{Winkler_2003}.
+Because the full reference expressions are lengthy, we do not provide them, but for example at $4$-th order the effective Hamiltonian is a sum of several expressions of the form
+\begin{equation}
+\label{eq:SW_term}
+\dots.
+\end{equation}
+More generally, at $n$-th order each term has a product of $n$ matrix elements of the Hamiltonian and $n-1$ energy denominators.
+Directly carrying out the summation over all the states requires $\mathcal{O}((N_A + N_B)^{n+1})$ operations, where $N_A$ and $N_B$ are the number of states in the two subspaces.
+In other words, it scales with the problem size worse than a matrix product.
+Formulating Eq.~\eqref{eq:SW_term} as $n-1$ matrix products combined with $n-1$ solutions
+of Sylvester's equation, brings this complexity down to $\mathcal{O}((n-1) \times (N_A + N_B)^3)$.
+This allows us to evaluate the reference expressions for the effective Hamiltonian for
+$0$-th, $1$-st, $2$-nd, $3$-rd, and $4$-th order using $0$, $0$, $2$, $8$, and $54$ matrix products, respectively.
+
 \subsection{Comparison to other methods}
 
 \co{Pymablock is not only efficient, but its implementation has potential
