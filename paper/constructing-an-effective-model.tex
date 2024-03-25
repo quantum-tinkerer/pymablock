@@ -69,7 +69,7 @@ H = Matrix([
     [0, 0, t_1 * alpha.conjugate(), -m]]
 )
 \end{minted}
-
+%
 $$
 H =
 \begin{pmatrix}
@@ -151,7 +151,7 @@ To deal with the infinite dimensional Hilbert space, we observe that the perturb
 Therefore computing $n$-th order corrections to the $n_0$-th state allow to disregard states with any occupation numbers larger than $n_0 + n/2$.
 We want to compute the second order correction to the levels with occupation numbers of either transmon or the resonator being $0$ and $1$.
 We accordingly truncate the Hilbert space to the lowest 3 levels of the transmon and the resonator.
-The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using sympy~\cite{Meurer_2017}.
+The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using Sympy~\cite{Meurer_2017}.
 
 \co{We call block diagonalize and compute the qubit Hamiltonian}
 Finally, to compute the energy corrections of the lowest levels, we call \mintinline{python}|block_diagonalize| for each state separately, replicating a regular perturbation theory calculation for single wavefunctions.
@@ -206,25 +206,26 @@ On top of this, we consider two perturbations: the barrier strength between the 
 The system is large: it is a sparse array of size $63042 \times 63042$, with $333680$ non-zero elements, so even storing all the eigenvectors would take $60$ GB of memory.
 The perturbations are also sparse, with $632$, and $126084$ non-zero elements for the barrier strength and the potential asymmetry, respectively.
 The sparsity structure of the Hamiltonian and the perturbations is shown in the left panel of Fig.~\ref{fig:QD_spectrum}, where we use a smaller system of $L \times W = 8 \times 2$ for visualization.
-Therefore, we use sparse diagonalization and compute only four eigenvectors of the unperturbed Hamiltonian closest to zero energy, which are the Andreev states of the quantum dots.
+Therefore, we use sparse diagonalization~\cite{Virtanen_2020} and compute only four eigenvectors of the unperturbed Hamiltonian closest to zero energy, which are the Andreev states of the quantum dots.
 %
-\inputminted[firstline=62, lastline=63]{python}{code_figures/lattice_system.py}
+\inputminted[firstline=61, lastline=62]{python}{code_figures/lattice_system.py}
 %
 We now call the block diagonalization routine and provide the computed eigenvectors.
 %
-\inputminted[firstline=65, lastline=65]{python}{code_figures/lattice_system.py}
+\inputminted[firstline=64, lastline=64]{python}{code_figures/lattice_system.py}
 %
+\todo[inline]{Say that here $H_{01}$ and $H_{10}$ are the perturbations.}
 Because we only provide the low energy subspace, Pymablock uses the implicit method.
 Calling \mintinline{python}|block_diagonalize| is now the most time consuming step because it requires pre-computing several decompositions of the full Hamiltonian.
 It is, however, manageable and it only produces a constant overhead of less than three seconds.
 
 To compute the spectrum, we collect the lowest three orders in each parameter in an appropriately sized tensor.
 %
-\inputminted[firstline=71, lastline=71]{python}{code_figures/lattice_system.py}
+\inputminted[firstline=69, lastline=69]{python}{code_figures/lattice_system.py}
 %
 This takes two more seconds to run, and we can now compute the low energy spectrum after rescaling the perturbative corrections by the magnitude of each perturbation.
 %
-\inputminted[firstline=74, lastline=79]{python}{code_figures/lattice_system.py}
+\inputminted[firstline=72, lastline=77]{python}{code_figures/lattice_system.py}
 %
 Finally, we plot the spectrum in Fig.~\ref{fig:QD_spectrum}.
 %

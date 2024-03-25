@@ -1,7 +1,6 @@
 # %%
 import numpy as np
 import scipy
-from scipy.sparse.linalg import eigsh
 import tinyarray
 import kwant
 import matplotlib
@@ -9,7 +8,6 @@ import matplotlib.pyplot as plt
 from pymablock import block_diagonalize
 
 color_cycle = matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
-# %%
 figwidth = matplotlib.rcParams["figure.figsize"][0]
 # %%
 sigma_z = tinyarray.array([[1, 0], [0, -1]], float)
@@ -60,7 +58,7 @@ L, W = 200, 40
 params = {"mu_n": 0.05, "mu_sc": 0.3, "Delta": 0.05, "t": 1.0, "t_barrier": 0.0}
 h_0, barrier, dmu, syst = system(L, W, params)
 # %%
-vals, vecs = eigsh(h_0, k=4, sigma=0)
+vals, vecs = scipy.sparse.linalg.eigsh(h_0, k=4, sigma=0)
 vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize the vectors
 
 H_tilde, *_ = block_diagonalize([h_0, barrier, dmu], subspace_eigenvectors=[vecs])
