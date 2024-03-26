@@ -515,11 +515,11 @@ def _block_diagonalize(
         },
         # X = [U', H_0], computed using a recurrent relation. Diagonal parts are
         # anti-Hermitian, off-diagonal parts are Hermitian.
-        "(X - H'_offdiag)": {"data": zero_data},
+        "C": {"data": zero_data},
         "X": {
             "eval": (
                 lambda *index: _zero_sum(
-                    series["(X - H'_offdiag)"][index], series["H'_offdiag"][index]
+                    series["C"][index], series["H'_offdiag"][index]
                 )
             ),
             "data": zero_data,
@@ -536,7 +536,7 @@ def _block_diagonalize(
     # List of products and whether they are Hermitian
     needed_products = [
         ("U'† @ U'", True),
-        ("U'† @ (X - H'_offdiag)", False),
+        ("U'† @ C", False),
         ("H'_diag @ U'", False),
         ("H'_offdiag @ U'", False),
         ("U'† @ H' @ U'", False),
@@ -595,12 +595,13 @@ def _block_diagonalize(
     #
     # Specifically we delete the following intermediate results:
     # H'_offdiag @ U': (1, 0)
-    # U'† @ (X - H'_offdiag): (0, 1)
+    # U'† @ C: (0, 1)
     # U'† @ H' @ U': (0, 0), (0, 1), (1, 1)
     # U'† @ U': (0, 0), (1, 1)
     # X: (0, 1)
 
     def del_(series_name, index: int) -> None:
+        return
         series[series_name].pop(index, None)
         linear_operator_series[series_name].pop(index, None)
 
@@ -637,27 +638,27 @@ def _block_diagonalize(
         if index[0] == index[1]:
             which = linear_operator_or_explicit(index)
             value = _zero_sum(
-                which["U'† @ (X - H'_offdiag)"][index],
+                which["U'† @ C"][index],
                 Dagger(which["H'_offdiag @ U'"][index]),
             )
             return _safe_divide(Dagger(value) - value, 2)
         elif index[:2] == (0, 1):
             index_dag = (index[1], index[0], *index[2:])
             result = _zero_sum(
-                -series["U'† @ (X - H'_offdiag)"][index],
+                -series["U'† @ C"][index],
                 series["H'_offdiag @ U'"][index],
                 series["H'_diag @ U'"][index],
                 Dagger(series["H'_diag @ U'"][index_dag]),
                 series["U'† @ H' @ U'"][index],
             )
             del_("U'† @ H' @ U'", index)
-            del_("U'† @ (X - H'_offdiag)", index)
+            del_("U'† @ C", index)
             return result
         elif index[:2] == (1, 0):
             # off-diagonal of X is Hermitian
-            return Dagger(series["(X - H'_offdiag)"][(0, 1) + tuple(index[2:])])
+            return Dagger(series["C"][(0, 1) + tuple(index[2:])])
 
-    series["(X - H'_offdiag)"].eval = X_min_H_offdiag_eval
+    series["C"].eval = X_min_H_offdiag_eval
 
     def H_tilde_eval(*index: int) -> Any:
         series = linear_operator_or_explicit(index)
@@ -677,8 +678,7 @@ def _block_diagonalize(
                 ),
                 series["U'† @ H' @ U'"][index],
                 _safe_divide(
-                    series["U'† @ (X - H'_offdiag)"][index]
-                    + Dagger(series["U'† @ (X - H'_offdiag)"][index]),
+                    series["U'† @ C"][index] + Dagger(series["U'† @ C"][index]),
                     -2,
                 ),
             )
@@ -710,6 +710,8 @@ def _block_diagonalize(
 
         for name, term in series.items():
             term.eval = skip_zero_eval(term.eval, reference_series[name])
+
+    H_tilde.details = series  # Reference for debugging
 
     return series
 
