@@ -47,10 +47,8 @@ omega_t, omega_r, alpha, g = symbols
 # %%""
 a_t, a_r = BosonOp("a_t"), BosonOp("a_r")
 
-H_0 = (
-    -omega_t * Dagger(a_t) * a_t
-    + omega_t / 2
-    + omega_r * (Dagger(a_r) * a_r + sympy.Rational(1) / 2)
+H_0 = -omega_t * (Dagger(a_t) * a_t - sympy.Rational(1) / 2) + omega_r * (
+    Dagger(a_r) * a_r + sympy.Rational(1) / 2
 )
 H_0 += alpha * Dagger(a_t) * Dagger(a_t) * a_t * a_t / sympy.Rational(2)
 
@@ -94,7 +92,30 @@ for id, sign in zip([3, 1, 2, 0], [1, -1, -1, 1]):
     H_tilde, U, U_adjoint = block_diagonalize(
         H, subspace_indices=subspace_indices, symbols=[g]
     )
-    xi += sign * H_tilde[0, 0, 2][0, 0]
+    if isinstance(H_tilde[0, 0, 2], sympy.Matrix):
+        xi += sign * H_tilde[0, 0, 2][0, 0] / 2
+
+
 # %%
-sympy.simplify(xi / 2)
+def simplify_fraction(expr):
+    expr = expr.expand()
+    expr_dict = {}
+    for term in expr.as_ordered_terms():
+        numerator, denominator = term.as_numer_denom()
+        if denominator in expr_dict:
+            expr_dict[denominator] += numerator
+        else:
+            expr_dict[denominator] = numerator
+    new_numerator = []
+    for denominator, numerator in expr_dict.items():
+        new_numerator.append(
+            numerator * sympy.Mul(*[d for d in expr_dict.keys() if d != denominator])
+        )
+    return [sympy.Add(*new_numerator), sympy.Mul(*expr_dict.keys())]
+
+
+# %%
+num, den = simplify_fraction(sympy.simplify(xi))
+# %%
+print(sympy.latex(num.expand().factor() / den))
 # %%
