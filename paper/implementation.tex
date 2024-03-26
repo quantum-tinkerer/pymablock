@@ -1,7 +1,7 @@
 \section{Implementation}
 \label{sec:implementation}
 
-\subsection{The data structure for block series}
+\subsection{The data structure for block operator series}
 \label{sec:BlockSeries}
 
 \co{To implement the algorithms, we need a data structure that represents a multidimensional series of block matrices.}
@@ -49,7 +49,7 @@ For example, we exploit Hermiticity when computing the Cauchy product of $U'^{\d
 Similarly, for Hermitian and anti-Hermitian series, like the off-diagonal blocks of $\mathcal{X}$ and $\mathcal{U}'$, we only compute the $AB$ blocks, and use the conjugate transpose to obtain the $BA$ blocks.
 This approach should also allow us to implement efficient handling of symmetry-constrained Hamiltonians, where some blocks either vanish or are equal to other blocks due to a symmetry.
 Moreover, using \mintinline{python}|BlockSeries| with custom objects yields additional information about the algorithm and accommodates its further development.
-Specifically, we have used this with a tracker object to measure the algorithm complexity (see also Sec.~\ref{sec:benchmark}) and to determine which results are only used once so that they can be immediately discarded from storage.
+Specifically, we have used a custom object with a counter to measure the algorithm complexity (see also Sec.~\ref{sec:benchmark}) and to determine which results are only used once so that they can be immediately discarded from storage.
 
 \subsection{The implicit method for large sparse Hamiltonians}
 \label{sec:implicit}
