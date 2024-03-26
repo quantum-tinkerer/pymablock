@@ -135,15 +135,15 @@ The following three algorithms satisfy both of our requirements while solving
 a related problem.
 First, density matrix perturbation
 theory~\cite{McWeeny_1962,McWeeny_1968,Truflandier_2020} constructs the density
-matrix $\mathcal{D}$ of a perturbed system as a power series with respect to a
+matrix $\mathcal{\rho}$ of a perturbed system as a power series with respect to a
 perturbative parameter:
 %
 \begin{equation}
-  \mathcal{D} = \sum_{i=0}^{\infty} D_i.
+  \mathcal{\rho} = \sum_{i=0}^{\infty} \rho_i.
 \end{equation}
 %
 The elements of the series are found by solving two recursive conditions,
-$\mathcal{D}^2 = \mathcal{D}$ and $[\mathcal{H}, \mathcal{D}]=0$, which avoid
+$\mathcal{\rho}^2 = \mathcal{\rho}$ and $[\mathcal{H}, \mathcal{\rho}]=0$, which avoid
 multiplications by $H_0$ and require a single Cauchy product each.
 This approach, however, deals with the entire Hilbert space, rather than the
 low energy subspace, and does not provide an effective Hamiltonian.
@@ -239,7 +239,7 @@ Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can
 compute without ever multiplying by $H_0$.
 Like $\mathcal{U}'$, $\mathcal{X}$ needs to be defined via a recurrence
 relation, which we determine later.
-Because the Eq.~\eqref{eq:H_tilde_def} contains $H_0$ multiplied by
+Because Eq.~\eqref{eq:H_tilde_def} contains $H_0$ multiplied by
 $\mathcal{U}'$ from the left and from the right, eliminating $H_0$ requires
 moving it to the same side.
 To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commutator between
