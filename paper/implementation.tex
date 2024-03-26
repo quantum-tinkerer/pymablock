@@ -14,7 +14,7 @@ Finally, the series needs to be queryable by order and block, so that it support
 \co{A recursive implementation of the algorithm is better than an explicit loop over orders.}
 The most straightforward way to implement a perturbation theory calculation is to write a function that has the desired order as an argument, computes the series up to that order, and returns the result.
 This makes it hard to reuse already computed terms for a new computation, and becomes complicated to implement in the multidimensional case when different orders in different perturbations are needed.
-We find that a recursive approach addresses these issues: within this paradigm, each series needs to define how its entries depend on lower order terms.
+We find that a recursive approach addresses these issues: within this paradigm, each series needs to define how its entries depend on lower-order terms.
 
 \co{We address this by defining a BlockSeries class.}
 To address these requirements, we define a \mintinline{python}|BlockSeries| Python class and use it to represent the series of $\mathcal{U}$, $\mathcal{H}$, and $\tilde{\mathcal{H}}$, as well as the intermediate series used to define the algorithm.
@@ -45,7 +45,7 @@ We expect that the \mintinline{python}|BlockSeries| data structure is suitable t
 
 \co{Using the BlockSeries interface allows us to implement a range of optimizations that go beyond directly implementing the polynomial parametrization}
 We utilize \mintinline{python}|BlockSeries| to implement multiple other optimizations.
-For example, we exploit Hermiticity when computing the Cauchy product of $U'^{\dagger}U'$ in Eq.~\eqref{eq:W}, by only evaluating a half of the matrix products, and then complex conjugate the result to obtain the rest.
+For example, we exploit Hermiticity when computing the Cauchy product of $U'^{\dagger}U'$ in Eq.~\eqref{eq:W}, by only evaluating half of the matrix products, and then complex conjugate the result to obtain the rest.
 Similarly, for Hermitian and anti-Hermitian series, like the off-diagonal blocks of $\mathcal{X}$ and $\mathcal{U}'$, we only compute the $AB$ blocks, and use the conjugate transpose to obtain the $BA$ blocks.
 This approach should also allow us to implement efficient handling of symmetry-constrained Hamiltonians, where some blocks either vanish or are equal to other blocks due to a symmetry.
 Moreover, using \mintinline{python}|BlockSeries| with custom objects yields additional information about the algorithm and accommodates its further development.
@@ -57,8 +57,8 @@ Specifically, we have used this with a tracker object to measure the algorithm c
 \co{Pymablock supports big sparse problems.}
 A distinguishing feature of Pymablock is its ability to handle large sparse Hamiltonians, that are too costly to diagonalize, as illustrated in Sec.~\ref{sec:induced_gap}.
 Specifically, we consider the situations when the size $N_A$ of the $A$ subspace is small compared to the entire Hilbert space, so that obtaining the basis $\Psi_A$ of the $A$ subspace is feasible using sparse diagonalization.
-The projector on the $A$ subspace $P_A = \Psi_A^\dagger \Psi_A$ is then a low rank matrix, a property that we exploit to avoid constructing the $B$ subspace explicitly.
-Furthermore, the solution of the Sylvester's equation in Eq.~\ref{eq:sylvester} amounts to multiplying $N_A$ large vectors, rows of $Y_{\mathbf{n}}^{AB}$, by the energy denominators $E_i - E_j$, where $E_i$ are the $N_A$ eigenvalues of the $A$ subspace provided by sparse diagonalization.
+The projector on the $A$ subspace $P_A = \Psi_A^\dagger \Psi_A$ is then a low-rank matrix, a property that we exploit to avoid constructing the $B$ subspace explicitly.
+Furthermore, the solution of Sylvester's equation in Eq.~\ref{eq:sylvester} amounts to multiplying $N_A$ large vectors, rows of $Y_{\mathbf{n}}^{AB}$, by the energy denominators $E_i - E_j$, where $E_i$ are the $N_A$ eigenvalues of the $A$ subspace provided by sparse diagonalization.
 
 \co{We use the extended sparsity-preserving Hilbert space and LinearOperator objects.}
 The key tool to solve this problem is the projector approach introduced in Ref.~\cite{Irfan_2019}, which introduces an equivalent extended Hamiltonian using the projector $P_B = 1 - P_A$ onto the $B$ subspace:
@@ -71,8 +71,8 @@ P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
 \end{align}
 %
 In other words, the subspace $\bar{A}$ is written in the basis of $\Psi_A$, while the basis of the $\bar{B}$ subspace is the same as the original complete basis of $\mathcal{H}$ to preserve its sparsity.
-We also project out the $A$-degrees of freedom from the $\bar{B}$ subspace to avoid duplicate solutions in $\bar{\mathcal{H}}$, which introduces $N_A$ eigenvectors with zero eigenvalue.
-Introducing $\bar{\mathcal{H}}$ allows to multiply by operators of a form $P_B H_\mathbf{n} P_B$ efficiently by using the low rank structure of $P_A$.
+We also project out the $A$-degrees of freedom from the $\bar{B}$ subspace to avoid duplicate solutions in $\bar{\mathcal{H}}$, which introduces $N_A$ eigenvectors with zero eigenvalues.
+Introducing $\bar{\mathcal{H}}$ allows to multiply by operators of a form $P_B H_\mathbf{n} P_B$ efficiently by using the low-rank structure of $P_A$.
 In the code we represent the $\bar{B}\bar{B}$ operators as \mintinline{python}|LinearOperator| objects from the SciPy package~\cite{Virtanen_2020}, enabled by the ability of the \mintinline{python}|BlockSeries| to store arbitrary objects.
 Storing the $\bar{A}\bar{A}$ and $\bar{A}\bar{B}$ blocks as dense matrices---efficient because these are small and dense---finishes the implementation of the Hamiltonian.
 

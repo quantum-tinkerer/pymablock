@@ -45,7 +45,7 @@ For example, evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires
 $\sim\prod_i n_i \equiv N$ multiplications of the series elements.
 A direct computation of all the possible index combinations in a product
 between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher
-cost $\sim N^2$, however if we use associativity of the product and compute
+cost $\sim N^2$, however, if we use associativity of the product and compute
 this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost
 stays $\sim N$.
 
@@ -72,7 +72,7 @@ results that do not require further simplifications.
 \subsection{Existing solutions}
 \co{Pymablock's algorithm does not use the Schrieffer--Wolff transformation,
 because the former is inefficient.}
-A common approach to construct effective Hamiltonians is to use the
+A common approach to constructing effective Hamiltonians is to use the
 Schrieffer--Wolff transformation~\cite{Schrieffer_1966}:
 %
 \begin{equation}
@@ -94,11 +94,9 @@ commutators
 \tilde{\mathcal{H}} = \sum_{j=0}^\infty \frac{1}{j!} \Big [\mathcal{H}, \sum_{n=0}^{\infty} S_n \Big ]^{(j)}.
 \end{equation}
 %
-Regardless of the specific implementation, this expression does not meet either
-of our two requirements:
+Regardless of the specific implementation, this expression does not meet either of our two requirements:
 \begin{itemize}
-  \item The direct computation of the series elements requires a $\sim \exp N$
-  multiplications, and even an optimized one has a $\sim N^2$ scaling.
+  \item The direct computation of the series elements requires $\sim \exp N$ multiplications, and even an optimized one has a $\sim N^2$ scaling.
   \item Evaluating Eq.~\eqref{eq:SW_H} contains multiplications by $H_0$.
 \end{itemize}
 
@@ -146,12 +144,12 @@ The elements of the series are found by solving two recursive conditions,
 $\mathcal{\rho}^2 = \mathcal{\rho}$ and $[\mathcal{H}, \mathcal{\rho}]=0$, which avoid
 multiplications by $H_0$ and require a single Cauchy product each.
 This approach, however, deals with the entire Hilbert space, rather than the
-low energy subspace, and does not provide an effective Hamiltonian.
+low-energy subspace, and does not provide an effective Hamiltonian.
 Second, the perturbative similarity transform by C.~Bloch~\cite{Bloch_1958,Bravyi_2011}
 constructs the effective Hamiltonian in a non-orthogonal basis, which preserves
 the Hamiltonian spectrum while breaking its hermiticity.
 Finally, the recursive Schrieffer--Wolff algorithm~\cite{Li_2022} applies the
-Schrieffer--Wolff transformation to the output of lower order iterations, and
+Schrieffer--Wolff transformation to the output of lower-order iterations, and
 calculates the effective Hamiltonian at a fixed perturbation strength, rather
 than as a series.
 We thus identify the following open question: can we construct an effective
@@ -161,10 +159,8 @@ Hamiltonian with a linear scaling algorithm that produces compact expressions?
 \label{sec:pymablock_algorithm}
 
 \co{We use recursive expressions, for example, to apply the unitarity condition.}
-The first idea that Pymablock exploits is the recursive evaluation of operator
-series, which we illustrate by considering the unitarity condition.
-Let us separate the transformation $\mathcal{U}$ into an identity and
-$\mathcal{U}' = \mathcal{W} + \mathcal{V}$:
+The first idea that Pymablock exploits is the recursive evaluation of the operator series, which we illustrate by considering the unitarity condition.
+Let us separate the transformation $\mathcal{U}$ into an identity and $\mathcal{U}' = \mathcal{W} + \mathcal{V}$:
 %
 \begin{equation}
 \label{eq:U}
@@ -275,7 +271,7 @@ The transformed Hamiltonian does not contain multiplications by $H_0$ anymore, b
 does depend on $\mathcal{X}$, an auxiliary operator whose recurrent definition
 we do not know yet.
 To find it, we first focus on its anti-Hermitian part, $\mathcal{Z}$.
-Since recurrence relations are expressions whose right hand side contains
+Since recurrence relations are expressions whose right-hand side contains
 Cauchy products between series, we need to find a way to make a product appear.
 We do so by using the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
 -\mathcal{U}'^\dagger \mathcal{U}'$ to obtain the recursive definition of $\mathcal{Z}$:
@@ -291,7 +287,7 @@ We do so by using the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
 \end{aligned}
 \end{equation}
 %
-Similar to computing $W_{\mathbf{n}}$, computing $Z_{\mathbf{n}}$ requires lower orders of
+Similar to computing $W_{\mathbf{n}}$, computing $Z_{\mathbf{n}}$ requires lower-orders of
 $\mathcal{X}$ and $\mathcal{U}'$.
 Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that
 $\tilde{\mathcal{H}}^{AB} = 0$ in the Eq.~\eqref{eq:H_tilde} and find
