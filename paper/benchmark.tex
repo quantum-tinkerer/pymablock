@@ -1,17 +1,13 @@
 \section{Benchmark}
 \label{sec:benchmark}
 
-- Not aware of other packages with which to compare
-- Fig 1 times
-- Fig 2 matrix products
-
 \co{Pymablock is more efficient than a direct implementation of a Schrieffer--Wolff transformation.}
 To the best of our knowledge, there are no other packages implementing arbitrary order quasi-degenerate perturbation theory.
 Literature references provide explicit expressions for the effective Hamiltonian up to fourth order, together with the procedure for obtaining higher order expressions~\cite{Winkler_2003}.
 Because the full reference expressions are lengthy, we do not provide them, but for example at $4$-th order the effective Hamiltonian is a sum of several expressions of the form
 \begin{equation}
 \label{eq:SW_term}
-\dots.
+\frac{H'_{mm^{''}}H'_{m^{''}m^{'''}}H'_{m^{'''}l}H'_{lm^{'}}}{(E_{m^{''}}-E_{l})(E_{m^{'''}}-E_{l})(E_{m}-E_{l})}.
 \end{equation}
 More generally, at $n$-th order each term has a product of $n$ matrix elements of the Hamiltonian and $n-1$ energy denominators.
 Directly carrying out the summation over all the states requires $\mathcal{O}((N_A + N_B)^{n+1})$ operations, where $N_A$ and $N_B$ are the number of states in the two subspaces.
@@ -19,64 +15,42 @@ In other words, it scales with the problem size worse than a matrix product.
 Formulating Eq.~\eqref{eq:SW_term} as $n-1$ matrix products combined with $n-1$ solutions
 of Sylvester's equation, brings this complexity down to $\mathcal{O}((n-1) \times (N_A + N_B)^3)$.
 This allows us to evaluate the reference expressions for the effective Hamiltonian for
-$0$-th, $1$-st, $2$-nd, $3$-rd, and $4$-th order using $0$, $0$, $2$, $8$, and $54$ matrix products, respectively.
-
-\subsection{Comparison to other methods}
-
-\co{Pymablock is not only efficient, but its implementation has potential
-to be expanded to other settings, like time-dependent Hamiltonians, many-body
-Hamiltonians, and continuum Hamiltonians.}
-Because Pymablock supports a wide range of inputs and custom solvers for
-Sylvester's equation, its application is not limited to the examples shown
-here.
-Pymablock can be used to find effective Hamiltonians for interacting systems,
-infinitely-sized Hilbert spaces, and Hamiltonians with continuum degrees of
-freedom, by providing Hamiltonians written in second quantization form.
-This is advantageous over other methods, which are limited to pre-defining
-an appropriate generator for the unitary transformation.
-Similarly, this flexibility allows Pymablock to work with time-dependent
-Hamiltonians, an extension that we leave for future work.
-
-
-\co{To demonstrate the efficiency of the implicit algorithm, we show its
-time scaling compared to sparse diagonalizaton.}
-
-
-The effective Hamiltonian is constructed for the $10$ lowest energy
-states of a $52 \times 52$ 2D square lattice with a nearest-neighbor
-hopping and random on-site potential.
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\textwidth]{figures/benchmark_bandstructure.pdf}
-    \caption{
-        Bandstructure of an effective Hamiltonian (black) compared to exact
-        sparse diagonalization (gray).
-        The time spent in sparse diagonalization for one value of $\delta \mu$
-        (gray) is shown in the lowest panel.
-        This is also a constant overhead for the construction of the effective
-        Hamiltonian.
-        The time spent in the LU decomposition of the Hamiltonian (red) is a
-        one-time cost, together with the time spent into getting second
-        and third orders.
-        First and second order corrections are negligible, not shown.
-        }
-    \label{fig:benchmark_bandstructure}
-\end{figure}
-
-\co{}
-
+$0$-th, $1$-st, $2$-nd, $3$-rd, and $4$-th order using $0$, $0$, $1$, $4$, and $27$ matrix products, respectively.
+With Pymablock, we need $0$, $0$, $1$, $7$, and $24$, matrix products to obtain the same orders of the effective Hamiltonian.
+However, because we the \mintinline{Python}|BlockSeries| class masks out zero elements,
+the number of matrix products depends on the sparsity structure of the Hamiltonian, as shown in Figure \ref{fig:benchmark_matrix_products}.
+%
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{figures/benchmark_matrix_products.pdf}
     \caption{
-        (left) Matrix products scaling per order of $\tilde{\mathcal{H}}$.
-        (right) ???
+        Matrix products computed per $\tilde{\mathcal{H}}^{AA}_{n}$ for
+        a dense and block off-diagonal first-order perturbation (left) and a dense and block off-diagonal summation of perturbations to infinite order (right).
     }
     \label{fig:benchmark_matrix_products}
 \end{figure}
-\subsection{Time scaling}
+%
 
-
-\subsection{Error scaling}
-
-Show error accumulation, show that the inverse of the transformation holds to numerical precision.
+\co{To demonstrate the efficiency of the implicit method, we show its time scaling compared to sparse diagonalizaton.}
+We demonstrate the performance of the implicit method by using it to compute the low-energy spectrum of a large tight-binding model, and comparing its time consumption to the one of sparse diagonalization.
+For the model, we choose a 2D square lattice
+of $52 \times 52$ sites with nearest-neighbor hopping and a random on-site potential, for which we tune the parameters so that there is a band gap and avoided crossings, as shown in Figure \ref{fig:benchmark_bandstructure}.
+Like in Sec.~\ref{sec:induced_gap}, constructing the effective Hamiltonian involves three steps.
+First, we sparse diagonalize the unperturbed Hamiltonian to obtain the its $10$ lowest states and orthonormalize them.
+Second, we call \mintinline{python}|block_diagonalize|, which applies an LU decomposition to the Hamiltonian.
+Third, we compute corrections to $\tilde{H}$ for a fixed value of $\delta \mu$, which we then rescale to obtain the effective Hamiltonian at different values of $\delta \mu$.
+Each of these steps is a one-time cost, independent of the sampled values of $\delta \mu$, see Figure \ref{fig:benchmark_bandstructure}.
+Finally, we diagonalize each $10 \times 10$ effective Hamiltonian to obtain the low-energy spectrum, however, this is a negligible cost compared to the other steps.
+As a consequence, if one is interested in the bandstructure for a range of $\delta \mu$, it is more efficient to apply the implicit method than to sparse diagonalize the Hamiltonian for each value of $\delta \mu$, even if these are just $2$ points to sample.
+%
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/benchmark_bandstructure.pdf}
+    \caption{
+        Bandstructure of the effective Hamiltonian (black) of a
+        tight-binding model compared to exact sparse diagonalization (gray).
+        The time spent in sparse diagonalization for one value of $\delta \mu$ (gray) and $10$ lowest states is shown in the lowest panel (gray).
+        This time is comparable to a one-time LU decomposition (red) of the Hamiltonian, plus first, second (yellow) and third (blue) order corrections to the effective Hamiltonian.
+        }
+    \label{fig:benchmark_bandstructure}
+\end{figure}
