@@ -8,6 +8,7 @@ from pymablock.block_diagonalization import block_diagonalize
 from pymablock.series import BlockSeries, AlgebraElement, zero
 
 # %%
+color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 figwidth = matplotlib.rcParams["figure.figsize"][0]
 
 
@@ -45,10 +46,10 @@ def eval_offdiagonal_every_order(*index):
 
 
 evals = {
-    r"$\mathcal{H}'_a$": eval_dense_first_order,
-    r"$\mathcal{H}'_b$": eval_dense_every_order,
-    r"$\mathcal{H}'_c$": eval_offdiagonal_first_order,
-    r"$\mathcal{H}'_d$": eval_offdiagonal_every_order,
+    r"$H_{1}$": eval_dense_first_order,
+    r"$\mathcal{H}^{'}$": eval_dense_every_order,
+    r"$H_{\textrm{offdiag}, 1}$": eval_offdiagonal_first_order,
+    r"$\mathcal{H}^{'}_{\textrm{offdiag}}$": eval_offdiagonal_every_order,
 }
 # %%
 multiplication_counts = {}
@@ -72,28 +73,35 @@ for structure in evals.keys():
         )["__mul__"]
 # %%
 mosaic = [["A", "B"]]
-fig, ax = plt.subplot_mosaic(mosaic, figsize=(figwidth, figwidth / 3))
+fig, ax = plt.subplot_mosaic(mosaic, figsize=(figwidth, figwidth / 3.8), sharey=True)
 
-for structure, counts in multiplication_counts.items():
-    ax["A"].plot(
+for (structure, counts), panel, color in zip(
+    multiplication_counts.items(), ["A", "B", "A", "B"], ["C0", "C2", "C1", "C7"]
+):
+    ax[panel].plot(
         list(counts.keys())[2:],
         list(counts.values())[2:],
         label=None,
         linestyle="--",
         alpha=0.3,
         linewidth=1,
+        color=color,
     )
-    ax["A"].scatter(
+    ax[panel].scatter(
         list(counts.keys())[2:],
         list(counts.values())[2:],
         label=structure,
         s=20,
+        color=color,
     )
 
-ax["A"].set_xlabel(r"$\textrm{Order of } \tilde{\mathcal{H}}^{AA}$")
+    ax[panel].set_xlabel(r"$n$", labelpad=0)
+    ax[panel].legend(frameon=False, loc="upper left")
+    ax[panel].spines["right"].set_visible(False)
+    ax[panel].spines["top"].set_visible(False)
+
 ax["A"].set_ylabel(r"$\# \textrm{ Matrix products}$")
-ax["A"].legend(frameon=False, loc="upper left")
-ax["A"].spines["right"].set_visible(False)
-ax["A"].spines["top"].set_visible(False)
+ax["A"].set_yticks([0, 100, 200, 300])
+ax["A"].set_yticklabels([r"$0$", r"$100$", r"$200$", r"$300$"])
 fig.savefig("../figures/benchmark_matrix_products.pdf", bbox_inches="tight")
 # %%

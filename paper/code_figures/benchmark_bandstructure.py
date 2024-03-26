@@ -239,7 +239,9 @@ for t_label, label in zip(
     p = axs["time"].barh(
         t_label, np.mean(t), height=1, left=left, alpha=0.6, xerr=np.std(t)
     )
-    axs["time"].bar_label(p, labels=(label,), label_type="center")
+    axs["time"].bar_label(
+        p, labels=(label,), label_type="center", fontsize=7, padding=30
+    )
 
 p = axs["time"].barh(
     "sparse",
@@ -248,7 +250,9 @@ p = axs["time"].barh(
     alpha=0.6,
     xerr=np.std(times.times["sparse occupied eigsh"]),
 )
-axs["time"].bar_label(p, labels=(r"$\mathrm{Sparse}$",), label_type="center")
+axs["time"].bar_label(
+    p, labels=(r"$\mathrm{Sparse}$",), label_type="center", fontsize=7
+)
 
 axs["time"].spines[["top", "right"]].set_visible(False)
 axs["time"].set_yticks([])

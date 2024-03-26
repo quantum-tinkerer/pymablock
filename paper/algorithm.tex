@@ -359,11 +359,8 @@ and satisfies the same diagonalization requirements as our algorithm, the two
 produce the same effective Hamiltonian.
 
 \subsection{Extra optimization: common subexpression elimination}
-While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our
-requirements, we optimize it further by reusing products that are needed in
-several places.
-Firstly, we rewrite the expressions for $\mathcal{Z}$ and $\tilde{\mathcal{H}}$
-by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ without recomputing it:
+While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our requirements, we optimize it further by reusing products that are needed in several places.
+Firstly, we rewrite the expressions for $\mathcal{Z}$ in Eq.~\eqref{eq:Z} and $\tilde{\mathcal{H}}$ in Eq.~\eqref{eq:H_tilde} by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ without recomputing it:
 %
 \begin{gather*}
 \mathcal{Z} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}],\\
