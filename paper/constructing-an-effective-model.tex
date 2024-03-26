@@ -2,14 +2,14 @@
 
 \co{We consider scenarios for which perturbation theory is useful.}
 We illustrate the construction of effective models by considering several representative examples.
-The simplest application of effective models is the reduction of finite symbolic Hamiltonians, which appear in the derivation of low energy dispersions of materials.
-Starting from a tight-binding model, one performs Taylor expansions of the Hamiltonian near a $k$-point, and then eliminates several high energy states~\cite{Luttinger_1955,McCann_2013}.
+The simplest application of effective models is the reduction of finite symbolic Hamiltonians, which appear in the derivation of low-energy dispersions of materials.
+Starting from a tight-binding model, one performs Taylor expansions of the Hamiltonian near a $k$-point, and then eliminates several high-energy states~\cite{Luttinger_1955,McCann_2013}.
 In the study of superconducting qubits, for example, the Hamiltonian contains several bosonic operators, so its Hilbert space is infinite-dimensional, and the coupling between bosons makes the Hamiltonian impossible to diagonalize.
 The effective qubit model describes the analytical dependence of qubit frequencies and couplings on the circuit parameters~\cite{Blais_2004,Zhu_2013,Krantz_2019,Li_2020,Blais_2021,Sete_2021}.
 This allows to design circuits that realize a desired qubit Hamiltonian, as well as ways to understand and predict qubit dynamics, for which computational tools are being actively developed~\cite{Groszkowski_2021,Chitta_2022,Li_2022}.
-Finally, mesoscopic quantum devices are described by a single particle tight binding model with short range hoppings.
+Finally, mesoscopic quantum devices are described by a single particle tight-binding model with short range hoppings.
 This produces a numerical Hamiltonian that is both big and sparse, which allows to compute a few of its states but not the full spectrum~\cite{Melo_2023}.
-Because only the low energy states contribute to observable properties, deriving how they couple enables a more efficient simulation of the system's behavior.
+Because only the low-energy states contribute to observable properties, deriving how they couple enables a more efficient simulation of the system's behavior.
 
 \co{We demonstrate how Pymablock solves these problems.}
 Pymablock treats all the problems, including the ones above, using a unified approach that only requires three steps:
@@ -34,14 +34,14 @@ The function \mintinline{python}|block_diagonalize| interprets the Hamiltonian $
 This is the main function of Pymablock, and it is the only one that the user ever needs to call.
 Its first output is a multivariate series whose terms are different blocks and orders of the transformed Hamiltonian.
 Calling \mintinline{python}|block_diagonalize| only defines the computational problem, whereas querying the elements of \mintinline{python}|H_tilde| does the actual calculation of the desired order.
-This interface treats arbitrary formats of Hamiltonians and system descriptions on the same footing, and supports both numerical, and symbolic computations.
+This interface treats arbitrary formats of Hamiltonians and system descriptions on the same footing and supports both numerical and symbolic computations.
 
 \subsection{k.p model of bilayer graphene}
 \label{sec:bilayer_graphene}
 
 \co{We use bilayer graphene to illustrate how to use Pymablock with analytic models.}
 To illustrate how to use Pymablock with analytic models, we consider two layers of graphene stacked on top of each other, as shown in Fig.~\ref{fig:bilayer}.
-Our goal is to find the low energy model near the $\mathbf{K}$ point~\cite{McCann_2013}.
+Our goal is to find the low-energy model near the $\mathbf{K}$ point~\cite{McCann_2013}.
 To do this, we first construct the tight-binding model Hamiltonian of bilayer graphene.
 %
 \begin{figure}[!htbp]
@@ -148,8 +148,8 @@ We therefore treat $g$ as a perturbative parameter.
 
 \co{We truncate the Hamiltonian.}
 To deal with the infinite dimensional Hilbert space, we observe that the perturbation only changes the occupation numbers of the transmon and the resonator by $\pm 1$.
-Therefore computing $n$-th order corrections to the $n_0$-th state allow to disregard states with any occupation numbers larger than $n_0 + n/2$.
-We want to compute the second order correction to the levels with occupation numbers of either transmon or the resonator being $0$ and $1$.
+Therefore computing $n$-th order corrections to the $n_0$-th state allows to disregard states with any occupation numbers larger than $n_0 + n/2$.
+We want to compute the second order correction to the levels with occupation numbers of either the transmon or the resonator being $0$ and $1$.
 We accordingly truncate the Hilbert space to the lowest 3 levels of the transmon and the resonator.
 The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using Sympy~\cite{Meurer_2017}.
 
@@ -202,7 +202,7 @@ where the Pauli matrices $\sigma_z$ and $\sigma_x$ act in the electron-hole spac
 
 \co{We use Kwant to build the Hamiltonian of the system.}
 We use the Kwant package~\cite{Groth_2014} to build the Hamiltonian of the system~\footnote{The full code is available at \url{https://pymablock.readthedocs.io/en/latest/tutorial/induced_gap.html}.}, which we define over a square lattice of $L \times W = 200 \times 40$ sites.
-On top of this, we consider two perturbations: the barrier strength between the quantum dots and the superconductor, $t_b$, and an asymmetry of the dots potentials, $\delta \mu$.
+On top of this, we consider two perturbations: the barrier strength between the quantum dots and the superconductor, $t_b$, and an asymmetry of the dots' potentials, $\delta \mu$.
 
 The system is large: it is a sparse array of size $63042 \times 63042$, with $333680$ non-zero elements, so even storing all the eigenvectors would take $60$ GB of memory.
 The perturbations are also sparse, with $632$, and $126084$ non-zero elements for the barrier strength and the potential asymmetry, respectively.
@@ -215,15 +215,15 @@ We now call the block diagonalization routine and provide the computed eigenvect
 %
 \inputminted[firstline=64, lastline=64]{python}{code_figures/lattice_system.py}
 %
-Because we only provide the low energy subspace, Pymablock uses the implicit method.
-Calling \mintinline{python}|block_diagonalize| is now the most time consuming step because it requires pre-computing several decompositions of the full Hamiltonian.
+Because we only provide the low-energy subspace, Pymablock uses the implicit method.
+Calling \mintinline{python}|block_diagonalize| is now the most time-consuming step because it requires pre-computing several decompositions of the full Hamiltonian.
 It is, however, manageable and it only produces a constant overhead of less than three seconds.
 
 To compute the spectrum, we collect the lowest three orders in each parameter in an appropriately sized tensor.
 %
 \inputminted[firstline=69, lastline=69]{python}{code_figures/lattice_system.py}
 %
-This takes two more seconds to run, and we can now compute the low energy spectrum after rescaling the perturbative corrections by the magnitude of each perturbation.
+This takes two more seconds to run, and we can now compute the low-energy spectrum after rescaling the perturbative corrections by the magnitude of each perturbation.
 %
 \inputminted[firstline=72, lastline=77]{python}{code_figures/lattice_system.py}
 %
@@ -234,7 +234,7 @@ Finally, we plot the spectrum of the $2$ Andreev states in Fig.~\ref{fig:QD_spec
 \includegraphics[width=\linewidth]{figures/lattice_system.pdf}
 \caption{
     Hamiltonian (left) and Andreev levels (right) of two quantum dots coupled to a superconductor (inset).
-    The barrier $t_b$ between the dots and the superconductor, $H_{10}$, and the asymmetry $\delta \mu$ between the dots potential, $H_{01}$, are perturbations.
+    The barrier $t_b$ between the dots and the superconductor, $H_{10}$, and the asymmetry $\delta \mu$ between the dots' potential, $H_{01}$, are perturbations.
 }
 \label{fig:QD_spectrum}
 \end{figure}
@@ -242,5 +242,5 @@ Finally, we plot the spectrum of the $2$ Andreev states in Fig.~\ref{fig:QD_spec
 As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the dots are coupled to the superconductor.
 In addition, we observe how the proximity gap of the dots increases with the coupling strength.
 
-In this example the total runtime of Pymablock would only allow us to compute the spectrum at around $3$ points in the parameter space.
+In this example, the total runtime of Pymablock would only allow us to compute the spectrum at around $3$ points in the parameter space.
 This demonstrates the speed of the implicit method and the efficiency of Pymablock's algorithm.
