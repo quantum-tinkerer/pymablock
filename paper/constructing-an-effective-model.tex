@@ -124,7 +124,7 @@ The first term is the standard quadratic dispersion of gapped bilayer graphene.
 The second term contains trigonal warping and the coupling between the gap and momentum.
 All the terms take less than two seconds in a personal computer to compute.
 
-\subsection{Circuit quantum electrodynamics}
+\subsection{Dispersive shift of a transmon qubit coupled to a resonator}
 \label{sec:cqed}
 
 \co{We illustrate the potential of Pymablock as a useful tool for the design and control of superconducting qubits.}
@@ -135,10 +135,10 @@ The Hamiltonian of the system is given by
 \begin{equation}
     \label{eq:H_cqed}
     \mathcal{H} =
-    \omega_t (a^{\dagger}_{t} a_{t} - \frac{1}{2})
+    -\omega_t (a^{\dagger}_{t} a_{t} - \frac{1}{2})
     + \frac{\alpha}{2} a^{\dagger}_{t} a^{\dagger}_{t} a_{t} a_{t} +
-    \omega_r (a^{\dagger}_{r} a_{r} + \frac{1}{2}) +
-    g (a^{\dagger}_{t} + a_{t}) (a^{\dagger}_{r} + a_{r}),
+    \omega_r (a^{\dagger}_{r} a_{r} + \frac{1}{2}) -
+    g (a^{\dagger}_{t} - a_{t}) (a^{\dagger}_{r} - a_{r}),
 \end{equation}
 %
 where $a_t$ and $a_r$ are bosonic annihilation operators of the transmon and resonator, respectively, and $\omega_t$ and $\omega_r$ are their frequencies.
@@ -173,11 +173,12 @@ Repeating this process for the other levels requires changing \mintinline{python
 \begin{equation}
 \begin{aligned}
 \chi &= \frac{1}{2}\left[(E^{(2)}_{11} - E^{(2)}_{10}) - (E^{(2)}_{01} - E^{(2)}_{00})\right] \\
-& = - \frac{g^{2}}{\alpha + \omega_{r} - \omega_{t}} + \frac{g^{2}}{- \alpha + \omega_{r} + \omega_{t}} - \frac{g^{2}}{\omega_{r} + \omega_{t}} + \frac{g^{2}}{\omega_{r} - \omega_{t}}.
+& = - \frac{g^{2}}{\alpha + \omega_{r} - \omega_{t}} + \frac{g^{2}}{- \alpha + \omega_{r} + \omega_{t}} - \frac{g^{2}}{\omega_{r} + \omega_{t}} + \frac{g^{2}}{\omega_{r} - \omega_{t}} \\
+& = - \frac{2 \alpha g^{2} \left(\alpha \omega_{t} - \omega_{r}^{2} - \omega_{t}^{2}\right)}{\left(\omega_{r} - \omega_{t}\right) \left(\omega_{r} + \omega_{t}\right) \left(- \alpha + \omega_{r} + \omega_{t}\right) \left(\alpha + \omega_{r} - \omega_{t}\right)}.
 \end{aligned}
 \end{equation}
 %
-In this example, we have included the frequently omitted counter-rotating terms $\sim a_{r} a_{t}$ to illustrate the extensibility of Pymablock.
+In this example, we have not used the rotating wave approximation, including the frequently omitted counter-rotating terms $\sim a_{r} a_{t}$ to illustrate the extensibility of Pymablock.
 Computing higher order corrections to the qubit frequency only requires increasing the size of the truncated Hilbert space and requesting \mintinline{python}|H_tilde[0, 0, n]| to the desired order $n$.
 
 \subsection{Induced gap in a double quantum dot}
