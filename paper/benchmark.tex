@@ -7,50 +7,58 @@ Literature references provide explicit expressions for the effective Hamiltonian
 Because the full reference expressions are lengthy, we do not provide them, but for example at $4$-th order the effective Hamiltonian is a sum of several expressions of the form
 \begin{equation}
 \label{eq:SW_term}
-\frac{H'_{mm^{''}}H'_{m^{''}m^{'''}}H'_{m^{'''}l}H'_{lm^{'}}}{(E_{m^{''}}-E_{l})(E_{m^{'''}}-E_{l})(E_{m}-E_{l})}.
+\sum_{m^{''} m^{'''} l}
+\frac{H'_{mm^{''}}H'_{m^{''}m^{'''}}H'_{m^{'''}l}H'_{lm^{'}}}{(E_{m^{''}}-E_{l})(E_{m^{'''}}-E_{l})(E_{m}-E_{l})},
 \end{equation}
-More generally, at $n$-th order each term has a product of $n$ matrix elements of the Hamiltonian and $n-1$ energy denominators.
-Directly carrying out the summation over all the states requires $\mathcal{O}((N_A + N_B)^{n+1})$ operations, where $N_A$ and $N_B$ are the number of states in the two subspaces.
-In other words, it scales with the problem size worse than a matrix product.
+where the $m$-indices label states from the $A$-subspace and $l$-indices label the states from the $B$-subspace.
+More generally, at $n$-th order each term is a product of $n$ matrix elements of the Hamiltonian and $n-1$ energy denominators.
+Directly carrying out the summation over all the states requires $\mathcal{O}(N_A^2 N_B^{n-1})$ operations, where $N_A$ and $N_B$ are the number of states in the two subspaces.
+In other words, the direct computation scales worse than a matrix product with the problem size.
 Formulating Eq.~\eqref{eq:SW_term} as $n-1$ matrix products combined with $n-1$ solutions
-of Sylvester's equation, brings this complexity down to $\mathcal{O}((n-1) \times (N_A + N_B)^3)$.
-This allows us to evaluate the reference expressions for the effective Hamiltonian for
-$0$-th, $1$-st, $2$-nd, $3$-rd, and $4$-th order using $0$, $0$, $1$, $4$, and $27$ matrix products, respectively.
-With Pymablock, we need $0$, $0$, $1$, $7$, and $24$, matrix products to obtain the same orders of the effective Hamiltonian.
-However, because we the \mintinline{Python}|BlockSeries| class masks out zero elements,
-the number of matrix products depends on the sparsity structure of the Hamiltonian, as shown in Figure \ref{fig:benchmark_matrix_products}.
+of Sylvester's equation, brings this complexity down to $\mathcal{O}((n-1) \times N_A N_B^2)$.
+This optimization, together with the hermiticity of the sum, allows us to evaluate the reference expressions for the effective Hamiltonian for $2$-nd, $3$-rd, and $4$-th order using $1$, $4$, and $27$ matrix products, respectively.
+On the other hand, Pymablock's algorithm utilizes $1$, $7$, and $24$, matrix products to obtain the same orders of the effective Hamiltonian.
+The additional products that Pymablock performs at third order are due to terms that cancel out in $\tilde{H}_{3}$, and we aim to optimize this in future versions of the package.
+Starting from fourth order computations, the scaling of Pymablock's algorithm outperforms the exponential growth of the number of terms in the reference expressions, and enables computations at all realistically useful orders.
+Moreover, because the \mintinline{Python}|BlockSeries| class tracks absent terms, in practice the number of matrix products depends on the sparsity of the block structure of the perturbation, as shown in Figure \ref{fig:benchmark_matrix_products}.
 %
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{figures/benchmark_matrix_products.pdf}
     \caption{
-        Matrix products computed per $\tilde{\mathcal{H}}^{AA}_{n}$ for
-        a dense and block off-diagonal first-order perturbation (left) and a dense and block off-diagonal summation of perturbations to infinite order (right).
-    }
+        Matrix products required to compute $\tilde{H}^{AA}_{n}$ for
+        a dense and block off-diagonal first-order perturbation (left) and a dense and block off-diagonal perturbative series with terms of all orders present (right).
+        }
     \label{fig:benchmark_matrix_products}
 \end{figure}
 %
 
-\co{To demonstrate the efficiency of the implicit method, we show its time scaling compared to sparse diagonalizaton.}
-We demonstrate the performance of the implicit method by using it to compute the low-energy spectrum of a large tight-binding model, and comparing its time consumption to the one of sparse diagonalization.
-For the model, we choose a 2D square lattice
-of $52 \times 52$ sites with nearest-neighbor hopping and a random on-site potential, for which we tune the parameters so that there is a band gap and avoided crossings, as shown in Figure \ref{fig:benchmark_bandstructure}.
-Like in Sec.~\ref{sec:induced_gap}, constructing the effective Hamiltonian involves three steps.
-First, we sparse diagonalize the unperturbed Hamiltonian to obtain the its $10$ lowest states and orthonormalize them.
-Second, we call \mintinline{python}|block_diagonalize|, which applies an LU decomposition to the Hamiltonian.
-Third, we compute corrections to $\tilde{H}$ for a fixed value of $\delta \mu$, which we then rescale to obtain the effective Hamiltonian at different values of $\delta \mu$.
-Each of these steps is a one-time cost, independent of the sampled values of $\delta \mu$, see Figure \ref{fig:benchmark_bandstructure}.
-Finally, we diagonalize each $10 \times 10$ effective Hamiltonian to obtain the low-energy spectrum, however, this is a negligible cost compared to the other steps.
-As a consequence, if one is interested in the bandstructure for a range of $\delta \mu$, it is more efficient to apply the implicit method than to sparse diagonalize the Hamiltonian for each value of $\delta \mu$, even if these are just $2$ points to sample.
+\co{The entire implicit method costs less than a single sparse diagonalization.}
+The efficiency of Pymablock becomes especially apparent when applied to sparse numerical problems, similar to Sec.~\ref{sec:induced_gap}.
+We demonstrate the performance of the implicit method by using it to compute the low-energy spectrum of a large tight-binding model, and comparing Pymablock's time cost to that of sparse diagonalization.
+We define a 2D square lattice of $52 \times 52$ sites with nearest-neighbor hopping and a random onsite potential $\mu(\mathbf{r})$.
+The perturbation $\delta \mu (\mathbf{r})$ interpolates between two different disorder realizations.
+For the sake of an illustration, we choose the system's parameters such that the dispersion of the lowest few levels with $\delta \mu$ features avoided crossings and an overall nonlinear shape, whose details are not relevant.
+Similar to Sec.~\ref{sec:induced_gap}, constructing the effective Hamiltonian involves three steps.
+First, we compute the $10$ lowest states of the unperturbed Hamiltonian using sparse diagonalization.
+Second, \mintinline{python}|block_diagonalize| computes a sparse LU decomposition of the Hamiltonian at each of the $10$ eigenenergies.
+Third, we compute corrections $\tilde{H}_1$, $\tilde{H}_2$, and $\tilde{H}_3$ to the effective Hamiltonian, each being a $10 \times 10$ matrix.
+Each of these steps is a one-time cost, see Figure \ref{fig:benchmark_bandstructure}.
+Finally, to compare the perturbative calculation to sparse diagonalization, we construct the effective Hamiltonian $\tilde{H} = H_0 + \delta \mu \tilde{H}_1 + \delta \mu^2 \tilde{H}_2 + \delta \mu^3 \tilde{H}_3$ and diagonalize it to obtain the low-energy spectrum for a range of $\delta \mu$.
+This has a negligible cost compared to constructing the series.
+The comparison is shown in Fig.~\ref{fig:benchmark_bandstructure}.
+We observe that while the second order results are already very close to the exact spectrum, the third order corrections fully reproduce the sparse diagonalization.
+At the same time, the entire cost of computing the perturbative band structure for a range of $\delta \mu$ is lower than computing a single additional sparse diagonalization.
 %
 \begin{figure}[h]
     \centering
     \includegraphics[width=\textwidth]{figures/benchmark_bandstructure.pdf}
     \caption{
-        Bandstructure of the effective Hamiltonian (black) of a
-        tight-binding model compared to exact sparse diagonalization (gray).
-        The time spent in sparse diagonalization for one value of $\delta \mu$ (gray) and $10$ lowest states is shown in the lowest panel (gray).
-        This time is comparable to a one-time LU decomposition (red) of the Hamiltonian, plus first, second (yellow) and third (blue) order corrections to the effective Hamiltonian.
+        Top panels: band structure of the perturbative effective Hamiltonian (black) of a tight-binding model compared to exact sparse diagonalization (gray).
+        Bottom panel: a comparison of the Pymablock's time cost with sparse diagonalization.
+        Most of the time is spent in the LU decomposition of the Hamiltonian (red).
+        The entire cost of the implicit method is lower than a single sparse diagonalization (gray).
+        The operations of negligible cost are not shown.
         }
     \label{fig:benchmark_bandstructure}
 \end{figure}
