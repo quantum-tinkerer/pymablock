@@ -260,7 +260,11 @@ axs["time"].set_yticklabels([])
 axs["time"].set_xticks([0, 0.5, 1, 1.5])
 axs["time"].set_xticklabels([r"$0$", r"$1/2$", r"$1$", r"$3/2$"])
 axs["time"].set_xlabel(r"$\textrm{Time (s)}$", labelpad=-6)
-axs["time"].set_xlim(0, 1.4)
+axs["time"].set_xlim(
+    0,
+    np.mean(times.times["sparse occupied eigsh"])
+    + np.std(times.times["sparse occupied eigsh"]),
+)
 
 fig.savefig("../figures/benchmark_bandstructure.pdf", bbox_inches="tight")
 
