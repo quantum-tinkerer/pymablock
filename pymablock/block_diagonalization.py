@@ -508,6 +508,15 @@ def _block_diagonalize(
             ),
             "data": zero_data,
         },
+        # Used in X^AB to save one product
+        "(X - H'_offdiag - H'_offdiag @ U')": {
+            "eval": (
+                lambda *index: _zero_sum(
+                    series["(X - H'_offdiag)"][index], -series["H'_offdiag @ U'"][index]
+                )
+            ),
+            "data": zero_data,
+        },
     }
     series = {
         key: BlockSeries(name=key, **series_kwargs, **value)
@@ -521,6 +530,7 @@ def _block_diagonalize(
         ("H'_diag @ U'", False),
         ("H'_offdiag @ U'", False),
         ("U'† @ H'_offdiag @ U'", False),
+        ("U'† @ (X - H'_offdiag - H'_offdiag @ U')", False),
     ]
 
     for term, hermitian in needed_products:
@@ -622,19 +632,12 @@ def _block_diagonalize(
             return _safe_divide(Dagger(value) - value, 2)
         elif index[:2] == (0, 1):
             result = _zero_sum(
-                -series["U'† @ (X - H'_offdiag)"][index],
+                -series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index],
                 series["H'_offdiag @ U'"][index],
-                # Two lines below cancel with ...
-                # series["H'_diag @ U'"][index],
-                # Dagger(series["H'_diag @ U'"][index_dag]),
-                series["U'† @ H'_offdiag @ U'"][index],
-                # + [U, H'_diag]
-                # ... the two lines below.
-                # -series["H'_diag @ U'"][index],
-                # -Dagger(series["H'_diag @ U'"][index_dag]),
             )
             del_("U'† @ H'_offdiag @ U'", index)
-            del_("U'† @ (X - H'_offdiag)", index)
+            del_("(X - H'_offdiag - H'_offdiag @ U')", index)
+            del_("U'† @ (X - H'_offdiag - H'_offdiag @ U')", index)
             return result
         elif index[:2] == (1, 0):
             # off-diagonal of X is Hermitian
