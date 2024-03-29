@@ -608,7 +608,13 @@ def _block_diagonalize(
             return result
         elif index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
-            Y = series["X"][index]
+            index_dag = (index[1], index[0], *index[2:])
+            Y = _zero_sum(
+                series["X"][index],
+                # - [U', H'_diag]
+                series["H'_diag @ U'"][index],
+                Dagger(series["H'_diag @ U'"][index_dag]),
+            )
             del_("X", index)
             return -solve_sylvester(Y) if Y is not zero else zero
         elif index[:2] == (1, 0):
@@ -620,9 +626,13 @@ def _block_diagonalize(
     def X_min_H_offdiag_eval(*index: int) -> Any:
         if index[0] == index[1]:
             which = linear_operator_or_explicit(index)
+            index_dag = (index[1], index[0], *index[2:])
             value = _zero_sum(
                 which["U'† @ (X - H'_offdiag)"][index],
                 Dagger(which["H'_offdiag @ U'"][index]),
+                # + [U, H'_diag]
+                -which["H'_diag @ U'"][index],
+                -Dagger(which["H'_diag @ U'"][index_dag]),
             )
             return _safe_divide(Dagger(value) - value, 2)
         elif index[:2] == (0, 1):
@@ -633,6 +643,9 @@ def _block_diagonalize(
                 series["H'_diag @ U'"][index],
                 Dagger(series["H'_diag @ U'"][index_dag]),
                 series["U'† @ H' @ U'"][index],
+                # + [U, H'_diag]
+                -series["H'_diag @ U'"][index],
+                -Dagger(series["H'_diag @ U'"][index_dag]),
             )
             del_("U'† @ H' @ U'", index)
             del_("U'† @ (X - H'_offdiag)", index)
@@ -650,6 +663,8 @@ def _block_diagonalize(
             # anti-Hermitian part of U'† @ X, we save some computations
             # by taking the Hermitian part of U'† @ X and not including X.
             result = _zero_sum(
+                # + H'_diag = H_diag - H_0
+                series["H'_diag"][index],
                 series["H'_diag"][index],
                 series["H'_diag @ U'"][index] + Dagger(series["H'_diag @ U'"][index]),
                 _safe_divide(

@@ -312,14 +312,14 @@ $\mathcal{V}$ as a solution of:
 
 :::{math}
 :label: sylvester
-\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{U}, \mathcal{H}_\textrm{diag}]^{AB},
+\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{U}', \mathcal{H}'_\textrm{diag}]^{AB},
 :::
 
 a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation),
 which we only need to solve once for every new order.
 In the eigenbasis of $H_0$, the solution of Sylvester's equation is
-$V^{AB}_{\mathbf{n}, ij} = (Y - [\mathcal{U},
-\mathcal{H}_\textrm{diag}])^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are
+$V^{AB}_{\mathbf{n}, ij} = (Y - [\mathcal{U}',
+\mathcal{H}'_\textrm{diag}])^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are
 the eigenvalues of $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient
 algorithms to solve Sylvester's equation, see [below](#implicit).
@@ -349,7 +349,7 @@ by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ witho
 $$
 \begin{gather*}
 \mathcal{Z} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}],\\
-\tilde{\mathcal{H}} = H_0 + \mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.}),
+\tilde{\mathcal{H}} = \mathcal{H}_\textrm{diag} + \mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.}),
 \end{gather*}
 $$
 
@@ -377,7 +377,7 @@ $$
 and more importantly for $\tilde{\mathcal{H}}$:
 
 $$
-\tilde{\mathcal{H}} = H_0 + \mathcal{A} + \mathcal{A}^\dagger + (\mathcal{B} + \mathcal{B}^\dagger)/2 + \mathcal{U}'^\dagger (\mathcal{A} + \mathcal{B}) - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
+\tilde{\mathcal{H}} = \mathcal{H}_\textrm{diag} + \mathcal{A} + \mathcal{A}^\dagger + (\mathcal{B} + \mathcal{B}^\dagger)/2 + \mathcal{U}'^\dagger (\mathcal{A} + \mathcal{B}) - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
 $$
 :::
 
