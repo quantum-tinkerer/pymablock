@@ -602,6 +602,8 @@ def _block_diagonalize(
                 Dagger(series["H'_diag @ U'"][index_dag]),
             )
             del_("X", index)
+            del_("H'_diag @ U'", index)
+            del_("H'_diag @ U'", index_dag)
             return -solve_sylvester(Y) if Y is not zero else zero
         elif index[:2] == (1, 0):
             # off-diagonal of U is anti-Hermitian
