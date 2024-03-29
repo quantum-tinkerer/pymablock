@@ -497,7 +497,7 @@ def _block_diagonalize(
             "eval": (lambda *index: series["U'†"][index]),
             "data": identity_data,
         },
-        # X = [U', H_0], computed using a recurrent relation. Diagonal parts are
+        # X = [U', H_diag], computed using a recurrence relation. Diagonal parts are
         # anti-Hermitian, off-diagonal parts are Hermitian.
         "(X - H'_offdiag)": {"data": zero_data},
         "X": {
@@ -598,6 +598,7 @@ def _block_diagonalize(
             Y = _zero_sum(
                 series["X"][index],
                 # - [U', H'_diag]
+                # Below we use the antihermiticity of the off-diagonal part of U'
                 series["H'_diag @ U'"][index],
                 Dagger(series["H'_diag @ U'"][index_dag]),
             )
