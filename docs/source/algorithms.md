@@ -247,16 +247,16 @@ to the right and find
 :::{math}
 :label: H_tilde
 \toggle{
-  \tilde{\mathcal{H}} = \texttip{\color{red}{\ldots}}{click to expand} = \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+  \tilde{\mathcal{H}} = \texttip{\color{red}{\ldots}}{click to expand} = \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}_\textrm{offdiag}\mathcal{U},
 }{
   \begin{align*}
   \tilde{\mathcal{H}}
   &= \mathcal{H}_\textrm{diag} + \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag} + (\mathcal{H}_\textrm{diag} \mathcal{U}') + \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag}
-  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H'}\mathcal{U})
+  \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}_\textrm{offdiag}\mathcal{U}
   \\
-  &= \mathcal{H}_\textrm{diag} + \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag} + \mathcal{U}'\mathcal{H}_\textrm{diag} - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' \mathcal{H}_\textrm{diag} - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
-  &= \mathcal{H}_\textrm{diag} + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')\mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}\\
-  &= \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+  &= \mathcal{H}_\textrm{diag} + \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag} + \mathcal{U}'\mathcal{H}_\textrm{diag} - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' \mathcal{H}_\textrm{diag} - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H}_\textrm{offdiag}\mathcal{U}\\
+  &= \mathcal{H}_\textrm{diag} + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')\mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U}\\
+  &= \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U},
   \end{align*}
 }
 \endtoggle
@@ -298,7 +298,7 @@ $\tilde{\mathcal{H}}^{AB} = 0$ and find
 
 :::{math}
 :label: Y
-\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} -
+\mathcal{X}^{AB} = (\mathcal{U'}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U'} -
 \mathcal{U}'^\dagger \mathcal{X})^{AB}.
 :::
 
@@ -334,8 +334,8 @@ We now have the complete algorithm:
 4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
  (-\mathcal{U}'^\dagger\mathcal{X} +
-  \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
-6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}$.
+  \mathcal{U'}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U'})^{AB}$.
+6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U}$.
 
 :::{admonition} Extra optimization: common subexpression elimination
 :class: dropdown info
