@@ -216,7 +216,7 @@ $$
 \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag} + \mathcal{H}_\textrm{diag} \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag}
 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}_\textrm{offdiag}\mathcal{U},
 $$
-where we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = \mathcal{H}_\textrm{diag} + \mathcal{H}_\textrm{offdiag}$.
+where we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = \mathcal{H}_\textrm{diag} + \mathcal{H}'_\textrm{offdiag}$.
 
 Because we want to avoid unnecessary products by $\mathcal{H}_\textrm{diag}$,
 we need to get rid of the terms that contain it by replacing them with an
@@ -241,7 +241,7 @@ $\mathcal{U}'$ and $\mathcal{H}_\textrm{diag}$:
 
 where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block
 diagonal.
-We use $H_0 \mathcal{U}' = \mathcal{U}' \mathcal{H}_\textrm{diag} -\mathcal{X}$ to move $\mathcal{H}_\textrm{diag}$ through
+We use $\mathcal{H}_\textrm{diag} \mathcal{U}' = \mathcal{U}' \mathcal{H}_\textrm{diag} -\mathcal{X}$ to move $\mathcal{H}_\textrm{diag}$ through
 to the right and find
 
 :::{math}
@@ -298,7 +298,7 @@ $\tilde{\mathcal{H}}^{AB} = 0$ and find
 
 :::{math}
 :label: Y
-\mathcal{X}^{AB} = (\mathcal{U'}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U'} -
+\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} -
 \mathcal{U}'^\dagger \mathcal{X})^{AB}.
 :::
 
@@ -335,7 +335,7 @@ We now have the complete algorithm:
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
  (-\mathcal{U}'^\dagger\mathcal{X} +
   \mathcal{U'}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U'})^{AB}$.
-6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U}$.
+6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}_\textrm{offdiag}\mathcal{U}$.
 
 :::{admonition} Extra optimization: common subexpression elimination
 :class: dropdown info
@@ -349,36 +349,37 @@ by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ witho
 $$
 \begin{gather*}
 \mathcal{Z} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}],\\
-\tilde{\mathcal{H}} = \mathcal{H}_\textrm{diag} + \mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.}),
+\tilde{\mathcal{H}} = \mathcal{H}_\textrm{diag} + \mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.}),
 \end{gather*}
 $$
 
 where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{X}$ drops out from the diagonal blocks of $\tilde{\mathcal{H}}$ because diagonal of $\mathcal{X}$ is anti-Hermitian.
 
-To compute $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$ faster, we express it
-using $\mathcal{F} \equiv \mathcal{H}'\mathcal{U}'$:
+To compute $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$ faster, we express it
+using $\mathcal{F} \equiv \mathcal{H}'_\textrm{offdiag}\mathcal{U}'$:
 
 $$
-\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} = \mathcal{H}' + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
+\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} = \mathcal{H}'_\textrm{offdiag} + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
 $$
 
-To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$.
-
-To reuse these products, we separate the perturbation into diagonal and off-diagonal parts $\mathcal{H}' = \mathcal{H}'_\textrm{diag} + \mathcal{H}'_\textrm{offdiag}$.
-
-We then introduce variables $\mathcal{A} = \mathcal{H}'_\textrm{diag} \mathcal{U}'$, $\mathcal{B} = \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$, and $\mathcal{C} = \mathcal{X} -
+To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$. To reuse these products, we introduce $\mathcal{C} = \mathcal{X} -
 \mathcal{H}'_\textrm{offdiag}$.
-This gives an updated expression for $\mathcal{Z}$:
+
+Together this gives updated expressions for $\mathcal{Y}^{AB}$ and $\mathcal{Z}$:
 
 $$
-\mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.}.
+\begin{gather*}
+\mathcal{Y}^{AB} = \left( \mathcal{U}'^\dagger \left( \mathcal{F} - \mathcal{C} \right) + \mathcal{F} \right)^{AB},\\
+\mathcal{Z} = \frac{1}{2}(\mathcal{F}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.},
+\end{gather*}
 $$
 
-and more importantly for $\tilde{\mathcal{H}}$:
+and more importantly for $\tilde{\mathcal{H}}_\textrm{diag}$:
 
 $$
-\tilde{\mathcal{H}} = \mathcal{H}_\textrm{diag} + \mathcal{A} + \mathcal{A}^\dagger + (\mathcal{B} + \mathcal{B}^\dagger)/2 + \mathcal{U}'^\dagger (\mathcal{A} + \mathcal{B}) - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
+\tilde{\mathcal{H}}_\textrm{diag} = \mathcal{H}_\textrm{diag} + (\mathcal{F} + \mathcal{F}^\dagger)/2 + \mathcal{U}'^\dagger \mathcal{F} - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
 $$
+
 :::
 
 (implicit)=

@@ -654,7 +654,7 @@ def _block_diagonalize(
             # by taking the Hermitian part of U'† @ X and not including X.
             result = _zero_sum(
                 series["H'_diag"][index],
-                # (B + B_adj) / 2
+                # (F + F_adj) / 2
                 _safe_divide(
                     (
                         series["H'_offdiag @ U'"][index]
@@ -662,7 +662,7 @@ def _block_diagonalize(
                     ),
                     2,
                 ),
-                # U_p_adj @ B
+                # U_p_adj @ F
                 series["U'† @ H'_offdiag @ U'"][index],
                 # (U_p_adj @ C + h.c.) / 2
                 _safe_divide(
