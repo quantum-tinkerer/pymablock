@@ -512,7 +512,8 @@ def _block_diagonalize(
         "(X - H'_offdiag - H'_offdiag @ U')": {
             "eval": (
                 lambda *index: _zero_sum(
-                    series["(X - H'_offdiag)"][index], -series["H'_offdiag @ U'"][index]
+                    linear_operator_or_explicit(index)["(X - H'_offdiag)"][index],
+                    -linear_operator_or_explicit(index)["H'_offdiag @ U'"][index],
                 )
             ),
             "data": zero_data,
