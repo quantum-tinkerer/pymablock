@@ -627,9 +627,7 @@ def _block_diagonalize(
                 -2,
             )
         elif index[:2] == (0, 1):
-            result = _zero_sum(
-                -series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]
-            )
+            result = -series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]
             del_("(X - H'_offdiag - H'_offdiag @ U')", index)
             del_("U'† @ (X - H'_offdiag - H'_offdiag @ U')", index)
             return result
@@ -657,12 +655,6 @@ def _block_diagonalize(
                     ),
                     2,
                 ),
-                # This part is zero since it's Hermitian
-                # _safe_divide(
-                #     series["U'† @ H'_offdiag @ U'"][index]
-                #     - Dagger(series["U'† @ H'_offdiag @ U'"][index]),
-                #     2,
-                # ),
                 # ([U_p_adj @ C - U_p_adj @ H'_offdiag @ U_p] + h.c.) / 2
                 _safe_divide(
                     series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]

@@ -362,23 +362,49 @@ $$
 \mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} = \mathcal{H}'_\textrm{offdiag} + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
 $$
 
-To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$. To reuse these products, we introduce $\mathcal{C} = \mathcal{X} -
-\mathcal{H}'_\textrm{offdiag}$.
-
-Together this gives updated expressions for $\mathcal{Y}^{AB}$ and $\mathcal{Z}$:
+To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$. To reuse these products, we introduce $\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$. Together, we can express the AB block of $\mathcal{C}$ as follows:
 
 $$
-\begin{gather*}
-\mathcal{Y}^{AB} = \left( \mathcal{U}'^\dagger \left( \mathcal{F} - \mathcal{C} \right) + \mathcal{F} \right)^{AB},\\
-\mathcal{Z} = \frac{1}{2}(\mathcal{F}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.},
-\end{gather*}
+\begin{align*}
+\mathcal{C} &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
+&= (\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
+&= (\mathcal{H}'_\textrm{offdiag} + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
+&= \mathcal{F}^\dagger + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
+&= (\mathcal{H}'_\textrm{offdiag}\mathcal{U}')^\dagger + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
+&= \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag} + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
+&= -\mathcal{U'}^\dagger \mathcal{C},
+\end{align*}
 $$
 
-and more importantly for $\tilde{\mathcal{H}}_\textrm{diag}$:
+and its diagonal blocks as:
 
 $$
-\tilde{\mathcal{H}}_\textrm{diag} = \mathcal{H}_\textrm{diag} + (\mathcal{F} + \mathcal{F}^\dagger)/2 + \mathcal{U}'^\dagger \mathcal{F} - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
+\begin{align*}
+C &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
+C &= \mathcal{X} - \mathcal{F} \\
+&= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{F} \\
+&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{U}'^\dagger \mathcal{H}'_\textrm{offdiag})- \textrm{h.c.}] - \mathcal{F} \\
+&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{F}^\dagger)- \textrm{h.c.}] - \mathcal{F} \\
+&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] + \frac{1}{2}[-\mathcal{F}^\dagger + \mathcal{F} ] - \mathcal{F} \\
+&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
+&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F}] - \mathcal{U}'^\dagger\mathcal{F} )- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
+&= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] + \frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{F} ) - \textrm{h.c.}] \\
+\end{align*}
 $$
+
+where the last term is zero since $\mathcal{U}'^\dagger\mathcal{F} = \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U}'$ is Hermitian.
+
+TODO: Why is the first term zero as well?
+
+More importantly, we are now able to write $\tilde{\mathcal{H}}_\textrm{diag}$:
+
+
+
+$$
+\tilde{\mathcal{H}}_\textrm{diag} = \mathcal{H}_\textrm{diag} + (\mathcal{F} + \mathcal{F}^\dagger)/2 -(\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
+$$
+
+TODO: Write down full derivation of $\tilde{\mathcal{H}}_\textrm{diag}$. It's similar to the diagonal blocks of $C$.
 
 :::
 
