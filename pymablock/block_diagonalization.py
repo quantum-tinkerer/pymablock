@@ -499,23 +499,18 @@ def _block_diagonalize(
         },
         # X = [U', H_diag], computed using a recurrence relation. Diagonal parts are
         # anti-Hermitian, off-diagonal parts are Hermitian.
-        "(X - H'_offdiag)": {"data": zero_data},
         "X": {
             "eval": (
                 lambda *index: _zero_sum(
-                    series["(X - H'_offdiag)"][index], series["H'_offdiag"][index]
+                    series["(X - H'_offdiag - H'_offdiag @ U')"][index],
+                    series["H'_offdiag"][index],
+                    series["H'_offdiag @ U'"][index],
                 )
             ),
             "data": zero_data,
         },
         # Used in X^AB to save one product
         "(X - H'_offdiag - H'_offdiag @ U')": {
-            "eval": (
-                lambda *index: _zero_sum(
-                    linear_operator_or_explicit(index)["(X - H'_offdiag)"][index],
-                    -linear_operator_or_explicit(index)["H'_offdiag @ U'"][index],
-                )
-            ),
             "data": zero_data,
         },
     }
@@ -527,7 +522,6 @@ def _block_diagonalize(
     # List of products and whether they are Hermitian
     needed_products = [
         ("U'† @ U'", True),
-        ("U'† @ (X - H'_offdiag)", False),
         ("H'_diag @ U'", False),
         ("H'_offdiag @ U'", False),
         ("U'† @ H'_offdiag @ U'", False),
@@ -586,6 +580,7 @@ def _block_diagonalize(
     # the implicit method, we delete both versions at the same time.
     #
     # Specifically we delete the following intermediate results:
+    # TODO: Check which data can be pruned and update the list below.
     # H'_offdiag @ U': (1, 0)
     # U'† @ (X - H'_offdiag): (0, 1)
     # U'† @ H'_offdiag @ U': (0, 0), (0, 1), (1, 1)
@@ -627,24 +622,30 @@ def _block_diagonalize(
         if index[0] == index[1]:
             which = linear_operator_or_explicit(index)
             value = _zero_sum(
-                which["U'† @ (X - H'_offdiag)"][index],
-                Dagger(which["H'_offdiag @ U'"][index]),
+                which["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index],
             )
-            return _safe_divide(Dagger(value) - value, 2)
+            return _zero_sum(
+                _safe_divide(Dagger(value) - value, 2),
+                _safe_divide(
+                    which["H'_offdiag @ U'"][index]
+                    + Dagger(which["H'_offdiag @ U'"][index]),
+                    -2,
+                ),
+            )
         elif index[:2] == (0, 1):
             result = _zero_sum(
-                -series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index],
-                series["H'_offdiag @ U'"][index],
+                -series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]
             )
-            del_("U'† @ H'_offdiag @ U'", index)
             del_("(X - H'_offdiag - H'_offdiag @ U')", index)
             del_("U'† @ (X - H'_offdiag - H'_offdiag @ U')", index)
             return result
         elif index[:2] == (1, 0):
             # off-diagonal of X is Hermitian
-            return Dagger(series["(X - H'_offdiag)"][(0, 1) + tuple(index[2:])])
+            return Dagger(
+                series["(X - H'_offdiag - H'_offdiag @ U')"][(0, 1) + tuple(index[2:])]
+            )
 
-    series["(X - H'_offdiag)"].eval = X_min_H_offdiag_eval
+    series["(X - H'_offdiag - H'_offdiag @ U')"].eval = X_min_H_offdiag_eval
 
     def H_tilde_eval(*index: int) -> Any:
         series = linear_operator_or_explicit(index)
@@ -662,16 +663,19 @@ def _block_diagonalize(
                     ),
                     2,
                 ),
-                # U_p_adj @ F
-                series["U'† @ H'_offdiag @ U'"][index],
-                # (U_p_adj @ C + h.c.) / 2
+                # This part is zero since it's Hermitian
+                # _safe_divide(
+                #     series["U'† @ H'_offdiag @ U'"][index]
+                #     - Dagger(series["U'† @ H'_offdiag @ U'"][index]),
+                #     2,
+                # ),
+                # ([U_p_adj @ C - U_p_adj @ H'_offdiag @ U_p] + h.c.) / 2
                 _safe_divide(
-                    series["U'† @ (X - H'_offdiag)"][index]
-                    + Dagger(series["U'† @ (X - H'_offdiag)"][index]),
+                    series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]
+                    + Dagger(series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]),
                     -2,
                 ),
             )
-            del_("U'† @ H'_offdiag @ U'", index)
             return result
         return zero
 
