@@ -621,16 +621,10 @@ def _block_diagonalize(
     def X_min_H_offdiag_eval(*index: int) -> Any:
         if index[0] == index[1]:
             which = linear_operator_or_explicit(index)
-            value = _zero_sum(
-                which["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index],
-            )
-            return _zero_sum(
-                _safe_divide(Dagger(value) - value, 2),
-                _safe_divide(
-                    which["H'_offdiag @ U'"][index]
-                    + Dagger(which["H'_offdiag @ U'"][index]),
-                    -2,
-                ),
+            return _safe_divide(
+                which["H'_offdiag @ U'"][index]
+                + Dagger(which["H'_offdiag @ U'"][index]),
+                -2,
             )
         elif index[:2] == (0, 1):
             result = _zero_sum(
