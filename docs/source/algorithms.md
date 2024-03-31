@@ -394,17 +394,11 @@ $$
 
 where the last term is zero since $\mathcal{U}'^\dagger\mathcal{F} = \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U}'$ is Hermitian.
 
-TODO: Why is the first term zero as well?
-
-More importantly, we are now able to write $\tilde{\mathcal{H}}_\textrm{diag}$:
-
-
+More importantly, we are now able to write $\tilde{\mathcal{H}}_\textrm{diag}$ (to verify this, substitute $\mathcal{C}$ back into the expression below):
 
 $$
 \tilde{\mathcal{H}}_\textrm{diag} = \mathcal{H}_\textrm{diag} + (\mathcal{F} + \mathcal{F}^\dagger)/2 -(\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
 $$
-
-TODO: Write down full derivation of $\tilde{\mathcal{H}}_\textrm{diag}$. It's similar to the diagonal blocks of $C$.
 
 :::
 

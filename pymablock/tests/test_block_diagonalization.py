@@ -152,7 +152,7 @@ def is_unitary(
 
 
 # Fixtures
-@pytest.fixture(scope="module", params=[(3,), (2, 2)])
+@pytest.fixture(scope="module", params=[(5,), (4, 2)])
 def wanted_orders(request):
     """
     Return a list of orders to compute.

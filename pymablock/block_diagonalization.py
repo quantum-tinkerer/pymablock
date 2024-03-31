@@ -622,20 +622,19 @@ def _block_diagonalize(
         if index[0] == index[1]:
             which = linear_operator_or_explicit(index)
             return _safe_divide(
-                which["H'_offdiag @ U'"][index]
-                + Dagger(which["H'_offdiag @ U'"][index]),
+                _zero_sum(
+                    which["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index],
+                    -Dagger(which["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]),
+                    which["H'_offdiag @ U'"][index]
+                    + Dagger(which["H'_offdiag @ U'"][index]),
+                ),
                 -2,
             )
-        elif index[:2] == (0, 1):
+        else:
             result = -series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]
             del_("(X - H'_offdiag - H'_offdiag @ U')", index)
             del_("U'† @ (X - H'_offdiag - H'_offdiag @ U')", index)
             return result
-        elif index[:2] == (1, 0):
-            # off-diagonal of X is Hermitian
-            return Dagger(
-                series["(X - H'_offdiag - H'_offdiag @ U')"][(0, 1) + tuple(index[2:])]
-            )
 
     series["(X - H'_offdiag - H'_offdiag @ U')"].eval = X_min_H_offdiag_eval
 
