@@ -289,7 +289,7 @@ This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
 \endtoggle
 :::
 
-Similar to computing $\mathcal{W_n}$, computing $\mathcal{Z_n}$ requires lower
+Similar to computing $W_\mathbf{n}$, computing $Z_\mathbf{n}$ requires lower
 orders of $\mathcal{X}$ and $\mathcal{U}'$, all blocks included.
 *This is our second secret ingredient✨*
 
@@ -317,14 +317,14 @@ $\mathcal{V}$ as a solution of:
 
 a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation),
 which we only need to solve once for every new order.
+This is the only step in the algorithm that requires a direct multiplication by
+$\mathcal{H}'_\textrm{diag}$.
 In the eigenbasis of $H_0$, the solution of Sylvester's equation is
-$V^{AB}_{\mathbf{n}, ij} = (Y - [\mathcal{U}',
+$V^{AB}_{\mathbf{n}, ij} = (\mathcal{Y} - [\mathcal{U}',
 \mathcal{H}'_\textrm{diag}])^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are
 the eigenvalues of $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient
 algorithms to solve Sylvester's equation, see [below](#implicit).
-This is the only step in the algorithm that requires a direct multiplication by
-$\mathcal{H}'_\textrm{diag}$.
 
 ## Actual algorithm
 
@@ -336,7 +336,7 @@ We now have the complete algorithm:
 4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
  (-\mathcal{U}'^\dagger\mathcal{X} +
-  \mathcal{U'}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U'})^{AB}$.
+  \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U})^{AB}$.
 6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}_\textrm{offdiag}\mathcal{U}$.
 
 :::{admonition} Extra optimization: common subexpression elimination
