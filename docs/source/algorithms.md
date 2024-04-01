@@ -332,7 +332,7 @@ We now have the complete algorithm:
 
 1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
 2. To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
-3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{U}, \mathcal{H}_\textrm{diag}]$. This requires $\mathcal{X}$.
+3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{U}', \mathcal{H}'_\textrm{diag}]$. This requires $\mathcal{X}$.
 4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
  (-\mathcal{U}'^\dagger\mathcal{X} +
@@ -364,7 +364,9 @@ $$
 \mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} = \mathcal{H}'_\textrm{offdiag} + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
 $$
 
-To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$. To reuse these products, we introduce $\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$. Together, we can express the off-diagonal blocks of $\mathcal{C}$ as follows:
+To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$.
+To reuse these products, we introduce $\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$.
+Using this definition, we express the off-diagonal blocks of $\mathcal{C}$ as follows:
 
 $$
 \toggle{
@@ -387,7 +389,7 @@ and its diagonal blocks as:
 
 $$
 \toggle{
-  C = \texttip{\color{red}{\ldots}}{click to expand} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] + \frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{F} ) - \textrm{h.c.}],
+  C = \texttip{\color{red}{\ldots}}{click to expand} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ],
 }{
 \begin{align*}
   C &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
@@ -398,15 +400,13 @@ $$
   &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] + \frac{1}{2}[-\mathcal{F}^\dagger + \mathcal{F} ] - \mathcal{F} \\
   &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
   &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F}] - \mathcal{U}'^\dagger\mathcal{F} )- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
-  &= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] + \frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{F} ) - \textrm{h.c.}], \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] + \texttip{\color{red}{\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{F} ) - \textrm{h.c.}]}}{vanishes because the first term is Hermitian},
   \end{align*}
 }
 \endtoggle
 $$
 
-where the last term is zero since $\mathcal{U}'^\dagger\mathcal{F} = \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U}'$ is Hermitian.
-
-More importantly, we are now able to write $\tilde{\mathcal{H}}_\textrm{diag}$ (to verify this, substitute $\mathcal{C}$ back into the expression below):
+Finally, we are now able to write $\tilde{\mathcal{H}}_\textrm{diag}$ as follows (to verify this, substitute $\mathcal{C}$ back into the expression below):
 
 $$
 \tilde{\mathcal{H}}_\textrm{diag} = \mathcal{H}_\textrm{diag} + (\mathcal{F} + \mathcal{F}^\dagger)/2 -(\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
