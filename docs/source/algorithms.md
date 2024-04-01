@@ -349,7 +349,7 @@ by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ witho
 $$
 \begin{gather*}
 \mathcal{Z} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}],\\
-\tilde{\mathcal{H}} = \mathcal{H}_\textrm{diag} + \mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.}),
+\tilde{\mathcal{H}} = \mathcal{H}_\textrm{diag} + \mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.})/2,
 \end{gather*}
 $$
 
@@ -362,34 +362,44 @@ $$
 \mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} = \mathcal{H}'_\textrm{offdiag} + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
 $$
 
-To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$. To reuse these products, we introduce $\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$. Together, we can express the AB block of $\mathcal{C}$ as follows:
+To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$. To reuse these products, we introduce $\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$. Together, we can express the off-diagonal blocks of $\mathcal{C}$ as follows:
 
 $$
-\begin{align*}
-\mathcal{C} &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
-&= (\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
-&= (\mathcal{H}'_\textrm{offdiag} + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
-&= \mathcal{F}^\dagger + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
-&= (\mathcal{H}'_\textrm{offdiag}\mathcal{U}')^\dagger + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
-&= \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag} + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
-&= -\mathcal{U'}^\dagger \mathcal{C},
-\end{align*}
+\toggle{
+  \mathcal{C} = \texttip{\color{red}{\ldots}}{click to expand} = -\mathcal{U'}^\dagger \mathcal{C},
+}{
+  \begin{align*}
+  \mathcal{C} &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
+  &= (\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
+  &= (\mathcal{H}'_\textrm{offdiag} + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
+  &= \mathcal{F}^\dagger + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
+  &= (\mathcal{H}'_\textrm{offdiag}\mathcal{U}')^\dagger + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
+  &= \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag} + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
+  &= -\mathcal{U'}^\dagger \mathcal{C},
+  \end{align*}
+}
+\endtoggle
 $$
 
 and its diagonal blocks as:
 
 $$
+\toggle{
+  C = \texttip{\color{red}{\ldots}}{click to expand} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] + \frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{F} ) - \textrm{h.c.}],
+}{
 \begin{align*}
-C &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
-C &= \mathcal{X} - \mathcal{F} \\
-&= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{F} \\
-&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{U}'^\dagger \mathcal{H}'_\textrm{offdiag})- \textrm{h.c.}] - \mathcal{F} \\
-&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{F}^\dagger)- \textrm{h.c.}] - \mathcal{F} \\
-&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] + \frac{1}{2}[-\mathcal{F}^\dagger + \mathcal{F} ] - \mathcal{F} \\
-&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
-&= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F}] - \mathcal{U}'^\dagger\mathcal{F} )- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
-&= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] + \frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{F} ) - \textrm{h.c.}] \\
-\end{align*}
+  C &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
+  &= \mathcal{X} - \mathcal{F} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{F} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{U}'^\dagger \mathcal{H}'_\textrm{offdiag})- \textrm{h.c.}] - \mathcal{F} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{F}^\dagger)- \textrm{h.c.}] - \mathcal{F} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] + \frac{1}{2}[-\mathcal{F}^\dagger + \mathcal{F} ] - \mathcal{F} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F}] - \mathcal{U}'^\dagger\mathcal{F} )- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] + \frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{F} ) - \textrm{h.c.}], \\
+  \end{align*}
+}
+\endtoggle
 $$
 
 where the last term is zero since $\mathcal{U}'^\dagger\mathcal{F} = \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U}'$ is Hermitian.
