@@ -323,6 +323,8 @@ $V^{AB}_{\mathbf{n}, ij} = (Y - [\mathcal{U}',
 the eigenvalues of $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient
 algorithms to solve Sylvester's equation, see [below](#implicit).
+This is the only step in the algorithm that requires a direct multiplication by
+$\mathcal{H}'_\textrm{diag}$.
 
 ## Actual algorithm
 
