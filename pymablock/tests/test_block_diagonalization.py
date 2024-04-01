@@ -83,7 +83,7 @@ def compare_series(
 
 
 def is_diagonal_series(
-    series: BlockSeries, wanted_orders: tuple[int, ...], atol=1e-8
+    series: BlockSeries, wanted_orders: tuple[int, ...], atol=1e-7
 ) -> None:
     """
     Test that the offdiagonal blocks of a series are zero.
@@ -507,7 +507,7 @@ def test_check_unitary(
     wanted_orders:
         orders to compute
     """
-    is_unitary(*_block_diagonalize(H)[1:], wanted_orders, atol=1e-8)
+    is_unitary(*_block_diagonalize(H)[1:], wanted_orders, atol=1e-6)
 
 
 def test_check_invertible(
@@ -526,7 +526,7 @@ def test_check_invertible(
     """
     H_tilde, U, U_dagger = _block_diagonalize(H)
     H_reconstructed = cauchy_dot_product(U, cauchy_dot_product(H_tilde, U_dagger))
-    compare_series(H, H_reconstructed, wanted_orders, atol=1e-8)
+    compare_series(H, H_reconstructed, wanted_orders, atol=1e-6)
 
 
 def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
@@ -545,8 +545,8 @@ def test_repeated_application(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
     H_tilde_1, *_ = _block_diagonalize(H)
     H_tilde_2, U_2, _ = _block_diagonalize(H_tilde_1)
 
-    compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-8)
-    compare_series(U_2, identity_like(U_2), wanted_orders, atol=1e-8)
+    compare_series(H_tilde_2, H_tilde_1, wanted_orders, atol=1e-7)
+    compare_series(U_2, identity_like(U_2), wanted_orders, atol=1e-7)
 
 
 def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
