@@ -358,28 +358,28 @@ $$
 where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{X}$ drops out from the diagonal blocks of $\tilde{\mathcal{H}}$ because diagonal of $\mathcal{X}$ is anti-Hermitian.
 
 To compute $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$ faster, we express it
-using $\mathcal{F} \equiv \mathcal{H}'_\textrm{offdiag}\mathcal{U}'$:
+using $\mathcal{A} \equiv \mathcal{H}'_\textrm{offdiag}\mathcal{U}'$:
 
 $$
-\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} = \mathcal{H}'_\textrm{offdiag} + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
+\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} = \mathcal{H}'_\textrm{offdiag} + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A}.
 $$
 
 To further optimize the computations, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$.
-To reuse these products, we introduce $\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$.
-Using this definition, we express the off-diagonal blocks of $\mathcal{C}$ as follows:
+To reuse these products, we introduce $\mathcal{B} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$.
+Using this definition, we express the off-diagonal blocks of $\mathcal{B}$ as follows:
 
 $$
 \toggle{
-  \mathcal{C} = \texttip{\color{red}{\ldots}}{click to expand} = -\mathcal{U'}^\dagger \mathcal{C},
+  \mathcal{B} = \texttip{\color{red}{\ldots}}{click to expand} = -\mathcal{U'}^\dagger \mathcal{B},
 }{
   \begin{align*}
-  \mathcal{C} &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
-  &= (\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
-  &= (\mathcal{H}'_\textrm{offdiag} + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
-  &= \mathcal{F}^\dagger + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
-  &= (\mathcal{H}'_\textrm{offdiag}\mathcal{U}')^\dagger + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
-  &= \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag} + \mathcal{U}'^\dagger\mathcal{F} - \mathcal{U}'^\dagger \mathcal{X} \\
-  &= -\mathcal{U'}^\dagger \mathcal{C},
+  \mathcal{B} &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{A} \\
+  &= (\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{A} \\
+  &= (\mathcal{H}'_\textrm{offdiag} + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{A} \\
+  &= \mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \\
+  &= (\mathcal{H}'_\textrm{offdiag}\mathcal{U}')^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \\
+  &= \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \\
+  &= -\mathcal{U'}^\dagger \mathcal{B},
   \end{align*}
 }
 \endtoggle
@@ -389,27 +389,27 @@ and its diagonal blocks as:
 
 $$
 \toggle{
-  C = \texttip{\color{red}{\ldots}}{click to expand} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ],
+  \mathcal{B} = \texttip{\color{red}{\ldots}}{click to expand} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ],
 }{
 \begin{align*}
-  C &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F} \\
-  &= \mathcal{X} - \mathcal{F} \\
-  &= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{F} \\
-  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{U}'^\dagger \mathcal{H}'_\textrm{offdiag})- \textrm{h.c.}] - \mathcal{F} \\
-  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{F}^\dagger)- \textrm{h.c.}] - \mathcal{F} \\
-  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] + \frac{1}{2}[-\mathcal{F}^\dagger + \mathcal{F} ] - \mathcal{F} \\
-  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
-  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{F}] - \mathcal{U}'^\dagger\mathcal{F} )- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] \\
-  &= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{C})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{F}^\dagger + \mathcal{F} ] + \texttip{\color{red}{\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{F} ) - \textrm{h.c.}]}}{vanishes because the first term is Hermitian},
+  \mathcal{B} &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{A} \\
+  &= \mathcal{X} - \mathcal{A} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{A} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{U}'^\dagger \mathcal{H}'_\textrm{offdiag})- \textrm{h.c.}] - \mathcal{A} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}] - \mathcal{A}^\dagger)- \textrm{h.c.}] - \mathcal{A} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] + \frac{1}{2}[-\mathcal{A}^\dagger + \mathcal{A} ] - \mathcal{A} \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{A}] - \mathcal{U}'^\dagger\mathcal{A} )- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] \\
+  &= \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + \texttip{\color{red}{\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}}{vanishes because the first term is Hermitian},
   \end{align*}
 }
 \endtoggle
 $$
 
-Finally, we are now able to write $\tilde{\mathcal{H}}_\textrm{diag}$ as follows (to verify this, substitute $\mathcal{C}$ back into the expression below):
+Finally, we are now able to write $\tilde{\mathcal{H}}_\textrm{diag}$ as follows (to verify this, substitute $\mathcal{B}$ back into the expression below):
 
 $$
-\tilde{\mathcal{H}}_\textrm{diag} = \mathcal{H}_\textrm{diag} + (\mathcal{F} + \mathcal{F}^\dagger)/2 -(\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
+\tilde{\mathcal{H}}_\textrm{diag} = \mathcal{H}_\textrm{diag} + (\mathcal{A} + \mathcal{A}^\dagger)/2 -(\mathcal{U}^\dagger \mathcal{B} + \textrm{h.c.})/2.
 $$
 
 :::

@@ -502,15 +502,15 @@ def _block_diagonalize(
         "X": {
             "eval": (
                 lambda *index: _zero_sum(
-                    series["(X - H'_offdiag - H'_offdiag @ U')"][index],
+                    series["B"][index],
                     series["H'_offdiag"][index],
                     series["H'_offdiag @ U'"][index],
                 )
             ),
             "data": zero_data,
         },
-        # Used as common subexpression to save products.
-        "(X - H'_offdiag - H'_offdiag @ U')": {
+        # Used as common subexpression to save products, see docs/source/algorithms.md
+        "B": {
             "data": zero_data,
         },
     }
@@ -524,7 +524,7 @@ def _block_diagonalize(
         ("U'† @ U'", True),
         ("H'_diag @ U'", False),
         ("H'_offdiag @ U'", False),
-        ("U'† @ (X - H'_offdiag - H'_offdiag @ U')", False),
+        ("U'† @ B", False),
     ]
 
     for term, hermitian in needed_products:
@@ -583,7 +583,7 @@ def _block_diagonalize(
     # X: (0, 1)
     # H'_diag @ U': (0, 1), (1, 0)
     # H'_offdiag @ U': (0, 1)
-    # U'† @ (X - H'_offdiag - H'_offdiag @ U'): (0, 1), (1, 0)
+    # U'† @ B: (0, 1), (1, 0)
 
     def del_(series_name, index: int) -> None:
         series[series_name].pop(index, None)
@@ -619,24 +619,24 @@ def _block_diagonalize(
 
     series["U'"].eval = U_p_eval
 
-    def X_min_H_offdiag_eval(*index: int) -> Any:
+    def B_eval(*index: int) -> Any:
         if index[0] == index[1]:
             which = linear_operator_or_explicit(index)
             return _safe_divide(
                 _zero_sum(
-                    which["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index],
-                    -Dagger(which["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]),
+                    which["U'† @ B"][index],
+                    -Dagger(which["U'† @ B"][index]),
                     which["H'_offdiag @ U'"][index],
                     Dagger(which["H'_offdiag @ U'"][index]),
                 ),
                 -2,
             )
         else:
-            result = -series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]
-            del_("U'† @ (X - H'_offdiag - H'_offdiag @ U')", index)
+            result = -series["U'† @ B"][index]
+            del_("U'† @ B", index)
             return result
 
-    series["(X - H'_offdiag - H'_offdiag @ U')"].eval = X_min_H_offdiag_eval
+    series["B"].eval = B_eval
 
     def H_tilde_eval(*index: int) -> Any:
         series = linear_operator_or_explicit(index)
@@ -651,10 +651,9 @@ def _block_diagonalize(
                     ),
                     2,
                 ),
-                # -([U'† @ C] + h.c.) / 2
+                # -([U'† @ B] + h.c.) / 2
                 _safe_divide(
-                    series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]
-                    + Dagger(series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]),
+                    series["U'† @ B"][index] + Dagger(series["U'† @ B"][index]),
                     -2,
                 ),
             )
