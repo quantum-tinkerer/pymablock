@@ -17,9 +17,9 @@ In other words, the direct computation scales worse than a matrix product with t
 Formulating Eq.~\eqref{eq:SW_term} as $n-1$ matrix products combined with $n-1$ solutions
 of Sylvester's equation, brings this complexity down to $\mathcal{O}((n-1) \times N_A N_B^2)$.
 This optimization, together with the hermiticity of the sum, allows us to evaluate the reference expressions for the effective Hamiltonian for $2$-nd, $3$-rd, and $4$-th order using $1$, $4$, and $27$ matrix products, respectively.
-On the other hand, Pymablock's algorithm utilizes $1$, $7$, and $24$, matrix products to obtain the same orders of the effective Hamiltonian.
-The additional products that Pymablock performs at third order are due to terms that cancel out in $\tilde{H}_{3}$, and we aim to optimize this in future versions of the package.
-Starting from fourth order computations, the scaling of Pymablock's algorithm outperforms the exponential growth of the number of terms in the reference expressions, and enables computations at all realistically useful orders.
+Pymablock's algorithm utilizes $1$, $3$, and $14$, matrix products to obtain the same orders of the effective Hamiltonian.
+Its advantage becomes even more pronounced at higher orders due to the exponential growth of the number of terms in the reference expressions.
+While finding the optimized implementation from the reference expressions is possible for the $3$-rd order expression, we expect it to be extremely challenging for the $4$-th order, and essentially impossible to do manually for higher orders.
 Moreover, because the \mintinline{Python}|BlockSeries| class tracks absent terms, in practice the number of matrix products depends on the sparsity of the block structure of the perturbation, as shown in Figure \ref{fig:benchmark_matrix_products}.
 %
 \begin{figure}[h]
