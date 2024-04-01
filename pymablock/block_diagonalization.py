@@ -509,7 +509,7 @@ def _block_diagonalize(
             ),
             "data": zero_data,
         },
-        # Used in X^AB to save one product
+        # Used as common subexpression to save products.
         "(X - H'_offdiag - H'_offdiag @ U')": {
             "data": zero_data,
         },
@@ -524,7 +524,6 @@ def _block_diagonalize(
         ("U'† @ U'", True),
         ("H'_diag @ U'", False),
         ("H'_offdiag @ U'", False),
-        ("U'† @ H'_offdiag @ U'", False),
         ("U'† @ (X - H'_offdiag - H'_offdiag @ U')", False),
     ]
 
@@ -580,12 +579,11 @@ def _block_diagonalize(
     # the implicit method, we delete both versions at the same time.
     #
     # Specifically we delete the following intermediate results:
-    # TODO: Check which data can be pruned and update the list below.
-    # H'_offdiag @ U': (1, 0)
-    # U'† @ (X - H'_offdiag): (0, 1)
-    # U'† @ H'_offdiag @ U': (0, 0), (0, 1), (1, 1)
     # U'† @ U': (0, 0), (1, 1)
     # X: (0, 1)
+    # H'_diag @ U': (0, 1), (1, 0)
+    # H'_offdiag @ U': (0, 1)
+    # U'† @ (X - H'_offdiag - H'_offdiag @ U'): (0, 1), (1, 0)
 
     def del_(series_name, index: int) -> None:
         series[series_name].pop(index, None)
@@ -611,6 +609,9 @@ def _block_diagonalize(
             del_("X", index)
             del_("H'_diag @ U'", index)
             del_("H'_diag @ U'", index_dag)
+            # At this point the item below will never be accessed again
+            # even though it is not queried directly in this function.
+            del_("H'_offdiag @ U'", index)
             return -solve_sylvester(Y) if Y is not zero else zero
         elif index[:2] == (1, 0):
             # off-diagonal of U is anti-Hermitian
@@ -625,14 +626,13 @@ def _block_diagonalize(
                 _zero_sum(
                     which["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index],
                     -Dagger(which["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]),
-                    which["H'_offdiag @ U'"][index]
-                    + Dagger(which["H'_offdiag @ U'"][index]),
+                    which["H'_offdiag @ U'"][index],
+                    Dagger(which["H'_offdiag @ U'"][index]),
                 ),
                 -2,
             )
         else:
             result = -series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]
-            del_("(X - H'_offdiag - H'_offdiag @ U')", index)
             del_("U'† @ (X - H'_offdiag - H'_offdiag @ U')", index)
             return result
 
@@ -641,12 +641,9 @@ def _block_diagonalize(
     def H_tilde_eval(*index: int) -> Any:
         series = linear_operator_or_explicit(index)
         if index[0] == index[1]:
-            # Because diagonal part of X is anti-Hermitian and cancels the
-            # anti-Hermitian part of U'† @ X, we save some computations
-            # by taking the Hermitian part of U'† @ X and not including X.
             result = _zero_sum(
                 series["H'_diag"][index],
-                # (F + F_adj) / 2
+                # (F + F†) / 2
                 _safe_divide(
                     (
                         series["H'_offdiag @ U'"][index]
@@ -654,7 +651,7 @@ def _block_diagonalize(
                     ),
                     2,
                 ),
-                # ([U_p_adj @ C - U_p_adj @ H'_offdiag @ U_p] + h.c.) / 2
+                # -([U'† @ C] + h.c.) / 2
                 _safe_divide(
                     series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]
                     + Dagger(series["U'† @ (X - H'_offdiag - H'_offdiag @ U')"][index]),
