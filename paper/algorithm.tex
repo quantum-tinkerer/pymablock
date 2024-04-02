@@ -162,44 +162,44 @@ The remaining condition for finding a recurrent relation for $\mathcal{U}'$ is t
 %
 \begin{equation}
 \label{eq:H_tilde_def}
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = H_0 +
-\mathcal{U}'^\dagger H_0 + H_0 \mathcal{U}' + \mathcal{U}'^\dagger H_0
-\mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = \mathcal{H}_\textrm{diag} +
+\mathcal{U}'^\dagger \mathcal{H}_\textrm{diag} + \mathcal{H}_\textrm{diag} \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag}
+\mathcal{U}' + \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U},
 \end{equation}
 %
 is block-diagonal, a condition that determines $\mathcal{V}$.
-Here we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = H_0 + \mathcal{H'}$.
-Because we want to avoid products by $H_0$, we need to get rid of the terms that contain it by replacing them with an alternative expression.
-Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can compute without ever multiplying by $H_0$.
+Here we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = \mathcal{H}_\textrm{diag} + \mathcal{H}'_\textrm{offdiag}$.
+Because we want to avoid products by $\mathcal{H}_\textrm{diag}$, we need to get rid of the terms that contain it by replacing them with an alternative expression.
+Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can compute without ever multiplying by $\mathcal{H}_\textrm{diag}$.
 Like $\mathcal{U}'$, $\mathcal{X}$ needs to be defined via a recurrence relation, which we determine later.
-Because Eq.~\eqref{eq:H_tilde_def} contains $H_0$ multiplied by $\mathcal{U}'$ from the left and from the right, eliminating $H_0$ requires moving it to the same side.
-To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commutator between $\mathcal{U}'$ and $H_0$:
+Because Eq.~\eqref{eq:H_tilde_def} contains $\mathcal{H}_\textrm{diag}$ multiplied by $\mathcal{U}'$ from the left and from the right, eliminating $\mathcal{H}_\textrm{diag}$ requires moving it to the same side.
+To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commutator between $\mathcal{U}'$ and $\mathcal{H}_\textrm{diag}$:
 %
 \begin{equation}
 \label{eq:XYZ}
-\mathcal{X} \equiv [\mathcal{U}', H_0] = \mathcal{Y} + \mathcal{Z}, \quad
-\mathcal{Y} \equiv [\mathcal{V}, H_0] = \mathcal{Y}^\dagger,\quad
-\mathcal{Z} \equiv [\mathcal{W}, H_0] = -\mathcal{Z}^\dagger,
+\mathcal{X} \equiv [\mathcal{U}', \mathcal{H}_\textrm{diag}] = \mathcal{Y} + \mathcal{Z}, \quad
+\mathcal{Y} \equiv [\mathcal{V}, \mathcal{H}_\textrm{diag}] = \mathcal{Y}^\dagger,\quad
+\mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_\textrm{diag}] = -\mathcal{Z}^\dagger,
 \end{equation}
 %
 where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block diagonal.
-We use $H_0 \mathcal{U}' = \mathcal{U}' H_0 -\mathcal{X}$ to move $H_0$ through to the right and find
+We use $\mathcal{H}_\textrm{diag} \mathcal{U}' = \mathcal{U}' \mathcal{H}_\textrm{diag} -\mathcal{X}$ to move $\mathcal{H}_\textrm{diag}$ through to the right and find
 %
 \begin{equation}
 \label{eq:H_tilde}
 \begin{aligned}
   \tilde{\mathcal{H}}
-  &= H_0 + \mathcal{U}'^\dagger H_0 + (H_0 \mathcal{U}') + \mathcal{U}'^\dagger H_0
-  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H'}\mathcal{U})
+  &= \mathcal{H}_\textrm{diag} + \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag} + (\mathcal{H}_\textrm{diag} \mathcal{U}') + \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag}
+  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H}'_\textrm{offdiag}\mathcal{U})
   \\
-  &= H_0 + \mathcal{U}'^\dagger H_0 + \mathcal{U}'H_0 - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' H_0 - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} \\
-  &= H_0 + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U} \\
-  &= H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U},
+  &= \mathcal{H}_\textrm{diag} + \mathcal{U}'^\dagger \mathcal{H}_\textrm{diag} + \mathcal{U}'\mathcal{H}_\textrm{diag} - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' \mathcal{H}_\textrm{diag} - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U} \\
+  &= \mathcal{H}_\textrm{diag} + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')\mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U} \\
+  &= \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U},
 \end{aligned}
 \end{equation}
 %
-where the terms multiplied by $H_0$ cancel according to Eq.~\eqref{eq:unitarity}.
-The transformed Hamiltonian does not contain multiplications by $H_0$ anymore, but it does depend on $\mathcal{X}$, an auxiliary operator whose recurrent definition we do not know yet.
+where the terms multiplied by $\mathcal{H}_\textrm{diag}$ cancel according to Eq.~\eqref{eq:unitarity}.
+The transformed Hamiltonian does not contain multiplications by $\mathcal{H}_\textrm{diag}$ anymore, but it does depend on $\mathcal{X}$, an auxiliary operator whose recurrent definition we do not know yet.
 To find it, we first focus on its anti-Hermitian part, $\mathcal{Z}$.
 Since recurrence relations are expressions whose right-hand side contains Cauchy products between series, we need to find a way to make a product appear.
 We do so by using the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' = -\mathcal{U}'^\dagger \mathcal{U}'$ to obtain the recursive definition of $\mathcal{Z}$:
@@ -209,8 +209,8 @@ We do so by using the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
 \begin{aligned}
 \mathcal{Z}
 &= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \\
-&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) H_0 - H_0 (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
-&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'H_0 - H_0 \mathcal{U}') + (\mathcal{U}'H_0 - H_0 \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \\
+&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) \mathcal{H}_\textrm{diag} - \mathcal{H}_\textrm{diag} (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
+&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'\mathcal{H}_\textrm{diag} - \mathcal{H}_\textrm{diag} \mathcal{U}') + (\mathcal{U}'\mathcal{H}_\textrm{diag} - \mathcal{H}_\textrm{diag} \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \\
 &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
 \end{aligned}
 \end{equation}
@@ -220,21 +220,21 @@ Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\
 %
 \begin{equation}
 \label{eq:Y}
-\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} -
+\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} -
 \mathcal{U}'^\dagger \mathcal{X})^{AB}.
 \end{equation}
 %
 Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack \nth{0} order, this defines a recursive relation for $\mathcal{X}^{AB}$, and therefore $\mathcal{Y}$.
 
-The final part is standard: the definition of $\mathcal{Y}$ in Eq.~\eqref{eq:XYZ} fixes $\mathcal{V}$ as a solution of:
+The final part is straightforward: using $\mathcal{H}_\textrm{diag} = H_0 + \mathcal{H}'_\textrm{diag}$ and the definition of $\mathcal{Y}$ in Eq.~\eqref{eq:XYZ} fixes $\mathcal{V}$ as a solution of:
 %
 \begin{equation}
 \label{eq:sylvester}
-\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB},
+\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{U}', \mathcal{H}_\textrm{diag}]^{AB},
 \end{equation}
 %
 a Sylvester's equation, which we only need to solve once for every new order.
-In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V^{AB}_{\mathbf{n}, ij} = Y^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
+In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V^{AB}_{\mathbf{n}, ij} = (\mathcal{Y} - [\mathcal{U}', \mathcal{H}'_\textrm{diag}])^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
 
 \co{The algorithm is complete.}
 We now have the complete algorithm:
@@ -242,13 +242,13 @@ We now have the complete algorithm:
 \begin{enumerate}
     \item Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
     \item To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
-    \item To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation $\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \mathcal{Y}^{AB}$.
+    \item To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation \\ $\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{U}', \mathcal{H}_\textrm{diag}]^{AB}$.
       This requires $\mathcal{X}$.
     \item To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
     \item For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
     (-\mathcal{U}'^\dagger\mathcal{X} +
      \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
-    \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{\textrm{diag}} = H_0 - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}\mathcal{U}$.
+    \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}} = \mathcal{H}_\textrm{diag} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_\textrm{offdiag}\mathcal{U}$.
 \end{enumerate}
 
 \subsection{Equivalence to Schrieffer--Wolff transformation}
@@ -271,41 +271,49 @@ While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our requirem
 Firstly, we rewrite the expressions for $\mathcal{Z}$ in Eq.~\eqref{eq:Z} and $\tilde{\mathcal{H}}$ in Eq.~\eqref{eq:H_tilde} by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ without recomputing it:
 %
 \begin{gather*}
-\mathcal{Z} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}],\\
-\tilde{\mathcal{H}} = H_0 + \mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.}),
+\mathcal{Z} = \frac{1}{2}\left[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}\right],\\
+\tilde{\mathcal{H}}^{AA,BB} = \left[\mathcal{H}'_\textrm{diag} + \mathcal{U}^\dagger \mathcal{H}' \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.})/2\right]^{AA,BB},
 \end{gather*}
 %
 where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{X}$ drops out from the diagonal blocks of $\tilde{\mathcal{H}}$ because the diagonal blocks of $\mathcal{X}$ are anti-Hermitian.
 %
-Additionally, we reuse the repeated $\mathcal{F} \equiv \mathcal{H}'\mathcal{U}'$
+Additionally, we reuse the repeated $\mathcal{A} \equiv \mathcal{H}'_\textrm{offdiag}\mathcal{U}'$
 in
 %
 $$
-\mathcal{U}^\dagger \mathcal{H}' \mathcal{U} = \mathcal{H}' + \mathcal{F} + \mathcal{F}^\dagger + \mathcal{U}'^\dagger \mathcal{F}.
+\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} = \mathcal{H}'_\textrm{offdiag} + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A}.
 $$
 %
-Next, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}' \mathcal{U}$.
+Next, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U}$.
 %
-To reuse these products, we separate the perturbation into diagonal and off-diagonal parts $\mathcal{H}' = \mathcal{H}'_\textrm{diag} + \mathcal{H}'_\textrm{offdiag}$.
+To reuse these products, we introduce $\mathcal{B} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{H}'_\textrm{offdiag} \mathcal{U}'$.
 %
-We then introduce variables
+Using this definition, we express the off-diagonal blocks of $\mathcal{B}$ as follows, where we omitted all $^{AB,BA}$ superscripts for brevity:
 %
-\begin{equation}
-\mathcal{A} = \mathcal{H}'_\textrm{diag} \mathcal{U}', \quad
-\mathcal{B} = \mathcal{H}'_\textrm{offdiag} \mathcal{U}', \quad
-\mathcal{C} = \mathcal{X} - \mathcal{H}'_\textrm{offdiag}.
-\end{equation}
+\begin{align*}
+  \mathcal{B} &= \mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{A} \\
+  &= (\mathcal{U}^\dagger \mathcal{H}'_\textrm{offdiag} \mathcal{U} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{A} \\
+  &= (\mathcal{H}'_\textrm{offdiag} + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A} - \mathcal{U}'^\dagger \mathcal{X}) - \mathcal{H}'_\textrm{offdiag} - \mathcal{A} \\
+  &= \mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \\
+  &= \mathcal{U}'^\dagger\mathcal{H}'_\textrm{offdiag} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \\
+  &= -\mathcal{U'}^\dagger \mathcal{B},
+\end{align*}
 %
-This gives an updated expression for $\mathcal{Z}$:
+and its diagonal blocks, again omitting all superscripts, as:
 %
-\begin{equation}
-\label{eq:Z_optimized}
-\mathcal{Z} = \frac{1}{2}(\mathcal{B}^\dagger - \mathcal{U}^\dagger\mathcal{C}) - \textrm{h.c.},
-\end{equation}
+\begin{align*}
+  \mathcal{B} &= \mathcal{X} - \mathcal{A} \\
+  &= \frac{1}{2}\left[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}\right] - \mathcal{A} \\
+  &= \frac{1}{2}\left[(-\mathcal{U}'^\dagger \left[\mathcal{X} - \mathcal{H}'_\textrm{offdiag} - \mathcal{A}\right] - \mathcal{U}'^\dagger \mathcal{H}'_\textrm{offdiag} - \mathcal{U}'^\dagger \mathcal{A})- \textrm{h.c.}\right] - \mathcal{A} \\
+  &= \frac{1}{2}\left[(-\mathcal{U}'^\dagger \mathcal{B} - \mathcal{A}^\dagger - \mathcal{U}'^\dagger \mathcal{A})- \textrm{h.c.}\right] - \mathcal{A} \\
+  &= \frac{1}{2}\left[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}\right] - \frac{1}{2}\left[\mathcal{A} + \mathcal{A}^\dagger \right],
+\end{align*}
 %
-and finally $\tilde{\mathcal{H}}$:
+where we used that $\mathcal{U}'^\dagger \mathcal{A}$ is Hermitian.
+%
+Finally, we are now able to write the diagonal blocks of $\tilde{\mathcal{H}}$ as follows, which can be verified by substituting $\mathcal{A}$ and $\mathcal{B}$ back into the expression below:
 %
 \begin{equation}
 \label{eq:H_tilde_optimized}
-\tilde{\mathcal{H}} = H_0 + \mathcal{A} + \mathcal{A}^\dagger + (\mathcal{B} + \mathcal{B}^\dagger)/2 + \mathcal{U}'^\dagger (\mathcal{A} + \mathcal{B}) - (\mathcal{U}^\dagger \mathcal{C} + \textrm{h.c.})/2.
+\tilde{\mathcal{H}}^{AA,BB} = \left[\mathcal{H}_\textrm{diag} + (\mathcal{A} + \mathcal{A}^\dagger)/2 -(\mathcal{U}^\dagger \mathcal{B} + \textrm{h.c.})/2\right]^{AA,BB}.
 \end{equation}
