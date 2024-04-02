@@ -67,5 +67,5 @@ module = [
 ignore_missing_imports = true
 
 [tool.codespell]
-skip = "*.cls,*.bst"
+skip = "*.cls,*.bst,*.bib"
 ignore-words-list = "nwo,groth,ket,braket"
