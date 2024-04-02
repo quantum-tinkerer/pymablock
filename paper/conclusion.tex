@@ -1,29 +1,20 @@
 \section{Conclusion}
 
-\co{We have developed an efficient algorithm to construct effective Hamiltonians
-with several perturbations and of different types.}
-In summary, we have developed an algorithm for perturbative block
-diagonalization of Hamiltonians that scales linearly with the order,
-achieving an exponential speed-up over a Schrieffer-Wolff transformation.
-We packaged this algorithm in Pymablock, a Python library that works with
-numerical and symbolic Hamiltonians, allowing for a wide range of input
-Hamiltonians.
-By using the inputs block structure, sparsity, Hermiticity, and caching of the
-results, Pymablock further speeds up its calculations.
-We have shown how Pymablock can be used to find effective Hamiltonians for
-large tight-binding Hamiltonians and for a k.p analytic model in just a few
-seconds, improving the state-of-the-art by orders of magnitude.
+\co{Pymablock's algorithm combines advantages of other perturbation theory methods.}
+We developed an algorithm for constructing an effective Hamiltonian that combines advantages of different perturbative expansions.
+The main building block of our approach is a set of recurrence relations that define several series that depend on each other and combine into the effective Hamiltonian.
+Our algorithm constructs the same effective Hamiltonians as the Schrieffer--Wolff transformation~\cite{Schrieffer_1966}, while keeping the linear scaling per extra order similar to the density matrix perturbation theory~\cite{McWeeny_1962, Truflandier_2020} or the non-orthogonal perturbation theory~\cite{Bloch_1958}.
+Its expressions minimize the number of matrix multiplications per order, making it appealing both for symbolic and numerical computations.
 
-\co{Pymablock is a versatile tool that can be further developed to tackle
-time-dependent Hamiltonians, many-body Hamiltonians, continuum Hamiltonians,
-multi-band Hamiltonians, symmetric Hamiltonians, non-orthogonal basis, and
-more, but we leave this for future work.}
-Pymablock's implementation is designed to be flexible and extensible, as it
-allows for custom solvers for the Sylvester equation and for arbitrary
-Hamiltonian representations.
-This flexibility allows Pymablock to be a useful tool for working with
-superconducting circuits, for example, where a bosonic second quantization
-representation is more natural.
-Similarly, Pymablock can be extended to work with time-dependent Hamiltonians,
-interacting systems, and continuum degrees of freedom, extensions that we leave
-for future work.
+\co{The package provides a universal interface that handles constructing effective models in all quantum mechanical systems.}
+We provide a Python implementation of the algorithm in the Pymablock package \cite{Araya_2024}.
+The package is thoroughly tested (94\% test coverage as of version 2.0), becoming a reliable tool for constructing effective Hamiltonians that combine multiple perturbations to high orders.
+The core of the Pymablock interface is the \mintinline{python}|BlockSeries| class that handles arbitrary objects as long as they support algebraic operations.
+This enables Pymablock's construction of effective models for large tight-binding models using its implicit method.
+It also allows Pymablock to solve both symbolic and numerical problems in diverse physical settings, and potentially to incorporate it into existing packages, such as scqubits~\cite{Groszkowski_2021}, QuTiP~\cite{Johansson_2012,Johansson_2013}, or dft2kp~\cite{Cassiano_2024}.
+
+\co{The package provides a foundation to implement other perturbative expansions.}
+Beyond the Schrieffer--Wolff transformation, the Pymablock package provides a foundation for defining other perturbative expansions.
+We anticipate extending it to time-dependent problems, where the different regimes of the time-dependent drive modify the recurrence relations that need to be solved.
+Applying the same framework to problems with weak position dependence would allow to construct a nonlinear response theory of quantum materials.
+Finally, we expect that in the many-particle context the same framework supports implementing different flavors of diagrammatic expansions.

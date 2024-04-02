@@ -93,7 +93,7 @@ for id, sign in zip([3, 1, 2, 0], [1, -1, -1, 1]):
         H, subspace_indices=subspace_indices, symbols=[g]
     )
     if isinstance(H_tilde[0, 0, 2], sympy.Matrix):
-        xi += sign * H_tilde[0, 0, 2][0, 0] / 2
+        xi += sign * H_tilde[0, 0, 2][0, 0]
 
 
 # %%
