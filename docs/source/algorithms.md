@@ -68,21 +68,21 @@ stays $\sim N$.
 
 There are many ways to solve this problem that give identical expressions for
 $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
-We are searching for a procedure that satisfies two additional constraints:
+We are searching for a procedure that satisfies three additional constraints:
 
 - It has the same complexity scaling as a Cauchy product.
 - It does not require multiplications by $H_0$.
-  This is because in perturbation theory, $n$-th order  corrections to
+  This is because in perturbation theory, $n$-th order corrections to
   $\tilde{\mathcal{H}}$ carry $n$ energy denominators $1/(E_i - E_j)$
   (see [here](https://en.wikipedia.org/wiki/Perturbation_theory_(quantum_mechanics)#Time-independent_perturbation_theory)).
   Therefore, any additional multiplications by $H_0$ must cancel with
   additional energy denominators.
   Multiplying by $H_0$ is therefore unnecessary work, and it gives longer
   intermediate expressions.
-- Furthermore it minimizes the number of multiplications by the $\mathcal{H}_\textrm{diag}$.
-  This requirement we set by examining the resulting expressions and observing
-  that multiplications by $\mathcal{H}_\textrm{diag}$ drop out.
-
+- It minimizes the number of multiplications by $\mathcal{H}_\textrm{diag}$.
+  We observe that if $\mathcal{H}_\textrm{offdiag}=0$, an optimal solution
+  would require no multiplications by $\mathcal{H}_\textrm{diag}$, because
+  $\tilde{\mathcal{H}} = \mathcal{H}$ in this case.
 
 The goal of our algorithm is thus to be efficient and to produce compact
 results that do not require further simplifications.
@@ -312,7 +312,7 @@ $\mathcal{V}$ as a solution of:
 
 :::{math}
 :label: sylvester
-\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{U}', \mathcal{H}'_\textrm{diag}]^{AB},
+\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{V}, \mathcal{H}'_\textrm{diag}]^{AB},
 :::
 
 a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation),
@@ -320,7 +320,7 @@ which we only need to solve once for every new order.
 This is the only step in the algorithm that requires a direct multiplication by
 $\mathcal{H}'_\textrm{diag}$.
 In the eigenbasis of $H_0$, the solution of Sylvester's equation is
-$V^{AB}_{\mathbf{n}, ij} = (\mathcal{Y} - [\mathcal{U}',
+$V^{AB}_{\mathbf{n}, ij} = (\mathcal{Y} - [\mathcal{V},
 \mathcal{H}'_\textrm{diag}])^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are
 the eigenvalues of $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient
@@ -332,7 +332,7 @@ We now have the complete algorithm:
 
 1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
 2. To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
-3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{U}', \mathcal{H}'_\textrm{diag}]$. This requires $\mathcal{X}$.
+3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{V}, \mathcal{H}'_\textrm{diag}]$. This requires $\mathcal{X}$.
 4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
  (-\mathcal{U}'^\dagger\mathcal{X} +
