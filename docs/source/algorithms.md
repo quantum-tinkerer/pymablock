@@ -79,10 +79,13 @@ We are searching for a procedure that satisfies three additional constraints:
   additional energy denominators.
   Multiplying by $H_0$ is therefore unnecessary work, and it gives longer
   intermediate expressions.
-- It minimizes the number of multiplications by $\mathcal{H}_\textrm{diag}$.
-  We observe that if $\mathcal{H}_\textrm{offdiag}=0$, an optimal solution
-  would require no multiplications by $\mathcal{H}_\textrm{diag}$, because
-  $\tilde{\mathcal{H}} = \mathcal{H}$ in this case.
+- It requires only one Cauchy product by $\mathcal{H}_\textrm{diag}$.
+  By considering $\mathcal{H}_\textrm{offdiag}=0$, we observe that
+  $\mathcal{H}_\textrm{diag}$ must at least enter $\tilde{\mathcal{H}}$ as an
+  added term, without any products.
+  Moreover, because $\mathcal{U}$ depends on the entire Hamiltonian, there must
+  be at least one Cauchy product by $\mathcal{H}'_\textrm{diag}$.
+  This lower bound turns out to be possible to achieve.
 
 The goal of our algorithm is thus to be efficient and to produce compact
 results that do not require further simplifications.
