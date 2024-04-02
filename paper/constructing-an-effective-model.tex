@@ -104,7 +104,7 @@ The series of the unitary transformation $U$ and $U^\dagger$ are also defined, a
 
 \co{We obtain the effective Hamiltonian.}
 We collect corrections up to third order in momentum to compute the standard quadratic dispersion of bilayer graphene and trigonal warping.
-We query these terms from \mintinline{Python}|H_tilde| and those proportional to mass to obtain the effective Hamiltonian (shown as produced by the code)\footnote{The full code is available at \url{https://pymablock.readthedocs.io/en/latest/tutorial/bilayer_graphene.html}.}:
+We query these terms from \mintinline{Python}|H_tilde| and those proportional to mass to obtain the effective Hamiltonian (shown as produced by the code)\footnote{The full code is available at \url{https://pymablock.readthedocs.io/en/v2.0.0/tutorial/bilayer_graphene.html}.}:
 %
 {\small
 \begin{gather}
@@ -201,7 +201,7 @@ Fig.~\ref{fig:QD_spectrum}, and described by the Bogoliubov-de Gennes Hamiltonia
 where the Pauli matrices $\sigma_z$ and $\sigma_x$ act in the electron-hole space, $\mathbf{k}$ is the 2D wave vector, $m$ is the effective mass, and $\Delta$ the superconducting gap.
 
 \co{We use Kwant to build the Hamiltonian of the system.}
-We use the Kwant package~\cite{Groth_2014} to build the Hamiltonian of the system~\footnote{The full code is available at \url{https://pymablock.readthedocs.io/en/latest/tutorial/induced_gap.html}.}, which we define over a square lattice of $L \times W = 200 \times 40$ sites.
+We use the Kwant package~\cite{Groth_2014} to build the Hamiltonian of the system~\footnote{The full code is available at \url{https://pymablock.readthedocs.io/en/v2.0.0/tutorial/induced_gap.html}.}, which we define over a square lattice of $L \times W = 200 \times 40$ sites.
 On top of this, we consider two perturbations: the barrier strength between the quantum dots and the superconductor, $t_b$, and an asymmetry of the dots' potentials, $\delta \mu$.
 
 The system is large: it is a sparse array of size $63042 \times 63042$, with $333680$ non-zero elements, so even storing all the eigenvectors would take $60$ GB of memory.
@@ -242,5 +242,5 @@ Finally, we plot the spectrum of the $2$ Andreev states in Fig.~\ref{fig:QD_spec
 As expected, the crossing at $E=0$ due to the dot asymmetry is lifted when the dots are coupled to the superconductor.
 In addition, we observe how the proximity gap of the dots increases with the coupling strength.
 
-In this example, the total runtime of Pymablock would only allow us to compute the spectrum at around $3$ points in the parameter space.
+Computing the spectrum of the system for $3$ points in parameter space would require the same time as the total runtime of Pymablock in this example.
 This demonstrates the speed of the implicit method and the efficiency of Pymablock's algorithm.
