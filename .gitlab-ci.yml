@@ -114,10 +114,10 @@ prepare zips:
     - when: manual
     - needs: [pages]
   script:
+    - zip -r zenodo.zip *
     - cd paper
     - sed -i -e "s/\\\today/$(date +'%B %e, %Y')/g" *.tex
     - sed -i -e "s/\\\usepackage\[finalizecache,cachedir=minted-cache\]{minted}/\\\usepackage\[frozencache,cachedir=minted-cache\]{minted}/g" paper.tex
-    - cd ..; zip -r zenodo.zip *
     - zip ../arxiv.zip *.tex *.bbl figures/*.pdf *.cls *.bst minted-cache/*
   artifacts:
     paths:
