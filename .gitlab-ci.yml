@@ -92,22 +92,6 @@ paper:
       - paper/*.bbl
       - paper/minted-cache
 
-prepare zips:
-  needs:
-    - pages
-  script:
-    - cd paper
-    - sed -i -e "s/\\\today/$(date +'%B %e, %Y')/g" *.tex
-    - sed -i 's/\\\usepackage\[finalizecache,cachedir=minted-cache\]{minted}/\\\usepackage\[frozencache,cachedir=minted-cache\]{minted}/g' paper.tex
-    - zip ../arxiv.zip *.tex *.bbl figures/*.pdf *.cls *.bst
-    - cd ..; zip zenodo.zip *
-  rules:
-    - when: manual
-  artifacts:
-    paths:
-      - arxiv.zip
-      - zenodo.zip
-
 pages:
   before_script: []
   needs:
@@ -122,6 +106,23 @@ pages:
   artifacts:
     paths:
       - public
+
+prepare zips:
+  before_script: []
+  needs:
+    - pages
+  script:
+    - cd paper
+    - sed -i -e "s/\\\today/$(date +'%B %e, %Y')/g" *.tex
+    - sed -i 's/\\\usepackage\[finalizecache,cachedir=minted-cache\]{minted}/\\\usepackage\[frozencache,cachedir=minted-cache\]{minted}/g' paper.tex
+    - zip ../arxiv.zip *.tex *.bbl figures/*.pdf *.cls *.bst
+    - cd ..; zip zenodo.zip *
+  rules:
+    - when: manual
+  artifacts:
+    paths:
+      - arxiv.zip
+      - zenodo.zip
 
 publish to test pypi:
   needs:
