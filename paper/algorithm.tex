@@ -320,9 +320,15 @@ The off-diagonal blocks of $\mathcal{B}$, on the other hand, are given by
 %
 where we used Eq.~\eqref{eq:Z} and that $\mathcal{U}'^\dagger \mathcal{A}$ is Hermitian.
 %
+Using $\mathcal{B}$ changes the relation for $\mathcal{V}^{AB}$ in Eq.~\eqref{eq:sylvester} to
+\begin{equation}
+\label{eq:sylvester_optimized}
+\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \left(\mathcal{B} - \mathcal{H}' - \mathcal{A} - [\mathcal{V}, \mathcal{H}'_{D}]\right)^{AB}.
+\end{equation}
 Finally, we combine Eq.~\eqref{eq:H_tilde}, Eq.~\eqref{eq:UHU}, Eq.~\eqref{eq:B_diag} and Eq.~\eqref{eq:B_offdiag} to obtain the final expression for the effective Hamiltonian:
 %
 \begin{equation}
 \label{eq:H_tilde_optimized}
 \tilde{\mathcal{H}}_D = \mathcal{H}_D + (\mathcal{A} + \textrm{h.c.})/2 -(\mathcal{U}^\dagger \mathcal{B} + \textrm{h.c.})/2.
 \end{equation}
+Together with the series $\mathcal{U}'$ Eqs.~(\ref{eq:W},\ref{eq:sylvester_optimized}), $\mathcal{A} = \mathcal{H}'_{O}\mathcal{U}'$, $\mathcal{B}$ Eqs.~(\ref{eq:B_diag},\ref{eq:B_offdiag}) this equation defines the optimized algorithm.
