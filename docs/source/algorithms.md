@@ -25,7 +25,7 @@ H_0^{AA} & 0\\
 \end{pmatrix},
 :::
 
-with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components.
+with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components, respectively.
 The series here may be multivariate, and they represent sums of the form
 
 $$
@@ -218,7 +218,7 @@ To find $\mathcal{V}$, we need to first look at the transformed Hamiltonian:
 $$
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = \mathcal{H}_D +
 \mathcal{U}'^\dagger \mathcal{H}_D + \mathcal{H}_D \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{H}_D
-\mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}_{O}\mathcal{U},
+\mathcal{U}' + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U},
 $$
 where we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = \mathcal{H}_D + \mathcal{H}'_{O}$, since $H_0$ is block-diagonal by definition.
 
@@ -251,12 +251,12 @@ to the right and find
 :::{math}
 :label: H_tilde
 \toggle{
-  \tilde{\mathcal{H}} = \texttip{\color{red}{\ldots}}{click to expand} = \mathcal{H}_D - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}_{O}\mathcal{U},
+  \tilde{\mathcal{H}} = \texttip{\color{red}{\ldots}}{click to expand} = \mathcal{H}_D - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U},
 }{
   \begin{align*}
   \tilde{\mathcal{H}}
   &= \mathcal{H}_D + \mathcal{U}'^\dagger \mathcal{H}_D + (\mathcal{H}_D \mathcal{U}') + \mathcal{U}'^\dagger \mathcal{H}_D
-  \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H'}_{O}\mathcal{U}
+  \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U}
   \\
   &= \mathcal{H}_D + \mathcal{U}'^\dagger \mathcal{H}_D + \mathcal{U}'\mathcal{H}_D - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' \mathcal{H}_D - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H}_{O}\mathcal{U}\\
   &= \mathcal{H}_D + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')\mathcal{H}_D - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U}\\
@@ -341,7 +341,7 @@ We now have the complete algorithm:
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
  (-\mathcal{U}'^\dagger\mathcal{X} +
   \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U})^{AB}$.
-6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{D} = \mathcal{H}_D - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H'}_{O}\mathcal{U}$.
+6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{D} = \mathcal{H}_D - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U}$.
 
 :::{admonition} Extra optimization: common subexpression elimination
 :class: dropdown info
@@ -376,19 +376,18 @@ Using this definition, we first express the off-diagonal blocks of $\mathcal{B}$
 
 $$
 \toggle{
-  \mathcal{B}^{AB} = \texttip{\color{red}{\ldots}}{click to expand} = -(\mathcal{U'}^\dagger \mathcal{B})^{AB},
+  \mathcal{B}^{AB, BA} = \texttip{\color{red}{\ldots}}{click to expand} = -(\mathcal{U'}^\dagger \mathcal{B})^{AB, BA},
 }{
   \begin{align*}
-  \mathcal{B}^{AB} &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A} \right]^{AB}\\
-  &= \left[\mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB}\\
-  &= \left[\mathcal{U}'^\dagger\mathcal{H}'_{O} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB}\\
-  &= -(\mathcal{U'}^\dagger \mathcal{B})^{AB},
+  \mathcal{B}^{AB, BA} &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A} \right]^{AB, BA}\\
+  &= \left[\mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB, BA}\\
+  &= \left[\mathcal{U}'^\dagger\mathcal{H}'_{O} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB, BA}\\
+  &= -(\mathcal{U'}^\dagger \mathcal{B})^{AB, BA},
   \end{align*}
 }
 \endtoggle
 $$
 where we also used Eq. {eq}`Y` and the definition of $\mathcal{A}$.
-We compute the remaining offdiagonal block as $\mathcal{B}^{BA} = (\mathcal{B}^{AB})^\dagger$.
 
 Its diagonal blocks, on the other hand, are given by
 
