@@ -2,7 +2,6 @@
 \documentclass[submission, Codebases]{SciPost}
 
 % Change finalizecache to frozencache to compile using minted cache
-% \usepackage[finalizecache,cachedir=minted-cache]{minted}
 \usepackage{minted}
 \usepackage{framed}
 \usepackage{graphicx}
@@ -67,12 +66,13 @@ ${}^\dagger${\small \sf pymablock@antonakhmerov.org}
 
 \section*{Abstract}
 \textbf{
-A common problem in studies of complex quantum-mechanical systems is to reduce the number of degrees of freedom and construct an effective Hamiltonian of the smaller subspace by using quasi-degenerate perturbation theory.
-While the Schrieffer--Wolff transformation solves this problem, its scaling is suboptimal and implementing it efficiently is both challenging and error-prone.
-We introduce an algorithm for solving this problem as well as a Python package, Pymablock, that implements it.
+A common technique in the study of complex quantum-mechanical systems is to reduce the number of degrees of freedom in the Hamiltonian by using quasi-degenerate perturbation theory.
+While the Schrieffer--Wolff transformation achieves this by constructing an effective Hamiltonian, its scaling is suboptimal, and implementing it efficiently is both challenging and error-prone.
+We introduce an algorithm for constructing effective Hamiltonians as well as a Python package, Pymablock, that implements it.
 Our algorithm combines an optimal asymptotic scaling with a range of other improvements.
-The package supports numerical and analytical calculations of any order and is designed to be interoperable with any other packages for specifying the Hamiltonian.
-We demonstrate how the package handles constructing a k.p model, analyses a superconducting qubit, and computes the low-energy spectrum of a large tight-binding model and compare its performance with reference calculations.
+The package supports numerical and analytical calculations of any order and it is designed to be interoperable with any other packages for specifying the Hamiltonian.
+We demonstrate how the package handles constructing a k.p model, analyses a superconducting qubit, and computes the low-energy spectrum of a large tight-binding model.
+We also compare its performance with reference calculations and demonstrate its efficiency.
 }
 
 \vspace{10pt}
