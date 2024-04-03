@@ -388,6 +388,8 @@ $$
 \endtoggle
 $$
 where we also used Eq. {eq}`Y` and the definition of $\mathcal{A}$.
+We compute the remaining offdiagonal block as $\mathcal{B}^{BA} = (\mathcal{B}^{AB})^\dagger$.
+
 Its diagonal blocks, on the other hand, are given by
 
 $$
