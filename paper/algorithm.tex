@@ -289,11 +289,11 @@ Additionally, we reuse the repeated $\mathcal{A} \equiv \mathcal{H}'_{O}\mathcal
 \mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} = \mathcal{H}'_{O} + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A}.
 \end{equation}
 %
-Next, we observe that some products appear both in $\mathcal{U}'^\dagger \mathcal{X}$ and $\mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U}$.
+Next, we observe that some products from the $\mathcal{U}^{\dagger} \mathcal{H}_{O}\mathcal{U}$ term appear both in $\mathcal{X}$ in Eq.~\eqref{eq:Y} and in $\tilde{\mathcal{H}}$~\eqref{eq:H_tilde}.
 %
-To reuse these products, we introduce $\mathcal{B} = \mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}$.
+To avoid recomputing these products, we introduce $\mathcal{B} = \mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}$ and define the recursive algorithm using $\mathcal{B}$ instead of $\mathcal{X}$.
 %
-Using this definition, we compute the off-diagonal blocks of $\mathcal{B}$ as:
+With this definition, we compute the off-diagonal blocks of $\mathcal{B}$ as:
 %
 \begin{equation}
 \label{eq:B_offdiag}
