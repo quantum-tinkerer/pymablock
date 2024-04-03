@@ -73,9 +73,10 @@ Similarly, the transformed Hamiltonian is given by a series of nested commutator
 %
 \begin{equation}
 \label{eq:SW_H}
-\tilde{\mathcal{H}} = \sum_{j=0}^\infty \frac{1}{j!} \Big [\mathcal{H}, \sum_{n=0}^{\infty} S_n \Big ]^{(j)}.
+\tilde{\mathcal{H}} = \sum_{j=0}^\infty \frac{1}{j!} \Big [\mathcal{H}, \sum_{n=0}^{\infty} S_n \Big ]^{(j)},
 \end{equation}
 %
+where the superscript $(j)$ denotes the $j$-th nested commutator $[A, B]^{(j)} = [[A, B]^{(j-1)}, B]$, with $[A, B]^{(0)} = A$ and $[A, B]^{(1)} = AB - BA$.
 Regardless of the specific implementation, this expression does not meet either of our two requirements:
 \begin{itemize}
   \item The direct computation of the series elements requires $\sim \exp N$ multiplications, and even an optimized one has a $\sim N^2$ scaling.
