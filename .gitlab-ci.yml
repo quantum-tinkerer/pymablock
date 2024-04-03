@@ -95,7 +95,6 @@ paper:
 prepare zips:
   needs:
     - pages
-    - run analysis
   script:
     - cd paper
     - sed -i -e "s/\\\today/$(date +'%B %e, %Y')/g" *.tex
