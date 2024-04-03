@@ -79,6 +79,7 @@ paper:
     - inkscape --batch-process -o "${image%.*}.pdf" $image
     - done
     - cd ..
+    - sed -i 's/% \\\usepackage\[finalizecache,cachedir=minted-cache\]{minted}/\\\usepackage\[finalizecache,cachedir=minted-cache\]{minted}/g' paper.tex
     - for tex in *.tex; do
     - if grep "documentclass" $tex >/dev/null; then
     - latexmk -pdf $tex -shell-escape
@@ -87,6 +88,26 @@ paper:
   artifacts:
     paths:
       - paper/paper.pdf
+      - paper/figures/*.pdf
+      - paper/*.bbl
+      - paper/minted-cache
+
+prepare zips:
+  needs:
+    - pages
+    - run analysis
+  script:
+    - cd paper
+    - sed -i -e "s/\\\today/$(date +'%B %e, %Y')/g" *.tex
+    - sed -i 's/\\\usepackage\[finalizecache,cachedir=minted-cache\]{minted}/\\\usepackage\[frozencache,cachedir=minted-cache\]{minted}/g' paper.tex
+    - zip ../arxiv.zip *.tex *.bbl figures/*.pdf *.cls *.bst
+    - cd ..; zip zenodo.zip *
+  rules:
+    - when: manual
+  artifacts:
+    paths:
+      - arxiv.zip
+      - zenodo.zip
 
 pages:
   before_script: []
