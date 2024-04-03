@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+
+- Further reduced the number of matrix products by around 30% for high orders and down to a guaranteed minimum for 3rd order.
+- Improved the efficiency of the MUMPS solver on real Hamiltonians.
+
 ## [2.0.0] - 2024-02-03
 
 ### Improved
