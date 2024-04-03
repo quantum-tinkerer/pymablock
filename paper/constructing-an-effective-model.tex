@@ -30,7 +30,8 @@ H_tilde, *_ = block_diagonalize([H_0, H_1], subspace_eigenvectors=[vecs_A, vecs_
 H_AA_4 = H_tilde[0, 0, 4]
 \end{minted}
 %
-The function \mintinline{python}|block_diagonalize| interprets the Hamiltonian $H_0 + H_1$ as a series with two terms, zeroth and first order, and calls the block diagonalization routine to decouple the subspaces $A$ and $B$.
+The function \mintinline{python}|block_diagonalize| interprets the Hamiltonian $H_0 + H_1$ as a series with two terms, zeroth and first order and calls the block diagonalization routine.
+The subspaces to decouple are spanned by the eigenvectors \mintinline{python}|vecs_A| and \mintinline{python}|vecs_B| of $H_0$.
 This is the main function of Pymablock, and it is the only one that the user ever needs to call.
 Its first output is a multivariate series whose terms are different blocks and orders of the transformed Hamiltonian.
 Calling \mintinline{python}|block_diagonalize| only defines the computational problem, whereas querying the elements of \mintinline{python}|H_tilde| does the actual calculation of the desired order.
