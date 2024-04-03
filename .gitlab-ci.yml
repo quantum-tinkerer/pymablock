@@ -108,6 +108,7 @@ pages:
       - public
 
 prepare zips:
+  image: gitlab.kwant-project.org:5005/qt/research-docker
   before_script: []
   rules:
     - when: manual
