@@ -36,7 +36,7 @@ $$
 $$
 %
 The Cauchy product is the most expensive operation in perturbation theory, because it involves a large number of multiplications between potentially large matrices.
-For example, evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires $\sim\prod_i n_i \equiv N$ multiplications of the series elements.\footnote{If both $\mathcal{A}$ and $\mathcal{B}$ are known in advance, fast Fourier transform-based algorithms can reduce this cost to $\sim N \log N$, however in our problem the series are constructed recursively and therefore this optimization is impossible.}
+For example, evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires $\sim\prod_i n_i \equiv N$ multiplications of the series elements.\footnote{If both $\mathcal{A}$ and $\mathcal{B}$ are known in advance, fast Fourier transform-based algorithms can reduce this cost to $\sim N \log N$. In our problem, however, the series are constructed recursively and therefore this optimization is impossible.}
 A direct computation of all the possible index combinations in a product between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher cost $\sim N^2$, however, if we use associativity of the product and compute this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost stays $\sim N$.
 
 There are many ways to solve the problem~\eqref{eq:problem_definition} that give identical expressions for $\mathcal{U}$ and $\tilde{\mathcal{H}}$.
