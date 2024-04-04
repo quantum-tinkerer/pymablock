@@ -43,7 +43,7 @@ Similar to Sec.~\ref{sec:induced_gap}, constructing the effective Hamiltonian in
 First, we compute the $10$ lowest states of the unperturbed Hamiltonian using sparse diagonalization.
 Second, \mintinline{python}|block_diagonalize| computes a sparse LU decomposition of the Hamiltonian at each of the $10$ eigenenergies.
 Third, we compute corrections $\tilde{H}_1$, $\tilde{H}_2$, and $\tilde{H}_3$ to the effective Hamiltonian, each being a $10 \times 10$ matrix.
-Each of these steps is a one-time cost, see Figure \ref{fig:benchmark_bandstructure}.
+Each of these steps is a one-time cost, see Fig.~\ref{fig:benchmark_bandstructure}.
 Finally, to compare the perturbative calculation to sparse diagonalization, we construct the effective Hamiltonian $\tilde{H} = H_0 + \delta \mu \tilde{H}_1 + \delta \mu^2 \tilde{H}_2 + \delta \mu^3 \tilde{H}_3$ and diagonalize it to obtain the low-energy spectrum for a range of $\delta \mu$.
 This has a negligible cost compared to constructing the series.
 The comparison is shown in Fig.~\ref{fig:benchmark_bandstructure}.
