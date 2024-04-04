@@ -93,14 +93,14 @@ For example, using hyperbolic functions
 \mathcal{G} = \sum_{i=0}^{\infty} G_i,
 \end{gather}
 %
-leads to different recursive expressions for $G_i$ \cite{Shavitt_1980}, but does not change the algorithm's complexity.
+leads to different recursive expressions for $G_i$~\cite{Shavitt_1980}, but does not change the algorithm's complexity.
 On the other hand, using a polynomial series directly
 %
 \begin{equation}
 \mathcal{U} = \sum_{i=0}^{\infty} U_i,
 \end{equation}
 %
-gives rise to another recursive equation for $U_i$ \cite{Van_Vleck_1929, Lowdin_1962, Klein_1974, Suzuki_1983}.
+gives rise to another recursive equation for $U_i$~\cite{Van_Vleck_1929, Lowdin_1962, Klein_1974, Suzuki_1983}.
 Still, this choice results in an expression for $\tilde{\mathcal{H}}$ whose terms include products by $H_0$, and therefore requires additional simplifications.
 
 \co{The existing algorithms with linear scaling are not suitable for the construction of an effective Hamiltonian.}
@@ -272,7 +272,7 @@ Using a series expansion is justified by the perturbative nature of the result, 
 Because of the uniqueness of both results, we find that $\exp \mathcal{S}$ from conventional Schrieffer--Wolff transformation is identical to $\mathcal{U}$ found by our algorithm, which remains true if both power series are truncated at a finite order.
 
 \subsection{Extra optimization: common subexpression elimination}
-While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our requirements, we optimize it further by reusing products that are needed in several places.
+While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our requirements, we optimize it further by reusing products that are needed in several places, such that the total number of matrix multiplications is minimized.
 Firstly, we rewrite the expressions for $\mathcal{Z}$ in Eq.~\eqref{eq:Z} and $\tilde{\mathcal{H}}$ in Eq.~\eqref{eq:H_tilde} by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ without recomputing it:
 %
 \begin{gather*}
