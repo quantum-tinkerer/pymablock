@@ -55,7 +55,6 @@ run docs:
     paths:
         - micromamba
 
-
 run pre-commit:
   variables:
     PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
@@ -69,17 +68,62 @@ run pre-commit:
       - .pre-commit-cache
       - micromamba
 
+paper:
+  image: gitlab.kwant-project.org:5005/qt/research-docker
+  when: manual
+  before_script: []
+  script:
+    - pip install -e .
+    - cd paper/code_figures
+    - jupytext --to ipynb --execute *.py
+    - cd ../figures
+    - for image in *.svg; do
+    - inkscape --batch-process -o "${image%.*}.pdf" $image
+    - done
+    - cd ..
+    - sed -i -e "s/\\\usepackage{minted}/\\\usepackage\[finalizecache,cachedir=minted-cache\]{minted}/g" paper.tex
+    - for tex in *.tex; do
+    - if grep "documentclass" $tex >/dev/null; then
+    - latexmk -pdf $tex -shell-escape
+    - fi
+    - done
+  artifacts:
+    paths:
+      - paper/paper.pdf
+      - paper/figures/*.pdf
+      - paper/*.bbl
+      - paper/minted-cache/*
 
 pages:
+  before_script: []
   needs:
     - run tests
     - run docs
+    # - paper  # Disabled after finishing the manuscript
   script:
+    - mkdir public
     - cp -r htmlcov public/
     - cp -r docs/build public/
+    # - cp -r paper/ public/
   artifacts:
     paths:
       - public
+
+prepare zips:
+  image: gitlab.kwant-project.org:5005/qt/research-docker
+  before_script: []
+  when: manual
+  needs: [paper]
+  script:
+    - zip -r zenodo.zip *
+    - cd paper
+    - sed -i -e "s/\\\today/$(date +'%B %e, %Y')/g" *.tex
+    - sed -i -e "s/\\\usepackage{minted}/\\\usepackage\[frozencache,cachedir=minted-cache\]{minted}/g" paper.tex
+    - zip ../arxiv.zip *.tex *.bbl figures/*.pdf *.cls *.bst minted-cache/*
+  artifacts:
+    paths:
+      - arxiv.zip
+      - zenodo.zip
 
 publish to test pypi:
   needs:

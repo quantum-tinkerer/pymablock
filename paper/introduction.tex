@@ -1,0 +1,44 @@
+\section{Introduction}
+
+\co{Effective models enable the study of complex physical systems by reducing the space of interest to a low-energy one.}
+Effective models enable the study of complex quantum systems by reducing the dimensionality of the Hilbert space.
+Their construction separates the low and high-energy subspaces by block-diagonalizing a perturbed Hamiltonian
+%
+\begin{equation}
+    \mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \mathcal{H}',
+\end{equation}
+%
+where $H_0^{AA}$ and $H_0^{BB}$ are separated by an energy gap, and $\mathcal{H}'$ is a series in a perturbative parameter.
+This procedure requires finding a series of the basis transformation $\mathcal{U}$ that is unitary and that also cancels the off-diagonal block of the transformed Hamiltonian order by order, as shown in Fig.~\ref{fig:block_diagonalization}.
+The low-energy effective Hamiltonian $\tilde{\mathcal{H}}^{AA}$ is then a series in the perturbative parameter, whose eigenvalues and eigenvectors are approximate solutions of the complete Hamiltonian.
+As a consequence, the effective model is sufficient to describe the low-energy properties of the original system while also being simpler and easier to handle.
+
+\co{A standard approach to constructing the effective model is the Schrieffer-Wolff algorithm.}
+A common approach to constructing an effective Hamiltonian is the Schrieffer--Wolff transformation~\cite{Schrieffer_1966,Bravyi_2011}, also known as Löwdin partitioning~\cite{Lowdin_1962}, or quasi-degenerate perturbation theory.
+This method parameterizes the unitary transformation $\mathcal{U} = e^{-\mathcal{S}}$ and finds the series $\mathcal{S}$ that decouples the $A$ and $B$ subspaces of $\tilde{\mathcal{H}} = e^{\mathcal{S}}\mathcal{H}e^{-\mathcal{S}}$.
+This idea enabled advances in multiple fields of quantum physics.
+As an example, all the k.p models are a result of treating crystalline momentum as a perturbation that only weakly mixes atomic orbitals separated in energy~\cite{Luttinger_1955}.
+More broadly, this method serves as a go-to tool in the study of superconducting circuits and quantum dots, where couplings between circuit elements and drives are treated as perturbations to reproduce the dynamics of the system~\cite{Krantz_2019,Romhanyi_2015}.
+%
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\textwidth]{figures/diagrams_H.pdf}
+    \caption{
+      Block-diagonalization of a Hamiltonian with a first order perturbation.
+    }
+    \label{fig:block_diagonalization}
+\end{figure}
+
+\co{Even though these methods are standard, their algorithm is computationally expensive, scaling poorly for large systems and high orders.}
+Constructing effective Hamiltonians is, however, both algorithmically complex and computationally expensive.
+This is a consequence of the recursive equations that define the unitary transformation, which require an exponentially growing number of matrix products in each order.
+In particular, already a 4-th order perturbative expansion that is necessary for many applications may require hundreds of terms.
+While the computational complexity is only a nuisance when analysing model systems, it becomes a bottleneck whenever the Hilbert space is high-dimensional.
+Several alternative approaches improve the performance of the Schrieffer--Wolff algorithm by either using different parametrizations of the unitary transformation~\cite{Van_Vleck_1929, Shavitt_1980, Lowdin_1962, Klein_1974, Suzuki_1983}, adjusting the problem setting to density matrix perturbation theory~\cite{McWeeny_1962, Truflandier_2020}, or a finding a similarity transform instead of a unitary~\cite{Bloch_1958}.
+A more recent line of research even applies the ideas of Schrieffer--Wolff transformation to quantum algorithms for the study of many-body systems~\cite{Wurtz_2020, Zhang_2022}.
+Despite these advances, neither of the approaches combines an optimal scaling with the ability to construct effective Hamiltonians.
+
+\co{We develop an efficient algorithm capable of symbolic and numeric computations and make it available in Pymablock.}
+We introduce an algorithm to construct effective models with optimal scaling, thus making it possible to find high order effective models for systems with millions of degrees of freedom.
+This algorithm exploits the efficiency of recursive evaluations of series satisfying polynomial constraints and obtains the same effective Hamiltonian as the Schrieffer--Wolff transformation.
+We make the algorithm available via the open source package Pymablock \footnote{The documentation and tutorials are available in \url{https://pymablock.readthedocs.io/}}(PYthon MAtrix BLOCK-diagonalization), a versatile tool for the study of numerical and symbolic models.

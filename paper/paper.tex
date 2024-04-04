@@ -1,0 +1,97 @@
+% Created with jtex v.1.0.12
+\documentclass[submission, Codebases]{SciPost}
+
+\usepackage{minted}
+\usepackage{framed}
+\usepackage{graphicx}
+\usepackage[super]{nth}
+\usepackage{orcidlink}
+\usepackage{glossaries}
+\usepackage{hyperref}
+\usepackage{braket}
+\makeglossaries
+
+\binoppenalty=10000
+\relpenalty=10000
+
+\hypersetup{
+    colorlinks,
+    linkcolor={red!50!black},
+    citecolor={blue!50!black},
+    urlcolor={blue!80!black}
+}
+
+\definecolor{orcidlogocol}{HTML}{A6CE39}
+
+\urlstyle{sf}
+
+\DeclareSymbolFont{usualmathcal}{OMS}{cmsy}{m}{n}
+\DeclareSymbolFontAlphabet{\mathcal}{usualmathcal}
+\definecolor{bg}{rgb}{0.95,0.95,0.95}
+\setminted{fontsize=\fontsize{9.5}{11}\selectfont, bgcolor=bg, baselinestretch=1, breaklines=true}
+\usemintedstyle{perldoc}
+
+\newcommand{\co}{\paragraph}
+% Uncomment the following line to have comments appear in the PDF
+\newcounter{CommentNumber}
+\renewcommand{\co}[1]{\stepcounter{CommentNumber}\belowpdfbookmark{#1}{\arabic{CommentNumber}}}
+
+\begin{document}
+
+\begin{center}
+{\Large \textbf{Pymablock: an algorithm and a package for quasi-degenerate perturbation theory}}
+\end{center}
+
+\begin{center}
+Isidora~Araya~Day\textsuperscript{1,2$\star$}\orcidlink{0000-0002-2948-4198},
+Sebastian~Miles\textsuperscript{1},
+Hugo~K.~Kerstens\textsuperscript{2}\orcidlink{0009-0003-9685-5088},
+Daniel~Varjas\textsuperscript{3,4}\orcidlink{0000-0002-3283-6182},
+Anton~R.~Akhmerov\textsuperscript{2$\dagger$}\orcidlink{0000-0001-8031-1340}
+\end{center}
+
+\begin{center}
+\textbf{1} QuTech, Delft University of Technology, Delft 2600 GA, The Netherlands \\
+\textbf{2} Kavli Institute of Nanoscience, Delft University of Technology, 2600 GA Delft, The Netherlands \\
+\textbf{3} Max Planck Institute for the Physics of Complex Systems, Nöthnitzer Strasse 38, 01187 Dresden, Germany \\
+\textbf{4} Institute for Theoretical Solid State Physics, IFW Dresden and W\"{u}rzburg-Dresden Cluster of Excellence ct.qmat, Helmholtzstr. 20, 01069 Dresden, Germany \\
+${}^\star$ {\small \sf iarayaday@gmail.com}
+${}^\dagger${\small \sf pymablock@antonakhmerov.org}
+\end{center}
+
+\begin{center}
+    \today
+\end{center}
+
+\section*{Abstract}
+\textbf{
+A common technique in the study of complex quantum-mechanical systems is to reduce the number of degrees of freedom in the Hamiltonian by using quasi-degenerate perturbation theory.
+While the Schrieffer--Wolff transformation achieves this and constructs an effective Hamiltonian, its scaling is suboptimal, and implementing it efficiently is both challenging and error-prone.
+We introduce an algorithm for constructing an equivalent effective Hamiltonian as well as a Python package, Pymablock, that implements it.
+Our algorithm combines an optimal asymptotic scaling with a range of other improvements.
+The package supports numerical and analytical calculations of any order and it is designed to be interoperable with any other packages for specifying the Hamiltonian.
+We demonstrate how the package handles constructing a k.p model, analyses a superconducting qubit, and computes the low-energy spectrum of a large tight-binding model.
+We also compare its performance with reference calculations and demonstrate its efficiency.
+}
+
+\vspace{10pt}
+\noindent\rule{\textwidth}{1pt}
+\tableofcontents\thispagestyle{fancy}
+\noindent\rule{\textwidth}{1pt}
+\vspace{10pt}
+
+\input{introduction}
+\input{constructing-an-effective-model}
+\input{algorithm}
+\input{implementation}
+\input{benchmark}
+\input{conclusion}
+\input{additional_info}
+
+\printglossaries
+
+\bibliography{main.bib}
+
+\nolinenumbers
+
+\end{document}

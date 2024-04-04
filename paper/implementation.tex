@@ -1,0 +1,88 @@
+\section{Implementation}
+\label{sec:implementation}
+
+\subsection{The data structure for block operator series}
+\label{sec:BlockSeries}
+
+\co{To implement the algorithms, we need a data structure that represents a multidimensional series of block matrices.}
+The optimized algorithm from the previous section requires constructing $14$ operator series, whose elements are computed using a collection of recurrence relations.
+This warrants defining a specialized data structure suitable for this task that represents a multidimensional series of operators.
+Because the recurrent relations are block-wise, the data structure needs to keep track of separate blocks.
+In order to support varied use cases, the actual representation of the operators needs to be flexible: the block may be dense arrays, sparse matrices, symbolic expressions, or more generally any object that defines addition and multiplication.
+Finally, the series needs to be queryable by order and block, so that it supports a block-wise multivariate Cauchy product---the main operation in the algorithm.
+
+\co{A recursive implementation of the algorithm is better than an explicit loop over orders.}
+The most straightforward way to implement a perturbation theory calculation is to write a function that has the desired order as an argument, computes the series up to that order, and returns the result.
+This makes it hard to reuse already computed terms for a new computation, and becomes complicated to implement in the multidimensional case when different orders in different perturbations are needed.
+We find that a recursive approach addresses these issues: within this paradigm, each series needs to define how its entries depend on lower-order terms.
+
+\co{We address this by defining a BlockSeries class.}
+To address these requirements, we define a \mintinline{python}|BlockSeries| Python class and use it to represent the series of $\mathcal{U}$, $\mathcal{H}$, and $\tilde{\mathcal{H}}$, as well as the intermediate series used to define the algorithm.
+The objects of this class are equipped with a function to compute their elements and it stores the already computed results in a dictionary.
+Storing the results for reuse is necessary to optimize the evaluation of higher order terms and it allows to request additional orders without restarting the computation.
+For example, the definition of the \mintinline{python}|BlockSeries| for $\tilde{\mathcal{H}}$ has the following form:
+%
+\begin{minted}{python}
+H_tilde = BlockSeries(
+    shape=(2, 2),  # 2x2 block matrix
+    n_infinite=n,  # number of perturbative parameters
+    eval=compute_H_tilde,  # function to compute the elements
+    name="H_tilde",
+    dimension_names=("lambda", ...),  # parameter names
+)
+\end{minted}
+%
+Here \mintinline{python}|compute_H_tilde| is a function implementing Eq.~\eqref{eq:H_tilde_optimized} by querying other series objects.
+Calling \mintinline{python}|H_tilde[0, 0, 2]|, the second order perturbation $\sim \lambda^2$ of the $AA$ block, then does the following:
+\begin{enumerate}
+    \item Evaluates \mintinline{python}|compute_H_tilde(0, 0, 2)| if it is not already computed.
+    \item Stores the evaluation result in a dictionary.
+    \item Returns the result.
+\end{enumerate}
+To conveniently access multiple orders at once, we implement NumPy array indexing so that \mintinline{python}|H_tilde[0, 0, :3]| returns a NumPy masked array array with the orders $\sim \lambda^0$ , $\sim \lambda^1$, and $\sim \lambda^2$ of the $AA$ block.
+The masking allows to support a common use case where some orders of a series are zero, so that they are omitted from the computations.
+We expect that the \mintinline{python}|BlockSeries| data structure is suitable to represent a broad class of perturbative calculations, and we plan to extend it to support more advanced features in the future.
+
+\co{Using the BlockSeries interface allows us to implement a range of optimizations that go beyond directly implementing the polynomial parametrization}
+We utilize \mintinline{python}|BlockSeries| to implement multiple other optimizations.
+For example, we exploit Hermiticity when computing the Cauchy product of $U'^{\dagger}U'$ in Eq.~\eqref{eq:W}, by only evaluating half of the matrix products, and then complex conjugate the result to obtain the rest.
+Similarly, for Hermitian and anti-Hermitian series, like the off-diagonal blocks of $\mathcal{U}'$, we only compute the $AB$ blocks, and use the conjugate transpose to obtain the $BA$ blocks.
+This approach should also allow us to implement efficient handling of symmetry-constrained Hamiltonians, where some blocks either vanish or are equal to other blocks due to a symmetry.
+Moreover, using \mintinline{python}|BlockSeries| with custom objects yields additional information about the algorithm and accommodates its further development.
+Specifically, we have used a custom object with a counter to measure the algorithm complexity (see also Sec.~\ref{sec:benchmark}) and to determine which results are only used once so that they can be immediately discarded from storage.
+
+\subsection{The implicit method for large sparse Hamiltonians}
+\label{sec:implicit}
+
+\co{Pymablock supports big sparse problems.}
+A distinguishing feature of Pymablock is its ability to handle large sparse Hamiltonians, that are too costly to diagonalize, as illustrated in Sec.~\ref{sec:induced_gap}.
+Specifically, we consider the situations when the size $N_A$ of the $A$ subspace is small compared to the entire Hilbert space, so that obtaining the basis $\Psi_A$ of the $A$ subspace is feasible using sparse diagonalization.
+The projector on the $A$ subspace $P_A = \Psi_A^\dagger \Psi_A$ is then a low-rank matrix, a property that we exploit to avoid constructing the $B$ subspace explicitly.
+Furthermore, the solution of Sylvester's equation in Eq.~\ref{eq:sylvester} amounts to multiplying $N_A$ large vectors, rows of $Y_{\mathbf{n}}^{AB}$, by the energy denominators $E_i - E_j$, where $E_i$ are the $N_A$ eigenvalues of the $A$ subspace provided by sparse diagonalization.
+
+\co{We use the extended sparsity-preserving Hilbert space and LinearOperator objects.}
+The key tool to solve this problem is the projector approach introduced in Ref.~\cite{Irfan_2019}, which introduces an equivalent extended Hamiltonian using the projector $P_B = 1 - P_A$ onto the $B$ subspace:
+%
+\begin{align}
+\bar{\mathcal{H}} = \begin{pmatrix}
+\Psi_A^\dagger \mathcal{H} \Psi_A & \Psi_A^\dagger \mathcal{H} P_B \\
+P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
+\end{pmatrix}.
+\end{align}
+%
+In other words, the subspace $\bar{A}$ is written in the basis of $\Psi_A$, while the basis of the $\bar{B}$ subspace is the same as the original complete basis of $\mathcal{H}$ to preserve its sparsity.
+We also project out the $A$-degrees of freedom from the $\bar{B}$ subspace to avoid duplicate solutions in $\bar{\mathcal{H}}$, which introduces $N_A$ eigenvectors with zero eigenvalues.
+Introducing $\bar{\mathcal{H}}$ allows to multiply by operators of a form $P_B H_\mathbf{n} P_B$ efficiently by using the low-rank structure of $P_A$.
+In the code we represent the $\bar{B}\bar{B}$ operators as \mintinline{python}|LinearOperator| objects from the SciPy package~\cite{Virtanen_2020}, enabled by the ability of the \mintinline{python}|BlockSeries| to store arbitrary objects.
+Storing the $\bar{A}\bar{A}$ and $\bar{A}\bar{B}$ blocks as dense matrices---efficient because these are small and dense---finishes the implementation of the Hamiltonian.
+
+\co{We use sparse or KPM solvers to compute the Green's function of the $B$ subspace.}
+To solve the Sylvester's equation we write it for every row of $V_{\mathbf{n}}^{\bar{A}\bar{B}}$ separately:
+%
+\begin{align}
+V_{\mathbf{n}, ij}^{\bar{A}\bar{B}} (E_i - H_0) = Y^{\bar{A} \bar{B}}_{\mathbf{n}, j}
+\end{align}
+%
+This equation has a solution despite $E_i - H_0$ not being invertible because $Y^{\bar{A}\bar{B}}_{\mathbf{n}} P_A = 0$.
+We solve this equation using the MUMPS sparse solver~\cite{Amestoy_2001,Amestoy_2006}, which prepares an efficient sparse LU-decomposition of $E_i - H_0$, or the KPM approximation of the Green's function~\cite{Weisse_2006}.
+Both methods work on sparse Hamiltonians with millions of degrees of freedom.
