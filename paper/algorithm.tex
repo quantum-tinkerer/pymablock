@@ -259,17 +259,17 @@ We now have the complete algorithm:
 \subsection{Equivalence to Schrieffer--Wolff transformation}
 \label{seq:SW_equivalence}
 \co{Our algorithm is equivalent to a Schrieffer--Wolff transformation}
-Pymablock's algorithm and the Schrieffer-Wolff transformation find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
+Pymablock's algorithm and the Schrieffer-Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
 They are therefore equivalent up to a gauge choice in each subspace, $A$ and $B$.
 We establish the equivalence between the two by demonstrating that this gauge choice is the same for both algorithms.
-The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} = \mathcal{S}^{BB} = 0$.
-The series $\exp\mathcal{S}$ contains all possible products of $S_n$ of all lengths with fractional prefactors.
-For every term $S_{k_1}S_{k_2}\cdots S_{k_n}$, there is a corresponding term $S_{k_n}S_{k_{n-1}}\cdots S_{k_1}$ with the same prefactor.
-If the number of $S_{k_n}$ is even, then both terms are block-diagonal since each $S_n$ is block off-diagonal.
-Because $S_n$ are anti-Hermitian, the two terms are Hermitian conjugates of each other, and therefore their sum is Hermitian.
-On the other hand, if the number of $S_{k_n}$ is odd, then the two terms are block off-diagonal and their sum is anti-Hermitian by the same reasoning.
-Therefore, just like in our algorithm, the diagonal blocks of $\exp S$ are Hermitian, while off-diagonal blocks are anti-Hermitian.
-Finally, because the Schrieffer--Wolff transformation produces a unique answer and satisfies the same diagonalization requirements as our algorithm, the two produce the same effective Hamiltonian.
+The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} = \mathcal{S}^{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.
+On the other hand, our algorithm produces the unique block-diagonalising transformation with a block structure $\mathcal{U}_{AA} = \mathcal{U}_{AA}^{\dag}$, $\mathcal{U}_{BB} = \mathcal{U}_{BB}^{\dag}$ and $\mathcal{U}_{AB} = -\mathcal{U}_{BA}^{\dag}$.
+The uniqueness is a consequence of the construction of the algorithm, where calculating every order gives a unique solution satisfying these conditions.
+To see that the two solutions are identical, we expand the Taylor series of $\exp \mathcal{S}$.
+Every even order gives a Hermitian, block-diagonal matrix, while every odd order gives an anti-Hermitian block off-diagonal matrix, showing that $\exp \mathcal{S}$ has the same structure as $\mathcal{U}$ above.
+The reverse statement about the structure of $\log \mathcal{U}$ can be seen similarly, using the Taylor series of the logarithm around $1$.
+Using a series expansion is justified by the perturbative nature of the result, meaning that $\mathcal{S}$ is close to $0$ and $\mathcal{U}$ is close to $1$.
+Because of the uniqueness of both results, we find that $\exp \mathcal{S}$ from conventional Schrieffer--Wolff transformation is identical to $\mathcal{U}$ found by our algorithm, which remains true if both power series are truncated at a finite order.
 
 \subsection{Extra optimization: common subexpression elimination}
 While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our requirements, we optimize it further by reusing products that are needed in several places.
