@@ -259,7 +259,7 @@ We now have the complete algorithm:
 \subsection{Equivalence to Schrieffer--Wolff transformation}
 \label{seq:SW_equivalence}
 \co{Our algorithm is equivalent to a Schrieffer--Wolff transformation}
-Pymablock's algorithm and the Schrieffer-Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
+Pymablock's algorithm and the Schrieffer--Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
 They are therefore equivalent up to a gauge choice in each subspace, $A$ and $B$.
 We establish the equivalence between the two by demonstrating that this gauge choice is the same for both algorithms.
 The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} = \mathcal{S}^{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.
@@ -306,7 +306,7 @@ With this definition, we compute the off-diagonal blocks of $\mathcal{B}$ as:
 \end{equation}
 %
 where we also used Eq.~\eqref{eq:Y} and the definition of $\mathcal{A}$.
-The off-diagonal blocks of $\mathcal{B}$, on the other hand, are given by
+The diagonal blocks of $\mathcal{B}$, on the other hand, are given by
 %
 \begin{equation}
 \label{eq:B_diag}
