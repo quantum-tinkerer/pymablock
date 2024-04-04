@@ -46,7 +46,7 @@ We expect that the \mintinline{python}|BlockSeries| data structure is suitable t
 \co{Using the BlockSeries interface allows us to implement a range of optimizations that go beyond directly implementing the polynomial parametrization}
 We utilize \mintinline{python}|BlockSeries| to implement multiple other optimizations.
 For example, we exploit Hermiticity when computing the Cauchy product of $U'^{\dagger}U'$ in Eq.~\eqref{eq:W}, by only evaluating half of the matrix products, and then complex conjugate the result to obtain the rest.
-Similarly, for Hermitian and anti-Hermitian series, like the off-diagonal blocks of $\mathcal{X}$ and $\mathcal{U}'$, we only compute the $AB$ blocks, and use the conjugate transpose to obtain the $BA$ blocks.
+Similarly, for Hermitian and anti-Hermitian series, like the off-diagonal blocks of $\mathcal{U}'$, we only compute the $AB$ blocks, and use the conjugate transpose to obtain the $BA$ blocks.
 This approach should also allow us to implement efficient handling of symmetry-constrained Hamiltonians, where some blocks either vanish or are equal to other blocks due to a symmetry.
 Moreover, using \mintinline{python}|BlockSeries| with custom objects yields additional information about the algorithm and accommodates its further development.
 Specifically, we have used a custom object with a counter to measure the algorithm complexity (see also Sec.~\ref{sec:benchmark}) and to determine which results are only used once so that they can be immediately discarded from storage.
