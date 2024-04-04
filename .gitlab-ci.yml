@@ -113,9 +113,7 @@ prepare zips:
   before_script: []
   rules:
     - when: manual
-    - needs:
-      - job: paper
-        artifacts: true
+      needs: [paper]
   script:
     - zip -r zenodo.zip *
     - cd paper
