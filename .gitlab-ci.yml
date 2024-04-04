@@ -113,7 +113,7 @@ prepare zips:
   before_script: []
   rules:
     - when: manual
-    - needs: [pages]
+    - needs: [paper]
   script:
     - zip -r zenodo.zip *
     - cd paper
