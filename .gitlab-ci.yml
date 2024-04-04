@@ -91,7 +91,7 @@ paper:
       - paper/paper.pdf
       - paper/figures/*.pdf
       - paper/*.bbl
-      - paper/minted-cache
+      - paper/minted-cache/*
 
 pages:
   before_script: []
@@ -118,7 +118,7 @@ prepare zips:
     - zip -r zenodo.zip *
     - cd paper
     - sed -i -e "s/\\\today/$(date +'%B %e, %Y')/g" *.tex
-    - sed -i -e "s/\\\usepackage\[finalizecache,cachedir=minted-cache\]{minted}/\\\usepackage\[frozencache,cachedir=minted-cache\]{minted}/g" paper.tex
+    - sed -i -e "s/\\\usepackage{minted}/\\\usepackage\[frozencache,cachedir=minted-cache\]{minted}/g" paper.tex
     - zip ../arxiv.zip *.tex *.bbl figures/*.pdf *.cls *.bst minted-cache/*
   artifacts:
     paths:
