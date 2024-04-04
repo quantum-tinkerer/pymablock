@@ -273,7 +273,7 @@ Using a series expansion is justified by the perturbative nature of the result, 
 Because of the uniqueness of both results, we find that $\exp \mathcal{S}$ from conventional Schrieffer--Wolff transformation is identical to $\mathcal{U}$ found by our algorithm, which remains true if both power series are truncated at a finite order.
 
 \subsection{Extra optimization: common subexpression elimination}
-While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our requirements, we optimize it further by reusing products that are needed in several places, such that the total number of matrix multiplications is minimized.
+While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our requirements, we improve it further by reusing products that are needed in several places, such that the total number of matrix multiplications is reduced.
 Firstly, we rewrite the expressions for $\mathcal{Z}$ in Eq.~\eqref{eq:Z} and $\tilde{\mathcal{H}}$ in Eq.~\eqref{eq:H_tilde} by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ without recomputing it:
 %
 \begin{gather*}
