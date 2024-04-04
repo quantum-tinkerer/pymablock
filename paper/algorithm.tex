@@ -54,7 +54,7 @@ The first requirement is that of the optimal scaling: because the desired expres
 The second requirement is because in perturbation theory, $n$-th order corrections to $\tilde{\mathcal{H}}$ carry $n$ energy denominators $1/(E_i - E_j)$, where $E_i$ and $E_j$ are the eigenvalues of $H_0$ belonging to different subspaces.
 Therefore, any additional multiplications by $H_0$ must cancel with additional energy denominators.
 Multiplying by $H_0$ is therefore unnecessary work, and it gives longer intermediate expressions.
-The third requirement we impose by by considering a case in which $\mathcal{H}_{O}=0$, where $\mathcal{H}_D$ must at least enter $\tilde{\mathcal{H}}$ as an added term, without any products.
+The third requirement we impose by considering a case in which $\mathcal{H}_{O}=0$, where $\mathcal{H}_D$ must at least enter $\tilde{\mathcal{H}}$ as an added term, without any products.
 Moreover, because $\mathcal{U}$ depends on the entire Hamiltonian, there must be at least one Cauchy product by $\mathcal{H}'_D$.
 The goal of our algorithm is thus to be efficient and to produce compact results that do not require further simplifications.
 
@@ -263,7 +263,7 @@ Pymablock's algorithm and the Schrieffer--Wolff transformation both find a unita
 They are therefore equivalent up to a gauge choice in each subspace, $A$ and $B$.
 We establish the equivalence between the two by demonstrating that this gauge choice is the same for both algorithms.
 The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} = \mathcal{S}^{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.
-On the other hand, our algorithm produces the unique block-diagonalising transformation with a block structure $\mathcal{U}_{AA} = \mathcal{U}_{AA}^{\dag}$, $\mathcal{U}_{BB} = \mathcal{U}_{BB}^{\dag}$ and $\mathcal{U}_{AB} = -\mathcal{U}_{BA}^{\dag}$.
+On the other hand, our algorithm produces the unique block-diagonalizing transformation with a block structure $\mathcal{U}_{AA} = \mathcal{U}_{AA}^{\dag}$, $\mathcal{U}_{BB} = \mathcal{U}_{BB}^{\dag}$ and $\mathcal{U}_{AB} = -\mathcal{U}_{BA}^{\dag}$.
 The uniqueness is a consequence of the construction of the algorithm, where calculating every order gives a unique solution satisfying these conditions.
 To see that the two solutions are identical, we expand the Taylor series of $\exp \mathcal{S}$.
 Every even order gives a Hermitian, block-diagonal matrix, while every odd order gives an anti-Hermitian block off-diagonal matrix, showing that $\exp \mathcal{S}$ has the same structure as $\mathcal{U}$ above.
