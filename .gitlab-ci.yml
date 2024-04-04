@@ -70,6 +70,7 @@ run pre-commit:
 
 paper:
   image: gitlab.kwant-project.org:5005/qt/research-docker
+  when: manual
   before_script: []
   script:
     - pip install -e .
@@ -98,12 +99,12 @@ pages:
   needs:
     - run tests
     - run docs
-    - paper
+    # - paper  # Disabled after finishing the manuscript
   script:
     - mkdir public
     - cp -r htmlcov public/
     - cp -r docs/build public/
-    - cp -r paper/ public/
+    # - cp -r paper/ public/
   artifacts:
     paths:
       - public
@@ -111,9 +112,8 @@ pages:
 prepare zips:
   image: gitlab.kwant-project.org:5005/qt/research-docker
   before_script: []
-  rules:
-    - when: manual
-      needs: [paper]
+  when: manual
+  needs: [paper]
   script:
     - zip -r zenodo.zip *
     - cd paper
