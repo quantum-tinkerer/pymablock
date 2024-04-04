@@ -36,9 +36,9 @@ In particular, already a 4-th order perturbative expansion that is necessary for
 While the computational complexity is only a nuisance when analysing model systems, it becomes a bottleneck whenever the Hilbert space is high-dimensional.
 Several alternative approaches improve the performance of the Schrieffer--Wolff algorithm by either using different parametrizations of the unitary transformation~\cite{Van_Vleck_1929, Shavitt_1980, Lowdin_1962, Klein_1974, Suzuki_1983}, adjusting the problem setting to density matrix perturbation theory~\cite{McWeeny_1962, Truflandier_2020}, or a finding a similarity transform instead of a unitary~\cite{Bloch_1958}.
 A more recent line of research even applies the ideas of Schrieffer--Wolff transformation to quantum algorithms for the study of many-body systems~\cite{Wurtz_2020, Zhang_2022}.
+Despite these advances, neither of the approaches combines an optimal scaling with the ability to construct effective Hamiltonians.
 
 \co{We develop an efficient algorithm capable of symbolic and numeric computations and make it available in Pymablock.}
-\todo[inline]{We should make our point stronger here.}
 We introduce an algorithm to construct effective models with optimal scaling, thus making it possible to find high order effective models for systems with millions of degrees of freedom.
 This algorithm exploits the efficiency of recursive evaluations of series satisfying polynomial constraints and obtains the same effective Hamiltonian as the Schrieffer--Wolff transformation.
 We make the algorithm available via the open source package Pymablock \footnote{The documentation and tutorials are available in \url{https://pymablock.readthedocs.io/}}(PYthon MAtrix BLOCK-diagonalization), a versatile tool for the study of numerical and symbolic models.
