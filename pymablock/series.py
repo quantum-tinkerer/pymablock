@@ -76,6 +76,7 @@ class BlockSeries:
         n_infinite: int = 1,
         dimension_names: Optional[tuple[Union[str, sympy.Symbol], ...]] = None,
         name: Optional[str] = None,
+        cache: bool = True,
     ) -> None:
         """
         An infinite series that caches its items.
@@ -97,6 +98,8 @@ class BlockSeries:
             This is used for symbolic series.
         name :
             Name of the series. Used for printing.
+        cache :
+            Whether to cache the results of the evaluation.
         """
         self.eval = (lambda *_: zero) if eval is None else eval
         # Avoid accidentally mutating data
@@ -107,6 +110,7 @@ class BlockSeries:
             f"n_{i}" for i in range(n_infinite)
         )
         self.name = name or f"Series_{token_hex(4)}"
+        self.cache = cache
 
     def __getitem__(self, item: Item) -> Any:
         """
@@ -159,7 +163,12 @@ class BlockSeries:
 
         data = self._data
         for index in zip(*np.where(trial)):
-            if index not in data:
+            if data.get(index) is PENDING:
+                raise RuntimeError(
+                    f"Infinite recursion loop detected in {self}[{index}]"
+                )
+
+            if index not in data and self.cache:
                 # Calling eval gives control away; mark that this value is evaluated
                 # To be able to catch recursion and data corruption.
                 data[index] = PENDING
@@ -173,10 +182,9 @@ class BlockSeries:
                     # Catching BaseException to clean up also after keyboard interrupt
                     data.pop(index, None)
                     raise
-            if data[index] is PENDING:
-                raise RuntimeError(
-                    f"Infinite recursion loop detected in {self}[{index}]"
-                )
+            elif index not in data:
+                trial[index] = self.eval(*index)
+                continue
             trial[index] = data[index]
 
         result = trial[item]
