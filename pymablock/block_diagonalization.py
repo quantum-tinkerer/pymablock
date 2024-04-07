@@ -470,9 +470,11 @@ def _block_diagonalize(
         "U'": _series_like(H, data=zero_data),
     }
     # Diagonal parts of U' are Hermitian, off-diagonal parts are anti-Hermitian
-    series["U'†"] = _series_sum(_diag(series["U'"]), _dagger(_offdiag(series["U'"])))
-    series["U"] = _view(series["U'"], data=identity_data, cache=True)
-    series["U†"] = _view(series["U'†"], data=identity_data, cache=True)
+    series["U'†"] = _series_sum(
+        _diag(series["U'"]), _dagger(_offdiag(series["U'"]), cache=True)
+    )
+    series["U"] = _view(series["U'"], data=identity_data)
+    series["U†"] = _view(series["U'†"], data=identity_data)
 
     # List of products and whether they are Hermitian
     needed_products = [
@@ -537,12 +539,18 @@ def _block_diagonalize(
     # Specifically, we only need to store the diagonal part of
     # H'_offdiag @ U' and U'† @ B
 
-    lo_or_explicit = {
-        key: _where(use_linear_operator, linear_operator_series[key], series[key])
+    diag_series = {
+        key: _diag(
+            _where(use_linear_operator, linear_operator_series[key], series[key])
+        )
         for key in series.keys()
     }
-    lo_or_explicit["U'† @ B"].cache = True
-    lo_or_explicit["H'_offdiag @ U'"].cache = True
+    diag_series["U'† @ B"].cache = True
+    diag_series["H'_offdiag @ U'"].cache = True
+    diag_series["(U'† @ B)†"] = _dagger(diag_series["U'† @ B"], cache=True)
+    diag_series["(H'_offdiag @ U')†"] = _dagger(
+        diag_series["H'_offdiag @ U'"], cache=True
+    )
 
     Y = _offdiag(
         _series_sum(
@@ -552,13 +560,13 @@ def _block_diagonalize(
             # - [U', H'_diag]
             # Below we use the antihermiticity of the off-diagonal part of U'
             series["H'_diag @ U'"],
-            _dagger(series["H'_diag @ U'"]),
+            _dagger(series["H'_diag @ U'"], cache=True),
         )
     )
     Y.cache = False
 
     tmp = _series_sum(
-        _diag(lo_or_explicit["U'† @ U'"]),
+        diag_series["U'† @ U'"],
         _offdiag(
             _series_like(
                 H,
@@ -575,28 +583,29 @@ def _block_diagonalize(
     antihermitize(series["U'"])
 
     tmp = _series_sum(
-        _diag(
-            _series_sum(
-                lo_or_explicit["U'† @ B"],
-                _dagger(lo_or_explicit["U'† @ B"]),
-                lo_or_explicit["H'_offdiag @ U'"],
-                _dagger(lo_or_explicit["H'_offdiag @ U'"]),
-                coefficients=[-1, 1, -1, -1],
-            )
-        ),
+        diag_series["U'† @ B"],
+        diag_series["(U'† @ B)†"],
+        diag_series["H'_offdiag @ U'"],
+        diag_series["(H'_offdiag @ U')†"],
         _offdiag(series["U'† @ B"]),
-        coefficients=[Fraction(1, 2), -1],
+        coefficients=[
+            -Fraction(1, 2),
+            Fraction(1, 2),
+            -Fraction(1, 2),
+            -Fraction(1, 2),
+            -1,
+        ],
     )
 
     series["B"].eval = tmp.eval
 
     series["H_tilde"] = _diag(
         _series_sum(
-            lo_or_explicit["H'_diag"],
-            lo_or_explicit["H'_offdiag @ U'"],
-            _dagger(lo_or_explicit["H'_offdiag @ U'"]),
-            lo_or_explicit["U'† @ B"],
-            _dagger(lo_or_explicit["U'† @ B"]),
+            diag_series["H'_diag"],
+            diag_series["H'_offdiag @ U'"],
+            diag_series["(H'_offdiag @ U')†"],
+            diag_series["U'† @ B"],
+            diag_series["(U'† @ B)†"],
             coefficients=[
                 1,
                 Fraction(1, 2),
@@ -1295,14 +1304,14 @@ def antihermitize(series):
     return series
 
 
-def _dagger(series):
+def _dagger(series, cache=False):
     """Conjugate the series."""
 
     def new_eval(*index):
         index_dag = (index[1], index[0], *index[2:])
         return Dagger(series[index_dag])
 
-    return _series_like(series, eval=new_eval, cache=True)
+    return _series_like(series, eval=new_eval, cache=cache)
 
 
 def _linear_operator_wrapped(series):
