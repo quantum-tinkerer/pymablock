@@ -22,6 +22,7 @@ tutorial/getting_started.md
 tutorial/bilayer_graphene.md
 tutorial/induced_gap.md
 tutorial/jaynes_cummings.md
+tutorial/andreev_supercurrent.md
 ```
 
 ```{toctree}
