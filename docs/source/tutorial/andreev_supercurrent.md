@@ -13,22 +13,45 @@ kernelspec:
 
 # Andreev Supercurrent
 
+In this tutorial, we demonstrate how to use Pymablock to compute complicated
+analytical expressions.
+As an example, we consider two superconductors connected by a quantum dot,
+and we compute the supercurrent between the superconductors.
+Doing so requires advanced manipulations of symbolic expressions using
+sympy, and applying tricks to alleviate the computational complexity of the
+symbolical expressions.
+
+## Define the Hamiltonian
+
+The Hamiltonian of the system is given by
+
+$$
+H = H_{\text{ABS}} + H_{\text{dot}} + H_{T} \\
+H_{\text{ABS}} = \sum_{\alpha=L,R} \left( \xi_\alpha - E_\alpha \right) \left( f_{\alpha, \uparrow}^\dagger f_{\alpha, \uparrow} + f_{\alpha, \downarrow}^\dagger f_{\alpha, \downarrow} \right) \\
+H_{\text{dot}} = \frac{U}{2} \left( n - n_C \right)^2 \\
+H_{T} = \sum_{\alpha=L,R} t_\alpha \left( c_{\uparrow}^\dagger d_{\alpha, \uparrow} + c_{\downarrow}^\dagger d_{\alpha, \downarrow} \right)
+$$
+
+where $H_{\text{ABS}}$ is the Hamiltonian of the superconductors, $H_{\text{dot}}$ is the Hamiltonian of the quantum dot, and $H_{T}$ is the tunneling Hamiltonian between the quantum dot and the superconductors.
+We define them as follows:
+
 ```{code-cell} ipython3
 import numpy as np
 import sympy
+from sympy import cos, sin, I, symbols, Symbol
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum import Dagger
-import matplotlib.pyplot as plt
 
-symbols = sympy.symbols(
+from pymablock import block_diagonalize
+
+U, n_C, t_L, t_R, phi, Gamma_L, Gamma_R, xi_L, xi_R, E_L, E_R = symbols(
     r"U n_C t_L t_R \phi \Gamma_L \Gamma_R \xi_L \xi_R E_L E_R",
     real=True,
     commutative=True,
     positive=True
 )
 
-U, n_C, t_L, t_R, phi, Gamma_L, Gamma_R, xi_L, xi_R, E_L, E_R = symbols
-t_L_complex = sympy.symbols(r"t_Lc", real=False, commutative=True) # will replace t_L * exp(I * phi)
+t_L_complex = symbols(r"t_Lc", real=False, commutative=True) #  trick
 
 ts = t_L_complex, t_R
 Gammas = Gamma_L, Gamma_R
@@ -43,18 +66,21 @@ n = Dagger(c_up) * c_up + Dagger(c_down) * c_down
 d_ups = FermionOp('d_{L, \\uparrow}'), FermionOp('d_{R, \\uparrow}')
 d_downs = FermionOp('d_{L, \\downarrow}'), FermionOp('d_{R, \\downarrow}')
 
+# Define Hamiltonians
 # Quantum Dot Hamiltonian
 H_dot = U * (n - n_C)**2 / 2
+display(sympy.Eq(Symbol('H_{dot}'), H_dot))
 
-# Interaction term with fermionic basis
-H_T = 0
-for t, d_up, d_down in zip(ts, d_ups, d_downs):
-    H_T += t * (Dagger(c_up) * d_up + Dagger(c_down) * d_down)
-H_T += Dagger(H_T)
-
-display(sympy.Eq(sympy.Symbol('H_{dot}'), H_dot))
-display(sympy.Eq(sympy.Symbol('H_{T}'), H_T))
+# Interaction
+H_T = sympy.Add(*[t * (Dagger(c_up) * d_up + Dagger(c_down) * d_down)
+    for t, d_up, d_down in zip(ts, d_ups, d_downs)]) # + h.c.
+display(sympy.Eq(Symbol('H_{T}'), (H_T) + Symbol('h.c.')))
 ```
+
+### Apply the Bogoliubov transformation
+
+We note that $H_0$ is not diagonal in the basis of ...
+Performing this symbolic diagonalization is computationally expensive.
 
 ```{code-cell} ipython3
 # Define 2nd quantization operators
@@ -66,11 +92,23 @@ f_downs = FermionOp('f_{L, \\downarrow}'), FermionOp('f_{R, \\downarrow}')
 H_abs = 0
 for xi, E, f_up, f_down in zip(xis, Es, f_ups, f_downs):
     H_abs += xi - E + E * Dagger(f_up) * f_up + E * Dagger(f_down) * f_down
-display(sympy.Eq(sympy.Symbol('H_{ABS}'), H_abs))
+display(sympy.Eq(Symbol('H_{ABS}'), H_abs))
+```
 
+Therefore, we use the Bogoliubov transformation to bring $H_0$ to a diagonal form,
+by defining the following transformation:
+
+$$
+d_{\alpha, \uparrow} = u_\alpha f_{\alpha, \uparrow} + v_\alpha f_{\alpha, \downarrow} \\
+d_{\alpha, \downarrow} = u_\alpha f_{\alpha, \downarrow} - v_\alpha f_{\alpha, \uparrow}
+$$
+
+where $u_\alpha$ and $v_\alpha$ are the Bogoliubov coefficients.
+
+```{code-cell} ipython3
 # Bogoliubov coefficients
-us = u_L, u_R = sympy.symbols(r"u_L u_R", real=True, commutative=True, positive=True)
-vs = v_L, v_R = sympy.symbols(r"v_L v_R", real=True, commutative=True, positive=True)
+us = u_L, u_R = symbols(r"u_L u_R", real=True, commutative=True, positive=True)
+vs = v_L, v_R = symbols(r"v_L v_R", real=True, commutative=True, positive=True)
 
 # Bogoliubov transformation from d operators to f operators
 transformation_substitution = {d_down: u * f_down + v * Dagger(f_up)
@@ -83,15 +121,24 @@ transformation_substitution.update({Dagger(key): Dagger(value) for key, value in
 
 # Substitute coefficients so that H_T is in ABS basis
 H_T = H_T.subs(transformation_substitution).expand()
-display(sympy.Eq(sympy.Symbol('H_{T}'), H_T))
+display(sympy.Eq(Symbol('H_{T}'), (H_T) + Symbol('h.c.')))
+H_T += Dagger(H_T)
 
 # Total Hamiltonian
 H = H_abs + H_dot + H_T
 ```
 
+:::{important}
+:class: dropdown tip
+Diagonalizing a large symbolic Hamiltonian is computationally expensive,
+and in many cases impossible.
+To alleviate this, we have used the Bogoliubov transformation, which allows us to
+get a diagonal unperturbed Hamiltonian.
+In many cases, using physical insight to simplify the Hamiltonian is crucial.
+:::
+
 ```{code-cell} ipython3
 :tags: [hide-input]
-%%time
 from itertools import combinations
 
 def to_matrix(H):
@@ -101,7 +148,7 @@ def to_matrix(H):
         s: sympy.physics.quantum.IdentityOperator() * s for s in H.free_symbols
         if not isinstance(s, sympy.physics.quantum.Operator)
     })
-    # Choose an order of Fermionic operators (or should we ask for it?
+    # Choose an order of fermionic operators
     fermions = [
         s for s in H.free_symbols
         if (
@@ -140,24 +187,32 @@ def to_matrix(H):
 ```
 
 ```{code-cell} ipython3
+%%time
 # Compute Hamiltonian in matrix form
 H_matrix, basis = to_matrix(H)
-
-H_matrix = H_matrix.subs({t_L_complex: t_L * sympy.cos(phi) + t_L * sympy.I * sympy.sin(phi)})
-
-E_0, E_1, E_2 = sympy.symbols(r"E_0 E_1 E_2", real=True, commutative=True, positive=True)
-
-E_0_value = U * n_C**2 / 2
-E_1_value = (U * (1 - n_C)**2 / 2).expand()
-E_2_value = (U * (2 - n_C)**2 / 2).expand()
-
-H_matrix = H_matrix.subs({E_2_value: E_2})
-H_matrix = H_matrix.subs({E_1_value: E_1})
-H_matrix = H_matrix.subs({E_0_value: E_0})
 ```
 
 ```{code-cell} ipython3
-# Spectrum of the Hamiltonian
+H_matrix = H_matrix.subs({t_L_complex: t_L * cos(phi) + t_L * I * sin(phi)})
+
+E_0, E_1, E_2 = symbols(r"E_0 E_1 E_2", real=True, commutative=True, positive=True)
+E_0_value, E_1_value, E_2_value = [(U * (n_C - i)**2 / 2).expand() for i in range(3)]
+H_matrix = H_matrix.subs({E_2_value: E_2}).subs({E_1_value: E_1}).subs({E_0_value: E_0})
+```
+
+where $E_n = U (n_C - n)^2 / 2$ are the energies of the quantum dot for $n=0, 1, 2$.
+
+:::{admonition} Replace energy to simplify denominators
+:class: dropdown tip
+This is a key aspect of the procedure.
+:::
+
+
+```{code-cell} ipython3
+:tags: [hide-input]
+import matplotlib.pyplot as plt
+
+# Values for the parameters
 values = {
     U: 5,
     Gamma_L: 1,
@@ -169,11 +224,11 @@ values = {
     E_0: E_0_value,
     E_1: E_1_value,
     E_2: E_2_value,
-    n_C: 1,
     phi: np.pi/4
 }
 
-n_C_values = np.linspace(0, 2, 10)
+# Extract eigenvalues of the unperturbed Hamiltonian
+n_C_values = np.linspace(0, 2, 20)
 eigenvalues = []
 for n_C_value in n_C_values:
     values.update({
@@ -183,63 +238,76 @@ for n_C_value in n_C_values:
     })
     eigenvalues.append(np.array(H_matrix.diagonal().subs(values), dtype=complex)[0])
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(6, 4))
 ax.plot(n_C_values, np.array(eigenvalues).real, '-', alpha=0.5);
+ax.set_ylim(-1, 12.5)
+ax.set_xticks([0, 0.5, 1, 1.5, 2])
+ax.set_xticklabels([r'$0$', r'$1/2$', r'$1$', r'$3/2$', r'$2$'])
+ax.set_yticks([0, 5, 10])
+ax.set_yticklabels([r'$0$', r'$5$', r'$10$'])
 ax.set_ylabel('$E_0$')
 ax.set_xlabel(r'$n_C$')
 ax.spines["right"].set_visible(False)
 ax.spines["top"].set_visible(False)
 ```
 
-```{code-cell} ipython3
-# Possible ground states
-# For n=0
-ground_state_n0 = [sympy.S.One]
-# For n=1
-ground_state_n1 = [c_up, c_down]
-# For n=2
-ground_state_n2 = [c_up * c_down]
-```
+Therefore, we define the following ground states for the $n=0, 1, 2$ occupation
+numbers of the quantum dot:
 
+## Compute the supercurrent perturbatively
+
+Because the supercurrent is defined as
+
+$$
+I_c = \frac{e}{\hbar} \frac{dE}{d\phi}
+$$
+we need to find the perturbed ground state energy $E(\phi)$.
+To do so, we need to block-diagonalize the Hamiltonian in the subspace spanned by the ground states of the quantum dot.
+We start by finding the corrections to the ground state $n=0$.
 
 ```{code-cell} ipython3
 %%time
 
-from pymablock import block_diagonalize
+ground_state_n0 = [sympy.S.One]
 subspace_indices = [int(not(element in ground_state_n0)) for element in basis]
 H_tilde = block_diagonalize(H_matrix, subspace_indices=subspace_indices, symbols=[t_L, t_R])[0]
 ```
 
 ```{code-cell} ipython3
 %%time
-order_L = 2
-order_R = 2
-correction = H_tilde[0, 0, order_L, order_R]
+E_0 = H_tilde[0, 0, 2, 2] # Ground state energy for n=0
 ```
+
+We can now compute the supercurrent $I_c$.
 
 ```{code-cell} ipython3
 %%time
-trace = sympy.Add(*[correction[i, i].expand() for i in range(correction.shape[0])])
-current = sympy.diff(trace, phi)
-prefactor = Gamma_L * Gamma_R * t_L ** order_L * t_R ** order_R / (E_L * E_R) * 2 * sympy.sin(phi) * sympy.cos(phi)
+current = sympy.diff(sympy.Trace(E_0), phi)
+prefactor = Gamma_L * Gamma_R * t_L ** 2 * t_R ** 2 / (E_L * E_R) * 2 * sin(phi) * cos(phi)
 result = (current / prefactor).expand()
+display(result)
 ```
 
+### Simplify the expression
+
+The expression for the supercurrent is quite complicated, and we can simplify it by grouping terms with common denominators and simplifying the numerators.
+
 ```{code-cell} ipython3
+# Define Bogoliubov substitutions
+uv_subs = {u * v : Gamma / (2 * E) for u, v, Gamma, E in zip(us, vs, Gammas, Es)}
+uu_subs = {u**2: (1 + xi / E) / 2 for u, xi, E in zip(us, xis, Es)}
+vv_subs = {v**2: (1 - xi / E) / 2 for v, xi, E in zip(vs, xis, Es)}
+
 def simplify_fraction(expr):
     """ Groups fractions by denominators and simplifies numerators."""
     expr = expr.expand()
     result = sympy.Add(*[term.factor() for term in expr.as_ordered_terms()])
 
-    uv_subs = {u * v : Gamma / (2 * E) for u, v, Gamma, E in zip(us, vs, Gammas, Es)}
-    u_subs = {u**2: (1 + xi / E) / 2 for u, xi, E in zip(us, xis, Es)}
-    v_subs = {v**2: (1 - xi / E) / 2 for v, xi, E in zip(vs, xis, Es)}
-
     # Group fractions with common denominator
     fractions = {}
     for term in result.as_ordered_terms():
         numerator, denominator = sympy.fraction(term)
-        numerator = numerator.subs(uv_subs).subs(u_subs).subs(v_subs)
+        numerator = numerator.subs(uv_subs).subs(uu_subs).subs(vv_subs)
         if denominator in fractions:
             fractions[denominator] += numerator
         else:
@@ -250,11 +318,27 @@ def simplify_fraction(expr):
     return result
 ```
 
+Now we simplify the expression for the supercurrent.
+
 ```{code-cell} ipython3
 %%time
 simplified_result = simplify_fraction(result)
 display(prefactor * simplified_result)
 ```
+
+Applying the same procedure to the other two ground states, we can compute the supercurrent for the $n=1$ and $n=2$ ground states.
+
+```{code-cell} ipython3
+%%time
+for ground_state in [[c_up, c_down], [c_up * c_down]]: # n=1, n=2
+    subspace_indices = [int(not(element in ground_state)) for element in basis]
+    H_tilde = block_diagonalize(H_matrix, subspace_indices=subspace_indices, symbols=[t_L, t_R])[0]
+    current = sympy.diff(sympy.Trace(H_tilde[0, 0, 2, 2]), phi)
+    simplified_result = simplify_fraction((current / prefactor).expand())
+    display(sympy.Eq(Symbol(f"I_c(n={len(ground_state)})"), prefactor * simplified_result))
+```
+
+## Visualize the results
 
 ```{code-cell} ipython3
 :tags: [hide-input]
