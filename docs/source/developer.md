@@ -1,5 +1,8 @@
 # Developer documentation
 
+Pymablock is an open source project and we welcome contributions from the community.
+To contribute code, please follow the guidelines below.
+
 ## Development environment
 
 Pymablock uses [pre-commit](https://pre-commit.com/), run `pre-commit install` to enable it after cloning the repository.

@@ -149,3 +149,4 @@ year = {2023}
 Pymablock is an open source package, and we invite you to contribute!
 You contribute by opening [issues](https://gitlab.kwant-project.org/qt/pymablock/-/issues),
 fixing them, and spreading the word about `pymablock`.
+If you want to contribute code, please read the [developer documentation](developer.md).
