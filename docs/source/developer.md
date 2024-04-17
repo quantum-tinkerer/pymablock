@@ -21,7 +21,7 @@ Before making a release check that the minimal versions specified in `pyproject.
 To make a release, do the following:
 
 1. Confirm that the [changelog](CHANGELOG.md) contains all relevant user-visible changes, and update it if necessary.
-2. Confirm that all contributors have been added to the [authors.md](authors.md) file.
+2. Confirm that all contributors have been added to the [authors.md](authors.md) file by running `git shortlog -s $(git describe --tags --abbrev=0)..HEAD| sed -e "s/^ *[0-9\t ]*//"`.
 3. Add a new level two header to the changelog with the title `[X.Y.Z] - YYYY-MM-DD`, but keep the `[Unreleased]` header.
 4. Check that CI runs.
 5. Tag the version with `git tag --sign vX.Y.Z --annotate -m 'release vX.Y.Z'` (skip `--sign` if you do not have git signing configured) and push the tag `git push origin vX.Y.Z`. This publishes the release to pypi.
