@@ -21,8 +21,9 @@ Before making a release check that the minimal versions specified in `pyproject.
 To make a release, do the following:
 
 1. Confirm that the [changelog](CHANGELOG.md) contains all relevant user-visible changes, and update it if necessary.
-2. Add a new level two header to the changelog with the title `[X.Y.Z] - YYYY-MM-DD`, but keep the `[Unreleased]` header.
-3. Check that CI runs.
-4. Tag the version with `git tag --sign vX.Y.Z --annotate -m 'release vX.Y.Z'` (skip `--sign` if you do not have git signing configured) and push the tag `git push origin vX.Y.Z`. This publishes the release to pypi.
-5. @isidora.araya updates the Zenodo repository (as its owner).
-6. Maintainers of the `pymablock-feedstock` review and merge the pull request created by the conda-forge bot.
+2. Confirm that all contributors have been added to the [authors.md](authors.md) file.
+3. Add a new level two header to the changelog with the title `[X.Y.Z] - YYYY-MM-DD`, but keep the `[Unreleased]` header.
+4. Check that CI runs.
+5. Tag the version with `git tag --sign vX.Y.Z --annotate -m 'release vX.Y.Z'` (skip `--sign` if you do not have git signing configured) and push the tag `git push origin vX.Y.Z`. This publishes the release to pypi.
+6. @isidora.araya updates the Zenodo repository (as its owner).
+7. Maintainers of the `pymablock-feedstock` review and merge the pull request created by the conda-forge bot.
