@@ -23,6 +23,7 @@ algorithms.md
 documentation/pymablock.rst
 CHANGELOG.md
 authors.md
+developer.md
 ```
 
 ## What is Pymablock?
