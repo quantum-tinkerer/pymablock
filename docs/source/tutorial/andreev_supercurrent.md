@@ -14,26 +14,61 @@ kernelspec:
 # Andreev Supercurrent
 
 In this tutorial, we demonstrate how to use Pymablock to compute complicated
-analytical expressions.
-As an example, we consider two superconductors connected by a quantum dot,
-and we compute the supercurrent between the superconductors.
-Doing so requires advanced manipulations of symbolic expressions using
-sympy, and applying tricks to alleviate the computational complexity of the
-symbolical expressions.
+analytical expressions and obtain interpretable results.
+In many cases, directly running Pymablock on a large symbolic Hamiltonian is
+computationally expensive due to the inherent cost of manipulating symbolic
+matrices, diagonalizing them, and simplifying results that contain many terms
+and factors.
+Simplifying the input Hamiltonian is crucial to obtaining results in a
+reasonable amount of time, and simplifying the output helps to understand the
+results.
+Both of these steps benefit from physical insight and advanced manipulation
+of symbolic expressions.
+
+As an example, we consider two superconductors weakly coupled to a quantum dot,
+between which a supercurrent flows.
+
+![Two superconductors and a quantum dot](superconductors_quantum_dot.svg)
+
+Our goal will be to compute the supercurrent perturbatively in the tunneling
+amplitudes, which requires calculating and manipulating fourth-order
+corrections to the ground state energy [^1^].
+
+[^1^]: [Glazman et al.](http://jetpletters.ru/ps/1121/article_16988.pdf)
 
 ## Define the Hamiltonian
 
 The Hamiltonian of the system is given by
 
 $$
-H = H_{\text{ABS}} + H_{\text{dot}} + H_{T} \\
-H_{\text{ABS}} = \sum_{\alpha=L,R} \left( \xi_\alpha - E_\alpha \right) \left( f_{\alpha, \uparrow}^\dagger f_{\alpha, \uparrow} + f_{\alpha, \downarrow}^\dagger f_{\alpha, \downarrow} \right) \\
-H_{\text{dot}} = \frac{U}{2} \left( n - n_C \right)^2 \\
-H_{T} = \sum_{\alpha=L,R} t_\alpha \left( c_{\uparrow}^\dagger d_{\alpha, \uparrow} + c_{\downarrow}^\dagger d_{\alpha, \downarrow} \right)
+H = H_{\textrm{SC}}+ H_{\textrm{dot}} + H_{T}
 $$
 
-where $H_{\text{ABS}}$ is the Hamiltonian of the superconductors, $H_{\text{dot}}$ is the Hamiltonian of the quantum dot, and $H_{T}$ is the tunneling Hamiltonian between the quantum dot and the superconductors.
-We define them as follows:
+where the Hamiltonians of the superconductors, quantum dot, and tunneling are
+defined as
+
+$$
+H_{\textrm{SC}} =  \sum_{\alpha=L, R} \xi_{\alpha} \left(
+    n_{\alpha \uparrow}^\dagger + n_{\alpha \downarrow} \right)
++ \Delta \left( c_{\alpha, \uparrow}^\dagger c_{\alpha \downarrow}^\dagger + c_{\alpha \downarrow} c_{\alpha, \uparrow} \right), \\
+H_{\textrm{dot}} = \frac{U}{2} \left( n_{\uparrow} + n_{\downarrow} - N \right)^2. \\
+H_{T} = \sum_{\alpha=L,R} t_\alpha \left( c_{\alpha \uparrow}^\dagger d_{\uparrow} + c_{\alpha \downarrow}^\dagger d_{\downarrow} \right) + \textrm{h.c.}.
+$$
+
+The superconductors' creation and annihilation operators are $c_{\alpha,
+\sigma}^\dagger$ and $c_{\alpha, \sigma}$, respectively, for spin $\sigma =
+\uparrow, \downarrow$.
+The energy of each superconductor is $\xi_{\alpha}$, and $\Delta$ is their gap.
+The creation and annihilation operators of the quantum dot are $d_{\sigma}^\dagger$
+and $d_{\sigma}$, respectively, $U$ is its charging energy, and $N$ is its offset
+number of electrons.
+The tunneling amplitudes between the dot and superconductors are $t_{L}$ and
+$t_{R}$, which we treat perturbatively.
+The phase difference between the superconductors is $\phi$, and its effect is
+included in the tunneling amplitude $t_{L} = \lvert t_{L} \rvert e^{i \phi}$.
+
+We start by importing the necessary libraries and defining the symbols
+and operators in the Hamiltonian.
 
 ```{code-cell} ipython3
 import numpy as np
@@ -44,8 +79,9 @@ from sympy.physics.quantum import Dagger
 
 from pymablock import block_diagonalize
 
-U, n_C, t_L, t_R, phi, Gamma_L, Gamma_R, xi_L, xi_R, E_L, E_R = symbols(
-    r"U n_C t_L t_R \phi \Gamma_L \Gamma_R \xi_L \xi_R E_L E_R",
+# Define symbols
+U, N, t_L, t_R, phi, Gamma_L, Gamma_R, xi_L, xi_R, E_L, E_R = symbols(
+    r"U N t_L t_R \phi \Gamma_L \Gamma_R \xi_L \xi_R E_L E_R",
     real=True,
     commutative=True,
     positive=True
@@ -65,15 +101,23 @@ n = Dagger(c_up) * c_up + Dagger(c_down) * c_down
 # Superconductor operators
 d_ups = FermionOp('d_{L, \\uparrow}'), FermionOp('d_{R, \\uparrow}')
 d_downs = FermionOp('d_{L, \\downarrow}'), FermionOp('d_{R, \\downarrow}')
+```
 
-# Define Hamiltonians
+Here `t_L_complex` represents the tunneling amplitude $t_L = \lvert t_L \rvert e^{i \phi}$.
+We will use it to avoid complications with the simplification routines in
+`sympy`, which may attempt to simplify the phase factor $e^{i \phi}$ as a sum
+of sines and cosines, which is not what we want.
+
+Next, we define the Hamiltonians of quantum dot and tunneling.
+
+```{code-cell} ipython3
 # Quantum Dot Hamiltonian
-H_dot = U * (n - n_C)**2 / 2
+H_dot = U * (n - N)**2 / 2
 display(sympy.Eq(Symbol('H_{dot}'), H_dot))
 
-# Interaction
+# Tunneling Hamiltonian
 H_T = sympy.Add(*[t * (Dagger(c_up) * d_up + Dagger(c_down) * d_down)
-    for t, d_up, d_down in zip(ts, d_ups, d_downs)]) # + h.c.
+    for t, d_up, d_down in zip(ts, d_ups, d_downs)]) # + h.c. is added later
 display(sympy.Eq(Symbol('H_{T}'), (H_T) + Symbol('h.c.')))
 ```
 
@@ -196,11 +240,11 @@ H_matrix, basis = to_matrix(H)
 H_matrix = H_matrix.subs({t_L_complex: t_L * cos(phi) + t_L * I * sin(phi)})
 
 E_0, E_1, E_2 = symbols(r"E_0 E_1 E_2", real=True, commutative=True, positive=True)
-E_0_value, E_1_value, E_2_value = [(U * (n_C - i)**2 / 2).expand() for i in range(3)]
+E_0_value, E_1_value, E_2_value = [(U * (N - i)**2 / 2).expand() for i in range(3)]
 H_matrix = H_matrix.subs({E_2_value: E_2}).subs({E_1_value: E_1}).subs({E_0_value: E_0})
 ```
 
-where $E_n = U (n_C - n)^2 / 2$ are the energies of the quantum dot for $n=0, 1, 2$.
+where $E_n = U (N - n)^2 / 2$ are the energies of the quantum dot for $n=0, 1, 2$.
 
 :::{admonition} Replace energy to simplify denominators
 :class: dropdown tip
@@ -228,25 +272,25 @@ values = {
 }
 
 # Extract eigenvalues of the unperturbed Hamiltonian
-n_C_values = np.linspace(0, 2, 20)
+N_values = np.linspace(0, 2, 20)
 eigenvalues = []
-for n_C_value in n_C_values:
+for N_value in N_values:
     values.update({
-        n_C: n_C_value,
+        N: N_value,
         E_R: np.sqrt(values[Gamma_R]**2 + values[xi_R]**2),
         E_L: np.sqrt(values[Gamma_L]**2 + values[xi_L]**2)
     })
     eigenvalues.append(np.array(H_matrix.diagonal().subs(values), dtype=complex)[0])
 
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(n_C_values, np.array(eigenvalues).real, '-', alpha=0.5);
+ax.plot(N_values, np.array(eigenvalues).real, '-', alpha=0.5);
 ax.set_ylim(-1, 12.5)
 ax.set_xticks([0, 0.5, 1, 1.5, 2])
 ax.set_xticklabels([r'$0$', r'$1/2$', r'$1$', r'$3/2$', r'$2$'])
 ax.set_yticks([0, 5, 10])
 ax.set_yticklabels([r'$0$', r'$5$', r'$10$'])
 ax.set_ylabel('$E_0$')
-ax.set_xlabel(r'$n_C$')
+ax.set_xlabel(r'$N$')
 ax.spines["right"].set_visible(False)
 ax.spines["top"].set_visible(False)
 ```
@@ -345,17 +389,17 @@ for ground_state in [[c_up, c_down], [c_up * c_down]]: # n=1, n=2
 %%time
 numerical_prefactor = prefactor.subs(values)
 
-n_C_values = np.linspace(0, 2, 300)
+N_values = np.linspace(0, 2, 300)
 supercurrent_values = []
-for n_C_value in n_C_values:
-    values.update({n_C: n_C_value})
+for N_value in N_values:
+    values.update({N: N_value})
     supercurrent_values.append(simplified_result.subs(values) * numerical_prefactor)
 
 supercurrent_values = np.array(supercurrent_values, dtype=float)
 
 fig, ax = plt.subplots()
-ax.plot(n_C_values, (supercurrent_values))
-ax.set_xlabel(r'$n_C$')
+ax.plot(N_values, (supercurrent_values))
+ax.set_xlabel(r'$N$')
 ax.set_ylabel(r'$I_c$')
 ax.spines["right"].set_visible(False)
 ax.spines["top"].set_visible(False)
