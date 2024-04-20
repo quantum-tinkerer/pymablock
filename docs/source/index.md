@@ -15,12 +15,22 @@ kernelspec:
 
 ```{toctree}
 :hidden:
-:maxdepth: 4
-:caption: Contents
+:maxdepth: 1
+:caption: Tutorials
 
-tutorial/tutorial.md
+tutorial/getting_started.md
+tutorial/bilayer_graphene.md
+tutorial/induced_gap.md
+tutorial/jaynes_cummings.md
+```
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+:caption: Documentation
+
 algorithms.md
-documentation/pymablock.rst
+documentation/pymablock.md
 CHANGELOG.md
 authors.md
 developer.md
@@ -100,9 +110,9 @@ transformation.
 As a consequence, the computational cost of every order scales linearly with
 the order, while the algorithms are still mathematically equivalent.
 
-To see Pymablock in action, check out the [tutorial](tutorial/tutorial.md).
+To see Pymablock in action, check out the [tutorial](tutorial/getting_started.md).
 See its [algorithms](algorithms.md) to learn about the underlying ideas, or read
-the [reference documentation](documentation/pymablock.rst) for the package API.
+the [reference documentation](documentation/pymablock.md) for the package API.
 
 ## What does Pymablock not do yet?
 
