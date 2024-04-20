@@ -13,22 +13,15 @@ kernelspec:
 
 # Andreev Supercurrent
 
-In this tutorial, we demonstrate how to use Pymablock to compute complicated
-analytical expressions.
-Directly running Pymablock on a large symbolic Hamiltonian can computationally
-expensive, and simplifying the inputs and outputs is crucial to obtaining
-interpretable results in a reasonable amount of time.
-Both of these steps benefit from physical insight and advanced manipulation
-of symbolic expressions.
+In this tutorial, we demonstrate how to use Pymablock to compute complicated analytical expressions.
+Directly running Pymablock on a large symbolic Hamiltonian can computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.
+Both of these steps benefit from physical insight and advanced manipulation of symbolic expressions.
 
-As an example, we consider two superconductors weakly coupled to a quantum dot,
-between which a supercurrent flows.
+As an example, we consider two superconductors weakly coupled to a quantum dot, between which a supercurrent flows.
 
 ![Two superconductors and a quantum dot](superconductors_quantum_dot.svg)
 
-Our goal will be to compute the supercurrent perturbatively in the tunneling
-amplitudes, which requires calculating and manipulating fourth-order
-corrections to the ground state energy [^1^].
+Our goal will be to compute the supercurrent perturbatively in the tunneling amplitudes, which requires calculating and manipulating fourth-order corrections to the ground state energy [^1^].
 
 [^1^]: [Glazman et al.](http://jetpletters.ru/ps/1121/article_16988.pdf)
 
@@ -40,8 +33,7 @@ $$
 H = H_{\textrm{SC}}+ H_{\textrm{dot}} + H_{T}
 $$
 
-where the Hamiltonians of the superconductors, quantum dot, and tunneling are
-defined as
+where the Hamiltonians of the superconductors, quantum dot, and tunneling are defined as
 
 $$
 H_{\textrm{SC}} =  \sum_{\alpha=L, R} \xi_{\alpha} \left(
@@ -51,19 +43,13 @@ H_{\textrm{dot}} = \frac{U}{2} \left( n_{\uparrow} + n_{\downarrow} - N \right)^
 H_{T} = \sum_{\alpha=L,R} t_\alpha \left( c_{\alpha \uparrow}^\dagger d_{\uparrow} + c_{\alpha \downarrow}^\dagger d_{\downarrow} \right) + \textrm{h.c.}.
 $$
 
-Here $c_{\alpha, \sigma}$ and $d_{\sigma}$ are the annihilation operators of
-electrons in the superconductors and quantum dot, respectively, with $\sigma =
-\uparrow, \downarrow$.
-The superconductors have a superconducting pairing $\Gamma_{\alpha}$ and onsite
-energy $\xi_{\alpha}$.
-They are weakly coupled to the quantum dot, which has charging energy $U$ and
-offset number of electrons $N$.
-The couplings, $t_{L}$ and $t_{R}$, include the phase difference $\phi$ between
-the superconductors, $t_{L} = \lvert t_{L} \rvert e^{i \phi}$ and $t_{R} = \lvert t_{R} \rvert$.
+Here $c_{\alpha, \sigma}$ and $d_{\sigma}$ are the annihilation operators of electrons in the superconductors and quantum dot, respectively, with $\sigma = \uparrow, \downarrow$.
+The superconductors have a superconducting pairing $\Gamma_{\alpha}$ and onsite energy $\xi_{\alpha}$.
+They are weakly coupled to the quantum dot, which has charging energy $U$ and offset number of electrons $N$.
+The couplings, $t_{L}$ and $t_{R}$, include the phase difference $\phi$ between the superconductors, $t_{L} = \lvert t_{L} \rvert e^{i \phi}$ and $t_{R} = \lvert t_{R} \rvert$.
 We treat both of them as independent perturbations.
 
-We start by importing the necessary libraries and defining the symbols
-and operators in the Hamiltonian.
+We start by importing the necessary libraries and defining the symbols and operators in the Hamiltonian.
 
 ```{code-cell} ipython3
 import numpy as np
@@ -109,26 +95,20 @@ display(Eq(Symbol('H_{dot}'), H_dot))
 display(Eq(Symbol('H_{T}'), (H_T) + Symbol('h.c.')))
 ```
 
-In this basis $H_{\textrm{dot}}$ is diagonal and its subspaces may be directly
-constructed, without performing a symbolic diagonalization.
+In this basis $H_{\textrm{dot}}$ is diagonal and its subspaces may be directly constructed, without performing a symbolic diagonalization.
 This is, however, not the case for $H_{SC}$.
-Therefore, we apply the Bogoliubov transformation on $H_{SC}$, such that the
-entire unperturbed Hamiltonian $H_0 = H_{SC} + H_{\textrm{dot}}$ is diagonal.
+Therefore, we apply the Bogoliubov transformation on $H_{SC}$, such that the entire unperturbed Hamiltonian $H_0 = H_{SC} + H_{\textrm{dot}}$ is diagonal.
 
 ### Apply the Bogoliubov transformation
 
-We define the superconductors' Hamiltonian using the Bogoliubov quasi-particle
-operators $f_{\alpha, \sigma}$, which are related to the original operators
-$c_{\alpha, \sigma}$ by the [Bogoliubov
-transformation](https://en.wikipedia.org/wiki/Bogoliubov_transformation):
+We define the superconductors' Hamiltonian using the Bogoliubov quasi-particle operators $f_{\alpha, \sigma}$, which are related to the original operators $c_{\alpha, \sigma}$ by the [Bogoliubov transformation](https://en.wikipedia.org/wiki/Bogoliubov_transformation):
 
 $$
 f_{\alpha, \uparrow} = u_\alpha c_{\alpha, \uparrow} + v_\alpha c_{\alpha, \downarrow} \\
 f_{\alpha, \downarrow} = u_\alpha c_{\alpha, \downarrow} - v_\alpha c_{\alpha, \uparrow}
 $$
 
-where $u_\alpha$ and $v_\alpha$ are complex coefficients that satisfy
-$u_\alpha^2 + v_\alpha^2 = 1$.
+where $u_\alpha$ and $v_\alpha$ are complex coefficients that satisfy $u_\alpha^2 + v_\alpha^2 = 1$.
 As a result,
 
 $$
@@ -137,11 +117,7 @@ f_{\alpha, \uparrow}^\dagger f_{\alpha, \uparrow} + f_{\alpha,
 \downarrow}^\dagger f_{\alpha, \downarrow} \right),
 $$
 
-where $E_{\alpha} = \sqrt{\Gamma_{\alpha}^2 + \xi_{\alpha}^2}$ are the Andreev
-bound state energies, and $\lvert u_{\alpha} \rvert = \sqrt{\frac{E_{\alpha} +
-\xi_{\alpha}}{2 E_{\alpha}}}$ and $\lvert v_{\alpha} \rvert =
-\sqrt{\frac{E_{\alpha} - \xi_{\alpha}}{2 E_{\alpha}}}$ are the Bogoliubov
-coefficients.
+where $E_{\alpha} = \sqrt{\Gamma_{\alpha}^2 + \xi_{\alpha}^2}$ are the Andreev bound state energies, and $\lvert u_{\alpha} \rvert = \sqrt{\frac{E_{\alpha} + \xi_{\alpha}}{2 E_{\alpha}}}$ and $\lvert v_{\alpha} \rvert = \sqrt{\frac{E_{\alpha} - \xi_{\alpha}}{2 E_{\alpha}}}$ are the Bogoliubov coefficients.
 
 ```{code-cell} ipython3
 # Superconductors' energies
@@ -167,10 +143,8 @@ display(Eq(Symbol('H_{SC}'), H_sc))
 :::{admonition} Avoid symbolic diagonalization
 :class: dropdown tip
 
-Diagonalizing a large symbolic Hamiltonian is computationally expensive,
-and in many cases impossible.
-To alleviate this, we have used physical insight: the Bogoliubov transformation
-allows us to get a diagonal unperturbed Hamiltonian.
+Diagonalizing a large symbolic Hamiltonian is computationally expensive, and in many cases impossible.
+To alleviate this, we have used physical insight: the Bogoliubov transformation allows us to get a diagonal unperturbed Hamiltonian.
 :::
 
 Similarly, we apply the Bogoliubov transformation to the tunneling Hamiltonian.
@@ -206,24 +180,16 @@ We have now defined the total Hamiltonian $H$ in second quantization form.
 :::{admonition} Avoid square roots
 :class: dropdown tip
 
-Using square roots can lead to complicated expressions, because assumptions
-about the arguments of square roots are not automatically inferred by sympy.
-For example, $\sqrt{a^2}$ is not equivalent to $a$, but rather $\lvert a
-\rvert$.
-To avoid lengthy expressions from unsimplified expressions with square roots, ,
-we have directly replaced thems with the sympy symbols $E_{\alpha}$,
-$u_{\alpha}$, and $v_{\alpha}$.
-These will appear in the effective Hamiltonian, and we will substitute their
-values at the end of the calculation.
+Using square roots can lead to complicated expressions, because assumptions about the arguments of square roots are not automatically inferred by sympy.
+For example, $\sqrt{a^2}$ is not equivalent to $a$, but rather $\lvert a \rvert$.
+To avoid lengthy expressions from unsimplified expressions with square roots, we have directly replaced thems with the sympy symbols $E_{\alpha}$, $u_{\alpha}$, and $v_{\alpha}$.
+These will appear in the effective Hamiltonian, and we will substitute their values at the end of the calculation.
 :::
 
 ### Convert the Hamiltonian to a matrix
 
-To exploit the diagonal structure of the unperturbed Hamiltonian, we convert the
-Hamiltonian to a matrix representation.
-The following code cell defines a function `to_matrix(...)` that computes the
-matrix representation of a Hamiltonian `H` with fermionic operators and the
-corresponding `basis`.
+To exploit the diagonal structure of the unperturbed Hamiltonian, we convert the Hamiltonian to a matrix representation.
+The following code cell defines a function `to_matrix(...)` that computes the matrix representation of a Hamiltonian `H` with fermionic operators and the corresponding `basis`.
 The details of the implementation are hidden for brevity.
 
 ```{code-cell} ipython3
@@ -284,14 +250,10 @@ Next, we obtain the matrix Hamiltonian and its basis.
 H, basis = to_matrix(H)
 ```
 
-At this point, we are ready to feed the $64 \times 64$ symbolic Hamiltonian to
-the block-diagonalization routine of Pymablock.
-However, we anticipate that the diagonal elements of the Hamiltonian will appear
-in the denominators in the effective Hamiltonian.
-These elements correspond to the dot energies $E_n = U (N - n)^2 / 2$ and the
-energies of the superconductors $E_{\alpha}$.
-To make the denominators simpler, we replace the dot energies with $E_n$
-right away.
+At this point, we are ready to feed the $64 \times 64$ symbolic Hamiltonian to the block-diagonalization routine of Pymablock.
+However, we anticipate that the diagonal elements of the Hamiltonian will appear in the denominators in the effective Hamiltonian.
+These elements correspond to the dot energies $E_n = U (N - n)^2 / 2$ and the energies of the superconductors $E_{\alpha}$.
+To make the denominators simpler, we replace the dot energies with $E_n$ right away.
 
 ```{code-cell} ipython3
 t_L, phi = symbols(r"t_L \phi", positive=True)
@@ -306,10 +268,8 @@ Finally, the Hamiltonian is ready for further analysis.
 
 ### Identify the ground states
 
-Before computing the effective Hamiltonian, we need to identify the ground
-states of the unperturbed Hamiltonian $H_0$.
-Numerically, we observe that the ground states depend on the number of electrons
-$N$ in the quantum dot.
+Before computing the effective Hamiltonian, we need to identify the ground states of the unperturbed Hamiltonian $H_0$.
+Numerically, we observe that the ground states depend on the number of electrons $N$ in the quantum dot.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -355,8 +315,7 @@ ax.spines["right"].set_visible(False)
 ax.spines["top"].set_visible(False)
 ```
 
-Therefore, we define $3$ ground states for the $N=0, 1, 2$ occupation
-numbers of the quantum dot.
+Therefore, we define $3$ ground states for the $N=0, 1, 2$ occupation numbers of the quantum dot.
 
 ## Compute the supercurrent perturbatively
 
@@ -367,10 +326,8 @@ I = \frac{e}{\hbar} \frac{dE}{d\phi}
 $$
 
 we need to find the perturbed ground state energy $E(\phi)$.
-To do so, we block-diagonalize the Hamiltonian and decouple the subspace
-spanned by the ground states of the quantum dot.
-We start by finding the corrections to the ground state for $N=0$, which is the
-vacuum state $\lvert 0\rangle$ of the quantum dot.
+To do so, we block-diagonalize the Hamiltonian and decouple the subspace spanned by the ground states of the quantum dot.
+We start by finding the corrections to the ground state for $N=0$, which is the vacuum state $\lvert 0\rangle$ of the quantum dot.
 
 ```{code-cell} ipython3
 %%time
@@ -380,31 +337,25 @@ subspace_indices = [int(not(element in ground_state_n0)) for element in basis]
 H_tilde = block_diagonalize(H, subspace_indices=subspace_indices, symbols=[t_L, t_R])[0]
 ```
 
-Here `subspace_indices` is a list of $0$ and $1$ that labels the diagonal elements
-of $H_0$, so that the ground state subspace is labeled by $0$ and the rest by $1$.
+Here `subspace_indices` is a list of $0$ and $1$ that labels the diagonal elements of $H_0$, so that the ground state subspace is labeled by $0$ and the rest by $1$.
 
-Now we are ready to compute the perturbed ground state energy, of which several
-orders vanish.
-The first non-zero correction to the ground state energy is given by the
-terms proportional to $t_L^2 t_R^2$.
+Now we are ready to compute the perturbed ground state energy, of which several orders vanish.
+The first non-zero correction to the ground state energy is given by the terms proportional to $t_L^2 t_R^2$.
 
 ```{code-cell} ipython3
 %%time
 H_22 = H_tilde[0, 0, 2, 2] # Ground state energy for n=0
 ```
 
-We can now compute the supercurrent $I_c$ by taking the derivative of the ground
-state energy with respect to the phase difference $\phi$.
+We can now compute the supercurrent $I_c$ by taking the derivative of the ground state energy with respect to the phase difference $\phi$.
 
 ```{code-cell} ipython3
 %%time
 current = sympy.diff(sympy.Trace(H_22), phi)
 ```
 
-Here we have computed the trace of `H_22` as a way to obtain the sum of the
-eigenvalues. This is a $1 \times 1$ matrix, and the trace is the only element
-of this matrix, but we use the `sympy.Trace` function to make the code
-generalizable to larger matrices.
+Here we have computed the trace of `H_22` as a way to obtain the sum of the eigenvalues.
+This is a $1 \times 1$ matrix, and the trace is the only element of this matrix, but we use the `sympy.Trace` function to make the code generalizable to larger matrices.
 The result, however, is complicated and requires simplification.
 
 ```{code-cell} ipython3
@@ -414,15 +365,10 @@ display(Eq(Symbol('I_c(n=0)'), current))
 :::{admonition} Do not call `simplify()` on large expressions
 :class: dropdown
 
-Sympy provides several simplification routines, such as `simplify()`,
-`expand()`, `factor()`, and `collect()`, among
-[others](https://docs.sympy.org/latest/tutorials/intro-tutorial/simplification.html).
-The most general simplification routine is `simplify()`, which tries a
-combination of simplification routines to the expression.
-However, this routine can be unnecessarily slow and it is not guaranteed
-to simplify the expression to the desired form.
-Therefore, we analyze instead the expression and identify common patterns to
-simplify it manually.
+Sympy provides several simplification routines, such as `simplify()`, `expand()`, `factor()`, and `collect()`, among [others](https://docs.sympy.org/latest/tutorials/intro-tutorial/simplification.html).
+The most general simplification routine is `simplify()`, which tries a combination of simplification routines to the expression.
+However, this routine can be unnecessarily slow and it is not guaranteed to simplify the expression to the desired form.
+Therefore, we analyze instead the expression and identify common patterns to simplify it manually.
 :::
 
 ### Simplify the expression
@@ -430,14 +376,10 @@ simplify it manually.
 To simplify the supercurrent expression, we first identify common patterns:
 
 + The expression is formed by a sum of fractions.
-+ All terms in the sum share the prefactor $\lambda(\phi) = 2 \sin(\phi)
-\cos(\phi) \Gamma_L \Gamma_R t_L^2 t_R^2 / (E_L E_R)$.
-+ The numerators contain products of $u_{\alpha} v_{\alpha}$,
-$u_{\alpha}^2$, and $v_{\alpha}^2$, all of which are free of square roots.
++ All terms in the sum share the prefactor $\lambda(\phi) = 2 \sin(\phi) \cos(\phi) \Gamma_L \Gamma_R t_L^2 t_R^2 / (E_L E_R)$.
++ The numerators contain products of $u_{\alpha} v_{\alpha}$, $u_{\alpha}^2$, and $v_{\alpha}^2$, all of which are free of square roots.
 
-Therefore, we can simplify the expression by factoring out the prefactor,
-replacing the products of $u_{\alpha}$ and $v_{\alpha}$ with their expressions,
-and grouping the fractions by their denominators to then simplify the numerators.
+Therefore, we can simplify the expression by factoring out the prefactor, replacing the products of $u_{\alpha}$ and $v_{\alpha}$ with their expressions, and grouping the fractions by their denominators to then simplify the numerators.
 
 ```{code-cell} ipython3
 # Define Bogoliubov substitutions
@@ -497,8 +439,7 @@ for i, ground_state in enumerate([[c_up, c_down], [c_down * c_up]]): # n=1, n=2
 
 ## Visualize the results
 
-Finally, we plot the critical current, $I_{c, N} = I_N(\phi=\pi/4)$, as a function
-of the number of electrons $N$.
+Finally, we plot the critical current, $I_{c, N} = I_N(\phi=\pi/4)$, as a function of the number of electrons $N$.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
