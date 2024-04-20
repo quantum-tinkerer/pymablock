@@ -250,6 +250,7 @@ def to_matrix(H):
             and s.is_annihilation
         )
     ]
+    fermions.sort(key=lambda f: f.name.name) # Sort by label to ensure consistent order
     # Compute matrix representations
     s_minus = sympy.Matrix([[0, 1], [0, 0]])
     s_z = sympy.Matrix([[1, 0], [0, -1]])
@@ -486,7 +487,7 @@ Applying the same procedure to the other two ground states, we can compute the s
 ```{code-cell} ipython3
 %%time
 currents = [current]
-for i, ground_state in enumerate([[c_up, c_down], [c_up * c_down]]): # n=1, n=2
+for i, ground_state in enumerate([[c_up, c_down], [c_down * c_up]]): # n=1, n=2
     subspace_indices = [int(not(element in ground_state)) for element in basis]
     H_tilde = block_diagonalize(
         H,
