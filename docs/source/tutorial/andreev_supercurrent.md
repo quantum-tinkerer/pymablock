@@ -14,14 +14,10 @@ kernelspec:
 # Andreev Supercurrent
 
 In this tutorial, we demonstrate how to use Pymablock to compute complicated
-analytical expressions and obtain interpretable results.
-In many cases, directly running Pymablock on a large symbolic Hamiltonian is
-computationally expensive due to the inherent cost of manipulating symbolic
-matrices, diagonalizing them, and simplifying results that contain many terms
-and factors.
-Simplifying the input Hamiltonian is crucial to obtaining results in a
-reasonable amount of time, and simplifying the output helps to understand the
-results.
+analytical expressions.
+Directly running Pymablock on a large symbolic Hamiltonian can computationally
+expensive, and simplifying the inputs and outputs is crucial to obtaining
+interpretable results in a reasonable amount of time.
 Both of these steps benefit from physical insight and advanced manipulation
 of symbolic expressions.
 
@@ -58,9 +54,8 @@ $$
 Here $c_{\alpha, \sigma}$ and $d_{\sigma}$ are the annihilation operators of
 electrons in the superconductors and quantum dot, respectively, with $\sigma =
 \uparrow, \downarrow$.
-Both superconductors share a superconducting gap $\Delta$ and have different
-onsite energies $\xi_{\alpha}$.
-TODO: Define $\Gamma$.
+The superconductors have a superconducting pairing $\Gamma_{\alpha}$ and onsite
+energy $\xi_{\alpha}$.
 They are weakly coupled to the quantum dot, which has charging energy $U$ and
 offset number of electrons $N$.
 The couplings, $t_{L}$ and $t_{R}$, include the phase difference $\phi$ between
@@ -325,8 +320,8 @@ values = {
     U: 10,
     Gamma_L: 0.2,
     Gamma_R: 0.25,
-    t_L: 0.85,
-    t_R: 0.65,
+    t_L: 0.01,
+    t_R: 0.01,
     xi_L: 0.9,
     xi_R: -0.7,
     E_0: E_0_value,
@@ -513,9 +508,9 @@ N_values = np.linspace(-0.5, 2.5, 3 * num)
 numerical_factor = factor.subs(values)
 current_values = []
 for N_value in N_values:
-    if N_value < 1:
+    if N_value < 0.5:
         current = currents[0]
-    elif N_value < 2:
+    elif N_value < 1.5:
         current = currents[1]
     else:
         current = currents[2]
