@@ -165,8 +165,8 @@ def Ns():
     """
     Return a random number of states for each block (A, B).
     """
-    n_a = np.random.randint(1, 3)
-    return n_a, n_a + 1
+    N_a = np.random.randint(1, 3)
+    return N_a, N_a + 1
 
 
 @pytest.fixture(scope="module")
@@ -681,6 +681,30 @@ def test_doubled_orders(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
 
     compare_series(H_tilde_doubled_directly, H_tilde_doubled, wanted_orders)
     compare_series(U_doubled_directly, U_doubled, wanted_orders)
+
+
+@pytest.mark.skip(reason="This tests #127, which is not yet fixed.")
+def test_one_sized_subspace():
+    """
+    Tests that BlockSeries have correct shapes when one of the subspaces has
+    size 1, see issue #127.
+    """
+    N = 3
+    H_0 = np.diag(np.arange(N))
+    H_1 = np.random.rand(N, N) + 1j * np.random.rand(N, N)
+    H_1 = H_1 + H_1.T.conj()
+
+    for N_A in (1, 2):
+        subspace_indices = N_A * [0] + (N - N_A) * [1]
+        H_tilde, U, U_adjoint = block_diagonalize(
+            [H_0, H_1], subspace_indices=subspace_indices
+        )
+
+        for output in (H_tilde, U, U_adjoint):
+            assert output[0, 0, 3].shape == (N_A, N_A)
+            assert output[1, 1, 3].shape == (N - N_A, N - N_A)
+            assert output[0, 1, 3].shape == (N_A, N - N_A)
+            assert output[1, 0, 3].shape == (N - N_A, N_A)
 
 
 def test_equivalence_explicit_implicit() -> None:
