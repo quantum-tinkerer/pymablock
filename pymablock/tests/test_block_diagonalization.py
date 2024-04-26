@@ -1207,13 +1207,15 @@ def test_number_products(data_regression):
     def eval_randomly_sparse(*index):
         np.random.seed(index[2])
         p = np.random.random(3)
-        if index[0] != index[1] and sum(index[2:]) == 0:
+        if index[0] != index[1] and sum(index[2:]) == 0:  # H_0 is diagonal
             return zero
-        elif index[0] == index[1] == 0 and p[0] > 0.4:
+        elif index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
             return zero
-        elif index[0] == index[1] == 1:
+        elif index[0] == index[1] == 1 and sum(index[2:]) == 0:
             AlgebraElement(f"H{index}")  # Not both diagonal blocks are zero
-        elif index[0] == 0 and p[2] > 0.4:
+        elif index[0] == index[1] and p[1] > 0.4:
+            return zero
+        elif index[0] != index[1] and p[2] > 0.4:
             return zero
         return AlgebraElement(f"H{index}")
 
