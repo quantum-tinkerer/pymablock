@@ -1209,8 +1209,8 @@ def test_number_products(data_regression):
             return zero
         elif index[0] == index[1] == 0 and p[0] > 0.4:
             return zero
-        elif index[0] == index[1] == 1 and p[1] > 0.4:
-            return zero
+        elif index[0] == index[1] == 1:
+            AlgebraElement(f"H{index}")  # Not both diagonal blocks are zero
         elif index[0] == 0 and p[2] > 0.4:
             return zero
         return AlgebraElement(f"H{index}")
