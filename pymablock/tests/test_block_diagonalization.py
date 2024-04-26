@@ -683,7 +683,6 @@ def test_doubled_orders(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     compare_series(U_doubled_directly, U_doubled, wanted_orders)
 
 
-@pytest.mark.skip(reason="This tests #127, which is not yet fixed.")
 def test_one_sized_subspace():
     """
     Tests that BlockSeries have correct shapes when one of the subspaces has
@@ -699,12 +698,12 @@ def test_one_sized_subspace():
         H_tilde, U, U_adjoint = block_diagonalize(
             [H_0, H_1], subspace_indices=subspace_indices
         )
-
         for output in (H_tilde, U, U_adjoint):
-            assert output[0, 0, 3].shape == (N_A, N_A)
-            assert output[1, 1, 3].shape == (N - N_A, N - N_A)
-            assert output[0, 1, 3].shape == (N_A, N - N_A)
-            assert output[1, 0, 3].shape == (N - N_A, N_A)
+            blocks = [(0, 0), (1, 1), (0, 1), (1, 0)]
+            shapes = [(N_A, N_A), (N - N_A, N - N_A), (N_A, N - N_A), (N - N_A, N_A)]
+            for block, shape in zip(blocks, shapes):
+                if output[block + (3,)] is not zero:
+                    assert output[block + (3,)].shape == shape
 
 
 def test_equivalence_explicit_implicit() -> None:
