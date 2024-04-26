@@ -1178,6 +1178,9 @@ def test_number_products(data_regression):
     is as expected.
     This is a regression test so that we don't accidentally change the algorithm
     in a way that increases the number of products.
+
+    If the number of products needs to be updated, see
+    https://pytest-regressions.readthedocs.io/en/latest/overview.html
     """
 
     def solve_sylvester(A):
