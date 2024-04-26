@@ -211,8 +211,6 @@ def block_diagonalize(
     if hasattr(H[(0, 0) + (0,) * H.n_infinite], "__matmul__") and hasattr(
         H[(1, 1) + (0,) * H.n_infinite], "__matmul__"
     ):
-        print(H[(0, 0) + (0,) * H.n_infinite])
-        print(H[(1, 1) + (0,) * H.n_infinite])
         operator = matmul
     elif hasattr(H[(0, 0) + (0,) * H.n_infinite], "__mul__") and hasattr(
         H[(1, 1) + (0,) * H.n_infinite], "__mul__"
