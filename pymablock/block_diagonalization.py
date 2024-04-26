@@ -208,10 +208,18 @@ def block_diagonalize(
         )
 
     # Determine operator to use for matrix multiplication.
-    if hasattr(H[(0, 0) + (0,) * H.n_infinite], "__matmul__"):
+    if hasattr(H[(0, 0) + (0,) * H.n_infinite], "__matmul__") and hasattr(
+        H[(1, 1) + (0,) * H.n_infinite], "__matmul__"
+    ):
+        print(H[(0, 0) + (0,) * H.n_infinite])
+        print(H[(1, 1) + (0,) * H.n_infinite])
         operator = matmul
-    else:
+    elif hasattr(H[(0, 0) + (0,) * H.n_infinite], "__mul__") and hasattr(
+        H[(1, 1) + (0,) * H.n_infinite], "__mul__"
+    ):
         operator = mul
+    else:
+        raise ValueError("Unsupported operator for matrix multiplication.")
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None:
