@@ -59,7 +59,7 @@ class Zero:
     def __sub__(self, other: Any) -> Any:
         return -other
 
-    adjoint = __neg__ = __matmul__ = __mul__
+    adjoint = __neg__ = __mul__
 
 
 zero = Zero()

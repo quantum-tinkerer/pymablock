@@ -208,16 +208,24 @@ def block_diagonalize(
         )
 
     # Determine operator to use for matrix multiplication.
-    if hasattr(H[(0, 0) + (0,) * H.n_infinite], "__matmul__") and hasattr(
-        H[(1, 1) + (0,) * H.n_infinite], "__matmul__"
-    ):
-        operator = matmul
-    elif hasattr(H[(0, 0) + (0,) * H.n_infinite], "__mul__") and hasattr(
-        H[(1, 1) + (0,) * H.n_infinite], "__mul__"
-    ):
-        operator = mul
+    if H[(0, 0) + (0,) * H.n_infinite] is zero:
+        if H[(1, 1) + (0,) * H.n_infinite] is zero:
+            raise ValueError(
+                "Both blocks of the unperturbed Hamiltonian should not be zero."
+            )
+        elif hasattr(H[(1, 1) + (0,) * H.n_infinite], "__matmul__"):
+            operator = matmul
+        elif hasattr(H[(1, 1) + (0,) * H.n_infinite], "__mul__"):
+            operator = mul
+        else:
+            raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
     else:
-        raise ValueError("Unsupported operator for matrix multiplication.")
+        if hasattr(H[(0, 0) + (0,) * H.n_infinite], "__matmul__"):
+            operator = matmul
+        elif hasattr(H[(0, 0) + (0,) * H.n_infinite], "__mul__"):
+            operator = mul
+        else:
+            raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None:
