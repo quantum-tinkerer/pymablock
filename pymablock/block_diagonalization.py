@@ -207,11 +207,23 @@ def block_diagonalize(
             "The off-diagonal elements of the unperturbed Hamiltonian must be zero."
         )
 
-    # Determine operator to use for matrix multiplication.
-    if hasattr(H[(0, 0) + (0,) * H.n_infinite], "__matmul__"):
+    # Determine operator to use for multiplication. We prefer matmul, and use mul if
+    # matmul is not available.
+    H_0_diag = [
+        block
+        for i in range(2)
+        if (block := H[(i, i) + (0,) * H.n_infinite]) is not zero
+    ]
+    if not H_0_diag:
+        raise ValueError(
+            "Both blocks of the unperturbed Hamiltonian should not be zero."
+        )
+    if all(hasattr(H, "__matmul__") for H in H_0_diag):
         operator = matmul
-    else:
+    elif all(hasattr(H, "__mul__") for H in H_0_diag):
         operator = mul
+    else:
+        raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None:

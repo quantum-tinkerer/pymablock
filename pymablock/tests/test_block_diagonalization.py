@@ -165,8 +165,8 @@ def Ns():
     """
     Return a random number of states for each block (A, B).
     """
-    n_a = np.random.randint(1, 3)
-    return n_a, n_a + 1
+    N_a = np.random.randint(1, 3)
+    return N_a, N_a + 1
 
 
 @pytest.fixture(scope="module")
@@ -683,6 +683,29 @@ def test_doubled_orders(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     compare_series(U_doubled_directly, U_doubled, wanted_orders)
 
 
+def test_one_sized_subspace():
+    """
+    Tests that BlockSeries have correct shapes when one of the subspaces has
+    size 1, see issue #127.
+    """
+    N = 3
+    H_0 = np.diag(np.arange(N))
+    H_1 = np.random.rand(N, N) + 1j * np.random.rand(N, N)
+    H_1 = H_1 + H_1.T.conj()
+
+    for N_A in (1, 2):
+        subspace_indices = N_A * [0] + (N - N_A) * [1]
+        H_tilde, U, U_adjoint = block_diagonalize(
+            [H_0, H_1], subspace_indices=subspace_indices
+        )
+        for output in (H_tilde, U, U_adjoint):
+            blocks = [(0, 0), (1, 1), (0, 1), (1, 0)]
+            shapes = [(N_A, N_A), (N - N_A, N - N_A), (N_A, N - N_A), (N - N_A, N_A)]
+            for block, shape in zip(blocks, shapes):
+                if output[block + (3,)] is not zero:
+                    assert output[block + (3,)].shape == shape
+
+
 def test_equivalence_explicit_implicit() -> None:
     """
     Test that the explicit and implicit algorithms give the same results.
@@ -1154,6 +1177,9 @@ def test_number_products(data_regression):
     is as expected.
     This is a regression test so that we don't accidentally change the algorithm
     in a way that increases the number of products.
+
+    If the number of products needs to be updated, check the output of this test
+    and update the yaml file accordingly by running `pytest --force-regen`.
     """
 
     def solve_sylvester(A):
@@ -1181,13 +1207,15 @@ def test_number_products(data_regression):
     def eval_randomly_sparse(*index):
         np.random.seed(index[2])
         p = np.random.random(3)
-        if index[0] != index[1] and sum(index[2:]) == 0:
+        if index[0] != index[1] and sum(index[2:]) == 0:  # H_0 is diagonal
             return zero
-        elif index[0] == index[1] == 0 and p[0] > 0.4:
+        elif index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
             return zero
-        elif index[0] == index[1] == 1 and p[1] > 0.4:
+        elif index[0] == index[1] == 1 and sum(index[2:]) == 0:
+            AlgebraElement(f"H{index}")  # Not both diagonal blocks are zero
+        elif index[0] == index[1] and p[1] > 0.4:
             return zero
-        elif index[0] == 0 and p[2] > 0.4:
+        elif index[0] != index[1] and p[2] > 0.4:
             return zero
         return AlgebraElement(f"H{index}")
 
