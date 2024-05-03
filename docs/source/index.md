@@ -151,7 +151,8 @@ please cite it as
   year={2024},
   eprint={2404.03728},
   archivePrefix={arXiv},
-  primaryClass={quant-ph}
+  primaryClass={quant-ph},
+  doi={10.48550/arXiv.2404.03728},
 }
 
 @misc{Pymablock,
