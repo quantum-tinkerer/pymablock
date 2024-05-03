@@ -145,12 +145,22 @@ If you have used Pymablock for work that has lead to a scientific publication,
 please cite it as
 
 ```bibtex
+@misc{Araya2024,
+  title={Pymablock: an algorithm and a package for quasi-degenerate perturbation theory},
+  author={Isidora {Araya Day} and Sebastian Miles and Hugo K. Kerstens and Daniel Varjas and Anton R. Akhmerov},
+  year={2024},
+  eprint={2404.03728},
+  archivePrefix={arXiv},
+  primaryClass={quant-ph},
+  doi={10.48550/arXiv.2404.03728},
+}
+
 @misc{Pymablock,
-author = {{Araya Day}, Isidora and Miles, Sebastian and Varjas, Daniel and Akhmerov, Anton R.},
-doi = {10.5281/zenodo.7995684},
-month = {6},
-title = {Pymablock},
-year = {2023}
+  author = {{Araya Day}, Isidora and Miles, Sebastian and Varjas, Daniel and Akhmerov, Anton R.},
+  doi = {10.5281/zenodo.7995684},
+  month = {6},
+  title = {Pymablock},
+  year = {2023}
 }
 ```
 
