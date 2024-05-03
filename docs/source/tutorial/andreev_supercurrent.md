@@ -14,7 +14,7 @@ kernelspec:
 # Andreev Supercurrent
 
 In this tutorial, we demonstrate how to use Pymablock to compute complicated analytical expressions.
-Directly running Pymablock on a large symbolic Hamiltonian can computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.
+Directly running Pymablock on a large symbolic Hamiltonian can be computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.
 Both of these steps benefit from physical insight and advanced manipulation of symbolic expressions.
 
 As an example, we compute supercurrent between two superconductors weakly coupled through a quantum dot.
@@ -197,7 +197,7 @@ We have now defined the total Hamiltonian $H$ in second quantization form.
 
 Using square roots can lead to complicated expressions, because assumptions about the arguments of square roots are not automatically inferred by sympy.
 For example, $\sqrt{a^2}$ is not equivalent to $a$, but rather $\lvert a \rvert$.
-To avoid lengthy expressions from unsimplified expressions with square roots, we have directly replaced thems with the sympy symbols $E_{\alpha}$, $u_{\alpha}$, and $v_{\alpha}$.
+To avoid lengthy expressions from unsimplified expressions with square roots, we have directly replaced them with the sympy symbols $E_{\alpha}$, $u_{\alpha}$, and $v_{\alpha}$.
 These will appear in the effective Hamiltonian, and we will substitute their values at the end of the calculation.
 :::
 
