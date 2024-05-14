@@ -13,18 +13,13 @@ kernelspec:
 
 # Jaynes-Cummings model
 
-In this tutorial we demonstrate how to get a CQED effective Hamiltonian using
-Pymablock with bosonic operators.
-As an example, we use the Jaynes-Cummings model, which describes a two-level
-bosonic system coupled by ladder operators.
-This tutorial shows how to use Pymablock with arbitrary object types by
-defining a custom Sylvester's equation solver.
+In this tutorial we demonstrate how to get a CQED effective Hamiltonian using Pymablock with bosonic operators.
+As an example, we use the Jaynes-Cummings model, which describes a two-level bosonic system coupled by ladder operators.
+This tutorial shows how to use Pymablock with arbitrary object types by defining a custom Sylvester's equation solver.
 
 Let's start by importing the `sympy` functions we need to define the Hamiltonian.
-We will make use of `sympy`'s
-[quantum mechanics module](https://docs.sympy.org/latest/modules/physics/quantum/index.html)
-and its
-[matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html).
+We will make use of `sympy`'s [quantum mechanics module](https://docs.sympy.org/latest/modules/physics/quantum/index.html)
+and its [matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html).
 
 ```{code-cell} ipython3
 import sympy
@@ -35,9 +30,7 @@ from sympy.physics.quantum import qapply, Dagger
 
 ## Define a second quantization Hamiltonian
 
-We define the onsite energy $\omega_r$, the energy gap $\omega_q$,
-the perturbative parameter $g$, and $a$, the bosonic annihilation
-operator.
+We define the onsite energy $\omega_r$, the energy gap $\omega_q$, the perturbative parameter $g$, and $a$, the bosonic annihilation operator.
 
 ```{code-cell} ipython3
 # resonator frequency, qubit frequency, Rabi coupling
@@ -62,19 +55,15 @@ where the basis is the one of the occupied and unoccupied subspaces.
 
 ## Custom Sylvester's equation solver
 
-To use Pymablock, we need a custom solver for Sylvester's equation that can
-compute the energies of the subspaces using bosonic operators.
-We need to define a `solve_sylvester` function that takes $Y_{n+1}$ and returns
-$V_{n+1}$,
+To use Pymablock, we need a custom solver for Sylvester's equation that can compute the energies of the subspaces using bosonic operators.
+We need to define a `solve_sylvester` function that takes $Y_{n+1}$ and returns $V_{n+1}$,
 
 ```{math}
 H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1} \\
 (V_{n+1}^{AB})_{x,y} = (Y_{n+1})_{x,y} / (E_x - E_y),
 ```
 
-where $Y_{n+1}$ is the right hand side of Sylvester's equation, and $V_{n+1}$
-is the block off-diagonal block of the transformation that block diagonalizes
-the Hamiltonian.
+where $Y_{n+1}$ is the right hand side of Sylvester's equation, and $V_{n+1}$ is the block off-diagonal block of the transformation that block diagonalizes the Hamiltonian.
 
 We implement
 
@@ -111,8 +100,7 @@ Using a different CQED Hamiltonian would require adapting
 
 ## Get the Hamiltonian corrections
 
-We can now define the block-diagonalization routine by calling
-{autolink}`~pymablock.block_diagonalize`
+We can now define the block-diagonalization routine by calling {autolink}`~pymablock.block_diagonalize`
 
 ```{code-cell} ipython3
 %%time
@@ -124,8 +112,7 @@ H_tilde, U, U_adjoint = block_diagonalize(
 )
 ```
 
-For example, to compute the 2nd order correction of the Hamiltonian of the
-$\uparrow$ subspace (the `(0, 0)` block) we use
+For example, to compute the 2nd order correction of the Hamiltonian of the $\uparrow$ subspace (the `(0, 0)` block) we use
 
 ```{code-cell} ipython3
 %%time

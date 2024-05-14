@@ -17,8 +17,5 @@
 
 ## Funding
 
-This project was initially developed in [Delft University of
-Technology](https://www.tudelft.nl/en/), supported by the [Netherlands
-Organisation for Scientific Research (NWO/OCW)](https://www.nwo.nl/), as part of
-the Frontiers of Nanoscience program, as well as grants 016.Vidi.189.180 and
+This project was initially developed in [Delft University of Technology](https://www.tudelft.nl/en/), supported by the [Netherlands Organisation for Scientific Research (NWO/OCW)](https://www.nwo.nl/), as part of the Frontiers of Nanoscience program, as well as grants 016.Vidi.189.180 and
 OCENW.GROOT.2019.004.

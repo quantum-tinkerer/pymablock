@@ -15,16 +15,14 @@ kernelspec:
 
 ## Pymablock workflow
 
-Getting started with Pymablock is simple, let's start by importing it
-together with `numpy`.
+Getting started with Pymablock is simple, let's start by importing it together with `numpy`.
 
 ```{code-cell} ipython3
 import pymablock
 import numpy as np
 ```
 
-Let's apply perturbation theory to a diagonal Hamiltonian with two subspaces
-$A$ and $B$, coupled by a perturbation.
+Let's apply perturbation theory to a diagonal Hamiltonian with two subspaces $A$ and $B$, coupled by a perturbation.
 
 ### 1. Define a Hamiltonian
 
@@ -65,19 +63,14 @@ ax_1.set_yticks([]);
 
 :::{admonition} Subspaces must be separated
 :class: warning
-For the perturbation theory to work, the spectra of the two subspaces must
-differ.
-The larger the smallest energy difference between the two subspaces, the
-better the perturbation theory works.
+For the perturbation theory to work, the spectra of the two subspaces must differ.
+The larger the smallest energy difference between the two subspaces, the better the perturbation theory works.
 :::
 
 ### 2. Define the perturbative series
 
-Most Pymablock users will need only one function:
-{autolink}`~pymablock.block_diagonalize`.
-It takes all the possible types of input and defines a solution of the
-perturbation theory problem as infinite series of the transformed Hamiltonian
-$\tilde{H}$ and the corresponding transformation $U$.
+Most Pymablock users will need only one function: {autolink}`~pymablock.block_diagonalize`.
+It takes all the possible types of input and defines a solution of the perturbation theory problem as infinite series of the transformed Hamiltonian $\tilde{H}$ and the corresponding transformation $U$.
 
 ```{code-cell} ipython3
 from pymablock import block_diagonalize
@@ -87,21 +80,16 @@ hamiltonian = [H_0, H_1]
 H_tilde, U, U_adjoint = block_diagonalize(hamiltonian, subspace_indices=[0, 0, 1, 1])
 ```
 
-Here the first term in the `hamiltonian` list is the unperturbed Hamiltonian
-$H_0$, and the following terms are the perturbations. The `subspace_indices`
-argument defines to which subspace each diagonal term of $H_0$ belongs.
+Here the first term in the `hamiltonian` list is the unperturbed Hamiltonian $H_0$, and the following terms are the perturbations.
+The `subspace_indices` argument defines to which subspace each diagonal term of $H_0$ belongs.
 
-This does do any computations yet, and only defines the answer as an object
-that we can query.
+This does do any computations yet, and only defines the answer as an object that we can query.
 
-Most users will only ever need the diagonal blocks of `H_tilde`, however
-Pymablock returns the extra information in case it is needed.
+Most users will only ever need the diagonal blocks of `H_tilde`, however Pymablock returns the extra information in case it is needed.
 
 ### 3. Get the perturbative results
 
-To get perturbative corrections to the diagonal blocks of the Hamiltonian, we
-query `H_tilde` with the block and the order of the
-correction.
+To get perturbative corrections to the diagonal blocks of the Hamiltonian, we query `H_tilde` with the block and the order of the correction.
 
 For example, we obtain a second order correction to the first subspace as
 
@@ -109,11 +97,9 @@ For example, we obtain a second order correction to the first subspace as
 H_tilde[0, 0, 2]
 ```
 
-where `(0, 0)` is the first subspace ($AA$ block), and `2` means the second
-order correction.
+where `(0, 0)` is the first subspace ($AA$ block), and `2` means the second order correction.
 
-Let us also check that the off-diagonal blocks of the Hamiltonian are $0$ to
-any order.
+Let us also check that the off-diagonal blocks of the Hamiltonian are $0$ to any order.
 
 ```{code-cell} ipython3
 H_tilde[0, 1, 3]
@@ -121,23 +107,17 @@ H_tilde[0, 1, 3]
 
 where `(0, 1)` is the $AB$ block, and `3` is the third order correction.
 
-Just like `H_tilde`, `U` and `U_adjoint` are
-{autolink}`~pymablock.series.BlockSeries` objects too.
-In most situations these are not necessary, but they can be useful to transform
-any other observable to the basis of the `H_tilde`.
+Just like `H_tilde`, `U` and `U_adjoint` are {autolink}`~pymablock.series.BlockSeries` objects too.
+In most situations these are not necessary, but they can be useful to transform any other observable to the basis of the `H_tilde`.
 
-To get more than one perturbative correction at a time, we can query `H_tilde`
-using `numpy`'s [indexing](https://numpy.org/devdocs/user/basics.indexing.html)
-convention.
-For example, we query the corrected Hamiltonian of the first subspace up to
-second order using
+To get more than one perturbative correction at a time, we can query `H_tilde` using `numpy`'s [indexing](https://numpy.org/devdocs/user/basics.indexing.html) convention.
+For example, we query the corrected Hamiltonian of the first subspace up to second order using
 
 ```{code-cell} ipython3
 H_tilde[0, 0, :3]
 ```
 
-The output is a {autolink}`~numpy.ma.MaskedArray` with the same block structure
-as if we queried a numpy array with the same indices.
+The output is a {autolink}`~numpy.ma.MaskedArray` with the same block structure as if we queried a numpy array with the same indices.
 The entries of this array are the Hamiltonian terms themselves, and therefore they may be of different types: here we see that the unperturbed Hamiltonian is stored as a sparse matrix, while the higher orders are numpy arrays.
 
 The final block-diagonalized Hamiltonian up to second order looks like this:
@@ -160,11 +140,8 @@ ax_2.set_yticks([]);
 
 :::{admonition} Masked arrays skip entries
 :class: dropdown tip
-NumPy's masked arrays are arrays where some entries are masked out because they
-are undefined, or because they are not needed, such that they are skipped in
-various operations.
-In Pymablock, we use masked arrays to skip the terms that are zero, so that
-they are skipped in summation and multiplication throughout the algorithm.
+NumPy's masked arrays are arrays where some entries are masked out because they are undefined, or because they are not needed, such that they are skipped in various operations.
+In Pymablock, we use masked arrays to skip the terms that are zero, so that they are skipped in summation and multiplication throughout the algorithm.
 To sum over the entries of a masked array, use `np.ma.sum(array)`, for example.
 :::
 
@@ -202,8 +179,7 @@ integer is the order of the $i$-th perturbative parameter.
 The Hamiltonian does not contain values of $\lambda_1$ and $\lambda_2$.
 Instead, to evaluate $\tilde{H}$, we will provide the values of the perturbative parameters at the last step.
 
-If you want to vary the perturbation strength, providing its values last is more
-efficient than recomputing the perturbative series.
+If you want to vary the perturbation strength, providing its values last is more efficient than recomputing the perturbative series.
 :::
 
 Differently from the first example, $H_{00}$ is not diagonal anymore
@@ -219,8 +195,7 @@ plt.yticks([]);
 
 ### Specifying the subspaces
 
-To define the perturbative series we compute the eigenvectors of $H_{00}$
-and split them into two groups that define the $A$ and $B$ subspaces.
+To define the perturbative series we compute the eigenvectors of $H_{00}$ and split them into two groups that define the $A$ and $B$ subspaces.
 
 ```{code-cell} ipython3
 _, evecs = np.linalg.eigh(H_00)
@@ -232,12 +207,9 @@ H_tilde, U, U_adjoint = block_diagonalize(
 ```
 
 :::{important}
-{autolink}`~pymablock.block_diagonalize` transforms everything to the basis of
-`subspace_vectors`, such that, for example, the unperturbed Hamiltonian becomes
-diagonal.
+{autolink}`~pymablock.block_diagonalize` transforms everything to the basis of `subspace_vectors`, such that, for example, the unperturbed Hamiltonian becomes diagonal.
 
-Accordingly `U` is the unitary transformation that block-diagonalizes
-the Hamiltonian in the eigenbasis of $H_0$.
+Accordingly `U` is the unitary transformation that block-diagonalizes the Hamiltonian in the eigenbasis of $H_0$.
 :::
 
 ```{code-cell} ipython3
@@ -274,8 +246,7 @@ The number of its infinite size dimensions is the number of perturbative paramet
 f"{H_tilde.shape=}, {H_tilde.n_infinite=}"
 ```
 
-{autolink}`~pymablock.series.BlockSeries` defines a way to compute its entries, which are stored in the
-internal `_data` attribute.
+{autolink}`~pymablock.series.BlockSeries` defines a way to compute its entries, which are stored in the internal `_data` attribute.
 Before we did any computation, `_data` is empty
 
 ```{code-cell} ipython3
