@@ -82,6 +82,8 @@ lint.ignore = [
 "N803",
 "N806",
 ]
+lint.fixable = ["ALL"]
+lint.unfixable = []
 [tool.ruff.lint.extend-per-file-ignores]
 "pymablock/block_diagonalization.py" = [
   "RET503",
