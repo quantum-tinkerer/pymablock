@@ -57,7 +57,7 @@ def test_infinite_views():
 
 def test_fibonacci_series() -> None:
     """Test that we can implement the Fibonacci series."""
-    F = BlockSeries(
+    F = BlockSeries(  # noqa: N806
         eval=lambda x: F[x - 2] + F[x - 1],
         data={(0,): 0, (1,): 1},
         shape=(),

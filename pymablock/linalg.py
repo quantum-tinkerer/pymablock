@@ -1,3 +1,4 @@
+# ruff: noqa: N803, N806
 """Linear algebra utilities."""
 
 from typing import Any, Callable
@@ -23,7 +24,7 @@ if parse(scipy_version) < parse("1.11"):
         _ScaledLinearOperator,
     )
 
-    def __rmul__(self, x):
+    def __rmul__(self, x):  # noqa: N807
         if np.isscalar(x):
             return _ScaledLinearOperator(self, x)
         return self._rdot(x)

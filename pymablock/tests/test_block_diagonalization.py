@@ -1,4 +1,4 @@
-# ruff: noqa: RET503, RET504
+# ruff: noqa: N802, N803, N806, RET503, RET504
 import tracemalloc
 from collections import Counter
 from itertools import chain, permutations

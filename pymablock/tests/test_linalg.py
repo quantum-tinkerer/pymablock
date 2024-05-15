@@ -1,3 +1,4 @@
+# ruff: noqa: N803, N806
 import builtins
 
 import numpy as np

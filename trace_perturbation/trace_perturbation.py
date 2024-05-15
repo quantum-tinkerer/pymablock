@@ -1,4 +1,4 @@
-# ruff: noqa: RET504
+# ruff: noqa: N803, N806, RET504
 from functools import reduce
 from operator import mul
 
