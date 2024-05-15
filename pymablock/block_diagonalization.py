@@ -1002,6 +1002,8 @@ def _sympy_to_BlockSeries(
     symbols: Optional[Sequence[sympy.Symbol]] = None,
 ) -> BlockSeries:
     """
+    Convert a symbolic Hamiltonian to a BlockSeries.
+
     Parameters
     ----------
     hamiltonian :
@@ -1057,6 +1059,9 @@ def _subspaces_from_indices(
         Indices of the ``subspace_eigenvectors``.
         0 indicates the effective subspace A, 1 indicates the auxiliary
         subspace B.
+    symbolic :
+        True if the Hamiltonian is symbolic, False otherwise.
+        If True, the returned subspaces are dense arrays.
 
     Returns
     -------
@@ -1122,13 +1127,13 @@ def _convert_if_zero(value: Any, atol=1e-12):
     ----------
     value :
         Value to convert to zero.
+    atol :
+        Absolute tolerance for numerical zero.
 
     Returns
     -------
     zero :
         Zero if value is close enough to zero, otherwise value.
-    atol :
-        Absolute tolerance for numerical zero.
     """
     if isinstance(value, np.ndarray):
         if np.allclose(value, 0, atol=atol):
@@ -1165,7 +1170,8 @@ def _zero_sum(*terms: Any) -> Any:
 
     Parameters
     ----------
-    terms : Terms to sum over with zero as default value.
+    terms :
+        Terms to sum over with zero as default value.
 
     Returns
     -------
