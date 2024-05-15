@@ -1,15 +1,14 @@
+# ruff: noqa: RET504
 from functools import reduce
 from operator import mul
 
 import numpy as np
 import sympy
-
 from kwant._common import ensure_rng
-
+from kwant.kpm import jackson_kernel
 from qsymm.model import Model, _symbol_normalizer
 
 from .kpm_funcs import rescale
-from kwant.kpm import jackson_kernel
 
 one = sympy.sympify(1)
 
@@ -37,7 +36,7 @@ def _interesting_keys(keys, order=2):
         if d == depth:
             return [[]]
         return [
-            item + [i]
+            [*item, i]
             for i in range(n + 1)
             for item in partition(n - i, d, depth=depth + 1)
         ]

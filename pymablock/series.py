@@ -176,9 +176,7 @@ class BlockSeries:
                     data.pop(index, None)
                     raise
             if data[index] is PENDING:
-                raise RuntimeError(
-                    f"Infinite recursion loop detected in {self}[{index}]"
-                )
+                raise RuntimeError(f"Infinite recursion loop detected in {self}[{index}]")
             trial[index] = data[index]
 
         result = trial[item]
@@ -208,7 +206,7 @@ class BlockSeries:
             *(f"∞_({name})" for name in self.dimension_names),
         )
 
-        return f"{self.name}_({' × '.join(dimensions)})"
+        return f"{self.name}_({' × '.join(dimensions)})"  # noqa RUF001
 
     def pop(self, item: Item, default: Any, /) -> Any:
         """
@@ -388,8 +386,8 @@ def product_by_order(
     ):
         orders_1st = tuple(orders_1st)
         orders_2nd = tuple(i - j for i, j in zip(orders, orders_1st))
-        first_index = (start, middle) + orders_1st
-        second_index = (middle, end) + orders_2nd
+        first_index = (start, middle, *orders_1st)
+        second_index = (middle, end, *orders_2nd)
 
         if hermitian and orders_1st > orders_2nd:
             continue
@@ -449,7 +447,7 @@ class AlgebraElement:
     `test_block_diagonalization`.
     """
 
-    log = []
+    log = []  # noqa: RUF012
 
     def __init__(self, name: str) -> None:
         """Construct an abstract algebra element.

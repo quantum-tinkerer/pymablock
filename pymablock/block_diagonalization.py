@@ -1,3 +1,4 @@
+# ruff: noqa: RET503, RET504
 """Algorithms for quasi-degenerate perturbation theory."""
 
 from collections.abc import Sequence
@@ -173,9 +174,7 @@ def block_diagonalize(
         else:
             raise TypeError("`hamiltonian` must be a list, dictionary, or BlockSeries.")
         if any(h_0.shape[0] != vecs.shape[0] for vecs in subspace_eigenvectors):
-            raise ValueError(
-                "`subspace_eigenvectors` does not match the shape of `h_0`."
-            )
+            raise ValueError("`subspace_eigenvectors` does not match the shape of `h_0`.")
         if solve_sylvester is None:
             if not all(isinstance(vecs, np.ndarray) for vecs in subspace_eigenvectors):
                 raise TypeError(
@@ -211,14 +210,10 @@ def block_diagonalize(
     # Determine operator to use for multiplication. We prefer matmul, and use mul if
     # matmul is not available.
     H_0_diag = [
-        block
-        for i in range(2)
-        if (block := H[(i, i) + (0,) * H.n_infinite]) is not zero
+        block for i in range(2) if (block := H[(i, i) + (0,) * H.n_infinite]) is not zero
     ]
     if not H_0_diag:
-        raise ValueError(
-            "Both blocks of the unperturbed Hamiltonian should not be zero."
-        )
+        raise ValueError("Both blocks of the unperturbed Hamiltonian should not be zero.")
     if all(hasattr(H, "__matmul__") for H in H_0_diag):
         operator = matmul
     elif all(hasattr(H, "__mul__") for H in H_0_diag):
@@ -340,9 +335,7 @@ def hamiltonian_to_BlockSeries(
     assert isinstance(hamiltonian, BlockSeries)  # for mypy type checking
 
     if hamiltonian.shape and to_split:
-        raise ValueError(
-            "H is already separated but subspace_eigenvectors are provided."
-        )
+        raise ValueError("H is already separated but subspace_eigenvectors are provided.")
 
     if hamiltonian.shape == (2, 2):
         return hamiltonian
@@ -394,16 +387,14 @@ def hamiltonian_to_BlockSeries(
     def H_eval(*index):
         left, right = index[:2]
         if left > right:
-            return Dagger(H[(right, left) + tuple(index[2:])])
+            return Dagger(H[(right, left, *tuple(index[2:]))])
         original = hamiltonian[index[2:]]
         if original is zero:
             return zero
         if implicit and left == right == 1:
             original = aslinearoperator(original)
         return _convert_if_zero(
-            Dagger(subspace_eigenvectors[left])
-            @ original
-            @ subspace_eigenvectors[right],
+            Dagger(subspace_eigenvectors[left]) @ original @ subspace_eigenvectors[right],
             atol=atol,
         )
 
@@ -463,9 +454,7 @@ def _block_diagonalize(
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
 
     zeroth_order = (0,) * H.n_infinite
-    zero_data = {
-        block + zeroth_order: zero for block in ((0, 0), (0, 1), (1, 0), (1, 1))
-    }
+    zero_data = {block + zeroth_order: zero for block in ((0, 0), (0, 1), (1, 0), (1, 1))}
     identity_data = {block + zeroth_order: one for block in ((0, 0), (1, 1))}
     H_0_data = {
         block + zeroth_order: H[block + zeroth_order]
@@ -500,9 +489,7 @@ def _block_diagonalize(
         "U'†": {
             "eval": (
                 lambda *index: (
-                    series["U'"][index]
-                    if index[0] == index[1]
-                    else -series["U'"][index]
+                    series["U'"][index] if index[0] == index[1] else -series["U'"][index]
                 )
             )
         },
@@ -557,7 +544,7 @@ def _block_diagonalize(
     # these duplicates without any performance penalty. If we are using explicit
     # data, they will never be used.
 
-    if implicit := isinstance(H[(1, 1) + zeroth_order], sparse.linalg.LinearOperator):
+    if implicit := isinstance(H[(1, 1, *zeroth_order)], sparse.linalg.LinearOperator):
         if operator is not matmul:
             raise ValueError("The implicit method only supports matrix multiplication.")
 
@@ -609,7 +596,7 @@ def _block_diagonalize(
             result = _safe_divide(U_p_adj_U_p[index], -2)
             del_("U'† @ U'", index)
             return result
-        elif index[:2] == (0, 1):
+        if index[:2] == (0, 1):
             # off-diagonal block nullifies the off-diagonal part of H_tilde
             index_dag = (index[1], index[0], *index[2:])
             Y = _zero_sum(
@@ -626,9 +613,9 @@ def _block_diagonalize(
             # even though it is not queried directly in this function.
             del_("H'_offdiag @ U'", index)
             return -solve_sylvester(Y) if Y is not zero else zero
-        elif index[:2] == (1, 0):
+        if index[:2] == (1, 0):
             # off-diagonal of U is anti-Hermitian
-            return -Dagger(series["U'"][(0, 1) + tuple(index[2:])])
+            return -Dagger(series["U'"][(0, 1, *tuple(index[2:]))])
 
     series["U'"].eval = U_p_eval
 
@@ -892,9 +879,7 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
         zeroth_order: hamiltonian[0],
         **{
             tuple(order): perturbation
-            for order, perturbation in zip(
-                np.eye(n_infinite, dtype=int), hamiltonian[1:]
-            )
+            for order, perturbation in zip(np.eye(n_infinite, dtype=int), hamiltonian[1:])
         },
     }
     return hamiltonian
@@ -934,7 +919,7 @@ def _dict_to_BlockSeries(
     if any(key_types):
         hamiltonian, symbols = _symbolic_keys_to_tuples(hamiltonian)
 
-    n_infinite = len(list(hamiltonian.keys())[0])
+    n_infinite = len(next(iter(hamiltonian.keys())))
     zeroth_order = (0,) * n_infinite
     h_0 = hamiltonian[zeroth_order]
 
@@ -955,7 +940,7 @@ def _dict_to_BlockSeries(
 
 
 def _symbolic_keys_to_tuples(
-    hamiltonian: dict[sympy.Basic, Any]
+    hamiltonian: dict[sympy.Basic, Any],
 ) -> tuple[dict[tuple[int, ...], Any], list[sympy.Basic]]:
     """
     Convert symbolic monomial keys to tuples of integers.

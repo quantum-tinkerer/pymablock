@@ -53,6 +53,23 @@ include = [
 
 [tool.ruff]
 line-length = 90
+exclude = [
+  "paper",
+]
+lint.extend-select = [
+  "W",
+  "I",
+  "T10",
+  "Q",
+  "RSE",
+  "RET",
+  "TCH",
+  "INT",
+  "ARG",
+  "R",
+  "FLY",
+  "RUF",
+]
 
 [tool.mypy]
 # Not using mypy yet, but this is a start.
