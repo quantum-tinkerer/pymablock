@@ -72,7 +72,7 @@ lint.extend-select = [
   "FLY",
   "RUF",
 ]
-ignore = [
+lint.ignore = [
 "N802",
 "N803",
 "N806",
