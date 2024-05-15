@@ -56,6 +56,10 @@ line-length = 90
 exclude = [
   "paper",
   "pymablock/_version.py",
+  "noxfile.py",
+  "docs/source/conf.py",
+  "pymablock/__init__.py",
+  "trace_perturbation/*",
 ]
 lint.extend-select = [
   "N",
@@ -71,6 +75,7 @@ lint.extend-select = [
   "R",
   "FLY",
   "RUF",
+  "D",
 ]
 lint.ignore = [
 "N802",
@@ -82,8 +87,9 @@ lint.ignore = [
   "RET503",
   "RET504",
 ]
-"pymablock/tests/test_block_diagonalization.py" = [
+"pymablock/tests/*.py" = [
   "RET504",
+  "D",
 ]
 
 [tool.mypy]

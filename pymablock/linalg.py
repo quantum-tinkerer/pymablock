@@ -48,6 +48,7 @@ if parse(scipy_version) < parse("1.11"):
         Notes
         -----
         This is copied from dot to implement right multiplication.
+
         """
         if isinstance(x, LinearOperator):
             return _ProductLinearOperator(x, self)
@@ -91,6 +92,7 @@ def direct_greens_function(
     -------
     greens_function : `Callable[[np.ndarray], np.ndarray]`
         Function that solves :math:`(E - H) sol = vec`.
+
     """
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     is_complex = np.iscomplexobj(mat.data)
@@ -119,6 +121,7 @@ def direct_greens_function(
         -------
         sol :
             Solution of :math:`(E - H) sol = vec`.
+
         """
         if np.iscomplexobj(vec) and not is_complex:
             vec = (vec.real, vec.imag)
@@ -146,8 +149,7 @@ def direct_greens_function(
 
 
 class ComplementProjector(LinearOperator):
-    r"""
-    Projector on the complement of the span of a set of vectors.
+    r"""Projector on the complement of the span of a set of vectors.
 
     This is used to compute $P_B = I - P_A$ where $P_A$ is the projector on the
     span of the vectors $A$ in the implicit method.
@@ -170,14 +172,14 @@ class ComplementProjector(LinearOperator):
         return self
 
     def conjugate(self: LinearOperator) -> LinearOperator:
+        """Conjugate operator."""
         return self.__class__(vecs=self._vecs.conj())
 
     _transpose = conjugate
 
 
 def aslinearoperator(A: Any) -> Any:
-    """
-    Construct a linear operator.
+    """Construct a linear operator.
 
     Same as `scipy.sparse.linalg.aslinearoperator`, but with passthrough for
     `~pymablock.series.zero` and `~pymablock.series.one`.

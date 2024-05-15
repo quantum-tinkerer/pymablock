@@ -1,4 +1,4 @@
-"Quasi-degenerate perturbation theory"
+"""Quasi-degenerate perturbation theory"""
 
 try:
     from ._version import __version__, __version_tuple__

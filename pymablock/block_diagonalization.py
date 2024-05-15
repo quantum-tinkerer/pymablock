@@ -44,8 +44,7 @@ def block_diagonalize(
     symbols: Optional[Union[sympy.Symbol, Sequence[sympy.Symbol]]] = None,
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """
-    Find the block diagonalization of a Hamiltonian order by order.
+    """Find the block diagonalization of a Hamiltonian order by order.
 
     This uses quasi-degenerate perturbation theory known as Lowdin perturbation
     theory, Schrieffer-Wolff transformation, or van Vleck transformation.
@@ -241,8 +240,7 @@ def hamiltonian_to_BlockSeries(
     symbols: Optional[list[sympy.Symbol]] = None,
     atol: float = 1e-12,
 ) -> BlockSeries:
-    """
-    Normalize a Hamiltonian to be used by the algorithms.
+    """Normalize a Hamiltonian to be used by the algorithms.
 
     This function separates the Hamiltonian into a 2x2 block form consisting of
     effective and auxiliary subspaces based on the inputs.
@@ -313,6 +311,7 @@ def hamiltonian_to_BlockSeries(
     H : `~pymablock.series.BlockSeries`
         Initial Hamiltonian in the format required by the algorithms, such that
         the unperturbed Hamiltonian is block diagonal.
+
     """
     if subspace_eigenvectors is not None and subspace_indices is not None:
         raise ValueError(
@@ -415,8 +414,7 @@ def _block_diagonalize(
     *,
     operator: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """
-    Algorithm for computing block diagonalization of a Hamiltonian.
+    """Algorithm for computing block diagonalization of a Hamiltonian.
 
     It parameterizes the unitary transformation as a series of block matrices.
     It computes them order by order by imposing unitarity and the
@@ -445,6 +443,7 @@ def _block_diagonalize(
         Unitary that block diagonalizes H such that ``H_tilde = U^H H U``.
     U_adjoint : `~pymablock.series.BlockSeries`
         Adjoint of ``U``.
+
     """
     if operator is None:
         operator = matmul
@@ -674,8 +673,7 @@ def solve_sylvester_diagonal(
     eigs_B: Union[np.ndarray, sympy.MatrixBase],
     vecs_B: Optional[np.ndarray] = None,
 ) -> Callable:
-    """
-    Define a function for solving a Sylvester's equation for diagonal matrices.
+    """Define a function for solving a Sylvester's equation for diagonal matrices.
 
     Optionally, this function also applies the eigenvectors of the second
     matrix to the solution.
@@ -694,6 +692,7 @@ def solve_sylvester_diagonal(
     -------
     solve_sylvester : `Callable`
         Function that solves Sylvester's equation.
+
     """
 
     def solve_sylvester(
@@ -730,8 +729,7 @@ def solve_sylvester_KPM(
     subspace_eigenvectors: tuple[np.ndarray, ...],
     solver_options: Optional[dict] = None,
 ) -> Callable:
-    """
-    Solve Sylvester energy division for the Kernel Polynomial Method (KPM).
+    """Solve Sylvester energy division for the Kernel Polynomial Method (KPM).
 
     General energy division for numerical problems through either full
     knowledge of the B-space or application of the KPM Green's function.
@@ -759,6 +757,7 @@ def solve_sylvester_KPM(
     solve_sylvester: Callable
         Function that applies divide by energies to the right hand side of
         Sylvester's equation.
+
     """
     eigs_A = (
         Dagger(subspace_eigenvectors[0]) @ h_0 @ subspace_eigenvectors[0]
@@ -817,8 +816,7 @@ def solve_sylvester_direct(
     eigenvectors: np.ndarray,
     **solver_options: dict,
 ) -> Callable[[np.ndarray], np.ndarray]:
-    """
-    Solve Sylvester equation using a direct sparse solver.
+    """Solve Sylvester equation using a direct sparse solver.
 
     This function uses MUMPS, which is a parallel direct solver for sparse
     matrices. This solver is very efficient for large sparse matrices.
@@ -837,6 +835,7 @@ def solve_sylvester_direct(
     -------
     solve_sylvester : `Callable[[numpy.ndarray], numpy.ndarray]`
         Function that solves the corresponding Sylvester equation.
+
     """
     projector = ComplementProjector(eigenvectors)
     eigenvalues = np.diag(Dagger(eigenvectors) @ h_0 @ eigenvectors)
@@ -856,8 +855,7 @@ def solve_sylvester_direct(
 
 ### Auxiliary functions.
 def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
-    """
-    Convert a list of perturbations to a dictionary.
+    """Convert a list of perturbations to a dictionary.
 
     Parameters
     ----------
@@ -870,6 +868,7 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     Returns
     -------
     H : `~pymablock.series.BlockSeries`
+
     """
     n_infinite = len(hamiltonian) - 1  # All the perturbations are 1st order
     zeroth_order = (0,) * n_infinite
@@ -889,8 +888,7 @@ def _dict_to_BlockSeries(
     symbols: Optional[Sequence[sympy.Symbol]] = None,
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, Optional[list[sympy.Symbol]]]:
-    """
-    Convert a dictionary of perturbations to a BlockSeries.
+    """Convert a dictionary of perturbations to a BlockSeries.
 
     Parameters
     ----------
@@ -913,6 +911,7 @@ def _dict_to_BlockSeries(
     symbols :
         List of symbols in the order they appear in the keys of `hamiltonian`.
         The tuple keys of ``new_hamiltonian`` are ordered according to this list.
+
     """
     key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
     if any(key_types):
@@ -941,8 +940,7 @@ def _dict_to_BlockSeries(
 def _symbolic_keys_to_tuples(
     hamiltonian: dict[sympy.Basic, Any],
 ) -> tuple[dict[tuple[int, ...], Any], list[sympy.Basic]]:
-    """
-    Convert symbolic monomial keys to tuples of integers.
+    """Convert symbolic monomial keys to tuples of integers.
 
     The key for the unperturbed Hamiltonian is assumed to be 1, and the
     remaining keys are assumed to be symbolic monomials.
@@ -962,6 +960,7 @@ def _symbolic_keys_to_tuples(
     symbols :
         List of symbols in the order they appear in the keys of `hamiltonian`.
         The tuple keys of ``new_hamiltonian`` are ordered according to this list.
+
     """
     # Collect all symbols from the keys
     symbols = list(set.union(*[key.free_symbols for key in hamiltonian.keys()]))
@@ -983,8 +982,7 @@ def _sympy_to_BlockSeries(
     hamiltonian: sympy.MatrixBase,
     symbols: Optional[Sequence[sympy.Symbol]] = None,
 ) -> BlockSeries:
-    """
-    Convert a symbolic Hamiltonian to a BlockSeries.
+    """Convert a symbolic Hamiltonian to a BlockSeries.
 
     Parameters
     ----------
@@ -998,6 +996,7 @@ def _sympy_to_BlockSeries(
     Returns
     -------
     H : `~pymablock.series.BlockSeries`
+
     """
     if symbols is None:
         symbols = tuple(list(hamiltonian.free_symbols))  # All symbols are perturbative
@@ -1031,8 +1030,7 @@ def _subspaces_from_indices(
     subspace_indices: Union[tuple[int, ...], np.ndarray],
     symbolic: Optional[bool] = False,
 ) -> tuple[sparse.csr_array, sparse.csr_array]:
-    """
-    Compute subspace eigenvectors from indices of diagonal elements.
+    """Compute subspace eigenvectors from indices of diagonal elements.
 
     Parameters
     ----------
@@ -1048,6 +1046,7 @@ def _subspaces_from_indices(
     -------
     subspace_eigenvectors :
         Subspaces to use for block diagonalization.
+
     """
     subspace_indices = np.array(subspace_indices)
     max_subspaces = 2
@@ -1101,8 +1100,7 @@ def _extract_diagonal(
 
 
 def _convert_if_zero(value: Any, atol=1e-12):
-    """
-    Convert an exact zero to sentinel value zero.
+    """Convert an exact zero to sentinel value zero.
 
     Parameters
     ----------
@@ -1115,6 +1113,7 @@ def _convert_if_zero(value: Any, atol=1e-12):
     -------
     zero :
         Zero if value is close enough to zero, otherwise value.
+
     """
     if isinstance(value, np.ndarray):
         if np.allclose(value, 0, atol=atol):
@@ -1146,8 +1145,7 @@ def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
 
 
 def _zero_sum(*terms: Any) -> Any:
-    """
-    Sum that returns a singleton zero if empty and omits zero terms.
+    """Sum that returns a singleton zero if empty and omits zero terms.
 
     Parameters
     ----------
@@ -1157,6 +1155,7 @@ def _zero_sum(*terms: Any) -> Any:
     Returns
     -------
     Sum of terms, or zero if terms is empty.
+
     """
     return sum((term for term in terms if term is not zero), start=zero)
 

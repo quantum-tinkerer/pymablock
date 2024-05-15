@@ -18,8 +18,7 @@ def greens_function(
     atol: float = 1e-7,
     max_moments: int = int(1e6),
 ) -> Callable[[np.ndarray], np.ndarray]:
-    """
-    Return a solution of ``(energy - hamiltonian) @ x = vector``.
+    """Return a solution of ``(energy - hamiltonian) @ x = vector``.
 
     Uses the Kernel polynomial method (KPM) with the Jackson kernel.
 
@@ -41,6 +40,7 @@ def greens_function(
     -------
     solution : `~numpy.ndarray`
         Solution x of (E - H_0) * x = v.
+
     """
     residue = np.inf
     num_moments = 10
@@ -69,8 +69,7 @@ def kpm_vectors(
     hamiltonian: Union[np.ndarray, sparse.spmatrix],
     vector: np.ndarray,
 ) -> Iterator[np.ndarray]:
-    r"""
-    Generate vectors for the Kernel Polynomial Method (KPM).
+    r"""Generate vectors for the Kernel Polynomial Method (KPM).
 
     Generates vectors as :math:`T_n(H) \lvert v \rangle`.
 
@@ -86,6 +85,7 @@ def kpm_vectors(
     expanded_vectors : Iterable
         Infinite sequence of Chebyshev polynomials of the Hamiltonian applied
         to the vector.
+
     """
     yield (alpha_prev := vector)
     yield (alpha := hamiltonian @ alpha_prev)
@@ -100,8 +100,7 @@ def rescale(
     bounds: Optional[tuple[float, float]] = None,
     lower_bounds: Optional[tuple[float, float]] = None,
 ) -> tuple[Union[np.ndarray, sparse.spmatrix], tuple[float, float]]:
-    """
-    Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
+    """Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
 
     Adapted with modifications from kwant.kpm Copyright 2011-2016 Kwant
     developers, BSD simplified license
@@ -125,8 +124,8 @@ def rescale(
         Rescaled Hamiltonian.
     (a, b) :
         Rescaling parameters such that ``h_rescaled = (h - b) / a``.
-    """
 
+    """
     if bounds is not None:
         lmin, lmax = bounds
     else:
@@ -165,8 +164,7 @@ def rescale(
 
 
 def jackson_kernel(N: int) -> np.ndarray:
-    """
-    Coefficients of the Jackson kernel of length n.
+    """Coefficients of the Jackson kernel of length n.
 
     Taken from Eq. (71) of `Rev. Mod. Phys., Vol. 78, No. 1 (2006)
     <https://arxiv.org/abs/cond-mat/0504627>`_.
