@@ -55,8 +55,10 @@ include = [
 line-length = 90
 exclude = [
   "paper",
+  "pymablock/_version.py",
 ]
 lint.extend-select = [
+  "N",
   "W",
   "I",
   "T10",
