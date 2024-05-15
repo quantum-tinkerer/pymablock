@@ -241,7 +241,7 @@ class BlockSeries:
             if isinstance(order, slice):
                 if order.stop is None:
                     raise IndexError("Cannot evaluate infinite series")
-                elif isinstance(order.start, int) and order.start < 0:
+                if isinstance(order.start, int) and order.start < 0:
                     raise IndexError("Cannot evaluate negative order")
 
     def _check_number_perturbations(self, item: tuple[OneItem, ...]):

@@ -346,7 +346,7 @@ def hamiltonian_to_BlockSeries(
 
     if hamiltonian.shape == (2, 2):
         return hamiltonian
-    elif hamiltonian.shape:
+    if hamiltonian.shape:
         raise ValueError("Only 2x2 block Hamiltonians are supported.")
 
     # Separation into subspace_eigenvectors
@@ -644,10 +644,9 @@ def _block_diagonalize(
                 ),
                 -2,
             )
-        else:
-            result = -series["U'† @ B"][index]
-            del_("U'† @ B", index)
-            return result
+        result = -series["U'† @ B"][index]
+        del_("U'† @ B", index)
+        return result
 
     series["B"].eval = B_eval
 
@@ -717,10 +716,10 @@ def solve_sylvester_diagonal(
         if vecs_B is not None:
             energy_denominators = 1 / (eigs_A[:, None] - eigs_B[None, :])
             return ((Y @ vecs_B) * energy_denominators) @ Dagger(vecs_B)
-        elif isinstance(Y, np.ndarray):
+        if isinstance(Y, np.ndarray):
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
             return Y * energy_denominators
-        elif sparse.issparse(Y):
+        if sparse.issparse(Y):
             Y_coo = Y.tocoo()
             # Sometimes eigs_A/eigs_B can be a scalar zero.
             eigs_A_select = eigs_A if not eigs_A.shape else eigs_A[Y_coo.row]
@@ -728,15 +727,14 @@ def solve_sylvester_diagonal(
             energy_denominators = 1 / (eigs_A_select - eigs_B_select)
             new_data = Y_coo.data * energy_denominators
             return sparse.csr_array((new_data, (Y_coo.row, Y_coo.col)), Y_coo.shape)
-        elif isinstance(Y, sympy.MatrixBase):
+        if isinstance(Y, sympy.MatrixBase):
             array_eigs_a = np.array(eigs_A, dtype=object)  # Use numpy to reshape
             array_eigs_b = np.array(eigs_B, dtype=object)
             energy_denominators = sympy.Matrix(
                 np.resize(1 / (array_eigs_a.reshape(-1, 1) - array_eigs_b), Y.shape)
             )
             return energy_denominators.multiply_elementwise(Y)
-        else:
-            TypeError(f"Unsupported rhs type: {type(Y)}")
+        TypeError(f"Unsupported rhs type: {type(Y)}")
 
     return solve_sylvester
 

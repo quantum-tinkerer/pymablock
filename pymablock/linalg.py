@@ -16,7 +16,7 @@ from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 from pymablock.series import one, zero
 
 # Monkey-patch LinearOperator to support right multiplication
-# TODO: Remove this when we depend on scipy >= 1.11
+# TODO: Remove this when we depend on scipy >= 1.11, see issue #130.
 if parse(scipy_version) < parse("1.11"):
     from scipy.sparse.linalg._interface import (
         _ProductLinearOperator,
@@ -26,8 +26,7 @@ if parse(scipy_version) < parse("1.11"):
     def __rmul__(self, x):
         if np.isscalar(x):
             return _ScaledLinearOperator(self, x)
-        else:
-            return self._rdot(x)
+        return self._rdot(x)
 
     def _rdot(self: LinearOperator, x: Any) -> Any:
         """Matrix-matrix or matrix-vector multiplication from the right.
@@ -51,17 +50,15 @@ if parse(scipy_version) < parse("1.11"):
         """
         if isinstance(x, LinearOperator):
             return _ProductLinearOperator(x, self)
-        elif np.isscalar(x):
+        if np.isscalar(x):
             return _ScaledLinearOperator(self, x)
-        else:
-            x = np.asarray(x)
+        x = np.asarray(x)
 
-            if x.ndim == 1 or x.ndim == 2 and x.shape[0] == 1:
-                return self.rmatvec(x.T.conj()).T.conj()
-            elif x.ndim == 2:
-                return self.rmatmat(x.T.conj()).T.conj()
-            else:
-                raise ValueError("expected 1-d or 2-d array or matrix, got %r" % x)
+        if x.ndim == 1 or x.ndim == 2 and x.shape[0] == 1:
+            return self.rmatvec(x.T.conj()).T.conj()
+        if x.ndim == 2:
+            return self.rmatmat(x.T.conj()).T.conj()
+        raise ValueError("expected 1-d or 2-d array or matrix, got %r" % x)
 
     LinearOperator.__rmul__ = __rmul__
     LinearOperator._rdot = _rdot
@@ -195,11 +192,11 @@ def is_diagonal(A: Any, atol: float = 1e-12) -> bool:
         return True
     if isinstance(A, sympy.MatrixBase):
         return A.is_diagonal()
-    elif isinstance(A, np.ndarray):
+    if isinstance(A, np.ndarray):
         # Create a view of the offdiagonal array elements
         offdiagonal = A.reshape(-1)[:-1].reshape(len(A) - 1, len(A) + 1)[:, 1:]
         return not np.any(np.round(offdiagonal, int(-np.log10(atol))))
-    elif sparse.issparse(A):
+    if sparse.issparse(A):
         A = sparse.dia_array(A)
         return not any(A.offsets)
     raise NotImplementedError(f"Cannot extract diagonal from {type(A)}")
