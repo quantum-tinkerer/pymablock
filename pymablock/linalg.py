@@ -1,3 +1,5 @@
+"""Linear algebra utilities."""
+
 from typing import Callable, Any
 from warnings import warn
 
@@ -146,8 +148,15 @@ def direct_greens_function(
 
 
 class ComplementProjector(LinearOperator):
+    r"""
+    Projector on the complement of the span of a set of vectors.
+
+    This is used to compute $P_B = I - P_A$ where $P_A$ is the projector on the
+    span of the vectors $A$ in the implicit method.
+    """
+
     def __init__(self: LinearOperator, vecs: np.ndarray) -> LinearOperator:
-        """Projector on the complement of the span of vecs"""
+        """Projector on the complement of the span of vecs."""
         self.shape = (vecs.shape[0], vecs.shape[0])
         self._vecs = vecs
         self.dtype = vecs.dtype
@@ -170,6 +179,8 @@ class ComplementProjector(LinearOperator):
 
 def aslinearoperator(A: Any) -> Any:
     """
+    Construct a linear operator.
+
     Same as `scipy.sparse.linalg.aslinearoperator`, but with passthrough for
     `~pymablock.series.zero` and `~pymablock.series.one`.
     """

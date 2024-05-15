@@ -1,3 +1,5 @@
+"""Series with block structure and their product operations."""
+
 import sys
 from operator import matmul, mul
 from typing import Any, Optional, Callable, Union
@@ -69,7 +71,7 @@ _mask = np.vectorize((lambda entry: entry is zero), otypes=[bool])
 
 class BlockSeries:
     def __init__(
-        self: BlockSeries,
+        self,
         eval: Optional[Callable] = None,
         data: Optional[dict[tuple[int, ...], Any]] = None,
         shape: tuple[int, ...] = (),
@@ -78,7 +80,7 @@ class BlockSeries:
         name: Optional[str] = None,
     ) -> None:
         """
-        An infinite series that caches its items.
+        Construct an infinite series that caches its items.
 
         The series has finite and infinite dimensions.
 
@@ -427,9 +429,7 @@ def product_by_order(
 
 
 def _log_call(func):
-    """
-    Log a method call into the class attribute.
-    """
+    """Log a method call into the class attribute."""
 
     @wraps(func)
     def wrapped(*args, **kwargs):
@@ -441,10 +441,18 @@ def _log_call(func):
 
 
 class AlgebraElement:
+    """
+    Abstract algebra element that logs all method calls.
+
+    This class is used to test performance of the block diagonalization
+    algorithm, see the regression test `test_number_products` in the
+    `test_block_diagonalization`.
+    """
+
     log = []
 
-    def __init__(self, name):
-        """An abstract algebra element.
+    def __init__(self, name: str) -> None:
+        """Construct an abstract algebra element.
 
         Parameters
         ----------
