@@ -771,7 +771,7 @@ def solve_sylvester_KPM(
             Maximum number of expansion moments of the Green's function.
 
     Returns
-    ----------
+    -------
     solve_sylvester: Callable
         Function that applies divide by energies to the right hand side of
         Sylvester's equation.
@@ -1050,8 +1050,7 @@ def _subspaces_from_indices(
     symbolic: Optional[bool] = False,
 ) -> tuple[sparse.csr_array, sparse.csr_array]:
     """
-    Returns the subspace_eigenvectors projection from the indices of the
-    elements of the diagonal.
+    Compute subspace eigenvectors from indices of diagonal elements.
 
     Parameters
     ----------
@@ -1121,7 +1120,7 @@ def _extract_diagonal(
 
 def _convert_if_zero(value: Any, atol=1e-12):
     """
-    Converts an exact zero to sentinel value zero.
+    Convert an exact zero to sentinel value zero.
 
     Parameters
     ----------
@@ -1166,7 +1165,7 @@ def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
 
 def _zero_sum(*terms: Any) -> Any:
     """
-    Sum that returns a singleton zero if empty and omits zero terms
+    Sum that returns a singleton zero if empty and omits zero terms.
 
     Parameters
     ----------

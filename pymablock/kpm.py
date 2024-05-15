@@ -1,3 +1,8 @@
+"""Kernel Polynomial Method (KPM).
+
+See arXiv:cond-mat/0504627 and arXiv:1909.09649.
+"""
+
 from warnings import warn
 from typing import Optional, Callable, Union
 from collections.abc import Iterator
@@ -65,9 +70,9 @@ def kpm_vectors(
     vector: np.ndarray,
 ) -> Iterator[np.ndarray]:
     r"""
-    Generator of vectors for the Kernel Polynomial Method (KPM).
+    Generate vectors for the Kernel Polynomial Method (KPM).
 
-    This generator yields vectors as :math:`T_n(H) \lvert v \rangle`.
+    Generates vectors as :math:`T_n(H) \lvert v \rangle`.
 
     Parameters
     ----------
@@ -98,8 +103,8 @@ def rescale(
     """
     Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
 
-    Adapted with modifications from kwant.kpm
-    Copyright 2011-2016 Kwant developers, BSD simplified license
+    Adapted with modifications from kwant.kpm Copyright 2011-2016 Kwant
+    developers, BSD simplified license
     https://gitlab.kwant-project.org/kwant/kwant/-/blob/v1.4.3/LICENSE.rst
 
     Parameters
