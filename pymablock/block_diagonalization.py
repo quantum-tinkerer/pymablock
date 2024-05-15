@@ -1,4 +1,5 @@
-# Algorithms for quasi-degenerate perturbation theory
+"""Algorithms for quasi-degenerate perturbation theory."""
+
 from operator import matmul, mul
 from functools import reduce
 from typing import Any, Optional, Callable, Union
