@@ -164,13 +164,13 @@ def rescale(
     return rescaled_h, (a, b)
 
 
-def jackson_kernel(n: int) -> np.ndarray:
+def jackson_kernel(N: int) -> np.ndarray:
     """
     Coefficients of the Jackson kernel of length n.
 
     Taken from Eq. (71) of `Rev. Mod. Phys., Vol. 78, No. 1 (2006)
     <https://arxiv.org/abs/cond-mat/0504627>`_.
     """
-    m = np.arange(n) / (n + 1)
-    denom = (n + 1) * np.tan(np.pi / (n + 1))
+    m = np.arange(N) / (N + 1)
+    denom = (N + 1) * np.tan(np.pi / (N + 1))
     return (1 - m) * np.cos(m * np.pi) + np.sin(m * np.pi) / denom

@@ -72,6 +72,19 @@ lint.extend-select = [
   "FLY",
   "RUF",
 ]
+ignore = [
+"N802",
+"N803",
+"N806",
+]
+[tool.ruff.lint.extend-per-file-ignores]
+"pymablock/block_diagonalization.py" = [
+  "RET503",
+  "RET504",
+]
+"pymablock/tests/test_block_diagonalization.py" = [
+  "RET504",
+]
 
 [tool.mypy]
 # Not using mypy yet, but this is a start.

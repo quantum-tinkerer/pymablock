@@ -1,4 +1,3 @@
-# ruff: noqa: N806
 import numpy as np
 import scipy
 from qsymm.linalg import allclose

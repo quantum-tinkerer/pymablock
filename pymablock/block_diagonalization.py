@@ -1,4 +1,3 @@
-# ruff: noqa: N802, N803, N806, RET503, RET504
 """Algorithms for quasi-degenerate perturbation theory."""
 
 from collections.abc import Sequence
