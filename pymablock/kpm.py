@@ -3,12 +3,12 @@
 See arXiv:cond-mat/0504627 and arXiv:1909.09649.
 """
 
-from warnings import warn
-from typing import Optional, Callable, Union
 from collections.abc import Iterator
+from typing import Callable, Optional, Union
+from warnings import warn
 
-from scipy import sparse
 import numpy as np
+from scipy import sparse
 
 
 def greens_function(

@@ -1,19 +1,19 @@
 """Linear algebra utilities."""
 
-from typing import Callable, Any
+from typing import Any, Callable
 from warnings import warn
 
-from packaging.version import parse
 import numpy as np
-from scipy import __version__ as scipy_version
-from scipy.sparse import spmatrix, identity
-from scipy.sparse.linalg import LinearOperator
-from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
-from scipy import sparse
 import sympy
 from mumps import Context as MUMPSContext
+from packaging.version import parse
+from scipy import __version__ as scipy_version
+from scipy import sparse
+from scipy.sparse import identity, spmatrix
+from scipy.sparse.linalg import LinearOperator
+from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 
-from pymablock.series import zero, one
+from pymablock.series import one, zero
 
 # Monkey-patch LinearOperator to support right multiplication
 # TODO: Remove this when we depend on scipy >= 1.11

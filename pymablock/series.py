@@ -1,12 +1,12 @@
 """Series with block structure and their product operations."""
 
 import sys
-from operator import matmul, mul
-from typing import Any, Optional, Callable, Union
-from secrets import token_hex
-from functools import wraps, reduce
-from itertools import product
 from collections import Counter
+from functools import reduce, wraps
+from itertools import product
+from operator import matmul, mul
+from secrets import token_hex
+from typing import Any, Callable, Optional, Union
 
 if sys.version_info >= (3, 11):
     from typing import Self

@@ -1,10 +1,10 @@
 """Algorithms for quasi-degenerate perturbation theory."""
 
-from operator import matmul, mul
-from functools import reduce
-from typing import Any, Optional, Callable, Union
 from collections.abc import Sequence
 from copy import copy
+from functools import reduce
+from operator import matmul, mul
+from typing import Any, Callable, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -12,18 +12,18 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
 
+from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
     ComplementProjector,
     aslinearoperator,
-    is_diagonal,
     direct_greens_function,
+    is_diagonal,
 )
-from pymablock.kpm import greens_function, rescale
 from pymablock.series import (
     BlockSeries,
-    zero,
-    one,
     cauchy_dot_product,
+    one,
+    zero,
 )
 
 __all__ = ["block_diagonalize"]
