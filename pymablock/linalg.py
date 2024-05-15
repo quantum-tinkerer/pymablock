@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Any
 from warnings import warn
 
 from packaging.version import parse
@@ -27,11 +27,13 @@ if parse(scipy_version) < parse("1.11"):
         else:
             return self._rdot(x)
 
-    def _rdot(self, x):
+    def _rdot(self: LinearOperator, x: Any) -> Any:
         """Matrix-matrix or matrix-vector multiplication from the right.
 
         Parameters
         ----------
+        self :
+            Linear operator to multiply with.
         x : array_like
             1-d or 2-d array, representing a vector or matrix.
 
@@ -144,7 +146,7 @@ def direct_greens_function(
 
 
 class ComplementProjector(LinearOperator):
-    def __init__(self, vecs):
+    def __init__(self: LinearOperator, vecs: np.ndarray) -> LinearOperator:
         """Projector on the complement of the span of vecs"""
         self.shape = (vecs.shape[0], vecs.shape[0])
         self._vecs = vecs
@@ -152,21 +154,21 @@ class ComplementProjector(LinearOperator):
 
     __array_ufunc__ = None
 
-    def _matvec(self, v):
+    def _matvec(self: LinearOperator, v: np.ndarray) -> np.ndarray:
         return v - self._vecs @ (self._vecs.conj().T @ v)
 
     _matmat = _rmatvec = _rmatmat = _matvec
 
-    def _adjoint(self):
+    def _adjoint(self: LinearOperator) -> LinearOperator:
         return self
 
-    def conjugate(self):
+    def conjugate(self: LinearOperator) -> LinearOperator:
         return self.__class__(vecs=self._vecs.conj())
 
     _transpose = conjugate
 
 
-def aslinearoperator(A):
+def aslinearoperator(A: Any) -> Any:
     """
     Same as `scipy.sparse.linalg.aslinearoperator`, but with passthrough for
     `~pymablock.series.zero` and `~pymablock.series.one`.
@@ -176,7 +178,7 @@ def aslinearoperator(A):
     return scipy_aslinearoperator(A)
 
 
-def is_diagonal(A, atol=1e-12):
+def is_diagonal(A: Any, atol: float = 1e-12) -> bool:
     """Check if A is diagonal."""
     if A is zero or A is np.ma.masked:
         return True

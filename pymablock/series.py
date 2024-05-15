@@ -69,7 +69,7 @@ _mask = np.vectorize((lambda entry: entry is zero), otypes=[bool])
 
 class BlockSeries:
     def __init__(
-        self,
+        self: BlockSeries,
         eval: Optional[Callable] = None,
         data: Optional[dict[tuple[int, ...], Any]] = None,
         shape: tuple[int, ...] = (),
@@ -232,7 +232,8 @@ class BlockSeries:
 
         Parameters
         ----------
-        orders : indices of the infinite dimension.
+        orders :
+            indices of the infinite dimension.
         """
         for order in orders:
             if isinstance(order, slice):
@@ -247,7 +248,8 @@ class BlockSeries:
 
         Parameters
         ----------
-        item : indices to check.
+        item :
+            indices to check.
         """
         if len(item) != len(self.shape) + self.n_infinite:
             raise IndexError(
