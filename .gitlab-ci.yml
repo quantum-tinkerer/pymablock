@@ -148,8 +148,3 @@ publish to pypi:
     - micromamba install -c conda-forge -y hatch hatch-vcs
     - hatch build
     - hatch publish -u __token__ -a $PYPI_TOKEN
-
-test ruff:
-  script:
-    - pip install ruff
-    - ruff check . --fix
