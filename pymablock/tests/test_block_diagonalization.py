@@ -1,25 +1,25 @@
-from itertools import permutations, chain
-from collections import Counter
-from typing import Any, Union, Callable
 import tracemalloc
+from collections import Counter
+from itertools import chain, permutations
+from typing import Any, Callable, Union
 
-import pytest
 import numpy as np
+import pytest
 import sympy
 from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
 from pymablock.block_diagonalization import (
-    block_diagonalize,
     _block_diagonalize,
+    _dict_to_BlockSeries,
+    block_diagonalize,
+    hamiltonian_to_BlockSeries,
     solve_sylvester_diagonal,
     solve_sylvester_direct,
     solve_sylvester_KPM,
-    hamiltonian_to_BlockSeries,
-    _dict_to_BlockSeries,
 )
-from pymablock.series import BlockSeries, AlgebraElement, cauchy_dot_product, zero, one
+from pymablock.series import AlgebraElement, BlockSeries, cauchy_dot_product, one, zero
 
 
 # Auxiliary comparison functions
@@ -97,7 +97,7 @@ def is_diagonal_series(
     """
     order = tuple(slice(None, dim_order + 1) for dim_order in wanted_orders)
     for matrix in chain(
-        series[(0, 1) + order].compressed(), series[(1, 0) + order].compressed()
+        series[(0, 1, *order)].compressed(), series[(1, 0, *order)].compressed()
     ):
         if isinstance(matrix, np.ndarray):
             np.testing.assert_allclose(
@@ -219,12 +219,12 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     zeroth_order = (0,) * n_infinite
     H = BlockSeries(
         data={
-            **{(0, 0) + zeroth_order: h_0_AA},
-            **{(1, 1) + zeroth_order: h_0_BB},
-            **{(0, 0) + tuple(key): value for key, value in h_p_AA.items()},
-            **{(0, 1) + tuple(key): value for key, value in h_p_AB.items()},
-            **{(1, 0) + tuple(key): Dagger(value) for key, value in h_p_AB.items()},
-            **{(1, 1) + tuple(key): value for key, value in h_p_BB.items()},
+            **{(0, 0, *zeroth_order): h_0_AA},
+            **{(1, 1, *zeroth_order): h_0_BB},
+            **{(0, 0, *key): value for key, value in h_p_AA.items()},
+            **{(0, 1, *key): value for key, value in h_p_AB.items()},
+            **{(1, 0, *key): Dagger(value) for key, value in h_p_AB.items()},
+            **{(1, 1, *key): value for key, value in h_p_BB.items()},
         },
         shape=(2, 2),
         n_infinite=n_infinite,
@@ -262,7 +262,10 @@ def implicit_problem(
 
     hamiltonian_list = []
     hamiltonian_dict = {}
-    h_0 = np.random.randn(n_dim, n_dim) + 1j * np.random.randn(n_dim, n_dim)
+    rng = np.random.default_rng()
+    h_0 = rng.standard_normal(size=(n_dim, n_dim)) + 1j * rng.standard_normal(
+        size=(n_dim, n_dim)
+    )
     h_0 += Dagger(h_0)
 
     eigs, vecs = np.linalg.eigh(h_0)
@@ -404,7 +407,7 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
         assert H[block + (0,) * H.n_infinite] is zero
     with pytest.raises(ValueError):
         H = hamiltonian_to_BlockSeries(hamiltonian)
-        H[(0, 0) + (0,) * H.n_infinite]
+        H[(0, 0, *(0,) * H.n_infinite)]
 
 
 def test_input_hamiltonian_from_subspaces():
@@ -470,13 +473,13 @@ def test_input_hamiltonian_blocks():
         assert H.dimension_names == tuple(f"n_{i}" for i in range(H.n_infinite))
         assert H.name == "H"
         np.testing.assert_allclose(
-            H[(0, 0) + (0,) * H.n_infinite].diagonal(), np.array([-1, -1])
+            H[(0, 0, *(0,) * H.n_infinite)].diagonal(), np.array([-1, -1])
         )
         np.testing.assert_allclose(
-            H[(1, 1) + (0,) * H.n_infinite].diagonal(), np.array([1, 1])
+            H[(1, 1, *(0,) * H.n_infinite)].diagonal(), np.array([1, 1])
         )
-        assert H[(0, 1) + (0,) * H.n_infinite] is zero
-        assert H[(1, 0) + (0,) * H.n_infinite] is zero
+        assert H[(0, 1, *(0,) * H.n_infinite)] is zero
+        assert H[(1, 0, *(0,) * H.n_infinite)] is zero
 
 
 def test_H_tilde_diagonal(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
@@ -563,9 +566,7 @@ def test_first_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> 
     H_tilde = _block_diagonalize(H)[0]
     Np = len(wanted_orders)
     for order in permutations((0,) * (Np - 1) + (1,)):
-        np.testing.assert_allclose(
-            H_tilde[(0, 0) + order], H[(0, 0) + order], atol=1e-8
-        )
+        np.testing.assert_allclose(H_tilde[(0, 0, *order)], H[(0, 0, *order)], atol=1e-8)
 
 
 def second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
@@ -586,9 +587,9 @@ def second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     n_infinite = H.n_infinite
     order = tuple(value // 2 for value in order)
     h_0_AA, h_0_BB, h_p_AB = (
-        H[(0, 0) + (0,) * n_infinite],
-        H[(1, 1) + (0,) * n_infinite],
-        H[(0, 1) + order],
+        H[(0, 0, *(0,) * n_infinite)],
+        H[(1, 1, *(0,) * n_infinite)],
+        H[(0, 1, *order)],
     )
 
     eigs_A = np.diag(h_0_AA)
@@ -598,7 +599,7 @@ def second_order(H: BlockSeries, order: tuple[int, ...]) -> Any:
     return -(V1 @ Dagger(h_p_AB) + h_p_AB @ Dagger(V1)) / 2
 
 
-def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
+def test_second_order_H_tilde(H: BlockSeries) -> None:
     """Test that the second order is computed correctly.
 
     Parameters
@@ -613,7 +614,7 @@ def test_second_order_H_tilde(H: BlockSeries, wanted_orders: tuple[int, ...]) ->
 
     for order in permutations((0,) * (n_infinite - 1) + (2,)):
         np.testing.assert_allclose(
-            H_tilde[(0, 0) + order], second_order(H, order), atol=1e-8
+            H_tilde[(0, 0, *order)], second_order(H, order), atol=1e-8
         )
 
 
@@ -666,9 +667,7 @@ def test_doubled_orders(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
 
         return eval
 
-    H_doubled = BlockSeries(
-        eval=doubled_eval(H), shape=H.shape, n_infinite=H.n_infinite
-    )
+    H_doubled = BlockSeries(eval=doubled_eval(H), shape=H.shape, n_infinite=H.n_infinite)
 
     H_tilde, U, _ = _block_diagonalize(H)
     H_tilde_doubled_directly = BlockSeries(
@@ -702,8 +701,8 @@ def test_one_sized_subspace():
             blocks = [(0, 0), (1, 1), (0, 1), (1, 0)]
             shapes = [(N_A, N_A), (N - N_A, N - N_A), (N_A, N - N_A), (N - N_A, N_A)]
             for block, shape in zip(blocks, shapes):
-                if output[block + (3,)] is not zero:
-                    assert output[block + (3,)].shape == shape
+                if output[(*block, 3)] is not zero:
+                    assert output[(*block, 3)].shape == shape
 
 
 def test_equivalence_explicit_implicit() -> None:
@@ -725,8 +724,9 @@ def test_equivalence_explicit_implicit() -> None:
     n = 30
     a_dim = 2
 
-    def random_H(*index):
-        h = np.random.randn(n, n) + 1j * np.random.randn(n, n)
+    def random_H(*index):  # noqa: ARG001
+        rng = np.random.default_rng()
+        h = rng.standard_normal(size=(n, n)) + 1j * rng.standard_normal(size=(n, n))
         return h + Dagger(h)
 
     H = BlockSeries(
@@ -735,7 +735,7 @@ def test_equivalence_explicit_implicit() -> None:
         n_infinite=1,
     )
     H_0 = H[0]
-    eigvals, eigvecs = np.linalg.eigh(H_0)
+    _, eigvecs = np.linalg.eigh(H_0)
     solve_sylvester = solve_sylvester_direct(sparse.coo_array(H_0), eigvecs[:, :a_dim])
 
     implicit_H = hamiltonian_to_BlockSeries(
@@ -758,9 +758,7 @@ def test_equivalence_explicit_implicit() -> None:
         H, subspace_eigenvectors=(eigvecs[:, :a_dim], eigvecs[:, a_dim:])
     )
 
-    implicit_H_tilde, *_ = _block_diagonalize(
-        implicit_H, solve_sylvester=solve_sylvester
-    )
+    implicit_H_tilde, *_ = _block_diagonalize(implicit_H, solve_sylvester=solve_sylvester)
     explicit_wrapped_H_tilde, *_ = _block_diagonalize(
         explicit_wrapped_H, solve_sylvester=solve_sylvester
     )
@@ -769,18 +767,19 @@ def test_equivalence_explicit_implicit() -> None:
     assert all(isinstance(implicit_H_tilde[1, 1, i], LinearOperator) for i in range(2))
 
     compare_series(implicit_H_tilde, explicit_wrapped_H_tilde, (2,), atol=1e-12)
-    compare_series(
-        implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-8
-    )
+    compare_series(implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-8)
 
 
 def test_dtype_mismatch_error_implicit():
     """Test that the implicit algorithm raises an error when the dtype of the
     Hamiltonian and perturbation do not match."""
-    h_0 = np.random.randn(4, 4)
+    rng = np.random.default_rng()
+    h_0 = rng.standard_normal(size=(4, 4))
     h_0 += Dagger(h_0)
     vecs = np.linalg.eigh(h_0)[1]
-    perturbation = np.random.randn(4, 4) + 1j * np.random.randn(4, 4)
+    perturbation = rng.standard_normal(size=(4, 4)) + 1j * rng.standard_normal(
+        size=(4, 4)
+    )
     perturbation += Dagger(perturbation)
 
     H_tilde, *_ = block_diagonalize(
@@ -797,7 +796,8 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     """
     n = 300
     a_dim = 5
-    E = np.random.randn(n)
+    rng = np.random.default_rng()
+    E = rng.standard_normal(n)
     t = np.random.rand(n - 1) * np.exp(2j * np.pi * np.random.rand(n - 1))
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
@@ -806,7 +806,9 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
     direct = solve_sylvester_direct(h, eigvecs)
 
-    y = np.random.randn(a_dim, n - a_dim) + 1j * np.random.randn(a_dim, n - a_dim)
+    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+        size=(a_dim, n - a_dim)
+    )
     y = y @ Dagger(eigvecs_rest)
 
     y_default = diagonal(y)
@@ -829,8 +831,9 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     """
     n = 30
     a_dim = 5
+    rng = np.random.default_rng()
     # Introduce a gap between the two subspaces
-    E = np.random.randn(n) - 10 * (np.arange(n) < a_dim)
+    E = rng.standard_normal(n) - 10 * (np.arange(n) < a_dim)
     t = np.random.rand(n - 1) * np.exp(2j * np.pi * np.random.rand(n - 1))
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
@@ -846,7 +849,9 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
         h, [eigvecs, eigvecs_partial], solver_options={"atol": 1e-3}
     )
 
-    y = np.random.randn(a_dim, n - a_dim) + 1j * np.random.randn(a_dim, n - a_dim)
+    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+        size=(a_dim, n - a_dim)
+    )
     y = y @ Dagger(eigvecs_rest)
 
     y_default = diagonal(y)
@@ -1056,8 +1061,9 @@ def test_zero_h_0():
 
     This is a regression test for a bug that was present in the algorithm.
     """
+    rng = np.random.default_rng()
     h_0 = np.diag([0.0, 0.0, 1.0, 1.0])
-    h_p = np.random.randn(4, 4)
+    h_p = rng.standard_normal(size=(4, 4))
     h_p += h_p.T
     h = [h_0, h_p]
     block_diagonalize(h, subspace_indices=[0, 0, 1, 1])[0][:, :, 3]
@@ -1089,9 +1095,7 @@ def test_single_symbol_input():
 
 
 def test_warning_non_diagonal_input():
-    muL, muR, B, E, t, tso, Delta = sympy.symbols(
-        "mu_L mu_R B E t t_s Delta", real=True
-    )
+    muL, muR, B, E, t, tso, Delta = sympy.symbols("mu_L mu_R B E t t_s Delta", real=True)
     h_0 = sympy.Matrix(
         [
             [muL, 0, 0, 0, 0, 0, 0, 0],
@@ -1188,7 +1192,7 @@ def test_number_products(data_regression):
     def eval_dense_first_order(*index):
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
-        elif index[2] > 1 or any(index[3:]):
+        if index[2] > 1 or any(index[3:]):
             return zero
         return AlgebraElement(f"H{index}")
 
@@ -1200,7 +1204,7 @@ def test_number_products(data_regression):
     def eval_offdiagonal_every_order(*index):
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
-        elif index[0] == index[1] and sum(index[2:]) != 0:
+        if index[0] == index[1] and sum(index[2:]) != 0:
             return zero
         return AlgebraElement(f"H{index}")
 
@@ -1209,13 +1213,13 @@ def test_number_products(data_regression):
         p = np.random.random(3)
         if index[0] != index[1] and sum(index[2:]) == 0:  # H_0 is diagonal
             return zero
-        elif index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
+        if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
             return zero
-        elif index[0] == index[1] == 1 and sum(index[2:]) == 0:
-            AlgebraElement(f"H{index}")  # Not both diagonal blocks are zero
-        elif index[0] == index[1] and p[1] > 0.4:
+        if index[0] == index[1] == 1 and sum(index[2:]) == 0:
+            return AlgebraElement(f"H{index}")  # Not both diagonal blocks are zero
+        if index[0] == index[1] and p[1] > 0.4:
             return zero
-        elif index[0] != index[1] and p[2] > 0.4:
+        if index[0] != index[1] and p[2] > 0.4:
             return zero
         return AlgebraElement(f"H{index}")
 

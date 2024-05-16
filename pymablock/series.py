@@ -1,10 +1,12 @@
+"""Series with block structure and their product operations."""
+
 import sys
-from operator import matmul, mul
-from typing import Any, Optional, Callable, Union
-from secrets import token_hex
-from functools import wraps, reduce
-from itertools import product
 from collections import Counter
+from functools import reduce, wraps
+from itertools import product
+from operator import matmul, mul
+from secrets import token_hex
+from typing import Any, Callable, Optional, Union
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -46,9 +48,7 @@ del One
 
 
 class Zero:
-    """
-    A sentinel value for missing terms in series.
-    """
+    """A sentinel value for missing terms in series."""
 
     def __mul__(self, other: Any = None) -> Self:
         return self
@@ -68,6 +68,12 @@ _mask = np.vectorize((lambda entry: entry is zero), otypes=[bool])
 
 
 class BlockSeries:
+    """Series with block structure and caching of evaluated items.
+
+    BlockSeries is used to represent Hamiltonians, unitary transformations,
+    and other series needed in the block diagonalization algorithm.
+    """
+
     def __init__(
         self,
         eval: Optional[Callable] = None,
@@ -77,8 +83,7 @@ class BlockSeries:
         dimension_names: Optional[tuple[Union[str, sympy.Symbol], ...]] = None,
         name: Optional[str] = None,
     ) -> None:
-        """
-        An infinite series that caches its items.
+        """Construct an infinite series that caches its items.
 
         The series has finite and infinite dimensions.
 
@@ -97,6 +102,7 @@ class BlockSeries:
             This is used for symbolic series.
         name :
             Name of the series. Used for printing.
+
         """
         self.eval = (lambda *_: zero) if eval is None else eval
         # Avoid accidentally mutating data
@@ -109,8 +115,7 @@ class BlockSeries:
         self.name = name or f"Series_{token_hex(4)}"
 
     def __getitem__(self, item: Item) -> Any:
-        """
-        Evaluate the series at indices, following numpy's indexing rules.
+        """Evaluate the series at indices, following numpy's indexing rules.
 
         Parameters
         ----------
@@ -122,6 +127,7 @@ class BlockSeries:
         Returns
         -------
         The item or items at the given index.
+
         """
         if not isinstance(item, tuple):  # Allow indexing with integer
             item = (item,)
@@ -174,9 +180,7 @@ class BlockSeries:
                     data.pop(index, None)
                     raise
             if data[index] is PENDING:
-                raise RuntimeError(
-                    f"Infinite recursion loop detected in {self}[{index}]"
-                )
+                raise RuntimeError(f"Infinite recursion loop detected in {self}[{index}]")
             trial[index] = data[index]
 
         result = trial[item]
@@ -185,8 +189,7 @@ class BlockSeries:
         return result  # return one item
 
     def __contains__(self, item) -> bool:
-        """
-        Check if the given index has been evaluated.
+        """Check if the given index has been evaluated.
 
         Parameters
         ----------
@@ -197,20 +200,21 @@ class BlockSeries:
         -------
         bool
             Whether the given index has been evaluated.
+
         """
         return self._data.get(item) is not zero
 
     def __str__(self) -> str:
+        """Name the series."""
         dimensions = (
             *map(str, self.shape),
             *(f"∞_({name})" for name in self.dimension_names),
         )
 
-        return f"{self.name}_({' × '.join(dimensions)})"
+        return f"{self.name}_({' × '.join(dimensions)})"  # noqa RUF001
 
     def pop(self, item: Item, default: Any, /) -> Any:
-        """
-        Remove and return the value for a given index.
+        """Remove and return the value for a given index.
 
         Parameters
         ----------
@@ -223,31 +227,34 @@ class BlockSeries:
         -------
         Any
             Value for the given index.
+
         """
         return self._data.pop(item, default)
 
     def _check_finite(self, orders: tuple[OneItem, ...]):
-        """
-        Check that the indices of the infinite dimension are finite and positive.
+        """Check that the indices of the infinite dimension are finite and positive.
 
         Parameters
         ----------
-        orders : indices of the infinite dimension.
+        orders :
+            indices of the infinite dimension.
+
         """
         for order in orders:
             if isinstance(order, slice):
                 if order.stop is None:
                     raise IndexError("Cannot evaluate infinite series")
-                elif isinstance(order.start, int) and order.start < 0:
+                if isinstance(order.start, int) and order.start < 0:
                     raise IndexError("Cannot evaluate negative order")
 
     def _check_number_perturbations(self, item: tuple[OneItem, ...]):
-        """
-        Check that the number of indices is correct.
+        """Check that the number of indices is correct.
 
         Parameters
         ----------
-        item : indices to check.
+        item :
+            indices to check.
+
         """
         if len(item) != len(self.shape) + self.n_infinite:
             raise IndexError(
@@ -261,8 +268,7 @@ def cauchy_dot_product(
     operator: Optional[Callable] = None,
     hermitian: bool = False,
 ) -> BlockSeries:
-    """
-    Multivariate Cauchy product of `~pymablock.series.BlockSeries`.
+    """Multivariate Cauchy product of `~pymablock.series.BlockSeries`.
 
     Notes: This treats a singleton ``one`` as the identity operator.
 
@@ -281,6 +287,7 @@ def cauchy_dot_product(
     -------
     `~pymablock.series.BlockSeries`
         A new series that is the Cauchy dot product of the given series.
+
     """
     if len(series) > 2:
         # Use associativity to reuse intermediate results This might be possible
@@ -348,8 +355,7 @@ def product_by_order(
     operator: Optional[Callable] = None,
     hermitian: bool = False,
 ) -> Any:
-    """
-    Compute sum of all product of factors of a wanted order.
+    """Compute sum of all product of factors of a wanted order.
 
     Only queries the highest order of a series if the the other series has
     some 0th order terms. This is needed to support recurrent definitions.
@@ -372,6 +378,7 @@ def product_by_order(
     -------
     Any
         Sum of all products that contribute to the wanted order.
+
     """
     if operator is None:
         operator = matmul
@@ -384,8 +391,8 @@ def product_by_order(
     ):
         orders_1st = tuple(orders_1st)
         orders_2nd = tuple(i - j for i, j in zip(orders, orders_1st))
-        first_index = (start, middle) + orders_1st
-        second_index = (middle, end) + orders_2nd
+        first_index = (start, middle, *orders_1st)
+        second_index = (middle, end, *orders_2nd)
 
         if hermitian and orders_1st > orders_2nd:
             continue
@@ -425,9 +432,7 @@ def product_by_order(
 
 
 def _log_call(func):
-    """
-    Log a method call into the class attribute.
-    """
+    """Log a method call into the class attribute."""
 
     @wraps(func)
     def wrapped(*args, **kwargs):
@@ -439,10 +444,17 @@ def _log_call(func):
 
 
 class AlgebraElement:
-    log = []
+    """Abstract algebra element that logs all method calls.
 
-    def __init__(self, name):
-        """An abstract algebra element.
+    This class is used to test performance of the block diagonalization
+    algorithm, see the regression test `test_number_products` in the
+    `test_block_diagonalization`.
+    """
+
+    log = []  # noqa: RUF012
+
+    def __init__(self, name: str) -> None:
+        """Construct an abstract algebra element.
 
         Parameters
         ----------
@@ -465,6 +477,7 @@ class AlgebraElement:
         - Obtain a symbolic expression of all computations that are performed
           with its instances.
         - Log all of its method calls into a class attribute.
+
         """
         self.name = name
 

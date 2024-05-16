@@ -1,11 +1,12 @@
+# ruff: noqa: N803, N806
 import builtins
 
-from pytest import raises, mark
 import numpy as np
+import sympy
 from numpy.testing import assert_allclose
+from pytest import mark, raises
 from scipy import sparse
 from scipy.sparse.linalg import aslinearoperator
-import sympy
 
 from pymablock import linalg
 
@@ -70,7 +71,7 @@ def test_is_diagonal():
 
 
 def test_no_mumps(monkeypatch):
-    def __import__(*args, **kwargs):
+    def __import__(*args, **kwargs):  # noqa ARG001
         raise ImportError
 
     with monkeypatch.context() as monkeypatch:

@@ -1,22 +1,20 @@
+# ruff: noqa: N803, N806, RET504
 from functools import reduce
 from operator import mul
 
 import numpy as np
 import sympy
-
 from kwant._common import ensure_rng
-
+from kwant.kpm import jackson_kernel
 from qsymm.model import Model, _symbol_normalizer
 
 from .kpm_funcs import rescale
-from kwant.kpm import jackson_kernel
 
 one = sympy.sympify(1)
 
 
 def _interesting_keys(keys, order=2):
-    """
-    Generate list of interesting keys as monomials of `keys`
+    """Generate list of interesting keys as monomials of `keys`
     with maximum total power `order`.
     It helps minimize total time of calculations.
 
@@ -30,6 +28,7 @@ def _interesting_keys(keys, order=2):
     Returns
     -------
     interesting_keys: set of sympy expressions
+
     """
 
     def partition(n, d, depth=0):
@@ -37,7 +36,7 @@ def _interesting_keys(keys, order=2):
         if d == depth:
             return [[]]
         return [
-            item + [i]
+            [*item, i]
             for i in range(n + 1)
             for item in partition(n - i, d, depth=depth + 1)
         ]
@@ -64,12 +63,10 @@ def trace_perturbation(
     normalized_vectors=False,
     kpm_params=dict(),
 ):
-    """
-    Perturbative expansion of `Tr(f(H) * A)` using stochastic trace.
+    """Perturbative expansion of `Tr(f(H) * A)` using stochastic trace.
 
     Parameters
     ----------
-
     H0 : array or Model
         Unperturbed hamiltonian, dense or sparse matrix. If
         provided as Model, it must contain a single
@@ -110,11 +107,11 @@ def trace_perturbation(
 
     Returns
     -------
-
     expansion : callable
         A function that takes the function of energy `f` and returns the
         expansion of the trace. This evaluation is very fast, as the
         moments of the expansion are precalculated.
+
     """
     H1 = Model(H1)
     all_keys = _interesting_keys(H1.keys(), order)
@@ -161,8 +158,7 @@ def trace_perturbation(
         moments.append(next_moment)
 
     def expansion(f):
-        """
-        Perturbative expansion of `Tr(f(H) * A)` using stochastic trace.
+        """Perturbative expansion of `Tr(f(H) * A)` using stochastic trace.
         The moments are precalculated, so evaluation should be fast.
         """
         coef = np.polynomial.chebyshev.chebinterpolate(
@@ -175,8 +171,7 @@ def trace_perturbation(
 
 
 def _perturbative_kpm_vectors(ham, vectors, max_moments):
-    """
-    Generator object that succesively yields KPM vectors `T_n(ham) |vector>`
+    """Generator object that succesively yields KPM vectors `T_n(ham) |vector>`
     for vectors in `vectors` for n in [0, max_moments].
 
     Parameters
@@ -196,6 +191,7 @@ def _perturbative_kpm_vectors(ham, vectors, max_moments):
     -----
     Returns a sequence of expanded vectors, Models of shape (M, N).
     If the input was a vector, M=1.
+
     """
     if not isinstance(vectors, Model):
         alpha = Model({1: np.atleast_2d(vectors)})

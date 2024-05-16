@@ -1,11 +1,11 @@
-from typing import Any
 from operator import mul
+from typing import Any
 
 import numpy as np
-import sympy
 import pytest
+import sympy
 
-from pymablock.series import BlockSeries, cauchy_dot_product, AlgebraElement
+from pymablock.series import AlgebraElement, BlockSeries, cauchy_dot_product
 
 
 @pytest.fixture(
@@ -121,7 +121,7 @@ def test_printing():
         dimension_names=("i", sympy.Symbol("j")),
         name="test",
     )
-    assert str(a) == "test_(5 × 5 × ∞_(i) × ∞_(j))"
+    assert str(a) == "test_(5 × 5 × ∞_(i) × ∞_(j))"  # noqa: RUF001
 
 
 def test_algebra_element_algebra():

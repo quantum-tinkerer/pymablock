@@ -1,37 +1,41 @@
-from typing import Callable
+# ruff: noqa: N803, N806
+"""Linear algebra utilities."""
+
+from typing import Any, Callable
 from warnings import warn
 
-from packaging.version import parse
 import numpy as np
-from scipy import __version__ as scipy_version
-from scipy.sparse import spmatrix, identity
-from scipy.sparse.linalg import LinearOperator
-from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
-from scipy import sparse
 import sympy
 from mumps import Context as MUMPSContext
+from packaging.version import parse
+from scipy import __version__ as scipy_version
+from scipy import sparse
+from scipy.sparse import identity, spmatrix
+from scipy.sparse.linalg import LinearOperator
+from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 
-from pymablock.series import zero, one
+from pymablock.series import one, zero
 
 # Monkey-patch LinearOperator to support right multiplication
-# TODO: Remove this when we depend on scipy >= 1.11
+# TODO: Remove this when we depend on scipy >= 1.11, see issue #130.
 if parse(scipy_version) < parse("1.11"):
     from scipy.sparse.linalg._interface import (
         _ProductLinearOperator,
         _ScaledLinearOperator,
     )
 
-    def __rmul__(self, x):
+    def __rmul__(self, x):  # noqa: N807
         if np.isscalar(x):
             return _ScaledLinearOperator(self, x)
-        else:
-            return self._rdot(x)
+        return self._rdot(x)
 
-    def _rdot(self, x):
+    def _rdot(self: LinearOperator, x: Any) -> Any:
         """Matrix-matrix or matrix-vector multiplication from the right.
 
         Parameters
         ----------
+        self :
+            Linear operator to multiply with.
         x : array_like
             1-d or 2-d array, representing a vector or matrix.
 
@@ -44,20 +48,19 @@ if parse(scipy_version) < parse("1.11"):
         Notes
         -----
         This is copied from dot to implement right multiplication.
+
         """
         if isinstance(x, LinearOperator):
             return _ProductLinearOperator(x, self)
-        elif np.isscalar(x):
+        if np.isscalar(x):
             return _ScaledLinearOperator(self, x)
-        else:
-            x = np.asarray(x)
+        x = np.asarray(x)
 
-            if x.ndim == 1 or x.ndim == 2 and x.shape[0] == 1:
-                return self.rmatvec(x.T.conj()).T.conj()
-            elif x.ndim == 2:
-                return self.rmatmat(x.T.conj()).T.conj()
-            else:
-                raise ValueError("expected 1-d or 2-d array or matrix, got %r" % x)
+        if x.ndim == 1 or x.ndim == 2 and x.shape[0] == 1:
+            return self.rmatvec(x.T.conj()).T.conj()
+        if x.ndim == 2:
+            return self.rmatmat(x.T.conj()).T.conj()
+        raise ValueError("expected 1-d or 2-d array or matrix, got %r" % x)
 
     LinearOperator.__rmul__ = __rmul__
     LinearOperator._rdot = _rdot
@@ -89,6 +92,7 @@ def direct_greens_function(
     -------
     greens_function : `Callable[[np.ndarray], np.ndarray]`
         Function that solves :math:`(E - H) sol = vec`.
+
     """
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     is_complex = np.iscomplexobj(mat.data)
@@ -117,6 +121,7 @@ def direct_greens_function(
         -------
         sol :
             Solution of :math:`(E - H) sol = vec`.
+
         """
         if np.iscomplexobj(vec) and not is_complex:
             vec = (vec.real, vec.imag)
@@ -144,30 +149,38 @@ def direct_greens_function(
 
 
 class ComplementProjector(LinearOperator):
-    def __init__(self, vecs):
-        """Projector on the complement of the span of vecs"""
+    r"""Projector on the complement of the span of a set of vectors.
+
+    This is used to compute $P_B = I - P_A$ where $P_A$ is the projector on the
+    span of the vectors $A$ in the implicit method.
+    """
+
+    def __init__(self: LinearOperator, vecs: np.ndarray) -> LinearOperator:
+        """Projector on the complement of the span of vecs."""
         self.shape = (vecs.shape[0], vecs.shape[0])
         self._vecs = vecs
         self.dtype = vecs.dtype
 
     __array_ufunc__ = None
 
-    def _matvec(self, v):
+    def _matvec(self: LinearOperator, v: np.ndarray) -> np.ndarray:
         return v - self._vecs @ (self._vecs.conj().T @ v)
 
     _matmat = _rmatvec = _rmatmat = _matvec
 
-    def _adjoint(self):
+    def _adjoint(self: LinearOperator) -> LinearOperator:
         return self
 
-    def conjugate(self):
+    def conjugate(self: LinearOperator) -> LinearOperator:
+        """Conjugate operator."""
         return self.__class__(vecs=self._vecs.conj())
 
     _transpose = conjugate
 
 
-def aslinearoperator(A):
-    """
+def aslinearoperator(A: Any) -> Any:
+    """Construct a linear operator.
+
     Same as `scipy.sparse.linalg.aslinearoperator`, but with passthrough for
     `~pymablock.series.zero` and `~pymablock.series.one`.
     """
@@ -176,17 +189,17 @@ def aslinearoperator(A):
     return scipy_aslinearoperator(A)
 
 
-def is_diagonal(A, atol=1e-12):
+def is_diagonal(A: Any, atol: float = 1e-12) -> bool:
     """Check if A is diagonal."""
     if A is zero or A is np.ma.masked:
         return True
     if isinstance(A, sympy.MatrixBase):
         return A.is_diagonal()
-    elif isinstance(A, np.ndarray):
+    if isinstance(A, np.ndarray):
         # Create a view of the offdiagonal array elements
         offdiagonal = A.reshape(-1)[:-1].reshape(len(A) - 1, len(A) + 1)[:, 1:]
         return not np.any(np.round(offdiagonal, int(-np.log10(atol))))
-    elif sparse.issparse(A):
+    if sparse.issparse(A):
         A = sparse.dia_array(A)
         return not any(A.offsets)
     raise NotImplementedError(f"Cannot extract diagonal from {type(A)}")

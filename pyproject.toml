@@ -53,6 +53,46 @@ include = [
 
 [tool.ruff]
 line-length = 90
+exclude = [
+  "paper",  # not part of the library
+  "pymablock/_version.py",  # generated automatically
+  "noxfile.py",
+  "docs/source/conf.py",
+  "pymablock/__init__.py",
+  "trace_perturbation/*",  # not part of the library
+]
+lint.extend-select = [
+  "N",
+  "D",
+  "W",
+  "I",
+  "T10",
+  "Q",
+  "RSE",
+  "RET",
+  "TCH",
+  "INT",
+  "ARG",
+  "R",
+  "FLY",
+  "RUF",
+]
+lint.ignore = [
+"N802",  # invalid-function-name
+"N803",  # invalid-argument-name
+"N806",  # non-lowercase-variable-in-function
+]
+lint.fixable = ["ALL"]
+lint.unfixable = []
+[tool.ruff.lint.extend-per-file-ignores]
+"pymablock/block_diagonalization.py" = [
+  "RET503",  # implicit-return
+  "RET504",  # unnecessary-assign
+]
+"pymablock/tests/*.py" = [
+  "RET504",
+  "D",  # documentation in tests not necessary
+]
 
 [tool.mypy]
 # Not using mypy yet, but this is a start.

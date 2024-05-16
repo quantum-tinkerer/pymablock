@@ -1,9 +1,10 @@
 import numpy as np
 import scipy
-from codes.trace_perturbation import trace_perturbation
-from qsymm.model import Model
 from qsymm.linalg import allclose
+from qsymm.model import Model
 from scipy.sparse.linalg import LinearOperator
+
+from codes.trace_perturbation import trace_perturbation
 
 
 def test_simple_model():
@@ -54,9 +55,7 @@ def test_simple_model():
 
     # Test operator
     a = np.array([1] * N + [0] * N) / np.sqrt(N)
-    operator = Model(
-        {1: LinearOperator((2 * N, 2 * N), lambda v: v.T - a * (a.dot(v)))}
-    )
+    operator = Model({1: LinearOperator((2 * N, 2 * N), lambda v: v.T - a * (a.dot(v)))})
     operator *= 1 / (N - 1)
     model = trace_perturbation(
         mat02,

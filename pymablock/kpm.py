@@ -1,9 +1,14 @@
-from warnings import warn
-from typing import Optional, Callable, Union
-from collections.abc import Iterator
+"""Kernel Polynomial Method (KPM).
 
-from scipy import sparse
+See arXiv:cond-mat/0504627 and arXiv:1909.09649.
+"""
+
+from collections.abc import Iterator
+from typing import Callable, Optional, Union
+from warnings import warn
+
 import numpy as np
+from scipy import sparse
 
 
 def greens_function(
@@ -13,8 +18,7 @@ def greens_function(
     atol: float = 1e-7,
     max_moments: int = int(1e6),
 ) -> Callable[[np.ndarray], np.ndarray]:
-    """
-    Return a solution of ``(energy - hamiltonian) @ x = vector``.
+    """Return a solution of ``(energy - hamiltonian) @ x = vector``.
 
     Uses the Kernel polynomial method (KPM) with the Jackson kernel.
 
@@ -36,6 +40,7 @@ def greens_function(
     -------
     solution : `~numpy.ndarray`
         Solution x of (E - H_0) * x = v.
+
     """
     residue = np.inf
     num_moments = 10
@@ -64,10 +69,9 @@ def kpm_vectors(
     hamiltonian: Union[np.ndarray, sparse.spmatrix],
     vector: np.ndarray,
 ) -> Iterator[np.ndarray]:
-    r"""
-    Generator of vectors for the Kernel Polynomial Method (KPM).
+    r"""Generate vectors for the Kernel Polynomial Method (KPM).
 
-    This generator yields vectors as :math:`T_n(H) \lvert v \rangle`.
+    Generates vectors as :math:`T_n(H) \lvert v \rangle`.
 
     Parameters
     ----------
@@ -81,6 +85,7 @@ def kpm_vectors(
     expanded_vectors : Iterable
         Infinite sequence of Chebyshev polynomials of the Hamiltonian applied
         to the vector.
+
     """
     yield (alpha_prev := vector)
     yield (alpha := hamiltonian @ alpha_prev)
@@ -95,11 +100,10 @@ def rescale(
     bounds: Optional[tuple[float, float]] = None,
     lower_bounds: Optional[tuple[float, float]] = None,
 ) -> tuple[Union[np.ndarray, sparse.spmatrix], tuple[float, float]]:
-    """
-    Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
+    """Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
 
-    Adapted with modifications from kwant.kpm
-    Copyright 2011-2016 Kwant developers, BSD simplified license
+    Adapted with modifications from kwant.kpm Copyright 2011-2016 Kwant
+    developers, BSD simplified license
     https://gitlab.kwant-project.org/kwant/kwant/-/blob/v1.4.3/LICENSE.rst
 
     Parameters
@@ -120,8 +124,8 @@ def rescale(
         Rescaled Hamiltonian.
     (a, b) :
         Rescaling parameters such that ``h_rescaled = (h - b) / a``.
-    """
 
+    """
     if bounds is not None:
         lmin, lmax = bounds
     else:
@@ -160,8 +164,7 @@ def rescale(
 
 
 def jackson_kernel(N: int) -> np.ndarray:
-    """
-    Coefficients of the Jackson kernel of length N.
+    """Coefficients of the Jackson kernel of length n.
 
     Taken from Eq. (71) of `Rev. Mod. Phys., Vol. 78, No. 1 (2006)
     <https://arxiv.org/abs/cond-mat/0504627>`_.

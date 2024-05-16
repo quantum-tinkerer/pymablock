@@ -13,7 +13,7 @@
 import os
 import sys
 
-import pymablock  # noqa: F401
+import pymablock
 
 package_path = os.path.abspath("../pymablock")
 # Suppress superfluous frozen modules warning.
