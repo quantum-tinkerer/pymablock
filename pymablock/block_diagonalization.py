@@ -479,10 +479,22 @@ def _block_diagonalize(
         "H": H,
     }
 
+    def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
+        return BlockSeries(
+            eval=(lambda *index: aslinearoperator(original[index])),
+            name=original.name,
+            **series_kwargs,
+        )
+
+    linear_operator_series = {
+        "H": linear_operator_wrapped(H),
+    }
+
     eval_scope = {
         # Locals
         "use_implicit": use_implicit,
         "series": series,
+        "linear_operator_series": linear_operator_series,
         "solve_sylvester": solve_sylvester,
         # Globals
         "Dagger": Dagger,
@@ -494,13 +506,16 @@ def _block_diagonalize(
 
     for term, definition in main_algorithm.items():
         if isinstance(definition["eval"], _Product):
+            # The products should come last in the algorithm definition
+            # such that all the terms are already defined.
             first, second = term.split(" @ ", maxsplit=1)
-            series[term] = cauchy_dot_product(
-                series[first],
-                series[second],
-                operator=operator,
-                hermitian=definition["eval"].hermitian,
-            )
+            for which in series, linear_operator_series:
+                which[term] = cauchy_dot_product(
+                    which[first],
+                    which[second],
+                    operator=operator,
+                    hermitian=definition["eval"].hermitian,
+                )
         else:
             series_data = data.get(str(definition.get("data", None)), None)
 
@@ -514,6 +529,7 @@ def _block_diagonalize(
                 name=term,
                 **series_kwargs,
             )
+            linear_operator_series[term] = linear_operator_wrapped(series[term])
 
     return series["H_tilde"], series["U"], series["U†"]
 

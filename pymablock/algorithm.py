@@ -22,12 +22,12 @@ class _Series(_Part):
         self.name = name
 
     def __repr__(self):
-        return f'series["{self.name}"][index]'
+        return f'which["{self.name}"][index]'
 
 
 class _DaggerAntiHermitianProduct(_Series):
     def __repr__(self):
-        return f'Dagger(series["{self.name}"][(index[1], index[0], *index[2:])])'
+        return f'Dagger(which["{self.name}"][(index[1], index[0], *index[2:])])'
 
 
 class _Factor(_Part):
@@ -82,7 +82,7 @@ class _AntiHermitize(_Part):
         self.child = _to_series(child)
 
     def __repr__(self):
-        return f"(-Dagger(series[series_name][(0, 1, *index[2:])]) if index[:2] == (1, 0) else {self.child})"
+        return f"(-Dagger(which[series_name][(0, 1, *index[2:])]) if index[:2] == (1, 0) else {self.child})"
 
 
 class _SolveSylvester(_Part):
@@ -105,6 +105,7 @@ class _Eval:
     def __repr__(self):
         return f"""
 def series_eval(*index):
+    which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series
     return {self.child}
 """
 
