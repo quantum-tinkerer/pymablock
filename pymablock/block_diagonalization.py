@@ -12,6 +12,7 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
 
+from pymablock.algorithm import _Product, main_algorithm
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
     ComplementProjector,
@@ -458,6 +459,11 @@ def _block_diagonalize(
         block + zeroth_order: H[block + zeroth_order]
         for block in ((0, 0), (0, 1), (1, 0), (1, 1))
     }
+    data = {
+        "zero_data": zero_data,
+        "identity_data": identity_data,
+        "H_0_data": H_0_data,
+    }
     # Common series kwargs to avoid some repetition
     series_kwargs = dict(
         shape=(2, 2),
@@ -465,209 +471,51 @@ def _block_diagonalize(
         dimension_names=H.dimension_names,
     )
 
-    # The main algorithm closely follows the notation in the notes, and is hard
-    # to understand otherwise. Consult the docs/source/algorithms.md in order to
-    # understand the logic of what is happening.
-
-    series_data = {
-        # Only perturbative parts of H
-        "H'_diag": {
-            "eval": (lambda *index: H[index] if index[0] == index[1] else zero),
-            "data": zero_data,
-        },
-        "H'_offdiag": {
-            "eval": (lambda *index: H[index] if index[0] != index[1] else zero),
-            "data": zero_data,
-        },
-        # Only perturbative parts of the unitary transformation
-        "U'": {"data": zero_data},
-        # Full unitary transformation
-        "U": {"eval": (lambda *index: series["U'"][index]), "data": identity_data},
-        # Diagonal parts of U' are Hermitian, off-diagonal parts are anti-Hermitian
-        "U'†": {
-            "eval": (
-                lambda *index: (
-                    series["U'"][index] if index[0] == index[1] else -series["U'"][index]
-                )
-            )
-        },
-        "U†": {
-            "eval": (lambda *index: series["U'†"][index]),
-            "data": identity_data,
-        },
-        # X = [U', H_diag], computed using a recurrence relation. Diagonal parts are
-        # anti-Hermitian, off-diagonal parts are Hermitian.
-        "X": {
-            "eval": (
-                lambda *index: _zero_sum(
-                    series["B"][index],
-                    series["H'_offdiag"][index],
-                    series["H'_offdiag @ U'"][index],
-                )
-            ),
-            "data": zero_data,
-        },
-        # Used as common subexpression to save products, see docs/source/algorithms.md
-        "B": {
-            "data": zero_data,
-        },
-    }
-    series = {
-        key: BlockSeries(name=key, **series_kwargs, **value)
-        for key, value in series_data.items()
-    }
-
-    # List of products and whether they are Hermitian
-    needed_products = [
-        ("U'† @ U'", True),
-        ("H'_diag @ U'", False),
-        ("H'_offdiag @ U'", False),
-        ("U'† @ B", False),
-    ]
-
-    for term, hermitian in needed_products:
-        first, second = term.split(" @ ", maxsplit=1)
-        series[term] = cauchy_dot_product(
-            series[first], series[second], operator=operator, hermitian=hermitian
-        )
-
-    # The implicit method executes exactly the same algorithm, but with only one
-    # modification: it defines duplicates for the original series that return
-    # linear operators instead of matrices. Then whenever (1, 1) block of any
-    # matrix, including the original ones, is needed, these wrapped series are
-    # used to compute it, and otherwise the original series is used. Note that
-    # the (1, 1) block of the original series is also a linear operator.
-
-    # Because BlockSeries only does anything unless it is called, we can define
-    # these duplicates without any performance penalty. If we are using explicit
-    # data, they will never be used.
-
-    if implicit := isinstance(H[(1, 1, *zeroth_order)], sparse.linalg.LinearOperator):
+    if use_implicit := isinstance(H[(1, 1, *zeroth_order)], sparse.linalg.LinearOperator):
         if operator is not matmul:
             raise ValueError("The implicit method only supports matrix multiplication.")
 
-    def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
-        return BlockSeries(
-            eval=(lambda *index: aslinearoperator(original[index])),
-            name=original.name,
-            **series_kwargs,
-        )
-
-    linear_operator_series = {
-        key: linear_operator_wrapped(value) for key, value in series.items()
+    series = {
+        "H": H,
     }
 
-    for term, hermitian in needed_products:
-        first, second = term.split(" @ ", maxsplit=1)
-        linear_operator_series[term] = cauchy_dot_product(
-            linear_operator_series[first],
-            linear_operator_series[second],
-            operator=operator,
-            hermitian=hermitian,
-        )
+    eval_scope = {
+        # Locals
+        "use_implicit": use_implicit,
+        "series": series,
+        "solve_sylvester": solve_sylvester,
+        # Globals
+        "Dagger": Dagger,
+        "_safe_divide": _safe_divide,
+        "_zero_sum": _zero_sum,
+        "zero": zero,
+        "aslinearoperator": aslinearoperator,
+    }
 
-    def linear_operator_or_explicit(index):
-        if index[0] == index[1] == 1 and implicit:
-            return linear_operator_series
-        return series
-
-    # We are guaranteed to use some of the intermediate results only once, see
-    # https://gitlab.kwant-project.org/qt/pymablock/-/issues/90 for how these
-    # are identified. We delete them from the series to save memory. To support
-    # the implicit method, we delete both versions at the same time.
-    #
-    # Specifically we delete the following intermediate results:
-    # U'† @ U': (0, 0), (1, 1)
-    # X: (0, 1)
-    # H'_diag @ U': (0, 1), (1, 0)
-    # H'_offdiag @ U': (0, 1)
-    # U'† @ B: (0, 1), (1, 0)
-
-    def del_(series_name, index: int) -> None:
-        series[series_name].pop(index, None)
-        linear_operator_series[series_name].pop(index, None)
-
-    def U_p_eval(*index: int) -> Any:
-        if index[0] == index[1]:
-            # diagonal is constrained by unitarity
-            U_p_adj_U_p = linear_operator_or_explicit(index)["U'† @ U'"]
-            result = _safe_divide(U_p_adj_U_p[index], -2)
-            del_("U'† @ U'", index)
-            return result
-        if index[:2] == (0, 1):
-            # off-diagonal block nullifies the off-diagonal part of H_tilde
-            index_dag = (index[1], index[0], *index[2:])
-            Y = _zero_sum(
-                # We can choose to query either (1, 0) or (0, 1) since X is Hermitian.
-                # The choice for (1, 0) is optimal for querying H_AA and (0, 1) for H_BB.
-                # We choose (1, 0) because we follow the convention that H_AA is more important.
-                Dagger(series["X"][index_dag]),
-                # - [U', H'_diag]
-                # Below we use the antihermiticity of the off-diagonal part of U'
-                series["H'_diag @ U'"][index],
-                Dagger(series["H'_diag @ U'"][index_dag]),
+    for term, definition in main_algorithm.items():
+        if isinstance(definition["eval"], _Product):
+            first, second = term.split(" @ ", maxsplit=1)
+            series[term] = cauchy_dot_product(
+                series[first],
+                series[second],
+                operator=operator,
+                hermitian=definition["eval"].hermitian,
             )
-            del_("X", index_dag)
-            del_("H'_diag @ U'", index)
-            del_("H'_diag @ U'", index_dag)
-            # At this point the item below will never be accessed again
-            # even though it is not queried directly in this function.
-            del_("H'_offdiag @ U'", index)
-            return -solve_sylvester(Y) if Y is not zero else zero
-        if index[:2] == (1, 0):
-            # off-diagonal of U is anti-Hermitian
-            return -Dagger(series["U'"][(0, 1, *tuple(index[2:]))])
+        else:
+            series_data = data.get(str(definition.get("data", None)), None)
 
-    series["U'"].eval = U_p_eval
+            # This defines `series_eval` as the eval function for this term.
+            eval_scope = {**eval_scope, "series_name": term}
+            exec(str(definition["eval"]()), eval_scope)
 
-    def B_eval(*index: int) -> Any:
-        if index[0] == index[1]:
-            which = linear_operator_or_explicit(index)
-            return _safe_divide(
-                _zero_sum(
-                    which["U'† @ B"][index],
-                    -Dagger(which["U'† @ B"][index]),
-                    which["H'_offdiag @ U'"][index],
-                    Dagger(which["H'_offdiag @ U'"][index]),
-                ),
-                -2,
+            series[term] = BlockSeries(
+                eval=eval_scope["series_eval"],
+                data=series_data,
+                name=term,
+                **series_kwargs,
             )
-        result = -series["U'† @ B"][index]
-        del_("U'† @ B", index)
-        return result
 
-    series["B"].eval = B_eval
-
-    def H_tilde_eval(*index: int) -> Any:
-        series = linear_operator_or_explicit(index)
-        if index[0] == index[1]:
-            result = _zero_sum(
-                series["H'_diag"][index],
-                # (F + F†) / 2
-                _safe_divide(
-                    (
-                        series["H'_offdiag @ U'"][index]
-                        + Dagger(series["H'_offdiag @ U'"][index])
-                    ),
-                    2,
-                ),
-                # -([U'† @ B] + h.c.) / 2
-                _safe_divide(
-                    series["U'† @ B"][index] + Dagger(series["U'† @ B"][index]),
-                    -2,
-                ),
-            )
-            return result
-        return zero
-
-    H_tilde = BlockSeries(
-        eval=H_tilde_eval,
-        data=H_0_data,
-        name="H_tilde",
-        **series_kwargs,
-    )
-
-    return H_tilde, series["U"], series["U†"]
+    return series["H_tilde"], series["U"], series["U†"]
 
 
 ### Different formats and algorithms of solving Sylvester equation.
