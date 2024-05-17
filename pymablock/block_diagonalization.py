@@ -490,12 +490,17 @@ def _block_diagonalize(
         "H": linear_operator_wrapped(H),
     }
 
+    def del_(series_name, index: int) -> None:
+        series[series_name].pop(index, None)
+        linear_operator_series[series_name].pop(index, None)
+
     eval_scope = {
         # Locals
         "use_implicit": use_implicit,
         "series": series,
         "linear_operator_series": linear_operator_series,
         "solve_sylvester": solve_sylvester,
+        "del_": del_,
         # Globals
         "Dagger": Dagger,
         "_safe_divide": _safe_divide,

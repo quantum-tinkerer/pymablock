@@ -8,7 +8,7 @@ class _Part:
             self.extra = [self.extra]
 
     def __neg__(self):
-        return _Negated(self)
+        return _Negated(self, extra=self.extra)
 
 
 class _Negated(_Part):
@@ -87,11 +87,28 @@ class _Dagger(_Part):
 
 
 class _SolveSylvester(_Part):
-    def __init__(self, child):
+    def __init__(self, child, **kwargs):
         self.child = _to_part(child)
+        super().__init__(**kwargs)
 
     def __repr__(self):
         return f"(solve_sylvester(Y) if (Y := {self.child}) is not zero else zero)"
+
+
+class _Delete:
+    def __init__(self, term):
+        self.term = term
+
+    def _index(self):
+        return "index"
+
+    def __repr__(self):
+        return f'del_("{self.term}", {self._index()})'
+
+
+class _DeleteDagger(_Delete):
+    def _index(self):
+        return "(index[1], index[0], *index[2:])"
 
 
 class _Eval:
@@ -115,9 +132,11 @@ class _Eval:
 
     @staticmethod
     def _return(expression: _Part, indent=""):
-        return "".join(
-            f"{indent}{line}\n" for line in [*expression.extra, f"return {expression}"]
-        )
+        if expression.extra:
+            lines = [f"result = {expression}", *expression.extra, "return result"]
+        else:
+            lines = [f"return {expression}"]
+        return "".join(f"{indent}{line}\n" for line in lines)
 
     def _function_body(self):
         if not isinstance(self.term, _Zero):
@@ -175,10 +194,12 @@ def _to_part(item):
 
 def _compile_evals(algorithm):
     for definition in algorithm.values():
-        if not isinstance(definition["eval"], _Product):
-            if not isinstance(definition["eval"], _Eval):
-                definition["eval"] = _Eval(definition["eval"])
-            definition["eval"] = compile(definition["eval"](), "<string>", "exec")
+        if isinstance(definition["eval"], _Product):
+            continue
+        if not isinstance(definition["eval"], _Eval):
+            definition["eval"] = _Eval(definition["eval"])
+        print(definition["eval"]())
+        definition["eval"] = compile(definition["eval"](), "<string>", "exec")
 
 
 # The main algorithm closely follows the notation in the notes, and is hard
@@ -195,13 +216,21 @@ main_algorithm = {
     },
     "U'": {
         "eval": _Eval(
-            diag=_Divide("U'† @ U'", -2),
+            diag=_Divide("U'† @ U'", -2, extra=_Delete("U'† @ U'")),
             offdiag=-_SolveSylvester(
                 _Sum(
                     "X",
                     "H'_diag @ U'",
                     _Dagger("H'_diag @ U'", index_dag=True),
                 ),
+                extra=[
+                    _Delete("X"),
+                    _Delete("H'_diag @ U'"),
+                    _DeleteDagger("H'_diag @ U'"),
+                    # At this point the item below will never be accessed again
+                    # even though it is not queried directly in this function.
+                    _Delete("H'_offdiag @ U'"),
+                ],
             ),
             antihermitian=True,
         ),
@@ -232,7 +261,7 @@ main_algorithm = {
                 ),
                 -2,
             ),
-            offdiag=_Negated("U'† @ B"),
+            offdiag=-_Series("U'† @ B", extra=_Delete("U'† @ B")),
         ),
         "data": _ZeroData(),
     },
