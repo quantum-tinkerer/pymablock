@@ -132,6 +132,12 @@ def _to_series(item):
     raise NotImplementedError
 
 
+def _compile_evals(algorithm):
+    for definition in algorithm.values():
+        if not isinstance(definition["eval"], _Product):
+            definition["eval"] = compile(str(definition["eval"]()), "<string>", "exec")
+
+
 # The main algorithm closely follows the notation in the notes, and is hard
 # to understand otherwise. Consult the docs/source/algorithms.md in order to
 # understand the logic of what is happening.
@@ -211,3 +217,5 @@ main_algorithm = {
         "eval": _Product(),
     },
 }
+
+_compile_evals(main_algorithm)
