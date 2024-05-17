@@ -195,19 +195,9 @@ class _Product:
         self.hermitian = hermitian
 
 
-class _ZeroData(_Expression):
-    def __repr__(self):
-        return "zero_data"
-
-
-class _IdentityData(_Expression):
-    def __repr__(self):
-        return "identity_data"
-
-
-class _H0Data(_Expression):
-    def __repr__(self):
-        return "H_0_data"
+zero_data = "zero_data"
+identity_data = "identity_data"
+h_0_data = "H_0_data"
 
 
 def _to_expression(item):
@@ -234,11 +224,11 @@ def _compile_evals(algorithm):
 main_algorithm = {
     "H'_diag": {
         "eval": _Eval(diag="H"),
-        "data": _ZeroData(),
+        "data": zero_data,
     },
     "H'_offdiag": {
         "eval": _Eval(offdiag="H"),
-        "data": _ZeroData(),
+        "data": zero_data,
     },
     "U'": {
         "eval": _Eval(
@@ -260,20 +250,20 @@ main_algorithm = {
             ),
             antihermitian=True,
         ),
-        "data": _ZeroData(),
+        "data": zero_data,
     },
     "U": {
         "eval": "U'",
-        "data": _IdentityData(),
+        "data": identity_data,
     },
     "U'†": {"eval": _Eval(diag="U'", offdiag=_Negated("U'"))},
     "U†": {
         "eval": "U'†",
-        "data": _IdentityData(),
+        "data": identity_data,
     },
     "X": {
         "eval": _Sum("B", "H'_offdiag", "H'_offdiag @ U'"),
-        "data": _ZeroData(),
+        "data": zero_data,
     },
     # Used as common subexpression to save products, see docs/source/algorithms.md
     "B": {
@@ -289,7 +279,7 @@ main_algorithm = {
             ),
             offdiag=-_Series("U'† @ B", extra=_Delete("U'† @ B")),
         ),
-        "data": _ZeroData(),
+        "data": zero_data,
     },
     "H_tilde": {
         "eval": _Eval(
@@ -299,7 +289,7 @@ main_algorithm = {
                 _Divide(_Sum("U'† @ B", _Dagger("U'† @ B")), -2),
             )
         ),
-        "data": _H0Data(),
+        "data": h_0_data,
     },
     "U'† @ U'": {
         "eval": _Product(hermitian=True),

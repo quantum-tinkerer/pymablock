@@ -526,7 +526,7 @@ def _block_diagonalize(
             # This defines `series_eval` as the eval function for this term.
             exec(definition["eval"], eval_scope)
 
-            series_data = data.get(str(definition.get("data", None)), None)
+            series_data = data.get(definition.get("data", None), None)
 
             series[term] = BlockSeries(
                 eval=eval_scope["series_eval"],
