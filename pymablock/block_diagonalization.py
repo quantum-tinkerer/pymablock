@@ -501,7 +501,6 @@ def _block_diagonalize(
         "_safe_divide": _safe_divide,
         "_zero_sum": _zero_sum,
         "zero": zero,
-        "aslinearoperator": aslinearoperator,
     }
 
     for term, definition in main_algorithm.items():
