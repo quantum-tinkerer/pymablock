@@ -189,10 +189,12 @@ main_algorithm = {
         "data": _ZeroData(),
     },
     "H_tilde": {
-        "eval": _Sum(
-            "H'_diag",
-            _Divide(_Sum("H'_offdiag @ U'", _Dagger("H'_offdiag @ U'")), 2),
-            _Divide(_Sum("U'† @ B", _Dagger("U'† @ B")), -2),
+        "eval": _Diag(
+            _Sum(
+                "H'_diag",
+                _Divide(_Sum("H'_offdiag @ U'", _Dagger("H'_offdiag @ U'")), 2),
+                _Divide(_Sum("U'† @ B", _Dagger("U'† @ B")), -2),
+            )
         ),
         "data": _H0Data(),
     },
