@@ -517,11 +517,12 @@ def _block_diagonalize(
                     hermitian=definition["eval"].hermitian,
                 )
         else:
-            series_data = data.get(str(definition.get("data", None)), None)
-
-            # This defines `series_eval` as the eval function for this term.
+            # Create a new scope for each term
             eval_scope = {**eval_scope, "series_name": term}
+            # This defines `series_eval` as the eval function for this term.
             exec(definition["eval"], eval_scope)
+
+            series_data = data.get(str(definition.get("data", None)), None)
 
             series[term] = BlockSeries(
                 eval=eval_scope["series_eval"],
