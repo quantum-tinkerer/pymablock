@@ -1,308 +1,157 @@
-"""Algorithm definitions."""
+"""Parse algorithm definitions."""
+
+import ast
+import dataclasses
 
 
-class _Expression:
-    """Base class for all expressions."""
+@dataclasses.dataclass
+class Series:
+    """Series definition."""
 
-    def __init__(self, **kwargs):
-        self.extra = kwargs.get("extra", [])
-        if not isinstance(self.extra, list):
-            self.extra = [self.extra]
-
-    def __neg__(self):
-        return _Negated(self, extra=self.extra)
-
-
-class _Negated(_Expression):
-    """Negation of an expression."""
-
-    def __init__(self, child, **kwargs):
-        self.child = _to_expression(child)
-        super().__init__(**kwargs)
-
-    def __repr__(self):
-        return f"(-{self.child})"
+    name: str = None
+    start: str | int = None
+    hermitian: bool = False
+    antihermitian: bool = False
+    default_eval: str = None
+    diagonal_eval: str = None
+    offdiagonal_eval: str = None
 
 
-class _Series(_Expression):
-    """Series referenced by name."""
-
-    def __init__(self, name, index_dag=False, **kwargs):
-        self.key = f'"{name}"'
-        self.index_dag = index_dag
-        super().__init__(**kwargs)
-
-    def _index(self):
-        if self.index_dag:
-            return "(index[1], index[0], *index[2:])"
-        return "index"
-
-    def __repr__(self):
-        return f"which[{self.key}][{self._index()}]"
+def parse_algorithms(data: ast.Module):
+    """Parse algorithm definitions."""
+    algorithms = {}
+    for node in data.body:
+        if isinstance(node, ast.FunctionDef):
+            algorithms[node.name] = list(parse_algorithm(node))
+    return algorithms
 
 
-class _Self(_Series):
-    """Series that references itself."""
+def parse_algorithm(definition: ast.FunctionDef):
+    """Parse an algorithm definition."""
+    for node in definition.body:
+        if isinstance(node, ast.With):
+            yield parse_series(node)
 
-    def __init__(self, index_dag=False, **kwargs):
-        super().__init__("", index_dag, **kwargs)
-        self.key = "series_name"
-
-
-class _Factor(_Expression):
-    """Multiplication of an expression by a factor."""
-
-    def __init__(self, child, factor, **kwargs):
-        self.child = _to_expression(child)
-        self.factor = factor
-        super().__init__(**kwargs)
-
-    def __repr__(self):
-        return f"({self.child} * {self.factor})"
+    # TODO: Parse return statement
 
 
-class _Divide(_Factor):
-    """Division of an expression by a factor."""
+def parse_series(definition: ast.With):
+    """Parse a series."""
+    series = Series()
 
-    def __init__(self, child, factor, **kwargs):
-        super().__init__(child, factor, **kwargs)
-
-    def __repr__(self):
-        return f"_safe_divide({self.child}, {self.factor})"
-
-
-class _Sum(_Expression):
-    """Sum of multiple expressions."""
-
-    def __init__(self, *children, **kwargs):
-        self.children = [_to_expression(child) for child in children]
-        super().__init__(**kwargs)
-
-    def __repr__(self):
-        return "_zero_sum(" + ", ".join(str(child) for child in self.children) + ")"
-
-
-class _Zero(_Expression):
-    """Zero expression."""
-
-    def __repr__(self):
-        return "zero"
-
-
-class _Dagger(_Expression):
-    """Complex conjugate of an expression."""
-
-    def __init__(self, child, index_dag=False, **kwargs):
-        self.child = _to_expression(child)
-        if index_dag:
-            if not isinstance(self.child, _Series):
-                raise ValueError("Index dagger can only be used with _Term")
-            self.child.index_dag = True
-        super().__init__(**kwargs)
-
-    def __repr__(self):
-        return f"Dagger({self.child})"
-
-
-class _SolveSylvester(_Expression):
-    """Solve Sylvester's equation for a given expression."""
-
-    def __init__(self, child, **kwargs):
-        self.child = _to_expression(child)
-        super().__init__(**kwargs)
-
-    def __repr__(self):
-        return f"(solve_sylvester(Y) if (Y := {self.child}) is not zero else zero)"
-
-
-class _Delete:
-    """Statement to delete term at the current index."""
-
-    def __init__(self, term):
-        self.term = term
-
-    def _index(self):
-        return "index"
-
-    def __repr__(self):
-        return f'del_("{self.term}", {self._index()})'
-
-
-class _DeleteDagger(_Delete):
-    """Statement to delete term at the daggered current index."""
-
-    def _index(self):
-        return "(index[1], index[0], *index[2:])"
-
-
-class _Eval:
-    """Evaluation function for a series."""
-
-    def __init__(
-        self,
-        term=None,
-        diag=None,
-        offdiag=None,
-        hermitian=False,
-        antihermitian=False,
+    if len(definition.items) != 1 or not isinstance(
+        name := definition.items[0].context_expr, ast.Constant
     ):
-        if term is not None and (diag is not None or offdiag is not None):
-            raise ValueError("Cannot have both term and diag/offdiag non-zero")
-        self.term = _to_expression(term or _Zero())
-        self.diag = _to_expression(diag or _Zero())
-        self.offdiag = _to_expression(offdiag or _Zero())
-        if hermitian and antihermitian:
-            raise ValueError("Cannot be both Hermitian and anti-Hermitian")
-        self.hermitian = hermitian
-        self.antihermitian = antihermitian
+        raise ValueError("Series name must be a literal.")
+    series.name = name.value
 
-    @staticmethod
-    def _return(expression: _Expression, indent=""):
-        if expression.extra:
-            lines = [f"result = {expression}", *expression.extra, "return result"]
-        else:
-            lines = [f"return {expression}"]
-        return "".join(f"{indent}{line}\n" for line in lines)
-
-    def _function_body(self):
-        if not isinstance(self.term, _Zero):
-            result = self._return(self.term)
-        else:
-            result = "if index[0] == index[1]:\n"
-            result += self._return(self.diag, indent="    ")
-            if self.hermitian or self.antihermitian:
-                result += "elif index[0] < index[1]:\n"
-                result += self._return(self.offdiag, indent="    ")
-                result += self._return(
-                    _Dagger(_Self(index_dag=True))
-                    if self.hermitian
-                    else -_Dagger(_Self(index_dag=True))
-                )
+    for node in definition.body:
+        if isinstance(node, ast.Assign):
+            parse_assign(node, series)
+        elif isinstance(node, ast.Expr):
+            if isinstance(node.value, ast.Name):
+                parse_property(node.value, series)
             else:
-                result += self._return(self.offdiag)
-        return result
+                series.default_eval = parse_eval(node.value)
+        if isinstance(node, ast.If):
+            parse_condition(node, series)
 
-    def __call__(self):
-        result = "def series_eval(*index):\n"
-        result += "    which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series\n"
-        for line in str(self._function_body()).split("\n"):
-            result += "    " + line + "\n"
-        return result
+    return series
 
 
-class _Product:
-    def __init__(self, *, hermitian=False):
-        self.hermitian = hermitian
+def parse_property(name: ast.Name, series: Series):
+    """Parse a property."""
+    match name.id:
+        case "hermitian":
+            series.hermitian = True
+        case "antihermitian":
+            series.antihermitian = True
+        case _:
+            raise ValueError(f"Unknown series property: {name.id}")
 
 
-zero_data = "zero_data"
-identity_data = "identity_data"
-h_0_data = "H_0_data"
+def parse_assign(assign: ast.Assign, series: Series):
+    """Parse an assignment."""
+    if len(assign.targets) != 1:
+        raise ValueError("Cannot assign multiple targets.")
+    target = assign.targets[0]
+    if not isinstance(target, ast.Name):
+        raise ValueError("Assignment target must be a name.")
+    if not isinstance(assign.value, ast.Constant):
+        raise ValueError("Assignment value must be a literal.")
+    match target.id:
+        case "start":
+            series.start = assign.value.value
+        case _:
+            raise ValueError(f"Unknown series property: {target.id}")
 
 
-def _to_expression(item):
-    if isinstance(item, str):
-        item = _Series(item)
-    if isinstance(item, _Expression):
-        return item
-    raise NotImplementedError
+def parse_eval(expr: ast.Expr | ast.expr):
+    """Parse an evaluation expression."""
+    adjoint = False
+    if isinstance(expr, ast.Attribute):
+        if expr.attr != "adj":
+            raise ValueError(f"Unsupported attribute: {expr.attr}")
+        adjoint = True
+        expr = expr.value
+    if isinstance(expr, ast.Constant):
+        if isinstance(expr.value, str):
+            index = "(index[1], index[0], *index[:2])" if adjoint else "index"
+            return f'which["{expr.value}"][{index}]'
+        if isinstance(expr.value, int):
+            return str(expr.value)
+        raise ValueError(f"Unsupported constant: {expr.value}")
+    if isinstance(expr, ast.BinOp):
+        if isinstance(expr.op, ast.Add) or isinstance(expr.op, ast.Sub):
+            return f"""zero_sum({', '.join(
+                f"{term}" if factor == 1 else f"(-{term})"
+                for factor, term in collect_terms(expr))})"""
+        if isinstance(expr.op, ast.Div):
+            return f"safe_divide({parse_eval(expr.left)}, {parse_eval(expr.right)})"
+        raise ValueError(f"Unsupported operator: {expr.op}")
+    if isinstance(expr, ast.UnaryOp):
+        if not (isinstance(expr.op, ast.USub) or expr.op == ast.USub):
+            raise ValueError(f"Unsupported unary operator: {expr.op}")
+        return f"-({parse_eval(expr.operand)})"
+    if isinstance(expr, ast.Call):
+        if not isinstance(expr.func, ast.Name):
+            raise ValueError(f"Unsupported function: {expr.func}")
+        if len(expr.args) != 1:
+            raise ValueError(f"Unsupported number of arguments: {expr.args}")
+        match expr.func.id:
+            case "solve_sylvester":
+                return f"(solve_sylvester(Y) if (Y := {parse_eval(expr.args[0])}) is not zero else zero)"
+            case _:
+                raise ValueError(f"Unsupported function: {expr.func}")
+    raise ValueError(f"Unsupported part of evaluation function: {expr}")
 
 
-def _compile_evals(algorithm):
-    for definition in algorithm.values():
-        if isinstance(definition["eval"], _Product):
-            continue
-        if not isinstance(definition["eval"], _Eval):
-            definition["eval"] = _Eval(definition["eval"])
-        print(definition["eval"]())
-        definition["eval"] = compile(definition["eval"](), "<string>", "exec")
+def collect_terms(expr: ast.expr | ast.BinOp):
+    """Collect all terms of neighbouring additive operators."""
+    if not isinstance(expr, ast.BinOp):
+        yield 1, parse_eval(expr)
+    elif isinstance(expr.op, ast.Add):
+        yield from collect_terms(expr.left)
+        yield from collect_terms(expr.right)
+    elif isinstance(expr.op, ast.Sub):
+        yield from collect_terms(expr.left)
+        yield from ((-1 * factor, term) for factor, term in collect_terms(expr.right))
+    else:
+        yield 1, parse_eval(expr)
 
 
-# The main algorithm closely follows the notation in the notes, and is hard
-# to understand otherwise. Consult the docs/source/algorithms.md in order to
-# understand the logic of what is happening.
-main_algorithm = {
-    "H'_diag": {
-        "eval": _Eval(diag="H"),
-        "data": zero_data,
-    },
-    "H'_offdiag": {
-        "eval": _Eval(offdiag="H"),
-        "data": zero_data,
-    },
-    "U'": {
-        "eval": _Eval(
-            diag=_Divide("U'† @ U'", -2, extra=_Delete("U'† @ U'")),
-            offdiag=-_SolveSylvester(
-                _Sum(
-                    "X",
-                    "H'_diag @ U'",
-                    _Dagger("H'_diag @ U'", index_dag=True),
-                ),
-                extra=[
-                    _Delete("X"),
-                    _Delete("H'_diag @ U'"),
-                    _DeleteDagger("H'_diag @ U'"),
-                    # At this point the item below will never be accessed again
-                    # even though it is not queried directly in this function.
-                    _Delete("H'_offdiag @ U'"),
-                ],
-            ),
-            antihermitian=True,
-        ),
-        "data": zero_data,
-    },
-    "U": {
-        "eval": "U'",
-        "data": identity_data,
-    },
-    "U'†": {"eval": _Eval(diag="U'", offdiag=_Negated("U'"))},
-    "U†": {
-        "eval": "U'†",
-        "data": identity_data,
-    },
-    "X": {
-        "eval": _Sum("B", "H'_offdiag", "H'_offdiag @ U'"),
-        "data": zero_data,
-    },
-    # Used as common subexpression to save products, see docs/source/algorithms.md
-    "B": {
-        "eval": _Eval(
-            diag=_Divide(
-                _Sum(
-                    "U'† @ B",
-                    -_Dagger("U'† @ B"),
-                    "H'_offdiag @ U'",
-                    _Dagger("H'_offdiag @ U'"),
-                ),
-                -2,
-            ),
-            offdiag=-_Series("U'† @ B", extra=_Delete("U'† @ B")),
-        ),
-        "data": zero_data,
-    },
-    "H_tilde": {
-        "eval": _Eval(
-            diag=_Sum(
-                "H'_diag",
-                _Divide(_Sum("H'_offdiag @ U'", _Dagger("H'_offdiag @ U'")), 2),
-                _Divide(_Sum("U'† @ B", _Dagger("U'† @ B")), -2),
-            )
-        ),
-        "data": h_0_data,
-    },
-    "U'† @ U'": {
-        "eval": _Product(hermitian=True),
-    },
-    "H'_diag @ U'": {
-        "eval": _Product(),
-    },
-    "H'_offdiag @ U'": {
-        "eval": _Product(),
-    },
-    "U'† @ B": {
-        "eval": _Product(),
-    },
-}
-
-_compile_evals(main_algorithm)
+def parse_condition(expr: ast.If, series: Series):
+    """Parse conditional eval."""
+    if not isinstance(expr.test, ast.Name):
+        raise ValueError(f"Unsupported condition: {expr.test}")
+    if len(expr.body) != 1:
+        raise ValueError("Cannot define multiple evaluation functions.")
+    if not isinstance(body := expr.body[0], ast.Expr):
+        raise ValueError("Evaluation function should be an expression.")
+    match expr.test.id:
+        case "diagonal":
+            series.diagonal_eval = parse_eval(body.value)
+        case "offdiagonal":
+            series.offdiagonal_eval = parse_eval(body.value)
+        case "_":
+            raise ValueError(f"Unsupported condition: {expr.test.id}")
