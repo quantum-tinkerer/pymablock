@@ -508,7 +508,9 @@ def _block_diagonalize(
         "zero": zero,
     }
 
-    for term in algorithms["main"]:
+    terms, outputs = algorithms["main"]
+
+    for term in terms:
         if term.is_product:
             first, second = term.name.split(" @ ", maxsplit=1)
             for which in series, linear_operator_series:
@@ -534,7 +536,7 @@ def _block_diagonalize(
             )
             linear_operator_series[term.name] = linear_operator_wrapped(series[term.name])
 
-    return series["H_tilde"], series["U"], series["U†"]
+    return tuple(series[output] for output in outputs)
 
 
 ### Different formats and algorithms of solving Sylvester equation.

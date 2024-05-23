@@ -75,4 +75,4 @@ def main():
     with "U'† @ B":
         pass
 
-    return "H_tilde", "U", "U'"
+    return "H_tilde", "U", "U†"

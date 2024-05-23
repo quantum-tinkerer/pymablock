@@ -30,7 +30,6 @@ class _Series:
     def compile(self):
         if self.is_product:
             return
-        print(self())
         self.compiled_eval = compile(self(), "<string>", "exec")
 
     def eval_body(self):
@@ -66,19 +65,33 @@ def parse_algorithms(data: ast.Module):
     _algorithms = {}
     for node in data.body:
         if isinstance(node, ast.FunctionDef):
-            _algorithms[node.name] = list(parse_algorithm(node))
+            _algorithms[node.name] = parse_algorithm(node)
     return _algorithms
 
 
 def parse_algorithm(definition: ast.FunctionDef):
-    """Parse an algorithm definition."""
+    """Parse algorithm definition."""
+    return list(parse_algorithm_series(definition)), parse_return(definition)
+
+
+def parse_return(definition: ast.FunctionDef):
+    """Parse return statement."""
+    for node in definition.body:
+        if isinstance(node, ast.Return):
+            if isinstance(node.value, ast.Constant):
+                return [node.value.value]
+            if isinstance(node.value, ast.Tuple):
+                return [element.value for element in node.value.elts]
+    return []
+
+
+def parse_algorithm_series(definition: ast.FunctionDef):
+    """Parse algorithm series definition."""
     for node in definition.body:
         if isinstance(node, ast.With):
             series = parse_series(node)
             series.compile()
             yield series
-
-    # TODO: Parse return statement
 
 
 def parse_series(definition: ast.With):
