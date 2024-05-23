@@ -2,42 +2,88 @@
 
 import ast
 import dataclasses
+from pathlib import Path
 
 
 @dataclasses.dataclass
-class Series:
+class _Series:
     """Series definition."""
 
     name: str = None
-    start: str | int = None
+    start: str = None
     hermitian: bool = False
     antihermitian: bool = False
     default_eval: str = None
     diagonal_eval: str = None
     offdiagonal_eval: str = None
+    compiled_eval: object = None
+
+    @property
+    def is_product(self):
+        return "@" in self.name
+
+    @staticmethod
+    def return_(value):
+        value = value or "zero"
+        return f"return {value}\n"
+
+    def compile(self):
+        if self.is_product:
+            return
+        print(self())
+        self.compiled_eval = compile(self(), "<string>", "exec")
+
+    def eval_body(self):
+        if self.default_eval is not None:
+            result = self.return_(self.default_eval)
+        else:
+            result = "if index[0] == index[1]:\n"
+            result += f"    {self.return_(self.diagonal_eval)}"
+            if self.hermitian or self.antihermitian:
+                result += "elif index[0] < index[1]:\n"
+                result += f"    {self.return_(self.offdiagonal_eval)}"
+                self_dagger = (
+                    f'Dagger(which["{self.name}"][(index[1], index[0], *index[2:])])'
+                )
+                if self.hermitian:
+                    result += self.return_(self_dagger)
+                else:
+                    result += self.return_(f"-{self_dagger}")
+            else:
+                result += self.return_(self.offdiagonal_eval)
+        return result
+
+    def __call__(self):
+        result = "def series_eval(*index):\n"
+        result += "    which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series\n"
+        for line in str(self.eval_body()).split("\n"):
+            result += "    " + line + "\n"
+        return result
 
 
 def parse_algorithms(data: ast.Module):
     """Parse algorithm definitions."""
-    algorithms = {}
+    _algorithms = {}
     for node in data.body:
         if isinstance(node, ast.FunctionDef):
-            algorithms[node.name] = list(parse_algorithm(node))
-    return algorithms
+            _algorithms[node.name] = list(parse_algorithm(node))
+    return _algorithms
 
 
 def parse_algorithm(definition: ast.FunctionDef):
     """Parse an algorithm definition."""
     for node in definition.body:
         if isinstance(node, ast.With):
-            yield parse_series(node)
+            series = parse_series(node)
+            series.compile()
+            yield series
 
     # TODO: Parse return statement
 
 
 def parse_series(definition: ast.With):
     """Parse a series."""
-    series = Series()
+    series = _Series()
 
     if len(definition.items) != 1 or not isinstance(
         name := definition.items[0].context_expr, ast.Constant
@@ -59,7 +105,7 @@ def parse_series(definition: ast.With):
     return series
 
 
-def parse_property(name: ast.Name, series: Series):
+def parse_property(name: ast.Name, series: _Series):
     """Parse a property."""
     match name.id:
         case "hermitian":
@@ -70,7 +116,7 @@ def parse_property(name: ast.Name, series: Series):
             raise ValueError(f"Unknown series property: {name.id}")
 
 
-def parse_assign(assign: ast.Assign, series: Series):
+def parse_assign(assign: ast.Assign, series: _Series):
     """Parse an assignment."""
     if len(assign.targets) != 1:
         raise ValueError("Cannot assign multiple targets.")
@@ -81,33 +127,41 @@ def parse_assign(assign: ast.Assign, series: Series):
         raise ValueError("Assignment value must be a literal.")
     match target.id:
         case "start":
-            series.start = assign.value.value
+            series.start = parse_start(assign.value.value)
         case _:
             raise ValueError(f"Unknown series property: {target.id}")
 
 
+def parse_start(value: str | int):
+    """Parse start value."""
+    match value:
+        case "H_0":
+            return "H_0_data"
+        case 0:
+            return "zero_data"
+        case 1:
+            return "identity_data"
+
+
 def parse_eval(expr: ast.Expr | ast.expr):
     """Parse an evaluation expression."""
-    adjoint = False
     if isinstance(expr, ast.Attribute):
         if expr.attr != "adj":
             raise ValueError(f"Unsupported attribute: {expr.attr}")
-        adjoint = True
-        expr = expr.value
+        return f'Dagger(which["{expr.value.value}"][(index[1], index[0], *index[2:])])'
     if isinstance(expr, ast.Constant):
         if isinstance(expr.value, str):
-            index = "(index[1], index[0], *index[:2])" if adjoint else "index"
-            return f'which["{expr.value}"][{index}]'
+            return f'which["{expr.value}"][index]'
         if isinstance(expr.value, int):
             return str(expr.value)
         raise ValueError(f"Unsupported constant: {expr.value}")
     if isinstance(expr, ast.BinOp):
         if isinstance(expr.op, ast.Add) or isinstance(expr.op, ast.Sub):
-            return f"""zero_sum({', '.join(
+            return f"""_zero_sum({', '.join(
                 f"{term}" if factor == 1 else f"(-{term})"
                 for factor, term in collect_terms(expr))})"""
         if isinstance(expr.op, ast.Div):
-            return f"safe_divide({parse_eval(expr.left)}, {parse_eval(expr.right)})"
+            return f"_safe_divide({parse_eval(expr.left)}, {parse_eval(expr.right)})"
         raise ValueError(f"Unsupported operator: {expr.op}")
     if isinstance(expr, ast.UnaryOp):
         if not (isinstance(expr.op, ast.USub) or expr.op == ast.USub):
@@ -140,7 +194,7 @@ def collect_terms(expr: ast.expr | ast.BinOp):
         yield 1, parse_eval(expr)
 
 
-def parse_condition(expr: ast.If, series: Series):
+def parse_condition(expr: ast.If, series: _Series):
     """Parse conditional eval."""
     if not isinstance(expr.test, ast.Name):
         raise ValueError(f"Unsupported condition: {expr.test}")
@@ -155,3 +209,8 @@ def parse_condition(expr: ast.If, series: Series):
             series.offdiagonal_eval = parse_eval(body.value)
         case "_":
             raise ValueError(f"Unsupported condition: {expr.test.id}")
+
+
+algorithms = parse_algorithms(
+    ast.parse((Path(__file__).parent / "algorithms.py").read_text())
+)

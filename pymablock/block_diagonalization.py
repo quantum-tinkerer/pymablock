@@ -12,7 +12,7 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
 
-from pymablock.algorithm import _Product, main_algorithm
+from pymablock.algorithm import algorithms
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
     ComplementProjector,
@@ -508,33 +508,31 @@ def _block_diagonalize(
         "zero": zero,
     }
 
-    for term, definition in main_algorithm.items():
-        if isinstance(definition["eval"], _Product):
-            # The products should come last in the algorithm definition
-            # such that all the terms are already defined.
-            first, second = term.split(" @ ", maxsplit=1)
+    for term in algorithms["main"]:
+        if term.is_product:
+            first, second = term.name.split(" @ ", maxsplit=1)
             for which in series, linear_operator_series:
-                which[term] = cauchy_dot_product(
+                which[term.name] = cauchy_dot_product(
                     which[first],
                     which[second],
                     operator=operator,
-                    hermitian=definition["eval"].hermitian,
+                    hermitian=term.hermitian,
                 )
         else:
             # Create a new scope for each term
-            eval_scope = {**eval_scope, "series_name": term}
+            eval_scope = {**eval_scope, "series_name": term.name}
             # This defines `series_eval` as the eval function for this term.
-            exec(definition["eval"], eval_scope)
+            exec(term.compiled_eval, eval_scope)
 
-            series_data = data.get(definition.get("data", None), None)
+            series_data = data.get(term.start, None)
 
-            series[term] = BlockSeries(
+            series[term.name] = BlockSeries(
                 eval=eval_scope["series_eval"],
                 data=series_data,
-                name=term,
+                name=term.name,
                 **series_kwargs,
             )
-            linear_operator_series[term] = linear_operator_wrapped(series[term])
+            linear_operator_series[term.name] = linear_operator_wrapped(series[term.name])
 
     return series["H_tilde"], series["U"], series["U†"]
 

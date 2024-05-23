@@ -24,7 +24,7 @@ def main():
             # We can choose to query either "X" or "X".adj since X is Hermitian.
             # The choice for "X".adj is optimal for querying H_AA and "X" for H_BB.
             # We choose "X".adj because we follow the convention that H_AA is more important.
-            -solve_sylvester("X".adj + "H'_diag @ U'")
+            -solve_sylvester("X".adj + "H'_diag @ U'" + "H'_diag @ U'".adj)
 
     with "U":
         start = 1
@@ -65,5 +65,14 @@ def main():
 
     with "U'† @ U'":
         hermitian
+
+    with "H'_diag @ U'":
+        pass
+
+    with "H'_offdiag @ U'":
+        pass
+
+    with "U'† @ B":
+        pass
 
     return "H_tilde", "U", "U'"
