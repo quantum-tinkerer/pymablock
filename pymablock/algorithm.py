@@ -74,27 +74,18 @@ class _EvalTransformer(ast.NodeTransformer):
             # Delete start = ... statements
             return [None]
         if isinstance(node, ast.If):
-            match node.test.id:
-                case "upper":
-                    test = "index[0] > index[1]"
-                    eval_type = EvalType.UPPER
-                case "diagonal":
-                    test = "index[0] == index[1]"
-                    eval_type = EvalType.DIAGONAL
-                case "offdiagonal":
-                    test = "index[0] != index[1]"
-                    eval_type = EvalType.OFFDIAGONAL
-                case _:
-                    return node
-            node.test = ast.parse(test).body[0].value
+            eval_type = _EvalType.from_condition(node.test.id)
+            if eval_type is None:
+                return node
+            node.test = eval_type.test
             eval_body = self._visit_Eval(node.body[0].value, eval_type)
             node.body = eval_body
             return [node]
 
-        return self._visit_Eval(node, EvalType.DEFAULT)
+        return self._visit_Eval(node, _EvalType.default)
 
     def _visit_Eval(self, node, eval_type):
-        diagonal = eval_type == EvalType.DIAGONAL
+        diagonal = eval_type == _EvalType.diagonal
         eval_transformers = [
             _SumTransformer(),
             _DivideTransformer(),
@@ -352,7 +343,22 @@ def analyze_product(definition: ast.With):
     return product
 
 
-EvalType = Enum("EvalType", ["DEFAULT", "DIAGONAL", "OFFDIAGONAL", "UPPER"])
+class _EvalType(Enum):
+    def __init__(self, test):
+        if test:
+            self.test = ast.parse(test).body[0].value
+
+    @staticmethod
+    def from_condition(value):
+        try:
+            return _EvalType[value]
+        except KeyError:
+            return None
+
+    default = (None,)
+    diagonal = ("index[0] == index[1]",)
+    offdiagonal = ("index[0] != index[1]",)
+    upper = ("index[0] > index[1]",)
 
 
 def preprocess_series(definition: ast.With):
@@ -363,24 +369,19 @@ def preprocess_series(definition: ast.With):
 
     for node in definition.body:
         if isinstance(node, ast.Assign):
-            parse_assign(node, series)
+            if node.targets[0].id == "start":
+                series.start = parse_start(node.value.value)
             continue
 
         if isinstance(node, ast.Expr):
             if isinstance(node.value, ast.Name):
                 continue
-            eval_type = EvalType.DEFAULT
+            eval_type = _EvalType.default
             expression = node.value
         elif isinstance(node, ast.If):
-            match node.test.id:
-                case "diagonal":
-                    eval_type = EvalType.DIAGONAL
-                case "offdiagonal":
-                    eval_type = EvalType.OFFDIAGONAL
-                case "upper":
-                    eval_type = EvalType.UPPER
-                case _:
-                    continue
+            eval_type = _EvalType.from_condition(node.test.id)
+            if eval_type is None:
+                continue
             expression = node.body[0].value
         else:
             continue
@@ -389,22 +390,6 @@ def preprocess_series(definition: ast.With):
         series.uses += [(*use, eval_type) for use in counter.uses]
 
     return series
-
-
-def parse_assign(assign: ast.Assign, series: _Series):
-    """Parse an assignment."""
-    if len(assign.targets) != 1:
-        raise ValueError("Cannot assign multiple targets.")
-    target = assign.targets[0]
-    if not isinstance(target, ast.Name):
-        raise ValueError("Assignment target must be a name.")
-    if not isinstance(assign.value, ast.Constant):
-        raise ValueError("Assignment value must be a literal.")
-    match target.id:
-        case "start":
-            series.start = parse_start(assign.value.value)
-        case _:
-            raise ValueError(f"Unknown series property: {target.id}")
 
 
 def parse_start(value: str | int):
