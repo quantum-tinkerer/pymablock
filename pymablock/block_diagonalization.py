@@ -508,33 +508,30 @@ def _block_diagonalize(
         "zero": zero,
     }
 
-    terms, outputs = algorithms["main"]
+    terms, products, outputs = algorithms["main"]
 
     for term in terms:
-        if term.is_product:
-            first, second = term.name.split(" @ ", maxsplit=1)
-            for which in series, linear_operator_series:
-                which[term.name] = cauchy_dot_product(
-                    which[first],
-                    which[second],
-                    operator=operator,
-                    hermitian=term.hermitian,
-                )
-        else:
-            # Create a new scope for each term
-            eval_scope = {**eval_scope, "series_name": term.name}
-            # This defines `series_eval` as the eval function for this term.
-            exec(term.compiled_eval, eval_scope)
+        # This defines `series_eval` as the eval function for this term.
+        exec(compile(term.definition, filename="<string>", mode="exec"), eval_scope)
 
-            series_data = data.get(term.start, None)
+        series_data = data.get(term.start, None)
 
-            series[term.name] = BlockSeries(
-                eval=eval_scope["series_eval"],
-                data=series_data,
-                name=term.name,
-                **series_kwargs,
+        series[term.name] = BlockSeries(
+            eval=eval_scope["series_eval"],
+            data=series_data,
+            name=term.name,
+            **series_kwargs,
+        )
+        linear_operator_series[term.name] = linear_operator_wrapped(series[term.name])
+
+    for product in products:
+        for which in series, linear_operator_series:
+            which[product.name] = cauchy_dot_product(
+                which[product.left],
+                which[product.right],
+                operator=operator,
+                hermitian=product.hermitian,
             )
-            linear_operator_series[term.name] = linear_operator_wrapped(series[term.name])
 
     return tuple(series[output] for output in outputs)
 
