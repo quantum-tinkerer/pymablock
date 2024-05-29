@@ -598,13 +598,16 @@ def _block_diagonalize(
             # off-diagonal block nullifies the off-diagonal part of H_tilde
             index_dag = (index[1], index[0], *index[2:])
             Y = _zero_sum(
-                series["X"][index],
+                # We can choose to query either (1, 0) or (0, 1) since X is Hermitian.
+                # The choice for (1, 0) is optimal for querying H_AA and (0, 1) for H_BB.
+                # We choose (1, 0) because we follow the convention that H_AA is more important.
+                Dagger(series["X"][index_dag]),
                 # - [U', H'_diag]
                 # Below we use the antihermiticity of the off-diagonal part of U'
                 series["H'_diag @ U'"][index],
                 Dagger(series["H'_diag @ U'"][index_dag]),
             )
-            del_("X", index)
+            del_("X", index_dag)
             del_("H'_diag @ U'", index)
             del_("H'_diag @ U'", index_dag)
             # At this point the item below will never be accessed again

@@ -1230,25 +1230,34 @@ def test_number_products(data_regression):
         "random_every_order": eval_randomly_sparse,
     }
 
+    blocks = {
+        "aa": [(0, 0)],
+        "bb": [(1, 1)],
+        "both": [(0, 0), (1, 1)],
+    }
+
     multiplication_counts = {}
     for structure in evals.keys():
         multiplication_counts[structure] = {}
-        H = BlockSeries(
-            eval=evals[structure],
-            shape=(2, 2),
-            n_infinite=1,
-        )
+        for block in blocks.keys():
+            multiplication_counts[structure][block] = {}
+            H = BlockSeries(
+                eval=evals[structure],
+                shape=(2, 2),
+                n_infinite=1,
+            )
 
-        H_tilde, *_ = block_diagonalize(
-            H,
-            solve_sylvester=solve_sylvester,
-        )
+            H_tilde, *_ = block_diagonalize(
+                H,
+                solve_sylvester=solve_sylvester,
+            )
 
-        AlgebraElement.log = []
-        for order in range(10):
-            H_tilde[0, 0, order]
-            multiplication_counts[structure][order] = Counter(
-                call[1] for call in AlgebraElement.log
-            )["__mul__"]
+            AlgebraElement.log = []
+            for order in range(10):
+                for index in blocks[block]:
+                    H_tilde[(*index, order)]
+                multiplication_counts[structure][block][order] = Counter(
+                    call[1] for call in AlgebraElement.log
+                )["__mul__"]
 
     data_regression.check(multiplication_counts)
