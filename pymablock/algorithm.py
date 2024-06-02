@@ -2,7 +2,9 @@
 
 import ast
 import dataclasses
+from collections import Counter, defaultdict
 from enum import Enum
+from itertools import chain
 from pathlib import Path
 
 
@@ -34,10 +36,10 @@ class _EvalTransformer(ast.NodeTransformer):
         self.to_delete = to_delete
 
     def visit_With(self, node):
-        return_zero = ast.Return(value=ast.Name(id="zero", ctx=ast.Load()))
         implicit_select = ast.parse(
             "which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series"
         ).body
+        return_zero = ast.Return(value=ast.Name(id="zero", ctx=ast.Load()))
 
         module = ast.Module(
             body=[
@@ -78,8 +80,7 @@ class _EvalTransformer(ast.NodeTransformer):
             if eval_type is None:
                 return node
             node.test = eval_type.test
-            eval_body = self._visit_Eval(node.body[0].value, eval_type)
-            node.body = eval_body
+            node.body = self._visit_Eval(node.body[0].value, eval_type)
             return [node]
 
         return self._visit_Eval(node, _EvalType.default)
@@ -102,7 +103,20 @@ class _EvalTransformer(ast.NodeTransformer):
                 targets=[ast.Name(id="result", ctx=ast.Store())],
                 value=node,
             ),
-            # TODO: Insert del_ statements
+            *(
+                ast.Expr(
+                    value=ast.Call(
+                        func=ast.Name(id="del_", ctx=ast.Load()),
+                        args=[
+                            ast.Constant(value=term),
+                            _LiteralTransformer._index(adjoint),
+                        ],
+                        keywords=[],
+                    )
+                )
+                for term, adjoint, _eval_type in self.to_delete
+                if _eval_type == eval_type
+            ),
             ast.Return(value=ast.Name(id="result", ctx=ast.Load())),
         ]
 
@@ -144,10 +158,11 @@ class _UseCounter(ast.NodeVisitor):
 
     def visit_Attribute(self, node):
         # We assume the attribute is `.adj`.
-        # TODO: Return the indices instead? (e.g. (0, 1))
         self.uses.append((node.value.value, True))
 
     def visit_Constant(self, node):
+        if not isinstance(node.value, str):
+            return
         self.uses.append((node.value, False))
 
 
@@ -159,15 +174,14 @@ class _LiteralTransformer(ast.NodeTransformer):
 
     def visit_Attribute(self, node):
         # We assume the attribute is `.adj`.
-        return self._subscript(node.value, dagger=(not self.diagonal))
+        return self._subscript(node.value, dagger=True)
 
     def visit_Constant(self, node):
         if not isinstance(node.value, str):
             return node
         return self._subscript(node, dagger=False)
 
-    @staticmethod
-    def _subscript(node: ast.Constant, dagger: bool):
+    def _subscript(self, node: ast.Constant, dagger: bool):
         # Build `series[term][index] as AST
         result = ast.Subscript(
             value=ast.Subscript(
@@ -175,7 +189,9 @@ class _LiteralTransformer(ast.NodeTransformer):
                 slice=ast.Constant(value=node.value),
                 ctx=ast.Load(),
             ),
-            slice=ast.Index(value=_LiteralTransformer._index(dagger)),
+            slice=ast.Index(
+                value=_LiteralTransformer._index(dagger and (not self.diagonal))
+            ),
             ctx=ast.Load(),
         )
         if dagger:
@@ -290,7 +306,7 @@ def parse_algorithm(definition: ast.FunctionDef):
     to_delete = find_delete_candidates(series, products)
 
     for term in series:
-        term.definition = _EvalTransformer(to_delete).visit(term.definition)
+        term.definition = _EvalTransformer(to_delete[term.name]).visit(term.definition)
 
     return series, products, outputs
 
@@ -322,10 +338,53 @@ def preprocess_algorithm(definition: ast.FunctionDef):
     return series, products, output
 
 
-def find_delete_candidates(series, products):  # noqa: ARG001
+def find_delete_candidates(series: list[_Series], products):
     """Determine the intermediate terms to delete."""
-    # TODO: Implement this
-    return []
+    terms_in_products = set(
+        chain.from_iterable((product.left, product.right) for product in products)
+    )
+    # We should never delete terms from the original Hamiltonian.
+    original_terms = {"H"}
+    delete_blacklist = terms_in_products | original_terms
+    eval_types_ordered = [
+        _EvalType.upper,
+        _EvalType.offdiagonal,
+        _EvalType.diagonal,
+        _EvalType.default,
+    ]
+    uses = []
+    source_map = {}
+    for origin in series:
+        used_eval_types = set(eval_type for *_, eval_type in origin.uses)
+        remaining_indices = set(_EvalType.default.indices)
+        indices_per_eval = {}
+        for eval_type in eval_types_ordered:
+            if eval_type not in used_eval_types:
+                continue
+            indices_per_eval[eval_type] = set(eval_type.indices) & remaining_indices
+            remaining_indices -= indices_per_eval[eval_type]
+
+        for term, adjoint, eval_type in origin.uses:
+            if term in delete_blacklist:
+                continue
+
+            indices = indices_per_eval[eval_type]
+            for index in indices:
+                if adjoint:
+                    index = (index[1], index[0])
+
+                uses.append((term, index))
+                # This gets overwritten if the term is used multiple times.
+                # This is fine since we only care about terms that are used once.
+                source_map[(term, index)] = (origin.name, adjoint, eval_type)
+
+    delete_items = [item for item, count in Counter(uses).items() if count == 1]
+
+    result = defaultdict(set)
+    for term, index in delete_items:
+        origin, adjoint, eval_type = source_map[(term, index)]
+        result[origin].add((term, adjoint, eval_type))
+    return result
 
 
 def analyze_product(definition: ast.With):
@@ -344,9 +403,10 @@ def analyze_product(definition: ast.With):
 
 
 class _EvalType(Enum):
-    def __init__(self, test):
+    def __init__(self, test, indices):
         if test:
             self.test = ast.parse(test).body[0].value
+        self.indices = indices
 
     @staticmethod
     def from_condition(value):
@@ -355,10 +415,11 @@ class _EvalType(Enum):
         except KeyError:
             return None
 
-    default = (None,)
-    diagonal = ("index[0] == index[1]",)
-    offdiagonal = ("index[0] != index[1]",)
-    upper = ("index[0] > index[1]",)
+    # TODO: Instead of specifying indices we could consider computing them using the test.
+    default = (None, [(0, 0), (0, 1), (1, 0), (1, 1)])
+    diagonal = ("index[0] == index[1]", [(0, 0), (1, 1)])
+    offdiagonal = ("index[0] != index[1]", [(0, 1), (1, 0)])
+    upper = ("index[0] > index[1]", [(1, 0)])
 
 
 def preprocess_series(definition: ast.With):
