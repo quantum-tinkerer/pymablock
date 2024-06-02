@@ -36,7 +36,7 @@ class _EvalTransformer(ast.NodeTransformer):
     def visit_With(self, node):
         return_zero = ast.Return(value=ast.Name(id="zero", ctx=ast.Load()))
         implicit_select = ast.parse(
-            "which = linear_operator_series if use_implicit and index[0] == index[1] else series"
+            "which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series"
         ).body
 
         module = ast.Module(
