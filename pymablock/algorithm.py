@@ -7,6 +7,7 @@ from enum import Enum
 from functools import cache
 from itertools import chain
 from pathlib import Path
+from typing import Self
 
 
 @dataclasses.dataclass
@@ -28,15 +29,19 @@ class _Product:
     hermitian: list = False
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """Name that represents the product."""
         return f"{self.left} @ {self.right}"
 
 
 class _EvalTransformer(ast.NodeTransformer):
+    """Transforms a `with` statement to a callable eval understood by `BlockSeries`."""
+
     def __init__(self, to_delete):
         self.to_delete = to_delete
 
-    def visit_With(self, node):
+    def visit_With(self, node: ast.With) -> ast.Module:
+        """Build a function definition from a `with` statement."""
         implicit_select = ast.parse(
             "which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series"
         ).body
@@ -72,7 +77,13 @@ class _EvalTransformer(ast.NodeTransformer):
         ast.fix_missing_locations(module)
         return module
 
-    def _visit_Line(self, node):
+    def _visit_Line(self, node: ast.AST) -> list[ast.AST]:
+        """Transform each line of the function body.
+
+        Assign statements are removed.
+        If statements are transformed to a valid index test.
+        Expressions are transformed using `_visit_Eval`.
+        """
         if isinstance(node, ast.Assign):
             # Delete start = ... statements
             return [None]
@@ -87,6 +98,13 @@ class _EvalTransformer(ast.NodeTransformer):
         return self._visit_Eval(node, _EvalType.default)
 
     def _visit_Eval(self, node, eval_type):
+        """Transform evaluation expressions to executable AST.
+
+        First it applies `_SumTransformer`, `_DivideTransformer`, `_LiteralTransformer` and `_FunctionTransformer`
+        and stores the result.
+        Then it inserts delete statements for intermediate terms.
+        Finally it returns the result.
+        """
         diagonal = eval_type == _EvalType.diagonal
         eval_transformers = [
             _SumTransformer(),
@@ -123,12 +141,18 @@ class _EvalTransformer(ast.NodeTransformer):
 
 
 class _HermitianTransformer(ast.NodeTransformer):
-    """Transform hermitian attribute into if statement."""
+    """Transform hermitian attributes into if statements."""
 
     def __init__(self, term):
         self.term = term
 
     def visit_Expr(self, node):
+        """Insert a conditional evaluation for hermitian and antihermitian attributes.
+
+        It adds an if statement with `upper` that matches indices in the upper triangle.
+        The evaluation result is either the conjugate adjoint of itself in case of `hermitian`
+        or the negation of that in case of `antihermitian`.
+        """
         if not isinstance(node.value, ast.Name):
             return self.generic_visit(node)
 
@@ -155,35 +179,39 @@ class _UseCounter(ast.NodeVisitor):
     """Count uses of terms in an expression."""
 
     def __init__(self):
-        self.uses = []  # List of (term, adjoint?)
+        self.uses = []  # List of (term, adjoint)
 
     def visit_Attribute(self, node):
+        """Count an adjoint access."""
         # We assume the attribute is `.adj`.
         self.uses.append((node.value.value, True))
 
     def visit_Constant(self, node):
+        """Count a regular access."""
         if not isinstance(node.value, str):
             return
         self.uses.append((node.value, False))
 
 
 class _LiteralTransformer(ast.NodeTransformer):
-    """Transform literals to `series[term][index]`."""
+    """Transform string literals to `series[term][index]`."""
 
     def __init__(self, diagonal: bool):
         self.diagonal = diagonal
 
     def visit_Attribute(self, node):
+        """Transform adjoint terms."""
         # We assume the attribute is `.adj`.
         return self._subscript(node.value, dagger=True)
 
     def visit_Constant(self, node):
+        """Transform regular terms."""
         if not isinstance(node.value, str):
             return node
         return self._subscript(node, dagger=False)
 
     def _subscript(self, node: ast.Constant, dagger: bool):
-        # Build `series[term][index] as AST
+        """Build series[term][index] as AST."""
         result = ast.Subscript(
             value=ast.Subscript(
                 value=ast.Name(id="which", ctx=ast.Load()),
@@ -205,6 +233,7 @@ class _LiteralTransformer(ast.NodeTransformer):
 
     @staticmethod
     def _index(adjoint):
+        """Build the (adjoint) index as AST."""
         if not adjoint:
             return ast.Name(id="index", ctx=ast.Load())
         return ast.parse("(index[1], index[0], *index[2:])").body[0].value
@@ -214,11 +243,13 @@ class _SumTransformer(ast.NodeTransformer):
     """Transform additive operations to zero_sum."""
 
     @staticmethod
-    def _is_zero_sum(node):
+    def _is_zero_sum(node: ast.AST) -> bool:
+        """Whether a node is a call to _zero_sum."""
         return isinstance(node, ast.Call) and node.func.id == "_zero_sum"
 
     @staticmethod
-    def _zero_sum(args):
+    def _zero_sum(args: list[ast.AST]) -> ast.Call:
+        """Build AST representation of `zero_sum` of args."""
         return ast.Call(
             func=ast.Name(id="zero_sum", ctx=ast.Load()),
             args=args,
@@ -226,7 +257,8 @@ class _SumTransformer(ast.NodeTransformer):
         )
 
     @staticmethod
-    def _negate(node):
+    def _negate(node: ast.AST) -> ast.AST:
+        """Negate a node. Returns the original node if already negated."""
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
             return node.operand
         return ast.UnaryOp(
@@ -234,7 +266,8 @@ class _SumTransformer(ast.NodeTransformer):
             operand=node,
         )
 
-    def visit_BinOp(self, node: ast.BinOp):
+    def visit_BinOp(self, node: ast.BinOp) -> ast.AST:
+        """Recursively transform subtraction and addition to a `zero_sum` call."""
         if not (isinstance(node.op, ast.Add) or isinstance(node.op, ast.Sub)):
             return self.generic_visit(node)
 
@@ -251,9 +284,10 @@ class _SumTransformer(ast.NodeTransformer):
 
 
 class _DivideTransformer(ast.NodeTransformer):
-    """Replace division with safe_divide."""
+    """Replace division with `safe_divide`."""
 
     def visit_BinOp(self, node: ast.BinOp):
+        """Transform division to a safe_divide call."""
         if not isinstance(node.op, ast.Div):
             return self.generic_visit(node)
 
@@ -268,6 +302,7 @@ class _FunctionTransformer(ast.NodeTransformer):
     """Do not call certain functions with zero as argument."""
 
     def visit_Call(self, node: ast.Call):
+        """Apply a zero check to calls of `solve_sylvester`."""
         if not isinstance(node.func, ast.Name):
             return self.generic_visit(node)
 
@@ -293,18 +328,63 @@ class _FunctionTransformer(ast.NodeTransformer):
 
 
 def parse_algorithms(data: ast.Module):
-    """Parse algorithm definitions."""
+    """Parse algorithm definitions from a module.
+
+    Each algorithm is represented by a function definition in the module.
+    The function body contains multiple `with` statements that define the series and products of that algorithm.
+    Throughout the definition the series and products are represented by their name using string literals.
+
+    A series definition allows the following statements:
+    - `start = ...` to define the start value of the series. Allowed values are "H_0", 0, 1.
+    - `hermitian` or `antihermitian` to optionally mark the series as hermitian or antihermitian.
+    - An expression that defines how to evaluate the series. The expression can contain the following:
+        - String literals to represent series.
+        - Attribute `.adj` access to represent the conjugate adjoint of a series.
+        - Integer literals.
+        - Unary and binary operations.
+        - Function calls.
+    - `if <type>:` to differentiate evaluation based on the requested index. Allowed types:
+        - `diagonal`: indices on the main diagonal.
+        - `offdiagonal`: indices *not* on the main diagonal.
+        - `upper`: indices in the upper triangle.
+
+    If a name contains an "@" symbol, it is considered a product of the left and right series.
+    A product definition allows the following statements:
+    - `hermitian` to mark the product as hermitian.
+
+    The final return statement in the function body defines the series that are part of the output of the algorithm.
+
+    Arguments:
+    ---------
+    data : ast.Module
+        The module containing the algorithm definitions.
+
+    Returns:
+    -------
+    dict[str, tuple[list[_Series], list[_Product], list[str]]]
+        A dictionary of algorithm names and their series, products, and outputs.
+
+    """
     _algorithms = {}
     for node in data.body:
         if isinstance(node, ast.FunctionDef):
-            _algorithms[node.name] = parse_algorithm(node)
+            _algorithms[node.name] = _parse_algorithm(node)
     return _algorithms
 
 
-def parse_algorithm(definition: ast.FunctionDef):
-    """Parse algorithm definition."""
-    series, products, outputs = preprocess_algorithm(definition)
-    to_delete = find_delete_candidates(series, products)
+def _parse_algorithm(
+    definition: ast.FunctionDef,
+) -> tuple[list[_Series], list[_Product], list[str]]:
+    """Parse full algorithm definition.
+
+    First it reads the series, products and output properties.
+    Then it determines the intermediate terms to delete.
+    Finally it transforms each series definition to executable AST.
+
+    Returns the series, product and outputs definitions.
+    """
+    series, products, outputs = _preprocess_algorithm(definition)
+    to_delete = _find_delete_candidates(series, products)
 
     for term in series:
         term.definition = _EvalTransformer(to_delete[term.name]).visit(term.definition)
@@ -312,8 +392,8 @@ def parse_algorithm(definition: ast.FunctionDef):
     return series, products, outputs
 
 
-def parse_return(node: ast.Return):
-    """Parse return statement."""
+def _parse_return(node: ast.Return) -> list[str]:
+    """Parse return statement to series names."""
     if isinstance(node, ast.Return):
         if isinstance(node.value, ast.Constant):
             return [node.value.value]
@@ -322,33 +402,46 @@ def parse_return(node: ast.Return):
     return []
 
 
-def preprocess_algorithm(definition: ast.FunctionDef):
-    """Parse algorithm series and products definition."""
+def _preprocess_algorithm(
+    definition: ast.FunctionDef,
+) -> tuple[list[_Series], list[_Product], list[str]]:
+    """Read and preprocess series, products and output definition."""
     series = []
     products = []
     output = []
     for node in definition.body:
         if isinstance(node, ast.With):
             if "@" in node.items[0].context_expr.value:
-                products.append(analyze_product(node))
+                products.append(_read_product(node))
             else:
-                series.append(preprocess_series(node))
+                series.append(_preprocess_series(node))
         if isinstance(node, ast.Return):
-            output = parse_return(node)
+            output = _parse_return(node)
 
     return series, products, output
 
 
-def find_delete_candidates(series: list[_Series], products):
-    """Determine the intermediate terms to delete."""
+def _find_delete_candidates(
+    series: list[_Series], products: list[_Product]
+) -> dict[str, list[tuple[str, tuple[int, int], "_EvalType"]]]:
+    """Determine the intermediate terms to delete.
+
+    All terms that are accessed exactly once are detected.
+
+    The result is a dictionary where the values correspond to the terms to be deleted, consisting of the name, index and eval type.
+    Each key marks from which series the terms are accessed.
+
+    """
     terms_in_products = set(
         chain.from_iterable((product.left, product.right) for product in products)
     )
     # We should never delete terms from the original Hamiltonian.
     original_terms = {"H"}
     delete_blacklist = terms_in_products | original_terms
-    uses = []
-    source_map = {}
+    uses = []  # List of (term, index)
+    source_map = {}  # Map from (term, index) to (origin, adjoint, eval_type)
+
+    # Collect all accessed terms and indices of the entire algorithm.
     for origin in series:
         remaining_indices = {(0, 0), (0, 1), (1, 0), (1, 1)}
         last_eval_type = None
@@ -356,7 +449,7 @@ def find_delete_candidates(series: list[_Series], products):
         for term, adjoint, eval_type in origin.uses:
             if eval_type != last_eval_type:
                 # Update indices used for this eval_type.
-                # We assume the eval_types are ordered.
+                # We assume the uses are ordered by their appearance in the series definition.
                 indices = set(
                     index for index in remaining_indices if eval_type.matches(index)
                 )
@@ -369,23 +462,25 @@ def find_delete_candidates(series: list[_Series], products):
             for index in indices:
                 if adjoint:
                     index = (index[1], index[0])
-
                 uses.append((term, index))
                 # This gets overwritten if the term is used multiple times.
                 # This is fine since we only care about terms that are used once.
                 source_map[(term, index)] = (origin.name, adjoint, eval_type)
 
+    # Find terms that are used exactly once.
     delete_items = [item for item, count in Counter(uses).items() if count == 1]
 
+    # Group terms by their origin and collect the adjoint and eval_type.
     result = defaultdict(set)
     for term, index in delete_items:
         origin, adjoint, eval_type = source_map[(term, index)]
         result[origin].add((term, adjoint, eval_type))
+
     return result
 
 
-def analyze_product(definition: ast.With):
-    """Analyze product properties."""
+def _read_product(definition: ast.With):
+    """Read product properties."""
     product = _Product()
     name = definition.items[0].context_expr.value
     product.left, product.right = name.split(" @ ", maxsplit=1)
@@ -400,17 +495,21 @@ def analyze_product(definition: ast.With):
 
 
 class _EvalType(Enum):
-    def __init__(self, test):
+    """Represents the different types of evaluations."""
+
+    def __init__(self, test: str):
         self.test = ast.parse(test).body[0].value if test else None
 
     @staticmethod
-    def from_condition(value):
+    def from_condition(value: str) -> Self | None:
+        """Get the eval type from a if statement test."""
         try:
             return _EvalType[value]
         except KeyError:
             return None
 
-    def matches(self, index):
+    def matches(self, index: tuple[int, int]) -> bool:
+        """Whether the index matches the condition of this eval type."""
         if self.test is None:
             return True
         return eval(
@@ -425,7 +524,7 @@ class _EvalType(Enum):
     upper = ("index[0] > index[1]",)
 
 
-def preprocess_series(definition: ast.With):
+def _preprocess_series(definition: ast.With):
     """Determine the properties of a series."""
     series = _Series()
     series.name = definition.items[0].context_expr.value
@@ -434,7 +533,7 @@ def preprocess_series(definition: ast.With):
     for node in definition.body:
         if isinstance(node, ast.Assign):
             if node.targets[0].id == "start":
-                series.start = parse_start(node.value.value)
+                series.start = _parse_start(node.value.value)
             continue
 
         if isinstance(node, ast.Expr):
@@ -456,7 +555,7 @@ def preprocess_series(definition: ast.With):
     return series
 
 
-def parse_start(value: str | int):
+def _parse_start(value: str | int):
     """Parse start value."""
     match value:
         case "H_0":
@@ -467,6 +566,7 @@ def parse_start(value: str | int):
             return "identity_data"
 
 
+# This is a function to avoid circular imports.
 @cache
 def global_scope():
     """Build the global scope for algorithm execution."""
