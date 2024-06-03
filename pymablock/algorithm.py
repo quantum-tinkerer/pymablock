@@ -1,5 +1,7 @@
 """Parse algorithm definitions."""
 
+from __future__ import annotations
+
 import ast
 import dataclasses
 from collections import Counter, defaultdict
@@ -7,7 +9,6 @@ from enum import Enum
 from functools import cache
 from itertools import chain
 from pathlib import Path
-from typing import Self
 
 
 @dataclasses.dataclass
@@ -501,8 +502,8 @@ class _EvalType(Enum):
         self.test = ast.parse(test).body[0].value if test else None
 
     @staticmethod
-    def from_condition(value: str) -> Self | None:
-        """Get the eval type from a if statement test."""
+    def from_condition(value: str) -> _EvalType | None:
+        """Get the eval type from an if statement test."""
         try:
             return _EvalType[value]
         except KeyError:
