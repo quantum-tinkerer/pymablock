@@ -346,29 +346,25 @@ def find_delete_candidates(series: list[_Series], products):
     # We should never delete terms from the original Hamiltonian.
     original_terms = {"H"}
     delete_blacklist = terms_in_products | original_terms
-    eval_types_ordered = [
-        _EvalType.upper,
-        _EvalType.offdiagonal,
-        _EvalType.diagonal,
-        _EvalType.default,
-    ]
     uses = []
     source_map = {}
     for origin in series:
-        used_eval_types = set(eval_type for *_, eval_type in origin.uses)
-        remaining_indices = set(_EvalType.default.indices)
-        indices_per_eval = {}
-        for eval_type in eval_types_ordered:
-            if eval_type not in used_eval_types:
-                continue
-            indices_per_eval[eval_type] = set(eval_type.indices) & remaining_indices
-            remaining_indices -= indices_per_eval[eval_type]
+        remaining_indices = {(0, 0), (0, 1), (1, 0), (1, 1)}
+        last_eval_type = None
 
         for term, adjoint, eval_type in origin.uses:
+            if eval_type != last_eval_type:
+                # Update indices used for this eval_type.
+                # We assume the eval_types are ordered.
+                indices = set(
+                    index for index in remaining_indices if eval_type.matches(index)
+                )
+                remaining_indices -= indices
+                last_eval_type = eval_type
+
             if term in delete_blacklist:
                 continue
 
-            indices = indices_per_eval[eval_type]
             for index in indices:
                 if adjoint:
                     index = (index[1], index[0])
@@ -403,10 +399,8 @@ def analyze_product(definition: ast.With):
 
 
 class _EvalType(Enum):
-    def __init__(self, test, indices):
-        if test:
-            self.test = ast.parse(test).body[0].value
-        self.indices = indices
+    def __init__(self, test):
+        self.test = ast.parse(test).body[0].value if test else None
 
     @staticmethod
     def from_condition(value):
@@ -415,11 +409,19 @@ class _EvalType(Enum):
         except KeyError:
             return None
 
-    # TODO: Instead of specifying indices we could consider computing them using the test.
-    default = (None, [(0, 0), (0, 1), (1, 0), (1, 1)])
-    diagonal = ("index[0] == index[1]", [(0, 0), (1, 1)])
-    offdiagonal = ("index[0] != index[1]", [(0, 1), (1, 0)])
-    upper = ("index[0] > index[1]", [(1, 0)])
+    def matches(self, index):
+        if self.test is None:
+            return True
+        return eval(
+            compile(ast.Expression(body=self.test), "<string>", mode="eval"),
+            {},
+            {"index": index},
+        )
+
+    default = (None,)
+    diagonal = ("index[0] == index[1]",)
+    offdiagonal = ("index[0] != index[1]",)
+    upper = ("index[0] > index[1]",)
 
 
 def preprocess_series(definition: ast.With):
