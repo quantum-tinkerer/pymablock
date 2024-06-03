@@ -1,4 +1,4 @@
-image: mambaorg/micromamba:1.4.3
+image: mambaorg/micromamba:1.5.8
 
 before_script:
   - mkdir -p micromamba
