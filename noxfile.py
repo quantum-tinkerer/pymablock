@@ -27,7 +27,9 @@ def tests(session, numpy, scipy, sympy):
         "-c",
         "conda-forge",
     )
-    session.run("pip", "install", "pytest-regressions")
+    session.run(
+        "pip", "install", "pytest-ruff"
+    )
     session.run(
         "pytest",
         "-W",
