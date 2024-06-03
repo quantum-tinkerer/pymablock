@@ -3,9 +3,7 @@ image: mambaorg/micromamba:1.4.3
 before_script:
   - mkdir -p micromamba
   - export MAMBA_ROOT_PREFIX=micromamba
-  - micromamba create -yf docs/environment.yml
   - eval "$(micromamba shell hook --shell bash)"
-  - micromamba activate pymablock-docs
 
 variables:
   FF_USE_FASTZIP: "true"
@@ -14,7 +12,8 @@ variables:
 run tests:
   # Needed because of coverage reports
   script:
-    - pip install pytest-cov pytest-randomly pytest-repeat pytest-ruff pytest-regressions
+    - micromamba create -yf pymablock/tests/environment.yml
+    - micromamba activate pymablock-test
     - py.test
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
@@ -50,6 +49,8 @@ run nox:
 
 run docs:
   script:
+    - micromamba create -yf docs/environment.yml
+    - micromamba activate pymablock-docs
     - make -C docs/ html SPHINXOPTS="-WT --keep-going -n"
   artifacts:
     paths:

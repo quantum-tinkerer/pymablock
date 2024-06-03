@@ -23,11 +23,11 @@ def tests(session, numpy, scipy, sympy):
         "packaging==22.0",
         "pytest-cov",
         "pytest-randomly",
+        "pytest-repeat",
         "pytest-regressions",
         "-c",
         "conda-forge",
     )
-    session.run("pip", "install", "pytest-regressions")
     session.run(
         "pytest",
         "-W",
