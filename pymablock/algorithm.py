@@ -4,6 +4,7 @@ import ast
 import dataclasses
 from collections import Counter, defaultdict
 from enum import Enum
+from functools import cache
 from itertools import chain
 from pathlib import Path
 
@@ -210,7 +211,7 @@ class _LiteralTransformer(ast.NodeTransformer):
 
 
 class _SumTransformer(ast.NodeTransformer):
-    """Transform additive operations to _zero_sum."""
+    """Transform additive operations to zero_sum."""
 
     @staticmethod
     def _is_zero_sum(node):
@@ -219,7 +220,7 @@ class _SumTransformer(ast.NodeTransformer):
     @staticmethod
     def _zero_sum(args):
         return ast.Call(
-            func=ast.Name(id="_zero_sum", ctx=ast.Load()),
+            func=ast.Name(id="zero_sum", ctx=ast.Load()),
             args=args,
             keywords=[],
         )
@@ -250,14 +251,14 @@ class _SumTransformer(ast.NodeTransformer):
 
 
 class _DivideTransformer(ast.NodeTransformer):
-    """Replace division with _safe_divide."""
+    """Replace division with safe_divide."""
 
     def visit_BinOp(self, node: ast.BinOp):
         if not isinstance(node.op, ast.Div):
             return self.generic_visit(node)
 
         return ast.Call(
-            func=ast.Name(id="_safe_divide", ctx=ast.Load()),
+            func=ast.Name(id="safe_divide", ctx=ast.Load()),
             args=[node.left, node.right],
             keywords=[],
         )
@@ -464,6 +465,14 @@ def parse_start(value: str | int):
             return "zero_data"
         case 1:
             return "identity_data"
+
+
+@cache
+def global_scope():
+    """Build the global scope for algorithm execution."""
+    scope = {}
+    exec("from pymablock.algorithms import *", {}, scope)
+    return scope
 
 
 algorithms = parse_algorithms(

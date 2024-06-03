@@ -12,7 +12,7 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
 
-from pymablock.algorithm import algorithms
+from pymablock.algorithm import algorithms, global_scope
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
     ComplementProjector,
@@ -502,10 +502,7 @@ def _block_diagonalize(
         "solve_sylvester": solve_sylvester,
         "del_": del_,
         # Globals
-        "Dagger": Dagger,
-        "_safe_divide": _safe_divide,
-        "_zero_sum": _zero_sum,
-        "zero": zero,
+        **global_scope(),
     }
 
     terms, products, outputs = algorithms["main"]
@@ -1013,7 +1010,7 @@ def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
             raise ValueError("Eigenvectors must be orthonormal.")
 
 
-def _zero_sum(*terms: Any) -> Any:
+def zero_sum(*terms: Any) -> Any:
     """Sum that returns a singleton zero if empty and omits zero terms.
 
     Parameters
@@ -1029,7 +1026,7 @@ def _zero_sum(*terms: Any) -> Any:
     return sum((term for term in terms if term is not zero), start=zero)
 
 
-def _safe_divide(numerator, denominator):
+def safe_divide(numerator, denominator):
     """Divide unless it's impossible, then multiply by inverse."""
     try:
         return numerator / denominator
