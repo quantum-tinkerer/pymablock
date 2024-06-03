@@ -29,6 +29,9 @@ def tests(session, numpy, scipy, sympy):
         "conda-forge",
     )
     session.run(
+        "pip", "install", "pytest-ruff"
+    )
+    session.run(
         "pytest",
         "-W",
         "error",
