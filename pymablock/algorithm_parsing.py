@@ -1,14 +1,13 @@
-"""Parse algorithm definitions."""
+"""Parse algorithms from the custom syntax to executable AST."""
 
 from __future__ import annotations
 
 import ast
 import dataclasses
+import inspect
 from collections import Counter, defaultdict
 from enum import Enum
-from functools import cache
 from itertools import chain
-from pathlib import Path
 
 
 @dataclasses.dataclass
@@ -241,7 +240,7 @@ class _LiteralTransformer(ast.NodeTransformer):
 
 
 class _SumTransformer(ast.NodeTransformer):
-    """Transform additive operations to zero_sum."""
+    """Transform additive operations to _zero_sum."""
 
     @staticmethod
     def _is_zero_sum(node: ast.AST) -> bool:
@@ -250,9 +249,9 @@ class _SumTransformer(ast.NodeTransformer):
 
     @staticmethod
     def _zero_sum(args: list[ast.AST]) -> ast.Call:
-        """Build AST representation of `zero_sum` of args."""
+        """Build AST representation of `_zero_sum` of args."""
         return ast.Call(
-            func=ast.Name(id="zero_sum", ctx=ast.Load()),
+            func=ast.Name(id="_zero_sum", ctx=ast.Load()),
             args=args,
             keywords=[],
         )
@@ -268,7 +267,7 @@ class _SumTransformer(ast.NodeTransformer):
         )
 
     def visit_BinOp(self, node: ast.BinOp) -> ast.AST:
-        """Recursively transform subtraction and addition to a `zero_sum` call."""
+        """Recursively transform subtraction and addition to a `_zero_sum` call."""
         if not (isinstance(node.op, ast.Add) or isinstance(node.op, ast.Sub)):
             return self.generic_visit(node)
 
@@ -285,15 +284,15 @@ class _SumTransformer(ast.NodeTransformer):
 
 
 class _DivideTransformer(ast.NodeTransformer):
-    """Replace division with `safe_divide`."""
+    """Replace division with `_safe_divide`."""
 
     def visit_BinOp(self, node: ast.BinOp):
-        """Transform division to a safe_divide call."""
+        """Transform division to a _safe_divide call."""
         if not isinstance(node.op, ast.Div):
             return self.generic_visit(node)
 
         return ast.Call(
-            func=ast.Name(id="safe_divide", ctx=ast.Load()),
+            func=ast.Name(id="_safe_divide", ctx=ast.Load()),
             args=[node.left, node.right],
             keywords=[],
         )
@@ -326,51 +325,6 @@ class _FunctionTransformer(ast.NodeTransformer):
             ),
             orelse=ast.Name(id="zero", ctx=ast.Load()),
         )
-
-
-def parse_algorithms(data: ast.Module):
-    """Parse algorithm definitions from a module.
-
-    Each algorithm is represented by a function definition in the module.
-    The function body contains multiple `with` statements that define the series and products of that algorithm.
-    Throughout the definition the series and products are represented by their name using string literals.
-
-    A series definition allows the following statements:
-    - `start = ...` to define the start value of the series. Allowed values are "H_0", 0, 1.
-    - `hermitian` or `antihermitian` to optionally mark the series as hermitian or antihermitian.
-    - An expression that defines how to evaluate the series. The expression can contain the following:
-        - String literals to represent series.
-        - Attribute `.adj` access to represent the conjugate adjoint of a series.
-        - Integer literals.
-        - Unary and binary operations.
-        - Function calls.
-    - `if <type>:` to differentiate evaluation based on the requested index. Allowed types:
-        - `diagonal`: indices on the main diagonal.
-        - `offdiagonal`: indices *not* on the main diagonal.
-        - `upper`: indices in the upper triangle.
-
-    If a name contains an "@" symbol, it is considered a product of the left and right series.
-    A product definition allows the following statements:
-    - `hermitian` to mark the product as hermitian.
-
-    The final return statement in the function body defines the series that are part of the output of the algorithm.
-
-    Arguments:
-    ---------
-    data : ast.Module
-        The module containing the algorithm definitions.
-
-    Returns:
-    -------
-    dict[str, tuple[list[_Series], list[_Product], list[str]]]
-        A dictionary of algorithm names and their series, products, and outputs.
-
-    """
-    _algorithms = {}
-    for node in data.body:
-        if isinstance(node, ast.FunctionDef):
-            _algorithms[node.name] = _parse_algorithm(node)
-    return _algorithms
 
 
 def _parse_algorithm(
@@ -567,15 +521,44 @@ def _parse_start(value: str | int):
             return "identity_data"
 
 
-# This is a function to avoid circular imports.
-@cache
-def global_scope():
-    """Build the global scope for algorithm execution."""
-    scope = {}
-    exec("from pymablock.algorithms import *", {}, scope)
-    return scope
+def algorithm(func: callable) -> tuple[list[_Series], list[_Product], list[str]]:
+    """Turn a function into an algorithm.
 
+    Each algorithm is represented by a function definition which needs to be decorated with this function.
+    The function body contains multiple `with` statements that define the series and products of that algorithm.
+    Throughout the definition the series and products are represented by their name using string literals.
 
-algorithms = parse_algorithms(
-    ast.parse((Path(__file__).parent / "algorithms.py").read_text())
-)
+    A series definition allows the following statements:
+    - `start = ...` to define the start value of the series. Allowed values are "H_0", 0, 1.
+    - `hermitian` or `antihermitian` to optionally mark the series as hermitian or antihermitian.
+    - An expression that defines how to evaluate the series. The expression can contain the following:
+        - String literals to represent series.
+        - Attribute `.adj` access to represent the conjugate adjoint of a series.
+        - Integer literals.
+        - Unary and binary operations.
+        - Function calls.
+    - `if <type>:` to differentiate evaluation based on the requested index. Allowed types:
+        - `diagonal`: indices on the main diagonal.
+        - `offdiagonal`: indices *not* on the main diagonal.
+        - `upper`: indices in the upper triangle.
+
+    If a name contains an "@" symbol, it is considered a product of the left and right series.
+    A product definition allows the following statements:
+    - `hermitian` to mark the product as hermitian.
+
+    The final return statement in the function body defines the series that are part of the output of the algorithm.
+
+    Arguments:
+    ---------
+    func :
+        The module containing the algorithm definitions.
+
+    Returns:
+    -------
+    algorithm :
+        A tuple containing the series, products, and outputs of the algorithm.
+
+    """
+    source = ast.parse(inspect.getsource(func))
+    function_def = source.body[0]
+    return _parse_algorithm(function_def)
