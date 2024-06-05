@@ -1277,6 +1277,9 @@ def test_delete_intermediate_terms():
 
     The terms to delete are calculated automatically by the algorithm,
     so we check against the previous manual result.
+
+    Note that this test does not check whether we delete too many terms,
+    that is ensured by the test `test_number_products` instead.
     """
 
     def dense_eval(*index):

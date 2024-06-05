@@ -176,7 +176,11 @@ class _HermitianTransformer(ast.NodeTransformer):
 
 
 class _UseCounter(ast.NodeVisitor):
-    """Count uses of terms in an expression."""
+    """Count uses of terms in an expression.
+
+    The result is later used to determine which terms are accessed exactly once,
+    which can be deleted from the series after accessing them.
+    """
 
     def __init__(self):
         self.uses = []  # List of (term, adjoint)
@@ -486,11 +490,13 @@ def _preprocess_series(definition: ast.With) -> _Series:
     series.definition = _HermitianTransformer(series.name).visit(definition)
 
     for node in definition.body:
+        # Read and remove start = ... statements.
         if isinstance(node, ast.Assign):
             if node.targets[0].id == "start":
                 series.start = _parse_start(node.value.value)
             continue
 
+        # Extract the expression and eval type.
         if isinstance(node, ast.Expr):
             if isinstance(node.value, ast.Name):
                 continue
@@ -504,6 +510,7 @@ def _preprocess_series(definition: ast.With) -> _Series:
         else:
             continue
 
+        # Count uses of terms in the expression to later determine candidates for deletion.
         (counter := _UseCounter()).visit(expression)
         series.uses += [(*use, eval_type) for use in counter.uses]
 
@@ -530,7 +537,7 @@ def algorithm(func: callable) -> tuple[list[_Series], list[_Product], list[str]]
 
     A series definition allows the following statements:
     - `start = ...` to define the start value of the series. Allowed values are "H_0", 0, 1.
-    - `hermitian` or `antihermitian` to optionally mark the series as hermitian or antihermitian.
+    - `hermitian` or `antihermitian` to optionally mark the offdiagonal blocks of the series as hermitian or antihermitian.
     - An expression that defines how to evaluate the series. The expression can contain the following:
         - String literals to represent series.
         - Attribute `.adj` access to represent the conjugate adjoint of a series.
