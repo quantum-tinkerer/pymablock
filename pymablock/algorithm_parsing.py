@@ -337,7 +337,7 @@ def _parse_algorithm(
     Returns the series, product and outputs definitions.
     """
     series, products, outputs = _preprocess_algorithm(definition)
-    to_delete = _find_delete_candidates(series, products)
+    to_delete = _find_delete_candidates(series, products, outputs)
 
     for term in series:
         term.definition = _EvalTransformer(to_delete[term.name]).visit(term.definition)
@@ -375,7 +375,7 @@ def _preprocess_algorithm(
 
 
 def _find_delete_candidates(
-    series: list[_Series], products: list[_Product]
+    series: list[_Series], products: list[_Product], outputs: list[str]
 ) -> dict[str, list[tuple[str, tuple[int, int], "_EvalType"]]]:
     """Determine the intermediate terms to delete.
 
@@ -385,12 +385,14 @@ def _find_delete_candidates(
     Each key marks from which series the terms are accessed.
 
     """
+    # We should never delete terms that appear in products,
+    # are part of the original Hamiltonian or are part of the output.
     terms_in_products = set(
         chain.from_iterable((product.left, product.right) for product in products)
     )
-    # We should never delete terms from the original Hamiltonian.
     original_terms = {"H"}
-    delete_blacklist = terms_in_products | original_terms
+    delete_blacklist = terms_in_products | original_terms | set(outputs)
+
     uses = []  # List of (term, index)
     source_map = {}  # Map from (term, index) to (origin, adjoint, eval_type)
 
