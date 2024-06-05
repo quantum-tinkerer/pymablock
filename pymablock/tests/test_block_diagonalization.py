@@ -1236,28 +1236,36 @@ def test_number_products(data_regression):
         "both": [(0, 0), (1, 1)],
     }
 
+    orders = {
+        "all": lambda order: tuple(range(order + 1)),
+        "highest": lambda order: (order,),
+    }
+
     multiplication_counts = {}
     for structure in evals.keys():
         multiplication_counts[structure] = {}
-        for block in blocks.keys():
-            multiplication_counts[structure][block] = {}
-            H = BlockSeries(
-                eval=evals[structure],
-                shape=(2, 2),
-                n_infinite=1,
-            )
+        for order in orders.keys():
+            multiplication_counts[structure][order] = {}
+            for block in blocks.keys():
+                multiplication_counts[structure][order][block] = {}
+                for highest_order in range(10):
+                    AlgebraElement.log = []
+                    H = BlockSeries(
+                        eval=evals[structure],
+                        shape=(2, 2),
+                        n_infinite=1,
+                    )
 
-            H_tilde, *_ = block_diagonalize(
-                H,
-                solve_sylvester=solve_sylvester,
-            )
+                    H_tilde, *_ = block_diagonalize(
+                        H,
+                        solve_sylvester=solve_sylvester,
+                    )
+                    for index in blocks[block]:
+                        for _order in orders[order](highest_order):
+                            H_tilde[(*index, _order)]
 
-            AlgebraElement.log = []
-            for order in range(10):
-                for index in blocks[block]:
-                    H_tilde[(*index, order)]
-                multiplication_counts[structure][block][order] = Counter(
-                    call[1] for call in AlgebraElement.log
-                )["__mul__"]
+                    multiplication_counts[structure][order][block][highest_order] = (
+                        Counter(call[1] for call in AlgebraElement.log)["__mul__"]
+                    )
 
     data_regression.check(multiplication_counts)
