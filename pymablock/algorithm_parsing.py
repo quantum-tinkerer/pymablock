@@ -92,12 +92,12 @@ class _EvalTransformer(ast.NodeTransformer):
             if eval_type is None:
                 return node
             node.test = eval_type.test
-            node.body = self._visit_Eval(node.body[0].value, eval_type)
+            node.body = self._visit_Eval(node.body[0], eval_type)
             return [node]
 
         return self._visit_Eval(node, _EvalType.default)
 
-    def _visit_Eval(self, node: ast.Eval, eval_type: _EvalType) -> list[ast.AST]:
+    def _visit_Eval(self, node: ast.Expr, eval_type: _EvalType) -> list[ast.AST]:
         """Transform evaluation expressions to executable AST.
 
         First it applies `_SumTransformer`, `_DivideTransformer`, `_LiteralTransformer` and `_FunctionTransformer`
@@ -112,11 +112,9 @@ class _EvalTransformer(ast.NodeTransformer):
             _LiteralTransformer(diagonal=diagonal),
             _FunctionTransformer(),
         ]
+        node = node.value  # Get the expression from the Expr node.
         for transformer in eval_transformers:
             node = transformer.visit(node)
-        if isinstance(node, ast.Expr):
-            # TODO: Why do we get an ast.Expr here?
-            node = node.value
         return [
             ast.Assign(
                 targets=[ast.Name(id="result", ctx=ast.Store())],
