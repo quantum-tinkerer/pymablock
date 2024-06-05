@@ -97,7 +97,7 @@ class _EvalTransformer(ast.NodeTransformer):
 
         return self._visit_Eval(node, _EvalType.default)
 
-    def _visit_Eval(self, node, eval_type):
+    def _visit_Eval(self, node: ast.Eval, eval_type: _EvalType) -> list[ast.AST]:
         """Transform evaluation expressions to executable AST.
 
         First it applies `_SumTransformer`, `_DivideTransformer`, `_LiteralTransformer` and `_FunctionTransformer`
@@ -146,7 +146,7 @@ class _HermitianTransformer(ast.NodeTransformer):
     def __init__(self, term):
         self.term = term
 
-    def visit_Expr(self, node):
+    def visit_Expr(self, node: ast.Expr) -> ast.AST:
         """Insert a conditional evaluation for hermitian and antihermitian attributes.
 
         It adds an if statement with `upper` that matches indices in the upper triangle.
@@ -181,12 +181,12 @@ class _UseCounter(ast.NodeVisitor):
     def __init__(self):
         self.uses = []  # List of (term, adjoint)
 
-    def visit_Attribute(self, node):
+    def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
         """Count an adjoint access."""
         # We assume the attribute is `.adj`.
         self.uses.append((node.value.value, True))
 
-    def visit_Constant(self, node):
+    def visit_Constant(self, node: ast.Constant) -> ast.AST:
         """Count a regular access."""
         if not isinstance(node.value, str):
             return
@@ -199,18 +199,18 @@ class _LiteralTransformer(ast.NodeTransformer):
     def __init__(self, diagonal: bool):
         self.diagonal = diagonal
 
-    def visit_Attribute(self, node):
+    def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
         """Transform adjoint terms."""
         # We assume the attribute is `.adj`.
-        return self._subscript(node.value, dagger=True)
+        return self._to_series(node.value, adjoint=True)
 
-    def visit_Constant(self, node):
+    def visit_Constant(self, node: ast.Constant) -> ast.AST:
         """Transform regular terms."""
         if not isinstance(node.value, str):
             return node
-        return self._subscript(node, dagger=False)
+        return self._to_series(node, adjoint=False)
 
-    def _subscript(self, node: ast.Constant, dagger: bool):
+    def _to_series(self, node: ast.Constant, adjoint: bool) -> ast.AST:
         """Build series[term][index] as AST."""
         result = ast.Subscript(
             value=ast.Subscript(
@@ -218,12 +218,10 @@ class _LiteralTransformer(ast.NodeTransformer):
                 slice=ast.Constant(value=node.value),
                 ctx=ast.Load(),
             ),
-            slice=ast.Index(
-                value=_LiteralTransformer._index(dagger and (not self.diagonal))
-            ),
+            slice=ast.Index(value=self._index(adjoint and (not self.diagonal))),
             ctx=ast.Load(),
         )
-        if dagger:
+        if adjoint:
             result = ast.Call(
                 func=ast.Name(id="Dagger", ctx=ast.Load()),
                 args=[result],
@@ -232,7 +230,7 @@ class _LiteralTransformer(ast.NodeTransformer):
         return result
 
     @staticmethod
-    def _index(adjoint):
+    def _index(adjoint) -> ast.AST:
         """Build the (adjoint) index as AST."""
         if not adjoint:
             return ast.Name(id="index", ctx=ast.Load())
@@ -240,11 +238,11 @@ class _LiteralTransformer(ast.NodeTransformer):
 
 
 class _SumTransformer(ast.NodeTransformer):
-    """Transform additive operations to _zero_sum."""
+    """Transform additive operations to `_zero_sum`."""
 
     @staticmethod
     def _is_zero_sum(node: ast.AST) -> bool:
-        """Whether a node is a call to _zero_sum."""
+        """Whether a node is a call to `_zero_sum`."""
         return isinstance(node, ast.Call) and node.func.id == "_zero_sum"
 
     @staticmethod
@@ -258,7 +256,7 @@ class _SumTransformer(ast.NodeTransformer):
 
     @staticmethod
     def _negate(node: ast.AST) -> ast.AST:
-        """Negate a node. Returns the original node if already negated."""
+        """Negate a node. Return the original node if already negated."""
         if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
             return node.operand
         return ast.UnaryOp(
@@ -286,8 +284,8 @@ class _SumTransformer(ast.NodeTransformer):
 class _DivideTransformer(ast.NodeTransformer):
     """Replace division with `_safe_divide`."""
 
-    def visit_BinOp(self, node: ast.BinOp):
-        """Transform division to a _safe_divide call."""
+    def visit_BinOp(self, node: ast.BinOp) -> ast.AST:
+        """Transform division to a `_safe_divide` call."""
         if not isinstance(node.op, ast.Div):
             return self.generic_visit(node)
 
@@ -301,7 +299,7 @@ class _DivideTransformer(ast.NodeTransformer):
 class _FunctionTransformer(ast.NodeTransformer):
     """Do not call certain functions with zero as argument."""
 
-    def visit_Call(self, node: ast.Call):
+    def visit_Call(self, node: ast.Call) -> ast.AST:
         """Apply a zero check to calls of `solve_sylvester`."""
         if not isinstance(node.func, ast.Name):
             return self.generic_visit(node)
@@ -348,7 +346,7 @@ def _parse_algorithm(
 
 
 def _parse_return(node: ast.Return) -> list[str]:
-    """Parse return statement to series names."""
+    """Parse return statement to list of series names."""
     if isinstance(node, ast.Return):
         if isinstance(node.value, ast.Constant):
             return [node.value.value]
@@ -360,10 +358,10 @@ def _parse_return(node: ast.Return) -> list[str]:
 def _preprocess_algorithm(
     definition: ast.FunctionDef,
 ) -> tuple[list[_Series], list[_Product], list[str]]:
-    """Read and preprocess series, products and output definition."""
+    """Read and preprocess series, products and outputs definition."""
     series = []
     products = []
-    output = []
+    outputs = []
     for node in definition.body:
         if isinstance(node, ast.With):
             if "@" in node.items[0].context_expr.value:
@@ -371,9 +369,9 @@ def _preprocess_algorithm(
             else:
                 series.append(_preprocess_series(node))
         if isinstance(node, ast.Return):
-            output = _parse_return(node)
+            outputs = _parse_return(node)
 
-    return series, products, output
+    return series, products, outputs
 
 
 def _find_delete_candidates(
@@ -434,7 +432,7 @@ def _find_delete_candidates(
     return result
 
 
-def _read_product(definition: ast.With):
+def _read_product(definition: ast.With) -> _Product:
     """Read product properties."""
     product = _Product()
     name = definition.items[0].context_expr.value
@@ -479,7 +477,7 @@ class _EvalType(Enum):
     upper = ("index[0] > index[1]",)
 
 
-def _preprocess_series(definition: ast.With):
+def _preprocess_series(definition: ast.With) -> _Series:
     """Determine the properties of a series."""
     series = _Series()
     series.name = definition.items[0].context_expr.value
@@ -510,7 +508,7 @@ def _preprocess_series(definition: ast.With):
     return series
 
 
-def _parse_start(value: str | int):
+def _parse_start(value: str | int) -> str:
     """Parse start value."""
     match value:
         case "H_0":
@@ -537,7 +535,7 @@ def algorithm(func: callable) -> tuple[list[_Series], list[_Product], list[str]]
         - Integer literals.
         - Unary and binary operations.
         - Function calls.
-    - `if <type>:` to differentiate evaluation based on the requested index. Allowed types:
+    - `if <condition>:` to differentiate evaluation based on the requested index. Allowed conditions are:
         - `diagonal`: indices on the main diagonal.
         - `offdiagonal`: indices *not* on the main diagonal.
         - `upper`: indices in the upper triangle.
@@ -545,8 +543,9 @@ def algorithm(func: callable) -> tuple[list[_Series], list[_Product], list[str]]
     If a name contains an "@" symbol, it is considered a product of the left and right series.
     A product definition allows the following statements:
     - `hermitian` to mark the product as hermitian.
+    - `pass` if the product requires no statements.
 
-    The final return statement in the function body defines the series that are part of the output of the algorithm.
+    The final return statement in the function body defines a tuple of series that are part of the output of the algorithm.
 
     Arguments:
     ---------
