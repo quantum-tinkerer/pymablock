@@ -414,7 +414,8 @@ def _block_diagonalize(
     solve_sylvester: Optional[Callable] = None,
     *,
     operator: Optional[Callable] = None,
-) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
+    return_all: bool = False,
+) -> tuple[BlockSeries, ...] | tuple[dict[str, BlockSeries], dict[str, BlockSeries]]:
     """Algorithm for computing block diagonalization of a Hamiltonian.
 
     It parameterizes the unitary transformation as a series of block matrices.
@@ -435,15 +436,25 @@ def _block_diagonalize(
     operator :
         (optional) function to use for matrix multiplication.
         Defaults to matmul.
+    return_all :
+        (optional) whether to return all series as a dictionary.
+        Defaults to `False`.
 
     Returns
     -------
+    If `return_all` is false, it returns a tuple with the following elements:
     H_tilde : `~pymablock.series.BlockSeries`
         Block diagonalized Hamiltonian.
     U : `~pymablock.series.BlockSeries`
         Unitary that block diagonalizes H such that ``H_tilde = U^H H U``.
     U_adjoint : `~pymablock.series.BlockSeries`
         Adjoint of ``U``.
+
+    If `return_all` is true, it returns a tuple with two dictionaries:
+    series : dict[str, BlockSeries]
+        Dictionary with all series.
+    linear_operator_series : dict[str, BlockSeries]
+        Dictionary with all series as linear operators.
 
     """
     if operator is None:
@@ -532,6 +543,9 @@ def _block_diagonalize(
                 operator=operator,
                 hermitian=product.hermitian,
             )
+
+    if return_all:
+        return series, linear_operator_series
 
     return tuple(series[output] for output in outputs)
 
