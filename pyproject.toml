@@ -94,6 +94,14 @@ lint.unfixable = []
   "D",  # documentation in tests not necessary
 ]
 
+[tool.coverage.run]
+include = [
+  "pymablock/*",
+]
+omit = [
+  "pymablock/algorithms.py",
+]
+
 [tool.mypy]
 # Not using mypy yet, but this is a start.
 python_version = "3.9"

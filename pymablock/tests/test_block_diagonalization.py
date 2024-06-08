@@ -1,3 +1,4 @@
+import operator
 import tracemalloc
 from collections import Counter
 from itertools import chain, permutations
@@ -1269,3 +1270,47 @@ def test_number_products(data_regression):
                     )
 
     data_regression.check(multiplication_counts)
+
+
+def test_delete_intermediate_terms():
+    """Test that the algorithm deletes all intermediate terms that are accessed once.
+
+    The terms to delete are calculated automatically by the algorithm,
+    so we check against the previous manual result.
+
+    Note that this test does not check whether we delete too many terms,
+    that is ensured by the test `test_number_products` instead.
+    """
+
+    def dense_eval(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        return AlgebraElement(f"H{index}")
+
+    H = BlockSeries(
+        eval=dense_eval,
+        shape=(2, 2),
+        n_infinite=1,
+    )
+
+    max_order = 10
+    series, linear_operator_series = _block_diagonalize(
+        H, solve_sylvester=lambda x: x, operator=operator.mul, return_all=True
+    )
+    series["H_tilde"][:, :, :max_order]
+
+    # Manual result of terms to delete
+    to_delete = {
+        "U'† @ U'": [(0, 0), (1, 1)],
+        "X": [(0, 1)],
+        "H'_diag @ U'": [(0, 1), (1, 0)],
+        "H'_offdiag @ U'": [(0, 1)],
+        "U'† @ B": [(0, 1), (1, 0)],
+    }
+
+    for term, indices in to_delete.items():
+        for which in series, linear_operator_series:
+            # We start from 1 because the 0th order is precomputed and thus not deleted.
+            for order in range(1, max_order):
+                for index in indices:
+                    assert (*index, order) not in which[term]._data
