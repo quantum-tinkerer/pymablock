@@ -1300,17 +1300,27 @@ def test_delete_intermediate_terms():
     series["H_tilde"][:, :, :max_order]
 
     # Manual result of terms to delete
+    # Output of script at https://gitlab.kwant-project.org/qt/pymablock/-/issues/90#note_71846
+    # TODO: The commented out terms are accessed once, yet they appear in products?
     to_delete = {
-        "U'† @ U'": [(0, 0), (1, 1)],
-        "X": [(0, 1)],
-        "H'_diag @ U'": [(0, 1), (1, 0)],
-        "H'_offdiag @ U'": [(0, 1)],
-        "U'† @ B": [(0, 1), (1, 0)],
+        # ("(H'_offdiag U' - B)", (0, 1)),
+        # ("(H'_offdiag U' - B)", (1, 0)),
+        # ("B", (0, 0)),
+        # ("B", (1, 1)),
+        ("C", (1, 0)),
+        ("H'_diag @ U'", (0, 1)),
+        ("H'_diag @ U'", (1, 0)),
+        # ("H'_offdiag @ U'", (0, 1)),
+        ("U'† @ (H'_offdiag U' - B)", (0, 0)),
+        ("U'† @ (H'_offdiag U' - B)", (1, 0)),
+        ("U'† @ (H'_offdiag U' - B)", (1, 1)),
+        ("U'† @ U'", (0, 0)),
+        ("U'† @ U'", (1, 1)),
+        ("X", (1, 0)),
     }
 
-    for term, indices in to_delete.items():
+    for term, index in to_delete:
         for which in series, linear_operator_series:
             # We start from 1 because the 0th order is precomputed and thus not deleted.
             for order in range(1, max_order):
-                for index in indices:
-                    assert (*index, order) not in which[term]._data
+                assert (*index, order) not in which[term]._data

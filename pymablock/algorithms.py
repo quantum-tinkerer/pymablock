@@ -24,10 +24,7 @@ def main():
         if diagonal:
             "U'† @ U'" / -2
         if offdiagonal:
-            # We can choose to query either "X" or "X".adj since X is Hermitian.
-            # The choice for "X".adj is optimal for querying H_AA and "X" for H_BB.
-            # We choose "X".adj because we follow the convention that H_AA is more important.
-            -solve_sylvester("X".adj + "H'_diag @ U'" + "H'_diag @ U'".adj)
+            -solve_sylvester("X" + "H'_diag @ U'" + "H'_diag @ U'".adj)
 
     with "U":
         start = 1
@@ -45,26 +42,35 @@ def main():
 
     with "X":
         start = 0
-        # X is hermitian, but (1, 0) is the only index we ever query.
-        if upper:
-            "B" + "H'_offdiag" + "H'_offdiag @ U'"
+        hermitian
+        "B" + "H'_offdiag"
 
-    with "B":
+    with "C":
+        # The offdiagonal blocks of C are hermitian, but we only query (1, 0).
+        "U'† @ (H'_offdiag U' - B)" + "H'_offdiag @ U'"
+
+    with "B":  # X - H'_offdiag
         start = 0
+        hermitian
         if diagonal:
-            ("U'† @ B" - "U'† @ B".adj + "H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / -2
-
+            ("C" - "C".adj) / 2
         if offdiagonal:
-            -"U'† @ B"
+            # We can choose to query either "C" or "C".adj since C_offdiag is Hermitian.
+            # The choice for "C".adj is optimal for querying H_AA and "C" for H_BB.
+            # We choose "C".adj because we follow the convention that H_AA is more important.
+            "C".adj
 
     with "H_tilde":
         start = "H_0"
         if diagonal:
-            (
-                "H'_diag"
-                + ("H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / 2
-                + ("U'† @ B" + "U'† @ B".adj) / -2
-            )
+            ("H'_diag" + ("C" + "C".adj) / 2)
+
+    # We omit @ from the name to treat it as a series.
+    with "(H'_offdiag U' - B)":
+        "H'_offdiag @ U'" - "B"
+
+    with "U'† @ (H'_offdiag U' - B)":
+        pass
 
     with "U'† @ U'":
         hermitian
