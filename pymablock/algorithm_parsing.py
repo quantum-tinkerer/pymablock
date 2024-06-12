@@ -109,8 +109,8 @@ class _EvalTransformer(ast.NodeTransformer):
         eval_transformers = [
             _SumTransformer(),
             _DivideTransformer(),
-            _LiteralTransformer(diagonal=diagonal),
             _FunctionTransformer(),
+            _LiteralTransformer(diagonal=diagonal),
         ]
         node = node.value  # Get the expression from the Expr node.
         for transformer in eval_transformers:
@@ -201,25 +201,34 @@ class _LiteralTransformer(ast.NodeTransformer):
     def __init__(self, diagonal: bool):
         self.diagonal = diagonal
 
+    def visit_Subscript(self, node: ast.Subscript) -> ast.AST:
+        # Do not visit subscripts as these are already transformed.
+        return node
+
     def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
         """Transform adjoint terms."""
         # We assume the attribute is `.adj`.
-        return self._to_series(node.value, adjoint=True)
+        return self._to_series_index(node.value, adjoint=True)
 
     def visit_Constant(self, node: ast.Constant) -> ast.AST:
         """Transform regular terms."""
         if not isinstance(node.value, str):
             return node
-        return self._to_series(node, adjoint=False)
+        return self._to_series_index(node, adjoint=False)
 
-    def _to_series(self, node: ast.Constant, adjoint: bool) -> ast.AST:
+    @staticmethod
+    def _to_series(node: ast.Constant) -> ast.AST:
+        """Build series[term] as AST."""
+        return ast.Subscript(
+            value=ast.Name(id="which", ctx=ast.Load()),
+            slice=ast.Constant(value=node.value),
+            ctx=ast.Load(),
+        )
+
+    def _to_series_index(self, node: ast.Constant, adjoint: bool) -> ast.AST:
         """Build series[term][index] as AST."""
         result = ast.Subscript(
-            value=ast.Subscript(
-                value=ast.Name(id="which", ctx=ast.Load()),
-                slice=ast.Constant(value=node.value),
-                ctx=ast.Load(),
-            ),
+            value=self._to_series(node),
             slice=ast.Index(value=self._index(adjoint and (not self.diagonal))),
             ctx=ast.Load(),
         )
@@ -299,16 +308,48 @@ class _DivideTransformer(ast.NodeTransformer):
 
 
 class _FunctionTransformer(ast.NodeTransformer):
-    """Do not call certain functions with zero as argument."""
+    """Transforms function calls depending on the function name.
+
+    It supports two types of functions:
+    - Functions that should not be called with zero as the first argument.
+    - Functions that have series as arguments.
+    """
 
     def visit_Call(self, node: ast.Call) -> ast.AST:
         """Apply a zero check to calls of `solve_sylvester`."""
         if not isinstance(node.func, ast.Name):
             return self.generic_visit(node)
 
-        if node.func.id not in ["solve_sylvester"]:
-            return self.generic_visit(node)
+        if node.func.id in ["solve_sylvester"]:
+            return self._visit_nonzero(node)
 
+        if node.func.id in ["time_diff"]:
+            return self._visit_series_argument(node)
+
+        return self.generic_visit(node)
+
+    def _visit_series_argument(self, node: ast.Call) -> ast.AST:
+        """Transform functions that have series as arguments.
+
+        Inserts the index as the first argument, followed by all series passed as arguments.
+        The series arguments are string literals, which are transformed to `series["arg"]`.
+        """
+        node.args = [
+            ast.Name(id="index", ctx=ast.Load()),
+            *(
+                _LiteralTransformer._to_series(arg)
+                if (isinstance(arg, ast.Constant) and isinstance(arg.value, str))
+                else arg
+                for arg in node.args
+            ),
+        ]
+        return node
+
+    def _visit_nonzero(self, node: ast.Call) -> ast.AST:
+        """Apply a zero check to the call of node.
+
+        If the first argument is zero, the function is not called and zero is returned.
+        """
         return ast.IfExp(
             test=ast.Compare(
                 left=ast.NamedExpr(
