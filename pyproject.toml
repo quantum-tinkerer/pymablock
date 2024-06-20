@@ -177,9 +177,10 @@ numpy = ">=1.26.0"
 scipy = ">=1.13.0"
 sympy = ">=1.12"
 
-[tool.pixi.feature.build.dependencies]
+[tool.pixi.feature.publish.dependencies]
 hatch = ">=1.7.0,<1.13"
 hatch-vcs = ">=0.4.0,<0.5"
+git = ""
 
 [tool.pixi.feature.precommit.dependencies]
 pre-commit = ""
@@ -192,7 +193,7 @@ minimal = { features = ["minimal", "test"], solve-group = "minimal" }
 mid = { features = ["mid", "test"], solve-group = "mid" }
 latest = { features = ["latest", "test"], solve-group = "default" }
 precommit = { features = ["precommit"], no-default-feature = true }
-build = { features = ["build"], no-default-feature = true }
+publish = { features = ["publish"], no-default-feature = true }
 
 # Tasks
 
@@ -205,6 +206,6 @@ docs-build = "make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
 [tool.pixi.feature.precommit.tasks]
 precommit = "pre-commit run --all-files"
 
-[tool.pixi.feature.build.tasks]
+[tool.pixi.feature.publish.tasks]
 build = "hatch build"
 publish = "hatch publish -u __token__"
