@@ -21,7 +21,7 @@ When writing documentation, ensure that you write one sentence per line to make 
 
 Pymablock adopted [SPEC-0](https://scientific-python.org/specs/spec-0000/) for setting minimal requirements on Python, NumPy, and SciPy.
 
-Before making a release check that the minimal versions specified in `pyproject.toml` and in `noxfile.py` adhere to SPEC-0.
+Before making a release check that the minimal versions specified in `pyproject.toml` adhere to SPEC-0.
 
 ## Release checklist
 
