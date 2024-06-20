@@ -3,3 +3,6 @@
 *.py filter=whitespace
 *.rst filter=whitespace
 *.md filter=whitespace
+
+# GitHub syntax highlighting
+pixi.lock linguist-language=YAML

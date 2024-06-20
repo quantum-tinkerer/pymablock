@@ -56,7 +56,6 @@ line-length = 90
 exclude = [
   "paper",  # not part of the library
   "pymablock/_version.py",  # generated automatically
-  "noxfile.py",
   "docs/source/conf.py",
   "pymablock/__init__.py",
   "trace_perturbation/*",  # not part of the library
@@ -118,3 +117,102 @@ ignore_missing_imports = true
 [tool.codespell]
 skip = "*.cls,*.bst,*.bib"
 ignore-words-list = "nwo,groth,ket,braket"
+
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.pypi-dependencies]
+pymablock = { path = ".", editable = true }
+
+# Pixi dependencies
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-cov", "pytest-randomly", "pytest-regressions", "pytest-ruff"]
+docs = ["sphinx-book-theme>=1.1.0", "sphinx-tippy"]
+
+[tool.pixi.dependencies]
+python = ">=3.10"
+numpy = ">=1.23"
+scipy = ">=1.9"
+sympy = ">=1.10"
+python-mumps = ">=0.0.1,<0.1"
+packaging = ">=22.0" # For version parsing
+
+[tool.pixi.build-dependencies]
+git = ""
+
+[tool.pixi.feature.docs.dependencies]
+kwant = ""
+myst-nb = ""
+matplotlib-base = ""
+sphinx-togglebutton = ""
+sphinx-copybutton = ""
+git = ""
+make = ""
+
+[tool.pixi.feature.test.dependencies]
+pytest = ""
+pytest-cov = ""
+pytest-randomly = ""
+pytest-regressions = ""
+# pytest-ruff is not on conda
+
+[tool.pixi.feature.minimal.dependencies]
+python = "~=3.10.0"
+numpy = "~=1.23.0"
+scipy = "~=1.9.0"
+sympy = "~=1.10.0"
+
+[tool.pixi.feature.mid.dependencies]
+python = "~=3.11.0"
+numpy = "~=1.24.0"
+scipy = "~=1.10.0"
+sympy = "~=1.11.0"
+
+[tool.pixi.feature.latest.dependencies]
+python = "~=3.12.0"
+numpy = ">=1.26.0"
+scipy = ">=1.13.0"
+sympy = ">=1.12"
+
+[tool.pixi.feature.publish.dependencies]
+hatch = ">=1.7.0,<1.13"
+hatch-vcs = ">=0.4.0,<0.5"
+git = ""
+
+[tool.pixi.feature.precommit.dependencies]
+pre-commit = ""
+git = ""
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+docs = { features = ["docs"], solve-group = "default" }
+minimal = { features = ["minimal", "test"], solve-group = "minimal" }
+mid = { features = ["mid", "test"], solve-group = "mid" }
+latest = { features = ["latest", "test"], solve-group = "default" }
+precommit = { features = ["precommit"], no-default-feature = true }
+publish = { features = ["publish"], no-default-feature = true }
+
+# Tasks
+
+[tool.pixi.feature.test.tasks]
+tests = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning"
+
+[tool.pixi.tasks]
+tests-minimal = "pixi run -e minimal tests"
+tests-mid = "pixi run -e mid tests"
+tests-latest = "pixi run -e latest tests"
+tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
+
+[tool.pixi.feature.docs.tasks]
+# TODO: Temporarily disabled warnings due to sympy 1.13 release candidates.
+docs-build = "make -C docs/ html SPHINXOPTS=\"-T --keep-going -n\""
+
+[tool.pixi.feature.precommit.tasks]
+git = "git"
+pre-commit = "pre-commit"
+
+[tool.pixi.feature.publish.tasks]
+build = "hatch build"
+publish = "hatch publish -u __token__"

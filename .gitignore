@@ -156,7 +156,6 @@ htmlcov/
 coverage/
 .coverage
 prof/
-.nox/
 .mypy_cache/
 .ruff_cache/
 
@@ -174,3 +173,7 @@ dist/
 # myst
 exports/
 _build/
+
+# pixi environments
+.pixi
+*.egg-info
