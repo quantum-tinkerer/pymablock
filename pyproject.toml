@@ -200,7 +200,8 @@ publish = { features = ["publish"], no-default-feature = true }
 tests = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning"
 
 [tool.pixi.feature.docs.tasks]
-docs-build = "make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+# TODO: Temporarily disabled warnings due to sympy 1.13 release candidates.
+docs-build = "make -C docs/ html SPHINXOPTS=\"-T --keep-going -n\""
 
 [tool.pixi.feature.precommit.tasks]
 precommit = "pre-commit run --all-files"
