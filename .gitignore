@@ -174,3 +174,7 @@ dist/
 # myst
 exports/
 _build/
+
+# pixi environments
+.pixi
+*.egg-info
