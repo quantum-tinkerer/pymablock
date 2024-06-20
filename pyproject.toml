@@ -56,7 +56,6 @@ line-length = 90
 exclude = [
   "paper",  # not part of the library
   "pymablock/_version.py",  # generated automatically
-  "noxfile.py",
   "docs/source/conf.py",
   "pymablock/__init__.py",
   "trace_perturbation/*",  # not part of the library

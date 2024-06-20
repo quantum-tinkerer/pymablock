@@ -156,7 +156,6 @@ htmlcov/
 coverage/
 .coverage
 prof/
-.nox/
 .mypy_cache/
 .ruff_cache/
 
