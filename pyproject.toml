@@ -205,6 +205,7 @@ docs-build = "make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
 
 [tool.pixi.feature.precommit.tasks]
 precommit = "pre-commit run --all-files"
+git = "git"
 
 [tool.pixi.feature.publish.tasks]
 build = "hatch build"
