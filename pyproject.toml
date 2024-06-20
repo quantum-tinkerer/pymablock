@@ -210,8 +210,8 @@ tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 docs-build = "make -C docs/ html SPHINXOPTS=\"-T --keep-going -n\""
 
 [tool.pixi.feature.precommit.tasks]
-precommit = "pre-commit run --all-files"
 git = "git"
+pre-commit = "pre-commit"
 
 [tool.pixi.feature.publish.tasks]
 build = "hatch build"

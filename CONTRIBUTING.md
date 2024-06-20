@@ -3,17 +3,19 @@
 Pymablock is an open source project and we welcome contributions from the community.
 To contribute code, please follow the guidelines below.
 
-## Documentation
-
-Pymablock uses markdown for documentation, run `make -C docs/ clean html SPHINXOPTS="-WT --keep-going -n"` to build it.
-When writing documentation, ensure that you write one sentence per line to make it easier to review changes.
-
 ## Development environment
 
-Pymablock uses [pre-commit](https://pre-commit.com/), run `pre-commit install` to enable it after cloning the repository.
+We use [pixi](https://pixi.sh/latest/) for dependency management, run `pixi install` to install the default environment.
 
-We use `py.test` for testing, run it with `py.test`.
-To test against multiple dependency versions, run `nox`.
+Pymablock uses [pre-commit](https://pre-commit.com/), run `pixi run pre-commit install` to enable it after cloning the repository.
+
+We use `py.test` for testing, run it with `pixi run tests`.
+To test against multiple dependency versions, run `pixi run tests-all`.
+
+## Documentation
+
+Pymablock uses markdown for documentation, run `pixi run docs-build` to build it.
+When writing documentation, ensure that you write one sentence per line to make it easier to review changes.
 
 ## Dependency versions
 

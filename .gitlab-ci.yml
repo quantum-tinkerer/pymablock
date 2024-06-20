@@ -50,7 +50,7 @@ run pre-commit:
     PRE_COMMIT_HOME: $CI_PROJECT_DIR/.pre-commit-cache
   script:
     - pixi run -e precommit git config --global --add safe.directory $CI_PROJECT_DIR
-    - pixi run precommit
+    - pixi run pre-commit run --all-files
   cache:
     key: "$CI_JOB_NAME"
     paths:
