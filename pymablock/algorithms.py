@@ -93,6 +93,10 @@ def tdsw():
         if offdiagonal:
             "H"
 
+    with "H'":
+        start = 0
+        "H"
+
     with "U'":
         start = 0
         antihermitian
@@ -103,7 +107,16 @@ def tdsw():
             # We can choose to query either "X" or "X".adj since X is Hermitian.
             # The choice for "X".adj is optimal for querying H_AA and "X" for H_BB.
             # We choose "X".adj because we follow the convention that H_AA is more important.
-            -solve_sylvester("X".adj + "H'_diag @ U'" + "H'_diag @ U'".adj)
+            -solve_sylvester_time(
+                (
+                    "X - ihdU'†/dt U".adj
+                    + "H'_diag @ U'"
+                    + "H'_diag @ U'".adj
+                    + "ihdU'†/dt @ U'"
+                ),
+                "U'",
+                "ihdU'†/dt",
+            )
 
     with "U":
         start = 1
@@ -119,36 +132,45 @@ def tdsw():
         start = 1
         "U'†"
 
+    with "X - ihdU'†/dt U":
+        start = 0
+        if diagonal:
+            ("U'† @ X" + "U'† @ X".adj) / -2 - "ihdU'†/dt @ U"
+        if offdiagonal:
+            "U† @ H'_offdiag @ U" - "U'† @ X"
+
+    with "X":
+        "X - ihdU'†/dt U" + "ihdU'†/dt @ U"
+
     with "ihdU'†/dt":
         start = 0
         time_diff("U'†") * I * hbar
 
-    with "X":
-        start = 0
-        # X is hermitian, but (1, 0) is the only index we ever query.
-        if upper:
-            "B" + "H'_offdiag" + "H'_offdiag @ U'"
-
-    with "B":
-        start = 0
-        if diagonal:
-            ("U'† @ B" - "U'† @ B".adj + "H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / -2
-
-        if offdiagonal:
-            -"U'† @ B" + "ihdU'†/dt @ U"
-
     with "H_tilde":
         start = "H_0"
         if diagonal:
-            (
-                "H'_diag"
-                + ("H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / 2
-                + ("U'† @ B" + "U'† @ B".adj) / -2
-                + "ihdU'†/dt @ U"
-            )
+            "U† @ H' @ U" + "ihdU'†/dt @ U'"
+
+    with "H'_offdiag @ U":
+        pass
+
+    with "U† @ H'_offdiag @ U":
+        pass
+
+    with "H' @ U":
+        pass
+
+    with "U† @ H' @ U":
+        pass
 
     with "U'† @ U'":
         hermitian
+
+    with "U'† @ X":
+        pass
+
+    with "ihdU'†/dt @ U'":
+        pass
 
     with "ihdU'†/dt @ U":
         pass
@@ -157,9 +179,6 @@ def tdsw():
         pass
 
     with "H'_offdiag @ U'":
-        pass
-
-    with "U'† @ B":
         pass
 
     return "H_tilde", "U", "U†"

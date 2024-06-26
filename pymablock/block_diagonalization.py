@@ -520,6 +520,7 @@ def _block_diagonalize(
         "series": series,
         "linear_operator_series": linear_operator_series,
         "solve_sylvester": solve_sylvester,
+        "solve_sylvester_time": solve_sylvester,
         "del_": del_,
         # Globals
         "zero": zero,
@@ -898,14 +899,6 @@ def _sympy_to_BlockSeries(
     if any(n not in hamiltonian.free_symbols for n in symbols):
         raise ValueError("Not all perturbative parameters are in `hamiltonian`.")
 
-    hamiltonian = hamiltonian.expand()
-
-    if t := next((s for s in symbols if str(s) == "t"), None):
-        # Place t at the last index
-        symbols = [s for s in symbols if s != t] + [t]
-        t0 = sympy.Symbol("t_0", **t.assumptions0)
-        hamiltonian = hamiltonian.subs(t, t + t0)
-
     def H_eval(*index):
         # Get order of perturbation by Taylor expanding
         expr = sympy.diff(hamiltonian, *((n, i) for n, i in zip(symbols, index)))
@@ -915,9 +908,6 @@ def _sympy_to_BlockSeries(
         expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
         if expr.is_hermitian is False:  # Sympy three-valued logic
             raise ValueError("Hamiltonian must be Hermitian at every order.")
-
-        if t:
-            expr = expr.subs(t, 1).subs(t0, t)
 
         return _convert_if_zero(expr)
 
@@ -1074,24 +1064,22 @@ def _safe_divide(numerator, denominator):
 
 
 def _time_diff(index, series: BlockSeries):
-    if str(series.dimension_names[-1]) != "t":
+    # Time is always at the last index
+    if str(series.dimension_names[-1]) != "time":
         raise ValueError("Time dimension is missing.")
 
-    # Time is always at the highest index
-    time_index = len(series.shape) + series.n_infinite - 1
+    derivative = series[(*index[:-1], index[-1] + 1)]
 
-    return _zero_sum(
-        *(
-            series[
-                tuple(
-                    index[i] + 1
-                    if i == time_index
-                    else (index[i] - 1 if i == diff_index else index[i])
-                    for i in range(time_index + 1)
-                )
-            ]
-            # TODO: Only loop over adiabatic perturbations
-            for diff_index in range(len(series.shape), time_index)
-            if index[diff_index] > 0
-        )
-    )
+    if isinstance(derivative, sympy.MatrixBase):
+        # The matrix is either a polynomial in time or is the derivative itself.
+        time = series.dimension_names[-1]
+
+        if all(expr.is_polynomial(time) for expr in derivative.iter_values()):
+            # Matrix is of the form time^n, so the derivative is n*a*time^(n-1)
+            derivative = _safe_divide(derivative * (index[-1] + 1), time)
+
+    else:
+        # Do not use *= to avoid mutating
+        derivative = derivative * (index[-1] + 1)
+
+    return derivative
