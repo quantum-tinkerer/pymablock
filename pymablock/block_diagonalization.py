@@ -749,6 +749,57 @@ def solve_sylvester_direct(
     return solve_sylvester
 
 
+def solve_sylvester_time_adiabatic(
+    H: BlockSeries,
+    adiabatic_indices: list[int],
+    solve_sylvester: Optional[Callable] = None,
+):
+    """Solve a time-dependent Sylvester's equation assuming adiabaticity.
+
+    Assumes that taking the time derivative decreases the order of
+    the adiabatic perturbations by one.
+
+    Parameters
+    ----------
+    H :
+        The Hamiltonian matrix.
+    adiabatic_indices : list
+        List of perturbation indices that should be treated adiabatically.
+    solve_sylvester : function, optional
+        A function to solve the Sylvester's equation. If not provided, `solve_sylvester_diagonal` is used.
+
+    Returns
+    -------
+    solve_sylvester_time : `Callable`
+        Function that solves the time-dependent Sylvester's equation.
+
+    """
+    if solve_sylvester is None:
+        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
+
+    def solve_sylvester_time(index, Y, _, dU_p_dt):
+        # Populate the time derivative by evaluating a lower order.
+        index_decreased = list(index)
+        for adiabatic_index in adiabatic_indices:
+            index_decreased[adiabatic_index + 2] -= 1
+        orders = index[2:]
+        orders_decreased = index_decreased[2:]
+        # TODO: Are all blocks required?
+        for ij in [(0, 0), (0, 1), (1, 0), (1, 1)]:
+            if all(order >= 0 for order in orders_decreased):
+                result = dU_p_dt.eval(*(*ij, *orders_decreased))
+            else:
+                result = zero
+            dU_p_dt[(*ij, *orders)] = result
+
+        # Add the derivative at the same order as Y
+        Y = _zero_sum(dU_p_dt[index], Y)
+
+        return solve_sylvester(Y) if Y is not zero else zero
+
+    return solve_sylvester_time
+
+
 ### Auxiliary functions.
 def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     """Convert a list of perturbations to a dictionary.
