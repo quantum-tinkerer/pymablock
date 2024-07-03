@@ -420,6 +420,7 @@ def _block_diagonalize(
     *,
     operator: Optional[Callable] = None,
     algorithm: Optional[Any] = main,
+    scope_overrides: dict = {},
     return_all: bool = False,
 ) -> tuple[BlockSeries, ...] | tuple[dict[str, BlockSeries], dict[str, BlockSeries]]:
     """Algorithm for computing block diagonalization of a Hamiltonian.
@@ -445,6 +446,8 @@ def _block_diagonalize(
     algorithm :
         Algorithm to use. Defaults to the main algorithm.
         Must be a function decorated by `~pymablock.algorithm_parsing.algorithm`.
+    scope_overrides :
+        (optional) overrides for the variables present in the algorithm scope.
     return_all :
         (optional) whether to return all series as a dictionary.
         Defaults to `False`.
@@ -530,6 +533,7 @@ def _block_diagonalize(
         "I": sympy.I,
         "hbar": sympy.physics.quantum.hbar,
         "Dagger": Dagger,
+        **scope_overrides,
     }
 
     terms, products, outputs = algorithm
