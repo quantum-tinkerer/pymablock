@@ -809,8 +809,8 @@ def solve_sylvester_time_adiabatic(
 
 
 def solve_sylvester_time_fast(H, y0, t_span):
-    h_0_aa = H[0, 0, *([0] * H.n_infinite)]
-    h_0_bb = H[1, 1, *([0] * H.n_infinite)]
+    h_0_aa = H[tuple(0, 0, *([0] * H.n_infinite))]
+    h_0_bb = H[tuple(1, 1, *([0] * H.n_infinite))]
     shape = (h_0_aa.shape[0], h_0_bb.shape[1])
 
     def solve_sylvester_time(_index, Y, _U, _dU_dt):
