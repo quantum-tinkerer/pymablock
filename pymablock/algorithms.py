@@ -149,7 +149,7 @@ def tdsw():
     with "H_tilde":
         start = "H_0"
         if diagonal:
-            "U† @ H' @ U" + "ihdU'†/dt @ U'"
+            "U† @ H' @ U" + "ihdU'†/dt @ U"
 
     with "H'_offdiag @ U":
         pass
