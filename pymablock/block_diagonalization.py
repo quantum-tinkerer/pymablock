@@ -10,6 +10,7 @@ from warnings import warn
 import numpy as np
 import sympy
 from scipy import sparse
+from scipy.integrate import solve_ivp
 from sympy.physics.quantum import Dagger
 
 from pymablock.algorithms import main
@@ -25,6 +26,9 @@ from pymablock.series import (
     cauchy_dot_product,
     one,
     zero,
+)
+from pymablock.series import (
+    Callable as CallableWrapper,
 )
 
 __all__ = ["block_diagonalize"]
@@ -804,6 +808,29 @@ def solve_sylvester_time_adiabatic(
     return solve_sylvester_time
 
 
+def solve_sylvester_time_fast(H, y0, t_span):
+    h_0_aa = H[0, 0, *([0] * H.n_infinite)]
+    h_0_bb = H[1, 1, *([0] * H.n_infinite)]
+    shape = (h_0_aa.shape[0], h_0_bb.shape[1])
+
+    def solve_sylvester_time(_index, Y, _U, _dU_dt):
+        def f(t, v):
+            # TODO: Use correct
+            result = -(v @ h_0_aa - h_0_bb @ v).reshape(1, -1)
+            if Y is not zero:
+                result += Y(t).reshape(1, -1)
+            return result
+
+        sol = solve_ivp(f, t_span=t_span, y0=y0, dense_output=True)
+
+        def solution(t):
+            return sol.sol(t).reshape(shape)
+
+        return CallableWrapper(solution)
+
+    return solve_sylvester_time
+
+
 ### Auxiliary functions.
 def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
     """Convert a list of perturbations to a dictionary.
@@ -1138,3 +1165,24 @@ def _time_diff(index, series: BlockSeries):
         derivative = derivative * (index[-1] + 1)
 
     return derivative
+
+
+def time_diff_numeric(dx: float = 1e-8) -> Callable:
+    """Numerical time derivative function for a BlockSeries.
+
+    Parameters
+    ----------
+    dx : float
+        Step size for numerical differentiation.
+
+    """
+    # TODO: This is a temporary solution as ~scipy.misc.derivative is deprecated.
+    from scipy.misc import derivative
+
+    def time_diff(index, series):
+        value = series[index]
+        if value is zero:
+            return value
+        return CallableWrapper(lambda t: derivative(value, t, dx=dx))
+
+    return time_diff
