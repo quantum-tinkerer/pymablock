@@ -3813,9 +3813,9 @@ packages:
   timestamp: 1714846885370
 - kind: pypi
   name: pymablock
-  version: 2.0.1.dev358+g8b99754.d20240620
+  version: 2.0.1.dev363+g7a38aba.d20240705
   path: .
-  sha256: 827a9ca5fd25ded664256776ae3068e817a5a52e78836fd2bde1676098b02dc3
+  sha256: b8668af57dabee98952fb4b5367d9ef0eb12dff468bbc278d1f49b14cafdf9e8
   requires_dist:
   - numpy>=1.23
   - packaging>=22.0

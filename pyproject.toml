@@ -206,8 +206,7 @@ tests-latest = "pixi run -e latest tests"
 tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 
 [tool.pixi.feature.docs.tasks]
-# TODO: Temporarily disabled warnings due to sympy 1.13 release candidates.
-docs-build = "make -C docs/ html SPHINXOPTS=\"-T --keep-going -n\""
+docs-build = "make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
 
 [tool.pixi.feature.precommit.tasks]
 git = "git"
