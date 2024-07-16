@@ -531,7 +531,7 @@ def _block_diagonalize(
         "zero": zero,
         "_safe_divide": _safe_divide,
         "_zero_sum": _zero_sum,
-        "time_diff": _time_diff,
+        "time_diff": time_diff_numeric,
         "reduce_order_adiabatic": reduce_order_adiabatic,
         "I": sympy.I,
         "hbar": sympy.physics.quantum.hbar,
@@ -969,6 +969,8 @@ def _sympy_to_BlockSeries(
     if any(n not in hamiltonian.free_symbols for n in symbols):
         raise ValueError("Not all perturbative parameters are in `hamiltonian`.")
 
+    hamiltonian = hamiltonian.expand()
+
     def H_eval(*index):
         # Get order of perturbation by Taylor expanding
         expr = sympy.diff(hamiltonian, *((n, i) for n, i in zip(symbols, index)))
@@ -978,7 +980,6 @@ def _sympy_to_BlockSeries(
         expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
         if expr.is_hermitian is False:  # Sympy three-valued logic
             raise ValueError("Hamiltonian must be Hermitian at every order.")
-
         return _convert_if_zero(expr)
 
     H = BlockSeries(
@@ -1131,28 +1132,6 @@ def _safe_divide(numerator, denominator):
         return numerator / denominator
     except TypeError:
         return numerator * (1 / denominator)
-
-
-def _time_diff(index, series: BlockSeries):
-    # Time is always at the last index
-    if str(series.dimension_names[-1]) != "time":
-        raise ValueError("Time dimension is missing.")
-
-    derivative = series[(*index[:-1], index[-1] + 1)]
-
-    if isinstance(derivative, sympy.MatrixBase):
-        # The matrix is either a polynomial in time or is the derivative itself.
-        time = series.dimension_names[-1]
-
-        if all(expr.is_polynomial(time) for expr in derivative.iter_values()):
-            # Matrix is of the form time^n, so the derivative is n*a*time^(n-1)
-            derivative = _safe_divide(derivative * (index[-1] + 1), time)
-
-    else:
-        # Do not use *= to avoid mutating
-        derivative = derivative * (index[-1] + 1)
-
-    return derivative
 
 
 def time_diff_numeric(dx: float = 1e-8) -> Callable:
