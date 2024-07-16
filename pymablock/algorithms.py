@@ -104,9 +104,6 @@ def tdsw():
         if diagonal:
             "U'† @ U'" / -2
         if offdiagonal:
-            # We can choose to query either "X" or "X".adj since X is Hermitian.
-            # The choice for "X".adj is optimal for querying H_AA and "X" for H_BB.
-            # We choose "X".adj because we follow the convention that H_AA is more important.
             -solve_sylvester_time(
                 "Y",
                 "ihdU'†/dt",
@@ -127,7 +124,7 @@ def tdsw():
         "U'†"
 
     with "Y":
-        "X - ihdU'†/dt".adj + "H'_diag @ U'" + "H'_diag @ U'".adj
+        "X - ihdU'†/dt" + "H'_diag @ U'" + "H'_diag @ U'".adj
 
     with "X - ihdU'†/dt":
         start = 0
