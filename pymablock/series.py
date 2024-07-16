@@ -444,6 +444,92 @@ def product_by_order(
     return result
 
 
+class CallableWrapper:
+    """Callable wrapper that supports arithmetic operations."""
+
+    def __init__(self, func):
+        self.func = func
+
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
+
+    def __add__(self, other):
+        if hasattr(other, "__call__"):
+            return type(self)(
+                lambda *args, **kwargs: self(*args, **kwargs) + other(*args, **kwargs)
+            )
+        return type(self)(lambda *args, **kwargs: self(*args, **kwargs) + other)
+
+    def __radd__(self, other):
+        if hasattr(other, "__call__"):
+            return type(self)(
+                lambda *args, **kwargs: other(*args, **kwargs) + self(*args, **kwargs)
+            )
+        return type(self)(lambda *args, **kwargs: other + self(*args, **kwargs))
+
+    def __matmul__(self, other):
+        if hasattr(other, "__call__"):
+            return type(self)(
+                lambda *args, **kwargs: self(*args, **kwargs) @ other(*args, **kwargs)
+            )
+        return type(self)(lambda *args, **kwargs: self(*args, **kwargs) @ other)
+
+    def __mul__(self, other):
+        if hasattr(other, "__call__"):
+            return type(self)(
+                lambda *args, **kwargs: self(*args, **kwargs) * other(*args, **kwargs)
+            )
+        return type(self)(lambda *args, **kwargs: self(*args, **kwargs) * other)
+
+    def __rmul__(self, other):
+        if hasattr(other, "__call__"):
+            return type(self)(
+                lambda *args, **kwargs: other(*args, **kwargs) * self(*args, **kwargs)
+            )
+        return type(self)(lambda *args, **kwargs: other * self(*args, **kwargs))
+
+    def __rmatmul__(self, other):
+        if hasattr(other, "__call__"):
+            return type(self)(
+                lambda *args, **kwargs: other(*args, **kwargs) @ self(*args, **kwargs)
+            )
+        return type(self)(lambda *args, **kwargs: other @ self(*args, **kwargs))
+
+    def __truediv__(self, other):
+        if hasattr(other, "__call__"):
+            return type(self)(
+                lambda *args, **kwargs: self(*args, **kwargs) / other(*args, **kwargs)
+            )
+        return type(self)(lambda *args, **kwargs: self(*args, **kwargs) / other)
+
+    def __sub__(self, other):
+        if hasattr(other, "__call__"):
+            return type(self)(
+                lambda *args, **kwargs: self(*args, **kwargs) - other(*args, **kwargs)
+            )
+        return type(self)(lambda *args, **kwargs: self(*args, **kwargs) - other)
+
+    def __rsub__(self, other):
+        if hasattr(other, "__call__"):
+            return type(self)(
+                lambda *args, **kwargs: other(*args, **kwargs) - self(*args, **kwargs)
+            )
+        return type(self)(lambda *args, **kwargs: other - self(*args, **kwargs))
+
+    def adjoint(self):
+        def func(*args, **kwargs):
+            value = self(*args, **kwargs)
+            if hasattr(value, "adjoint"):
+                return value.adjoint()
+            # TODO: What to do here?
+            return value
+
+        return type(self)(func)
+
+    def __neg__(self):
+        return type(self)(lambda *args, **kwargs: -self(*args, **kwargs))
+
+
 def _log_call(func):
     """Log a method call into the class attribute."""
 
