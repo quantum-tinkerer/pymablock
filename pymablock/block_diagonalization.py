@@ -23,12 +23,10 @@ from pymablock.linalg import (
 )
 from pymablock.series import (
     BlockSeries,
+    CallableWrapper,
     cauchy_dot_product,
     one,
     zero,
-)
-from pymablock.series import (
-    Callable as CallableWrapper,
 )
 
 __all__ = ["block_diagonalize"]
@@ -534,6 +532,7 @@ def _block_diagonalize(
         "_safe_divide": _safe_divide,
         "_zero_sum": _zero_sum,
         "time_diff": _time_diff,
+        "reduce_order_adiabatic": reduce_order_adiabatic,
         "I": sympy.I,
         "hbar": sympy.physics.quantum.hbar,
         "Dagger": Dagger,
@@ -623,6 +622,12 @@ def solve_sylvester_diagonal(
                 np.resize(1 / (array_eigs_a.reshape(-1, 1) - array_eigs_b), Y.shape)
             )
             return energy_denominators.multiply_elementwise(Y)
+        if isinstance(Y, CallableWrapper):
+
+            def solution(*args, **kwargs):
+                return solve_sylvester(Y(*args, **kwargs))
+
+            return CallableWrapper(solution)
         TypeError(f"Unsupported rhs type: {type(Y)}")
 
     return solve_sylvester
@@ -757,24 +762,22 @@ def solve_sylvester_direct(
     return solve_sylvester
 
 
-def solve_sylvester_time_adiabatic(
-    H: BlockSeries,
-    adiabatic_indices: list[int],
-    solve_sylvester: Optional[Callable] = None,
-):
-    """Solve a time-dependent Sylvester's equation assuming adiabaticity.
+def solve_sylvester_time_mixed(
+    H: BlockSeries, v_0: np.ndarray, t_span: tuple[int, int]
+) -> Callable:
+    """Solve a time-dependent Sylvester's equation with mixed adiabatic and non-adiabatic perturbations.
 
-    Assumes that taking the time derivative decreases the order of
-    the adiabatic perturbations by one.
+    Solves adiabatic orders using the diagonal solver.
+    Solves non-adiabatic orders using the initial value problem solver.
 
     Parameters
     ----------
     H :
         The Hamiltonian matrix.
-    adiabatic_indices : list
-        List of perturbation indices that should be treated adiabatically.
-    solve_sylvester : function, optional
-        A function to solve the Sylvester's equation. If not provided, `solve_sylvester_diagonal` is used.
+    v_0 :
+        Initial value of V^AB for the initial value problem.
+    t_span :
+        The start and end of the time-domain to solve the initial value problem over.
 
     Returns
     -------
@@ -782,51 +785,36 @@ def solve_sylvester_time_adiabatic(
         Function that solves the time-dependent Sylvester's equation.
 
     """
-    if solve_sylvester is None:
-        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
+    solve_sylvester_adiabatic = solve_sylvester_diagonal(*_extract_diagonal(H))
 
-    def solve_sylvester_time(index, Y, _, dU_p_dt):
-        # Populate the time derivative by evaluating a lower order.
-        index_decreased = list(index)
-        for adiabatic_index in adiabatic_indices:
-            index_decreased[adiabatic_index + 2] -= 1
-        orders = index[2:]
-        orders_decreased = index_decreased[2:]
-        # TODO: Are all blocks required?
-        for ij in [(0, 0), (0, 1), (1, 0), (1, 1)]:
-            if all(order >= 0 for order in orders_decreased):
-                result = dU_p_dt.eval(*(*ij, *orders_decreased))
-            else:
-                result = zero
-            dU_p_dt[(*ij, *orders)] = result
-
-        # Add the derivative at the same order as Y
-        Y = _zero_sum(dU_p_dt[index], Y)
-
-        return solve_sylvester(Y) if Y is not zero else zero
-
-    return solve_sylvester_time
-
-
-def solve_sylvester_time_fast(H, y0, t_span):
-    h_0_aa = H[tuple(0, 0, *([0] * H.n_infinite))]
-    h_0_bb = H[tuple(1, 1, *([0] * H.n_infinite))]
+    # TODO: See whether we can reuse _extract_diagonal here.
+    h_0_aa = H[tuple((0, 0, *([0] * H.n_infinite)))]
+    h_0_bb = H[tuple((1, 1, *([0] * H.n_infinite)))]
     shape = (h_0_aa.shape[0], h_0_bb.shape[1])
 
-    def solve_sylvester_time(_index, Y, _U, _dU_dt):
+    def solve_sylvester_ivp(Y):
         def f(t, v):
-            # TODO: Use correct
             result = -(v @ h_0_aa - h_0_bb @ v).reshape(1, -1)
             if Y is not zero:
                 result += Y(t).reshape(1, -1)
             return result
 
-        sol = solve_ivp(f, t_span=t_span, y0=y0, dense_output=True)
+        sol = solve_ivp(f, t_span=t_span, y0=v_0, dense_output=True)
 
         def solution(t):
             return sol.sol(t).reshape(shape)
 
         return CallableWrapper(solution)
+
+    def solve_sylvester_time(index, upsilon, ihdU_p_adj_dt):
+        if is_adiabatic_only(index, upsilon):
+            rhs = _zero_sum(upsilon[index], ihdU_p_adj_dt[index])
+            solve_sylvester = solve_sylvester_adiabatic
+        else:
+            rhs = upsilon[index]
+            solve_sylvester = solve_sylvester_ivp
+
+        return solve_sylvester(rhs) if rhs is not zero else zero
 
     return solve_sylvester_time
 
@@ -1179,10 +1167,31 @@ def time_diff_numeric(dx: float = 1e-8) -> Callable:
     # TODO: This is a temporary solution as ~scipy.misc.derivative is deprecated.
     from scipy.misc import derivative
 
-    def time_diff(index, series):
-        value = series[index]
+    def time_diff(value):
         if value is zero:
             return value
         return CallableWrapper(lambda t: derivative(value, t, dx=dx))
 
     return time_diff
+
+
+def is_adiabatic_only(index, series: BlockSeries):
+    """Check if the index only contains an adiabatic perturbation.
+
+    This means that all orders are zero except for the adiabatic perturbation.
+    """
+    return (
+        str(series.dimension_names[-1]) == "adiabatic"
+        and index[-1] > 0
+        and all(i == 0 for i in index[2:-1])
+    )
+
+
+def reduce_order_adiabatic(index, series: BlockSeries):
+    """Reduce the adiabatic order of a series by one if the index is purely adiabatic."""
+    if is_adiabatic_only(index, series):
+        # If there are no non-adiabatic perturbations, we should reduce the adiabatic order by one.
+        index = *index[:-1], index[-1] - 1
+        return series[index]
+
+    return series[index]

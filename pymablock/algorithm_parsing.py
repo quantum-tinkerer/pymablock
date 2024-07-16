@@ -323,7 +323,7 @@ class _FunctionTransformer(ast.NodeTransformer):
         if node.func.id in ["solve_sylvester"]:
             return self._visit_nonzero(node)
 
-        if node.func.id in ["time_diff", "solve_sylvester_time"]:
+        if node.func.id in ["solve_sylvester_time", "reduce_order_adiabatic"]:
             return self._visit_series_argument(node)
 
         return self.generic_visit(node)

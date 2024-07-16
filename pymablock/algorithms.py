@@ -108,13 +108,7 @@ def tdsw():
             # The choice for "X".adj is optimal for querying H_AA and "X" for H_BB.
             # We choose "X".adj because we follow the convention that H_AA is more important.
             -solve_sylvester_time(
-                (
-                    "X - ihdU'†/dt U".adj
-                    + "H'_diag @ U'"
-                    + "H'_diag @ U'".adj
-                    + "ihdU'†/dt @ U'"
-                ),
-                "U'",
+                "Y",
                 "ihdU'†/dt",
             )
 
@@ -132,35 +126,39 @@ def tdsw():
         start = 1
         "U'†"
 
-    with "X - ihdU'†/dt U":
+    with "Y":
+        "X - ihdU'†/dt".adj + "H'_diag @ U'" + "H'_diag @ U'".adj
+
+    with "X - ihdU'†/dt":
         start = 0
         if diagonal:
-            ("U'† @ X" + "U'† @ X".adj) / -2 - "ihdU'†/dt @ U"
+            ("U'† @ X" + "U'† @ X".adj) / -2 - "ihdU'†/dt"
         if offdiagonal:
-            "U† @ H'_offdiag @ U" - "U'† @ X"
+            "U† @ H'_offdiag @ U" - "U'† @ X" + "ihdU'†/dt @ U'"
 
     with "X":
-        "X - ihdU'†/dt U" + "ihdU'†/dt @ U"
+        "X - ihdU'†/dt" + "ihdU'†/dt"
 
     with "ihdU'†/dt":
         start = 0
-        time_diff("U'†") * I * hbar
+        time_diff(reduce_order_adiabatic("U'†")) * I * hbar
 
     with "H_tilde":
         start = "H_0"
         if diagonal:
-            "U† @ H' @ U" + "ihdU'†/dt @ U"
+            (
+                "H'_diag"
+                - "X"
+                - "U'† @ X"
+                + "U† @ H'_offdiag @ U"
+                + "ihdU'†/dt @ U'"
+                + "ihdU'†/dt"
+            )
 
     with "H'_offdiag @ U":
         pass
 
     with "U† @ H'_offdiag @ U":
-        pass
-
-    with "H' @ U":
-        pass
-
-    with "U† @ H' @ U":
         pass
 
     with "U'† @ U'":
@@ -170,9 +168,6 @@ def tdsw():
         pass
 
     with "ihdU'†/dt @ U'":
-        pass
-
-    with "ihdU'†/dt @ U":
         pass
 
     with "H'_diag @ U'":
