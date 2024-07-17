@@ -114,19 +114,6 @@ class BlockSeries:
         )
         self.name = name or f"Series_{token_hex(4)}"
 
-    def __setitem__(self, item: Item, value: Any):
-        """Set the value of the series at a given index.
-
-        Parameters
-        ----------
-        item :
-            Index to set.
-        value :
-            Value to set.
-
-        """
-        self._data[item] = value
-
     def __getitem__(self, item: Item) -> Any:
         """Evaluate the series at indices, following numpy's indexing rules.
 
