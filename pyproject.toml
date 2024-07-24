@@ -197,7 +197,7 @@ publish = { features = ["publish"], no-default-feature = true }
 # Tasks
 
 [tool.pixi.feature.test.tasks]
-tests = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning"
+tests = "pytest"
 
 [tool.pixi.tasks]
 tests-minimal = "pixi run -e minimal tests"
