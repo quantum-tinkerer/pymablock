@@ -505,11 +505,7 @@ class CallableWrapper:
 
     def adjoint(self):
         def func(*args, **kwargs):
-            value = self(*args, **kwargs)
-            if hasattr(value, "adjoint"):
-                return value.adjoint()
-            # TODO: What to do here?
-            return value
+            return Dagger(self(*args, **kwargs))
 
         return type(self)(func)
 
