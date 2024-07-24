@@ -434,6 +434,9 @@ def product_by_order(
 class CallableWrapper:
     """Callable wrapper that supports arithmetic operations."""
 
+    # TODO: Figure out how to make this work with __array_priority__
+    __array_priority__ = 1000
+
     def __init__(self, func):
         self.func = func
 

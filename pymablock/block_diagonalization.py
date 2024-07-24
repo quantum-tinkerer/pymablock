@@ -531,7 +531,7 @@ def _block_diagonalize(
         "zero": zero,
         "_safe_divide": _safe_divide,
         "_zero_sum": _zero_sum,
-        "time_diff": time_diff_numeric,
+        "time_diff": time_diff_numeric(),
         "reduce_order_adiabatic": reduce_order_adiabatic,
         "I": sympy.I,
         "hbar": sympy.physics.quantum.hbar,
@@ -791,13 +791,16 @@ def solve_sylvester_time_mixed(
     h_0_aa = H[tuple((0, 0, *([0] * H.n_infinite)))]
     h_0_bb = H[tuple((1, 1, *([0] * H.n_infinite)))]
     shape = (h_0_aa.shape[0], h_0_bb.shape[1])
+    v_0 = v_0.reshape(np.prod(shape))
 
     def solve_sylvester_ivp(Y):
         def f(t, v):
-            result = -(v @ h_0_aa - h_0_bb @ v).reshape(1, -1)
+            v = v.reshape(shape)
+            result = v @ h_0_bb - h_0_aa @ v
             if Y is not zero:
-                result += Y(t).reshape(1, -1)
-            return result
+                result -= Y(t)
+            # TODO: We have to divide by i*hbar. We assume hbar = 1 now.
+            return result.reshape(-1) * -1j
 
         sol = solve_ivp(f, t_span=t_span, y0=v_0, dense_output=True)
 
