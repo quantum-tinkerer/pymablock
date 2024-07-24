@@ -136,6 +136,10 @@ def tdsw():
     with "X":
         "X - ihdU'†/dt" + "ihdU'†/dt"
 
+    with "ihdU'/dt":
+        start = 0
+        time_diff(reduce_order_adiabatic("U'")) * I * hbar
+
     with "ihdU'†/dt":
         start = 0
         time_diff(reduce_order_adiabatic("U'†")) * I * hbar
@@ -173,4 +177,4 @@ def tdsw():
     with "H'_offdiag @ U'":
         pass
 
-    return "H_tilde", "U", "U†"
+    return "H_tilde", "U", "U†", "ihdU'†/dt", "ihdU'/dt"
