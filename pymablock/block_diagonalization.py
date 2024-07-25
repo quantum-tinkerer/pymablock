@@ -763,7 +763,11 @@ def solve_sylvester_direct(
 
 
 def solve_sylvester_time_mixed(
-    H: BlockSeries, v_0: np.ndarray, t_span: tuple[int, int]
+    H: BlockSeries,
+    v_0: np.ndarray,
+    t_span: tuple[int, int],
+    rtol: float = 1e-6,
+    atol: float = 1e-9,
 ) -> Callable:
     """Solve a time-dependent Sylvester's equation with mixed adiabatic and non-adiabatic perturbations.
 
@@ -778,6 +782,10 @@ def solve_sylvester_time_mixed(
         Initial value of V^AB for the initial value problem.
     t_span :
         The start and end of the time-domain to solve the initial value problem over.
+    rtol :
+        Relative tolerance for the initial value problem solver.
+    atol :
+        Absolute tolerance for the initial value problem solver.
 
     Returns
     -------
@@ -802,7 +810,7 @@ def solve_sylvester_time_mixed(
             # TODO: We have to divide by i*hbar. We assume hbar = 1 now.
             return result.reshape(-1) * -1j
 
-        sol = solve_ivp(f, t_span=t_span, y0=v_0, dense_output=True)
+        sol = solve_ivp(f, t_span=t_span, y0=v_0, dense_output=True, rtol=rtol, atol=atol)
 
         def solution(t):
             return sol.sol(t).reshape(shape)
