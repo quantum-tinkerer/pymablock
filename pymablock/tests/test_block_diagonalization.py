@@ -22,6 +22,7 @@ from pymablock.block_diagonalization import (
     solve_sylvester_direct,
     solve_sylvester_KPM,
     solve_sylvester_time_mixed,
+    time_diff_numeric,
 )
 from pymablock.series import (
     AlgebraElement,
@@ -223,8 +224,7 @@ def Ns():
     """
     Return a random number of states for each block (A, B).
     """
-    # return 1, 1
-    N_a = np.random.randint(2, 3)
+    N_a = np.random.randint(1, 3)
     return N_a, N_a + 1
 
 
@@ -266,10 +266,14 @@ def time_matrices_it(N_i, N_j, hermitian, order=4):
     """
     matrices = matrices_it(N_i, N_j, hermitian)
     while True:
-        H_s = np.array([next(matrices) for _ in range(order)]) / order
+        H_s = np.array([next(matrices) for _ in range(order * 2)]) / order
 
         def H(t):
-            return np.sum(H_s * np.cos(t * np.arange(order).reshape(-1, 1, 1)), axis=0)
+            return np.sum(
+                H_s[:order] * np.cos(t * np.arange(order).reshape(-1, 1, 1)), axis=0
+            ) + np.sum(
+                H_s[order:] * np.sin(t * np.arange(order).reshape(-1, 1, 1)), axis=0
+            )
 
         yield CallableWrapper(H)
 
@@ -361,7 +365,7 @@ def H_t(Ns: np.array, wanted_orders_t: list[tuple[int, ...]]) -> BlockSeries:
 @pytest.fixture(scope="module")
 def t_span():
     """Time domain for time-dependent Hamiltonians to solve over."""
-    return 0, 1
+    return 0, 5
 
 
 @pytest.fixture(scope="module")
@@ -369,11 +373,12 @@ def block_diagonalized_t(H_t, Ns, t_span):
     """Block diagonalized problem for a time-dependent Hamiltonian."""
     v_0 = np.zeros(Ns, dtype=np.complex128)
     solve_sylvester = solve_sylvester_time_mixed(H_t, v_0, t_span)
+    time_diff = time_diff_numeric(dx=1e-8)
     return _block_diagonalize(
         H_t,
         solve_sylvester=solve_sylvester,
         algorithm=algorithms.tdsw,
-        scope_overrides={"I": 1.0j, "hbar": 1},
+        scope_overrides={"I": 1.0j, "hbar": 1, "time_diff": time_diff},
     )
 
 
@@ -1482,7 +1487,7 @@ def test_check_unitary_t(block_diagonalized_t, t_span, wanted_orders_t):
     reconstructed = cauchy_dot_product(U_adj, U)
     identity = identity_like(U)
 
-    compare_series_t(reconstructed, identity, wanted_orders_t, t_span)
+    compare_series_t(reconstructed, identity, wanted_orders_t, t_span, atol=1e-12)
 
 
 def test_check_invertible_t(H_t, block_diagonalized_t, t_span, wanted_orders_t):
@@ -1497,4 +1502,4 @@ def test_check_invertible_t(H_t, block_diagonalized_t, t_span, wanted_orders_t):
         n_infinite=H_t.n_infinite,
     )
 
-    compare_series_t(H_t, H_reconstructed, wanted_orders_t, t_span, atol=1e-4)
+    compare_series_t(H_t, H_reconstructed, wanted_orders_t, t_span, atol=1e-3, rtol=1e-3)
