@@ -129,12 +129,15 @@ def tdsw():
     with "X - ihdU'†/dt":
         start = 0
         if diagonal:
-            ("U'† @ X" + "U'† @ X".adj) / -2 - "ihdU'†/dt"
+            "X" - "ihdU'†/dt"
         if offdiagonal:
             "U† @ H'_offdiag @ U" - "U'† @ X" + "ihdU'†/dt @ U'"
 
     with "X":
-        "X - ihdU'†/dt" + "ihdU'†/dt"
+        if diagonal:
+            ("U'† @ X" - "U'† @ X".adj) / -2
+        if offdiagonal:
+            "X - ihdU'†/dt" + "ihdU'†/dt"
 
     with "ihdU'/dt":
         start = 0
