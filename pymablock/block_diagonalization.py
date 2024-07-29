@@ -552,8 +552,8 @@ def _block_diagonalize(
 
 ### Different formats and algorithms of solving Sylvester equation.
 def solve_sylvester_diagonal(
-    eigs_A: Union[np.ndarray, sympy.MatrixBase],
-    eigs_B: Union[np.ndarray, sympy.MatrixBase],
+    eigs_A: Union[np.ndarray, sympy.matrices.MatrixBase],
+    eigs_B: Union[np.ndarray, sympy.matrices.MatrixBase],
     vecs_B: Optional[np.ndarray] = None,
 ) -> Callable:
     """Define a function for solving a Sylvester's equation for diagonal matrices.
