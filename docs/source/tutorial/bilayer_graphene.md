@@ -77,7 +77,7 @@ Eq(alpha, alpha_k, evaluate=False)
 
 ## Define the perturbative series
 
-Now we obtain the eigenvectors of the unperturbed Hamiltonian by substituting the unperturbed values ({autolink}`~sympy.core.basic.Basic.subs`) and diagonalizing ({autolink}`~sympy.matrices.matrices.MatrixEigen.diagonalize`).
+Now we obtain the eigenvectors of the unperturbed Hamiltonian by substituting the unperturbed values ({autolink}`~sympy.core.basic.Basic.subs`) and diagonalizing ({autolink}`~sympy.matrices.matrixbase.MatrixBase.diagonalize`).
 
 ```{code-cell} ipython3
 vecs = H.subs({alpha: 0, m: 0}).diagonalize(normalize=True)[0]

@@ -172,9 +172,9 @@ sympy = "~=1.11.0"
 
 [tool.pixi.feature.latest.dependencies]
 python = "~=3.12.0"
-numpy = ">=1.26.0"
-scipy = ">=1.13.0"
-sympy = ">=1.12"
+numpy = ">=2.0.0"
+scipy = ">=1.14.0"
+sympy = ">=1.13.0"
 
 [tool.pixi.feature.publish.dependencies]
 hatch = ">=1.7.0,<1.13"
@@ -206,8 +206,7 @@ tests-latest = "pixi run -e latest tests"
 tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 
 [tool.pixi.feature.docs.tasks]
-# TODO: Temporarily disabled warnings due to sympy 1.13 release candidates.
-docs-build = "make -C docs/ html SPHINXOPTS=\"-T --keep-going -n\""
+docs-build = "make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
 
 [tool.pixi.feature.precommit.tasks]
 git = "git"
