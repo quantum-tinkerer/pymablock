@@ -1144,13 +1144,15 @@ def _safe_divide(numerator, denominator):
         return numerator * (1 / denominator)
 
 
-def time_diff_numeric(dx: float = 1e-8) -> Callable:
+def time_diff_numeric(dx: float = 1e-8, order=3) -> Callable:
     """Numerical time derivative function for a BlockSeries.
 
     Parameters
     ----------
     dx : float
         Step size for numerical differentiation.
+    order : int
+        Number of points to use. Must be odd.
 
     """
     # TODO: This is a temporary solution as ~scipy.misc.derivative is deprecated.
@@ -1159,7 +1161,7 @@ def time_diff_numeric(dx: float = 1e-8) -> Callable:
     def time_diff(value):
         if value is zero:
             return value
-        return CallableWrapper(lambda t: derivative(value, t, dx=dx))
+        return CallableWrapper(lambda t: derivative(value, t, dx=dx, order=order))
 
     return time_diff
 
