@@ -83,16 +83,8 @@ def main():
 
 @algorithm
 def tdsw():
-    with "H'_diag":
-        start = 0
-        if diagonal:
-            "H"
-
-    with "H'_offdiag":
-        start = 0
-        if offdiagonal:
-            "H"
-
+    # Algorithm based on version from:
+    # https://gitlab.kwant-project.org/qt/pymablock/-/blob/cd4106e2b4d1246798f9572823123f3acec224be/pymablock/block_diagonalization.py#L484
     with "H'":
         start = 0
         "H"
@@ -124,20 +116,7 @@ def tdsw():
         "U'†"
 
     with "Y":
-        "X - ihdU'†/dt" + "H'_diag @ U'" + "H'_diag @ U'".adj
-
-    with "X - ihdU'†/dt":
-        start = 0
-        if diagonal:
-            "X" - "ihdU'†/dt"
-        if offdiagonal:
-            "U† @ H'_offdiag @ U" - "U'† @ X" + "ihdU'†/dt @ U'"
-
-    with "X":
-        if diagonal:
-            ("U'† @ X" - "U'† @ X".adj) / -2
-        if offdiagonal:
-            "X - ihdU'†/dt" + "ihdU'†/dt"
+        "U† @ H' @ U" + "ihdU'†/dt @ U'"
 
     with "ihdU'/dt":
         start = 0
@@ -148,36 +127,21 @@ def tdsw():
         time_diff(reduce_order_adiabatic("U'†")) * I * hbar
 
     with "H_tilde":
-        start = "H_0"
-        if diagonal:
-            (
-                "H'_diag"
-                - "X"
-                - "U'† @ X"
-                + "U† @ H'_offdiag @ U"
-                + "ihdU'†/dt @ U'"
-                + "ihdU'†/dt"
-            )
+        "U† @ H @ U" + "ihdU'†/dt @ U"
 
-    with "H'_offdiag @ U":
-        pass
+    with "U† @ H @ U":
+        hermitian
 
-    with "U† @ H'_offdiag @ U":
-        pass
+    with "U† @ H' @ U":
+        hermitian
 
     with "U'† @ U'":
         hermitian
 
-    with "U'† @ X":
-        pass
-
     with "ihdU'†/dt @ U'":
         pass
 
-    with "H'_diag @ U'":
-        pass
-
-    with "H'_offdiag @ U'":
+    with "ihdU'†/dt @ U":
         pass
 
     return "H_tilde", "U", "U†", "ihdU'†/dt", "ihdU'/dt"
