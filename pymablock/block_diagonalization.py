@@ -803,7 +803,7 @@ def solve_sylvester_time_mixed(
     def solve_sylvester_ivp(Y):
         def f(t, v):
             v = v.reshape(shape)
-            result = -(v @ h_0_bb - h_0_aa @ v)
+            result = -(h_0_aa @ v - v @ h_0_bb)
             if Y is not zero:
                 result -= Y(t)
             # TODO: We have to divide by i*hbar. We assume hbar = 1 now.
@@ -812,7 +812,7 @@ def solve_sylvester_time_mixed(
         sol = solve_ivp(f, t_span=t_span, y0=v_0, dense_output=True, rtol=rtol, atol=atol)
 
         def solution(t):
-            return sol.sol(t).reshape(shape)
+            return -sol.sol(t).reshape(shape)
 
         return CallableWrapper(solution)
 

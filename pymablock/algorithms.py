@@ -89,6 +89,10 @@ def tdsw():
         start = 0
         "H"
 
+    with "H_0":
+        start = "H_0"
+        zero
+
     with "U'":
         start = 0
         antihermitian
@@ -116,7 +120,7 @@ def tdsw():
         "U'†"
 
     with "Y":
-        "U† @ H' @ U" + "ihdU'†/dt @ U'"
+        "U† @ H' @ U" + "U'† @ H_0 @ U'" + "ihdU'†/dt @ U'"
 
     with "ihdU'/dt":
         start = 0
@@ -133,6 +137,9 @@ def tdsw():
         hermitian
 
     with "U† @ H' @ U":
+        hermitian
+
+    with "U'† @ H_0 @ U'":
         hermitian
 
     with "U'† @ U'":
