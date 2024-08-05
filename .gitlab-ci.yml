@@ -10,7 +10,7 @@ run tests:
   parallel:
     matrix:
       - PIXI_ENV:
-        - "minimal"
+        - "mid"
         - "latest"
   script:
     - pixi run -e $PIXI_ENV tests
@@ -23,7 +23,7 @@ run coverage:
   extends: run tests
   parallel: null
   variables:
-    PIXI_ENV: "mid"
+    PIXI_ENV: "minimal"
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     paths:
