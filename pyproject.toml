@@ -13,9 +13,9 @@ readme = "README.md"
 # This project follows https://scientific-python.org/specs/spec-0000/
 requires-python = ">=3.10"
 dependencies = [
-    "numpy>=1.23",
-    "scipy>=1.9",
-    "sympy>=1.10",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "sympy>=1.11",
     "python-mumps>=0.0.1,<0.1",
     "packaging>=22.0",  # For version parsing
 ]
@@ -103,7 +103,7 @@ omit = [
 
 [tool.mypy]
 # Not using mypy yet, but this is a start.
-python_version = "3.9"
+python_version = "3.10"
 allow_redefinition = true
 [[tool.mypy.overrides]]
 module = [
@@ -133,9 +133,9 @@ docs = ["sphinx-book-theme>=1.1.0", "sphinx-tippy"]
 
 [tool.pixi.dependencies]
 python = ">=3.10"
-numpy = ">=1.23"
-scipy = ">=1.9"
-sympy = ">=1.10"
+numpy = ">=1.24"
+scipy = ">=1.10"
+sympy = ">=1.11"
 python-mumps = ">=0.0.1,<0.1"
 packaging = ">=22.0" # For version parsing
 
@@ -160,15 +160,15 @@ pytest-regressions = ""
 
 [tool.pixi.feature.minimal.dependencies]
 python = "~=3.10.0"
-numpy = "~=1.23.0"
-scipy = "~=1.9.0"
-sympy = "~=1.10.0"
-
-[tool.pixi.feature.mid.dependencies]
-python = "~=3.11.0"
 numpy = "~=1.24.0"
 scipy = "~=1.10.0"
 sympy = "~=1.11.0"
+
+[tool.pixi.feature.mid.dependencies]
+python = "~=3.11.0"
+numpy = "~=1.26.0"
+scipy = "~=1.13.0"
+sympy = "~=1.12.0"
 
 [tool.pixi.feature.latest.dependencies]
 python = "~=3.12.0"
