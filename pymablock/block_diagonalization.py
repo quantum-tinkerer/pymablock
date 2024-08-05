@@ -45,6 +45,7 @@ def block_diagonalize(
     solver_options: Optional[dict] = None,
     symbols: Optional[Union[sympy.Symbol, Sequence[sympy.Symbol]]] = None,
     atol: float = 1e-12,
+    algorithm: Optional[Callable] = main,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -135,6 +136,10 @@ def block_diagonalize(
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used
         to validate that the unperturbed Hamiltonian is block-diagonal.
+    algorithm :
+        Algorithm to use for the block diagonalization. Should be passed as a
+        callable whose contents follow the algorithm DSL, see
+        `~pymablock.algorithm_parsing.algorithm`.
 
     Returns
     -------
@@ -242,6 +247,7 @@ def block_diagonalize(
             "use_linear_operator": use_linear_operator,
         },
         operator=operator,
+        algorithm=algorithm,
     )
 
 

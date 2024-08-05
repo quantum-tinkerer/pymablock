@@ -189,7 +189,7 @@ To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commu
 \mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_{D}] = -\mathcal{Z}^\dagger,
 \end{equation}
 %
-where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block diagonal.
+where $\mathcal{Y}$ is therefore block off-diagonal, while $\mathcal{Z}$ block diagonal in the 2-block case only.
 We use $\mathcal{H}_{D} \mathcal{U}' = \mathcal{U}' \mathcal{H}_{D} -\mathcal{X}$ to move $\mathcal{H}_{D}$ through to the right and find
 %
 \begin{equation}
@@ -227,8 +227,8 @@ Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\
 %
 \begin{equation}
 \label{eq:Y}
-\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} -
-\mathcal{U}'^\dagger \mathcal{X})^{AB}.
+\mathcal{Y} = (\mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} -
+\mathcal{U}'^\dagger \mathcal{X} - \mathcal{Z})_{O}.
 \end{equation}
 %
 Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack \nth{0} order, this defines a recursive relation for $\mathcal{X}^{AB}$, and therefore $\mathcal{Y}$.
@@ -237,7 +237,7 @@ The final part is straightforward: using $\mathcal{H}_{D} = H_0 + \mathcal{H}'_{
 %
 \begin{equation}
 \label{eq:sylvester}
-\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{V}, \mathcal{H}'_{D}]^{AB},
+[\mathcal{V}, H_0] = \mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}],
 \end{equation}
 %
 a Sylvester's equation, which we only need to solve once for every new order.

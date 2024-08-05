@@ -11,6 +11,7 @@ from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
+from pymablock.algorithms import hermitian_antihermitian
 from pymablock.block_diagonalization import (
     _compile,
     _dict_to_BlockSeries,
@@ -1317,3 +1318,23 @@ def test_delete_intermediate_terms():
             for order in range(1, max_order):
                 for index in indices:
                     assert (*index, order) not in which[term]._data
+
+
+def test_two_vs_multiblock(H, wanted_orders):
+    H_tilde, U, U_adjoint = block_diagonalize(H)
+    H_tilde_multiblock, U_multiblock, U_adjoint_multiblock = block_diagonalize(
+        H, algorithm=hermitian_antihermitian
+    )
+
+    compare_series(H_tilde, H_tilde_multiblock, wanted_orders, atol=1e-8)
+
+
+def test_three_blocks():
+    H_0 = np.diag(np.random.randn(6))
+    H_1 = np.random.randn(6, 6) + 1j * np.random.randn(6, 6)
+    H_1 += H_1.T.conj()
+    H = hamiltonian_to_BlockSeries([H_0, H_1], subspace_indices=np.arange(6) // 2)
+    H_tilde, U, U_adjoint = block_diagonalize(H)
+    is_unitary(U, U_adjoint, wanted_orders=(3,), atol=1e-10)
+    H_prime = cauchy_dot_product(U, H_tilde, U_adjoint)
+    compare_series(H, H_prime, wanted_orders=(3,), atol=1e-10)
