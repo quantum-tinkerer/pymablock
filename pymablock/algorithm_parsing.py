@@ -26,14 +26,13 @@ class _Series:
 class _Product:
     """Product properties."""
 
-    left: str = None
-    right: str = None
+    terms: list[str] = dataclasses.field(default_factory=list)
     hermitian: list = False
 
     @property
     def name(self) -> str:
         """Name that represents the product."""
-        return f"{self.left} @ {self.right}"
+        return " @ ".join(self.terms)
 
 
 class _EvalTransformer(ast.NodeTransformer):
@@ -391,9 +390,7 @@ def _find_delete_candidates(
     """
     # We should never delete terms that appear in products,
     # are part of the original Hamiltonian or are part of the output.
-    terms_in_products = set(
-        chain.from_iterable((product.left, product.right) for product in products)
-    )
+    terms_in_products = set(chain.from_iterable(product.terms for product in products))
     original_terms = {"H"}
     delete_blacklist = terms_in_products | original_terms | set(outputs)
 
@@ -442,7 +439,7 @@ def _read_product(definition: ast.With) -> _Product:
     """Read product properties."""
     product = _Product()
     name = definition.items[0].context_expr.value
-    product.left, product.right = name.split(" @ ", maxsplit=1)
+    product.terms = name.split(" @ ")
     for node in definition.body:
         if not isinstance(node, ast.Expr):
             continue

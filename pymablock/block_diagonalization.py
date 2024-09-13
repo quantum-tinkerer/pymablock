@@ -538,8 +538,7 @@ def _block_diagonalize(
     for product in products:
         for which in series, linear_operator_series:
             which[product.name] = cauchy_dot_product(
-                which[product.left],
-                which[product.right],
+                *(which[term] for term in product.terms),
                 operator=operator,
                 hermitian=product.hermitian,
             )
