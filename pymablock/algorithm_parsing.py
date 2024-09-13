@@ -309,25 +309,22 @@ class _DivideTransformer(ast.NodeTransformer):
 
 
 class _FunctionTransformer(ast.NodeTransformer):
-    """Transforms function calls depending on the function name.
+    """Transforms function calls.
 
-    It supports two types of functions:
-    - Functions that should not be called with zero as the first argument.
-    - Functions that have series as arguments.
+    The internal functions `_safe_divide` and `_zero_sum` are not modified.
+    Other functions are changed as follows:
+    - If an argument to the function is a series, it is transformed into `series["arg"]`.
+    - All other arguments are left unchanged.
+    - The index is added as the last argument.
     """
 
     def visit_Call(self, node: ast.Call) -> ast.AST:
-        """Apply a zero check to calls of `solve_sylvester`."""
         if not isinstance(node.func, ast.Name):
             return self.generic_visit(node)
 
         # Functions introduced internally, should not be modified.
         if node.func.id in ["_safe_divide", "_zero_sum"]:
             return self.generic_visit(node)
-
-        # Temporarily add special handling for solve_sylvester for compatibility.
-        if node.func.id in ["solve_sylvester"]:
-            return self._visit_nonzero(node)
 
         return self._visit_series_argument(node)
 
@@ -347,28 +344,6 @@ class _FunctionTransformer(ast.NodeTransformer):
             ast.Name(id="index", ctx=ast.Load()),
         ]
         return node
-
-    def _visit_nonzero(self, node: ast.Call) -> ast.AST:
-        """Apply a zero check to the call of node.
-
-        If the first argument is zero, the function is not called and zero is returned.
-        """
-        return ast.IfExp(
-            test=ast.Compare(
-                left=ast.NamedExpr(
-                    target=ast.Name(id="_var", ctx=ast.Store()),
-                    value=node.args[0],
-                ),
-                ops=[ast.IsNot()],
-                comparators=[zero],
-            ),
-            body=ast.Call(
-                func=node.func,
-                args=[ast.Name(id="_var", ctx=ast.Load()), *node.args[1:]],
-                keywords=node.keywords,
-            ),
-            orelse=zero,
-        )
 
 
 def _parse_algorithm(

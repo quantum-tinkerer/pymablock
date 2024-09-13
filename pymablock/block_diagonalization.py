@@ -463,6 +463,8 @@ def _block_diagonalize(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
 
+    solve_sylvester = _preprocess_sylvester(solve_sylvester)
+
     zeroth_order = (0,) * H.n_infinite
     zero_data = {block + zeroth_order: zero for block in ((0, 0), (0, 1), (1, 0), (1, 1))}
     identity_data = {block + zeroth_order: one for block in ((0, 0), (1, 1))}
@@ -550,6 +552,23 @@ def _block_diagonalize(
 
 
 ### Different formats and algorithms of solving Sylvester equation.
+
+
+def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
+    """Wrap the solve_sylvester_callable to handle index and zero values."""
+
+    def wrapped(Y: Any, index: tuple[int, ...]) -> Any:
+        if index[:2] != (0, 1):
+            raise ValueError("Sylvester equation is only defined for (0, 1) blocks.")
+
+        if isinstance(Y, BlockSeries):
+            Y = Y[index]
+
+        return solve_sylvester(Y) if Y is not zero else zero
+
+    return wrapped
+
+
 def solve_sylvester_diagonal(
     eigs_A: Union[np.ndarray, sympy.matrices.MatrixBase],
     eigs_B: Union[np.ndarray, sympy.matrices.MatrixBase],
