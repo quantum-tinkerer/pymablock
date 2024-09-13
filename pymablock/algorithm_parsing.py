@@ -9,6 +9,8 @@ from collections import Counter, defaultdict
 from enum import Enum
 from itertools import chain
 
+zero = ast.Name(id="zero", ctx=ast.Load())
+
 
 @dataclasses.dataclass
 class _Series:
@@ -45,7 +47,7 @@ class _EvalTransformer(ast.NodeTransformer):
         implicit_select = ast.parse(
             "which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series"
         ).body
-        return_zero = ast.Return(value=ast.Name(id="zero", ctx=ast.Load()))
+        return_zero = ast.Return(value=zero)
 
         module = ast.Module(
             body=[
@@ -316,14 +318,14 @@ class _FunctionTransformer(ast.NodeTransformer):
                     value=node.args[0],
                 ),
                 ops=[ast.IsNot()],
-                comparators=[ast.Name(id="zero", ctx=ast.Load())],
+                comparators=[zero],
             ),
             body=ast.Call(
                 func=node.func,
                 args=[ast.Name(id="_var", ctx=ast.Load()), *node.args[1:]],
                 keywords=node.keywords,
             ),
-            orelse=ast.Name(id="zero", ctx=ast.Load()),
+            orelse=zero,
         )
 
 
