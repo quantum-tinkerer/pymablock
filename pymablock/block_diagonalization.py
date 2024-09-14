@@ -224,7 +224,7 @@ def block_diagonalize(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H, atol))
 
-    return _block_diagonalize(
+    return _compile(
         H,
         solve_sylvester=solve_sylvester,
         operator=operator,
@@ -409,7 +409,7 @@ def hamiltonian_to_BlockSeries(
 
 
 ### Block diagonalization algorithms
-def _block_diagonalize(
+def _compile(
     H: BlockSeries,
     solve_sylvester: Optional[Callable] = None,
     *,
