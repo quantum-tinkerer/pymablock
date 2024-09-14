@@ -12,6 +12,7 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
 
+from pymablock.algorithm_parsing import parse_algorithm
 from pymablock.algorithms import main
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
@@ -411,6 +412,7 @@ def hamiltonian_to_BlockSeries(
 ### Block diagonalization algorithms
 def _compile(
     H: BlockSeries,
+    algorithm: Optional[Callable] = main,
     solve_sylvester: Optional[Callable] = None,
     *,
     operator: Optional[Callable] = None,
@@ -430,6 +432,9 @@ def _compile(
     H :
         Initial Hamiltonian, unperturbed and perturbation.
         The data in ``H`` can be either numerical or symbolic.
+    algorithm :
+        Algorithm to use for the block diagonalization.  Should be passed as a callable
+        whose contents follow the algorithm DSL, see `~pymablock.algorithm_parsing.algorithm`.
     solve_sylvester :
         (optional) function that solves the Sylvester equation.
         Defaults to a function that works for diagonal unperturbed Hamiltonians.
@@ -521,7 +526,7 @@ def _compile(
         "Dagger": Dagger,
     }
 
-    terms, products, outputs = main
+    terms, products, outputs = parse_algorithm(algorithm)
 
     for term in terms:
         # This defines `series_eval` as the eval function for this term.

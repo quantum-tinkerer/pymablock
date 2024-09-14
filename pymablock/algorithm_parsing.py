@@ -7,6 +7,7 @@ import dataclasses
 import inspect
 from collections import Counter, defaultdict
 from enum import Enum
+from functools import cache
 from itertools import chain
 
 zero = ast.Name(id="zero", ctx=ast.Load())
@@ -543,7 +544,8 @@ def _parse_start(value: str | int) -> str:
             return "identity_data"
 
 
-def algorithm(func: callable) -> tuple[list[_Series], list[_Product], list[str]]:
+@cache
+def parse_algorithm(func: callable) -> tuple[list[_Series], list[_Product], list[str]]:
     """Turn a function into an algorithm.
 
     Each algorithm is represented by a function definition which needs to be decorated with this function.
