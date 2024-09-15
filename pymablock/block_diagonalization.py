@@ -481,17 +481,19 @@ def _compile(
     if len(n_infinite) > 1:
         raise ValueError("All series must have the same number of infinite indices.")
     n_infinite = next(iter(n_infinite))
+    shape = next(iter(series.values())).shape
 
     zeroth_order = (0,) * n_infinite
-    zero_data = {block + zeroth_order: zero for block in ((0, 0), (0, 1), (1, 0), (1, 1))}
-    identity_data = {block + zeroth_order: one for block in ((0, 0), (1, 1))}
+    all_blocks = [(i, j) for i in range(shape[0]) for j in range(shape[1])]
+    diagonal = [(i, i) for i in range(shape[0])]
+    zero_data = {block + zeroth_order: zero for block in all_blocks}
+    identity_data = {block + zeroth_order: one for block in diagonal}
     data = {
         "zero_data": zero_data,
         "identity_data": identity_data,
         **{
             f"{name}_0_data": {
-                block + zeroth_order: series[block + zeroth_order]
-                for block in ((0, 0), (0, 1), (1, 0), (1, 1))
+                block + zeroth_order: series[block + zeroth_order] for block in all_blocks
             }
             for name, series in series.items()
         },
@@ -499,7 +501,7 @@ def _compile(
 
     # Common series kwargs to avoid some repetition
     series_kwargs = dict(
-        shape=(2, 2),
+        shape=shape,
         n_infinite=n_infinite,
         dimension_names=dimension_names,
     )
