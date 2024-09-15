@@ -536,8 +536,8 @@ def _preprocess_series(definition: ast.With) -> _Series:
 def _parse_start(value: str | int) -> str:
     """Parse start value."""
     match value:
-        case "H_0":
-            return "H_0_data"
+        case str(name):
+            return name + "_data"
         case 0:
             return "zero_data"
         case 1:
@@ -553,7 +553,7 @@ def parse_algorithm(func: callable) -> tuple[list[_Series], list[_Product], list
     Throughout the definition the series and products are represented by their name using string literals.
 
     A series definition allows the following statements:
-    - `start = ...` to define the start value of the series. Allowed values are "H_0", 0, 1.
+    - `start = ...` to define the start value of the series. Allowed values are "string", 0, 1.
     - `hermitian` or `antihermitian` to optionally mark the offdiagonal blocks of the series as hermitian or antihermitian.
     - An expression that defines how to evaluate the series. The expression can contain the following:
         - String literals to represent series.
