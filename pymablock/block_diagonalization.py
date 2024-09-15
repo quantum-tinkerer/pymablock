@@ -227,18 +227,19 @@ def block_diagonalize(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H, atol))
 
-    # Handle the case where the Hamiltonian was already a BlockSeries.
-    if use_implicit := isinstance(
-        H[(1, 1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator
-    ):
-        if operator is not matmul:
-            raise ValueError("Implicit mode requires matmul operator.")
+    # When the input Hamiltonian value is a linear operator, so should be the output.
+    use_linear_operator = np.zeros(H.shape, dtype=bool)
+    if isinstance(H[(1, 1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator):
+        use_linear_operator[1, 1] = True
+
+    if np.any(use_linear_operator) and operator is not matmul:
+        raise ValueError("Implicit mode requires matmul operator.")
 
     return _compile(
         {"H": H},
         scope={
             "solve_sylvester": _preprocess_sylvester(solve_sylvester),
-            "use_implicit": use_implicit,
+            "use_linear_operator": use_linear_operator,
         },
         operator=operator,
     )
@@ -531,6 +532,7 @@ def _compile(
         "_safe_divide": _safe_divide,
         "_zero_sum": _zero_sum,
         "Dagger": Dagger,
+        "use_linear_operator": np.zeros(shape, dtype=bool),
         **(scope or {}),
     }
 

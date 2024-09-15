@@ -1296,7 +1296,7 @@ def test_delete_intermediate_terms():
     max_order = 10
     series, linear_operator_series = _compile(
         {"H": H},
-        scope={"solve_sylvester": (lambda x, _: x), "use_implicit": False},
+        scope={"solve_sylvester": (lambda x, _: x)},
         operator=operator.mul,
         return_all=True,
     )

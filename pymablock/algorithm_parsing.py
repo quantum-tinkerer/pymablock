@@ -44,8 +44,8 @@ class _EvalTransformer(ast.NodeTransformer):
 
     def visit_With(self, node: ast.With) -> ast.Module:
         """Build a function definition from a `with` statement."""
-        implicit_select = ast.parse(
-            "which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series"
+        linear_operator_select = ast.parse(
+            "which = linear_operator_series if use_linear_operator[index[:2]] else series"
         ).body
         return_zero = ast.Return(value=zero)
 
@@ -62,7 +62,7 @@ class _EvalTransformer(ast.NodeTransformer):
                         defaults=[],
                     ),
                     body=[
-                        *implicit_select,
+                        *linear_operator_select,
                         *(
                             line
                             for expr in node.body
