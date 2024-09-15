@@ -403,21 +403,33 @@ def _find_delete_candidates(
 
     All terms that are accessed exactly once are detected.
 
-    The result is a dictionary where the values correspond to the terms to be deleted, consisting of the name, index and eval type.
-    Each key marks from which series the terms are accessed.
+    The result is a dictionary where the values correspond to the terms to be
+    deleted, consisting of the name, index and eval type. Each key marks from
+    which series the terms are accessed.
 
     """
-    # We should never delete terms that appear in products,
-    # are part of the original Hamiltonian or are part of the output.
+    # We should never delete terms that appear in products, are part of the input, or
+    # are part of the output.
     terms_in_products = set(chain.from_iterable(product.terms for product in products))
-    original_terms = {"H"}
-    delete_blacklist = terms_in_products | original_terms | set(outputs)
+    computed = set(term.name for term in series)
+    inputs = (
+        set(
+            needed_term
+            for term in series
+            for needed_term, _, _ in term.uses
+            if "@" not in needed_term  # Products are defined in a different way.
+        )
+        - computed
+    )
+    delete_blacklist = terms_in_products | inputs | set(outputs)
 
     uses = []  # List of (term, index)
     source_map = {}  # Map from (term, index) to (origin, adjoint, eval_type)
 
     # Collect all accessed terms and indices of the entire algorithm.
     for origin in series:
+        # These indices are valid for 2x2 matrices, but with larger sizes they
+        # keep track of the diagonal/offdiagonal structure.
         remaining_indices = {(0, 0), (0, 1), (1, 0), (1, 1)}
         last_eval_type = None
 
