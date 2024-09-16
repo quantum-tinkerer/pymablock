@@ -80,3 +80,75 @@ def main():
         pass
 
     return "H_tilde", "U", "U†"
+
+
+def tdsw():
+    # Algorithm based on version from:
+    # https://gitlab.kwant-project.org/qt/pymablock/-/blob/cd4106e2b4d1246798f9572823123f3acec224be/pymablock/block_diagonalization.py#L484
+    with "H'":
+        start = 0
+        "H"
+
+    with "H_0":
+        start = "H_0"
+        zero
+
+    with "U'":
+        start = 0
+        antihermitian
+
+        if diagonal:
+            "U'† @ U'" / -2
+        if offdiagonal:
+            -solve_sylvester(
+                "Y",
+                "ihdU'†/dt",
+            )
+
+    with "U":
+        start = 1
+        "U'"
+
+    with "U'†":
+        if diagonal:
+            "U'"
+        if offdiagonal:
+            -"U'"
+
+    with "U†":
+        start = 1
+        "U'†"
+
+    with "Y":
+        "U† @ H' @ U" + "U'† @ H_0 @ U'" + "ihdU'†/dt @ U'"
+
+    with "ihdU'/dt":
+        start = 0
+        time_diff(reduce_order_adiabatic("U'")) * I * hbar
+
+    with "ihdU'†/dt":
+        start = 0
+        time_diff(reduce_order_adiabatic("U'†")) * I * hbar
+
+    with "H_tilde":
+        "U† @ H @ U" + "ihdU'†/dt @ U"
+
+    with "U† @ H @ U":
+        hermitian
+
+    with "U† @ H' @ U":
+        hermitian
+
+    with "U'† @ H_0 @ U'":
+        hermitian
+
+    with "U'† @ U'":
+        hermitian
+
+    with "ihdU'†/dt @ U'":
+        pass
+
+    with "ihdU'†/dt @ U":
+        pass
+
+    return "H_tilde", "U", "U†", "ihdU'†/dt", "ihdU'/dt"
