@@ -11,16 +11,28 @@ from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
+from pymablock import algorithms
 from pymablock.block_diagonalization import (
     _compile,
     _dict_to_BlockSeries,
+    _zero_sum,
     block_diagonalize,
     hamiltonian_to_BlockSeries,
+    reduce_order_adiabatic,
     solve_sylvester_diagonal,
     solve_sylvester_direct,
     solve_sylvester_KPM,
+    solve_sylvester_time_mixed,
+    time_diff_numeric,
 )
-from pymablock.series import AlgebraElement, BlockSeries, cauchy_dot_product, one, zero
+from pymablock.series import (
+    AlgebraElement,
+    BlockSeries,
+    CallableWrapper,
+    cauchy_dot_product,
+    one,
+    zero,
+)
 
 
 # Auxiliary comparison functions
@@ -83,6 +95,21 @@ def compare_series(
             )
 
 
+def compare_series_t(
+    series1: BlockSeries,
+    series2: BlockSeries,
+    wanted_orders: tuple[int, ...],
+    t_span: tuple[float, float],
+    num: int = 10,
+    atol: float = 1e-15,
+    rtol: float = 0,
+):
+    for t in np.linspace(*t_span, num=num):
+        compare_series(
+            at_time(series1, t), at_time(series2, t), wanted_orders, atol=atol, rtol=rtol
+        )
+
+
 def is_diagonal_series(
     series: BlockSeries, wanted_orders: tuple[int, ...], atol=1e-7
 ) -> None:
@@ -125,6 +152,30 @@ def identity_like(U: BlockSeries):
     )
 
 
+def zero_like(U: BlockSeries):
+    """An zero-like series with the same dimensions as U"""
+    return BlockSeries(
+        data={},
+        shape=U.shape,
+        n_infinite=U.n_infinite,
+        dimension_names=U.dimension_names,
+        name="0",
+    )
+
+
+def at_time(series: BlockSeries, t: float):
+    """A series evaluated at a given time"""
+    return BlockSeries(
+        eval=lambda *index: series[index](t)
+        if hasattr(series[index], "__call__")
+        else series[index],
+        shape=series.shape,
+        n_infinite=series.n_infinite,
+        name=series.name,
+        dimension_names=series.dimension_names,
+    )
+
+
 def is_unitary(
     U: BlockSeries,
     U_dagger: BlockSeries,
@@ -161,6 +212,14 @@ def wanted_orders(request):
     return request.param
 
 
+@pytest.fixture(scope="module", params=[(3,), (2, 1)])
+def wanted_orders_t(request):
+    """
+    Return a list of orders to compute.
+    """
+    return request.param
+
+
 @pytest.fixture(scope="module")
 def Ns():
     """
@@ -168,6 +227,102 @@ def Ns():
     """
     N_a = np.random.randint(1, 3)
     return N_a, N_a + 1
+
+
+def matrices_it(N_i, N_j, hermitian):
+    """
+    Generate random matrices of size N_i x N_j.
+
+    Parameters
+    ----------
+    N_i: number of rows
+    N_j: number of columns
+    hermitian: if True, the matrix is hermitian
+
+    Returns
+    -------
+    generator of random matrices
+    """
+    while True:
+        H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
+        if hermitian:
+            H += H.conj().T
+        yield H
+
+
+def time_matrices_it(N_i, N_j, hermitian, order=4):
+    """
+    Generate time-dependent random matrices of size N_i x N_j.
+
+    Parameters
+    ----------
+    N_i: number of rows
+    N_j: number of columns
+    hermitian: if True, the matrix is hermitian
+    order: number of terms in the time-dependent function
+
+    Returns
+    -------
+    generator of random matrices
+    """
+    matrices = matrices_it(N_i, N_j, hermitian)
+    while True:
+        H_s = np.array([next(matrices) for _ in range(order * 2)]) / order
+
+        def H(t):
+            return np.sum(
+                H_s[:order] * np.cos(t * np.arange(order).reshape(-1, 1, 1)), axis=0
+            ) + np.sum(
+                H_s[order:] * np.sin(t * np.arange(order).reshape(-1, 1, 1)), axis=0
+            )
+
+        yield CallableWrapper(H)
+
+
+def _H(
+    Ns: np.array, wanted_orders: list[tuple[int, ...]], matrices_generator: Callable
+) -> BlockSeries:
+    """
+    Produce random Hamiltonians to test.
+
+    Parameters
+    ----------
+    Ns:
+        Dimension of each block (A, B)
+    wanted_orders:
+        Orders to compute
+    matrices_generator:
+        callable that constructs an iterator of random Hamiltonian terms
+
+    Returns
+    -------
+    BlockSeries of the Hamiltonian
+    """
+    n_infinite = len(wanted_orders)
+    orders = np.eye(n_infinite, dtype=int)
+    h_0_AA = np.diag(np.sort(np.random.rand(Ns[0])) - 1)
+    h_0_BB = np.diag(np.sort(np.random.rand(Ns[1])))
+
+    hams = []
+    for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
+        matrices = matrices_generator(Ns[i], Ns[j], hermitian)
+        hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
+
+    h_p_AA, h_p_BB, h_p_AB = hams
+    zeroth_order = (0,) * n_infinite
+    H = BlockSeries(
+        data={
+            **{(0, 0, *zeroth_order): h_0_AA},
+            **{(1, 1, *zeroth_order): h_0_BB},
+            **{(0, 0, *key): value for key, value in h_p_AA.items()},
+            **{(0, 1, *key): value for key, value in h_p_AB.items()},
+            **{(1, 0, *key): Dagger(value) for key, value in h_p_AB.items()},
+            **{(1, 1, *key): value for key, value in h_p_BB.items()},
+        },
+        shape=(2, 2),
+        n_infinite=n_infinite,
+    )
+    return H
 
 
 @pytest.fixture(scope="module")
@@ -186,51 +341,51 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     -------
     BlockSeries of the Hamiltonian
     """
-    n_infinite = len(wanted_orders)
-    orders = np.eye(n_infinite, dtype=int)
-    h_0_AA = np.diag(np.sort(np.random.rand(Ns[0])) - 1)
-    h_0_BB = np.diag(np.sort(np.random.rand(Ns[1])))
+    return _H(Ns, wanted_orders, matrices_it)
 
-    def matrices_it(N_i, N_j, hermitian):
-        """
-        Generate random matrices of size N_i x N_j.
 
-        Parameters
-        ----------
-        N_i: number of rows
-        N_j: number of columns
-        hermitian: if True, the matrix is hermitian
+@pytest.fixture(scope="module")
+def H_t(Ns: np.array, wanted_orders_t: list[tuple[int, ...]]) -> BlockSeries:
+    """
+    Produce random time-dependent Hamiltonians to test.
 
-        Returns
-        -------
-        generator of random matrices
-        """
-        while True:
-            H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
-            if hermitian:
-                H += H.conj().T
-            yield H
+    Parameters
+    ----------
+    Ns:
+        Dimension of each block (A, B)
+    wanted_orders:
+        Orders to compute
 
-    hams = []
-    for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
-        matrices = matrices_it(Ns[i], Ns[j], hermitian)
-        hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
+    Returns
+    -------
+    BlockSeries of the Hamiltonian
+    """
+    return _H(Ns, wanted_orders_t, time_matrices_it)
 
-    h_p_AA, h_p_BB, h_p_AB = hams
-    zeroth_order = (0,) * n_infinite
-    H = BlockSeries(
-        data={
-            **{(0, 0, *zeroth_order): h_0_AA},
-            **{(1, 1, *zeroth_order): h_0_BB},
-            **{(0, 0, *key): value for key, value in h_p_AA.items()},
-            **{(0, 1, *key): value for key, value in h_p_AB.items()},
-            **{(1, 0, *key): Dagger(value) for key, value in h_p_AB.items()},
-            **{(1, 1, *key): value for key, value in h_p_BB.items()},
+
+@pytest.fixture(scope="module")
+def t_span():
+    """Time domain for time-dependent Hamiltonians to solve over."""
+    return 0, 5
+
+
+@pytest.fixture(scope="module")
+def block_diagonalized_t(H_t, Ns, t_span):
+    """Block diagonalized problem for a time-dependent Hamiltonian."""
+    v_0 = np.zeros(Ns, dtype=np.complex128)
+    solve_sylvester = solve_sylvester_time_mixed(H_t, v_0, t_span)
+    time_diff = time_diff_numeric(dx=1e-8)
+    return _compile(
+        {"H": H_t},
+        algorithm=algorithms.tdsw,
+        scope={
+            "solve_sylvester": solve_sylvester,
+            "I": 1.0j,
+            "hbar": 1,
+            "time_diff": time_diff,
+            "reduce_order_adiabatic": reduce_order_adiabatic,
         },
-        shape=(2, 2),
-        n_infinite=n_infinite,
     )
-    return H
 
 
 @pytest.fixture(scope="module", params=[0, 1])
@@ -1317,3 +1472,43 @@ def test_delete_intermediate_terms():
             for order in range(1, max_order):
                 for index in indices:
                     assert (*index, order) not in which[term]._data
+
+
+def test_check_hermitian_t(block_diagonalized_t, t_span, wanted_orders_t):
+    """Test that the transformed time-dependent Hamiltonian is Hermitian."""
+    H_tilde, *_ = block_diagonalized_t
+
+    antihermitian_part = BlockSeries(
+        eval=lambda *index: _zero_sum(
+            H_tilde[index], -Dagger(H_tilde[(index[1], index[0], *index[2:])])
+        ),
+        shape=H_tilde.shape,
+        n_infinite=H_tilde.n_infinite,
+    )
+    zero = zero_like(H_tilde)
+
+    compare_series_t(antihermitian_part, zero, wanted_orders_t, t_span, atol=1e-6)
+
+
+def test_check_unitary_t(block_diagonalized_t, t_span, wanted_orders_t):
+    """Test that the time-dependent transformation is unitary."""
+    _, U, U_adj, *_ = block_diagonalized_t
+    reconstructed = cauchy_dot_product(U_adj, U)
+    identity = identity_like(U)
+
+    compare_series_t(reconstructed, identity, wanted_orders_t, t_span, atol=1e-12)
+
+
+def test_check_invertible_t(H_t, block_diagonalized_t, t_span, wanted_orders_t):
+    """Test that the time-dependent transformation is invertible."""
+    H_tilde, U, U_adj, _, ihdU_dt = block_diagonalized_t
+
+    U_H_tilde_U_adj = cauchy_dot_product(U, cauchy_dot_product(H_tilde, U_adj))
+    ihdU_dt_U_adj = cauchy_dot_product(ihdU_dt, U_adj)
+    H_reconstructed = BlockSeries(
+        eval=lambda *index: _zero_sum(U_H_tilde_U_adj[index], ihdU_dt_U_adj[index]),
+        shape=H_t.shape,
+        n_infinite=H_t.n_infinite,
+    )
+
+    compare_series_t(H_t, H_reconstructed, wanted_orders_t, t_span, atol=1e-3, rtol=1e-3)
