@@ -9,6 +9,8 @@ from collections import Counter, defaultdict
 from enum import Enum
 from itertools import chain
 
+zero = ast.Name(id="zero", ctx=ast.Load())
+
 
 @dataclasses.dataclass
 class _Series:
@@ -24,14 +26,13 @@ class _Series:
 class _Product:
     """Product properties."""
 
-    left: str = None
-    right: str = None
+    terms: list[str] = dataclasses.field(default_factory=list)
     hermitian: list = False
 
     @property
     def name(self) -> str:
         """Name that represents the product."""
-        return f"{self.left} @ {self.right}"
+        return " @ ".join(self.terms)
 
 
 class _EvalTransformer(ast.NodeTransformer):
@@ -45,7 +46,7 @@ class _EvalTransformer(ast.NodeTransformer):
         implicit_select = ast.parse(
             "which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series"
         ).body
-        return_zero = ast.Return(value=ast.Name(id="zero", ctx=ast.Load()))
+        return_zero = ast.Return(value=zero)
 
         module = ast.Module(
             body=[
@@ -109,8 +110,8 @@ class _EvalTransformer(ast.NodeTransformer):
         eval_transformers = [
             _SumTransformer(),
             _DivideTransformer(),
-            _LiteralTransformer(diagonal=diagonal),
             _FunctionTransformer(),
+            _LiteralTransformer(diagonal=diagonal),
         ]
         node = node.value  # Get the expression from the Expr node.
         for transformer in eval_transformers:
@@ -201,25 +202,34 @@ class _LiteralTransformer(ast.NodeTransformer):
     def __init__(self, diagonal: bool):
         self.diagonal = diagonal
 
+    def visit_Subscript(self, node: ast.Subscript) -> ast.AST:
+        # Do not visit subscripts as these are already transformed.
+        return node
+
     def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
         """Transform adjoint terms."""
         # We assume the attribute is `.adj`.
-        return self._to_series(node.value, adjoint=True)
+        return self._to_series_index(node.value, adjoint=True)
 
     def visit_Constant(self, node: ast.Constant) -> ast.AST:
         """Transform regular terms."""
         if not isinstance(node.value, str):
             return node
-        return self._to_series(node, adjoint=False)
+        return self._to_series_index(node, adjoint=False)
 
-    def _to_series(self, node: ast.Constant, adjoint: bool) -> ast.AST:
+    @staticmethod
+    def _to_series(node: ast.Constant) -> ast.AST:
+        """Build series[term] as AST."""
+        return ast.Subscript(
+            value=ast.Name(id="which", ctx=ast.Load()),
+            slice=ast.Constant(value=node.value),
+            ctx=ast.Load(),
+        )
+
+    def _to_series_index(self, node: ast.Constant, adjoint: bool) -> ast.AST:
         """Build series[term][index] as AST."""
         result = ast.Subscript(
-            value=ast.Subscript(
-                value=ast.Name(id="which", ctx=ast.Load()),
-                slice=ast.Constant(value=node.value),
-                ctx=ast.Load(),
-            ),
+            value=self._to_series(node),
             slice=ast.Index(value=self._index(adjoint and (not self.diagonal))),
             ctx=ast.Load(),
         )
@@ -299,32 +309,41 @@ class _DivideTransformer(ast.NodeTransformer):
 
 
 class _FunctionTransformer(ast.NodeTransformer):
-    """Do not call certain functions with zero as argument."""
+    """Transforms function calls.
+
+    The internal functions `_safe_divide` and `_zero_sum` are not modified.
+    Other functions are changed as follows:
+    - If an argument to the function is a series, it is transformed into `series["arg"]`.
+    - All other arguments are left unchanged.
+    - The index is added as the last argument.
+    """
 
     def visit_Call(self, node: ast.Call) -> ast.AST:
-        """Apply a zero check to calls of `solve_sylvester`."""
         if not isinstance(node.func, ast.Name):
             return self.generic_visit(node)
 
-        if node.func.id not in ["solve_sylvester"]:
+        # Functions introduced internally, should not be modified.
+        if node.func.id in ["_safe_divide", "_zero_sum"]:
             return self.generic_visit(node)
 
-        return ast.IfExp(
-            test=ast.Compare(
-                left=ast.NamedExpr(
-                    target=ast.Name(id="_var", ctx=ast.Store()),
-                    value=node.args[0],
-                ),
-                ops=[ast.IsNot()],
-                comparators=[ast.Name(id="zero", ctx=ast.Load())],
+        return self._visit_series_argument(node)
+
+    def _visit_series_argument(self, node: ast.Call) -> ast.AST:
+        """Transform functions that have series as arguments.
+
+        Inserts the index as the last argument, preceded by all series passed as arguments.
+        The series arguments are string literals, which are transformed to `series["arg"]`.
+        """
+        node.args = [
+            *(
+                _LiteralTransformer._to_series(arg)
+                if (isinstance(arg, ast.Constant) and isinstance(arg.value, str))
+                else arg
+                for arg in node.args
             ),
-            body=ast.Call(
-                func=node.func,
-                args=[ast.Name(id="_var", ctx=ast.Load()), *node.args[1:]],
-                keywords=node.keywords,
-            ),
-            orelse=ast.Name(id="zero", ctx=ast.Load()),
-        )
+            ast.Name(id="index", ctx=ast.Load()),
+        ]
+        return node
 
 
 def _parse_algorithm(
@@ -389,9 +408,7 @@ def _find_delete_candidates(
     """
     # We should never delete terms that appear in products,
     # are part of the original Hamiltonian or are part of the output.
-    terms_in_products = set(
-        chain.from_iterable((product.left, product.right) for product in products)
-    )
+    terms_in_products = set(chain.from_iterable(product.terms for product in products))
     original_terms = {"H"}
     delete_blacklist = terms_in_products | original_terms | set(outputs)
 
@@ -440,7 +457,7 @@ def _read_product(definition: ast.With) -> _Product:
     """Read product properties."""
     product = _Product()
     name = definition.items[0].context_expr.value
-    product.left, product.right = name.split(" @ ", maxsplit=1)
+    product.terms = name.split(" @ ")
     for node in definition.body:
         if not isinstance(node, ast.Expr):
             continue
