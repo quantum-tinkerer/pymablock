@@ -2,10 +2,11 @@
 """Algorithms definitions."""
 # ruff: noqa: F821, D103, F841, E999, F811, F632, F401
 
-from pymablock.algorithm_parsing import algorithm
+# The functions in this module are not usable directly. Their contents is used to
+# specify the algorithms, as parsed by `pymablock.algorithm_parsing.parse_algorithm`.
+# Check the documentation of that module for the DSL specification.
 
 
-@algorithm
 def main():
     with "H'_diag":
         start = 0

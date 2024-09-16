@@ -12,6 +12,7 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
 
+from pymablock.algorithm_parsing import parse_algorithm
 from pymablock.algorithms import main
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
@@ -148,6 +149,8 @@ def block_diagonalize(
     if isinstance(symbols, sympy.Symbol):
         symbols = [symbols]
 
+    # This logic for using implicit mode does not catch the case where the Hamiltonian
+    # is already a prepared BlockSeries. That part is checked later.
     use_implicit = False
     if subspace_eigenvectors is not None:
         _check_orthonormality(subspace_eigenvectors, atol=atol)
@@ -224,9 +227,20 @@ def block_diagonalize(
     if solve_sylvester is None:
         solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H, atol))
 
-    return _block_diagonalize(
-        H,
-        solve_sylvester=solve_sylvester,
+    # When the input Hamiltonian value is a linear operator, so should be the output.
+    use_linear_operator = np.zeros(H.shape, dtype=bool)
+    if isinstance(H[(1, 1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator):
+        use_linear_operator[1, 1] = True
+
+    if np.any(use_linear_operator) and operator is not matmul:
+        raise ValueError("Implicit mode requires matmul operator.")
+
+    return _compile(
+        {"H": H},
+        scope={
+            "solve_sylvester": _preprocess_sylvester(solve_sylvester),
+            "use_linear_operator": use_linear_operator,
+        },
         operator=operator,
     )
 
@@ -409,30 +423,29 @@ def hamiltonian_to_BlockSeries(
 
 
 ### Block diagonalization algorithms
-def _block_diagonalize(
-    H: BlockSeries,
-    solve_sylvester: Optional[Callable] = None,
+def _compile(
+    series: dict[str, BlockSeries],
+    algorithm: Optional[Callable] = main,
+    scope: Optional[dict] = None,
     *,
     operator: Optional[Callable] = None,
     return_all: bool = False,
 ) -> tuple[BlockSeries, ...] | tuple[dict[str, BlockSeries], dict[str, BlockSeries]]:
-    """Algorithm for computing block diagonalization of a Hamiltonian.
+    """Compile a `~pymablock.series.BlockSeries` computation.
 
-    It parameterizes the unitary transformation as a series of block matrices.
-    It computes them order by order by imposing unitarity and the
-    block-diagonality of the transformed Hamiltonian.
-
-    If the BB block of the Hamiltonian is a linear operator, the algorithm
-    avoids forming the full matrices in the BB space.
+    Given several series, functions to apply to their elements, and an algorithm,
+    return the output series defined by the algorithm.
 
     Parameters
     ----------
-    H :
-        Initial Hamiltonian, unperturbed and perturbation.
-        The data in ``H`` can be either numerical or symbolic.
-    solve_sylvester :
-        (optional) function that solves the Sylvester equation.
-        Defaults to a function that works for diagonal unperturbed Hamiltonians.
+    series :
+        Dictionary with all input series, where the keys are the names of the series.
+    algorithm :
+        Algorithm to use for the block diagonalization.  Should be passed as a callable
+        whose contents follow the algorithm DSL, see `~pymablock.algorithm_parsing.algorithm`.
+    scope :
+        Extra variables to pass to pass to the algorithm. In particular useful for passing
+        custom functions.
     operator :
         (optional) function to use for matrix multiplication.
         Defaults to matmul.
@@ -460,37 +473,39 @@ def _block_diagonalize(
     if operator is None:
         operator = matmul
 
-    if solve_sylvester is None:
-        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H))
+    # For now we demand that all series are similar because outputs are like inputs.
+    dimension_names = next(iter(series.values())).dimension_names
+    if any(series.dimension_names != dimension_names for series in series.values()):
+        raise ValueError("All series must have the same dimension names.")
 
-    solve_sylvester = _preprocess_sylvester(solve_sylvester)
+    n_infinite = {series.n_infinite for series in series.values()}
+    if len(n_infinite) > 1:
+        raise ValueError("All series must have the same number of infinite indices.")
+    n_infinite = next(iter(n_infinite))
+    shape = next(iter(series.values())).shape
 
-    zeroth_order = (0,) * H.n_infinite
-    zero_data = {block + zeroth_order: zero for block in ((0, 0), (0, 1), (1, 0), (1, 1))}
-    identity_data = {block + zeroth_order: one for block in ((0, 0), (1, 1))}
-    H_0_data = {
-        block + zeroth_order: H[block + zeroth_order]
-        for block in ((0, 0), (0, 1), (1, 0), (1, 1))
-    }
+    zeroth_order = (0,) * n_infinite
+    all_blocks = [(i, j) for i in range(shape[0]) for j in range(shape[1])]
+    diagonal = [(i, i) for i in range(shape[0])]
+    zero_data = {block + zeroth_order: zero for block in all_blocks}
+    identity_data = {block + zeroth_order: one for block in diagonal}
     data = {
         "zero_data": zero_data,
         "identity_data": identity_data,
-        "H_0_data": H_0_data,
+        **{
+            f"{name}_0_data": {
+                block + zeroth_order: series[block + zeroth_order] for block in all_blocks
+            }
+            for name, series in series.items()
+        },
     }
+
     # Common series kwargs to avoid some repetition
     series_kwargs = dict(
-        shape=(2, 2),
-        n_infinite=H.n_infinite,
-        dimension_names=H.dimension_names,
+        shape=shape,
+        n_infinite=n_infinite,
+        dimension_names=dimension_names,
     )
-
-    if use_implicit := isinstance(H[(1, 1, *zeroth_order)], sparse.linalg.LinearOperator):
-        if operator is not matmul:
-            raise ValueError("The implicit method only supports matrix multiplication.")
-
-    series = {
-        "H": H,
-    }
 
     def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
         return BlockSeries(
@@ -500,7 +515,7 @@ def _block_diagonalize(
         )
 
     linear_operator_series = {
-        "H": linear_operator_wrapped(H),
+        name: linear_operator_wrapped(series) for name, series in series.items()
     }
 
     def del_(series_name, index: int) -> None:
@@ -508,20 +523,21 @@ def _block_diagonalize(
         linear_operator_series[series_name].pop(index, None)
 
     eval_scope = {
-        # Locals
-        "use_implicit": use_implicit,
+        # Defined in this function
         "series": series,
         "linear_operator_series": linear_operator_series,
-        "solve_sylvester": solve_sylvester,
         "del_": del_,
+        "use_linear_operator": np.zeros(shape, dtype=bool),
         # Globals
         "zero": zero,
         "_safe_divide": _safe_divide,
         "_zero_sum": _zero_sum,
         "Dagger": Dagger,
+        # User-provided, may override the above
+        **(scope or {}),
     }
 
-    terms, products, outputs = main
+    terms, products, outputs = parse_algorithm(algorithm)
 
     for term in terms:
         # This defines `series_eval` as the eval function for this term.

@@ -7,6 +7,7 @@ import dataclasses
 import inspect
 from collections import Counter, defaultdict
 from enum import Enum
+from functools import cache
 from itertools import chain
 
 zero = ast.Name(id="zero", ctx=ast.Load())
@@ -43,8 +44,8 @@ class _EvalTransformer(ast.NodeTransformer):
 
     def visit_With(self, node: ast.With) -> ast.Module:
         """Build a function definition from a `with` statement."""
-        implicit_select = ast.parse(
-            "which = linear_operator_series if use_implicit and index[0] == index[1] == 1 else series"
+        linear_operator_select = ast.parse(
+            "which = linear_operator_series if use_linear_operator[index[:2]] else series"
         ).body
         return_zero = ast.Return(value=zero)
 
@@ -61,7 +62,7 @@ class _EvalTransformer(ast.NodeTransformer):
                         defaults=[],
                     ),
                     body=[
-                        *implicit_select,
+                        *linear_operator_select,
                         *(
                             line
                             for expr in node.body
@@ -402,21 +403,33 @@ def _find_delete_candidates(
 
     All terms that are accessed exactly once are detected.
 
-    The result is a dictionary where the values correspond to the terms to be deleted, consisting of the name, index and eval type.
-    Each key marks from which series the terms are accessed.
+    The result is a dictionary where the values correspond to the terms to be
+    deleted, consisting of the name, index and eval type. Each key marks from
+    which series the terms are accessed.
 
     """
-    # We should never delete terms that appear in products,
-    # are part of the original Hamiltonian or are part of the output.
+    # We should never delete terms that appear in products, are part of the input, or
+    # are part of the output.
     terms_in_products = set(chain.from_iterable(product.terms for product in products))
-    original_terms = {"H"}
-    delete_blacklist = terms_in_products | original_terms | set(outputs)
+    computed = set(term.name for term in series)
+    inputs = (
+        set(
+            needed_term
+            for term in series
+            for needed_term, _, _ in term.uses
+            if "@" not in needed_term  # Products are defined in a different way.
+        )
+        - computed
+    )
+    delete_blacklist = terms_in_products | inputs | set(outputs)
 
     uses = []  # List of (term, index)
     source_map = {}  # Map from (term, index) to (origin, adjoint, eval_type)
 
     # Collect all accessed terms and indices of the entire algorithm.
     for origin in series:
+        # These indices are valid for 2x2 matrices, but with larger sizes they
+        # keep track of the diagonal/offdiagonal structure.
         remaining_indices = {(0, 0), (0, 1), (1, 0), (1, 1)}
         last_eval_type = None
 
@@ -535,15 +548,16 @@ def _preprocess_series(definition: ast.With) -> _Series:
 def _parse_start(value: str | int) -> str:
     """Parse start value."""
     match value:
-        case "H_0":
-            return "H_0_data"
+        case str(name):
+            return name + "_data"
         case 0:
             return "zero_data"
         case 1:
             return "identity_data"
 
 
-def algorithm(func: callable) -> tuple[list[_Series], list[_Product], list[str]]:
+@cache
+def parse_algorithm(func: callable) -> tuple[list[_Series], list[_Product], list[str]]:
     """Turn a function into an algorithm.
 
     Each algorithm is represented by a function definition which needs to be decorated with this function.
@@ -551,7 +565,7 @@ def algorithm(func: callable) -> tuple[list[_Series], list[_Product], list[str]]
     Throughout the definition the series and products are represented by their name using string literals.
 
     A series definition allows the following statements:
-    - `start = ...` to define the start value of the series. Allowed values are "H_0", 0, 1.
+    - `start = ...` to define the start value of the series. Allowed values are "string", 0, 1.
     - `hermitian` or `antihermitian` to optionally mark the offdiagonal blocks of the series as hermitian or antihermitian.
     - An expression that defines how to evaluate the series. The expression can contain the following:
         - String literals to represent series.
