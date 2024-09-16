@@ -10,6 +10,7 @@ from warnings import warn
 import numpy as np
 import sympy
 from scipy import sparse
+from scipy.integrate import solve_ivp
 from sympy.physics.quantum import Dagger
 
 from pymablock.algorithm_parsing import parse_algorithm
@@ -637,7 +638,13 @@ def solve_sylvester_diagonal(
                 np.resize(1 / (array_eigs_a.reshape(-1, 1) - array_eigs_b), Y.shape)
             )
             return energy_denominators.multiply_elementwise(Y)
-        TypeError(f"Unsupported rhs type: {type(Y)}")
+        if isinstance(Y, CallableWrapper):
+
+            def solution(*args, **kwargs):
+                return solve_sylvester(Y(*args, **kwargs))
+
+            return CallableWrapper(solution)
+        raise TypeError(f"Unsupported rhs type: {type(Y)}")
 
     return solve_sylvester
 
@@ -769,6 +776,74 @@ def solve_sylvester_direct(
         return result @ projector
 
     return solve_sylvester
+
+
+def solve_sylvester_time_mixed(
+    H: BlockSeries,
+    v_0: np.ndarray,
+    t_span: tuple[int, int],
+    rtol: float = 1e-6,
+    atol: float = 1e-9,
+) -> Callable:
+    """Solve a time-dependent Sylvester's equation with mixed adiabatic and non-adiabatic perturbations.
+
+    Solves adiabatic orders using the diagonal solver.
+    Solves non-adiabatic orders using the initial value problem solver.
+
+    Parameters
+    ----------
+    H :
+        The Hamiltonian matrix.
+    v_0 :
+        Initial value of V^AB for the initial value problem.
+    t_span :
+        The start and end of the time-domain to solve the initial value problem over.
+    rtol :
+        Relative tolerance for the initial value problem solver.
+    atol :
+        Absolute tolerance for the initial value problem solver.
+
+    Returns
+    -------
+    solve_sylvester_time : `Callable`
+        Function that solves the time-dependent Sylvester's equation.
+
+    """
+    solve_sylvester_adiabatic = solve_sylvester_diagonal(*_extract_diagonal(H))
+
+    # TODO: See whether we can reuse _extract_diagonal here.
+    h_0_aa = H[tuple((0, 0, *([0] * H.n_infinite)))]
+    h_0_bb = H[tuple((1, 1, *([0] * H.n_infinite)))]
+    shape = (h_0_aa.shape[0], h_0_bb.shape[1])
+    v_0 = v_0.reshape(np.prod(shape))
+
+    def solve_sylvester_ivp(Y):
+        def f(t, v):
+            v = v.reshape(shape)
+            result = h_0_aa @ v - v @ h_0_bb
+            if Y is not zero:
+                result += Y(t)
+            # TODO: We have to divide by i*hbar. We assume hbar = 1 now.
+            return result.reshape(-1) * -1j
+
+        sol = solve_ivp(f, t_span=t_span, y0=v_0, dense_output=True, rtol=rtol, atol=atol)
+
+        def solution(t):
+            return -sol.sol(t).reshape(shape)
+
+        return CallableWrapper(solution)
+
+    def solve_sylvester_time(upsilon, ihdU_p_adj_dt, index):
+        if is_adiabatic_only(index, upsilon):
+            rhs = _zero_sum(upsilon[index], ihdU_p_adj_dt[index])
+            solve_sylvester = solve_sylvester_adiabatic
+        else:
+            rhs = upsilon[index]
+            solve_sylvester = solve_sylvester_ivp
+
+        return solve_sylvester(rhs) if rhs is not zero else zero
+
+    return solve_sylvester_time
 
 
 ### Auxiliary functions.
@@ -1108,3 +1183,25 @@ def time_diff_numeric(dx: float = 1e-8, order=3) -> Callable:
         return CallableWrapper(lambda t: derivative(value, t, dx=dx, order=order))
 
     return time_diff
+
+
+def is_adiabatic_only(index, series: BlockSeries):
+    """Check if the index only contains an adiabatic perturbation.
+
+    This means that all orders are zero except for the adiabatic perturbation.
+    """
+    return (
+        str(series.dimension_names[-1]) == "adiabatic"
+        and index[-1] > 0
+        and all(i == 0 for i in index[2:-1])
+    )
+
+
+def reduce_order_adiabatic(series: BlockSeries, index):
+    """Reduce the adiabatic order of a series by one if the index is purely adiabatic."""
+    if is_adiabatic_only(index, series):
+        # If there are no non-adiabatic perturbations, we should reduce the adiabatic order by one.
+        index = *index[:-1], index[-1] - 1
+        return series[index]
+
+    return series[index]
