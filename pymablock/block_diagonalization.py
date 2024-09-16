@@ -523,16 +523,17 @@ def _compile(
         linear_operator_series[series_name].pop(index, None)
 
     eval_scope = {
-        # Locals
+        # Defined in this function
         "series": series,
         "linear_operator_series": linear_operator_series,
         "del_": del_,
+        "use_linear_operator": np.zeros(shape, dtype=bool),
         # Globals
         "zero": zero,
         "_safe_divide": _safe_divide,
         "_zero_sum": _zero_sum,
         "Dagger": Dagger,
-        "use_linear_operator": np.zeros(shape, dtype=bool),
+        # User-provided, may override the above
         **(scope or {}),
     }
 
