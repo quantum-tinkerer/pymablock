@@ -16,7 +16,7 @@ from scipy.spatial import KDTree
 from sympy.physics.quantum import Dagger, Operator
 
 from pymablock import second_quantization
-from pymablock.algorithm_parsing import series_computation
+from pymablock.algorithm_parsing import _zero_sum, series_computation
 from pymablock.algorithms import main, nonhermitian
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
@@ -956,7 +956,7 @@ def solve_sylvester_diagonal(
         if isinstance(Y, CallableWrapper):
 
             def solution(*args, **kwargs):
-                return solve_sylvester(Y(*args, **kwargs))
+                return solve_sylvester(Y(*args, **kwargs), index)
 
             return CallableWrapper(solution)
         raise TypeError(f"Unsupported rhs type: {type(Y)}")
@@ -1257,7 +1257,7 @@ def solve_sylvester_time_mixed(
         Function that solves the time-dependent Sylvester's equation.
 
     """
-    solve_sylvester_adiabatic = solve_sylvester_diagonal(*_extract_diagonal(H))
+    solve_sylvester_adiabatic = solve_sylvester_diagonal(_extract_diagonal(H))
 
     # TODO: See whether we can reuse _extract_diagonal here.
     h_0_aa = H[tuple((0, 0, *([0] * H.n_infinite)))]
@@ -1284,12 +1284,10 @@ def solve_sylvester_time_mixed(
     def solve_sylvester_time(upsilon, ihdU_p_adj_dt, index):
         if is_adiabatic_only(index, upsilon):
             rhs = _zero_sum(upsilon[index], ihdU_p_adj_dt[index])
-            solve_sylvester = solve_sylvester_adiabatic
-        else:
-            rhs = upsilon[index]
-            solve_sylvester = solve_sylvester_ivp
+            return solve_sylvester_adiabatic(rhs, index) if rhs is not zero else zero
 
-        return solve_sylvester(rhs) if rhs is not zero else zero
+        rhs = upsilon[index]
+        return solve_sylvester_ivp(rhs) if rhs is not zero else zero
 
     return solve_sylvester_time
 
