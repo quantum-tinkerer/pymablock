@@ -23,6 +23,7 @@ from pymablock.linalg import (
 )
 from pymablock.series import (
     BlockSeries,
+    CallableWrapper,
     cauchy_dot_product,
     one,
     zero,
@@ -1083,3 +1084,27 @@ def _safe_divide(numerator, denominator):
         return numerator / denominator
     except TypeError:
         return numerator * (1 / denominator)
+
+
+def time_diff_numeric(dx: float = 1e-8, order=3) -> Callable:
+    """Numerical time derivative function for a BlockSeries.
+
+    Parameters
+    ----------
+    dx : float
+        Step size for numerical differentiation.
+    order : int
+        Number of points to use. Must be odd.
+
+    """
+    # TODO: This is a temporary solution as ~scipy.misc.derivative is deprecated.
+    from scipy.misc import derivative
+
+    def time_diff(value, index):
+        if isinstance(value, BlockSeries):
+            value = value[index]
+        if value is zero:
+            return value
+        return CallableWrapper(lambda t: derivative(value, t, dx=dx, order=order))
+
+    return time_diff
