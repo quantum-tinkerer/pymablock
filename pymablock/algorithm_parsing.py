@@ -339,7 +339,7 @@ class _FunctionTransformer(ast.NodeTransformer):
             *(
                 _LiteralTransformer._to_series(arg)
                 if (isinstance(arg, ast.Constant) and isinstance(arg.value, str))
-                else arg
+                else self.visit(arg)
                 for arg in node.args
             ),
             ast.Name(id="index", ctx=ast.Load()),
