@@ -210,13 +210,13 @@ class _LiteralTransformer(ast.NodeTransformer):
     def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
         """Transform adjoint terms."""
         # We assume the attribute is `.adj`.
-        return self._to_series_index(node.value, adjoint=True)
+        return self._to_value(node.value, adjoint=True)
 
     def visit_Constant(self, node: ast.Constant) -> ast.AST:
         """Transform regular terms."""
         if not isinstance(node.value, str):
             return node
-        return self._to_series_index(node, adjoint=False)
+        return self._to_value(node, adjoint=False)
 
     @staticmethod
     def _to_series(node: ast.Constant) -> ast.AST:
@@ -227,7 +227,7 @@ class _LiteralTransformer(ast.NodeTransformer):
             ctx=ast.Load(),
         )
 
-    def _to_series_index(self, node: ast.Constant, adjoint: bool) -> ast.AST:
+    def _to_value(self, node: ast.Constant, adjoint: bool) -> ast.AST:
         """Build series[term][index] as AST."""
         result = ast.Subscript(
             value=self._to_series(node),
