@@ -299,10 +299,10 @@ With this definition, we compute the off-diagonal blocks of $\mathcal{B}$ as:
 \begin{equation}
 \label{eq:B_offdiag}
 \begin{aligned}
-  \mathcal{B}^{AB, BA} &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A} \right]^{AB, BA}\\
-  &= \left[\mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB, BA}\\
-  &= \left[\mathcal{U}'^\dagger\mathcal{H}'_{O} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB, BA}\\
-  &= -(\mathcal{U'}^\dagger \mathcal{B})^{AB, BA},
+  \mathcal{B}_O &= \left[\mathcal{Y} + \mathcal{Z} - \mathcal{H}'_{O} - \mathcal{A} \right]_O\\
+  &= \left[\mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]_O\\
+  &= \left[\mathcal{U}'^\dagger\mathcal{H}'_{O} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]_O\\
+  &= -(\mathcal{U'}^\dagger \mathcal{B})_O,
 \end{aligned}
 \end{equation}
 %
@@ -312,10 +312,10 @@ The diagonal blocks of $\mathcal{B}$, on the other hand, are given by
 \begin{equation}
 \label{eq:B_diag}
 \begin{aligned}
-  \mathcal{B}^{AA, BB} &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}\right]^{AA, BB} \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{A}\right]^{AA, BB} \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]^{AA, BB}, \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \textrm{h.c.} ]\right]^{AA, BB},
+  \mathcal{B}_D &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}\right]_D \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{A}\right]_D \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]_D, \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \textrm{h.c.} ]\right]_D,
 \end{aligned}
 \end{equation}
 %

@@ -18,17 +18,28 @@ def main():
         if offdiagonal:
             "H"
 
-    with "U'":
+    with "V":
         start = 0
         antihermitian
-
-        if diagonal:
-            "U'† @ U'" / -2
         if offdiagonal:
             # We can choose to query either "X" or "X".adj since X is Hermitian.
             # The choice for "X".adj is optimal for querying H_AA and "X" for H_BB.
             # We choose "X".adj because we follow the convention that H_AA is more important.
-            -solve_sylvester("X".adj + "H'_diag @ U'" + "H'_diag @ U'".adj)
+            -solve_sylvester("Y" - "V @ H'_diag" - "V @ H'_diag".adj)
+
+    with "W":
+        start = 0
+        hermitian
+        "U'† @ U'" / -2
+
+    with "Y":
+        start = 0
+        hermitian
+        ("X" + "X".adj) / 2
+
+    with "U'":
+        start = 0
+        "W" + "V"
 
     with "U":
         start = 1
@@ -46,9 +57,7 @@ def main():
 
     with "X":
         start = 0
-        # X is hermitian, but (1, 0) is the only index we ever query.
-        if upper:
-            "B" + "H'_offdiag" + "H'_offdiag @ U'"
+        "B" + "H'_offdiag" + "H'_offdiag @ U'"
 
     with "B":
         start = 0
@@ -77,6 +86,9 @@ def main():
         pass
 
     with "U'† @ B":
+        pass
+
+    with "V @ H'_diag":
         pass
 
     return "H_tilde", "U", "U†"
