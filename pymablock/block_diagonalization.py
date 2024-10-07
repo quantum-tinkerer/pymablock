@@ -303,18 +303,18 @@ def hamiltonian_to_BlockSeries(
             returned unchanged.
     subspace_eigenvectors :
         A tuple with orthonormal eigenvectors to project the Hamiltonian on and
-        separate it into blocks. The first element of the tuple has the
-        eigenvectors of the A (effective) subspace, and the second element has
-        the eigenvectors of the B (auxiliary) subspace. If None, the unperturbed
-        Hamiltonian must be block diagonal. For implicit, the (partial)
-        auxiliary subspace may be missing or incomplete. Mutually exclusive with
-        ``subspace_indices``.
+        separate it into blocks. In the case of 2 blocks the first element of the
+        tuple has the eigenvectors of the A (effective) subspace, and the
+        second element has the eigenvectors of the B (auxiliary) subspace. If
+        None, the unperturbed Hamiltonian must be block diagonal. For implicit,
+        the (partial) auxiliary subspace may be missing or incomplete. Mutually
+        exclusive with ``subspace_indices``.
     subspace_indices :
-        An array indicating which basis vector belongs to which subspace. The
-        labels are 0 for the A (effective) subspace and 1 for the B (auxiliary)
-        subspace.
-        Only applicable if the unperturbed Hamiltonian is diagonal.
-        Mutually exclusive with ``subspace_eigenvectors``.
+        An array indicating which basis vector belongs to which subspace. In
+        the case of 2 blocks, the labels are 0 for the A (effective) subspace
+        and 1 for the B (auxiliary) subspace. Only applicable if the
+        unperturbed Hamiltonian is diagonal. Mutually exclusive with
+        ``subspace_eigenvectors``.
     implicit :
         Whether to wrap the Hamiltonian of the BB subspace into a linear
         operator.
@@ -356,29 +356,41 @@ def hamiltonian_to_BlockSeries(
     if hamiltonian.shape and to_split:
         raise ValueError("H is already separated but subspace_eigenvectors are provided.")
 
-    if hamiltonian.shape == (2, 2):
-        return hamiltonian
     if hamiltonian.shape:
-        raise ValueError("Only 2x2 block Hamiltonians are supported.")
+        if hamiltonian.shape[0] != hamiltonian.shape[1]:
+            raise ValueError("H must be a square block series.")
+
+        if hamiltonian.shape[0] == 1:
+            raise ValueError("H must have at least 2 blocks to block diagonalize.")
+
+        return hamiltonian
 
     # Separation into subspace_eigenvectors
     if not to_split:
-        # Hamiltonian must have 2x2 entries in each block
+        zeroth_order = hamiltonian[(0,) * hamiltonian.n_infinite]
+        if not isinstance(zeroth_order, (tuple, list)):
+            raise ValueError(
+                "Without `subspace_eigenvectors` or `subspace_indices`"
+                " H must be a list of lists or tuple of tuples."
+            )
+
+        # Hamiltonian contains array-like data with block values
         def H_eval(*index):
             h = _convert_if_zero(hamiltonian[index[2:]], atol=atol)
             if h is zero:
                 return zero
-            try:  # Hamiltonians come in blocks of 2x2
+            try:
                 return _convert_if_zero(h[index[0]][index[1]], atol=atol)
             except Exception as e:
                 raise ValueError(
                     "Without `subspace_eigenvectors` or `subspace_indices`"
-                    " H must have a 2x2 block structure."
+                    " H must have an NxN block structure."
                 ) from e
 
+        n_blocks = len(zeroth_order)
         H = BlockSeries(
             eval=H_eval,
-            shape=(2, 2),
+            shape=(n_blocks, n_blocks),
             n_infinite=hamiltonian.n_infinite,
             dimension_names=symbols,
             name="H",
@@ -397,12 +409,19 @@ def hamiltonian_to_BlockSeries(
         subspace_eigenvectors = _subspaces_from_indices(
             subspace_indices, symbolic=symbolic
         )
+    subspace_eigenvectors = tuple(subspace_eigenvectors)
+    if len(subspace_eigenvectors) == 1:
+        dim = subspace_eigenvectors[0].shape[0]
+        subspace_eigenvectors = (subspace_eigenvectors[0], np.zeros((dim, 0)))
     if implicit:
         # Define subspace_eigenvectors for implicit
-        vecs_A = subspace_eigenvectors[0]
-        subspace_eigenvectors = (vecs_A, ComplementProjector(vecs_A))
+        subspace_eigenvectors = subspace_eigenvectors[:-1] + (
+            ComplementProjector(np.hstack(subspace_eigenvectors[:-1])),
+        )
 
     # Separation into subspace_eigenvectors
+    n_blocks = len(subspace_eigenvectors)
+
     def H_eval(*index):
         left, right = index[:2]
         if left > right:
@@ -410,7 +429,7 @@ def hamiltonian_to_BlockSeries(
         original = hamiltonian[index[2:]]
         if original is zero:
             return zero
-        if implicit and left == right == 1:
+        if implicit and left == right == n_blocks - 1:
             original = aslinearoperator(original)
         return _convert_if_zero(
             Dagger(subspace_eigenvectors[left]) @ original @ subspace_eigenvectors[right],
@@ -419,7 +438,7 @@ def hamiltonian_to_BlockSeries(
 
     H = BlockSeries(
         eval=H_eval,
-        shape=(2, 2),
+        shape=(n_blocks, n_blocks),
         n_infinite=hamiltonian.n_infinite,
         dimension_names=symbols,
         name="H",
@@ -958,12 +977,11 @@ def _subspaces_from_indices(
     Parameters
     ----------
     subspace_indices :
-        Indices of the ``subspace_eigenvectors``.
-        0 indicates the effective subspace A, 1 indicates the auxiliary
-        subspace B.
+        Subspaces to which the ``subspace_eigenvectors`` belong. Ranges from 0
+        to ``n_subspaces-1``.
     symbolic :
-        True if the Hamiltonian is symbolic, False otherwise.
-        If True, the returned subspaces are dense arrays.
+        True if the Hamiltonian is symbolic, False otherwise. If True, the
+        returned subspaces are dense arrays.
 
     Returns
     -------
@@ -972,17 +990,13 @@ def _subspaces_from_indices(
 
     """
     subspace_indices = np.array(subspace_indices)
-    max_subspaces = 2
-    if np.any(subspace_indices >= max_subspaces):
-        raise ValueError(
-            "Only 0 and 1 are allowed as indices for ``subspace_eigenvectors``."
-        )
     dim = len(subspace_indices)
     eigvecs = sparse.csr_array(sparse.identity(dim, dtype=int, format="csr"))
     # Canonical basis vectors for each subspace
+    # TODO: review next statement for readability
     subspace_eigenvectors = tuple(
         eigvecs[:, np.compress(subspace_indices == block, np.arange(dim))]
-        for block in range(max_subspaces)
+        for block in range(np.max(subspace_indices) + 1)
     )
     if symbolic:
         # Convert to dense arrays, otherwise they cannot multiply sympy matrices.
