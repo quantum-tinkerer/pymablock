@@ -118,7 +118,7 @@ def is_diagonal_series(
 def identity_like(U: BlockSeries):
     """An identity-like series with the same dimensions as U"""
     return BlockSeries(
-        data={(block + U.n_infinite * (0,)): one for block in ((0, 0), (1, 1))},
+        data={((i, i) + U.n_infinite * (0,)): one for i in range(U.shape[0])},
         shape=U.shape,
         n_infinite=U.n_infinite,
         dimension_names=U.dimension_names,
@@ -1323,10 +1323,8 @@ def test_delete_intermediate_terms():
 
 
 def test_two_vs_multiblock(H, wanted_orders):
-    H_tilde, U, U_adjoint = block_diagonalize(H)
-    H_tilde_multiblock, U_multiblock, U_adjoint_multiblock = block_diagonalize(
-        H, algorithm=hermitian_antihermitian
-    )
+    H_tilde, *_ = block_diagonalize(H)
+    H_tilde_multiblock, *_ = block_diagonalize(H, algorithm=hermitian_antihermitian)
 
     compare_series(H_tilde, H_tilde_multiblock, wanted_orders, atol=1e-8)
 
