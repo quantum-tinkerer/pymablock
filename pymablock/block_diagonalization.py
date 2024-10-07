@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from copy import copy
 from functools import reduce
+from inspect import signature
 from operator import matmul, mul
 from typing import Any, Callable, Optional, Union
 from warnings import warn
@@ -160,9 +161,12 @@ def block_diagonalize(
     if subspace_eigenvectors is not None:
         _check_orthonormality(subspace_eigenvectors, atol=atol)
         num_vectors = sum(vecs.shape[1] for vecs in subspace_eigenvectors)
-        use_implicit = num_vectors < subspace_eigenvectors[0].shape[0]
+        dim = subspace_eigenvectors[0].shape[0]
+        use_implicit = num_vectors < dim
 
     if use_implicit:
+        if len(subspace_eigenvectors) == 1:
+            subspace_eigenvectors = (subspace_eigenvectors[0], np.zeros((dim, 0)))
         assert subspace_eigenvectors is not None  # for mypy
         # Build solve_sylvester
         if isinstance(hamiltonian, list):
@@ -190,7 +194,8 @@ def block_diagonalize(
             if direct_solver:
                 solve_sylvester = solve_sylvester_direct(
                     h_0,
-                    subspace_eigenvectors[0],
+                    # TODO: this is for backwards compatibility, remove in the future
+                    subspace_eigenvectors[:-1],
                 )
             else:
                 solve_sylvester = solve_sylvester_KPM(
@@ -230,7 +235,7 @@ def block_diagonalize(
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None:
-        solve_sylvester = solve_sylvester_diagonal(*_extract_diagonal(H, atol))
+        solve_sylvester = solve_sylvester_diagonal(_extract_diagonal(H, atol))
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
@@ -240,10 +245,14 @@ def block_diagonalize(
     if np.any(use_linear_operator) and operator is not matmul:
         raise ValueError("Implicit mode requires matmul operator.")
 
+    # Catch the solve_sylvester that uses the old signature without index.
+    if len(signature(solve_sylvester).parameters) == 1:
+        solve_sylvester = _preprocess_sylvester(solve_sylvester)
+
     return _compile(
         {"H": H},
         scope={
-            "solve_sylvester": _preprocess_sylvester(solve_sylvester),
+            "solve_sylvester": solve_sylvester,
             "use_linear_operator": use_linear_operator,
         },
         operator=operator,
@@ -611,8 +620,7 @@ def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
 
 
 def solve_sylvester_diagonal(
-    eigs_A: Union[np.ndarray, sympy.matrices.MatrixBase],
-    eigs_B: Union[np.ndarray, sympy.matrices.MatrixBase],
+    eigs: tuple[Union[np.ndarray, sympy.matrices.MatrixBase], ...],
     vecs_B: Optional[np.ndarray] = None,
 ) -> Callable:
     """Define a function for solving a Sylvester's equation for diagonal matrices.
@@ -622,10 +630,8 @@ def solve_sylvester_diagonal(
 
     Parameters
     ----------
-    eigs_A :
-        Eigenvalues of the effective (A) subspace of the unperturbed Hamiltonian.
-    eigs_B :
-        Eigenvalues of auxiliary (B) subspace of the unperturbed Hamiltonian.
+    eigs :
+        List of eigenvalues in each subspace.
     vecs_B :
         Eigenvectors of the auxiliary (B) subspace of the
         unperturbed Hamiltonian.
@@ -639,9 +645,15 @@ def solve_sylvester_diagonal(
 
     def solve_sylvester(
         Y: Union[np.ndarray, sparse.csr_array, sympy.MatrixBase],
+        index: tuple[int, ...],
     ) -> Union[np.ndarray, sparse.csr_array, sympy.MatrixBase]:
-        if vecs_B is not None:
-            energy_denominators = 1 / (eigs_A[:, None] - eigs_B[None, :])
+        if Y is zero:
+            return zero
+
+        eigs_A, eigs_B = eigs[index[0]], eigs[index[1]]
+        if vecs_B is not None and index[1] == len(eigs) - 1:
+            # Needed for implicit mode
+            energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
             return ((Y @ vecs_B) * energy_denominators) @ Dagger(vecs_B)
         if isinstance(Y, np.ndarray):
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
@@ -661,7 +673,7 @@ def solve_sylvester_diagonal(
                 np.resize(1 / (array_eigs_a.reshape(-1, 1) - array_eigs_b), Y.shape)
             )
             return energy_denominators.multiply_elementwise(Y)
-        TypeError(f"Unsupported rhs type: {type(Y)}")
+        raise TypeError(f"Unsupported rhs type: {type(Y)}")
 
     return solve_sylvester
 
@@ -682,8 +694,9 @@ def solve_sylvester_KPM(
         Unperturbed Hamiltonian of the system.
     subspace_eigenvectors :
         Subspaces to project the unperturbed Hamiltonian and separate it into
-        blocks. The first element of the tuple contains the effective subspace,
-        and the second element contains the (partial) auxiliary subspace.
+        blocks. All but last elements of the tuple contain the effective
+        subspace, and the last element contains the (partial) auxiliary
+        subspace.
     solver_options :
         Dictionary containing any of the following options for KPM.
 
@@ -701,28 +714,28 @@ def solve_sylvester_KPM(
         Sylvester's equation.
 
     """
-    eigs_A = (
-        Dagger(subspace_eigenvectors[0]) @ h_0 @ subspace_eigenvectors[0]
-    ).diagonal()
-    if len(subspace_eigenvectors) > 2:
-        raise ValueError("Invalid number of subspaces")
+    eigs = [
+        (Dagger(eigenvectors) @ h_0 @ eigenvectors).diagonal()
+        for eigenvectors in subspace_eigenvectors
+    ]
+
     if solver_options is None:
         solver_options = {}
 
     kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
     # Prepare the Hamiltonian for KPM by rescaling to [-1, 1]
-    bounds_eigs_A = [np.min(eigs_A), np.max(eigs_A)]
+    bounds_eigs = [np.min(np.concatenate(eigs[:-1])), np.max(np.concatenate(eigs[:-1]))]
     h_rescaled, (a, b) = rescale(
-        h_0, eps=solver_options.get("eps", 0.01), lower_bounds=bounds_eigs_A
+        h_0, eps=solver_options.get("eps", 0.01), lower_bounds=bounds_eigs
     )
-    eigs_A_rescaled = (eigs_A - b) / a
+    eigs_rescaled = [(eig - b) / a for eig in eigs[:-1]]
     # We need to solve a transposed problem
     h_rescaled_T = h_rescaled.T
     # CSR format has a faster matrix-vector product
     if sparse.issparse(h_rescaled_T):
         h_rescaled_T = h_rescaled_T.tocsr()
 
-    def solve_sylvester_kpm(Y: np.ndarray) -> np.ndarray:
+    def solve_sylvester_kpm(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
         Y_KPM = Y @ kpm_projector / a  # Keep track of Hamiltonian rescaling
         return np.vstack(
             [
@@ -733,29 +746,26 @@ def solve_sylvester_KPM(
                     solver_options.get("atol", 1e-5),
                     solver_options.get("max_moments", 1e6),
                 )
-                for energy, vector in zip(eigs_A_rescaled, Y_KPM)
+                for energy, vector in zip(eigs_rescaled[index[0]], Y_KPM)
             ]
         )
 
-    need_explicit = bool(len(subspace_eigenvectors) - 1)
-    if need_explicit:
-        vecs_B = subspace_eigenvectors[1]
-        eigs_B = (
-            Dagger(subspace_eigenvectors[1]) @ h_0 @ subspace_eigenvectors[1]
-        ).diagonal()
-        solve_sylvester_explicit = solve_sylvester_diagonal(eigs_A, eigs_B, vecs_B)
+    vecs_B = subspace_eigenvectors[-1]
+    solve_sylvester_explicit = solve_sylvester_diagonal(eigs, vecs_B)
 
-    def solve_sylvester(Y: np.ndarray) -> np.ndarray:
-        if need_explicit:
-            return solve_sylvester_kpm(Y) + solve_sylvester_explicit(Y)
-        return solve_sylvester_kpm(Y)
+    def solve_sylvester(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
+        if Y is zero:
+            return zero
+        if index[1] == len(eigs) - 1:
+            return solve_sylvester_kpm(Y, index) + solve_sylvester_explicit(Y, index)
+        return solve_sylvester_explicit(Y, index)
 
     return solve_sylvester
 
 
 def solve_sylvester_direct(
     h_0: sparse.spmatrix,
-    eigenvectors: np.ndarray,
+    eigenvectors: list[np.ndarray, ...],
     **solver_options: dict,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Solve Sylvester equation using a direct sparse solver.
@@ -768,7 +778,7 @@ def solve_sylvester_direct(
     h_0 :
         Unperturbed Hamiltonian of the system.
     eigenvectors :
-        Eigenvectors of the effective subspace of the unperturbed Hamiltonian.
+        Eigenvectors of the effective subspaces of the unperturbed Hamiltonian.
     **solver_options :
         Keyword arguments to pass to the solver ``eps`` and ``atol``, see
         `pymablock.linalg.direct_greens_function`.
@@ -779,17 +789,27 @@ def solve_sylvester_direct(
         Function that solves the corresponding Sylvester equation.
 
     """
-    projector = ComplementProjector(eigenvectors)
-    eigenvalues = np.diag(Dagger(eigenvectors) @ h_0 @ eigenvectors)
+    projector = ComplementProjector(np.hstack(eigenvectors))
+    eigenvalues = [
+        np.diag(Dagger(subspace) @ h_0 @ subspace) for subspace in eigenvectors
+    ]
     # Compute the Green's function of the transposed Hamiltonian because we are
     # solving the equation from the right.
     greens_functions = [
-        direct_greens_function(h_0.T, E, **solver_options) for E in eigenvalues
+        [direct_greens_function(h_0.T, E, **solver_options) for E in subspace_eigenvalues]
+        for subspace_eigenvalues in eigenvalues
     ]
 
-    def solve_sylvester(Y: np.ndarray) -> np.ndarray:
+    explicit_part = solve_sylvester_diagonal(eigenvalues)
+
+    def solve_sylvester(Y: np.ndarray, index: tuple[int, ...]) -> np.ndarray:
+        if Y is zero:
+            return zero
+        if index[1] < len(eigenvalues) - 1:
+            return explicit_part(Y, index)
+
         Y = Y @ projector
-        result = np.vstack([gf(vec) for gf, vec in zip(greens_functions, Y)])
+        result = np.vstack([gf(vec) for gf, vec in zip(greens_functions[index[0]], Y)])
         return result @ projector
 
     return solve_sylvester

@@ -738,7 +738,7 @@ def test_equivalence_explicit_implicit() -> None:
     )
     H_0 = H[0]
     _, eigvecs = np.linalg.eigh(H_0)
-    solve_sylvester = solve_sylvester_direct(sparse.coo_array(H_0), eigvecs[:, :a_dim])
+    solve_sylvester = solve_sylvester_direct(sparse.coo_array(H_0), [eigvecs[:, :a_dim]])
 
     implicit_H = hamiltonian_to_BlockSeries(
         H, subspace_eigenvectors=(eigvecs[:, :a_dim],), implicit=True
@@ -805,16 +805,16 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
-    diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
-    direct = solve_sylvester_direct(h, eigvecs)
+    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
+    direct = solve_sylvester_direct(h, [eigvecs])
 
     y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
         size=(a_dim, n - a_dim)
     )
     y = y @ Dagger(eigvecs_rest)
 
-    y_default = diagonal(y)
-    y_direct = direct(y)
+    y_default = diagonal(y, (0, 1))
+    y_direct = direct(y, (0, 1))
 
     np.testing.assert_allclose(y_default, y_direct)
 
@@ -845,8 +845,10 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
         eigvecs[:, a_dim:],
     )
 
-    diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
-    kpm = solve_sylvester_KPM(h, [eigvecs], solver_options={"atol": 1e-3})
+    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
+    kpm = solve_sylvester_KPM(
+        h, [eigvecs, np.zeros((h.shape[0], 0))], solver_options={"atol": 1e-3}
+    )
     hybrid = solve_sylvester_KPM(
         h, [eigvecs, eigvecs_partial], solver_options={"atol": 1e-3}
     )
@@ -856,9 +858,9 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     )
     y = y @ Dagger(eigvecs_rest)
 
-    y_default = diagonal(y)
-    y_kpm = kpm(y)
-    y_hybrid = hybrid(y)
+    y_default = diagonal(y, (0, 1))
+    y_kpm = kpm(y, (0, 1))
+    y_hybrid = hybrid(y, (0, 1))
 
     # Use a lower tolerance until KPM estimates error bounds.
     np.testing.assert_allclose(y_default, y_kpm, atol=1e-3)
@@ -903,7 +905,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
         hamiltonian = hamiltonian[0]
     except KeyError:
         hamiltonian = hamiltonian[(0,) * H.n_infinite]
-    solve_sylvester = solve_sylvester_direct(hamiltonian, subspace_eigenvectors[0])
+    solve_sylvester = solve_sylvester_direct(hamiltonian, [subspace_eigenvectors[0]])
 
     compare_series(
         block_diagonalize(H, solve_sylvester=solve_sylvester)[0][0, 0],
