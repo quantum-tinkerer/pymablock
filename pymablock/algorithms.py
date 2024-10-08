@@ -22,9 +22,6 @@ def main():
         start = 0
         antihermitian
         if offdiagonal:
-            # We can choose to query either "X" or "X".adj since X is Hermitian.
-            # The choice for "X".adj is optimal for querying H_AA and "X" for H_BB.
-            # We choose "X".adj because we follow the convention that H_AA is more important.
             -solve_sylvester("Yadj".adj - "V @ H'_diag" - "V @ H'_diag".adj)
 
     with "W":
@@ -35,11 +32,16 @@ def main():
         if offdiagonal:
             zero if n_blocks == 2 else "U'† @ U'" / -2
 
+    # We can choose to query either lower or upper block of Y since it is
+    # Hermitian. The choice for lower block is optimal for querying H_AA and
+    # upper for H_BB. We choose the lower because we follow the convention that
+    # H_AA is more important. We enforce this by using the implementation
+    # detail that hermitian matrices only compute their own upper blocks.
     with "Yadj":
         start = 0
         hermitian
         if offdiagonal:
-            "Xadj" if n_blocks == 2 else ("Xadj".adj + "Xadj") / 2
+            "X".adj if n_blocks == 2 else ("X".adj + "X") / 2
 
     with "U'":
         start = 0
@@ -56,9 +58,9 @@ def main():
         start = 1
         "U'†"
 
-    with "Xadj":
+    with "X":
         start = 0
-        "B".adj + "H'_offdiag".adj + "H'_offdiag @ U'".adj
+        "B" + "H'_offdiag" + "H'_offdiag @ U'"
 
     with "B":
         start = 0

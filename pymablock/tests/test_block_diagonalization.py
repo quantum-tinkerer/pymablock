@@ -1307,7 +1307,7 @@ def test_delete_intermediate_terms():
     # Manual result of terms to delete
     to_delete = {
         "U'† @ U'": [(0, 0), (1, 1)],
-        "Xadj": [(1, 0)],
+        "X": [(0, 1)],
         "H'_diag @ U'": [(0, 1), (1, 0)],
         "H'_offdiag @ U'": [(0, 1)],
         "U'† @ B": [(0, 1), (1, 0)],
