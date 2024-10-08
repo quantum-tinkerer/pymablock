@@ -1299,7 +1299,7 @@ def test_delete_intermediate_terms():
     max_order = 10
     series, linear_operator_series = _compile(
         {"H": H},
-        scope={"solve_sylvester": (lambda x, _: x)},
+        scope={"solve_sylvester": (lambda x, _: x), "n_blocks": 2},
         operator=operator.mul,
         return_all=True,
     )
@@ -1308,7 +1308,7 @@ def test_delete_intermediate_terms():
     # Manual result of terms to delete
     to_delete = {
         "U'† @ U'": [(0, 0), (1, 1)],
-        "X": [(0, 1)],
+        "Xadj": [(1, 0)],
         "H'_diag @ U'": [(0, 1), (1, 0)],
         "H'_offdiag @ U'": [(0, 1)],
         "U'† @ B": [(0, 1), (1, 0)],

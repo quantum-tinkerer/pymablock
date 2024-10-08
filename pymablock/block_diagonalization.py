@@ -254,6 +254,7 @@ def block_diagonalize(
         scope={
             "solve_sylvester": solve_sylvester,
             "use_linear_operator": use_linear_operator,
+            "n_blocks": H.shape[0],
         },
         operator=operator,
         algorithm=algorithm,

@@ -25,18 +25,21 @@ def main():
             # We can choose to query either "X" or "X".adj since X is Hermitian.
             # The choice for "X".adj is optimal for querying H_AA and "X" for H_BB.
             # We choose "X".adj because we follow the convention that H_AA is more important.
-            -solve_sylvester("Y" - "V @ H'_diag" - "V @ H'_diag".adj)
+            -solve_sylvester("Yadj".adj - "V @ H'_diag" - "V @ H'_diag".adj)
 
     with "W":
         start = 0
         hermitian
-        "U'† @ U'" / -2
+        if diagonal:
+            "U'† @ U'" / -2
+        if offdiagonal:
+            zero if n_blocks == 2 else "U'† @ U'" / -2
 
-    with "Y":
+    with "Yadj":
         start = 0
         hermitian
         if offdiagonal:
-            ("X" + "X".adj) / 2
+            "Xadj" if n_blocks == 2 else ("Xadj".adj + "Xadj") / 2
 
     with "U'":
         start = 0
@@ -53,9 +56,9 @@ def main():
         start = 1
         "U'†"
 
-    with "X":
+    with "Xadj":
         start = 0
-        "B" + "H'_offdiag" + "H'_offdiag @ U'"
+        "B".adj + "H'_offdiag".adj + "H'_offdiag @ U'".adj
 
     with "B":
         start = 0
