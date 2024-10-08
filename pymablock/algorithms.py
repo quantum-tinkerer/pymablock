@@ -35,7 +35,8 @@ def main():
     with "Y":
         start = 0
         hermitian
-        ("X" + "X".adj) / 2
+        if offdiagonal:
+            ("X" + "X".adj) / 2
 
     with "U'":
         start = 0
@@ -46,10 +47,7 @@ def main():
         "U'"
 
     with "U'†":
-        if diagonal:
-            "U'"
-        if offdiagonal:
-            -"U'"
+        "W" - "V"
 
     with "U†":
         start = 1
