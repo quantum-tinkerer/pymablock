@@ -11,7 +11,6 @@ from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
-from pymablock.algorithms import hermitian_antihermitian
 from pymablock.block_diagonalization import (
     _compile,
     _dict_to_BlockSeries,
@@ -1320,13 +1319,6 @@ def test_delete_intermediate_terms():
             for order in range(1, max_order):
                 for index in indices:
                     assert (*index, order) not in which[term]._data
-
-
-def test_two_vs_multiblock(H, wanted_orders):
-    H_tilde, *_ = block_diagonalize(H)
-    H_tilde_multiblock, *_ = block_diagonalize(H, algorithm=hermitian_antihermitian)
-
-    compare_series(H_tilde, H_tilde_multiblock, wanted_orders, atol=1e-8)
 
 
 def test_three_blocks():
