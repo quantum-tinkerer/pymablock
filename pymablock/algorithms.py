@@ -36,7 +36,8 @@ def main():
     # Hermitian. The choice for lower block is optimal for querying H_AA and
     # upper for H_BB. We choose the lower because we follow the convention that
     # H_AA is more important. We enforce this by using the implementation
-    # detail that hermitian matrices only compute their own upper blocks.
+    # detail that hermitian matrices only compute their own upper blocks and
+    # use conjugate to get the lower.
     with "Yadj":
         start = 0
         hermitian

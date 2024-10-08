@@ -149,7 +149,7 @@ class _HermitianTransformer(ast.NodeTransformer):
     def visit_Expr(self, node: ast.Expr) -> ast.AST:
         """Insert a conditional evaluation for hermitian and antihermitian attributes.
 
-        It adds an if statement with `upper` that matches indices in the upper triangle.
+        It adds an if statement with `lower` that matches indices in the lower triangle.
         The evaluation result is either the conjugate adjoint of itself in case of `hermitian`
         or the negation of that in case of `antihermitian`.
         """
@@ -169,7 +169,7 @@ class _HermitianTransformer(ast.NodeTransformer):
                 return self.generic_visit(node)
 
         return ast.If(
-            test=ast.Name(id="upper", ctx=ast.Load()),
+            test=ast.Name(id="lower", ctx=ast.Load()),
             body=[ast.Expr(value=term)],
             orelse=[],
         )
@@ -508,7 +508,7 @@ class _EvalType(Enum):
     default = (None,)
     diagonal = ("index[0] == index[1]",)
     offdiagonal = ("index[0] != index[1]",)
-    upper = ("index[0] > index[1]",)
+    lower = ("index[0] > index[1]",)
 
 
 def _preprocess_series(definition: ast.With) -> _Series:
@@ -576,7 +576,7 @@ def parse_algorithm(func: callable) -> tuple[list[_Series], list[_Product], list
     - `if <condition>:` to differentiate evaluation based on the requested index. Allowed conditions are:
         - `diagonal`: indices on the main diagonal.
         - `offdiagonal`: indices *not* on the main diagonal.
-        - `upper`: indices in the upper triangle.
+        - `lower`: indices in the lower triangle.
 
     If a name contains an "@" symbol, it is considered a product of the left and right series.
     A product definition allows the following statements:
