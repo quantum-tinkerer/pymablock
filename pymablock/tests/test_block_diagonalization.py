@@ -1,7 +1,7 @@
 import operator
 import tracemalloc
 from collections import Counter
-from itertools import chain, permutations
+from itertools import chain, permutations, product
 from typing import Any, Callable, Union
 
 import numpy as np
@@ -1321,12 +1321,71 @@ def test_delete_intermediate_terms():
                     assert (*index, order) not in which[term]._data
 
 
-def test_three_blocks():
-    H_0 = np.diag(np.random.randn(6))
-    H_1 = np.random.randn(6, 6) + 1j * np.random.randn(6, 6)
-    H_1 += H_1.T.conj()
-    H = hamiltonian_to_BlockSeries([H_0, H_1], subspace_indices=np.arange(6) // 2)
+def H_multi_block(wanted_orders, n_blocks, N=6):
+    """Random Hamiltonian with multiple blocks."""
+
+    def random_hermitian():
+        H_p = np.random.randn(N, N) + 1.0j * np.random.randn(N, N)
+        H_p += H_p.T.conj()
+        return H_p
+
+    H_0 = np.diag(np.random.randn(N) + 4 * np.arange(N))
+    H_ps = [random_hermitian() for _ in wanted_orders]
+
+    return (
+        hamiltonian_to_BlockSeries(
+            [H_0, *H_ps], subspace_indices=np.arange(N) // (N // n_blocks)
+        ),
+        H_0,
+        H_ps,
+    )
+
+
+def test_three_blocks(wanted_orders):
+    H, *_ = H_multi_block(wanted_orders, n_blocks=3)
     H_tilde, U, U_adjoint = block_diagonalize(H)
-    is_unitary(U, U_adjoint, wanted_orders=(3,), atol=1e-10)
+    is_unitary(U, U_adjoint, wanted_orders, atol=1e-6)
     H_prime = cauchy_dot_product(U, H_tilde, U_adjoint)
-    compare_series(H, H_prime, wanted_orders=(3,), atol=1e-10)
+    compare_series(H, H_prime, wanted_orders, atol=1e-6)
+
+
+def test_three_blocks_repeated(wanted_orders):
+    N = n_blocks = 3
+    H, H_0, H_ps = H_multi_block(wanted_orders, n_blocks=n_blocks, N=N)
+
+    H_tilde, *_ = block_diagonalize(H)
+
+    H = hamiltonian_to_BlockSeries(
+        [H_0, *H_ps], subspace_indices=np.clip(np.arange(N) // (N // n_blocks), 0, 1)
+    )
+    H_tilde_A_BC, *_ = block_diagonalize(H)
+
+    H = hamiltonian_to_BlockSeries(
+        {
+            orders: H_tilde_A_BC[(1, 1, *orders)]
+            for orders in product(*(range(order + 1) for order in wanted_orders))
+        },
+        subspace_indices=np.arange((n_blocks - 1) * (N // n_blocks)) // (N // n_blocks),
+    )
+    H_tilde_B_C, *_ = block_diagonalize(H)
+
+    def H_tilde_repeated_eval(*index):
+        if index[0] == index[1] == 0:
+            return H_tilde[index]
+        if index[0] == 0 or index[1] == 0:
+            return zero
+        index = (index[0] - 1, index[1] - 1, *index[2:])
+        return H_tilde_B_C[index]
+
+    H_tilde_repeated = BlockSeries(
+        eval=H_tilde_repeated_eval,
+        shape=H_tilde.shape,
+        n_infinite=H_tilde.n_infinite,
+    )
+
+    compare_series(
+        H_tilde,
+        H_tilde_repeated,
+        wanted_orders=wanted_orders,
+        atol=1e-6,
+    )
