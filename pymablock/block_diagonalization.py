@@ -46,6 +46,7 @@ def block_diagonalize(
     solver_options: Optional[dict] = None,
     symbols: Optional[Union[sympy.Symbol, Sequence[sympy.Symbol]]] = None,
     atol: float = 1e-12,
+    offdiag: Optional[Callable] = None,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -136,6 +137,9 @@ def block_diagonalize(
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used
         to validate that the unperturbed Hamiltonian is block-diagonal.
+    offdiag :
+        Function to extract the off-diagonal part of a diagonal block of a
+        series. If None, the off-diagonal part is set to zero.
 
     Returns
     -------
@@ -209,15 +213,19 @@ def block_diagonalize(
         atol=atol,
     )
 
-    if H[(0, 1) + (0,) * H.n_infinite] is not zero:
-        raise ValueError(
-            "The off-diagonal elements of the unperturbed Hamiltonian must be zero."
-        )
+    for j in range(1, H.shape[0]):
+        for i in range(j):
+            if H[(i, j) + (0,) * H.n_infinite] is not zero:
+                raise ValueError(
+                    "The off-diagonal elements of the unperturbed Hamiltonian must be zero."
+                )
 
     # Determine operator to use for multiplication. We prefer matmul, and use mul if
     # matmul is not available.
     H_0_diag = [
-        block for i in range(2) if (block := H[(i, i) + (0,) * H.n_infinite]) is not zero
+        block
+        for i in range(H.shape[0])
+        if (block := H[(i, i) + (0,) * H.n_infinite]) is not zero
     ]
     if not H_0_diag:
         raise ValueError("Both blocks of the unperturbed Hamiltonian should not be zero.")
@@ -234,8 +242,8 @@ def block_diagonalize(
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
-    if isinstance(H[(1, 1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator):
-        use_linear_operator[1, 1] = True
+    if isinstance(H[(-1, -1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator):
+        use_linear_operator[-1, -1] = True
 
     if np.any(use_linear_operator) and operator is not matmul:
         raise ValueError("Implicit mode requires matmul operator.")
@@ -244,12 +252,27 @@ def block_diagonalize(
     if len(signature(solve_sylvester).parameters) == 1:
         solve_sylvester = _preprocess_sylvester(solve_sylvester)
 
+    if offdiag is None:
+
+        def diag(x, index):
+            return x[index] if isinstance(x, BlockSeries) else x
+    else:
+
+        def diag(x, index):
+            if x is zero:
+                return zero
+            offdiag_part = offdiag(x, index)
+            x = x[index] if isinstance(x, BlockSeries) else x
+            return x - offdiag_part
+
     return _compile(
         {"H": H},
         scope={
             "solve_sylvester": solve_sylvester,
             "use_linear_operator": use_linear_operator,
             "n_blocks": H.shape[0],
+            "offdiag": offdiag,
+            "diag": diag,
         },
         operator=operator,
     )
@@ -414,7 +437,11 @@ def hamiltonian_to_BlockSeries(
             subspace_indices, symbolic=symbolic
         )
     subspace_eigenvectors = tuple(subspace_eigenvectors)
-    if len(subspace_eigenvectors) == 1:
+    if (
+        len(subspace_eigenvectors) == 1
+        and subspace_eigenvectors[0].shape[0] != subspace_eigenvectors[0].shape[1]
+    ):
+        # Implicit mode with incomplete subspace
         dim = subspace_eigenvectors[0].shape[0]
         subspace_eigenvectors = (subspace_eigenvectors[0], np.zeros((dim, 0)))
     if implicit:
@@ -617,6 +644,7 @@ def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
 def solve_sylvester_diagonal(
     eigs: tuple[Union[np.ndarray, sympy.matrices.MatrixBase], ...],
     vecs_B: Optional[np.ndarray] = None,
+    atol: float = 1e-12,
 ) -> Callable:
     """Define a function for solving a Sylvester's equation for diagonal matrices.
 
@@ -630,6 +658,8 @@ def solve_sylvester_diagonal(
     vecs_B :
         Eigenvectors of the auxiliary (B) subspace of the
         unperturbed Hamiltonian.
+    atol :
+        Absolute tolerance to consider energy differences as exact zeros.
 
     Returns
     -------
@@ -646,12 +676,16 @@ def solve_sylvester_diagonal(
             return zero
 
         eigs_A, eigs_B = eigs[index[0]], eigs[index[1]]
-        if vecs_B is not None and index[1] == len(eigs) - 1:
-            # Needed for implicit mode
+        if vecs_B is not None and index[:2] == (len(eigs) - 2, len(eigs) - 1):
+            # Needed for implicit mode with KPM
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
             return ((Y @ vecs_B) * energy_denominators) @ Dagger(vecs_B)
         if isinstance(Y, np.ndarray):
-            energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
+            energy_differences = eigs_A.reshape(-1, 1) - eigs_B
+            with np.errstate(divide="ignore", invalid="ignore"):
+                energy_denominators = np.where(
+                    np.abs(energy_differences) > atol, 1 / energy_differences, 0
+                )
             return Y * energy_denominators
         if sparse.issparse(Y):
             Y_coo = Y.tocoo()
@@ -1045,8 +1079,10 @@ def _extract_diagonal(
         diags.append(eigs)
 
     compare = np.equal if is_sympy else np.isclose
-    if np.any(compare(diags[0].reshape(-1, 1), diags[1].reshape(1, -1))):
-        raise ValueError("The subspaces must not share eigenvalues.")
+    for j in range(1, len(diags)):
+        for i in range(j):
+            if np.any(compare(diags[i].reshape(-1, 1), diags[j].reshape(1, -1))):
+                raise ValueError("The subspaces must not share eigenvalues.")
 
     return tuple(diags)
 

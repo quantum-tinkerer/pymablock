@@ -1298,7 +1298,12 @@ def test_delete_intermediate_terms():
     max_order = 10
     series, linear_operator_series = _compile(
         {"H": H},
-        scope={"solve_sylvester": (lambda x, _: x), "n_blocks": 2},
+        scope={
+            "solve_sylvester": (lambda x, _: x),
+            "n_blocks": 2,
+            "offdiag": None,
+            "diag": (lambda x, index: x[index] if isinstance(x, BlockSeries) else x),
+        },
         operator=operator.mul,
         return_all=True,
     )
@@ -1388,4 +1393,28 @@ def test_three_blocks_repeated(wanted_orders):
         H_tilde_repeated,
         wanted_orders=wanted_orders,
         atol=1e-6,
+    )
+
+
+def test_one_block_vs_multiblock():
+    H = np.diag(np.arange(6))
+    H_1 = np.random.randn(6, 6) + 1.0j * np.random.randn(6, 6)
+    H_1 += H_1.T.conj()
+    # First, multiblock
+    H_tilde, *_ = block_diagonalize([H, H_1], subspace_indices=np.arange(6))
+
+    # Then, a single block!!!
+    def offdiag(value, index):
+        if isinstance(value, BlockSeries):
+            value = value[index]
+        if value is zero:
+            return value
+        return value - np.diag(np.diag(value))
+
+    H_tilde_single, *_ = block_diagonalize(
+        [H, H_1], subspace_indices=6 * [0], offdiag=offdiag
+    )
+
+    np.testing.assert_allclose(
+        [H_tilde[i, i, 3][0, 0] for i in range(6)], np.diag(H_tilde_single[0, 0, 3])
     )

@@ -8,21 +8,40 @@
 
 
 def main():
+    # We use a notion of diagonal/offdiagonal that may not fully coincide with
+    # the block structure. For that if the user provides a function for
+    # `offdiag` in the scope, it may take a diagonal block of a series and
+    # return its offdiagonal part. Similarly, the function `diag` (always
+    # defined) takes a diagonal block and returns its diagonal part.
+    #
+    # To understand the algorithm faster by skipping boilerplate, look only at
+    # the "if offdiag is None" branches.
     with "H'_diag":
         start = 0
         if diagonal:
-            "H"
+            diag("H")
 
     with "H'_offdiag":
         start = 0
         if offdiagonal:
             "H"
+        if diagonal:
+            zero if offdiag is None else offdiag("H")
 
     with "V":
         start = 0
         antihermitian
         if offdiagonal:
             -solve_sylvester("Yadj".adj - "V @ H'_diag" - "V @ H'_diag".adj)
+        if diagonal:
+            # If the user needs to deal with diagonal blocks, it is their responsibility
+            # to ensure that solve_sylvester properly discards the diagonal part.
+            #
+            # For now this is a workaround because the parser does not handle nested functions
+            # in the DSL and we'd need `solve_sylvester(offdiag(...))`.
+            zero if offdiag is None else -solve_sylvester(
+                "Yadj".adj - "V @ H'_diag" - "V @ H'_diag".adj
+            )
 
     with "W":
         start = 0
@@ -43,6 +62,8 @@ def main():
         hermitian
         if offdiagonal:
             "X".adj if n_blocks == 2 else ("X".adj + "X") / 2
+        if diagonal:
+            zero if offdiag is None else offdiag("X".adj + "X") / 2
 
     with "U'":
         start = 0
@@ -66,7 +87,21 @@ def main():
     with "B":
         start = 0
         if diagonal:
-            ("U'† @ B" - "U'† @ B".adj + "H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / -2
+            (
+                ("U'† @ B" - "U'† @ B".adj + "H'_offdiag @ U'" + "H'_offdiag @ U'".adj)
+                / -2
+                if offdiag is None
+                else (
+                    -offdiag("U'† @ B")
+                    + diag(
+                        "U'† @ B"
+                        - "U'† @ B".adj
+                        + "H'_offdiag @ U'"
+                        + "H'_offdiag @ U'".adj
+                    )
+                    / -2
+                )
+            )
 
         if offdiagonal:
             -"U'† @ B"
@@ -74,7 +109,7 @@ def main():
     with "H_tilde":
         start = "H_0"
         if diagonal:
-            (
+            diag(
                 "H'_diag"
                 + ("H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / 2
                 + ("U'† @ B" + "U'† @ B".adj) / -2
