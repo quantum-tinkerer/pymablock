@@ -107,20 +107,16 @@ def block_diagonalize(
         A function that solves the Sylvester equation. If not provided,
         it is selected automatically based on the inputs.
     subspace_eigenvectors :
-        A tuple with orthonormal eigenvectors to project the Hamiltonian in
-        and separate it into the A (effective) and B (auxiliary) blocks.
-        The first element of the tuple has the eigenvectors of the A
-        subspace, and the second element has the eigenvectors of the B subspace.
-        If None, the unperturbed Hamiltonian must be block diagonal.
-        For implicit, the (partial) auxiliary subspace may be missing or
-        incomplete.
-        Mutually exclusive with ``subspace_indices``.
+        A tuple with orthonormal eigenvectors to project the Hamiltonian in and
+        separate it into blocks. If None, the unperturbed Hamiltonian must be
+        block diagonal. If some vectors are missing, the implicit method is
+        used. Mutually exclusive with ``subspace_indices``.
     subspace_indices :
-        An array indicating which basis vector belongs to which subspace. The
-        labels are 0 for the A (effective) subspace and 1 for the B (auxiliary)
-        subspace.
-        Only applicable if the unperturbed Hamiltonian is diagonal.
-        Mutually exclusive with ``subspace_eigenvectors``.
+        An array indicating which state belongs to which subspace. If there are
+        two blocks, the labels are 0 for the A (effective) subspace and 1 for
+        the B (auxiliary) subspace. Only applicable if the unperturbed
+        Hamiltonian is diagonal. Mutually exclusive with
+        ``subspace_eigenvectors``.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
         See docstrings of `~pymablock.block_diagonalization.solve_sylvester_KPM`
