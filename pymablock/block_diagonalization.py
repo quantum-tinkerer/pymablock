@@ -231,7 +231,7 @@ def block_diagonalize(
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None:
-        solve_sylvester = solve_sylvester_diagonal(_extract_diagonal(H, atol))
+        solve_sylvester = solve_sylvester_diagonal(_extract_diagonal(H, atol), atol=atol)
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
@@ -770,7 +770,9 @@ def solve_sylvester_KPM(
         )
 
     vecs_B = subspace_eigenvectors[-1]
-    solve_sylvester_explicit = solve_sylvester_diagonal(eigs, vecs_B)
+    solve_sylvester_explicit = solve_sylvester_diagonal(
+        eigs, vecs_B, atol=solver_options.get("atol")
+    )
 
     def solve_sylvester(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
         if Y is zero:
@@ -819,7 +821,7 @@ def solve_sylvester_direct(
         for subspace_eigenvalues in eigenvalues
     ]
 
-    explicit_part = solve_sylvester_diagonal(eigenvalues)
+    explicit_part = solve_sylvester_diagonal(eigenvalues, atol=solver_options.get("atol"))
 
     def solve_sylvester(Y: np.ndarray, index: tuple[int, ...]) -> np.ndarray:
         if Y is zero:
