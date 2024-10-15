@@ -168,6 +168,7 @@ $$
 \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U},
 $$
 where we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = \mathcal{H}_D + \mathcal{H}'_{O}$, since $H_0$ is block-diagonal by definition.
+Here and later we use subscript $O$ to denote off-diagonal blocks and $D$ to denote diagonal blocks.
 
 Because we want to avoid unnecessary products by $\mathcal{H}_D$, we need to get rid of the terms that contain it by replacing them with an alternative expression.
 Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can compute without ever multiplying by $\mathcal{H}_D$.
@@ -182,7 +183,7 @@ To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commu
 \mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_D] = -\mathcal{Z}^\dagger,
 :::
 
-where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block diagonal.
+where $\mathcal{Y}$ is therefore block off-diagonal, while $\mathcal{Z}$ block diagonal in the 2-block case only.
 We use $\mathcal{H}_D \mathcal{U}' = \mathcal{U}' \mathcal{H}_D -\mathcal{X}$ to move $\mathcal{H}_D$ through
 to the right and find
 
@@ -231,12 +232,12 @@ This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' = -\m
 Similar to computing $W_\mathbf{n}$, computing $Z_\mathbf{n}$ requires lower orders of $\mathcal{X}$ and $\mathcal{U}'$, all blocks included.
 *This is our second secret ingredient✨*
 
-Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}^{AB} = 0$ and find
+Then, we compute $\mathcal{Y}$ (the Hermitian part of $\mathcal{X}$) by requiring that $\tilde{\mathcal{H}}_{O} = 0$ and find
 
 :::{math}
 :label: Y
-\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} -
-\mathcal{U}'^\dagger \mathcal{X})^{AB}.
+\mathcal{Y}_{O} = (\mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} -
+\mathcal{U}'^\dagger \mathcal{X} - \mathcal{Z})_{O}.
 :::
 
 Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack 0-th order, this defines a recursive relation for $\mathcal{X}^{AB}$, and therefore $\mathcal{Y}$.
@@ -246,7 +247,7 @@ The final part is straightforward: the definition of $\mathcal{Y}$ in {eq}`XYZ` 
 
 :::{math}
 :label: sylvester
-\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{V}, \mathcal{H}'_D]^{AB},
+[\mathcal{V}, H_0] = \mathcal{Y} - [\mathcal{V}, \mathcal{H}'_D],
 :::
 
 a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation), which we only need to solve once for every new order.
@@ -296,13 +297,13 @@ Using this definition, we first express the off-diagonal blocks of $\mathcal{B}$
 
 $$
 \toggle{
-  \mathcal{B}^{AB, BA} = \texttip{\color{red}{\ldots}}{click to expand} = -(\mathcal{U'}^\dagger \mathcal{B})^{AB, BA},
+  \mathcal{B}_{O} = \texttip{\color{red}{\ldots}}{click to expand} = -(\mathcal{U'}^\dagger \mathcal{B})_{O},
 }{
   \begin{align*}
-  \mathcal{B}^{AB, BA} &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A} \right]^{AB, BA}\\
-  &= \left[\mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB, BA}\\
-  &= \left[\mathcal{U}'^\dagger\mathcal{H}'_{O} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB, BA}\\
-  &= -(\mathcal{U'}^\dagger \mathcal{B})^{AB, BA},
+  \mathcal{B}_{O} &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A} \right]_{O}\\
+  &= \left[\mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]_{O}\\
+  &= \left[\mathcal{U}'^\dagger\mathcal{H}'_{O} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]_{O}\\
+  &= -(\mathcal{U'}^\dagger \mathcal{B})_{O},
   \end{align*}
 }
 \endtoggle
@@ -313,13 +314,13 @@ Its diagonal blocks, on the other hand, are given by
 
 $$
 \toggle{
-  \mathcal{B}^{AA, BB} = \texttip{\color{red}{\ldots}}{click to expand} = \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]^{AA, BB},
+  \mathcal{B}_{D} = \texttip{\color{red}{\ldots}}{click to expand} = \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]_{D},
 }{
 \begin{align*}
-  \mathcal{B}^{AA, BB} &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}\right]^{AA, BB} \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{A}\right]^{AA, BB} \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]^{AA, BB}, \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]^{AA, BB},
+  \mathcal{B}_{D} &= \left[\mathcal{Y} + \mathcal{Z} - \mathcal{H}'_{O} - \mathcal{A}\right]_{D} \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{A}\right]_{D} \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]_{D}, \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]_{D},
   \end{align*}
 }
 \endtoggle
