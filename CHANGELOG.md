@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Generalized the algorithm to support an arbitrary number of blocks. To specify multiple blocks, provide either a list with eigenvectors of each block in `subspace_eigenvectors`, or a list marking to which block each basis state belongs in `subspace_indices`.
+
 ### Changed
 
 - Auxiliary vectors for the implicit KPM solver should now be passed using `solver_options["aux_vectors"]` rather than as the last entry in `subspace_eigenvectors`.
