@@ -845,11 +845,9 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     )
 
     diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
-    kpm = solve_sylvester_KPM(
-        h, [eigvecs, np.zeros((h.shape[0], 0))], solver_options={"atol": 1e-3}
-    )
+    kpm = solve_sylvester_KPM(h, [eigvecs], solver_options={"atol": 1e-3})
     hybrid = solve_sylvester_KPM(
-        h, [eigvecs, eigvecs_partial], solver_options={"atol": 1e-3}
+        h, [eigvecs], solver_options={"atol": 1e-3, "aux_vectors": eigvecs_partial}
     )
 
     y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
@@ -877,7 +875,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
     """
     hamiltonian, subspace_eigenvectors = implicit_problem
     H = hamiltonian_to_BlockSeries(
-        hamiltonian, subspace_eigenvectors=subspace_eigenvectors, implicit=True
+        hamiltonian, subspace_eigenvectors=subspace_eigenvectors[:-1], implicit=True
     )
     assert H.shape == (2, 2)
     assert H.n_infinite == len(hamiltonian) - 1

@@ -160,8 +160,6 @@ def block_diagonalize(
         use_implicit = num_vectors < dim
 
     if use_implicit:
-        if len(subspace_eigenvectors) == 1:
-            subspace_eigenvectors = (subspace_eigenvectors[0], np.zeros((dim, 0)))
         assert subspace_eigenvectors is not None  # for mypy
         # Build solve_sylvester
         if isinstance(hamiltonian, list):
@@ -189,8 +187,7 @@ def block_diagonalize(
             if direct_solver:
                 solve_sylvester = solve_sylvester_direct(
                     h_0,
-                    # TODO: this is for backwards compatibility, remove in the future
-                    subspace_eigenvectors[:-1],
+                    subspace_eigenvectors,
                 )
             else:
                 solve_sylvester = solve_sylvester_KPM(
@@ -329,8 +326,8 @@ def hamiltonian_to_BlockSeries(
         separate it into blocks. In the case of 2 blocks the first element of the
         tuple has the eigenvectors of the A (effective) subspace, and the
         second element has the eigenvectors of the B (auxiliary) subspace. If
-        None, the unperturbed Hamiltonian must be block diagonal. For implicit,
-        the (partial) auxiliary subspace may be missing or incomplete. Mutually
+        None, the unperturbed Hamiltonian must be block diagonal. If some
+        vectors are missing, the last block is defined implicitly. Mutually
         exclusive with ``subspace_indices``.
     subspace_indices :
         An array indicating which basis vector belongs to which subspace. In
@@ -433,17 +430,11 @@ def hamiltonian_to_BlockSeries(
             subspace_indices, symbolic=symbolic
         )
     subspace_eigenvectors = tuple(subspace_eigenvectors)
-    if (
-        len(subspace_eigenvectors) == 1
-        and subspace_eigenvectors[0].shape[0] != subspace_eigenvectors[0].shape[1]
-    ):
-        # Implicit mode with incomplete subspace
-        dim = subspace_eigenvectors[0].shape[0]
-        subspace_eigenvectors = (subspace_eigenvectors[0], np.zeros((dim, 0)))
     if implicit:
         # Define subspace_eigenvectors for implicit
-        subspace_eigenvectors = subspace_eigenvectors[:-1] + (
-            ComplementProjector(np.hstack(subspace_eigenvectors[:-1])),
+        subspace_eigenvectors = (
+            *subspace_eigenvectors,
+            ComplementProjector(np.hstack(subspace_eigenvectors)),
         )
 
     # Separation into subspace_eigenvectors
@@ -719,9 +710,7 @@ def solve_sylvester_KPM(
         Unperturbed Hamiltonian of the system.
     subspace_eigenvectors :
         Subspaces to project the unperturbed Hamiltonian and separate it into
-        blocks. All but last elements of the tuple contain the effective
-        subspace, and the last element contains the (partial) auxiliary
-        subspace.
+        blocks.
     solver_options :
         Dictionary containing any of the following options for KPM.
 
@@ -731,6 +720,9 @@ def solve_sylvester_KPM(
             Accepted precision of the Green's function result in 2-norm.
         - max_moments: int
             Maximum number of expansion moments of the Green's function.
+        - auxiliary_vectors: np.ndarray
+            Partial set of eigenvectors of the auxiliary subspace, used to speed up
+            convergence of the KPM solver.
 
     Returns
     -------
@@ -739,13 +731,15 @@ def solve_sylvester_KPM(
         Sylvester's equation.
 
     """
+    if solver_options is None:
+        solver_options = {}
+
+    aux_vectors = solver_options.get("auxiliary_vectors", np.zeros((h_0.shape[0], 0)))
+    subspace_eigenvectors = (*subspace_eigenvectors, aux_vectors)
     eigs = [
         (Dagger(eigenvectors) @ h_0 @ eigenvectors).diagonal()
         for eigenvectors in subspace_eigenvectors
     ]
-
-    if solver_options is None:
-        solver_options = {}
 
     kpm_projector = ComplementProjector(np.hstack(subspace_eigenvectors))
     # Prepare the Hamiltonian for KPM by rescaling to [-1, 1]

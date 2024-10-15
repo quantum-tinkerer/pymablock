@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Auxiliary vectors for the implicit KPM solver should now be passed using `solver_options["aux_vectors"]` rather than as the last entry in `subspace_eigenvectors`.
+
 ### Improved
 
 - Further reduced the number of matrix products by around 30% for high orders and down to a guaranteed minimum for 3rd order.
