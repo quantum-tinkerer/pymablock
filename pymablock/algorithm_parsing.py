@@ -11,6 +11,7 @@ from functools import cache
 from itertools import chain
 
 zero = ast.Name(id="zero", ctx=ast.Load())
+result = ast.Name(id="result", ctx=ast.Load())
 
 
 @dataclasses.dataclass
@@ -47,7 +48,7 @@ class _EvalTransformer(ast.NodeTransformer):
         linear_operator_select = ast.parse(
             "which = linear_operator_series if use_linear_operator[index[:2]] else series"
         ).body
-        return_zero = ast.Return(value=zero)
+        result_is_zero = ast.parse("result = zero").body
 
         module = ast.Module(
             body=[
@@ -63,13 +64,14 @@ class _EvalTransformer(ast.NodeTransformer):
                     ),
                     body=[
                         *linear_operator_select,
+                        *result_is_zero,
                         *(
                             line
                             for expr in node.body
                             for line in self._visit_Line(expr)
                             if line is not None
                         ),
-                        return_zero,
+                        ast.Return(value=result),
                     ],
                     decorator_list=[],
                 )
@@ -94,8 +96,44 @@ class _EvalTransformer(ast.NodeTransformer):
             if eval_type is None:
                 return node
             node.test = eval_type.test
-            node.body = self._visit_Eval(node.body[0], eval_type)
-            return [node]
+            # The diagonal blocks are wrapped inside `diag`
+            if eval_type == _EvalType.diagonal:
+                node.body[0] = ast.Expr(
+                    ast.Call(
+                        ast.Name(id="diag", ctx=ast.Load()), [node.body[0].value], []
+                    )
+                )
+            nodes = [node]
+            # If an offdiagonal eval is present, we need to evaluate
+            # this wrapped with `offdiag` for diagonal blocks.
+            if eval_type == _EvalType.offdiagonal:
+                nodes.append(
+                    ast.If(
+                        test=ast.BoolOp(
+                            op=ast.And(),
+                            values=[
+                                ast.parse("offdiag is not None").body[0].value,
+                                _EvalType.diagonal.test,
+                            ],
+                        ),
+                        body=[
+                            ast.Expr(
+                                ast.Call(
+                                    ast.Name(id="offdiag", ctx=ast.Load()),
+                                    [node.body[0].value],
+                                    [],
+                                )
+                            )
+                        ],
+                        orelse=[],
+                    )
+                )
+            for node in nodes:
+                node.body = self._visit_Eval(node.body[0], eval_type)
+            if eval_type == _EvalType.lower:
+                nodes[0].body.append(ast.Return(value=result))
+
+            return nodes
 
         return self._visit_Eval(node, _EvalType.default)
 
@@ -115,6 +153,7 @@ class _EvalTransformer(ast.NodeTransformer):
             _LiteralTransformer(diagonal=diagonal),
         ]
         node = node.value  # Get the expression from the Expr node.
+        node = ast.BinOp(left=result, op=ast.Add(), right=node)
         for transformer in eval_transformers:
             node = transformer.visit(node)
         return [
@@ -136,7 +175,6 @@ class _EvalTransformer(ast.NodeTransformer):
                 for term, adjoint, _eval_type in self.to_delete
                 if _eval_type == eval_type
             ),
-            ast.Return(value=ast.Name(id="result", ctx=ast.Load())),
         ]
 
 

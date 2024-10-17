@@ -1307,7 +1307,7 @@ def test_delete_intermediate_terms():
         {"H": H},
         scope={
             "solve_sylvester": (lambda x, _: x),
-            "n_blocks": 2,
+            "two_block_optimized": True,
             "offdiag": None,
             "diag": (lambda x, index: x[index] if isinstance(x, BlockSeries) else x),
         },

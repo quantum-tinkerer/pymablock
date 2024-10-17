@@ -311,7 +311,7 @@ def block_diagonalize(
         scope={
             "solve_sylvester": solve_sylvester,
             "use_linear_operator": use_linear_operator,
-            "n_blocks": H.shape[0],
+            "two_block_optimized": H.shape[0] == 2 and not fully_diagonalize,
             "offdiag": offdiag,
             "diag": diag,
         },
