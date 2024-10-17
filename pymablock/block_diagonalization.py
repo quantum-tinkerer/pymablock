@@ -50,8 +50,11 @@ def block_diagonalize(
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
-    This uses quasi-degenerate perturbation theory known as Lowdin perturbation
-    theory, Schrieffer-Wolff transformation, or van Vleck transformation.
+    This uses a generalization of quasi-degenerate perturbation theory known as
+    Lowdin perturbation theory, Schrieffer-Wolff transformation, or van Vleck
+    transformation to the case of multiple blocks. Some blocks of the resulting
+    Hamiltonian can be fully diagonalized, reproducing the usual
+    Rayleigh-Schrodinger perturbation theory.
 
     This function does not yet perform the computation. Instead, it defines the
     computation as a `~pymablock.series.BlockSeries` object, which can be
