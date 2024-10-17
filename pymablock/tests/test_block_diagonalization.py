@@ -1331,8 +1331,8 @@ def test_delete_intermediate_terms():
                     assert (*index, order) not in which[term]._data
 
 
-def H_multi_block(wanted_orders, n_blocks, N=6):
-    """Random Hamiltonian with multiple blocks."""
+def H_list(wanted_orders, N):
+    """Random Hamiltonian of a given size."""
 
     def random_hermitian():
         H_p = np.random.randn(N, N) + 1.0j * np.random.randn(N, N)
@@ -1342,17 +1342,13 @@ def H_multi_block(wanted_orders, n_blocks, N=6):
     H_0 = np.diag(np.random.randn(N) + 4 * np.arange(N))
     H_ps = [random_hermitian() for _ in wanted_orders]
 
-    return (
-        hamiltonian_to_BlockSeries(
-            [H_0, *H_ps], subspace_indices=np.arange(N) // (N // n_blocks)
-        ),
-        H_0,
-        H_ps,
-    )
+    return H_0, H_ps
 
 
 def test_three_blocks(wanted_orders):
-    H, *_ = H_multi_block(wanted_orders, n_blocks=3)
+    N = 6
+    H_0, H_ps = H_list(wanted_orders, N)
+    H = hamiltonian_to_BlockSeries([H_0, *H_ps], subspace_indices=np.arange(N) // 2)
     H_tilde, U, U_adjoint = block_diagonalize(H)
     is_unitary(U, U_adjoint, wanted_orders, atol=1e-6)
     H_prime = cauchy_dot_product(U, H_tilde, U_adjoint)
@@ -1360,13 +1356,13 @@ def test_three_blocks(wanted_orders):
 
 
 def test_three_blocks_repeated(wanted_orders):
-    N = n_blocks = 3
-    H, H_0, H_ps = H_multi_block(wanted_orders, n_blocks=n_blocks, N=N)
+    N = 3
+    H_0, H_ps = H_list(wanted_orders, N=N)
 
-    H_tilde, *_ = block_diagonalize(H)
+    H_tilde, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(N))
 
     H = hamiltonian_to_BlockSeries(
-        [H_0, *H_ps], subspace_indices=np.clip(np.arange(N) // (N // n_blocks), 0, 1)
+        [H_0, *H_ps], subspace_indices=np.clip(np.arange(N), 0, 1)
     )
     H_tilde_A_BC, *_ = block_diagonalize(H)
 
@@ -1375,7 +1371,7 @@ def test_three_blocks_repeated(wanted_orders):
             orders: H_tilde_A_BC[(1, 1, *orders)]
             for orders in product(*(range(order + 1) for order in wanted_orders))
         },
-        subspace_indices=np.arange((n_blocks - 1) * (N // n_blocks)) // (N // n_blocks),
+        subspace_indices=np.arange(N - 1),
     )
     H_tilde_B_C, *_ = block_diagonalize(H)
 
@@ -1401,15 +1397,19 @@ def test_three_blocks_repeated(wanted_orders):
     )
 
 
-def test_one_block_vs_multiblock():
-    H = np.diag(np.arange(6))
-    H_1 = np.random.randn(6, 6) + 1.0j * np.random.randn(6, 6)
-    H_1 += H_1.T.conj()
+def test_one_block_vs_multiblock(wanted_orders):
+    N = 6
+    H_0, H_ps = H_list(wanted_orders, N)
     # First, multiblock
-    H_tilde, *_ = block_diagonalize([H, H_1], subspace_indices=np.arange(6))
+    H_tilde, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(N))
 
-    H_tilde_single, *_ = block_diagonalize([H, H_1])
+    H_tilde_single, *_ = block_diagonalize([H_0, *H_ps])
 
-    np.testing.assert_allclose(
-        [H_tilde[i, i, 3][0, 0] for i in range(6)], np.diag(H_tilde_single[0, 0, 3])
+    H_tilde_split = BlockSeries(
+        eval=lambda *index: np.array(
+            H_tilde_single[(0, 0, *index[2:])][index[:2]].reshape((1, 1))
+        ),
+        shape=(N, N),
+        n_infinite=len(wanted_orders),
     )
+    compare_series(H_tilde, H_tilde_split, wanted_orders, atol=1e-10)
