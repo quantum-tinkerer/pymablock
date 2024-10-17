@@ -67,11 +67,13 @@ def compare_series(
         if any(isinstance(value, type(one)) for value in values):
             assert value1 == value2
         elif all(isinstance(value, sympy.MatrixBase) for value in values):
-            assert value1 == value2
+            assert sympy.simplify(value1 - value2).is_zero_matrix
         elif any(isinstance(value, sympy.MatrixBase) for value in values):
             # The only non-symbolic option is zero
             values.remove(zero)
-            assert values[0].is_zero_matrix
+            values = values[0]
+            values.simplify()
+            assert values.is_zero_matrix
         else:
             # Convert all numeric types to dense arrays
             values = [
@@ -1353,6 +1355,24 @@ def test_three_blocks(wanted_orders):
     is_unitary(U, U_adjoint, wanted_orders, atol=1e-6)
     H_prime = cauchy_dot_product(U, H_tilde, U_adjoint)
     compare_series(H, H_prime, wanted_orders, atol=1e-6)
+
+
+def test_analytic_rayleigh_schrodinger():
+    H_0 = sympy.diag(*[sympy.Symbol(f"H_{i}", real=True) for i in range(3)])
+    H_1 = sympy.Matrix(
+        [
+            [sympy.Symbol(f"H_{sorted([i,j])}", real=True) for i in range(3)]
+            for j in range(3)
+        ]
+    )
+    H = hamiltonian_to_BlockSeries([H_0, H_1])
+    H_tilde, U, U_adjoint = block_diagonalize(H)
+    is_unitary(U, U_adjoint, (3,), atol=1e-6)
+
+    # Only check up to 2nd order for performance reasons
+    compare_series(
+        cauchy_dot_product(U, H_tilde), cauchy_dot_product(H, U), (2,), atol=1e-6
+    )
 
 
 def test_three_blocks_repeated(wanted_orders):

@@ -267,7 +267,26 @@ def block_diagonalize(
             return x[index] if isinstance(x, BlockSeries) else x
     else:
         equal_eigs = {
-            i: np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol
+            i: (
+                np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol
+                if diagonal[i].dtype != object  # numerical array, else sympy
+                else sympy.Matrix(
+                    sympy.S.One
+                    * ((diagonal[i].reshape(-1, 1) - diagonal[i] == 0) == True)  # noqa E712
+                )
+            )
+            for i in set(fully_diagonalize)
+        }
+        # Essentially copy-paste of the above to properly handle sympy values.
+        different_eigs = {
+            i: (
+                np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) >= atol
+                if diagonal[i].dtype != object  # numerical array, else sympy
+                else sympy.Matrix(
+                    sympy.S.One
+                    * ((diagonal[i].reshape(-1, 1) - diagonal[i] == 0) == False)  # noqa E712
+                )
+            )
             for i in set(fully_diagonalize)
         }
 
@@ -275,13 +294,17 @@ def block_diagonalize(
             x = x[index] if isinstance(x, BlockSeries) else x
             if index[0] not in equal_eigs:
                 return x
+            if isinstance(x, sympy.MatrixBase):
+                return x.multiply_elementwise(equal_eigs[index[0]])
             return x * equal_eigs[index[0]]
 
         def offdiag(x, index):
             x = x[index] if isinstance(x, BlockSeries) else x
             if index[0] not in equal_eigs:
                 return zero
-            return x * ~equal_eigs[index[0]]
+            if isinstance(x, sympy.MatrixBase):
+                return x.multiply_elementwise(different_eigs[index[0]])
+            return x * different_eigs[index[0]]
 
     return _compile(
         {"H": H},
@@ -716,7 +739,7 @@ def solve_sylvester_diagonal(
             array_eigs_b = np.array(eigs_B, dtype=object)
             energy_denominators = sympy.Matrix(
                 np.resize(1 / (array_eigs_a.reshape(-1, 1) - array_eigs_b), Y.shape)
-            )
+            ).subs(sympy.zoo, sympy.S.Zero)  # Take care of diagonal elements
             return energy_denominators.multiply_elementwise(Y)
         raise TypeError(f"Unsupported rhs type: {type(Y)}")
 
