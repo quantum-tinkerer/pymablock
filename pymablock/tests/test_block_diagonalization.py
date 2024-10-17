@@ -1413,3 +1413,31 @@ def test_one_block_vs_multiblock(wanted_orders):
         n_infinite=len(wanted_orders),
     )
     compare_series(H_tilde, H_tilde_split, wanted_orders, atol=1e-10)
+
+
+def test_mixed_full_partial(wanted_orders):
+    N = 6
+    H_0, H_ps = H_list(wanted_orders, N)
+    with pytest.raises(ValueError):
+        block_diagonalize(
+            [H_0, *H_ps], subspace_eigenvectors=[np.eye(N)[:, :2]], fully_diagonalize=[1]
+        )
+
+    H_tilde_mixed_implicit, *_ = block_diagonalize(
+        [H_0, *H_ps], subspace_eigenvectors=[np.eye(N)[:, :2]], fully_diagonalize=[0]
+    )
+    H_tilde_mixed, *_ = block_diagonalize(
+        [H_0, *H_ps], subspace_indices=[0] * 2 + [1] * 4, fully_diagonalize=[0]
+    )
+    H_tilde_full, *_ = block_diagonalize([H_0, *H_ps])
+    H_tilde_full_subblock = BlockSeries(
+        eval=lambda *index: H_tilde_full[(0, 0, *index[2:])][:2, :2],
+        shape=(1, 1),
+        n_infinite=len(wanted_orders),
+    )
+    compare_series(
+        H_tilde_mixed_implicit[:1, :1], H_tilde_mixed[:1, :1], wanted_orders, atol=1e-10
+    )
+    compare_series(
+        H_tilde_mixed[:1, :1], H_tilde_full_subblock, wanted_orders, atol=1e-10
+    )

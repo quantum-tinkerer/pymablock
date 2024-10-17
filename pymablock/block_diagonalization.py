@@ -151,6 +151,11 @@ def block_diagonalize(
     if isinstance(symbols, sympy.Symbol):
         symbols = [symbols]
 
+    if solve_sylvester is not None and fully_diagonalize:
+        raise NotImplementedError(
+            "Full diagonalization is not yet supported with custom Sylvester solvers."
+        )
+
     # This logic for using implicit mode does not catch the case where the Hamiltonian
     # is already a prepared BlockSeries. That part is checked later.
     use_implicit = False
@@ -234,20 +239,18 @@ def block_diagonalize(
         raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
 
     # If solve_sylvester is not yet defined, use the diagonal one.
+    if solve_sylvester is None or use_implicit:
+        diagonal = _extract_diagonal(H, atol, use_implicit)
+
     if solve_sylvester is None:
-        diagonal = _extract_diagonal(H, atol)
         solve_sylvester = solve_sylvester_diagonal(diagonal, atol=atol)
-    elif fully_diagonalize:
-        raise NotImplementedError(
-            "Full diagonalization is not yet supported with custom Sylvester solvers."
-        )
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
     if isinstance(H[(-1, -1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator):
         use_linear_operator[-1, -1] = True
 
-        if H.shape[0] in fully_diagonalize:
+        if H.shape[0] - 1 in fully_diagonalize:
             raise ValueError("Fully diagonalizing an implicit block is not supported.")
 
         if operator is not matmul:
@@ -847,12 +850,14 @@ def solve_sylvester_direct(
         for subspace_eigenvalues in eigenvalues
     ]
 
-    explicit_part = solve_sylvester_diagonal(eigenvalues, atol=solver_options.get("atol"))
+    explicit_part = solve_sylvester_diagonal(
+        eigenvalues, atol=solver_options.get("atol", 1e-12)
+    )
 
     def solve_sylvester(Y: np.ndarray, index: tuple[int, ...]) -> np.ndarray:
         if Y is zero:
             return zero
-        if index[1] < len(eigenvalues) - 1:
+        if index[1] < len(eigenvalues):
             return explicit_part(Y, index)
 
         Y = Y @ projector
@@ -1074,9 +1079,11 @@ def _subspaces_from_indices(
 def _extract_diagonal(
     H: BlockSeries,
     atol: float = 1e-12,
+    implicit: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Extract the diagonal of the zeroth order of the Hamiltonian."""
-    diag_indices = np.arange(H.shape[0])
+    # If using implicit mode, skip the last block.
+    diag_indices = np.arange(H.shape[0] - implicit)
     h_0 = H[(diag_indices, diag_indices) + (0,) * H.n_infinite]
     is_sympy = any(isinstance(block, sympy.MatrixBase) for block in h_0)
     if not all(is_diagonal(h, atol) for h in h_0):
