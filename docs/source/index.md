@@ -75,8 +75,8 @@ Here is why you should use Pymablock:
 
 ## How does Pymablock work?
 
-Pymablock considers a Hamiltonian as a series of $2\times 2$ block operators with the zeroth order block-diagonal.
-To carry out the block-diagonalization procedure, Pymablock finds a minimal unitary transformation $U$ that cancels the off-diagonal block of the Hamiltonian order by order.
+Pymablock considers a Hamiltonian as a series of block operators with the zeroth order block-diagonal.
+To carry out the block-diagonalization procedure, Pymablock finds a minimal unitary transformation $U$ that cancels the off-diagonal blocks of the Hamiltonian order by order.
 
 \begin{gather}
 \mathcal{H} = \begin{pmatrix}H_0^{AA} & 0 \\ 0 & H_0^{BB}\end{pmatrix} + \sum_{n\geq 1} H'_n,\quad
@@ -94,7 +94,7 @@ The result of this procedure is a perturbative series of the transformed block-d
 \end{gather}
 
 Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation, Pymablock solves Sylvester's equation and imposes unitarity at every order.
-However, differently from other approaches, Pymablock uses efficient algorithms by choosing an appropriate parametrization of the series of the unitary transformation.
+However, differently from other approaches, Pymablock uses efficient algorithms by choosing an efficient parametrization of the series of the unitary transformation.
 As a consequence, the computational cost of every order scales linearly with the order, while the algorithms are still mathematically equivalent.
 
 To see Pymablock in action, check out the [tutorial](tutorial/getting_started.md).
@@ -103,7 +103,6 @@ See its [algorithms](algorithms.md) to learn about the underlying ideas, or read
 ## What does Pymablock not do yet?
 
 * Pymablock is not able to treat time-dependent perturbations yet
-* Pymablock does not block diagonalize more than two subspaces simultaneously
 
 ## Installation
 

@@ -25,6 +25,7 @@ H_0^{AA} & 0\\
 :::
 
 with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components, respectively.
+Here we consider a 2-block case for simplicity, but the Pymablock algorithm supports any number of blocks.
 The series here may be multivariate, and they represent sums of the form
 
 $$
@@ -262,7 +263,7 @@ We now have the complete algorithm:
 
 1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
 2. To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
-3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{V}, \mathcal{H}'_D]$. This requires $\mathcal{X}$.
+3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $[\mathcal{V}, H_0] = (\mathcal{Y} - [\mathcal{V}, \mathcal{H}'_D])_O$. This requires $\mathcal{X}$.
 4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
 5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =  (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U})^{AB}$.
 6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{D} = \mathcal{H}_D - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U}$.
