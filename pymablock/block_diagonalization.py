@@ -334,7 +334,7 @@ def hamiltonian_to_BlockSeries(
 ) -> BlockSeries:
     """Normalize a Hamiltonian to be used by the algorithms.
 
-    This function separates the Hamiltonian into a 2x2 block form consisting of
+    This function separates the Hamiltonian into a NxN block form consisting of
     effective and auxiliary subspaces based on the inputs.
 
     Parameters
