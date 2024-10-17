@@ -46,7 +46,7 @@ def block_diagonalize(
     solver_options: Optional[dict] = None,
     symbols: Optional[Union[sympy.Symbol, Sequence[sympy.Symbol]]] = None,
     atol: float = 1e-12,
-    offdiag: Optional[Callable] = None,
+    fully_diagonalize: tuple[int] = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -133,9 +133,10 @@ def block_diagonalize(
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used
         to validate that the unperturbed Hamiltonian is block-diagonal.
-    offdiag :
-        Function to extract the off-diagonal part of a diagonal block of a
-        series. If None, the off-diagonal part is set to zero.
+    fully_diagonalize :
+        Indices of the blocks that should be fully diagonalized.
+        If the Hamiltonian only has one block, it is fully diagonalized by
+        default.
 
     Returns
     -------
@@ -206,6 +207,9 @@ def block_diagonalize(
         atol=atol,
     )
 
+    if H.shape[0] == 1:
+        fully_diagonalize = (0,)
+
     for j in range(1, H.shape[0]):
         for i in range(j):
             if H[(i, j) + (0,) * H.n_infinite] is not zero:
@@ -231,32 +235,50 @@ def block_diagonalize(
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None:
-        solve_sylvester = solve_sylvester_diagonal(_extract_diagonal(H, atol), atol=atol)
+        diagonal = _extract_diagonal(H, atol)
+        solve_sylvester = solve_sylvester_diagonal(diagonal, atol=atol)
+    elif fully_diagonalize:
+        raise NotImplementedError(
+            "Full diagonalization is not yet supported with custom Sylvester solvers."
+        )
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
     if isinstance(H[(-1, -1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator):
         use_linear_operator[-1, -1] = True
 
-    if np.any(use_linear_operator) and operator is not matmul:
-        raise ValueError("Implicit mode requires matmul operator.")
+        if H.shape[0] in fully_diagonalize:
+            raise ValueError("Fully diagonalizing an implicit block is not supported.")
+
+        if operator is not matmul:
+            raise ValueError("Implicit mode requires matmul operator.")
 
     # Catch the solve_sylvester that uses the old signature without index.
     if len(signature(solve_sylvester).parameters) == 1:
         solve_sylvester = _preprocess_sylvester(solve_sylvester)
 
-    if offdiag is None:
+    if not fully_diagonalize:
+        offdiag = None
 
         def diag(x, index):
             return x[index] if isinstance(x, BlockSeries) else x
     else:
+        equal_eigs = {
+            i: np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol
+            for i in set(fully_diagonalize)
+        }
 
         def diag(x, index):
-            if x is zero:
-                return zero
-            offdiag_part = offdiag(x, index)
             x = x[index] if isinstance(x, BlockSeries) else x
-            return x - offdiag_part
+            if index[0] not in equal_eigs:
+                return x
+            return x * equal_eigs[index[0]]
+
+        def offdiag(x, index):
+            x = x[index] if isinstance(x, BlockSeries) else x
+            if index[0] not in equal_eigs:
+                return zero
+            return x * ~equal_eigs[index[0]]
 
     return _compile(
         {"H": H},
@@ -380,14 +402,18 @@ def hamiltonian_to_BlockSeries(
         if hamiltonian.shape[0] != hamiltonian.shape[1]:
             raise ValueError("H must be a square block series.")
 
-        if hamiltonian.shape[0] == 1:
-            raise ValueError("H must have at least 2 blocks to block diagonalize.")
-
         return hamiltonian
 
     # Separation into subspace_eigenvectors
     if not to_split:
         zeroth_order = hamiltonian[(0,) * hamiltonian.n_infinite]
+        if sparse.issparse(zeroth_order) or isinstance(
+            zeroth_order, (np.ndarray, sympy.MatrixBase)
+        ):
+            subspace_indices = np.zeros(zeroth_order.shape[0], dtype=int)
+            to_split = True
+
+    if not to_split:
         if not isinstance(zeroth_order, (tuple, list)):
             raise ValueError(
                 "Without `subspace_eigenvectors` or `subspace_indices`"

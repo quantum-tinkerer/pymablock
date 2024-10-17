@@ -406,9 +406,16 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
         np.testing.assert_allclose(H[index].diagonal(), eigvals)
     for block in ((0, 1), (1, 0)):
         assert H[block + (0,) * H.n_infinite] is zero
-    with pytest.raises(ValueError):
-        H = hamiltonian_to_BlockSeries(hamiltonian)
-        H[(0, 0, *(0,) * H.n_infinite)]
+
+    # Check that without subspace indices we get a single block of the full size.
+    H_one_block = hamiltonian_to_BlockSeries(hamiltonian)
+    H_0 = H_one_block[(0, 0, *(0,) * H.n_infinite)]
+    H_one_block_explicit = hamiltonian_to_BlockSeries(
+        hamiltonian, subspace_indices=np.zeros_like(subspace_indices)
+    )
+    H_0_explicit = H_one_block_explicit[(0, 0, *(0,) * H_one_block_explicit.n_infinite)]
+    # Hamiltonians are converted to sparse matrices
+    np.testing.assert_equal((H_0 - H_0_explicit).data, 0)
 
 
 def test_input_hamiltonian_from_subspaces():
@@ -1401,17 +1408,7 @@ def test_one_block_vs_multiblock():
     # First, multiblock
     H_tilde, *_ = block_diagonalize([H, H_1], subspace_indices=np.arange(6))
 
-    # Then, a single block!!!
-    def offdiag(value, index):
-        if isinstance(value, BlockSeries):
-            value = value[index]
-        if value is zero:
-            return value
-        return value - np.diag(np.diag(value))
-
-    H_tilde_single, *_ = block_diagonalize(
-        [H, H_1], subspace_indices=6 * [0], offdiag=offdiag
-    )
+    H_tilde_single, *_ = block_diagonalize([H, H_1])
 
     np.testing.assert_allclose(
         [H_tilde[i, i, 3][0, 0] for i in range(6)], np.diag(H_tilde_single[0, 0, 3])
