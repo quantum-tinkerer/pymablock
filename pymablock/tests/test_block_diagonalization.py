@@ -1455,9 +1455,33 @@ def test_mixed_full_partial(wanted_orders):
         shape=(1, 1),
         n_infinite=len(wanted_orders),
     )
+    # The slicing syntax is a workaround of #154
     compare_series(
         H_tilde_mixed_implicit[:1, :1], H_tilde_mixed[:1, :1], wanted_orders, atol=1e-10
     )
     compare_series(
         H_tilde_mixed[:1, :1], H_tilde_full_subblock, wanted_orders, atol=1e-10
+    )
+
+
+def test_multiblock_kpm_auxiliary(wanted_orders):
+    """Test that the multiblock KPM solver correctly works with auxiliary vectors."""
+    N = 6
+    H_0, H_ps = H_list(wanted_orders, N)
+    # 3 blocks, last one missing
+    H_tilde_implicit, *_ = block_diagonalize(
+        [H_0, *H_ps],
+        subspace_eigenvectors=[np.eye(N)[:, :2], np.eye(N)[:, 2:4]],
+        direct_solver=False,
+        # We have all vectors as auxiliary vectors to avoid the problem with
+        # the KPM convergence
+        solver_options={"atol": 1e-5, "aux_vectors": np.eye(N)[:, 4:]},
+    )
+    H_tilde_full, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(6) // 2)
+    # The slicing is a workaround of #154
+    compare_series(
+        H_tilde_implicit[:1, :1], H_tilde_full[:1, :1], wanted_orders, atol=1e-3
+    )
+    compare_series(
+        H_tilde_implicit[1:2, 1:2], H_tilde_full[1:2, 1:2], wanted_orders, atol=1e-3
     )

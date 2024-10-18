@@ -718,7 +718,7 @@ def solve_sylvester_diagonal(
             return zero
 
         eigs_A, eigs_B = eigs[index[0]], eigs[index[1]]
-        if vecs_B is not None and index[:2] == (len(eigs) - 2, len(eigs) - 1):
+        if vecs_B is not None and index[1] == len(eigs) - 1:
             # Needed for implicit mode with KPM
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
             return ((Y @ vecs_B) * energy_denominators) @ Dagger(vecs_B)
