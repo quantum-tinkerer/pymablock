@@ -233,7 +233,7 @@ def block_diagonalize(
         if (block := H[(i, i) + (0,) * H.n_infinite]) is not zero
     ]
     if not H_0_diag:
-        raise ValueError("Both blocks of the unperturbed Hamiltonian should not be zero.")
+        raise ValueError("The diagonal of the unperturbed Hamiltonian may not be zero.")
     if all(hasattr(H, "__matmul__") for H in H_0_diag):
         operator = matmul
     elif all(hasattr(H, "__mul__") for H in H_0_diag):
