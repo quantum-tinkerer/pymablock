@@ -841,7 +841,7 @@ def solve_sylvester_KPM(
 
 def solve_sylvester_direct(
     h_0: sparse.spmatrix,
-    eigenvectors: list[np.ndarray, ...],
+    eigenvectors: list[np.ndarray],
     **solver_options: dict,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Solve Sylvester equation using a direct sparse solver.
