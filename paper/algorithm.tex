@@ -13,6 +13,8 @@ H_0^{AA} & 0\\
 \end{equation}
 %
 with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components, respectively.
+Here and later we use the subscipt $D$ to denote block-diagonal and $O$ to denote block-offdiagonal components of a series.
+In the example above, we consider a $2\times 2$ block structure, but the derivation of this section applies to any number of blocks.
 The series here may be multivariate, and they represent sums of the form
 %
 \begin{equation}
@@ -161,7 +163,7 @@ This makes it possible to use $\mathcal{AB}$ in a recurrence relation, a propert
 
 \co{To fully define the unitary transformation, we make a choice for V.}
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
-Additionally, we constrain $\mathcal{V}$ to be block off-diagonal: $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$, a choice we make to ensure that the resulting unitary transformation is equivalent to the Schrieffer--Wolff transformation (see section~\ref{seq:SW_equivalence}).
+Additionally, we constrain $\mathcal{V}$ to be block off-diagonal: $\mathcal{V}_{D} = 0$, a choice we make to ensure that the resulting unitary transformation is equivalent to the Schrieffer--Wolff transformation (see section~\ref{seq:SW_equivalence}).
 In turn, this makes $\mathcal{W}$ block-diagonal and makes the norm of $\mathcal{U}'$ minimal.
 
 \co{We find V and the transformed Hamiltonian.}
@@ -223,7 +225,7 @@ We do so by using the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
 \end{equation}
 %
 Similar to computing $W_{\mathbf{n}}$, computing $Z_{\mathbf{n}}$ requires lower-orders of $\mathcal{X}$ and $\mathcal{U}'$.
-Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}^{AB} = 0$ in the Eq.~\eqref{eq:H_tilde} and find
+Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}_{O} = 0$ in the Eq.~\eqref{eq:H_tilde} and find
 %
 \begin{equation}
 \label{eq:Y}
@@ -231,7 +233,7 @@ Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\
 \mathcal{U}'^\dagger \mathcal{X} - \mathcal{Z})_{O}.
 \end{equation}
 %
-Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack \nth{0} order, this defines a recursive relation for $\mathcal{X}^{AB}$, and therefore $\mathcal{Y}$.
+Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack \nth{0} order, this defines a recursive relation $\mathcal{Y}$.
 
 The final part is straightforward: using $\mathcal{H}_{D} = H_0 + \mathcal{H}'_{D}$ and the definition of $\mathcal{Y}$ in Eq.~\eqref{eq:XYZ} fixes $\mathcal{V}$ as a solution of:
 %
@@ -241,7 +243,7 @@ The final part is straightforward: using $\mathcal{H}_{D} = H_0 + \mathcal{H}'_{
 \end{equation}
 %
 a Sylvester's equation, which we only need to solve once for every new order.
-In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V^{AB}_{\mathbf{n}, ij} = (\mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}])^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
+In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V_{\mathbf{n}, ij} = (\mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}])_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
 
 \co{The algorithm is complete.}
 We now have the complete algorithm:
@@ -249,11 +251,10 @@ We now have the complete algorithm:
 \begin{enumerate}
     \item Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
     \item To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
-    \item To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation \\ $\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{V}, \mathcal{H}'_{D}]^{AB}$.
+    \item To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation \\ $[\mathcal{V}, H_0] = (\mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}])_{O}$.
       This requires $\mathcal{X}$.
-    \item To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
-    \item For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
-    (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
+    \item To find the Hermitian part of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
+    \item For the antihermitian part of $\mathcal{X}$, use $\mathcal{Y} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})_{O}$.
     \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}} = \mathcal{H}_{D} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U}$.
 \end{enumerate}
 
@@ -263,7 +264,7 @@ We now have the complete algorithm:
 Pymablock's algorithm and the Schrieffer--Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
 They are therefore equivalent up to a gauge choice in each subspace, $A$ and $B$.
 We establish the equivalence between the two by demonstrating that this gauge choice is the same for both algorithms.
-The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} = \mathcal{S}^{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.
+The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}_{AA} = \mathcal{S}_{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.
 On the other hand, our algorithm produces the unique block-diagonalizing transformation with a block structure $\mathcal{U}_{AA} = \mathcal{U}_{AA}^{\dag}$, $\mathcal{U}_{BB} = \mathcal{U}_{BB}^{\dag}$ and $\mathcal{U}_{AB} = -\mathcal{U}_{BA}^{\dag}$.
 The uniqueness is a consequence of the construction of the algorithm, where calculating every order gives a unique solution satisfying these conditions.
 To see that the two solutions are identical, we expand the Taylor series of $\exp \mathcal{S}$.
@@ -324,12 +325,12 @@ where we used Eq.~\eqref{eq:Z} and that $\mathcal{U}'^\dagger \mathcal{A}$ is He
 Using $\mathcal{B}$ changes the relation for $\mathcal{V}^{AB}$ in Eq.~\eqref{eq:sylvester} to
 \begin{equation}
 \label{eq:sylvester_optimized}
-\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \left(\mathcal{B} - \mathcal{H}' - \mathcal{A} - [\mathcal{V}, \mathcal{H}'_{D}]\right)^{AB}.
+[\mathcal{V},H_0] = \left(\mathcal{B} - \mathcal{H}' - \mathcal{A} - [\mathcal{V}, \mathcal{H}'_{D}]\right)_{O}.
 \end{equation}
 Finally, we combine Eq.~\eqref{eq:H_tilde}, Eq.~\eqref{eq:UHU}, Eq.~\eqref{eq:B_diag} and Eq.~\eqref{eq:B_offdiag} to obtain the final expression for the effective Hamiltonian:
 %
 \begin{equation}
 \label{eq:H_tilde_optimized}
-\tilde{\mathcal{H}}_D = \mathcal{H}_D + (\mathcal{A} + \textrm{h.c.})/2 -(\mathcal{U}^\dagger \mathcal{B} + \textrm{h.c.})/2.
+\tilde{\mathcal{H}}_D = \mathcal{H}_D + (\mathcal{A}_D + \textrm{h.c.})/2 -(\mathcal({U}^\dagger \mathcal{B})_D + \textrm{h.c.})/2.
 \end{equation}
 Together with the series $\mathcal{U}'$ in Eqs.~(\ref{eq:W},\ref{eq:sylvester_optimized}), $\mathcal{A} = \mathcal{H}'_{O}\mathcal{U}'$, and $\mathcal{B}$ in Eqs.~(\ref{eq:B_diag},\ref{eq:B_offdiag}), this equation defines the optimized algorithm.
