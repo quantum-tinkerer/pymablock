@@ -94,8 +94,9 @@ The result of this procedure is a perturbative series of the transformed block-d
 \end{gather}
 
 Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation, Pymablock solves Sylvester's equation and imposes unitarity at every order.
-However, differently from other approaches, Pymablock uses efficient algorithms by choosing an efficient parametrization of the series of the unitary transformation.
+However, Pymablock is unique because it uses efficient algorithms by choosing a different parametrization of the series of the unitary transformation.
 As a consequence, the computational cost of every order scales linearly with the order, while the algorithms are still mathematically equivalent.
+Additionally, this parametrization allows Pymablock to perform multi-block-diagonalization, going beyond the standard $2\times 2$ block-diagonalization.
 
 To see Pymablock in action, check out the [tutorial](tutorial/getting_started.md).
 See its [algorithms](algorithms.md) to learn about the underlying ideas, or read the [reference documentation](documentation/pymablock.md) for the package API.
