@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Generalized the algorithm to support an arbitrary number of blocks. To specify multiple blocks, provide either a list with eigenvectors of each block in `subspace_eigenvectors`, or a list marking to which block each basis state belongs in `subspace_indices`.
 - Implemented full diagonalization of the Hamiltonian within blocks except for degenerate eigensubspaces. In case of one block with non-degenerate eigenvalues, this implements the Rayleigh-Schrödinger perturbation theory.
+- Implemented selective diagonalization of the Hamiltonian within blocks, which can eliminate any subset of the off-diagonal elements within a block.
 
 ### Changed
 

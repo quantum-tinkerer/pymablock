@@ -51,6 +51,8 @@ def main():
         hermitian
         if offdiagonal:
             "X".adj if two_block_optimized else ("X".adj + "X") / 2
+        if diagonal:
+            zero if commuting_blocks[index[0]] else ("X".adj + "X") / 2
 
     with "U'":
         start = 0
@@ -75,6 +77,8 @@ def main():
         start = 0
         if diagonal:
             ("U'† @ B" - "U'† @ B".adj + "H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / -2
+        if diagonal:
+            zero if commuting_blocks[index[0]] else "V @ H'_diag" + "V @ H'_diag".adj
 
         if offdiagonal:
             -"U'† @ B"
@@ -86,6 +90,7 @@ def main():
                 "H'_diag"
                 + ("H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / 2
                 + ("U'† @ B" + "U'† @ B".adj) / -2
+                - "Yadj"
             )
 
     with "U'† @ U'":

@@ -46,7 +46,7 @@ def block_diagonalize(
     solver_options: Optional[dict] = None,
     symbols: Optional[Union[sympy.Symbol, Sequence[sympy.Symbol]]] = None,
     atol: float = 1e-12,
-    fully_diagonalize: tuple[int] = (),
+    fully_diagonalize: tuple[int] | dict[int, np.ndarray] = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -139,7 +139,11 @@ def block_diagonalize(
     fully_diagonalize :
         Indices of the blocks that should be fully diagonalized.
         If the Hamiltonian only has one block, it is fully diagonalized by
-        default.
+        default. Alternatively can be a dictionary with the indices of the diagonal
+        blocks as keys and as values appropriately shaped numpy boolean arrays
+        marking which matrix elements should be eliminated by the
+        diagonalization. Must be symmetric, and may not have any True values
+        corresponding to equal eigenvalues.
 
     Returns
     -------
@@ -215,7 +219,7 @@ def block_diagonalize(
         atol=atol,
     )
 
-    if H.shape[0] == 1:
+    if H.shape[0] == 1 and not fully_diagonalize:
         fully_diagonalize = (0,)
 
     for j in range(1, H.shape[0]):
@@ -269,45 +273,69 @@ def block_diagonalize(
         def diag(x, index):
             return x[index] if isinstance(x, BlockSeries) else x
     else:
+        # Determine degenerate eigensubspaces of the blocks to fully diagonalize.
         equal_eigs = {
             i: (
-                np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol
+                (np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol).astype(int)
                 if diagonal[i].dtype != object  # numerical array, else sympy
-                else sympy.Matrix(
-                    sympy.S.One
-                    * ((diagonal[i].reshape(-1, 1) - diagonal[i] == 0) == True)  # noqa E712
-                )
+                else ((diagonal[i].reshape(-1, 1) - diagonal[i] == 0) == True)  # noqa E712
             )
             for i in set(fully_diagonalize)
         }
-        # Essentially copy-paste of the above to properly handle sympy values.
-        different_eigs = {
-            i: (
-                np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) >= atol
-                if diagonal[i].dtype != object  # numerical array, else sympy
-                else sympy.Matrix(
-                    sympy.S.One
-                    * ((diagonal[i].reshape(-1, 1) - diagonal[i] == 0) == False)  # noqa E712
-                )
-            )
-            for i in set(fully_diagonalize)
+        if isinstance(fully_diagonalize, dict):
+            # Check that `fully_diagonalize` is symmetric.
+            for to_eliminate in fully_diagonalize.values():
+                if not (to_eliminate == to_eliminate.T).all():
+                    raise ValueError(
+                        "The values of fully_diagonalize dictionary must be symmetric."
+                    )
+            # Check that `fully_diagonalize` does not have any True values corresponding
+            # to equal eigenvalues.
+            for i, to_eliminate in fully_diagonalize.items():
+                if (to_eliminate & equal_eigs[i]).any():
+                    raise ValueError(
+                        "Fully diagonalization must not eliminate matrix elements corresponding"
+                        " to equal eigenvalues."
+                    )
+            to_eliminate = fully_diagonalize
+            to_keep = {i: 1 - eliminate for i, eliminate in to_eliminate.items()}
+        else:
+            to_keep = equal_eigs
+            to_eliminate = {i: 1 - keep for i, keep in to_keep.items()}
+
+        # Convert numpy arrays to sympy matrices if blocks are symbolic.
+        to_eliminate = {
+            i: sympy.Matrix(sympy.S.One * eliminate)
+            if diagonal[i].dtype == object
+            else eliminate
+            for i, eliminate in to_eliminate.items()
+        }
+        to_keep = {
+            i: sympy.Matrix(sympy.S.One * keep) if diagonal[i].dtype == object else keep
+            for i, keep in to_keep.items()
         }
 
         def diag(x, index):
             x = x[index] if isinstance(x, BlockSeries) else x
-            if index[0] not in equal_eigs:
+            if index[0] not in to_keep:
                 return x
             if isinstance(x, sympy.MatrixBase):
-                return x.multiply_elementwise(equal_eigs[index[0]])
-            return x * equal_eigs[index[0]]
+                return x.multiply_elementwise(to_keep[index[0]])
+            return x * to_keep[index[0]]
 
         def offdiag(x, index):
-            x = x[index] if isinstance(x, BlockSeries) else x
-            if index[0] not in equal_eigs:
+            if index[0] not in to_keep:
                 return zero
+            x = x[index] if isinstance(x, BlockSeries) else x
+            print(to_keep)
             if isinstance(x, sympy.MatrixBase):
-                return x.multiply_elementwise(different_eigs[index[0]])
-            return x * different_eigs[index[0]]
+                return x.multiply_elementwise(to_eliminate[index[0]])
+            return x * to_eliminate[index[0]]
+
+    if not isinstance(fully_diagonalize, dict):
+        commuting_blocks = [True] * H.shape[0]
+    else:
+        commuting_blocks = [i not in fully_diagonalize for i in range(H.shape[0])]
 
     return _compile(
         {"H": H},
@@ -315,6 +343,7 @@ def block_diagonalize(
             "solve_sylvester": solve_sylvester,
             "use_linear_operator": use_linear_operator,
             "two_block_optimized": H.shape[0] == 2 and not fully_diagonalize,
+            "commuting_blocks": commuting_blocks,
             "offdiag": offdiag,
             "diag": diag,
         },
