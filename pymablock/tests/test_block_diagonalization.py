@@ -1485,3 +1485,17 @@ def test_multiblock_kpm_auxiliary(wanted_orders):
     compare_series(
         H_tilde_implicit[1:2, 1:2], H_tilde_full[1:2, 1:2], wanted_orders, atol=1e-3
     )
+
+
+def test_selective_diagonaliztion(wanted_orders):
+    N = 20
+    H_0, H_ps = H_list(wanted_orders, N)
+    H = hamiltonian_to_BlockSeries([H_0, *H_ps])
+    to_eliminate = np.random.rand(N, N) > 0.8
+    to_eliminate = np.logical_or(to_eliminate, to_eliminate.T)
+    np.fill_diagonal(to_eliminate, False)
+    H_tilde, U, U_adjoint = block_diagonalize(H, fully_diagonalize={0: to_eliminate})
+    is_unitary(U, U_adjoint, wanted_orders, atol=1e-6)
+    np.testing.assert_equal(H_tilde[(0, 0, *wanted_orders)][to_eliminate], 0)
+    compare_series(H, cauchy_dot_product(U, H_tilde, U_adjoint), wanted_orders, atol=1e-6)
+    # Check that the eliminated elements are zero
