@@ -2,20 +2,31 @@
 
 \subsection{Problem statement}
 
-Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use calligraphic letters to denote series) that block-diagonalizes the Hamiltonian
+Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use calligraphic letters to denote series) that eliminates the off-diagonal components of the Hamiltonian
 %
 \begin{equation}
 \label{eq:hamiltonian}
-\mathcal{H} = H_0 + \mathcal{H}',\quad H_0 = \begin{pmatrix}
-H_0^{AA} & 0\\
-0 & H_0^{BB}
-\end{pmatrix},
+\mathcal{H} = H_0 + \mathcal{H}',
 \end{equation}
 %
 with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components, respectively.
 Here and later we use the subscipt $D$ to denote block-diagonal and $O$ to denote block-offdiagonal components of a series.
-In the example above, we consider a $2\times 2$ block structure, but the derivation of this section applies to any number of blocks.
-The series here may be multivariate, and they represent sums of the form
+To consider the problem in the most general setting, we only require the diagonal and offdiagonal parts of an operator to satisfy the following constraints:
+\begin{enumerate}
+  \item The unperturbed Hamiltonian $H_0$ is diagonal: $H_0 = (H_0)_{D}$.
+  \item The offdiagonal part of any operator has no matrix elements within eigensubspaces of $H_0$.
+  \item The diagonal and offdiagonal parts of an operator add to the operator itself: $\mathcal{A} = \mathcal{A}_{D} + \mathcal{A}_{O}$.
+\end{enumerate}
+In the context of Rayleigh-Schr\"odinger perturbation theory, $H_0$ is a diagonal matrix, and the offdiagonal part of an operator are all its matrix elements that are not on the diagonal.
+When applied to the Schrieffer--Wolff transformation, the unperturbed Hamiltonian is a $2\times 2$ block matrix
+\begin{equation}
+H_0 = \begin{pmatrix}
+H_0^{AA} & 0 \\
+0 & H_0^{BB}
+\end{pmatrix},
+\end{equation}
+and the offdiagonal part of an operator are its two offdiagonal blocks.
+All the series here may be multivariate, and they represent sums of the form
 %
 \begin{equation}
 \mathcal{A} = \sum_{n_1=0}^\infty \sum_{n_2=0}^\infty \cdots \sum_{n_k=0}^\infty \lambda_1^{n_1} \lambda_2^{n_2} \cdots \lambda_k^{n_k} A_{n_1, n_2, \ldots, n_k},
@@ -27,7 +38,7 @@ The problem statement, therefore, is finding $\mathcal{U}$ and $\tilde{\mathcal{
 %
 \begin{equation}
 \label{eq:problem_definition}
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}_{O} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
 \end{equation}
 %
 which is schematically shown in Fig.~\ref{fig:block_diagonalization}.
@@ -63,7 +74,7 @@ The goal of our algorithm is thus to be efficient and to produce compact results
 
 \subsection{Existing solutions}
 \co{Pymablock's algorithm does not use the Schrieffer--Wolff transformation, because the former is inefficient.}
-A common approach to constructing effective Hamiltonians is to use the Schrieffer--Wolff transformation~\cite{Schrieffer_1966}:
+A common approach to constructing effective Hamiltonians in the $2\times 2$ block case is to use the Schrieffer--Wolff transformation~\cite{Schrieffer_1966}:
 %
 \begin{equation}
 \tilde{\mathcal{H}} = e^\mathcal{S} \mathcal{H} e^{-\mathcal{S}}, \\
@@ -163,8 +174,8 @@ This makes it possible to use $\mathcal{AB}$ in a recurrence relation, a propert
 
 \co{To fully define the unitary transformation, we make a choice for V.}
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
-Additionally, we constrain $\mathcal{V}$ to be block off-diagonal: $\mathcal{V}_{D} = 0$, a choice we make to ensure that the resulting unitary transformation is equivalent to the Schrieffer--Wolff transformation (see section~\ref{seq:SW_equivalence}).
-In turn, this makes $\mathcal{W}$ block-diagonal and makes the norm of $\mathcal{U}'$ minimal.
+Additionally, we constrain $\mathcal{V}$ to be off-diagonal: $\mathcal{V}_{D} = 0$, a choice we make to minimize the norm of $\mathcal{U}'$~\cite{Cederbaum_1989}.
+In the $2\times 2$ block case, this makes $\mathcal{W}$ block-diagonal and ensures that the resulting unitary transformation is equivalent to the Schrieffer--Wolff transformation (see section~\ref{seq:SW_equivalence}).
 
 \co{We find V and the transformed Hamiltonian.}
 The remaining condition for finding a recurrent relation for $\mathcal{U}'$ is that the transformed Hamiltonian
@@ -188,10 +199,11 @@ To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commu
 \label{eq:XYZ}
 \mathcal{X} \equiv [\mathcal{U}', \mathcal{H}_{D}] = \mathcal{Y} + \mathcal{Z}, \quad
 \mathcal{Y} \equiv [\mathcal{V}, \mathcal{H}_{D}] = \mathcal{Y}^\dagger,\quad
-\mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_{D}] = -\mathcal{Z}^\dagger,
+\mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_{D}] = -\mathcal{Z}^\dagger.
 \end{equation}
 %
-where $\mathcal{Y}$ is therefore block off-diagonal, while $\mathcal{Z}$ block diagonal in the 2-block case only.
+In the common case, but not the most general case, when $A_D$ is a block-diagonal operator, $\mathcal{Y}$ is block off-diagonal.
+Additionally, in the $2\times 2$ block case $\mathcal{Z}$ is block-diagonal.
 We use $\mathcal{H}_{D} \mathcal{U}' = \mathcal{U}' \mathcal{H}_{D} -\mathcal{X}$ to move $\mathcal{H}_{D}$ through to the right and find
 %
 \begin{equation}
@@ -228,22 +240,29 @@ Similar to computing $W_{\mathbf{n}}$, computing $Z_{\mathbf{n}}$ requires lower
 Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}_{O} = 0$ in the Eq.~\eqref{eq:H_tilde} and find
 %
 \begin{equation}
-\label{eq:Y}
-\mathcal{Y} = (\mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} -
+\label{eq:Y_O}
+\mathcal{Y}_O = (\mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} -
 \mathcal{U}'^\dagger \mathcal{X} - \mathcal{Z})_{O}.
 \end{equation}
 %
 Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack \nth{0} order, this defines a recursive relation $\mathcal{Y}$.
-
-The final part is straightforward: using $\mathcal{H}_{D} = H_0 + \mathcal{H}'_{D}$ and the definition of $\mathcal{Y}$ in Eq.~\eqref{eq:XYZ} fixes $\mathcal{V}$ as a solution of:
+To fix the diagonal part of $\mathcal{Y}$, we use its definition~\eqref{eq:XYZ}, which gives
+\begin{equation}
+  \label{eq:sylvester}
+  [\mathcal{V}, H_0] = \mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}],
+\end{equation}
+which is a continuous time Lyapunov equation for $\mathcal{V}$.
+In order for this equation to be satisfiable, the diagonal part of the right hand side must vanish, since the left hand side is purely offdiagonal.
+Therefore we find the diagonal part of $\mathcal{Y}$:
 %
 \begin{equation}
-\label{eq:sylvester}
-[\mathcal{V}, H_0] = \mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}],
+\label{eq:Y_D}
+\mathcal{Y}_D = [\mathcal{V}, \mathcal{H}'_{D}]_D,
 \end{equation}
-%
-a Sylvester's equation, which we only need to solve once for every new order.
-In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V_{\mathbf{n}, ij} = (\mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}])_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
+and it vanishes if the diagonal part corresponds to a block-diagonal matrix.
+
+Having found $\mathcal{Y}$, determining $\mathcal{V}$ from Eq.~\eqref{eq:sylvester} is straightforward, and it needs to be solved only once for every new order.
+In the eigenbasis of $H_0$, the solution of this equation is $V_{\mathbf{n}, ij} = (\mathcal{Y}_O - [\mathcal{V}, \mathcal{H}'_{D}]_O)_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
 
 \co{The algorithm is complete.}
 We now have the complete algorithm:
@@ -253,8 +272,8 @@ We now have the complete algorithm:
     \item To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
     \item To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation \\ $[\mathcal{V}, H_0] = (\mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}])_{O}$.
       This requires $\mathcal{X}$.
-    \item To find the Hermitian part of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
-    \item For the antihermitian part of $\mathcal{X}$, use $\mathcal{Y} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})_{O}$.
+    \item To find the antihermitian part of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
+    \item For the Hermitian part of $\mathcal{X}$, use $\mathcal{Y} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})_{O} + [\mathcal{V}, \mathcal{H}'_D]_D$.
     \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}} = \mathcal{H}_{D} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U}$.
 \end{enumerate}
 
@@ -291,7 +310,7 @@ Additionally, we reuse the repeated $\mathcal{A} \equiv \mathcal{H}'_{O}\mathcal
 \mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} = \mathcal{H}'_{O} + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A}.
 \end{equation}
 %
-Next, we observe that some products from the $\mathcal{U}^{\dagger} \mathcal{H}_{O}\mathcal{U}$ term appear both in $\mathcal{X}$ in Eq.~\eqref{eq:Y} and in $\tilde{\mathcal{H}}$~\eqref{eq:H_tilde}.
+Next, we observe that some products from the $\mathcal{U}^{\dagger} \mathcal{H}_{O}\mathcal{U}$ term appear both in $\mathcal{X}$ in Eq.~\eqref{eq:Y_O} and in $\tilde{\mathcal{H}}$~\eqref{eq:H_tilde}.
 %
 To avoid recomputing these products, we introduce $\mathcal{B} = \mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}$ and define the recursive algorithm using $\mathcal{B}$ instead of $\mathcal{X}$.
 %
@@ -307,7 +326,7 @@ With this definition, we compute the off-diagonal blocks of $\mathcal{B}$ as:
 \end{aligned}
 \end{equation}
 %
-where we also used Eq.~\eqref{eq:Y} and the definition of $\mathcal{A}$.
+where we also used Eq.~\eqref{eq:Y_O} and the definition of $\mathcal{A}$.
 The diagonal blocks of $\mathcal{B}$, on the other hand, are given by
 %
 \begin{equation}
