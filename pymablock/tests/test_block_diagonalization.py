@@ -1476,7 +1476,7 @@ def test_multiblock_kpm_auxiliary(wanted_orders):
         direct_solver=False,
         # We have all vectors as auxiliary vectors to avoid the problem with
         # the KPM convergence
-        solver_options={"atol": 1e-5, "aux_vectors": np.eye(N)[:, 4:]},
+        solver_options={"atol": 1e-6, "aux_vectors": np.eye(N)[:, 4:]},
     )
     H_tilde_full, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(6) // 2)
     # The slicing is a workaround of #154
