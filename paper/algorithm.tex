@@ -11,22 +11,28 @@ Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use cal
 %
 with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components, respectively.
 Here and later we use the subscipt $D$ to denote block-diagonal and $O$ to denote block-offdiagonal components of a series.
+In different settings, diagonal and offdiagonal components may mean different things.
+In the quasi-degenerate perturbation theory, the Hilbert space is subdivided into $A$ and $B$ subspaces, which makes $H_0$ a block-diagonal matrix
+\begin{equation}
+  H_0 = \begin{pmatrix}
+    H_0^{AA} & 0 \\
+    0 & H_0^{BB}
+    \end{pmatrix},
+\end{equation}
+and the goal of the perturbation theory is to eliminate the offdiagonal $AB$ and $BA$ blocks of $\mathcal{H}$.
+In the context of Rayleigh-Schr\"odinger perturbation theory, $H_0$ is a diagonal matrix, and the offdiagonal part of an operator are all its matrix elements that are not on the diagonal.
+
 To consider the problem in the most general setting, we only require the diagonal and offdiagonal parts of an operator to satisfy the following constraints:
 \begin{enumerate}
-  \item The unperturbed Hamiltonian $H_0$ is diagonal: $H_0 = (H_0)_{D}$.
+  \item The diagonal and offdiagonal parts of an operator add to identity: $\mathcal{A} = \mathcal{A}_{D} + \mathcal{A}_{O}$.
+  \item Taking the diagonal or offdiagonal part of an operator is idempotent: $(\mathcal{A}_{D})_{D} = \mathcal{A}_{D}$.
+  \item Taking the diagonal or offdiagonal part commutes with Hermitian conjugation: $(\mathcal{A}_{D})^\dagger = (\mathcal{A^\dagger})_{D}$.
   \item The offdiagonal part of any operator has no matrix elements within eigensubspaces of $H_0$.
-  \item The diagonal and offdiagonal parts of an operator add to the operator itself: $\mathcal{A} = \mathcal{A}_{D} + \mathcal{A}_{O}$.
 \end{enumerate}
-In the context of Rayleigh-Schr\"odinger perturbation theory, $H_0$ is a diagonal matrix, and the offdiagonal part of an operator are all its matrix elements that are not on the diagonal.
-When applied to the Schrieffer--Wolff transformation, the unperturbed Hamiltonian is a $2\times 2$ block matrix
-\begin{equation}
-H_0 = \begin{pmatrix}
-H_0^{AA} & 0 \\
-0 & H_0^{BB}
-\end{pmatrix},
-\end{equation}
-and the offdiagonal part of an operator are its two offdiagonal blocks.
-All the series here may be multivariate, and they represent sums of the form
+This definition is more more flexible than the intuitive concept of grouping an operator into blocks and separating those into diagonal and offdiagonal parts.
+In particular, it allows to select any subset of the offdiagonal matrix elements as an offdiagonal part of an operator, as long as none of the matrix elements belong to an eigensubspace of $H_0$.
+
+All the series we consider may be multivariate, and they represent sums of the form
 %
 \begin{equation}
 \mathcal{A} = \sum_{n_1=0}^\infty \sum_{n_2=0}^\infty \cdots \sum_{n_k=0}^\infty \lambda_1^{n_1} \lambda_2^{n_2} \cdots \lambda_k^{n_k} A_{n_1, n_2, \ldots, n_k},
@@ -298,10 +304,10 @@ Firstly, we rewrite the expressions for $\mathcal{Z}$ in Eq.~\eqref{eq:Z} and $\
 %
 \begin{gather*}
 \mathcal{Z} = \frac{1}{2}\left[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}\right],\\
-\tilde{\mathcal{H}} = \mathcal{H}_{D} + \mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.})/2,
+\tilde{\mathcal{H}} = \mathcal{H}_{D} + \mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.})/2 - \mathcal{Y}_D,
 \end{gather*}
 %
-where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{X}$ drops out from the diagonal blocks of $\tilde{\mathcal{H}}$ because the diagonal blocks of $\mathcal{X}$ are anti-Hermitian.
+where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{Z}$ drops out from $\tilde{\mathcal{H}}$ because it is antihermitian.
 %
 Additionally, we reuse the repeated $\mathcal{A} \equiv \mathcal{H}'_{O}\mathcal{U}'$ in
 %
@@ -333,9 +339,9 @@ The diagonal blocks of $\mathcal{B}$, on the other hand, are given by
 \label{eq:B_diag}
 \begin{aligned}
   \mathcal{B}_D &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}\right]_D \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{A}\right]_D \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]_D, \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \textrm{h.c.} ]\right]_D,
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] + \mathcal{Y} - \mathcal{A}\right]_D \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}])- \textrm{h.c.}]+ \mathcal{Y} - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]_D, \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}]+ \left[\mathcal{V}\mathcal{H}'_D + \textrm{h.c}\right] - \frac{1}{2}[\mathcal{A}^\dagger + \textrm{h.c.} ]\right]_D,
 \end{aligned}
 \end{equation}
 %
@@ -350,6 +356,6 @@ Finally, we combine Eq.~\eqref{eq:H_tilde}, Eq.~\eqref{eq:UHU}, Eq.~\eqref{eq:B_
 %
 \begin{equation}
 \label{eq:H_tilde_optimized}
-\tilde{\mathcal{H}}_D = \mathcal{H}_D + (\mathcal{A}_D + \textrm{h.c.})/2 -(\mathcal({U}^\dagger \mathcal{B})_D + \textrm{h.c.})/2.
+\tilde{\mathcal{H}}_D = \mathcal{H}_D + (\mathcal{A}_D + \textrm{h.c.})/2 -[\mathcal({U}^\dagger \mathcal{B})_D + \textrm{h.c.}]/2 + \mathcal{Y}_D.
 \end{equation}
 Together with the series $\mathcal{U}'$ in Eqs.~(\ref{eq:W},\ref{eq:sylvester_optimized}), $\mathcal{A} = \mathcal{H}'_{O}\mathcal{U}'$, and $\mathcal{B}$ in Eqs.~(\ref{eq:B_diag},\ref{eq:B_offdiag}), this equation defines the optimized algorithm.
