@@ -1358,7 +1358,7 @@ def test_three_blocks(wanted_orders):
     compare_series(H, H_prime, wanted_orders, atol=1e-6)
 
 
-def test_analytic_rayleigh_schrodinger():
+def test_analytic_full_and_selective():
     H_0 = sympy.diag(*[sympy.Symbol(f"H_{i}", real=True) for i in range(3)])
     H_1 = sympy.Matrix(
         [
@@ -1374,6 +1374,15 @@ def test_analytic_rayleigh_schrodinger():
     compare_series(
         cauchy_dot_product(U, H_tilde), cauchy_dot_product(H, U), (2,), atol=1e-6
     )
+    # Now the same but only eliminate the (0, 2) matrix element
+    H_tilde, U, U_adjoint = block_diagonalize(
+        H, fully_diagonalize={0: np.array([[0, 0, 1], [0, 0, 0], [1, 0, 0]])}
+    )
+    is_unitary(U, U_adjoint, (3,), atol=1e-6)
+    compare_series(
+        cauchy_dot_product(U, H_tilde), cauchy_dot_product(H, U), (2,), atol=1e-6
+    )
+    assert H_tilde[0, 0, 3][0, 2].simplify() == 0
 
 
 def test_three_blocks_repeated(wanted_orders):
