@@ -54,7 +54,9 @@ def block_diagonalize(
     Lowdin perturbation theory, Schrieffer-Wolff transformation, or van Vleck
     transformation to the case of multiple blocks. Some blocks of the resulting
     Hamiltonian can be fully diagonalized, reproducing the usual
-    Rayleigh-Schrodinger perturbation theory.
+    Rayleigh-Schrodinger perturbation theory. Alternatively, the algorithm can
+    perturbatively eliminate any subset of the off-diagonal elements of the
+    Hamiltonian.
 
     This function does not yet perform the computation. Instead, it defines the
     computation as a `~pymablock.series.BlockSeries` object, which can be
@@ -143,7 +145,7 @@ def block_diagonalize(
         blocks as keys and as values appropriately shaped numpy boolean arrays
         marking which matrix elements should be eliminated by the
         diagonalization. Must be symmetric, and may not have any True values
-        corresponding to equal eigenvalues.
+        corresponding to matrix elements coupling degenerate eigenvalues.
 
     Returns
     -------
