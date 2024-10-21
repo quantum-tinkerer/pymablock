@@ -1377,6 +1377,16 @@ def test_analytic_rayleigh_schrodinger():
 
 
 def test_three_blocks_repeated(wanted_orders):
+    """
+    Test block-diagonalization of a 3x3 Hamiltonian.
+
+    Verifies that block-diagonalizing a 3x3 Hamiltonian into 1x1 + 2x2, then
+    the second block further into 1x1 + 1x1, matches direct
+    block-diagonalization into 1x1 + 1x1 + 1x1.
+
+    Parameters:
+    wanted_orders (list): Desired orders for the Hamiltonian.
+    """
     N = 3
     H_0, H_ps = H_list(wanted_orders, N=N)
 
