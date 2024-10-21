@@ -8,14 +8,14 @@
 
 
 def main():
-    # We use a notion of diagonal/offdiagonal that may not fully coincide with
-    # the block structure. For that if the user provides a function for
-    # `offdiag` in the scope, it may take a diagonal block of a series and
-    # return its offdiagonal part. Similarly, the function `diag` (always
-    # defined) takes a diagonal block and returns its diagonal part.
-    #
-    # To understand the algorithm faster by skipping boilerplate, look only at
-    # the "if offdiag is None" branches.
+    # The algorithm implements two optional optimizations:
+    # - two_block_optimized: if True, the algorithm assumes that the Hamiltonian
+    #   has a 2x2 block structure and offdiagonal blocks are eliminated. This
+    #   corresponds to the Schrieffer-Wolff transformation.
+    # - commuting_blocks: a list of booleans indicating whether multiplying a
+    #   diagonal matrix by an offdiagonal within that block gives an
+    #   offdiagonal matrix. This property is broken in the context of selective
+    #   diagonalization.
     with "H'_diag":
         start = 0
         if diagonal:
