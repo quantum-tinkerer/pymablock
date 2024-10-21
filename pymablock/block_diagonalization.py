@@ -323,6 +323,8 @@ def block_diagonalize(
                 return x
             if isinstance(x, sympy.MatrixBase):
                 return x.multiply_elementwise(to_keep[index[0]])
+            if sparse.issparse(x):
+                return x.multiply(to_keep[index[0]])
             return x * to_keep[index[0]]
 
         def offdiag(x, index):
@@ -332,6 +334,8 @@ def block_diagonalize(
             print(to_keep)
             if isinstance(x, sympy.MatrixBase):
                 return x.multiply_elementwise(to_eliminate[index[0]])
+            if sparse.issparse(x):
+                return x.multiply(to_eliminate[index[0]])
             return x * to_eliminate[index[0]]
 
     if not isinstance(fully_diagonalize, dict):
