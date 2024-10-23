@@ -257,7 +257,7 @@ To fix the diagonal part of $\mathcal{Y}$, we use its definition~\eqref{eq:XYZ},
   \label{eq:sylvester}
   [\mathcal{V}, H_0] = \mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}],
 \end{equation}
-which is a continuous time Lyapunov equation for $\mathcal{V}$.
+which is a continuous-time Lyapunov equation for $\mathcal{V}$.
 In order for this equation to be satisfiable, the diagonal part of the right hand side must vanish, since the left hand side is purely offdiagonal.
 Therefore we find the diagonal part of $\mathcal{Y}$:
 %
@@ -356,6 +356,6 @@ Finally, we combine Eq.~\eqref{eq:H_tilde}, Eq.~\eqref{eq:UHU}, Eq.~\eqref{eq:B_
 %
 \begin{equation}
 \label{eq:H_tilde_optimized}
-\tilde{\mathcal{H}}_D = \mathcal{H}_D + (\mathcal{A}_D + \textrm{h.c.})/2 -[\mathcal({U}^\dagger \mathcal{B})_D + \textrm{h.c.}]/2 + \mathcal{Y}_D.
+\tilde{\mathcal{H}}_D = \mathcal{H}_D + \frac{1}{2}\left[\mathcal{A} - \mathcal{U}'^\dagger \mathcal{B} + 2\mathcal{V}\mathcal{H}'_D + \textrm{h.c.}\right]_D.
 \end{equation}
 Together with the series $\mathcal{U}'$ in Eqs.~(\ref{eq:W},\ref{eq:sylvester_optimized}), $\mathcal{A} = \mathcal{H}'_{O}\mathcal{U}'$, and $\mathcal{B}$ in Eqs.~(\ref{eq:B_diag},\ref{eq:B_offdiag}), this equation defines the optimized algorithm.

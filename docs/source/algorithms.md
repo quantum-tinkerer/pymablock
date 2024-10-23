@@ -14,7 +14,7 @@ kernelspec:
 
 ## Problem formulation
 
-Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use calligraphic letters to denote series) that block-diagonalizes the Hamiltonian
+In the simplest setting, Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use calligraphic letters to denote series) that block-diagonalizes the Hamiltonian
 
 :::{math}
 :label: hamiltonian
@@ -24,8 +24,9 @@ H_0^{AA} & 0\\
 \end{pmatrix},
 :::
 
-with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components, respectively.
-Here we consider a 2-block case for simplicity, but the Pymablock algorithm supports any number of blocks.
+with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal components $\mathcal{H}'_{D}$ and block-offdiagonal components $\mathcal{H}'_{O}, respectively.
+Pymablock algorithm, however, works not just with $2 \times 2$ block matrices: instead, it can consider as an offdiagonal part of an operator an arbitrary subset of its offdiagonal matrix elements, and the diagonal part is the rest.
+The main complication of this generalization is that a product of a diagonal and an offdiagonal operator might not be offdiagonal anymore.
 The series here may be multivariate, and they represent sums of the form
 
 $$
@@ -38,7 +39,7 @@ The problem statement, therefore, is finding $\mathcal{U}$ and $\tilde{\mathcal{
 
 :::{math}
 :label: eq:problem_definition
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}_{O} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
 :::
 
 where series multiply according to the [Cauchy product](https://en.wikipedia.org/wiki/Cauchy_product):
@@ -139,7 +140,7 @@ Using the Taylor expansion approach is therefore both more complicated and more 
 :::
 
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
-Additionally, we constrain $\mathcal{V}$ to be block off-diagonal: $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$,
+Additionally, we constrain $\mathcal{V}$ to be off-diagonal: $\mathcal{V}_{D} = 0$,
 so that the resulting unitary transformation is equivalent to the Schrieffer-Wolff transformation.
 In turn, this means that $\mathcal{W}$ is block-diagonal and that the norm of $\mathcal{U}'$ is minimal.
 
@@ -181,10 +182,10 @@ To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commu
 :label: XYZ
 \mathcal{X} \equiv [\mathcal{U}', \mathcal{H}_D] = \mathcal{Y} + \mathcal{Z}, \quad
 \mathcal{Y} \equiv [\mathcal{V}, \mathcal{H}_D] = \mathcal{Y}^\dagger,\quad
-\mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_D] = -\mathcal{Z}^\dagger,
+\mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_D] = -\mathcal{Z}^\dagger.
 :::
 
-where $\mathcal{Y}$ is therefore block off-diagonal, while $\mathcal{Z}$ block diagonal in the 2-block case only.
+In the common case, when  $\mathcal{A}_D$ is a block-diagonal matrix, $\mathcal{Y}$ is block off-diagonal. Additionally, in the $2\times 2$ block diagonalization, $\mathcal{Z}$ is block-diagonal.
 We use $\mathcal{H}_D \mathcal{U}' = \mathcal{U}' \mathcal{H}_D -\mathcal{X}$ to move $\mathcal{H}_D$ through
 to the right and find
 
@@ -251,10 +252,21 @@ The final part is straightforward: the definition of $\mathcal{Y}$ in {eq}`XYZ` 
 [\mathcal{V}, H_0] = \mathcal{Y} - [\mathcal{V}, \mathcal{H}'_D],
 :::
 
-a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation), which we only need to solve once for every new order.
+which is a [continuous-time Lyapunov equation](https://en.wikipedia.org/wiki/Lyapunov_equation) for $\mathcal{V}$.
+In order for this equation to be satisfiable, the diagonal part of the right hand side must vanish, since the left hand side is purely offdiagonal.
+Therefore we find the diagonal part of $\mathcal{Y}$:
+
+:::{math}
+:label: Y_D
+\mathcal{Y}_D = [\mathcal{V}, \mathcal{H}'_{D}]_D,
+:::
+
+and it vanishes if the diagonal part of an operator corresponds to a block-diagonal matrix.
+
+Finding $\mathcal{V}$ from $\mathcal{Y}$ amounts to solving a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation), which we only need to solve once for every new order.
 This is the only step in the algorithm that requires a direct multiplication by $\mathcal{H}'_D$.
-In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V^{AB}_{\mathbf{n}, ij} = (\mathcal{Y} - [\mathcal{V},
-\mathcal{H}'_D])^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
+In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V_{\mathbf{n}, ij} = (\mathcal{Y}_O - [\mathcal{V},
+\mathcal{H}'_D]_O)_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient algorithms to solve Sylvester's equation, see [below](#implicit).
 
 ## Actual algorithm
@@ -264,11 +276,11 @@ We now have the complete algorithm:
 1. Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
 2. To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
 3. To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation  $[\mathcal{V}, H_0] = (\mathcal{Y} - [\mathcal{V}, \mathcal{H}'_D])_O$. This requires $\mathcal{X}$.
-4. To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
-5. For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =  (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U})^{AB}$.
+4. To find the antihermitian part of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
+5. For the Hermitian part of $\mathcal{X}$, use $\mathcal{Y} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U})_O + [\mathcal{V}, \mathcal{H}'_D]_D$.
 6. Compute the effective Hamiltonian as $\tilde{\mathcal{H}}_{D} = \mathcal{H}_D - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U}$.
 
-:::{admonition} Extra optimization: common subexpression elimination
+::::{admonition} Extra optimization: common subexpression elimination
 :class: dropdown info
 
 We further optimize the algorithm by reusing products that are needed in several places.
@@ -278,7 +290,7 @@ Firstly, we rewrite the expressions for $\mathcal{Z}$ and $\tilde{\mathcal{H}}$ 
 $$
 \begin{gather*}
 \mathcal{Z} = \frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}],\\
-\tilde{\mathcal{H}} = \mathcal{H}_D + \mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.})/2,
+\tilde{\mathcal{H}} = \mathcal{H}_D + \mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.})/2 - \mathcal{Y}_D,
 \end{gather*}
 $$
 
@@ -315,26 +327,33 @@ Its diagonal blocks, on the other hand, are given by
 
 $$
 \toggle{
-  \mathcal{B}_{D} = \texttip{\color{red}{\ldots}}{click to expand} = \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]_{D},
+  \mathcal{B}_{D} = \texttip{\color{red}{\ldots}}{click to expand} = \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] + [\mathcal{VH}'_D +\textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]_{D},
 }{
 \begin{align*}
   \mathcal{B}_{D} &= \left[\mathcal{Y} + \mathcal{Z} - \mathcal{H}'_{O} - \mathcal{A}\right]_{D} \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{A}\right]_{D} \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]_{D}, \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]_{D},
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] + \mathcal{Y} - \mathcal{A}\right]_{D} \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}])- \textrm{h.c.}] + \mathcal{Y} - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]_{D}, \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] + [\mathcal{VH}'_D +\textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]_{D},
   \end{align*}
 }
 \endtoggle
 $$
 where we used Eq. {eq}`Z` and that the $\mathcal{U}'^\dagger \mathcal{A}$ is Hermitian.
 
+Using $\mathcal{B}$ changes the relation for $\mathcal{V}$ in Eq. {eq}`sylvester` to
+
+:::{math}
+:label: sylvester_optimized
+[\mathcal{V},H_0] = \left(\mathcal{B} - \mathcal{H}' - \mathcal{A} - [\mathcal{V}, \mathcal{H}'_{D}]\right)_{O}.
+:::
+
 Finally, we compute the diagonal part of $\tilde{\mathcal{H}}$ as
 
 $$
-\tilde{\mathcal{H}}_D = \mathcal{H}_D + (\mathcal{A} + \mathcal{A}^\dagger)/2 -(\mathcal{U}^\dagger \mathcal{B} + \textrm{h.c.})/2.
+\tilde{\mathcal{H}}_D = \mathcal{H}_D + (\mathcal{A} - \mathcal{U}^\dagger \mathcal{B} + 2\mathcal{VH}'_D + \textrm{h.c.})_D/2.
 $$
 
-:::
+::::
 
 (implicit)=
 ## How to use Pymablock on large numerical Hamiltonians?
