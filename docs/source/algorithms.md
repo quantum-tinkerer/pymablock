@@ -25,8 +25,9 @@ H_0^{AA} & 0\\
 :::
 
 with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal components $\mathcal{H}'_{D}$ and block-offdiagonal components $\mathcal{H}'_{O}, respectively.
-Pymablock algorithm, however, works not just with $2 \times 2$ block matrices: instead, it can consider as an offdiagonal part of an operator an arbitrary subset of its offdiagonal matrix elements, and the diagonal part is the rest.
-The main complication of this generalization is that a product of a diagonal and an offdiagonal operator might not be offdiagonal anymore.
+Pymablock algorithm, however, does not just work with $2 \times 2$ block matrices: it can perturbatively cancel any offdiagonal elements of $\mathcal{H}$.
+In the general case, we define the offdiagonal part of an operator as an arbitrary subset of its offdiagonal matrix elements, and the diagonal part as the rest.
+The main complication of this generalization is that the product of the diagonal part and the offdiagonal part of an operator might not be offdiagonal anymore.
 The series here may be multivariate, and they represent sums of the form
 
 $$
