@@ -71,8 +71,7 @@ for ax in (ax0, ax1, ax2):
     ax.axis('off')
 ```
 
-
-The series here may be multivariate, and they represent sums of the form
+As another generalization compared to the simplest case, the series here may be multivariate, and they represent sums of the form
 
 $$
 \mathcal{A} = \sum_{n_1=0}^\infty \sum_{n_2=0}^\infty \cdots \sum_{n_k=0}^\infty \lambda_1^{n_1} \lambda_2^{n_2} \cdots \lambda_k^{n_k} A_{n_1, n_2, \ldots, n_k},
@@ -96,7 +95,7 @@ $$
 :::{admonition} Computational complexity of the Cauchy product
 :class: dropdown info
 The Cauchy product is the most expensive operation in perturbation theory, because it involves a large number of multiplications between potentially large matrices, so let us discuss its complexity.
-Evaluating $\mathbf{n}$-th order of $\mathcal{C}$ requires $\sim\prod_i n_i = N$ multiplications of the series elements.
+Evaluating $\mathbf{n}$-th order of $\mathcal{C}=\mathcal{AB}$ requires $\sim\prod_i n_i = N$ multiplications of the series elements.
 A direct computation of all the possible index combinations in a product between three series $\mathcal{A}\mathcal{B}\mathcal{C}$ would have a higher cost $\sim N^2$, however if we use associativity of the product and compute this as $(\mathcal{A}\mathcal{B})\mathcal{C}$, then the scaling of the cost stays $\sim N$.
 :::
 
@@ -172,21 +171,20 @@ $$
 \mathcal{W} = \sqrt{1 + \mathcal{V}^2} - 1 \equiv f(\mathcal{V}) \equiv \sum_n a_n \mathcal{V}^{2n},
 $$
 
-however the scaling of such a Cauchy product becomes slower if we need to compute a Taylor expansion of a series:
+however the scaling of this definition is worse than that of a Cauchy product because we need to compute a Taylor expansion of a series:
 
 $$
 f(\mathcal{A}) = \sum_{n=0}^\infty a_n \mathcal{A}^n.
 $$
 
-However, evaluating a Taylor expansion of a given series has a higher scaling of complexity.
 A direct computation of all possible products of terms would require $\sim \exp N$ multiplications.
-We improve on this by defining a new series as $\mathcal{A}^{n+1} = \mathcal{A}\mathcal{A}^{n}$ and reusing the previously computed results, which brings these costs down to $\sim N^2$.
+We improve on this by defining a new series as $\mathcal{A}^{n+1} = \mathcal{A}\mathcal{A}^{n}$ and reusing the previously computed results, which brings these costs down to $\sim N^2$—still worse than a cost of a single Cauchy product.
 Using the Taylor expansion approach is therefore both more complicated and more computationally expensive than the recurrent definition in {eq}`W`.
 :::
 
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}_{R} = 0$.
 Additionally, we constrain $\mathcal{V}$ to have no selected part: $\mathcal{V}_{S} = 0$, so that its norm and the norm of $\mathcal{U}'$ are minimal.
-This also makes the our transformation equivalent to Schrieffer-Wolff transformation in the $2\times 2$ block case.
+This also makes our transformation equivalent to Schrieffer-Wolff transformation in the $2\times 2$ block case.
 
 :::{admonition} Equivalence to Schrieffer-Wolff transformation
 :class: dropdown info
@@ -218,7 +216,7 @@ where we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = \mathcal{H}_{S} + 
 Because we want to avoid unnecessary products by $\mathcal{H}_{S}$, we need to get rid of the terms that contain it by replacing them with an alternative expression.
 Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can compute without ever multiplying by $\mathcal{H}_{S}$.
 Like $\mathcal{U}'$, $\mathcal{X}$ needs to be defined via a recurrence relation, which we will find later.
-Because the expression above has $\mathcal{H}_{S}$ multiplied by $\mathcal{U}'$ by the left and by the right, we get rid of these terms by making sure that $\mathcal{H}_{S}$ multiplies terms from one side only.
+Because the expression above has $\mathcal{H}_{S}$ multiplied by $\mathcal{U}'$ from the left and from the right, we get rid of these terms by making sure that $\mathcal{H}_{S}$ multiplies terms from one side only.
 To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commutator between $\mathcal{U}'$ and $\mathcal{H}_{S}$:
 
 :::{math}
@@ -228,7 +226,7 @@ To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commu
 \mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_{S}] = -\mathcal{Z}^\dagger.
 :::
 
-In the common case, when  $\mathcal{A}_{S}$ is a block-diagonal part of a matrix, $\mathcal{Y}$ is block off-diagonal. Additionally, in the $2\times 2$ block diagonalization, $\mathcal{Z}$ is block-diagonal.
+In the common case, when  $\mathcal{A}_{S}$ is a block-diagonal part of a matrix, $\mathcal{Y}$ is block off-diagonal. Additionally, in the case of $2\times 2$ block diagonalization, $\mathcal{Z}$ is block-diagonal.
 We use $\mathcal{H}_{S} \mathcal{U}' = \mathcal{U}' \mathcal{H}_{S} -\mathcal{X}$ to move $\mathcal{H}_{S}$ through
 to the right and find
 
@@ -285,8 +283,7 @@ Then, we compute $\mathcal{Y}$ (the Hermitian part of $\mathcal{X}$) by requirin
 \mathcal{U}'^\dagger \mathcal{X} - \mathcal{Z})_{R}.
 :::
 
-Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack 0-th order, this defines a recursive relation for $\mathcal{X}^{AB}$, and therefore $\mathcal{Y}_{R}$.
-
+Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack 0-th order, this defines a recursive relation for $\mathcal{Y}_{R}$.
 To find $\mathcal{Y}_{S}$ we use the definition of $\mathcal{Y}$ in {eq}`XYZ`, which fixes $\mathcal{V}$ as a solution of:
 
 :::{math}
@@ -303,7 +300,7 @@ Therefore we find the selected part of $\mathcal{Y}$ as:
 \mathcal{Y}_{S} = [\mathcal{V}, \mathcal{H}'_{S}]_{S},
 :::
 
-and it vanishes if the $\mathcal{A}_{S}$ corresponds to a block-diagonal matrix.
+and it vanishes if $\mathcal{A}_{S}$ corresponds to a block-diagonal matrix.
 *This is our last secret ingredient✨*
 
 The final part is straightforward. Finding $\mathcal{V}$ from $\mathcal{Y}$ amounts to solving a [Sylvester's equation](https://en.wikipedia.org/wiki/Sylvester_equation), which we only need to solve once for every new order.
