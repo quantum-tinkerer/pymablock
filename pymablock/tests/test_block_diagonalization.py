@@ -1507,7 +1507,7 @@ def test_multiblock_kpm_auxiliary(wanted_orders):
     )
 
 
-def test_selective_diagonaliztion(wanted_orders):
+def test_selective_diagonalization(wanted_orders):
     N = 20
     H_0, H_ps = H_list(wanted_orders, N)
     H = hamiltonian_to_BlockSeries([H_0, *H_ps])
