@@ -56,6 +56,10 @@ multiplication_counts = {}
 for structure in evals.keys():
     multiplication_counts[structure] = {}
     H = BlockSeries(
+        data={
+            (0, 0, 0): AlgebraElement("H000"),
+            (1, 1, 0): AlgebraElement("H110"),
+        },
         eval=evals[structure],
         shape=(2, 2),
         n_infinite=1,

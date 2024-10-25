@@ -2,18 +2,39 @@
 
 \subsection{Problem statement}
 
-Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use calligraphic letters to denote series) that block-diagonalizes the Hamiltonian
+Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use calligraphic letters to denote series) that eliminates the off-diagonal components of the Hamiltonian
 %
 \begin{equation}
 \label{eq:hamiltonian}
-\mathcal{H} = H_0 + \mathcal{H}',\quad H_0 = \begin{pmatrix}
-H_0^{AA} & 0\\
-0 & H_0^{BB}
-\end{pmatrix},
+\mathcal{H} = H_0 + \mathcal{H}',
 \end{equation}
 %
-with $\mathcal{H}' = \mathcal{H}'_{D} + \mathcal{H}'_{O}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components, respectively.
-The series here may be multivariate, and they represent sums of the form
+with $\mathcal{H}' = \mathcal{H}'_{S} + \mathcal{H}'_{R}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components, respectively.
+Here and later we use the subscipt $S$ to denote the selected part and $R$ to denote remaining components of a series, with the goal of the perturbation theory to obtain a Hamiltonian with only the selected part.
+In different settings, selected and remaining parts may mean different things.
+In the quasi-degenerate perturbation theory, the Hilbert space is subdivided into $A$ and $B$ subspaces, which makes $H_0$ a block-diagonal matrix
+\begin{equation}
+  H_0 = \begin{pmatrix}
+    H_0^{AA} & 0 \\
+    0 & H_0^{BB}
+    \end{pmatrix},
+\end{equation}
+and the goal of the perturbation theory is to eliminate the offdiagonal $AB$ and $BA$ blocks of $\mathcal{H}$.
+In this case the selected part is the block-diagional part, and the remaining part is the block-offdiagonal part.
+In the context of Rayleigh-Schr\"odinger perturbation theory, $H_0$ is a diagonal matrix so that the selected part is the diagonal, and the remaining part of an operator are all its matrix elements that are not on the diagonal.
+
+To consider the problem in the most general setting, we only require the selected and remaining parts of an operator to satisfy the following constraints:
+\begin{enumerate}
+  \item The selected and remaining parts of an operator add to identity: $\mathcal{A} = \mathcal{A}_{S} + \mathcal{A}_{R}$.
+  \item Taking either part of an operator is idempotent: $(\mathcal{A}_{S})_{S} = \mathcal{A}_{S}$.
+  \item Taking either part commutes with Hermitian conjugation: $(\mathcal{A}_{S})^\dagger = (\mathcal{A^\dagger})_{S}$.
+  \item The remaining part of any operator has no matrix elements within eigensubspaces of $H_0$. This is required to ensure that the perturbation theory is well-defined, and guarantees that $(\mathcal{A}_{R} H_0)_{S} = 0$.
+\end{enumerate}
+The separation of an operator into selected and remaining parts is a generalization of taking block-diagonal and block-offdiagonal parts.
+In particular, it allows to choose any subset of the offdiagonal matrix elements as remaining, as long as none of the matrix elements belong to an eigensubspace of $H_0$.
+The main difference between these two ways of separating an operator is that a product of a selected part and remaining part of two operators may have a non-zero selected part: $(\mathcal{A}_{S}\mathcal{B}_{R})_{S} \neq 0$.
+
+All the series we consider may be multivariate, and they represent sums of the form
 %
 \begin{equation}
 \mathcal{A} = \sum_{n_1=0}^\infty \sum_{n_2=0}^\infty \cdots \sum_{n_k=0}^\infty \lambda_1^{n_1} \lambda_2^{n_2} \cdots \lambda_k^{n_k} A_{n_1, n_2, \ldots, n_k},
@@ -25,7 +46,7 @@ The problem statement, therefore, is finding $\mathcal{U}$ and $\tilde{\mathcal{
 %
 \begin{equation}
 \label{eq:problem_definition}
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}^{AB} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}_{R} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
 \end{equation}
 %
 which is schematically shown in Fig.~\ref{fig:block_diagonalization}.
@@ -46,7 +67,7 @@ We are searching for a procedure that satisfies two additional constraints:
     \item It has the same complexity scaling as a Cauchy product, and therefore
     $\sim N$ multiplications per additional order.
     \item It does not require multiplications by $H_0$.
-    \item It requires only one Cauchy product by $\mathcal{H}_D$, the block-diagonal
+    \item It requires only one Cauchy product by $\mathcal{H}_{S}$, the selected
     part of $\mathcal{H}$.
 \end{itemize}
 %
@@ -55,13 +76,13 @@ Therefore the complexity scaling of the complete algorithm may not become lower 
 The second requirement is because in perturbation theory, $n$-th order corrections to $\tilde{\mathcal{H}}$ carry $n$ energy denominators $1/(E_i - E_j)$, where $E_i$ and $E_j$ are the eigenvalues of $H_0$ belonging to different subspaces.
 Therefore, any additional multiplications by $H_0$ must cancel with additional energy denominators.
 Multiplying by $H_0$ is therefore unnecessary work, and it gives longer intermediate expressions.
-The third requirement we impose by considering a case in which $\mathcal{H}_{O}=0$, where $\mathcal{H}_D$ must at least enter $\tilde{\mathcal{H}}$ as an added term, without any products.
-Moreover, because $\mathcal{U}$ depends on the entire Hamiltonian, there must be at least one Cauchy product by $\mathcal{H}'_D$.
+The third requirement we impose by considering a case in which $\mathcal{H}_{R}=0$, where $\mathcal{H}_{S}$ must at least enter $\tilde{\mathcal{H}}$ as an added term, without any products.
+Moreover, because $\mathcal{U}$ depends on the entire Hamiltonian, there must be at least one Cauchy product by $\mathcal{H}'_{S}$.
 The goal of our algorithm is thus to be efficient and to produce compact results that do not require further simplifications.
 
 \subsection{Existing solutions}
 \co{Pymablock's algorithm does not use the Schrieffer--Wolff transformation, because the former is inefficient.}
-A common approach to constructing effective Hamiltonians is to use the Schrieffer--Wolff transformation~\cite{Schrieffer_1966}:
+A common approach to constructing effective Hamiltonians in the $2\times 2$ block case is to use the Schrieffer--Wolff transformation~\cite{Schrieffer_1966}:
 %
 \begin{equation}
 \tilde{\mathcal{H}} = e^\mathcal{S} \mathcal{H} e^{-\mathcal{S}}, \\
@@ -161,52 +182,53 @@ This makes it possible to use $\mathcal{AB}$ in a recurrence relation, a propert
 
 \co{To fully define the unitary transformation, we make a choice for V.}
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
-Additionally, we constrain $\mathcal{V}$ to be block off-diagonal: $\mathcal{V}^{AA} = \mathcal{V}^{BB} = 0$, a choice we make to ensure that the resulting unitary transformation is equivalent to the Schrieffer--Wolff transformation (see section~\ref{seq:SW_equivalence}).
-In turn, this makes $\mathcal{W}$ block-diagonal and makes the norm of $\mathcal{U}'$ minimal.
+Additionally, we constrain $\mathcal{V}$ to have no selected part: $\mathcal{V}_{S} = 0$, a choice we make to minimize the norm of $\mathcal{U}'$~\cite{Cederbaum_1989}.
+In the $2\times 2$ block case, this makes $\mathcal{W}$ block-diagonal and ensures that the resulting unitary transformation is equivalent to the Schrieffer--Wolff transformation (see section~\ref{seq:SW_equivalence}).
 
 \co{We find V and the transformed Hamiltonian.}
 The remaining condition for finding a recurrent relation for $\mathcal{U}'$ is that the transformed Hamiltonian
 %
 \begin{equation}
 \label{eq:H_tilde_def}
-\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = \mathcal{H}_{D} +
-\mathcal{U}'^\dagger \mathcal{H}_{D} + \mathcal{H}_{D} \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{H}_{D}
-\mathcal{U}' + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U},
+\tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U} = \mathcal{H}_{S} +
+\mathcal{U}'^\dagger \mathcal{H}_{S} + \mathcal{H}_{S} \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{H}_{S}
+\mathcal{U}' + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U},
 \end{equation}
 %
-is block-diagonal, a condition that determines $\mathcal{V}$.
-Here we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = \mathcal{H}_{D} + \mathcal{H}'_{O}$, since $H_0$ is block-diagonal by definition.
-Because we want to avoid products by $\mathcal{H}_{D}$, we need to get rid of the terms that contain it by replacing them with an alternative expression.
-Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can compute without ever multiplying by $\mathcal{H}_{D}$.
+has only the selected part $\tilde{\mathcal{H}}_{R}=0$, a condition that determines $\mathcal{V}$.
+Here we used $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{H} = \mathcal{H}_{S} + \mathcal{H}'_{R}$, since $H_0$ is has no remaining part by definition.
+Because we want to avoid products by $\mathcal{H}_{S}$, we need to get rid of the terms that contain it by replacing them with an alternative expression.
+Our strategy is to define an auxiliary operator $\mathcal{X}$ that we can compute without ever multiplying by $\mathcal{H}_{S}$.
 Like $\mathcal{U}'$, $\mathcal{X}$ needs to be defined via a recurrence relation, which we determine later.
-Because Eq.~\eqref{eq:H_tilde_def} contains $\mathcal{H}_{D}$ multiplied by $\mathcal{U}'$ from the left and from the right, eliminating $\mathcal{H}_{D}$ requires moving it to the same side.
-To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commutator between $\mathcal{U}'$ and $\mathcal{H}_{D}$:
+Because Eq.~\eqref{eq:H_tilde_def} contains $\mathcal{H}_{S}$ multiplied by $\mathcal{U}'$ from the left and from the right, eliminating $\mathcal{H}_{S}$ requires moving it to the same side.
+To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commutator between $\mathcal{U}'$ and $\mathcal{H}_{S}$:
 %
 \begin{equation}
 \label{eq:XYZ}
-\mathcal{X} \equiv [\mathcal{U}', \mathcal{H}_{D}] = \mathcal{Y} + \mathcal{Z}, \quad
-\mathcal{Y} \equiv [\mathcal{V}, \mathcal{H}_{D}] = \mathcal{Y}^\dagger,\quad
-\mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_{D}] = -\mathcal{Z}^\dagger,
+\mathcal{X} \equiv [\mathcal{U}', \mathcal{H}_{S}] = \mathcal{Y} + \mathcal{Z}, \quad
+\mathcal{Y} \equiv [\mathcal{V}, \mathcal{H}_{S}] = \mathcal{Y}^\dagger,\quad
+\mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_{S}] = -\mathcal{Z}^\dagger.
 \end{equation}
 %
-where $\mathcal{Y}$ is therefore block off-diagonal and $\mathcal{Z}$, block diagonal.
-We use $\mathcal{H}_{D} \mathcal{U}' = \mathcal{U}' \mathcal{H}_{D} -\mathcal{X}$ to move $\mathcal{H}_{D}$ through to the right and find
+In the common case, but not the most general case, when the selected part is a block-diagonal operator, $\mathcal{Y}$ is block off-diagonal.
+Additionally, in the $2\times 2$ block case $\mathcal{Z}$ is block-diagonal.
+We use $\mathcal{H}_{S} \mathcal{U}' = \mathcal{U}' \mathcal{H}_{S} -\mathcal{X}$ to move $\mathcal{H}_{S}$ through to the right and find
 %
 \begin{equation}
 \label{eq:H_tilde}
 \begin{aligned}
   \tilde{\mathcal{H}}
-  &= \mathcal{H}_{D} + \mathcal{U}'^\dagger \mathcal{H}_{D} + (\mathcal{H}_{D} \mathcal{U}') + \mathcal{U}'^\dagger \mathcal{H}_{D}
-  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H}'_{O}\mathcal{U})
+  &= \mathcal{H}_{S} + \mathcal{U}'^\dagger \mathcal{H}_{S} + (\mathcal{H}_{S} \mathcal{U}') + \mathcal{U}'^\dagger \mathcal{H}_{S}
+  \mathcal{U}' + \mathcal{U}^\dagger(\mathcal{H}'_{R}\mathcal{U})
   \\
-  &= \mathcal{H}_{D} + \mathcal{U}'^\dagger \mathcal{H}_{D} + \mathcal{U}'\mathcal{H}_{D} - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' \mathcal{H}_{D} - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U} \\
-  &= \mathcal{H}_{D} + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')\mathcal{H}_{D} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U} \\
-  &= \mathcal{H}_{D} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U},
+  &= \mathcal{H}_{S} + \mathcal{U}'^\dagger \mathcal{H}_{S} + \mathcal{U}'\mathcal{H}_{S} - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' \mathcal{H}_{S} - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U} \\
+  &= \mathcal{H}_{S} + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')\mathcal{H}_{S} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U} \\
+  &= \mathcal{H}_{S} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U},
 \end{aligned}
 \end{equation}
 %
-where the terms multiplied by $\mathcal{H}_{D}$ cancel according to Eq.~\eqref{eq:unitarity}.
-The transformed Hamiltonian does not contain multiplications by $\mathcal{H}_{D}$ anymore, but it does depend on $\mathcal{X}$, an auxiliary operator whose recurrent definition we do not know yet.
+where the terms multiplied by $\mathcal{H}_{S}$ cancel according to Eq.~\eqref{eq:unitarity}.
+The transformed Hamiltonian does not contain multiplications by $\mathcal{H}_{S}$ anymore, but it does depend on $\mathcal{X}$, an auxiliary operator whose recurrent definition we do not know yet.
 To find it, we first focus on its anti-Hermitian part, $\mathcal{Z}$.
 Since recurrence relations are expressions whose right-hand side contains Cauchy products between series, we need to find a way to make a product appear.
 We do so by using the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' = -\mathcal{U}'^\dagger \mathcal{U}'$ to obtain the recursive definition of $\mathcal{Z}$:
@@ -216,61 +238,66 @@ We do so by using the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' =
 \begin{aligned}
 \mathcal{Z}
 &= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \\
-&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) \mathcal{H}_{D} - \mathcal{H}_{D} (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
-&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'\mathcal{H}_{D} - \mathcal{H}_{D} \mathcal{U}') + (\mathcal{U}'\mathcal{H}_{D} - \mathcal{H}_{D} \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \\
+&= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) \mathcal{H}_{S} - \mathcal{H}_{S} (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
+&= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'\mathcal{H}_{S} - \mathcal{H}_{S} \mathcal{U}') + (\mathcal{U}'\mathcal{H}_{S} - \mathcal{H}_{S} \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \\
 &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
 \end{aligned}
 \end{equation}
 %
 Similar to computing $W_{\mathbf{n}}$, computing $Z_{\mathbf{n}}$ requires lower-orders of $\mathcal{X}$ and $\mathcal{U}'$.
-Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}^{AB} = 0$ in the Eq.~\eqref{eq:H_tilde} and find
+Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\mathcal{H}}_{R} = 0$ in the Eq.~\eqref{eq:H_tilde} and find
 %
 \begin{equation}
-\label{eq:Y}
-\mathcal{X}^{AB} = (\mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} -
-\mathcal{U}'^\dagger \mathcal{X})^{AB}.
+\label{eq:Y_R}
+\mathcal{Y}_{R} = (\mathcal{U}^\dagger \mathcal{H}'_{R} \mathcal{U} -
+\mathcal{U}'^\dagger \mathcal{X} - \mathcal{Z})_{R}.
 \end{equation}
 %
-Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack \nth{0} order, this defines a recursive relation for $\mathcal{X}^{AB}$, and therefore $\mathcal{Y}$.
+Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack \nth{0} order, this defines a recursive relation $\mathcal{Y}$.
+To fix $\mathcal{Y}_S$, we use its definition~\eqref{eq:XYZ}, which gives
+\begin{equation}
+  \label{eq:sylvester}
+  [\mathcal{V}, H_0] = \mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{S}],
+\end{equation}
+which is a continuous-time Lyapunov equation for $\mathcal{V}$.
+In order for this equation to be satisfiable, the selected part of the right hand side must vanish, since the left hand side has no selected part.
+Therefore we find:
+%
+\begin{equation}
+\label{eq:Y_S}
+\mathcal{Y}_{S} = [\mathcal{V}, \mathcal{H}'_{S}]_{S},
+\end{equation}
+and it vanishes if the selected part corresponds to a block-diagonal matrix.
 
-The final part is straightforward: using $\mathcal{H}_{D} = H_0 + \mathcal{H}'_{D}$ and the definition of $\mathcal{Y}$ in Eq.~\eqref{eq:XYZ} fixes $\mathcal{V}$ as a solution of:
-%
-\begin{equation}
-\label{eq:sylvester}
-\mathcal{V}^{AB}H_0^{BB} - H_0^{AA} \mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{V}, \mathcal{H}'_{D}]^{AB},
-\end{equation}
-%
-a Sylvester's equation, which we only need to solve once for every new order.
-In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V^{AB}_{\mathbf{n}, ij} = (\mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{D}])^{AB}_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
+Having found $\mathcal{Y}$, determining $\mathcal{V}$ from Eq.~\eqref{eq:sylvester} is straightforward, and it needs to be solved only once for every new order.
+In the eigenbasis of $H_0$, the solution of this equation is $V_{\mathbf{n}, ij} = (\mathcal{Y}_{R} - [\mathcal{V}, \mathcal{H}'_{S}]_{R})_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
 
 \co{The algorithm is complete.}
 We now have the complete algorithm:
 %
 \begin{enumerate}
     \item Define series $\mathcal{U}'$ and $\mathcal{X}$ and make use of their block structure and Hermiticity.
-    \item To define the diagonal blocks of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
-    \item To find the off-diagonal blocks of $\mathcal{U}'$, solve Sylvester's equation \\ $\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \mathcal{Y}^{AB} - [\mathcal{V}, \mathcal{H}'_{D}]^{AB}$.
+    \item To define the hermitian part of $\mathcal{U}'$, use $\mathcal{W} = -\mathcal{U}'^\dagger\mathcal{U}'/2$.
+    \item To find the antihermitian part of $\mathcal{U}'$, solve Sylvester's equation \\ $[\mathcal{V}, H_0] = (\mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{S}])_{R}$.
       This requires $\mathcal{X}$.
-    \item To find the diagonal blocks of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
-    \item For the off-diagonal blocks of $\mathcal{X}$, use $\mathcal{Y}^{AB} =
-    (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})^{AB}$.
-    \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}} = \mathcal{H}_{D} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{O}\mathcal{U}$.
+    \item To find the antihermitian part of $\mathcal{X}$, define $\mathcal{Z} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}')/2$.
+    \item For the Hermitian part of $\mathcal{X}$, use $\mathcal{Y} = (-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'\mathcal{U})_{R} + [\mathcal{V}, \mathcal{H}'_{S}]_{S}$.
+    \item  Compute the effective Hamiltonian as $\tilde{\mathcal{H}} \equiv \tilde{\mathcal{H}}_{S} = \mathcal{H}_{S} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U}$.
 \end{enumerate}
 
 \subsection{Equivalence to Schrieffer--Wolff transformation}
 \label{seq:SW_equivalence}
 \co{Our algorithm is equivalent to a Schrieffer--Wolff transformation}
-Pymablock's algorithm and the Schrieffer--Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
+Pymablock's algorithm applied to $2\times 2$ block-diagonalization and the Schrieffer--Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
 They are therefore equivalent up to a gauge choice in each subspace, $A$ and $B$.
 We establish the equivalence between the two by demonstrating that this gauge choice is the same for both algorithms.
-The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} = \mathcal{S}^{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.
+The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}_{AA} = \mathcal{S}_{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.
 On the other hand, our algorithm produces the unique block-diagonalizing transformation with a block structure $\mathcal{U}_{AA} = \mathcal{U}_{AA}^{\dag}$, $\mathcal{U}_{BB} = \mathcal{U}_{BB}^{\dag}$ and $\mathcal{U}_{AB} = -\mathcal{U}_{BA}^{\dag}$.
 The uniqueness is a consequence of the construction of the algorithm, where calculating every order gives a unique solution satisfying these conditions.
-To see that the two solutions are identical, we expand the Taylor series of $\exp \mathcal{S}$.
-Every even order gives a Hermitian, block-diagonal matrix, while every odd order gives an anti-Hermitian block off-diagonal matrix, showing that $\exp \mathcal{S}$ has the same structure as $\mathcal{U}$ above.
-The reverse statement about the structure of $\log \mathcal{U}$ can be seen similarly, using the Taylor series of the logarithm around $1$.
-Using a series expansion is justified by the perturbative nature of the result, meaning that $\mathcal{S}$ is close to $0$ and $\mathcal{U}$ is close to $1$.
-Because of the uniqueness of both results, we find that $\exp \mathcal{S}$ from conventional Schrieffer--Wolff transformation is identical to $\mathcal{U}$ found by our algorithm, which remains true if both power series are truncated at a finite order.
+To see that the two solutions are identical, we expand $\exp \mathcal{S}$ into Taylor series.
+In the resulting series every term containing a product of an even number of terms of $\mathcal{S}$ is a Hermitian, block-diagonal matrix, while every term containing a product of an odd number of terms of $\mathcal{S}$ is an anti-Hermitian block off-diagonal matrix.
+Therefore $\exp \mathcal{S}$ has the same structure as $\mathcal{U}$ above.
+Because both series are fixed by the hermiticity constraints on their block structure, we conclude that $\exp \mathcal{S}$ from conventional Schrieffer--Wolff transformation is identical to $\mathcal{U}$ found by our algorithm.
 
 \subsection{Extra optimization: common subexpression elimination}
 While the algorithm of Sec.~\ref{sec:pymablock_algorithm} satisfies our requirements, we improve it further by reusing products that are needed in several places, such that the total number of matrix multiplications is reduced.
@@ -278,58 +305,58 @@ Firstly, we rewrite the expressions for $\mathcal{Z}$ in Eq.~\eqref{eq:Z} and $\
 %
 \begin{gather*}
 \mathcal{Z} = \frac{1}{2}\left[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}\right],\\
-\tilde{\mathcal{H}} = \mathcal{H}_{D} + \mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.})/2,
+\tilde{\mathcal{H}} = \mathcal{H}_{S} + \mathcal{U}^\dagger \mathcal{H}'_{R} \mathcal{U} - (\mathcal{U}'^\dagger \mathcal{X} + \textrm{h.c.})/2 - \mathcal{Y}_{S},
 \end{gather*}
 %
-where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{X}$ drops out from the diagonal blocks of $\tilde{\mathcal{H}}$ because the diagonal blocks of $\mathcal{X}$ are anti-Hermitian.
+where $\textrm{h.c.}$ is the Hermitian conjugate, and $\mathcal{Z}$ drops out from $\tilde{\mathcal{H}}$ because it is antihermitian.
 %
-Additionally, we reuse the repeated $\mathcal{A} \equiv \mathcal{H}'_{O}\mathcal{U}'$ in
+Additionally, we reuse the repeated $\mathcal{A} \equiv \mathcal{H}'_{R}\mathcal{U}'$ in
 %
 \begin{equation}
 \label{eq:UHU}
-\mathcal{U}^\dagger \mathcal{H}'_{O} \mathcal{U} = \mathcal{H}'_{O} + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A}.
+\mathcal{U}^\dagger \mathcal{H}'_{R} \mathcal{U} = \mathcal{H}'_{R} + \mathcal{A} + \mathcal{A}^\dagger + \mathcal{U}'^\dagger \mathcal{A}.
 \end{equation}
 %
-Next, we observe that some products from the $\mathcal{U}^{\dagger} \mathcal{H}_{O}\mathcal{U}$ term appear both in $\mathcal{X}$ in Eq.~\eqref{eq:Y} and in $\tilde{\mathcal{H}}$~\eqref{eq:H_tilde}.
+Next, we observe that some products from the $\mathcal{U}^{\dagger} \mathcal{H}_{R}\mathcal{U}$ term appear both in $\mathcal{X}$ in Eq.~\eqref{eq:Y_R} and in $\tilde{\mathcal{H}}$~\eqref{eq:H_tilde}.
 %
-To avoid recomputing these products, we introduce $\mathcal{B} = \mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}$ and define the recursive algorithm using $\mathcal{B}$ instead of $\mathcal{X}$.
+To avoid recomputing these products, we introduce $\mathcal{B} = \mathcal{X} - \mathcal{H}'_{R} - \mathcal{A}$ and define the recursive algorithm using $\mathcal{B}$ instead of $\mathcal{X}$.
 %
-With this definition, we compute the off-diagonal blocks of $\mathcal{B}$ as:
+With this definition, we compute the remaining part of $\mathcal{B}$ as:
 %
 \begin{equation}
 \label{eq:B_offdiag}
 \begin{aligned}
-  \mathcal{B}^{AB, BA} &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A} \right]^{AB, BA}\\
-  &= \left[\mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB, BA}\\
-  &= \left[\mathcal{U}'^\dagger\mathcal{H}'_{O} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]^{AB, BA}\\
-  &= -(\mathcal{U'}^\dagger \mathcal{B})^{AB, BA},
+  \mathcal{B}_{R} &= \left[\mathcal{Y} + \mathcal{Z} - \mathcal{H}'_{R} - \mathcal{A} \right]_{R}\\
+  &= \left[\mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]_{R}\\
+  &= \left[\mathcal{U}'^\dagger\mathcal{H}'_{R} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]_{R}\\
+  &= -(\mathcal{U'}^\dagger \mathcal{B})_{R},
 \end{aligned}
 \end{equation}
 %
-where we also used Eq.~\eqref{eq:Y} and the definition of $\mathcal{A}$.
-The diagonal blocks of $\mathcal{B}$, on the other hand, are given by
+where we also used Eq.~\eqref{eq:Y_R} and the definition of $\mathcal{A}$.
+The selected part of $\mathcal{B}$, on the other hand, is given by
 %
 \begin{equation}
 \label{eq:B_diag}
 \begin{aligned}
-  \mathcal{B}^{AA, BB} &= \left[\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}\right]^{AA, BB} \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] - \mathcal{A}\right]^{AA, BB} \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{O} - \mathcal{A}])- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]^{AA, BB}, \\
-  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \textrm{h.c.} ]\right]^{AA, BB},
+  \mathcal{B}_{S} &= \left[\mathcal{X} - \mathcal{H}'_{R} - \mathcal{A}\right]_{S} \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] + \mathcal{Y} - \mathcal{A}\right]_{S} \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{R} - \mathcal{A}])- \textrm{h.c.}]+ \mathcal{Y} - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]_{S}, \\
+  &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}]+ \left[\mathcal{V}\mathcal{H}'_{S} + \textrm{h.c}\right] - \frac{1}{2}[\mathcal{A}^\dagger + \textrm{h.c.} ]\right]_{S},
 \end{aligned}
 \end{equation}
 %
 where we used Eq.~\eqref{eq:Z} and that $\mathcal{U}'^\dagger \mathcal{A}$ is Hermitian.
 %
-Using $\mathcal{B}$ changes the relation for $\mathcal{V}^{AB}$ in Eq.~\eqref{eq:sylvester} to
+Using $\mathcal{B}$ changes the relation for $\mathcal{V}$ in Eq.~\eqref{eq:sylvester} to
 \begin{equation}
 \label{eq:sylvester_optimized}
-\mathcal{V}^{AB}H_0^{BB} - H_0^{AA}\mathcal{V}^{AB} = \left(\mathcal{B} - \mathcal{H}' - \mathcal{A} - [\mathcal{V}, \mathcal{H}'_{D}]\right)^{AB}.
+[\mathcal{V},H_0] = \left(\mathcal{B} - \mathcal{H}' - \mathcal{A} - [\mathcal{V}, \mathcal{H}'_{S}]\right)_{R}.
 \end{equation}
 Finally, we combine Eq.~\eqref{eq:H_tilde}, Eq.~\eqref{eq:UHU}, Eq.~\eqref{eq:B_diag} and Eq.~\eqref{eq:B_offdiag} to obtain the final expression for the effective Hamiltonian:
 %
 \begin{equation}
 \label{eq:H_tilde_optimized}
-\tilde{\mathcal{H}}_D = \mathcal{H}_D + (\mathcal{A} + \textrm{h.c.})/2 -(\mathcal{U}^\dagger \mathcal{B} + \textrm{h.c.})/2.
+\tilde{\mathcal{H}}_{S} = \mathcal{H}_{S} + \frac{1}{2}\left[\mathcal{A} - \mathcal{U}'^\dagger \mathcal{B} + 2\mathcal{V}\mathcal{H}'_{S} + \textrm{h.c.}\right]_{S}.
 \end{equation}
-Together with the series $\mathcal{U}'$ in Eqs.~(\ref{eq:W},\ref{eq:sylvester_optimized}), $\mathcal{A} = \mathcal{H}'_{O}\mathcal{U}'$, and $\mathcal{B}$ in Eqs.~(\ref{eq:B_diag},\ref{eq:B_offdiag}), this equation defines the optimized algorithm.
+Together with the series $\mathcal{U}'$ in Eqs.~(\ref{eq:W},\ref{eq:sylvester_optimized}), $\mathcal{A} = \mathcal{H}'_{R}\mathcal{U}'$, and $\mathcal{B}$ in Eqs.~(\ref{eq:B_diag},\ref{eq:B_offdiag}), this equation defines the optimized algorithm.

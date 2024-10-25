@@ -70,6 +70,7 @@ __pycache__/
 *.fls
 *.out
 *.toc
+_minted*
 
 ## Intermediate documents:
 *.dvi

@@ -1,7 +1,7 @@
 import operator
 import tracemalloc
 from collections import Counter
-from itertools import chain, permutations
+from itertools import chain, permutations, product
 from typing import Any, Callable, Union
 
 import numpy as np
@@ -67,11 +67,13 @@ def compare_series(
         if any(isinstance(value, type(one)) for value in values):
             assert value1 == value2
         elif all(isinstance(value, sympy.MatrixBase) for value in values):
-            assert value1 == value2
+            assert sympy.simplify(value1 - value2).is_zero_matrix
         elif any(isinstance(value, sympy.MatrixBase) for value in values):
             # The only non-symbolic option is zero
             values.remove(zero)
-            assert values[0].is_zero_matrix
+            values = values[0]
+            values.simplify()
+            assert values.is_zero_matrix
         else:
             # Convert all numeric types to dense arrays
             values = [
@@ -117,7 +119,7 @@ def is_diagonal_series(
 def identity_like(U: BlockSeries):
     """An identity-like series with the same dimensions as U"""
     return BlockSeries(
-        data={(block + U.n_infinite * (0,)): one for block in ((0, 0), (1, 1))},
+        data={((i, i) + U.n_infinite * (0,)): one for i in range(U.shape[0])},
         shape=U.shape,
         n_infinite=U.n_infinite,
         dimension_names=U.dimension_names,
@@ -406,9 +408,16 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
         np.testing.assert_allclose(H[index].diagonal(), eigvals)
     for block in ((0, 1), (1, 0)):
         assert H[block + (0,) * H.n_infinite] is zero
-    with pytest.raises(ValueError):
-        H = hamiltonian_to_BlockSeries(hamiltonian)
-        H[(0, 0, *(0,) * H.n_infinite)]
+
+    # Check that without subspace indices we get a single block of the full size.
+    H_one_block = hamiltonian_to_BlockSeries(hamiltonian)
+    H_0 = H_one_block[(0, 0, *(0,) * H.n_infinite)]
+    H_one_block_explicit = hamiltonian_to_BlockSeries(
+        hamiltonian, subspace_indices=np.zeros_like(subspace_indices)
+    )
+    H_0_explicit = H_one_block_explicit[(0, 0, *(0,) * H_one_block_explicit.n_infinite)]
+    # Hamiltonians are converted to sparse matrices
+    np.testing.assert_equal((H_0 - H_0_explicit).data, 0)
 
 
 def test_input_hamiltonian_from_subspaces():
@@ -737,7 +746,7 @@ def test_equivalence_explicit_implicit() -> None:
     )
     H_0 = H[0]
     _, eigvecs = np.linalg.eigh(H_0)
-    solve_sylvester = solve_sylvester_direct(sparse.coo_array(H_0), eigvecs[:, :a_dim])
+    solve_sylvester = solve_sylvester_direct(sparse.coo_array(H_0), [eigvecs[:, :a_dim]])
 
     implicit_H = hamiltonian_to_BlockSeries(
         H, subspace_eigenvectors=(eigvecs[:, :a_dim],), implicit=True
@@ -804,16 +813,16 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
-    diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
-    direct = solve_sylvester_direct(h, eigvecs)
+    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
+    direct = solve_sylvester_direct(h, [eigvecs])
 
     y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
         size=(a_dim, n - a_dim)
     )
     y = y @ Dagger(eigvecs_rest)
 
-    y_default = diagonal(y)
-    y_direct = direct(y)
+    y_default = diagonal(y, (0, 1))
+    y_direct = direct(y, (0, 1))
 
     np.testing.assert_allclose(y_default, y_direct)
 
@@ -844,10 +853,10 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
         eigvecs[:, a_dim:],
     )
 
-    diagonal = solve_sylvester_diagonal(eigvals[:a_dim], eigvals[a_dim:], eigvecs_rest)
+    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
     kpm = solve_sylvester_KPM(h, [eigvecs], solver_options={"atol": 1e-3})
     hybrid = solve_sylvester_KPM(
-        h, [eigvecs, eigvecs_partial], solver_options={"atol": 1e-3}
+        h, [eigvecs], solver_options={"atol": 1e-3, "aux_vectors": eigvecs_partial}
     )
 
     y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
@@ -855,9 +864,9 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     )
     y = y @ Dagger(eigvecs_rest)
 
-    y_default = diagonal(y)
-    y_kpm = kpm(y)
-    y_hybrid = hybrid(y)
+    y_default = diagonal(y, (0, 1))
+    y_kpm = kpm(y, (0, 1))
+    y_hybrid = hybrid(y, (0, 1))
 
     # Use a lower tolerance until KPM estimates error bounds.
     np.testing.assert_allclose(y_default, y_kpm, atol=1e-3)
@@ -875,7 +884,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
     """
     hamiltonian, subspace_eigenvectors = implicit_problem
     H = hamiltonian_to_BlockSeries(
-        hamiltonian, subspace_eigenvectors=subspace_eigenvectors, implicit=True
+        hamiltonian, subspace_eigenvectors=subspace_eigenvectors[:-1], implicit=True
     )
     assert H.shape == (2, 2)
     assert H.n_infinite == len(hamiltonian) - 1
@@ -902,7 +911,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
         hamiltonian = hamiltonian[0]
     except KeyError:
         hamiltonian = hamiltonian[(0,) * H.n_infinite]
-    solve_sylvester = solve_sylvester_direct(hamiltonian, subspace_eigenvectors[0])
+    solve_sylvester = solve_sylvester_direct(hamiltonian, [subspace_eigenvectors[0]])
 
     compare_series(
         block_diagonalize(H, solve_sylvester=solve_sylvester)[0][0, 0],
@@ -1296,7 +1305,13 @@ def test_delete_intermediate_terms():
     max_order = 10
     series, linear_operator_series = _compile(
         {"H": H},
-        scope={"solve_sylvester": (lambda x, _: x)},
+        scope={
+            "solve_sylvester": (lambda x, _: x),
+            "two_block_optimized": True,
+            "commuting_blocks": [True, True],
+            "offdiag": None,
+            "diag": (lambda x, index: x[index] if isinstance(x, BlockSeries) else x),
+        },
         operator=operator.mul,
         return_all=True,
     )
@@ -1317,3 +1332,190 @@ def test_delete_intermediate_terms():
             for order in range(1, max_order):
                 for index in indices:
                     assert (*index, order) not in which[term]._data
+
+
+def H_list(wanted_orders, N):
+    """Random Hamiltonian of a given size."""
+
+    def random_hermitian():
+        H_p = np.random.randn(N, N) + 1.0j * np.random.randn(N, N)
+        H_p += H_p.T.conj()
+        return H_p
+
+    H_0 = np.diag(np.random.randn(N) + 4 * np.arange(N))
+    H_ps = [random_hermitian() for _ in wanted_orders]
+
+    return H_0, H_ps
+
+
+def test_three_blocks(wanted_orders):
+    N = 6
+    H_0, H_ps = H_list(wanted_orders, N)
+    H = hamiltonian_to_BlockSeries([H_0, *H_ps], subspace_indices=np.arange(N) // 2)
+    H_tilde, U, U_adjoint = block_diagonalize(H)
+    is_unitary(U, U_adjoint, wanted_orders, atol=1e-6)
+    H_prime = cauchy_dot_product(U, H_tilde, U_adjoint)
+    compare_series(H, H_prime, wanted_orders, atol=1e-6)
+
+
+def test_analytic_full_and_selective():
+    H_0 = sympy.diag(*[sympy.Symbol(f"H_{i}", real=True) for i in range(3)])
+    H_1 = sympy.Matrix(
+        [
+            [sympy.Symbol(f"H_{sorted([i,j])}", real=True) for i in range(3)]
+            for j in range(3)
+        ]
+    )
+    H = hamiltonian_to_BlockSeries([H_0, H_1])
+    H_tilde, U, U_adjoint = block_diagonalize(H)
+    is_unitary(U, U_adjoint, (3,), atol=1e-6)
+
+    # Only check up to 2nd order for performance reasons
+    compare_series(
+        cauchy_dot_product(U, H_tilde), cauchy_dot_product(H, U), (2,), atol=1e-6
+    )
+    # Now the same but only eliminate the (0, 2) matrix element
+    H_tilde, U, U_adjoint = block_diagonalize(
+        H, fully_diagonalize={0: np.array([[0, 0, 1], [0, 0, 0], [1, 0, 0]])}
+    )
+    is_unitary(U, U_adjoint, (3,), atol=1e-6)
+    compare_series(
+        cauchy_dot_product(U, H_tilde), cauchy_dot_product(H, U), (2,), atol=1e-6
+    )
+    assert H_tilde[0, 0, 3][0, 2].simplify() == 0
+
+
+def test_three_blocks_repeated(wanted_orders):
+    """
+    Test block-diagonalization of a 3x3 Hamiltonian.
+
+    Verifies that block-diagonalizing a 3x3 Hamiltonian into 1x1 + 2x2, then
+    the second block further into 1x1 + 1x1, matches direct
+    block-diagonalization into 1x1 + 1x1 + 1x1.
+
+    Parameters:
+    wanted_orders (list): Desired orders for the Hamiltonian.
+    """
+    N = 3
+    H_0, H_ps = H_list(wanted_orders, N=N)
+
+    H_tilde, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(N))
+
+    H = hamiltonian_to_BlockSeries(
+        [H_0, *H_ps], subspace_indices=np.clip(np.arange(N), 0, 1)
+    )
+    H_tilde_A_BC, *_ = block_diagonalize(H)
+
+    H = hamiltonian_to_BlockSeries(
+        {
+            orders: H_tilde_A_BC[(1, 1, *orders)]
+            for orders in product(*(range(order + 1) for order in wanted_orders))
+        },
+        subspace_indices=np.arange(N - 1),
+    )
+    H_tilde_B_C, *_ = block_diagonalize(H)
+
+    def H_tilde_repeated_eval(*index):
+        if index[0] == index[1] == 0:
+            return H_tilde[index]
+        if index[0] == 0 or index[1] == 0:
+            return zero
+        index = (index[0] - 1, index[1] - 1, *index[2:])
+        return H_tilde_B_C[index]
+
+    H_tilde_repeated = BlockSeries(
+        eval=H_tilde_repeated_eval,
+        shape=H_tilde.shape,
+        n_infinite=H_tilde.n_infinite,
+    )
+
+    compare_series(
+        H_tilde,
+        H_tilde_repeated,
+        wanted_orders=wanted_orders,
+        atol=1e-6,
+    )
+
+
+def test_one_block_vs_multiblock(wanted_orders):
+    N = 6
+    H_0, H_ps = H_list(wanted_orders, N)
+    # First, multiblock
+    H_tilde, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(N))
+
+    H_tilde_single, *_ = block_diagonalize([H_0, *H_ps])
+
+    H_tilde_split = BlockSeries(
+        eval=lambda *index: np.array(
+            H_tilde_single[(0, 0, *index[2:])][index[:2]].reshape((1, 1))
+        ),
+        shape=(N, N),
+        n_infinite=len(wanted_orders),
+    )
+    compare_series(H_tilde, H_tilde_split, wanted_orders, atol=1e-10)
+
+
+def test_mixed_full_partial(wanted_orders):
+    N = 6
+    H_0, H_ps = H_list(wanted_orders, N)
+    with pytest.raises(ValueError):
+        block_diagonalize(
+            [H_0, *H_ps], subspace_eigenvectors=[np.eye(N)[:, :2]], fully_diagonalize=[1]
+        )
+
+    H_tilde_mixed_implicit, *_ = block_diagonalize(
+        [H_0, *H_ps], subspace_eigenvectors=[np.eye(N)[:, :2]], fully_diagonalize=[0]
+    )
+    H_tilde_mixed, *_ = block_diagonalize(
+        [H_0, *H_ps], subspace_indices=[0] * 2 + [1] * 4, fully_diagonalize=[0]
+    )
+    H_tilde_full, *_ = block_diagonalize([H_0, *H_ps])
+    H_tilde_full_subblock = BlockSeries(
+        eval=lambda *index: H_tilde_full[(0, 0, *index[2:])][:2, :2],
+        shape=(1, 1),
+        n_infinite=len(wanted_orders),
+    )
+    # The slicing syntax is a workaround of #154
+    compare_series(
+        H_tilde_mixed_implicit[:1, :1], H_tilde_mixed[:1, :1], wanted_orders, atol=1e-10
+    )
+    compare_series(
+        H_tilde_mixed[:1, :1], H_tilde_full_subblock, wanted_orders, atol=1e-10
+    )
+
+
+def test_multiblock_kpm_auxiliary(wanted_orders):
+    """Test that the multiblock KPM solver correctly works with auxiliary vectors."""
+    N = 6
+    H_0, H_ps = H_list(wanted_orders, N)
+    # 3 blocks, last one missing
+    H_tilde_implicit, *_ = block_diagonalize(
+        [H_0, *H_ps],
+        subspace_eigenvectors=[np.eye(N)[:, :2], np.eye(N)[:, 2:4]],
+        direct_solver=False,
+        # We have all vectors as auxiliary vectors to avoid the problem with
+        # the KPM convergence
+        solver_options={"atol": 1e-6, "aux_vectors": np.eye(N)[:, 4:]},
+    )
+    H_tilde_full, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(6) // 2)
+    # The slicing is a workaround of #154
+    compare_series(
+        H_tilde_implicit[:1, :1], H_tilde_full[:1, :1], wanted_orders, atol=1e-3
+    )
+    compare_series(
+        H_tilde_implicit[1:2, 1:2], H_tilde_full[1:2, 1:2], wanted_orders, atol=1e-3
+    )
+
+
+def test_selective_diagonalization(wanted_orders):
+    N = 20
+    H_0, H_ps = H_list(wanted_orders, N)
+    H = hamiltonian_to_BlockSeries([H_0, *H_ps])
+    to_eliminate = np.random.rand(N, N) > 0.8
+    to_eliminate = np.logical_or(to_eliminate, to_eliminate.T)
+    np.fill_diagonal(to_eliminate, False)
+    H_tilde, U, U_adjoint = block_diagonalize(H, fully_diagonalize={0: to_eliminate})
+    is_unitary(U, U_adjoint, wanted_orders, atol=1e-6)
+    compare_series(H, cauchy_dot_product(U, H_tilde, U_adjoint), wanted_orders, atol=1e-6)
+    # Check that the eliminated elements are zero
+    np.testing.assert_equal(H_tilde[(0, 0, *wanted_orders)][to_eliminate], 0)

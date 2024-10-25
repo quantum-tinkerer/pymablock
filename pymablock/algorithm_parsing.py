@@ -11,6 +11,7 @@ from functools import cache
 from itertools import chain
 
 zero = ast.Name(id="zero", ctx=ast.Load())
+result = ast.Name(id="result", ctx=ast.Load())
 
 
 @dataclasses.dataclass
@@ -47,7 +48,7 @@ class _EvalTransformer(ast.NodeTransformer):
         linear_operator_select = ast.parse(
             "which = linear_operator_series if use_linear_operator[index[:2]] else series"
         ).body
-        return_zero = ast.Return(value=zero)
+        result_is_zero = ast.parse("result = zero").body
 
         module = ast.Module(
             body=[
@@ -63,13 +64,14 @@ class _EvalTransformer(ast.NodeTransformer):
                     ),
                     body=[
                         *linear_operator_select,
+                        *result_is_zero,
                         *(
                             line
                             for expr in node.body
                             for line in self._visit_Line(expr)
                             if line is not None
                         ),
-                        return_zero,
+                        ast.Return(value=result),
                     ],
                     decorator_list=[],
                 )
@@ -94,8 +96,44 @@ class _EvalTransformer(ast.NodeTransformer):
             if eval_type is None:
                 return node
             node.test = eval_type.test
-            node.body = self._visit_Eval(node.body[0], eval_type)
-            return [node]
+            # The diagonal blocks are wrapped inside `diag`
+            if eval_type == _EvalType.diagonal:
+                node.body[0] = ast.Expr(
+                    ast.Call(
+                        ast.Name(id="diag", ctx=ast.Load()), [node.body[0].value], []
+                    )
+                )
+            nodes = [node]
+            # If an offdiagonal eval is present, we need to evaluate
+            # this wrapped with `offdiag` for diagonal blocks.
+            if eval_type == _EvalType.offdiagonal:
+                nodes.append(
+                    ast.If(
+                        test=ast.BoolOp(
+                            op=ast.And(),
+                            values=[
+                                ast.parse("offdiag is not None").body[0].value,
+                                _EvalType.diagonal.test,
+                            ],
+                        ),
+                        body=[
+                            ast.Expr(
+                                ast.Call(
+                                    ast.Name(id="offdiag", ctx=ast.Load()),
+                                    [node.body[0].value],
+                                    [],
+                                )
+                            )
+                        ],
+                        orelse=[],
+                    )
+                )
+            for node in nodes:
+                node.body = self._visit_Eval(node.body[0], eval_type)
+            if eval_type == _EvalType.lower:
+                nodes[0].body.append(ast.Return(value=result))
+
+            return nodes
 
         return self._visit_Eval(node, _EvalType.default)
 
@@ -115,6 +153,7 @@ class _EvalTransformer(ast.NodeTransformer):
             _LiteralTransformer(diagonal=diagonal),
         ]
         node = node.value  # Get the expression from the Expr node.
+        node = ast.BinOp(left=result, op=ast.Add(), right=node)
         for transformer in eval_transformers:
             node = transformer.visit(node)
         return [
@@ -136,7 +175,6 @@ class _EvalTransformer(ast.NodeTransformer):
                 for term, adjoint, _eval_type in self.to_delete
                 if _eval_type == eval_type
             ),
-            ast.Return(value=ast.Name(id="result", ctx=ast.Load())),
         ]
 
 
@@ -149,7 +187,7 @@ class _HermitianTransformer(ast.NodeTransformer):
     def visit_Expr(self, node: ast.Expr) -> ast.AST:
         """Insert a conditional evaluation for hermitian and antihermitian attributes.
 
-        It adds an if statement with `upper` that matches indices in the upper triangle.
+        It adds an if statement with `lower` that matches indices in the lower triangle.
         The evaluation result is either the conjugate adjoint of itself in case of `hermitian`
         or the negation of that in case of `antihermitian`.
         """
@@ -169,7 +207,7 @@ class _HermitianTransformer(ast.NodeTransformer):
                 return self.generic_visit(node)
 
         return ast.If(
-            test=ast.Name(id="upper", ctx=ast.Load()),
+            test=ast.Name(id="lower", ctx=ast.Load()),
             body=[ast.Expr(value=term)],
             orelse=[],
         )
@@ -508,7 +546,7 @@ class _EvalType(Enum):
     default = (None,)
     diagonal = ("index[0] == index[1]",)
     offdiagonal = ("index[0] != index[1]",)
-    upper = ("index[0] > index[1]",)
+    lower = ("index[0] > index[1]",)
 
 
 def _preprocess_series(definition: ast.With) -> _Series:
@@ -576,7 +614,7 @@ def parse_algorithm(func: callable) -> tuple[list[_Series], list[_Product], list
     - `if <condition>:` to differentiate evaluation based on the requested index. Allowed conditions are:
         - `diagonal`: indices on the main diagonal.
         - `offdiagonal`: indices *not* on the main diagonal.
-        - `upper`: indices in the upper triangle.
+        - `lower`: indices in the lower triangle.
 
     If a name contains an "@" symbol, it is considered a product of the left and right series.
     A product definition allows the following statements:
