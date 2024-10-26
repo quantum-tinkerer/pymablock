@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix incorrect shape of {autolink}`~pymablock.BlockSeries` blocks if $H_0$ has a zero block (#127).
 
+### Removed
+
+- Dropped support for Python 3.10 and sympy 1.11 according to the [SPEC-0](https://scientific-python.org/specs/spec-0000/).
+
 ## [2.0.0] - 2024-02-03
 
 ### Improved
