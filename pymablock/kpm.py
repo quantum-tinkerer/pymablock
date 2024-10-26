@@ -4,7 +4,7 @@ See arXiv:cond-mat/0504627 and arXiv:1909.09649.
 """
 
 from collections.abc import Iterator
-from typing import Callable, Optional, Union
+from typing import Callable
 from warnings import warn
 
 import numpy as np
@@ -12,7 +12,7 @@ from scipy import sparse
 
 
 def greens_function(
-    hamiltonian: Union[np.ndarray, sparse.spmatrix],
+    hamiltonian: np.ndarray | sparse.spmatrix,
     energy: float,
     vector: np.ndarray,
     atol: float = 1e-7,
@@ -66,7 +66,7 @@ def greens_function(
 
 
 def kpm_vectors(
-    hamiltonian: Union[np.ndarray, sparse.spmatrix],
+    hamiltonian: np.ndarray | sparse.spmatrix,
     vector: np.ndarray,
 ) -> Iterator[np.ndarray]:
     r"""Generate vectors for the Kernel Polynomial Method (KPM).
@@ -95,11 +95,11 @@ def kpm_vectors(
 
 
 def rescale(
-    hamiltonian: Union[np.ndarray, sparse.spmatrix],
-    eps: Optional[float] = 0.01,
-    bounds: Optional[tuple[float, float]] = None,
-    lower_bounds: Optional[tuple[float, float]] = None,
-) -> tuple[Union[np.ndarray, sparse.spmatrix], tuple[float, float]]:
+    hamiltonian: np.ndarray | sparse.spmatrix,
+    eps: float = 0.01,
+    bounds: tuple[float, float] | None = None,
+    lower_bounds: tuple[float, float] | None = None,
+) -> tuple[np.ndarray | sparse.spmatrix, tuple[float, float]]:
     """Rescale a Hamiltonian to the interval ``[-1 - eps/2, 1 + eps/2]``.
 
     Adapted with modifications from kwant.kpm Copyright 2011-2016 Kwant

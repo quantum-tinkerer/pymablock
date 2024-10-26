@@ -1,11 +1,11 @@
 """Algorithms for quasi-degenerate perturbation theory."""
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from copy import copy
 from functools import reduce
 from inspect import signature
 from operator import matmul, mul
-from typing import Any, Callable, Optional, Union
+from typing import Any
 from warnings import warn
 
 import numpy as np
@@ -32,19 +32,19 @@ from pymablock.series import (
 __all__ = ["block_diagonalize"]
 
 # Common types
-Eigenvectors = tuple[Union[np.ndarray, sympy.Matrix], ...]
+Eigenvectors = tuple[np.ndarray | sympy.Matrix, ...]
 
 
 ### The main function for end-users.
 def block_diagonalize(
-    hamiltonian: Union[list, dict, BlockSeries, sympy.Matrix],
+    hamiltonian: list | dict | BlockSeries | sympy.Matrix,
     *,
-    solve_sylvester: Optional[Callable] = None,
-    subspace_eigenvectors: Optional[Eigenvectors] = None,
-    subspace_indices: Optional[Union[tuple[int, ...], np.ndarray]] = None,
+    solve_sylvester: Callable | None = None,
+    subspace_eigenvectors: Eigenvectors | None = None,
+    subspace_indices: tuple[int, ...] | np.ndarray | None = None,
     direct_solver: bool = True,
-    solver_options: Optional[dict] = None,
-    symbols: Optional[Union[sympy.Symbol, Sequence[sympy.Symbol]]] = None,
+    solver_options: dict | None = None,
+    symbols: sympy.Symbol | Sequence[sympy.Symbol] | None = None,
     atol: float = 1e-12,
     fully_diagonalize: tuple[int] | dict[int, np.ndarray] = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
@@ -359,12 +359,12 @@ def block_diagonalize(
 
 ### Converting different formats to BlockSeries
 def hamiltonian_to_BlockSeries(
-    hamiltonian: Union[list, dict, BlockSeries, sympy.Matrix],
+    hamiltonian: list | dict | BlockSeries | sympy.Matrix,
     *,
-    subspace_eigenvectors: Optional[tuple[Any, Any]] = None,
-    subspace_indices: Optional[tuple[int, ...]] = None,
-    implicit: Optional[bool] = False,
-    symbols: Optional[list[sympy.Symbol]] = None,
+    subspace_eigenvectors: tuple[Any, Any] | None = None,
+    subspace_indices: tuple[int, ...] | None = None,
+    implicit: bool = False,
+    symbols: list[sympy.Symbol] | None = None,
     atol: float = 1e-12,
 ) -> BlockSeries:
     """Normalize a Hamiltonian to be used by the algorithms.
@@ -558,10 +558,10 @@ def hamiltonian_to_BlockSeries(
 ### Block diagonalization algorithms
 def _compile(
     series: dict[str, BlockSeries],
-    algorithm: Optional[Callable] = main,
-    scope: Optional[dict] = None,
+    algorithm: Callable | None = main,
+    scope: dict | None = None,
     *,
-    operator: Optional[Callable] = None,
+    operator: Callable | None = None,
     return_all: bool = False,
 ) -> tuple[BlockSeries, ...] | tuple[dict[str, BlockSeries], dict[str, BlockSeries]]:
     """Compile a `~pymablock.series.BlockSeries` computation.
@@ -719,8 +719,8 @@ def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
 
 
 def solve_sylvester_diagonal(
-    eigs: tuple[Union[np.ndarray, sympy.matrices.MatrixBase], ...],
-    vecs_B: Optional[np.ndarray] = None,
+    eigs: tuple[np.ndarray | sympy.matrices.MatrixBase, ...],
+    vecs_B: np.ndarray | None = None,
     atol: float = 1e-12,
 ) -> Callable:
     """Define a function for solving a Sylvester's equation for diagonal matrices.
@@ -746,9 +746,9 @@ def solve_sylvester_diagonal(
     """
 
     def solve_sylvester(
-        Y: Union[np.ndarray, sparse.csr_array, sympy.MatrixBase],
+        Y: np.ndarray | sparse.csr_array | sympy.MatrixBase,
         index: tuple[int, ...],
-    ) -> Union[np.ndarray, sparse.csr_array, sympy.MatrixBase]:
+    ) -> np.ndarray | sparse.csr_array | sympy.MatrixBase:
         if Y is zero:
             return zero
 
@@ -785,9 +785,9 @@ def solve_sylvester_diagonal(
 
 
 def solve_sylvester_KPM(
-    h_0: Union[np.ndarray, sparse.spmatrix],
+    h_0: np.ndarray | sparse.spmatrix,
     subspace_eigenvectors: tuple[np.ndarray, ...],
-    solver_options: Optional[dict] = None,
+    solver_options: dict | None = None,
 ) -> Callable:
     """Solve Sylvester energy division for the Kernel Polynomial Method (KPM).
 
@@ -960,9 +960,9 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
 
 def _dict_to_BlockSeries(
     hamiltonian: dict[tuple[int, ...], Any],
-    symbols: Optional[Sequence[sympy.Symbol]] = None,
+    symbols: Sequence[sympy.Symbol] | None = None,
     atol: float = 1e-12,
-) -> tuple[BlockSeries, Optional[list[sympy.Symbol]]]:
+) -> tuple[BlockSeries, list[sympy.Symbol]]:
     """Convert a dictionary of perturbations to a BlockSeries.
 
     Parameters
@@ -1055,7 +1055,7 @@ def _symbolic_keys_to_tuples(
 
 def _sympy_to_BlockSeries(
     hamiltonian: sympy.MatrixBase,
-    symbols: Optional[Sequence[sympy.Symbol]] = None,
+    symbols: Sequence[sympy.Symbol] | None = None,
 ) -> BlockSeries:
     """Convert a symbolic Hamiltonian to a BlockSeries.
 
@@ -1102,8 +1102,8 @@ def _sympy_to_BlockSeries(
 
 
 def _subspaces_from_indices(
-    subspace_indices: Union[tuple[int, ...], np.ndarray],
-    symbolic: Optional[bool] = False,
+    subspace_indices: tuple[int, ...] | np.ndarray,
+    symbolic: bool = False,
 ) -> tuple[sparse.csr_array, sparse.csr_array]:
     """Compute subspace eigenvectors from indices of diagonal elements.
 
@@ -1173,7 +1173,7 @@ def _extract_diagonal(
     return tuple(diags)
 
 
-def _convert_if_zero(value: Any, atol=1e-12):
+def _convert_if_zero(value: Any, atol: float = 1e-12):
     """Convert an exact zero to sentinel value zero.
 
     Parameters

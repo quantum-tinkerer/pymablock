@@ -1,8 +1,9 @@
 import operator
 import tracemalloc
 from collections import Counter
+from collections.abc import Callable
 from itertools import chain, permutations, product
-from typing import Any, Callable, Union
+from typing import Any
 
 import numpy as np
 import pytest
@@ -973,7 +974,7 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
 
 
 def test_block_diagonalize_hamiltonian_diagonal(
-    diagonal_hamiltonian: Union[tuple, list], wanted_orders: tuple[int, ...]
+    diagonal_hamiltonian: tuple | list, wanted_orders: tuple[int, ...]
 ):
     """
     Test that `block_diagonalize` chooses the right algorithm and the
@@ -1001,7 +1002,7 @@ def test_block_diagonalize_hamiltonian_diagonal(
 
 
 def test_block_diagonalize_hamiltonian_symbolic(
-    symbolic_hamiltonian: tuple[Union[sympy.Matrix, dict], list[sympy.Symbol]],
+    symbolic_hamiltonian: tuple[sympy.Matrix | dict, list[sympy.Symbol]],
 ):
     """
     Test that `block_diagonalize` chooses the right algorithm and the
