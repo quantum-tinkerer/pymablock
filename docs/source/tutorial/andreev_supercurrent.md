@@ -309,12 +309,12 @@ import matplotlib.pyplot as plt
 # Values for the parameters
 values = {
     U: 10,
-    Gamma_L: 0.2,
-    Gamma_R: 0.25,
-    t_L: 0.1,
+    Gamma_L: 0.001,
+    Gamma_R: 0.001,
+    t_L: 0.4,
     t_R: 0.1,
-    xi_L: 0.9,
-    xi_R: -0.7,
+    xi_L: 0.2,
+    xi_R: 0,
     E_0: E_0_value,
     E_1: E_1_value,
     E_2: E_2_value,
@@ -333,9 +333,9 @@ for N_value in N_values:
     })
     eigenvalues.append(np.array(H.diagonal().subs(values), dtype=complex)[0])
 
-fig, ax = plt.subplots(figsize=(6, 4))
+fig, ax = plt.subplots(figsize=(8, 3))
 ax.plot(N_values, np.array(eigenvalues).real, '-', alpha=0.5);
-ax.set_ylim(-2, 4)
+ax.set_ylim(-0.5, 2.5)
 ax.set_xticks([0, 1, 2])
 ax.set_xticklabels([r'$0$', r'$1$', r'$2$'])
 ax.set_yticks([0, 2])
@@ -471,28 +471,18 @@ Finally, we plot the critical current, $I_{c, N} = I_N(\phi=\pi/4)$, as a functi
 
 num = 60
 N_values = np.linspace(-0.5, 2.5, 3 * num)
-current_values = []
-for values[N] in N_values:
-    if N_value < 0.5:
-        current = currents[0]
-    elif N_value < 1.5:
-        current = currents[1]
-    else:
-        current = currents[2]
-    current_values.append(current.subs(values))
+current_values = [np.array([current.subs({**values, N: N_value}) for N_value in N_values], dtype=float) for current in currents]
 
-current_values = np.array(current_values, dtype=float)
-
-fig, ax = plt.subplots()
-ax.plot(N_values[0:num], current_values[0:num], '-', color='k')
-ax.plot(N_values[num: 2 * num], current_values[num: 2 * num], '-', color='r')
-ax.plot(N_values[2 * num:3 * num], current_values[2 * num: 3 * num], '-', color='b')
+fig, ax = plt.subplots(figsize=(8, 3))
+ax.plot(N_values, current_values[0], '-', label=r'$N=0$')
+ax.plot(N_values, current_values[1], '-', label=r'$N=1$')
+ax.plot(N_values, current_values[2], '-', label=r'$N=2$')
 ax.set_xlabel(r'$N$')
 ax.set_ylabel(r'$I_c$')
 ax.set_title(r'Critical current')
 ax.set_xticks([0, 1, 2])
 ax.set_xticklabels([r'$0$', r'$1$', r'$2$'])
+ax.legend(frameon=False)
 ax.spines["right"].set_visible(False)
 ax.spines["top"].set_visible(False)
-# ax.set_ylim(-0.5, 0.5)
 ```
