@@ -31,7 +31,7 @@ This requires calculating and manipulating fourth-order corrections to the groun
 The Hamiltonian of the system is given by
 
 $$
-H = H_{\textrm{SC}}+ H_{\textrm{dot}} + H_{T}
+H = H_{\textrm{SC}}+ H_{\textrm{dot}} + H_{T},
 $$
 
 where the Hamiltonians of the superconductors, of the quantum dot, and of the tunnel coupling are
@@ -44,10 +44,10 @@ H_{\textrm{dot}} = \frac{U}{2} \left( n_{\uparrow} + n_{\downarrow} - N \right)^
 H_{T} = \sum_{\alpha=L,R} t_\alpha \left( c_{\alpha \uparrow}^\dagger d_{\uparrow} + c_{\alpha \downarrow}^\dagger d_{\downarrow} \right) + \textrm{h.c.}.
 $$
 
-Here $c_{\alpha, \sigma}$ and $d_{\sigma}$ are the annihilation operators of electrons in the superconductors and quantum dot, respectively, with $\sigma = \uparrow, \downarrow$.
-The superconductors have a superconducting pairing $\Gamma_{\alpha}$ and onsite energy $\xi_{\alpha}$.
-They are weakly coupled to the quantum dot, which has charging energy $U$ and offset number of electrons $N$.
-The couplings, $t_{L}$ and $t_{R}$, include the phase difference $\phi$ between the superconductors, $t_{L} = \lvert t_{L} \rvert e^{i \phi}$ and $t_{R} = \lvert t_{R} \rvert$.
+Here $c_{\alpha, \sigma}$ and $d_{\sigma}$ are the annihilation operators of electrons in the left (L) and right (R) superconductors and quantum dot, respectively, with $\sigma = \uparrow, \downarrow$.
+The superconductors' onsite energies are $\xi_{\alpha}$, and their pairing amplitudes are $\Gamma_{\alpha}$.
+The quantum dot's charging energy is $U$ and its offset number of electrons, $N$.
+The couplings between the quantum dot and the superconductors are $t_{L} = \lvert t_{L} \rvert e^{i \phi}$ and $t_{R} = \lvert t_{R} \rvert$, where $\phi$ is the phase difference between the superconductors.
 We treat both of them as independent perturbations.
 
 We start by importing the necessary libraries and defining the symbols and operators in the Hamiltonian.
@@ -104,7 +104,7 @@ H_T = sum(t * (Dagger(c_up) * d_up + Dagger(c_down) * d_down)
 ```
 
 ```{code-cell} ipython3
-:tags: [hide-cell]
+:tags: [hide-input]
 
 display_eq("H_{dot}", H_dot)
 display_eq("H_{T}", H_T + hc)
@@ -150,7 +150,7 @@ H_sc = sum(
 ```
 
 ```{code-cell} ipython3
-:tags: [hide-cell]
+:tags: [hide-input]
 
 display_eq("H_{SC}", H_sc)
 ```
@@ -159,10 +159,10 @@ display_eq("H_{SC}", H_sc)
 :class: dropdown tip
 
 Diagonalizing a large symbolic Hamiltonian is computationally expensive, and in many cases impossible.
-To alleviate this, we have used physical insight: the Bogoliubov transformation allows us to get a diagonal unperturbed Hamiltonian.
+To alleviate this, we have used physical insight: with the Bogoliubov transformation we get a diagonal unperturbed Hamiltonian.
 :::
 
-Similarly, we apply the Bogoliubov transformation to the tunneling Hamiltonian.
+Similarly, because the tunneling Hamiltonian depends on $d_{\sigma}$, we apply the Bogoliubov transformation to $H_T$ as well.
 
 ```{code-cell} ipython3
 # Bogoliubov coefficients
@@ -185,7 +185,7 @@ H = H_sc + H_dot + H_T + Dagger(H_T)
 ```
 
 ```{code-cell} ipython3
-:tags: [hide-cell]
+:tags: [hide-input]
 
 display_eq("H_{T}", H_T + hc)
 ```
@@ -197,7 +197,7 @@ We have now defined the total Hamiltonian $H$ in second quantization form.
 
 Using square roots can lead to complicated expressions, because assumptions about the arguments of square roots are not automatically inferred by sympy.
 For example, $\sqrt{a^2}$ is not equivalent to $a$, but rather $\lvert a \rvert$.
-To avoid lengthy expressions from unsimplified expressions with square roots, we have directly replaced them with the sympy symbols $E_{\alpha}$, $u_{\alpha}$, and $v_{\alpha}$.
+To avoid lengthy expressions from unsimplified expressions with square roots, we replaced them with $E_{\alpha}$, $u_{\alpha}$, and $v_{\alpha}$.
 These will appear in the effective Hamiltonian, and we will substitute their values at the end of the calculation.
 :::
 
@@ -266,8 +266,12 @@ H, basis = to_matrix(H)
 ```
 
 At this point, we are ready to feed the $64 \times 64$ symbolic Hamiltonian to the block-diagonalization routine of Pymablock.
-However, we anticipate that the diagonal elements of the Hamiltonian will appear in the denominators in the effective Hamiltonian.
+However, we anticipate two facts:
+
+- The diagonal elements of the Hamiltonian will appear in the denominators in the effective Hamiltonian.
 These elements correspond to the dot energies $E_n = U (N - n)^2 / 2$ and the energies of the superconductors $E_{\alpha}$.
+- The unperturbed Hamiltonian is block-diagonal in the basis we have chosen.
+
 To make the denominators simpler, we replace the dot energies with $E_n$ right away.
 
 ```{code-cell} ipython3
@@ -279,13 +283,15 @@ E_0_value, E_1_value, E_2_value = [(U * (N - i)**2 / 2).expand() for i in range(
 H = H.subs({E_2_value: E_2}).subs({E_1_value: E_1}).subs({E_0_value: E_0})
 ```
 
+To take advantage of the block-diagonal structure of the Hamiltonian, we split the basis into even and odd subspaces and consider the $32 \times 32$ Hamiltonian in each subspace separately.
+
 ```{code-cell} ipython3
-odd = [bool(len(i.free_symbols) % 2) for i in basis]
-even = [not i for i in odd]
+odd = [bool(len(i.free_symbols) % 2) for i in basis]  # odd number of fermions
+even = [not i for i in odd]  # even number of fermions
 basis_even = [i for i, parity in zip(basis, even) if parity]
 basis_odd = [i for i, parity in zip(basis, odd) if parity]
-H_even = H[even, even]
-H_odd = H[odd, odd]
+H_even = H[even, even]  # 32x32 Hamiltonian
+H_odd = H[odd, odd]  # 32x32 Hamiltonian
 ```
 
 Finally, the Hamiltonian is ready for further analysis.
@@ -348,12 +354,12 @@ Therefore, we define $3$ ground states for the $N=0, 1, 2$ occupation numbers of
 Because the supercurrent is defined as
 
 $$
-I = \frac{e}{\hbar} \frac{dE}{d\phi}
+I = \frac{e}{\hbar} \frac{dE}{d\phi},
 $$
 
 we need to find the perturbed ground state energy $E(\phi)$.
 To do so, we block-diagonalize the Hamiltonian and decouple the subspace spanned by the ground states of the quantum dot.
-We start by finding the corrections to the ground state for $N=0$, which is the vacuum state $\lvert 0\rangle$ of the quantum dot.
+We start by finding the corrections to the ground state for $N=0$, which is the vacuum state $\lvert 0\rangle$ of the quantum dot, in the even subspace.
 
 ```{code-cell} ipython3
 %%time
@@ -365,6 +371,11 @@ H_tilde = block_diagonalize(H_even, subspace_indices=subspace_indices, symbols=[
 
 Here `subspace_indices` is a list of $0$ and $1$ that labels the diagonal elements of $H_0$, so that the ground state subspace is labeled by $0$ and the rest by $1$.
 
+```{code-cell} ipython3
+:tags: [hide-cell]
+subspace_indices
+```
+
 Now we are ready to compute the perturbed ground state energy, of which several orders vanish.
 The first non-zero correction to the ground state energy is given by the terms proportional to $t_L^2 t_R^2$.
 
@@ -373,11 +384,9 @@ The first non-zero correction to the ground state energy is given by the terms p
 current = sympy.trace(H_tilde[0, 0, 2, 2, 1]).doit().subs({dphi: 1})
 ```
 
-We can now compute the supercurrent $I_c$ by taking the derivative of the ground state energy with respect to the phase difference $\phi$.
+We compute the supercurrent $I_c$ by taking the derivative of the ground state energy with respect to the phase difference $\phi$.
 
-+++
-
-Here we have computed the trace of `H_22` as a way to obtain the sum of the eigenvalues.
+Here computed the trace of `H_22` as a way to obtain the sum of the eigenvalues.
 This is a $1 \times 1$ matrix, and the trace is the only element of this matrix, but we use the `sympy.Trace` function to make the code generalizable to larger matrices.
 The result, however, is complicated and requires simplification.
 
