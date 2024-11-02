@@ -2,11 +2,12 @@
 
 import sys
 from collections import Counter
+from collections.abc import Callable
 from functools import reduce, wraps
 from itertools import product
 from operator import matmul, mul
 from secrets import token_hex
-from typing import Any, Callable, Optional, Union
+from typing import Any
 
 if sys.version_info >= (3, 11):
     from typing import Self
@@ -21,8 +22,8 @@ from sympy.physics.quantum import Dagger
 __all__ = ["BlockSeries", "cauchy_dot_product", "one", "zero"]
 
 # Common types
-OneItem = Union[int, slice, list[int]]
-Item = Union[OneItem, tuple[OneItem, ...]]
+OneItem = int | slice | list[int]
+Item = OneItem | tuple[OneItem, ...]
 
 
 class Pending:
@@ -76,12 +77,12 @@ class BlockSeries:
 
     def __init__(
         self,
-        eval: Optional[Callable] = None,
-        data: Optional[dict[tuple[int, ...], Any]] = None,
+        eval: Callable | None = None,
+        data: dict[tuple[int, ...], Any] | None = None,
         shape: tuple[int, ...] = (),
         n_infinite: int = 1,
-        dimension_names: Optional[tuple[Union[str, sympy.Symbol], ...]] = None,
-        name: Optional[str] = None,
+        dimension_names: tuple[str | sympy.Symbol, ...] | None = None,
+        name: str | None = None,
     ) -> None:
         """Construct an infinite series that caches its items.
 
@@ -265,7 +266,7 @@ class BlockSeries:
 
 def cauchy_dot_product(
     *series: BlockSeries,
-    operator: Optional[Callable] = None,
+    operator: Callable | None = None,
     hermitian: bool = False,
 ) -> BlockSeries:
     """Multivariate Cauchy product of `~pymablock.series.BlockSeries`.
@@ -352,7 +353,7 @@ def product_by_order(
     index: tuple[int, ...],
     first: BlockSeries,
     second: BlockSeries,
-    operator: Optional[Callable] = None,
+    operator: Callable | None = None,
     hermitian: bool = False,
 ) -> Any:
     """Compute sum of all product of factors of a wanted order.

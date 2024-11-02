@@ -1,7 +1,8 @@
 # ruff: noqa: N803, N806
 """Linear algebra utilities."""
 
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 from warnings import warn
 
 import numpy as np
