@@ -17,7 +17,7 @@ In this tutorial, we demonstrate how to use Pymablock to compute complicated ana
 Directly running Pymablock on a large symbolic Hamiltonian can computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.
 Both of these steps benefit from physical insight and advanced manipulation of symbolic expressions.
 
-As an example, we consider two superconductors weakly coupled to a quantum dot, between which a supercurrent flows.
+As an example, we compute supercurrent between two superconductors weakly coupled through a quantum dot.
 
 ![Two superconductors and a quantum dot](superconductors_quantum_dot.svg)
 
