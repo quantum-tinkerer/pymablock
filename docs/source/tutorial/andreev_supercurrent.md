@@ -269,7 +269,7 @@ However, we anticipate two facts:
 
 - The diagonal elements of the Hamiltonian will appear in the denominators in the effective Hamiltonian.
 These elements correspond to the dot energies $E_n = U (N - n)^2 / 2$ and the energies of the superconductors $E_{\alpha}$.
-- The unperturbed Hamiltonian is block-diagonal in the basis we have chosen.
+- The Hamiltonian separates into two blocks corresponding to even and odd fermion parities.
 
 To make the denominators simpler, we replace the dot energies with $E_n$ right away.
 
@@ -364,7 +364,7 @@ We start by finding the corrections to the ground state for $N=0$, which is the 
 %%time
 
 ground_state_n0 = [sympy.S.One]  # vacuum state
-subspace_indices = [int(not(element in ground_state_n0)) for element in basis_even]
+subspace_indices = [int(element not in ground_state_n0) for element in basis_even]
 H_tilde = block_diagonalize(H_even, subspace_indices=subspace_indices, symbols=[t_L, t_R, dphi])[0]
 ```
 
@@ -461,7 +461,7 @@ for i, (H, basis, ground_state) in enumerate([(H_odd, basis_odd, [c_up, c_down])
 
 ## Visualize the results
 
-Finally, we plot the critical current, $I_{c, N} = I_N(\phi=\pi/4)$, as a function of the number of electrons $N$.
+Finally, we plot the critical current, $I_{c, N} = \lvert I_N(\phi=\pi/4) \rvert$, as a function of the number of electrons $N$.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -471,9 +471,9 @@ N_values = np.linspace(-0.5, 2.5, 3 * num)
 current_values = [np.array([current.subs({**values, N: N_value}) for N_value in N_values], dtype=float) for current in currents]
 
 fig, ax = plt.subplots(figsize=(8, 3))
-ax.plot(N_values, current_values[0], '-', label=r'$N=0$')
-ax.plot(N_values, current_values[1], '-', label=r'$N=1$')
-ax.plot(N_values, current_values[2], '-', label=r'$N=2$')
+ax.plot(N_values, np.abs(current_values[0]), '-', label=r'$N=0$')
+ax.plot(N_values, np.abs(current_values[1]), '-', label=r'$N=1$')
+ax.plot(N_values, np.abs(current_values[2]), '-', label=r'$N=2$')
 ax.set_xlabel(r'$N$')
 ax.set_ylabel(r'$I_c$')
 ax.set_title(r'Critical current')
