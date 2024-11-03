@@ -347,8 +347,7 @@ ax.spines["right"].set_visible(False)
 ax.spines["top"].set_visible(False)
 ```
 
-Therefore, we compute the supercurrent for the three regimes separately.
-We consider the ground state for $N=0$, the degenerate ground states for $N=1$, and the ground state for $N=2$.
+Therefore, we compute the supercurrent for the three regimes separately by considering the ground states for $N=0, 1, 2$ off-set charges in the quantum dot.
 
 ## Compute the supercurrent perturbatively
 
