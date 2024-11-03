@@ -34,7 +34,7 @@ $$
 H = H_{\textrm{SC}}+ H_{\textrm{dot}} + H_{T}
 $$
 
-where the Hamiltonians of the superconductors, quantum dot, and tunneling are defined as
+where the Hamiltonians of the superconductors, of the quantum dot, and of the tunnel coupling are
 
 $$
 H_{\textrm{SC}} =  \sum_{\alpha=L, R} \xi_{\alpha} \left(
