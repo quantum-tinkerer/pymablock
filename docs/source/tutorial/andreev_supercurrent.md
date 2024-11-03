@@ -308,12 +308,12 @@ import matplotlib.pyplot as plt
 # Values for the parameters
 values = {
     U: 10,
-    Gamma_L: 0.001,
-    Gamma_R: 0.001,
+    Gamma_L: 0.01,
+    Gamma_R: 0.01,
     t_L: 0.4,
     t_R: 0.1,
     xi_L: 0.2,
-    xi_R: 0,
+    xi_R: 0.1,
     E_0: E_0_value,
     E_1: E_1_value,
     E_2: E_2_value,
@@ -322,7 +322,8 @@ values = {
 }
 
 # Extract eigenvalues of the unperturbed Hamiltonian
-N_values = np.linspace(-0.5, 2.5, 30)
+num = 180
+N_values = np.linspace(-0.5, 2.5, num)
 eigenvalues = []
 for N_value in N_values:
     values.update({
@@ -346,7 +347,8 @@ ax.spines["right"].set_visible(False)
 ax.spines["top"].set_visible(False)
 ```
 
-Therefore, we define $3$ ground states for the $N=0, 1, 2$ occupation numbers of the quantum dot.
+Therefore, we compute the supercurrent for the three regimes separately.
+We consider the ground state for $N=0$, the degenerate ground states for $N=1$, and the ground state for $N=2$.
 
 ## Compute the supercurrent perturbatively
 
@@ -357,7 +359,7 @@ I = \frac{e}{\hbar} \frac{dE}{d\phi},
 $$
 
 we need to find the perturbed ground state energy $E(\phi)$.
-To do so, we block-diagonalize the Hamiltonian and decouple the subspace spanned by the ground states of the quantum dot.
+To do so, we finally use Pymablock to compute the perturbative corrections to the ground state Hamiltonian.
 We start by finding the corrections to the ground state for $N=0$, which is the vacuum state $\lvert 0\rangle$ of the quantum dot, in the even subspace.
 
 ```{code-cell} ipython3
@@ -368,7 +370,8 @@ subspace_indices = [int(element not in ground_state_n0) for element in basis_eve
 H_tilde = block_diagonalize(H_even, subspace_indices=subspace_indices, symbols=[t_L, t_R, dphi])[0]
 ```
 
-Here `subspace_indices` is a list of $0$ and $1$ that labels the diagonal elements of $H_0$, so that the ground state subspace is labeled by $0$ and the rest by $1$.
+`subspace_indices` is a list with `0` for every basis state that we include in the low energy subspace of $H_0$ and `1` for basis state in the other subspace.
+We only include the vacuum state in the low energy subspace.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
@@ -387,8 +390,16 @@ Here we computed the trace of `H_22` as a way to obtain the sum of the eigenvalu
 This is a $1 \times 1$ matrix, and the trace is the only element of this matrix, but we use the `sympy.Trace` function to make the code generalizable to larger matrices.
 The result, however, is complicated and requires simplification.
 
+### Simplify the expression
+
+To simplify the supercurrent expression, we first identify common patterns:
+
++ The expression is formed by a sum of fractions.
++ Terms share common prefactors, which are good to factor out.
++ The numerators contain products of $u_{\alpha} v_{\alpha}$, $u_{\alpha}^2$, and $v_{\alpha}^2$, all of which are free of square roots.
+
 ```{code-cell} ipython3
-display(Eq(Symbol('I_c(n=0)'), current))
+display(Eq(Symbol('I(n=0)'), current))
 ```
 
 :::{admonition} Do not call `simplify()` on large expressions
@@ -399,14 +410,6 @@ The most general simplification routine is `simplify()`, which tries a combinati
 However, this routine can be unnecessarily slow and it is not guaranteed to simplify the expression to the desired form.
 Therefore, we analyze instead the expression and identify common patterns to simplify it manually.
 :::
-
-### Simplify the expression
-
-To simplify the supercurrent expression, we first identify common patterns:
-
-+ The expression is formed by a sum of fractions.
-+ Terms share common prefactors, which are good to factor out.
-+ The numerators contain products of $u_{\alpha} v_{\alpha}$, $u_{\alpha}^2$, and $v_{\alpha}^2$, all of which are free of square roots.
 
 Therefore, we simplify the expression by factoring out the prefactor, replacing the products of $u_{\alpha}$ and $v_{\alpha}$ with their expressions, and grouping the fractions by their denominators to then simplify the numerators.
 
@@ -466,8 +469,7 @@ Finally, we plot the critical current, $I_{c, N} = \lvert I_N(\phi=\pi/4) \rvert
 ```{code-cell} ipython3
 :tags: [hide-input]
 
-num = 60
-N_values = np.linspace(-0.5, 2.5, 3 * num)
+N_values = np.linspace(-0.5, 2.5, num)
 current_values = [np.array([current.subs({**values, N: N_value}) for N_value in N_values], dtype=float) for current in currents]
 
 fig, ax = plt.subplots(figsize=(8, 3))
