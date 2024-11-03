@@ -414,24 +414,15 @@ Therefore, we simplify the expression by factoring out the prefactor, replacing 
 
 ```{code-cell} ipython3
 # Define Bogoliubov substitutions
-uv_subs = {u * v : Gamma / (2 * E) for u, v, Gamma, E in zip(us, vs, Gammas, Es)}
-uu_subs = {u**2: (1 + xi / E) / 2 for u, xi, E in zip(us, xis, Es)}
-vv_subs = {v**2: (1 - xi / E) / 2 for v, xi, E in zip(vs, xis, Es)}
+subs = (
+    {u * v: Gamma / (2 * E) for u, v, Gamma, E in zip(us, vs, Gammas, Es)}
+    | {u**2: (1 + xi / E) / 2 for u, xi, E in zip(us, xis, Es)}
+    | {v**2: (1 - xi / E) / 2 for v, xi, E in zip(vs, xis, Es)}
+)
 
 def simplify_current(expr):
     """Simplification routine tailored to the perturbative calculation of current."""
-    # Expand complex exponents to get rid of the imaginary part:
-    expr = expr.expand(complex=True)
-    # Factor individual terms first, then simplify and substitute the eigenvector definitions
-    terms = [
-        term.factor().simplify().subs(uv_subs | uu_subs | vv_subs) for term in expr.as_ordered_terms()
-    ]
-    common = set.intersection(*[set(term.as_ordered_factors()) for term in terms])
-    prefactor = sympy.Mul(*common)
-    return prefactor * sympy.Add(*[
-        sympy.Mul(*(set(term.as_ordered_factors()) - common))
-        for term in terms
-    ])
+    return expr.expand(complex=True).factor().subs(subs).simplify()
 ```
 
 We see that this simplification produces a compact result.
