@@ -8,7 +8,7 @@ jupytext:
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
-  name: python3i
+  name: python3
 ---
 
 # Supercurrent through a quantum dot
