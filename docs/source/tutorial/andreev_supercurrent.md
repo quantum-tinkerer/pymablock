@@ -8,7 +8,7 @@ jupytext:
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
-  name: python3
+  name: python3i
 ---
 
 # Supercurrent through a quantum dot
@@ -110,11 +110,17 @@ display_eq("H_{dot}", H_dot)
 display_eq("H_{T}", H_T + hc)
 ```
 
-In this basis $H_{\textrm{dot}}$ is diagonal and its subspaces may be directly constructed, without performing a symbolic diagonalization.
-This is, however, not the case for $H_{SC}$.
+### Apply the Bogoliubov transformation
+
+While $H_{\textrm{dot}}$ is already diagonal, the superconductors' Hamiltonian $H_{SC}$ is not.
 Therefore, we apply the Bogoliubov transformation on $H_{SC}$, such that the entire unperturbed Hamiltonian $H_0 = H_{SC} + H_{\textrm{dot}}$ is diagonal.
 
-### Apply the Bogoliubov transformation
+:::{admonition} Avoid symbolic diagonalization
+:class: dropdown tip
+
+Diagonalizing a large symbolic Hamiltonian is computationally expensive, and in many cases impossible.
+To alleviate this, we use physical insight: with the Bogoliubov transformation we get a diagonal unperturbed Hamiltonian.
+:::
 
 We define the superconductors' Hamiltonian using the Bogoliubov quasi-particle operators $f_{\alpha, \sigma}$, which are related to the original operators $c_{\alpha, \sigma}$ by the [Bogoliubov transformation](https://en.wikipedia.org/wiki/Bogoliubov_transformation):
 
@@ -133,6 +139,15 @@ f_{\alpha, \uparrow}^\dagger f_{\alpha, \uparrow} + f_{\alpha,
 $$
 
 where $E_{\alpha} = \sqrt{\Gamma_{\alpha}^2 + \xi_{\alpha}^2}$ are the Andreev bound state energies, and $\lvert u_{\alpha} \rvert = \sqrt{\frac{E_{\alpha} + \xi_{\alpha}}{2 E_{\alpha}}}$ and $\lvert v_{\alpha} \rvert = \sqrt{\frac{E_{\alpha} - \xi_{\alpha}}{2 E_{\alpha}}}$ are the Bogoliubov coefficients.
+
+:::{admonition} Avoid square roots
+:class: dropdown tip
+
+Using square roots can lead to complicated expressions, because assumptions about the arguments of square roots are not automatically inferred by sympy.
+For example, $\sqrt{a^2}$ is not equivalent to $a$, but rather $\lvert a \rvert$.
+To avoid lengthy expressions from unsimplified expressions with square roots, we replace them with $E_{\alpha}$, $u_{\alpha}$, and $v_{\alpha}$.
+These will appear in the effective Hamiltonian, and we will substitute their values at the end of the calculation.
+:::
 
 ```{code-cell} ipython3
 # Superconductors' energies
@@ -154,13 +169,6 @@ H_sc = sum(
 
 display_eq("H_{SC}", H_sc)
 ```
-
-:::{admonition} Avoid symbolic diagonalization
-:class: dropdown tip
-
-Diagonalizing a large symbolic Hamiltonian is computationally expensive, and in many cases impossible.
-To alleviate this, we have used physical insight: with the Bogoliubov transformation we get a diagonal unperturbed Hamiltonian.
-:::
 
 Similarly, because the tunneling Hamiltonian depends on $d_{\sigma}$, we apply the Bogoliubov transformation to $H_T$ as well.
 
@@ -190,16 +198,7 @@ H = H_sc + H_dot + H_T + Dagger(H_T)
 display_eq("H_{T}", H_T + hc)
 ```
 
-We have now defined the total Hamiltonian $H$ in second quantization form.
-
-:::{admonition} Avoid square roots
-:class: dropdown tip
-
-Using square roots can lead to complicated expressions, because assumptions about the arguments of square roots are not automatically inferred by sympy.
-For example, $\sqrt{a^2}$ is not equivalent to $a$, but rather $\lvert a \rvert$.
-To avoid lengthy expressions from unsimplified expressions with square roots, we replaced them with $E_{\alpha}$, $u_{\alpha}$, and $v_{\alpha}$.
-These will appear in the effective Hamiltonian, and we will substitute their values at the end of the calculation.
-:::
+In this basis, the unperturbed Hamiltonian $H$ is diagonal.
 
 ### Convert the Hamiltonian to a matrix
 
