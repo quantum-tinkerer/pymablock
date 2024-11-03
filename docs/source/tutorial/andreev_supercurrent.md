@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-# Andreev Supercurrent
+# Supercurrent through a quantum dot
 
 In this tutorial, we demonstrate how to use Pymablock to compute complicated analytical expressions.
 Directly running Pymablock on a large symbolic Hamiltonian can be computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.
@@ -351,7 +351,7 @@ Therefore, we define $3$ ground states for the $N=0, 1, 2$ occupation numbers of
 
 ## Compute the supercurrent perturbatively
 
-Because the supercurrent is defined as
+To compute the supercurrent,
 
 $$
 I = \frac{e}{\hbar} \frac{dE}{d\phi},
@@ -376,17 +376,15 @@ Here `subspace_indices` is a list of $0$ and $1$ that labels the diagonal elemen
 subspace_indices
 ```
 
-Now we are ready to compute the perturbed ground state energy, of which several orders vanish.
-The first non-zero correction to the ground state energy is given by the terms proportional to $t_L^2 t_R^2$.
+Now we are ready to compute the perturbed ground state energy.
+The first nonzero correction to the ground state energy appears in the order $\mathcal{O}(t_L^2 t_R^2)$.
 
 ```{code-cell} ipython3
 %%time
 current = sympy.trace(H_tilde[0, 0, 2, 2, 1]).doit().subs({dphi: 1})
 ```
 
-We compute the supercurrent $I_c$ by taking the derivative of the ground state energy with respect to the phase difference $\phi$.
-
-Here computed the trace of `H_22` as a way to obtain the sum of the eigenvalues.
+Here we computed the trace of `H_22` as a way to obtain the sum of the eigenvalues.
 This is a $1 \times 1$ matrix, and the trace is the only element of this matrix, but we use the `sympy.Trace` function to make the code generalizable to larger matrices.
 The result, however, is complicated and requires simplification.
 
@@ -411,7 +409,7 @@ To simplify the supercurrent expression, we first identify common patterns:
 + Terms share common prefactors, which are good to factor out.
 + The numerators contain products of $u_{\alpha} v_{\alpha}$, $u_{\alpha}^2$, and $v_{\alpha}^2$, all of which are free of square roots.
 
-Therefore, we can simplify the expression by factoring out the prefactor, replacing the products of $u_{\alpha}$ and $v_{\alpha}$ with their expressions, and grouping the fractions by their denominators to then simplify the numerators.
+Therefore, we simplify the expression by factoring out the prefactor, replacing the products of $u_{\alpha}$ and $v_{\alpha}$ with their expressions, and grouping the fractions by their denominators to then simplify the numerators.
 
 ```{code-cell} ipython3
 # Define Bogoliubov substitutions
@@ -420,7 +418,7 @@ uu_subs = {u**2: (1 + xi / E) / 2 for u, xi, E in zip(us, xis, Es)}
 vv_subs = {v**2: (1 - xi / E) / 2 for v, xi, E in zip(vs, xis, Es)}
 
 def simplify_current(expr):
-    """Simplification routine tailored for the perturbative calculation of current."""
+    """Simplification routine tailored to the perturbative calculation of current."""
     # Expand complex exponents to get rid of the imaginary part:
     expr = expr.expand(complex=True)
     # Factor individual terms first, then simplify and substitute the eigenvector definitions
@@ -435,7 +433,7 @@ def simplify_current(expr):
     ])
 ```
 
-Now we simplify the expression for the supercurrent.
+We see that this simplification produces a compact result.
 
 ```{code-cell} ipython3
 %%time
@@ -444,7 +442,7 @@ current = simplify_current(current)
 display_eq('I(n=0)', current)
 ```
 
-Applying the same procedure to the other two ground states, we can compute the supercurrent for the $n=1$ and $n=2$ ground states.
+Applying the same procedure to the other two ground states, we compute the supercurrent for the $n=1$ and $n=2$ ground states.
 
 ```{code-cell} ipython3
 %%time
