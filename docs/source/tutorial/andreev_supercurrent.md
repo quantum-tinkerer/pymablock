@@ -89,7 +89,7 @@ def display_eq(title, expr):
 ```
 
 Here we use `t_L_complex` to avoid complications with simplification routines in
-`sympy`, so that the exponential is not decomposed into sines and cosines.
+`sympy`, so that $\exp i \phi$ is not expanded into a sine and cosine.
 
 Next, we define the Hamiltonians of quantum dot and tunneling.
 
