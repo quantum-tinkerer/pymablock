@@ -21,7 +21,8 @@ As an example, we compute supercurrent between two superconductors weakly couple
 
 ![Two superconductors and a quantum dot](superconductors_quantum_dot.svg)
 
-Our goal will be to compute the supercurrent perturbatively in the tunneling amplitudes, which requires calculating and manipulating fourth-order corrections to the ground state energy [^1^].
+We will compute the supercurrent by treating the tunneling to the quantum dot as a perturbation.
+This requires calculating and manipulating fourth-order corrections to the ground state energy [^1^].
 
 [^1^]: [Glazman et al.](http://jetpletters.ru/ps/1121/article_16988.pdf)
 
