@@ -203,7 +203,7 @@ These will appear in the effective Hamiltonian, and we will substitute their val
 
 ### Convert the Hamiltonian to a matrix
 
-To exploit the diagonal structure of the unperturbed Hamiltonian, we convert the Hamiltonian to a matrix representation.
+Pymablock does not yet support working directly with operators. In the [Jaynes–Cummings tutorial](jaynes_cummings.md) we implemented a custom `solve_sylvester` function. Here the simplest option is to convert the Hamiltonian to a matrix representation.
 The following code cell defines a function `to_matrix(...)` that computes the matrix representation of a Hamiltonian `H` with fermionic operators and the corresponding `basis`.
 The details of the implementation are hidden for brevity.
 
