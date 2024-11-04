@@ -282,17 +282,6 @@ E_0_value, E_1_value, E_2_value = [(U * (N - i)**2 / 2).expand() for i in range(
 H = H.subs({E_2_value: E_2}).subs({E_1_value: E_1}).subs({E_0_value: E_0})
 ```
 
-To take advantage of the block-diagonal structure of the Hamiltonian, we split the basis into even and odd subspaces and consider the $32 \times 32$ Hamiltonian in each subspace separately.
-
-```{code-cell} ipython3
-odd = [bool(len(i.free_symbols) % 2) for i in basis]  # odd number of fermions
-even = [not i for i in odd]  # even number of fermions
-basis_even = [i for i, parity in zip(basis, even) if parity]
-basis_odd = [i for i, parity in zip(basis, odd) if parity]
-H_even = H[even, even]  # 32x32 Hamiltonian
-H_odd = H[odd, odd]  # 32x32 Hamiltonian
-```
-
 Finally, the Hamiltonian is ready for further analysis.
 
 ### Identify the ground states
@@ -361,12 +350,23 @@ we need to find the perturbed ground state energy $E(\phi)$.
 To do so, we finally use Pymablock to compute the perturbative corrections to the ground state Hamiltonian.
 We start by finding the corrections to the ground state for $N=0$, which is the vacuum state $\lvert 0\rangle$ of the quantum dot, in the even subspace.
 
+To take advantage of the block-diagonal structure of the Hamiltonian, we define separate subspaces for even and odd parity sectors.
+This allows Pymablock to determine that these subspaces are decoupled, and therefore to compute the result more efficiently.
+
 ```{code-cell} ipython3
 %%time
 
-ground_state_n0 = [sympy.S.One]  # vacuum state
-subspace_indices = [int(element not in ground_state_n0) for element in basis_even]
-H_tilde = block_diagonalize(H_even, subspace_indices=subspace_indices, symbols=[t_L, t_R, dphi])[0]
+ground_states = [sympy.S.One, c_up, c_down, c_up * c_down]  # vacuum state
+subspaces = {
+    sympy.S.One: 0,
+    c_up: 1,
+    c_down: 1,
+    c_down * c_up: 2,
+}
+subspace_indices = [
+    subspaces.get(element, 3 if len(element.free_symbols) % 2 else 4) for element in basis
+]
+H_tilde = block_diagonalize(H, subspace_indices=subspace_indices, symbols=[t_L, t_R, dphi])[0]
 ```
 
 `subspace_indices` is a list with `0` for every basis state that we include in the low energy subspace of $H_0$ and `1` for basis state in the other subspace.
@@ -422,7 +422,7 @@ subs = (
 
 def simplify_current(expr):
     """Simplification routine tailored to the perturbative calculation of current."""
-    return expr.expand(complex=True).factor().subs(subs).simplify()
+    return sympy.re(expr.factor()).simplify().subs(subs)
 ```
 
 We see that this simplification produces a compact result.
@@ -438,17 +438,11 @@ Applying the same procedure to the other two ground states, we compute the super
 
 ```{code-cell} ipython3
 %%time
-currents = [current]
-for i, (H, basis, ground_state) in enumerate([(H_odd, basis_odd, [c_up, c_down]), (H_even, basis_even, [c_down * c_up])]): # n=1, n=2
-    subspace_indices = [element not in ground_state for element in basis]
-    H_tilde = block_diagonalize(
-        H,
-        subspace_indices=subspace_indices,
-        symbols=[t_L, t_R, dphi]
-    )[0]
-    current = sympy.Trace(H_tilde[0, 0, 2, 2, 1]).subs({dphi: 1}).doit()
-    current = simplify_current(current)
-    currents.append(current)
+currents = [
+    simplify_current(sympy.trace(H_tilde[i, i, 2, 2, 1]).subs({dphi: 1}).doit())
+    for i in range(3)
+]
+for i, current in enumerate(currents):
     display_eq(f"I(n={i + 1})", current)
 ```
 
