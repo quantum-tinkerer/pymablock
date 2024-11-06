@@ -206,7 +206,7 @@ tests-latest = "pixi run -e latest tests"
 tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 
 [tool.pixi.feature.docs.tasks]
-docs-build = "python -C \"from matplotlib import pyplot\"; make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+docs-build = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
 
 [tool.pixi.feature.precommit.tasks]
 git = "git"
