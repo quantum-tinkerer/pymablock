@@ -13,10 +13,10 @@ from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
 from pymablock.block_diagonalization import (
-    _compile,
     _dict_to_BlockSeries,
     block_diagonalize,
     hamiltonian_to_BlockSeries,
+    series_computation,
     solve_sylvester_diagonal,
     solve_sylvester_direct,
     solve_sylvester_KPM,
@@ -1304,7 +1304,7 @@ def test_delete_intermediate_terms():
     )
 
     max_order = 10
-    series, linear_operator_series = _compile(
+    series, linear_operator_series = series_computation(
         {"H": H},
         scope={
             "solve_sylvester": (lambda x, _: x),

@@ -10,6 +10,8 @@ from enum import Enum
 from functools import cache
 from itertools import chain
 
+__all__ = ["parse_algorithm"]
+
 zero = ast.Name(id="zero", ctx=ast.Load())
 result = ast.Name(id="result", ctx=ast.Load())
 

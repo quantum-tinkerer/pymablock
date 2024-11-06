@@ -43,3 +43,12 @@
    :members: greens_function, rescale
    :show-inheritance:
 ```
+
+## Algorithms
+
+```{eval-rst}
+.. automodule:: pymablock.block_diagonalization
+   :members: series_computation
+   :show-inheritance:
+   :no-index:
+```

@@ -29,7 +29,7 @@ from pymablock.series import (
     zero,
 )
 
-__all__ = ["block_diagonalize"]
+__all__ = ["block_diagonalize", "series_computation"]
 
 # Common types
 Eigenvectors = tuple[np.ndarray | sympy.Matrix, ...]
@@ -343,7 +343,7 @@ def block_diagonalize(
     else:
         commuting_blocks = [i not in fully_diagonalize for i in range(H.shape[0])]
 
-    return _compile(
+    return series_computation(
         {"H": H},
         scope={
             "solve_sylvester": solve_sylvester,
@@ -556,7 +556,7 @@ def hamiltonian_to_BlockSeries(
 
 
 ### Block diagonalization algorithms
-def _compile(
+def series_computation(
     series: dict[str, BlockSeries],
     algorithm: Callable | None = main,
     scope: dict | None = None,
