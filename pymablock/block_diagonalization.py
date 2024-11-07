@@ -348,11 +348,12 @@ def block_diagonalize(
         scope["diag"] = diag
         scope["offdiag"] = offdiag
 
-    return series_computation(
+    operators, _ = series_computation(
         {"H": H},
         scope=scope,
         operator=operator,
     )
+    return operators["H_tilde"], operators["U"], operators["U†"]
 
 
 ### Converting different formats to BlockSeries
@@ -560,8 +561,7 @@ def series_computation(
     scope: dict | None = None,
     *,
     operator: Callable | None = None,
-    return_all: bool = False,
-) -> tuple[BlockSeries, ...] | tuple[dict[str, BlockSeries], dict[str, BlockSeries]]:
+) -> tuple[dict[str, BlockSeries], dict[str, BlockSeries]]:
     """Compile a `~pymablock.series.BlockSeries` computation.
 
     Given several series, functions to apply to their elements, and an algorithm,
@@ -580,18 +580,16 @@ def series_computation(
     operator :
         (optional) function to use for matrix multiplication.
         Defaults to matmul.
-    return_all :
-        (optional) whether to return all series as a dictionary.
-        Defaults to `False`.
 
     Returns
     -------
-    output : tuple[BlockSeries, ...] | tuple[dict[str, BlockSeries], dict[str, BlockSeries]]
-        The output series as defined by the algorithm, or if `return_all` is true, two
-        dictionaries with all the series used in the computation. The keys are the names
-        of the series and the values are the corresponding
-        `~pymablock.series.BlockSeries`. The first dictionary contains the actual
-        series, the second one the same series wrapped into linear operators.
+    series : dict[str, BlockSeries]
+        A dictionary with all the series used in the computation. The keys are
+        the names of the series and the values are the corresponding
+        `~pymablock.series.BlockSeries`.
+    linear_operator_series : dict[str, BlockSeries]
+        The same series as above, but wrapped into linear operators. Only used
+        in the implicit mode.
 
     Notes
     -----
@@ -735,10 +733,7 @@ def series_computation(
                 hermitian=product.hermitian,
             )
 
-    if return_all:
-        return series, linear_operator_series
-
-    return tuple(series[output] for output in outputs)
+    return series, linear_operator_series
 
 
 ### Different formats and algorithms of solving Sylvester equation.

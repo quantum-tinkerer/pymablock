@@ -1314,7 +1314,6 @@ def test_delete_intermediate_terms():
             "diag": (lambda x, index: x[index] if isinstance(x, BlockSeries) else x),
         },
         operator=operator.mul,
-        return_all=True,
     )
     series["H_tilde"][:, :, :max_order]
 
