@@ -269,12 +269,19 @@ def block_diagonalize(
     if len(signature(solve_sylvester).parameters) == 1:
         solve_sylvester = _preprocess_sylvester(solve_sylvester)
 
-    if not fully_diagonalize:
-        offdiag = None
-
-        def diag(x, index):
-            return x[index] if isinstance(x, BlockSeries) else x
+    if not isinstance(fully_diagonalize, dict):
+        commuting_blocks = [True] * H.shape[0]
     else:
+        commuting_blocks = [i not in fully_diagonalize for i in range(H.shape[0])]
+
+    scope = {
+        "solve_sylvester": solve_sylvester,
+        "use_linear_operator": use_linear_operator,
+        "two_block_optimized": H.shape[0] == 2 and not fully_diagonalize,
+        "commuting_blocks": commuting_blocks,
+    }
+
+    if fully_diagonalize:
         # Determine degenerate eigensubspaces of the blocks to fully diagonalize.
         equal_eigs = {
             i: (
@@ -338,21 +345,12 @@ def block_diagonalize(
                 return x.multiply(to_eliminate[index[0]])
             return x * to_eliminate[index[0]]
 
-    if not isinstance(fully_diagonalize, dict):
-        commuting_blocks = [True] * H.shape[0]
-    else:
-        commuting_blocks = [i not in fully_diagonalize for i in range(H.shape[0])]
+        scope["diag"] = diag
+        scope["offdiag"] = offdiag
 
     return series_computation(
         {"H": H},
-        scope={
-            "solve_sylvester": solve_sylvester,
-            "use_linear_operator": use_linear_operator,
-            "two_block_optimized": H.shape[0] == 2 and not fully_diagonalize,
-            "commuting_blocks": commuting_blocks,
-            "offdiag": offdiag,
-            "diag": diag,
-        },
+        scope=scope,
         operator=operator,
     )
 
@@ -707,6 +705,8 @@ def series_computation(
         "_safe_divide": _safe_divide,
         "_zero_sum": _zero_sum,
         "Dagger": Dagger,
+        "offdiag": None,
+        "diag": lambda x, index: x[index] if isinstance(x, BlockSeries) else x,
         # User-provided, may override the above
         **(scope or {}),
     }
