@@ -627,8 +627,9 @@ def series_computation(
 
     - ``start = ...`` to define the zeroth order of the series. Allowed values are
       ``"series_name"``, ``0``, ``1``.
-    - ``hermitian`` or ``antihermitian`` to optionally mark the offdiagonal blocks of
-      the series as hermitian or antihermitian.
+    - ``hermitian`` or ``antihermitian`` to optionally mark the lower triangular blocks
+      of a series to be evaluated using a conjugate transpose of the upper triangular
+      blocks.
     - One or more expressions that define how to evaluate the series. If there are
       multiple expressions, they are summed together. The expression can contain the
       following:
