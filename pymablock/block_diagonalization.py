@@ -575,10 +575,10 @@ def series_computation(
         Dictionary with all input series, where the keys are the names of the series.
     algorithm :
         Algorithm to use for the block diagonalization.  Should be passed as a callable
-        whose contents follow the algorithm DSL, see `~pymablock.algorithm_parsing.algorithm`.
+        whose contents follow the algorithm mini-language, see notes below.
     scope :
-        Extra variables to pass to pass to the algorithm. In particular useful for passing
-        custom functions.
+        Extra variables to pass to pass to the algorithm. In particularly useful for
+        passing custom functions or data.
     operator :
         (optional) function to use for matrix multiplication.
         Defaults to matmul.
@@ -588,19 +588,60 @@ def series_computation(
 
     Returns
     -------
-    If `return_all` is false, it returns a tuple with the following elements:
-    H_tilde : `~pymablock.series.BlockSeries`
-        Block diagonalized Hamiltonian.
-    U : `~pymablock.series.BlockSeries`
-        Unitary that block diagonalizes H such that ``H_tilde = U^H H U``.
-    U_adjoint : `~pymablock.series.BlockSeries`
-        Adjoint of ``U``.
+    output : tuple[BlockSeries, ...] | tuple[dict[str, BlockSeries], dict[str, BlockSeries]]
+        The output series as defined by the algorithm, or if `return_all` is true, two
+        dictionaries with all the series used in the computation. The keys are the names
+        of the series and the values are the corresponding
+        `~pymablock.series.BlockSeries`. The first dictionary contains the actual
+        series, the second one the same series wrapped into linear operators.
 
-    If `return_all` is true, it returns a tuple with two dictionaries:
-    series : dict[str, BlockSeries]
-        Dictionary with all series.
-    linear_operator_series : dict[str, BlockSeries]
-        Dictionary with all series as linear operators.
+    Notes
+    -----
+    The ``algorithm`` callable is not evaluated directly, but rather parsed to extract the
+    computation that needs to be performed. It needs to follow the specification below.
+
+    .. warning::
+
+       This domain-specific language is experimental and may change in the future.
+
+    The function body contains multiple `with` statements that define the series and
+    products of that algorithm. Throughout the definition the series and products are
+    represented by their name using string literals.
+
+    A series definition allows the following statements:
+
+    - ``start = ...`` to define the zeroth order of the series. Allowed values are
+      ``"series_name"``, ``0``, ``1``.
+    - ``hermitian`` or ``antihermitian`` to optionally mark the offdiagonal blocks of the
+      series as hermitian or antihermitian.
+    - An expression that defines how to evaluate the series. The expression can contain
+      the following:
+
+      - String literals to represent series.
+      - Attribute ``.adj`` access to represent the conjugate adjoint of a series.
+      - Integer literals.
+      - Unary and binary operations.
+      - Function calls.
+
+    - ``if <condition>:`` to differentiate evaluation based on the requested index.
+      Allowed conditions are:
+
+      - ``diagonal``: indices on the main diagonal.
+      - ``offdiagonal``: indices *not* on the main diagonal.
+      - ``lower``: indices in the lower triangle.
+
+    If a name contains an "@" symbol, it defines a Cauchy product of the terms in it.
+    For example ``"A @ B @ C"`` is a Cauchy product of the series ``A``, ``B``, and ``C``.
+
+    A product definition must contain one of the two following statements:
+
+    - ``hermitian`` to mark the product as hermitian.
+    - ``pass`` otherwise.
+
+    The final return statement in the function body defines a tuple of series that are
+    part of the output of the algorithm.
+
+    For an extended example, see the ``main`` function in ``pymablock/algorithms.py``.
 
     """
     if operator is None:
