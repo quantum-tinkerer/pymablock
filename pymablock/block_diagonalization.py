@@ -575,8 +575,8 @@ def series_computation(
         Algorithm to use for the block diagonalization.  Should be passed as a callable
         whose contents follow the algorithm mini-language, see notes below.
     scope :
-        Extra variables to pass to pass to the algorithm. In particularly useful for
-        passing custom functions or data.
+        Extra variables to pass to pass to the algorithm. It is particularly relevant
+        for passing custom functions or data.
     operator :
         (optional) function to use for matrix multiplication.
         Defaults to matmul.
@@ -729,13 +729,13 @@ def series_computation(
         "linear_operator_series": linear_operator_series,
         "del_": del_,
         "use_linear_operator": np.zeros(shape, dtype=bool),
+        "offdiag": None,
+        "diag": lambda x, index: x[index] if isinstance(x, BlockSeries) else x,
         # Globals
         "zero": zero,
         "_safe_divide": _safe_divide,
         "_zero_sum": _zero_sum,
         "Dagger": Dagger,
-        "offdiag": None,
-        "diag": lambda x, index: x[index] if isinstance(x, BlockSeries) else x,
         # User-provided, may override the above
         **(scope or {}),
     }
