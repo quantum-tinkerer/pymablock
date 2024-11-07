@@ -593,8 +593,9 @@ def series_computation(
 
     Notes
     -----
-    The ``algorithm`` callable is not evaluated directly, but rather parsed to extract the
-    computation that needs to be performed. It needs to follow the specification below.
+    The ``algorithm`` callable is not evaluated directly, but rather parsed to extract
+    the computation that needs to be performed. It needs to follow the
+    specification below.
 
     .. warning::
 
@@ -608,10 +609,11 @@ def series_computation(
 
     - ``start = ...`` to define the zeroth order of the series. Allowed values are
       ``"series_name"``, ``0``, ``1``.
-    - ``hermitian`` or ``antihermitian`` to optionally mark the offdiagonal blocks of the
-      series as hermitian or antihermitian.
-    - An expression that defines how to evaluate the series. The expression can contain
-      the following:
+    - ``hermitian`` or ``antihermitian`` to optionally mark the offdiagonal blocks of
+      the series as hermitian or antihermitian.
+    - One or more expressions that define how to evaluate the series. If there are
+      multiple expressions, they are summed together. The expression can contain the
+      following:
 
       - String literals to represent series.
       - Attribute ``.adj`` access to represent the conjugate adjoint of a series.
@@ -619,7 +621,7 @@ def series_computation(
       - Unary and binary operations.
       - Function calls.
 
-    - ``if <condition>:`` to differentiate evaluation based on the requested index.
+    - ``if <condition>:`` differentiates evaluation based on the requested index.
       Allowed conditions are:
 
       - ``diagonal``: indices on the main diagonal.
@@ -627,7 +629,8 @@ def series_computation(
       - ``lower``: indices in the lower triangle.
 
     If a name contains an "@" symbol, it defines a Cauchy product of the terms in it.
-    For example ``"A @ B @ C"`` is a Cauchy product of the series ``A``, ``B``, and ``C``.
+    For example ``"A @ B @ C"`` is a Cauchy product of the series ``A``, ``B``, and
+    ``C``.
 
     A product definition must contain one of the two following statements:
 
@@ -636,6 +639,34 @@ def series_computation(
 
     The final return statement in the function body defines a tuple of series that are
     part of the output of the algorithm.
+
+    Example
+    -------
+    The algorithm definition may look as follows (this example does not do anything
+    useful):
+
+    .. code-block:: python
+
+        def my_algorithm():
+            with "B":
+                start = 0
+                hermitian
+                if diagonal:
+                    "A" + f("B @ C")
+
+            with "C":
+                start = "A"
+                if offdiagonal:
+                    "A" + "B" / 2
+                "B @ C"
+
+            with "B @ C":
+                hermitian
+
+            return "C"
+
+    Here ``"A"`` is an input, ``"B"`` and ``"C"`` are defined in the computation, and
+    the function ``f`` must be provided using the scope.
 
     For an extended example, see the ``main`` function in ``pymablock/algorithms.py``.
 
