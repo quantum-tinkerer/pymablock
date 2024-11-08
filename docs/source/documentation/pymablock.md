@@ -47,8 +47,7 @@
 ## Algorithms
 
 ```{eval-rst}
-.. automodule:: pymablock.block_diagonalization
+.. automodule:: pymablock.algorithm_parsing
    :members: series_computation
    :show-inheritance:
-   :no-index:
 ```
