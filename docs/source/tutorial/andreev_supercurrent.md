@@ -13,7 +13,7 @@ kernelspec:
 
 # Supercurrent through a quantum dot
 
-In this tutorial, we demonstrate how to use Pymablock to compute complicated analytical expressions.
+In this tutorial, we demonstrate how to use Pymablock to compute complicated analytical expressions and use multi-block perturbation theory.
 Directly running Pymablock on a large symbolic Hamiltonian can be computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.
 Both of these steps benefit from physical insight and advanced manipulation of symbolic expressions.
 
@@ -348,9 +348,10 @@ $$
 
 we need to find the perturbed ground state energy $E(\phi)$.
 To do so, we finally use Pymablock to compute the perturbative corrections to the ground state Hamiltonian.
-To take advantage of the block-diagonal structure of the Hamiltonian, we define separate subspaces for even and odd parity sectors.
-Additionally, because we are interested in different ground states, we define a separate subspace for $N=0, 1, 2$.
-The block-diagonalization routine for the five subspaces is called using:
+Because we are interested in different ground states, we define a separate subspace for $N=0, 1, 2$.
+Additionally, to take advantage of the block-diagonal structure of the Hamiltonian, we define separate subspaces for even and odd parity sectors.
+This way, Pymablock avoids computing the matrix elements between states with different parities because they are zero.
+We handle the five subspaces separately calling the block-diagonalization routine with the corresponding subspace indices.
 
 ```{code-cell} ipython3
 %%time
@@ -364,7 +365,7 @@ subspaces = {
 }
 subspace_indices = [
     subspaces.get(element, 3 if len(element.free_symbols) % 2 else 4) for element in basis
-]
+]  # 3 for even, 4 for odd
 H_tilde = block_diagonalize(H, subspace_indices=subspace_indices, symbols=[t_L, t_R, dphi])[0]
 ```
 
@@ -441,7 +442,7 @@ Applying the same procedure to the other two ground states, we compute the super
 %%time
 currents = [
     simplify_current(sympy.trace(H_tilde[i, i, 2, 2, 1]).subs({dphi: 1}).doit())
-    for i in range(3)
+    for i in range(1, 3)
 ]
 for i, current in enumerate(currents):
     display_eq(f"I(n={i + 1})", current)
