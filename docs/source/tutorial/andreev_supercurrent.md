@@ -348,20 +348,19 @@ $$
 
 we need to find the perturbed ground state energy $E(\phi)$.
 To do so, we finally use Pymablock to compute the perturbative corrections to the ground state Hamiltonian.
-We start by finding the corrections to the ground state for $N=0$, which is the vacuum state $\lvert 0\rangle$ of the quantum dot, in the even subspace.
-
 To take advantage of the block-diagonal structure of the Hamiltonian, we define separate subspaces for even and odd parity sectors.
-This allows Pymablock to determine that these subspaces are decoupled, and therefore to compute the result more efficiently.
+Additionally, because we are interested in different ground states, we define a separate subspace for $N=0, 1, 2$.
+The block-diagonalization routine for the five subspaces is called using:
 
 ```{code-cell} ipython3
 %%time
 
 ground_states = [sympy.S.One, c_up, c_down, c_up * c_down]  # vacuum state
 subspaces = {
-    sympy.S.One: 0,
-    c_up: 1,
-    c_down: 1,
-    c_down * c_up: 2,
+    sympy.S.One: 0,  # N=0
+    c_up: 1,  # N=1
+    c_down: 1,  # N=1
+    c_down * c_up: 2,  # N=2
 }
 subspace_indices = [
     subspaces.get(element, 3 if len(element.free_symbols) % 2 else 4) for element in basis
@@ -369,15 +368,17 @@ subspace_indices = [
 H_tilde = block_diagonalize(H, subspace_indices=subspace_indices, symbols=[t_L, t_R, dphi])[0]
 ```
 
-`subspace_indices` is a list with `0` for every basis state that we include in the low energy subspace of $H_0$ and `1` for basis state in the other subspace.
-We only include the vacuum state in the low energy subspace.
+`subspace_indices` is a list with `0` for every basis state that we include in the $N=0$ subspace, `1` for the $N=1$ subspace, `2` for the $N=2$ subspace, `3` for the even parity remaining states, and `4` for the odd parity remaining states.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
 subspace_indices
 ```
 
-Now we are ready to compute the perturbed ground state energy.
+Because we plan to take a derivative with respect to $\phi$ of the result, we treated $\delta\phi$ as a small parameter that we only compute to the first order and set $\delta\phi = 1$.
+This saves resources by avoiding a computation of the derivative and complicated expressions.
+
+We start by finding the corrections to the ground state for $N=0$, which is the vacuum state $\lvert 0\rangle$.
 The first nonzero correction to the ground state energy appears in the order $\mathcal{O}(t_L^2 t_R^2)$.
 
 ```{code-cell} ipython3
