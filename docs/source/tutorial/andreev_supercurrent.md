@@ -442,7 +442,7 @@ Applying the same procedure to the other two ground states, we compute the super
 %%time
 currents = [
     simplify_current(sympy.trace(H_tilde[i, i, 2, 2, 1]).subs({dphi: 1}).doit())
-    for i in range(1, 3)
+    for i in range(3)
 ]
 for i, current in enumerate(currents):
     display_eq(f"I(n={i + 1})", current)
