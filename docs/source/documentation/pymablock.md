@@ -43,3 +43,11 @@
    :members: greens_function, rescale
    :show-inheritance:
 ```
+
+## Algorithms
+
+```{eval-rst}
+.. automodule:: pymablock.algorithm_parsing
+   :members: series_computation
+   :show-inheritance:
+```

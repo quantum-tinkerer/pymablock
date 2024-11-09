@@ -12,8 +12,9 @@ from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
+from pymablock.algorithm_parsing import series_computation
+from pymablock.algorithms import main
 from pymablock.block_diagonalization import (
-    _compile,
     _dict_to_BlockSeries,
     block_diagonalize,
     hamiltonian_to_BlockSeries,
@@ -1304,8 +1305,9 @@ def test_delete_intermediate_terms():
     )
 
     max_order = 10
-    series, linear_operator_series = _compile(
+    series, linear_operator_series = series_computation(
         {"H": H},
+        algorithm=main,
         scope={
             "solve_sylvester": (lambda x, _: x),
             "two_block_optimized": True,
@@ -1314,7 +1316,6 @@ def test_delete_intermediate_terms():
             "diag": (lambda x, index: x[index] if isinstance(x, BlockSeries) else x),
         },
         operator=operator.mul,
-        return_all=True,
     )
     series["H_tilde"][:, :, :max_order]
 

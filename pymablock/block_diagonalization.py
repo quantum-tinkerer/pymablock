@@ -13,7 +13,7 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
 
-from pymablock.algorithm_parsing import parse_algorithm
+from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
@@ -24,8 +24,6 @@ from pymablock.linalg import (
 )
 from pymablock.series import (
     BlockSeries,
-    cauchy_dot_product,
-    one,
     zero,
 )
 
@@ -269,12 +267,19 @@ def block_diagonalize(
     if len(signature(solve_sylvester).parameters) == 1:
         solve_sylvester = _preprocess_sylvester(solve_sylvester)
 
-    if not fully_diagonalize:
-        offdiag = None
-
-        def diag(x, index):
-            return x[index] if isinstance(x, BlockSeries) else x
+    if not isinstance(fully_diagonalize, dict):
+        commuting_blocks = [True] * H.shape[0]
     else:
+        commuting_blocks = [i not in fully_diagonalize for i in range(H.shape[0])]
+
+    scope = {
+        "solve_sylvester": solve_sylvester,
+        "use_linear_operator": use_linear_operator,
+        "two_block_optimized": H.shape[0] == 2 and not fully_diagonalize,
+        "commuting_blocks": commuting_blocks,
+    }
+
+    if fully_diagonalize:
         # Determine degenerate eigensubspaces of the blocks to fully diagonalize.
         equal_eigs = {
             i: (
@@ -338,23 +343,16 @@ def block_diagonalize(
                 return x.multiply(to_eliminate[index[0]])
             return x * to_eliminate[index[0]]
 
-    if not isinstance(fully_diagonalize, dict):
-        commuting_blocks = [True] * H.shape[0]
-    else:
-        commuting_blocks = [i not in fully_diagonalize for i in range(H.shape[0])]
+        scope["diag"] = diag
+        scope["offdiag"] = offdiag
 
-    return _compile(
+    operators, _ = series_computation(
         {"H": H},
-        scope={
-            "solve_sylvester": solve_sylvester,
-            "use_linear_operator": use_linear_operator,
-            "two_block_optimized": H.shape[0] == 2 and not fully_diagonalize,
-            "commuting_blocks": commuting_blocks,
-            "offdiag": offdiag,
-            "diag": diag,
-        },
+        algorithm=main,
+        scope=scope,
         operator=operator,
     )
+    return operators["H_tilde"], operators["U"], operators["U†"]
 
 
 ### Converting different formats to BlockSeries
@@ -553,151 +551,6 @@ def hamiltonian_to_BlockSeries(
     )
 
     return H
-
-
-### Block diagonalization algorithms
-def _compile(
-    series: dict[str, BlockSeries],
-    algorithm: Callable | None = main,
-    scope: dict | None = None,
-    *,
-    operator: Callable | None = None,
-    return_all: bool = False,
-) -> tuple[BlockSeries, ...] | tuple[dict[str, BlockSeries], dict[str, BlockSeries]]:
-    """Compile a `~pymablock.series.BlockSeries` computation.
-
-    Given several series, functions to apply to their elements, and an algorithm,
-    return the output series defined by the algorithm.
-
-    Parameters
-    ----------
-    series :
-        Dictionary with all input series, where the keys are the names of the series.
-    algorithm :
-        Algorithm to use for the block diagonalization.  Should be passed as a callable
-        whose contents follow the algorithm DSL, see `~pymablock.algorithm_parsing.algorithm`.
-    scope :
-        Extra variables to pass to pass to the algorithm. In particular useful for passing
-        custom functions.
-    operator :
-        (optional) function to use for matrix multiplication.
-        Defaults to matmul.
-    return_all :
-        (optional) whether to return all series as a dictionary.
-        Defaults to `False`.
-
-    Returns
-    -------
-    If `return_all` is false, it returns a tuple with the following elements:
-    H_tilde : `~pymablock.series.BlockSeries`
-        Block diagonalized Hamiltonian.
-    U : `~pymablock.series.BlockSeries`
-        Unitary that block diagonalizes H such that ``H_tilde = U^H H U``.
-    U_adjoint : `~pymablock.series.BlockSeries`
-        Adjoint of ``U``.
-
-    If `return_all` is true, it returns a tuple with two dictionaries:
-    series : dict[str, BlockSeries]
-        Dictionary with all series.
-    linear_operator_series : dict[str, BlockSeries]
-        Dictionary with all series as linear operators.
-
-    """
-    if operator is None:
-        operator = matmul
-
-    # For now we demand that all series are similar because outputs are like inputs.
-    dimension_names = next(iter(series.values())).dimension_names
-    if any(series.dimension_names != dimension_names for series in series.values()):
-        raise ValueError("All series must have the same dimension names.")
-
-    n_infinite = {series.n_infinite for series in series.values()}
-    if len(n_infinite) > 1:
-        raise ValueError("All series must have the same number of infinite indices.")
-    n_infinite = next(iter(n_infinite))
-    shape = next(iter(series.values())).shape
-
-    zeroth_order = (0,) * n_infinite
-    all_blocks = [(i, j) for i in range(shape[0]) for j in range(shape[1])]
-    diagonal = [(i, i) for i in range(shape[0])]
-    zero_data = {block + zeroth_order: zero for block in all_blocks}
-    identity_data = {block + zeroth_order: one for block in diagonal}
-    data = {
-        "zero_data": zero_data,
-        "identity_data": identity_data,
-        **{
-            f"{name}_0_data": {
-                block + zeroth_order: series[block + zeroth_order] for block in all_blocks
-            }
-            for name, series in series.items()
-        },
-    }
-
-    # Common series kwargs to avoid some repetition
-    series_kwargs = dict(
-        shape=shape,
-        n_infinite=n_infinite,
-        dimension_names=dimension_names,
-    )
-
-    def linear_operator_wrapped(original: BlockSeries) -> BlockSeries:
-        return BlockSeries(
-            eval=(lambda *index: aslinearoperator(original[index])),
-            name=original.name,
-            **series_kwargs,
-        )
-
-    linear_operator_series = {
-        name: linear_operator_wrapped(series) for name, series in series.items()
-    }
-
-    def del_(series_name, index: int) -> None:
-        series[series_name].pop(index, None)
-        linear_operator_series[series_name].pop(index, None)
-
-    eval_scope = {
-        # Defined in this function
-        "series": series,
-        "linear_operator_series": linear_operator_series,
-        "del_": del_,
-        "use_linear_operator": np.zeros(shape, dtype=bool),
-        # Globals
-        "zero": zero,
-        "_safe_divide": _safe_divide,
-        "_zero_sum": _zero_sum,
-        "Dagger": Dagger,
-        # User-provided, may override the above
-        **(scope or {}),
-    }
-
-    terms, products, outputs = parse_algorithm(algorithm)
-
-    for term in terms:
-        # This defines `series_eval` as the eval function for this term.
-        exec(compile(term.definition, filename="<string>", mode="exec"), eval_scope)
-
-        series_data = data.get(term.start, None)
-
-        series[term.name] = BlockSeries(
-            eval=eval_scope["series_eval"],
-            data=series_data,
-            name=term.name,
-            **series_kwargs,
-        )
-        linear_operator_series[term.name] = linear_operator_wrapped(series[term.name])
-
-    for product in products:
-        for which in series, linear_operator_series:
-            which[product.name] = cauchy_dot_product(
-                *(which[term] for term in product.terms),
-                operator=operator,
-                hermitian=product.hermitian,
-            )
-
-    if return_all:
-        return series, linear_operator_series
-
-    return tuple(series[output] for output in outputs)
 
 
 ### Different formats and algorithms of solving Sylvester equation.
@@ -1216,27 +1069,3 @@ def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
         # Use sympy three-valued logic
         if sympy.Eq(overlap, sympy.eye(all_vecs.shape[1])) == False:  # noqa: E712
             raise ValueError("Eigenvectors must be orthonormal.")
-
-
-def _zero_sum(*terms: Any) -> Any:
-    """Sum that returns a singleton zero if empty and omits zero terms.
-
-    Parameters
-    ----------
-    terms :
-        Terms to sum over with zero as default value.
-
-    Returns
-    -------
-    Sum of terms, or zero if terms is empty.
-
-    """
-    return sum((term for term in terms if term is not zero), start=zero)
-
-
-def _safe_divide(numerator, denominator):
-    """Divide unless it's impossible, then multiply by inverse."""
-    try:
-        return numerator / denominator
-    except TypeError:
-        return numerator * (1 / denominator)
