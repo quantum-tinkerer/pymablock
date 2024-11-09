@@ -655,7 +655,7 @@ def series_computation(
     allows to avoid this complexity and enabled multiple improvements of the current
     algorithm and simplifies development of new algorithms.
 
-    Specifically, algorithm parsing:
+    Specifically, code generation from the mini-language description of an algorithm:
 
     - Handles initialization of series and the definition of their evaluation functions.
     - Utilizes hermiticity and antihermiticity to reduce the number of evaluations.
@@ -672,7 +672,7 @@ def series_computation(
     series :
         Dictionary with all input series, where the keys are the names of the series.
     algorithm :
-        Algorithm to use for the block diagonalization.  Should be passed as a callable
+        Algorithm to use for the block diagonalization. Should be passed as a callable
         whose contents follow the algorithm mini-language, see notes below.
     scope :
         Extra variables to pass to pass to the algorithm. It is particularly relevant
@@ -741,7 +741,7 @@ def series_computation(
     - ``pass`` otherwise.
 
     The final return statement in the function body defines a tuple of series that are
-    part of the output of the algorithm.
+    the output of the algorithm and terms of which should not be deleted.
 
     Example
     -------
