@@ -1343,7 +1343,7 @@ def H_list(wanted_orders, N):
         H_p += H_p.T.conj()
         return H_p
 
-    H_0 = np.diag(np.random.randn(N) + 4 * np.arange(N))
+    H_0 = np.diag(np.random.randn(N) + 8 * np.arange(N))
     H_ps = [random_hermitian() for _ in wanted_orders]
 
     return H_0, H_ps
