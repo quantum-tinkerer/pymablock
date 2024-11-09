@@ -384,7 +384,8 @@ The first nonzero correction to the ground state energy appears in the order $\m
 
 ```{code-cell} ipython3
 %%time
-current = sympy.trace(H_tilde[0, 0, 2, 2, 1]).doit().subs({dphi: 1})
+energy = lambda H: sympy.trace(H) / H.shape[0]
+current = energy(H_tilde[0, 0, 2, 2, 1]).doit().subs({dphi: 1})
 ```
 
 Here we computed the trace of `H_22` as a way to obtain the sum of the eigenvalues.
@@ -440,12 +441,13 @@ Applying the same procedure to the other two ground states, we compute the super
 
 ```{code-cell} ipython3
 %%time
-currents = [
-    simplify_current(sympy.trace(H_tilde[i, i, 2, 2, 1]).subs({dphi: 1}).doit())
-    for i in range(3)
-]
+currents = [current]
+currents.extend(
+    simplify_current(energy(H_tilde[i, i, 2, 2, 1]).subs({dphi: 1}).doit())
+    for i in range(1, 3)
+)
 for i, current in enumerate(currents):
-    display_eq(f"I(n={i + 1})", current)
+    display_eq(f"I(n={i})", current)
 ```
 
 ## Visualize the results
