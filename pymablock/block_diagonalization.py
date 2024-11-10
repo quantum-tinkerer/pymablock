@@ -597,6 +597,7 @@ def solve_sylvester_diagonal(
         Function that solves Sylvester's equation.
 
     """
+    index_checked = set()
 
     def solve_sylvester(
         Y: np.ndarray | sparse.csr_array | sympy.MatrixBase,
@@ -606,6 +607,14 @@ def solve_sylvester_diagonal(
             return zero
 
         eigs_A, eigs_B = eigs[index[0]], eigs[index[1]]
+
+        if index[0] != index[1] and index[:2] not in index_checked:
+            compare = np.equal if isinstance(Y, sympy.MatrixBase) else np.isclose
+
+            if np.any(compare(eigs_A.reshape(-1, 1), eigs_B.reshape(1, -1))):
+                raise ValueError("The subspaces must not share eigenvalues.")
+            index_checked.add(index[:2])
+
         if vecs_B is not None and index[1] == len(eigs) - 1:
             # Needed for implicit mode with KPM
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
@@ -1016,12 +1025,6 @@ def _extract_diagonal(
         if is_sympy:
             eigs = np.array(eigs, dtype=object)
         diags.append(eigs)
-
-    compare = np.equal if is_sympy else np.isclose
-    for j in range(1, len(diags)):
-        for i in range(j):
-            if np.any(compare(diags[i].reshape(-1, 1), diags[j].reshape(1, -1))):
-                raise ValueError("The subspaces must not share eigenvalues.")
 
     return tuple(diags)
 
