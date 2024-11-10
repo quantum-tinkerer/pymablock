@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Further reduced the number of matrix products by around 30% for high orders and down to a guaranteed minimum for 3rd order.
 - Improved the efficiency of the MUMPS solver on real Hamiltonians.
+- Allowed subspaces to have degenerate eigenvalues if the corresponding energy denominators are never used. This may happen in multiblock perturbation theory.
 
 ### Fixed
 
