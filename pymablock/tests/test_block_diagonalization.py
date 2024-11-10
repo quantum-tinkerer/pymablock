@@ -1285,67 +1285,42 @@ def test_number_products_two_block(data_regression):
 
 def test_number_products_one_block(data_regression):
     """Check the number of products of single-block selective diagonalization"""
+    op = AlgebraElement("A")
 
-    def solve_sylvester(A, index):  # noqa: ARG001
-        return AlgebraElement(f"S({A})")
+    def func(A, index=None):  # noqa: ARG001
+        return zero if A is zero else op
 
-    def diag(A, index):
-        if isinstance(A, BlockSeries):
-            A = A[index]
-        if A is zero:
-            return zero
-        return AlgebraElement(f"S({A})")
-
-    def offdiag(A, index):
-        if isinstance(A, BlockSeries):
-            A = A[index]
-        if A is zero:
-            return zero
-        return AlgebraElement(f"R({A})")
-
-    def eval_all(*index):
-        return AlgebraElement(f"H{index}")
+    def eval_all(*index):  # noqa: ARG001
+        return op
 
     def eval_first(*index):
-        if index[0] > 2:
-            return zero
-        return AlgebraElement(f"H{index}")
+        return op if index[2] < 2 else zero
 
     evals = {
         "all": eval_all,
         "first": eval_first,
     }
 
-    multiplication_counts = {}
-    for structure in evals.keys():
-        multiplication_counts[structure] = {}
-        for highest_order in range(6):
-            AlgebraElement.log = []
-            H = BlockSeries(
-                eval=evals[structure],
-                shape=(1, 1),
-                n_infinite=1,
-            )
-            series, _ = series_computation(
-                {"H": H},
-                algorithm=main,
-                scope={
-                    "solve_sylvester": solve_sylvester,
-                    "two_block_optimized": False,
-                    "commuting_blocks": [False],
-                    "offdiag": offdiag,
-                    "diag": diag,
-                },
-                operator=operator.mul,
-            )
+    mul_counts = {}
+    for structure, commuting, order in product(evals.keys(), [True, False], range(2, 6)):
+        key = f"{structure=}{', commuting' * commuting}, {order=}"
+        AlgebraElement.log = []
+        series_computation(
+            {"H": BlockSeries(eval=evals[structure], shape=(1, 1), n_infinite=1)},
+            algorithm=main,
+            scope={
+                "solve_sylvester": func,
+                "two_block_optimized": False,
+                "commuting_blocks": [commuting],
+                "offdiag": func,
+                "diag": func,
+            },
+            operator=operator.mul,
+        )[0]["H_tilde"][0, 0, order]
 
-            series["H_tilde"][0, 0, highest_order]
+        mul_counts[key] = sum(call[1] == "__mul__" for call in AlgebraElement.log)
 
-            multiplication_counts[structure][highest_order] = Counter(
-                call[1] for call in AlgebraElement.log
-            )["__mul__"]
-
-    data_regression.check(multiplication_counts)
+    data_regression.check(mul_counts)
 
 
 def test_delete_intermediate_terms():
@@ -1540,7 +1515,9 @@ def test_mixed_full_partial(wanted_orders):
     H_0, H_ps = H_list(wanted_orders, N)
     with pytest.raises(ValueError):
         block_diagonalize(
-            [H_0, *H_ps], subspace_eigenvectors=[np.eye(N)[:, :2]], fully_diagonalize=[1]
+            [H_0, *H_ps],
+            subspace_eigenvectors=[np.eye(N)[:, :2]],
+            fully_diagonalize=[1],
         )
 
     H_tilde_mixed_implicit, *_ = block_diagonalize(

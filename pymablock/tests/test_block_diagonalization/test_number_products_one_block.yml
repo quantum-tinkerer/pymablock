@@ -1,14 +1,16 @@
-all:
-  0: 0
-  1: 0
-  2: 3
-  3: 12
-  4: 25
-  5: 44
-first:
-  0: 0
-  1: 0
-  2: 3
-  3: 12
-  4: 25
-  5: 44
+structure='all', commuting, order=2: 1
+structure='all', commuting, order=3: 7
+structure='all', commuting, order=4: 16
+structure='all', commuting, order=5: 30
+structure='all', order=2: 3
+structure='all', order=3: 12
+structure='all', order=4: 25
+structure='all', order=5: 44
+structure='first', commuting, order=2: 1
+structure='first', commuting, order=3: 7
+structure='first', commuting, order=4: 16
+structure='first', commuting, order=5: 30
+structure='first', order=2: 3
+structure='first', order=3: 12
+structure='first', order=4: 25
+structure='first', order=5: 44
