@@ -1412,6 +1412,48 @@ def test_number_products_three_block(data_regression):
     data_regression.check(mul_counts)
 
 
+@pytest.mark.xfail(raises=AssertionError)
+def test_equivalence_2x2_to_3x3_with_decoupled_block():
+    """Check that block-diagonalizing 3x3 with 1 decoupled is the same as 2x2.
+
+    If 1 block is decoupled, we need the exact same number of products as for
+    a 2x2 block-diagonalization. This is a test for #163.
+    """
+    op = AlgebraElement("A")
+
+    def solve_sylvester(Y, index):  # noqa: ARG001
+        return zero if Y is zero else op
+
+    def eval(*index):
+        if index[0] != index[1] and index[2] == 0:
+            return zero
+        if index[0] != index[1] and 2 in index[:2]:
+            return zero
+        return op
+
+    # Count products for 2x2 block-diagonalization
+    AlgebraElement.log = []
+    H = BlockSeries(
+        eval=eval,
+        shape=(2, 2),
+        n_infinite=1,
+    )
+    block_diagonalize(H, solve_sylvester=solve_sylvester)[0][:, :, 4]
+    products_2x2 = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
+
+    # Count products for 3x3 block-diagonalization with 1 decoupled block
+    AlgebraElement.log = []
+    H = BlockSeries(
+        eval=eval,
+        shape=(3, 3),
+        n_infinite=1,
+    )
+    block_diagonalize(H, solve_sylvester=solve_sylvester)[0][:, :, 4]
+    products_3x3 = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
+
+    assert products_2x2 == products_3x3
+
+
 def test_delete_intermediate_terms():
     """Test that the algorithm deletes all intermediate terms that are accessed once.
 
