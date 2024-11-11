@@ -1,276 +1,240 @@
-dense_every_order:
-  all:
-    aa:
-      0: 0
-      1: 0
-      2: 1
-      3: 5
-      4: 17
-      5: 36
-      6: 66
-      7: 104
-      8: 154
-      9: 212
-    bb:
-      0: 0
-      1: 0
-      2: 1
-      3: 5
-      4: 20
-      5: 44
-      6: 85
-      7: 139
-      8: 210
-      9: 294
-    both:
-      0: 0
-      1: 0
-      2: 2
-      3: 8
-      4: 27
-      5: 57
-      6: 104
-      7: 164
-      8: 241
-      9: 331
-  highest:
-    aa:
-      0: 0
-      1: 0
-      2: 1
-      3: 4
-      4: 15
-      5: 31
-      6: 58
-      7: 93
-      8: 140
-      9: 195
-    bb:
-      0: 0
-      1: 0
-      2: 1
-      3: 4
-      4: 18
-      5: 39
-      6: 77
-      7: 128
-      8: 196
-      9: 277
-    both:
-      0: 0
-      1: 0
-      2: 2
-      3: 6
-      4: 23
-      5: 47
-      6: 88
-      7: 142
-      8: 213
-      9: 297
-dense_first_order:
-  all:
-    aa:
-      0: 0
-      1: 0
-      2: 1
-      3: 4
-      4: 12
-      5: 23
-      6: 41
-      7: 63
-      8: 93
-      9: 127
-    bb:
-      0: 0
-      1: 0
-      2: 1
-      3: 4
-      4: 15
-      5: 30
-      6: 57
-      7: 92
-      8: 139
-      9: 194
-    both:
-      0: 0
-      1: 0
-      2: 2
-      3: 6
-      4: 19
-      5: 38
-      6: 69
-      7: 108
-      8: 159
-      9: 218
-  highest:
-    aa:
-      0: 0
-      1: 0
-      2: 1
-      3: 3
-      4: 11
-      5: 20
-      6: 36
-      7: 56
-      8: 84
-      9: 116
-    bb:
-      0: 0
-      1: 0
-      2: 1
-      3: 3
-      4: 14
-      5: 27
-      6: 52
-      7: 85
-      8: 130
-      9: 183
-    both:
-      0: 0
-      1: 0
-      2: 2
-      3: 4
-      4: 17
-      5: 32
-      6: 59
-      7: 94
-      8: 141
-      9: 196
-offdiagonal_every_order:
-  all:
-    aa:
-      0: 0
-      1: 0
-      2: 1
-      3: 3
-      4: 11
-      5: 24
-      6: 46
-      7: 74
-      8: 112
-      9: 156
-    bb:
-      0: 0
-      1: 0
-      2: 1
-      3: 3
-      4: 14
-      5: 32
-      6: 65
-      7: 109
-      8: 168
-      9: 238
-    both:
-      0: 0
-      1: 0
-      2: 2
-      3: 6
-      4: 21
-      5: 45
-      6: 84
-      7: 134
-      8: 199
-      9: 275
-  highest:
-    aa:
-      0: 0
-      1: 0
-      2: 1
-      3: 2
-      4: 9
-      5: 19
-      6: 38
-      7: 63
-      8: 98
-      9: 139
-    bb:
-      0: 0
-      1: 0
-      2: 1
-      3: 2
-      4: 12
-      5: 27
-      6: 57
-      7: 98
-      8: 154
-      9: 221
-    both:
-      0: 0
-      1: 0
-      2: 2
-      3: 4
-      4: 17
-      5: 35
-      6: 68
-      7: 112
-      8: 171
-      9: 241
-random_every_order:
-  all:
-    aa:
-      0: 0
-      1: 0
-      2: 1
-      3: 1
-      4: 10
-      5: 10
-      6: 27
-      7: 27
-      8: 53
-      9: 53
-    bb:
-      0: 0
-      1: 0
-      2: 1
-      3: 1
-      4: 13
-      5: 13
-      6: 38
-      7: 38
-      8: 77
-      9: 77
-    both:
-      0: 0
-      1: 0
-      2: 2
-      3: 2
-      4: 17
-      5: 17
-      6: 45
-      7: 45
-      8: 86
-      9: 86
-  highest:
-    aa:
-      0: 0
-      1: 0
-      2: 1
-      3: 0
-      4: 10
-      5: 2
-      6: 27
-      7: 3
-      8: 53
-      9: 9
-    bb:
-      0: 0
-      1: 0
-      2: 1
-      3: 0
-      4: 13
-      5: 2
-      6: 38
-      7: 3
-      8: 77
-      9: 5
-    both:
-      0: 0
-      1: 0
-      2: 2
-      3: 0
-      4: 17
-      5: 3
-      6: 45
-      7: 4
-      8: 86
-      9: 10
+structure='dense_every_order', order='all', block='aa', highest_order=0: 0
+structure='dense_every_order', order='all', block='aa', highest_order=1: 0
+structure='dense_every_order', order='all', block='aa', highest_order=2: 1
+structure='dense_every_order', order='all', block='aa', highest_order=3: 5
+structure='dense_every_order', order='all', block='aa', highest_order=4: 17
+structure='dense_every_order', order='all', block='aa', highest_order=5: 36
+structure='dense_every_order', order='all', block='aa', highest_order=6: 66
+structure='dense_every_order', order='all', block='aa', highest_order=7: 104
+structure='dense_every_order', order='all', block='aa', highest_order=8: 154
+structure='dense_every_order', order='all', block='aa', highest_order=9: 212
+structure='dense_every_order', order='all', block='bb', highest_order=0: 0
+structure='dense_every_order', order='all', block='bb', highest_order=1: 0
+structure='dense_every_order', order='all', block='bb', highest_order=2: 1
+structure='dense_every_order', order='all', block='bb', highest_order=3: 5
+structure='dense_every_order', order='all', block='bb', highest_order=4: 20
+structure='dense_every_order', order='all', block='bb', highest_order=5: 44
+structure='dense_every_order', order='all', block='bb', highest_order=6: 85
+structure='dense_every_order', order='all', block='bb', highest_order=7: 139
+structure='dense_every_order', order='all', block='bb', highest_order=8: 210
+structure='dense_every_order', order='all', block='bb', highest_order=9: 294
+structure='dense_every_order', order='all', block='both', highest_order=0: 0
+structure='dense_every_order', order='all', block='both', highest_order=1: 0
+structure='dense_every_order', order='all', block='both', highest_order=2: 2
+structure='dense_every_order', order='all', block='both', highest_order=3: 8
+structure='dense_every_order', order='all', block='both', highest_order=4: 27
+structure='dense_every_order', order='all', block='both', highest_order=5: 57
+structure='dense_every_order', order='all', block='both', highest_order=6: 104
+structure='dense_every_order', order='all', block='both', highest_order=7: 164
+structure='dense_every_order', order='all', block='both', highest_order=8: 241
+structure='dense_every_order', order='all', block='both', highest_order=9: 331
+structure='dense_every_order', order='highest', block='aa', highest_order=0: 0
+structure='dense_every_order', order='highest', block='aa', highest_order=1: 0
+structure='dense_every_order', order='highest', block='aa', highest_order=2: 1
+structure='dense_every_order', order='highest', block='aa', highest_order=3: 4
+structure='dense_every_order', order='highest', block='aa', highest_order=4: 15
+structure='dense_every_order', order='highest', block='aa', highest_order=5: 31
+structure='dense_every_order', order='highest', block='aa', highest_order=6: 58
+structure='dense_every_order', order='highest', block='aa', highest_order=7: 93
+structure='dense_every_order', order='highest', block='aa', highest_order=8: 140
+structure='dense_every_order', order='highest', block='aa', highest_order=9: 195
+structure='dense_every_order', order='highest', block='bb', highest_order=0: 0
+structure='dense_every_order', order='highest', block='bb', highest_order=1: 0
+structure='dense_every_order', order='highest', block='bb', highest_order=2: 1
+structure='dense_every_order', order='highest', block='bb', highest_order=3: 4
+structure='dense_every_order', order='highest', block='bb', highest_order=4: 18
+structure='dense_every_order', order='highest', block='bb', highest_order=5: 39
+structure='dense_every_order', order='highest', block='bb', highest_order=6: 77
+structure='dense_every_order', order='highest', block='bb', highest_order=7: 128
+structure='dense_every_order', order='highest', block='bb', highest_order=8: 196
+structure='dense_every_order', order='highest', block='bb', highest_order=9: 277
+structure='dense_every_order', order='highest', block='both', highest_order=0: 0
+structure='dense_every_order', order='highest', block='both', highest_order=1: 0
+structure='dense_every_order', order='highest', block='both', highest_order=2: 2
+structure='dense_every_order', order='highest', block='both', highest_order=3: 6
+structure='dense_every_order', order='highest', block='both', highest_order=4: 23
+structure='dense_every_order', order='highest', block='both', highest_order=5: 47
+structure='dense_every_order', order='highest', block='both', highest_order=6: 88
+structure='dense_every_order', order='highest', block='both', highest_order=7: 142
+structure='dense_every_order', order='highest', block='both', highest_order=8: 213
+structure='dense_every_order', order='highest', block='both', highest_order=9: 297
+structure='dense_first_order', order='all', block='aa', highest_order=0: 0
+structure='dense_first_order', order='all', block='aa', highest_order=1: 0
+structure='dense_first_order', order='all', block='aa', highest_order=2: 1
+structure='dense_first_order', order='all', block='aa', highest_order=3: 4
+structure='dense_first_order', order='all', block='aa', highest_order=4: 12
+structure='dense_first_order', order='all', block='aa', highest_order=5: 23
+structure='dense_first_order', order='all', block='aa', highest_order=6: 41
+structure='dense_first_order', order='all', block='aa', highest_order=7: 63
+structure='dense_first_order', order='all', block='aa', highest_order=8: 93
+structure='dense_first_order', order='all', block='aa', highest_order=9: 127
+structure='dense_first_order', order='all', block='bb', highest_order=0: 0
+structure='dense_first_order', order='all', block='bb', highest_order=1: 0
+structure='dense_first_order', order='all', block='bb', highest_order=2: 1
+structure='dense_first_order', order='all', block='bb', highest_order=3: 4
+structure='dense_first_order', order='all', block='bb', highest_order=4: 15
+structure='dense_first_order', order='all', block='bb', highest_order=5: 30
+structure='dense_first_order', order='all', block='bb', highest_order=6: 57
+structure='dense_first_order', order='all', block='bb', highest_order=7: 92
+structure='dense_first_order', order='all', block='bb', highest_order=8: 139
+structure='dense_first_order', order='all', block='bb', highest_order=9: 194
+structure='dense_first_order', order='all', block='both', highest_order=0: 0
+structure='dense_first_order', order='all', block='both', highest_order=1: 0
+structure='dense_first_order', order='all', block='both', highest_order=2: 2
+structure='dense_first_order', order='all', block='both', highest_order=3: 6
+structure='dense_first_order', order='all', block='both', highest_order=4: 19
+structure='dense_first_order', order='all', block='both', highest_order=5: 38
+structure='dense_first_order', order='all', block='both', highest_order=6: 69
+structure='dense_first_order', order='all', block='both', highest_order=7: 108
+structure='dense_first_order', order='all', block='both', highest_order=8: 159
+structure='dense_first_order', order='all', block='both', highest_order=9: 218
+structure='dense_first_order', order='highest', block='aa', highest_order=0: 0
+structure='dense_first_order', order='highest', block='aa', highest_order=1: 0
+structure='dense_first_order', order='highest', block='aa', highest_order=2: 1
+structure='dense_first_order', order='highest', block='aa', highest_order=3: 3
+structure='dense_first_order', order='highest', block='aa', highest_order=4: 11
+structure='dense_first_order', order='highest', block='aa', highest_order=5: 20
+structure='dense_first_order', order='highest', block='aa', highest_order=6: 36
+structure='dense_first_order', order='highest', block='aa', highest_order=7: 56
+structure='dense_first_order', order='highest', block='aa', highest_order=8: 84
+structure='dense_first_order', order='highest', block='aa', highest_order=9: 116
+structure='dense_first_order', order='highest', block='bb', highest_order=0: 0
+structure='dense_first_order', order='highest', block='bb', highest_order=1: 0
+structure='dense_first_order', order='highest', block='bb', highest_order=2: 1
+structure='dense_first_order', order='highest', block='bb', highest_order=3: 3
+structure='dense_first_order', order='highest', block='bb', highest_order=4: 14
+structure='dense_first_order', order='highest', block='bb', highest_order=5: 27
+structure='dense_first_order', order='highest', block='bb', highest_order=6: 52
+structure='dense_first_order', order='highest', block='bb', highest_order=7: 85
+structure='dense_first_order', order='highest', block='bb', highest_order=8: 130
+structure='dense_first_order', order='highest', block='bb', highest_order=9: 183
+structure='dense_first_order', order='highest', block='both', highest_order=0: 0
+structure='dense_first_order', order='highest', block='both', highest_order=1: 0
+structure='dense_first_order', order='highest', block='both', highest_order=2: 2
+structure='dense_first_order', order='highest', block='both', highest_order=3: 4
+structure='dense_first_order', order='highest', block='both', highest_order=4: 17
+structure='dense_first_order', order='highest', block='both', highest_order=5: 32
+structure='dense_first_order', order='highest', block='both', highest_order=6: 59
+structure='dense_first_order', order='highest', block='both', highest_order=7: 94
+structure='dense_first_order', order='highest', block='both', highest_order=8: 141
+structure='dense_first_order', order='highest', block='both', highest_order=9: 196
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=0: 0
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=1: 0
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=2: 1
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=3: 3
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=4: 11
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=5: 24
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=6: 46
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=7: 74
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=8: 112
+structure='offdiagonal_every_order', order='all', block='aa', highest_order=9: 156
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=0: 0
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=1: 0
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=2: 1
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=3: 3
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=4: 14
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=5: 32
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=6: 65
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=7: 109
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=8: 168
+structure='offdiagonal_every_order', order='all', block='bb', highest_order=9: 238
+structure='offdiagonal_every_order', order='all', block='both', highest_order=0: 0
+structure='offdiagonal_every_order', order='all', block='both', highest_order=1: 0
+structure='offdiagonal_every_order', order='all', block='both', highest_order=2: 2
+structure='offdiagonal_every_order', order='all', block='both', highest_order=3: 6
+structure='offdiagonal_every_order', order='all', block='both', highest_order=4: 21
+structure='offdiagonal_every_order', order='all', block='both', highest_order=5: 45
+structure='offdiagonal_every_order', order='all', block='both', highest_order=6: 84
+structure='offdiagonal_every_order', order='all', block='both', highest_order=7: 134
+structure='offdiagonal_every_order', order='all', block='both', highest_order=8: 199
+structure='offdiagonal_every_order', order='all', block='both', highest_order=9: 275
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=0: 0
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=1: 0
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=2: 1
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=3: 2
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=4: 9
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=5: 19
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=6: 38
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=7: 63
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=8: 98
+structure='offdiagonal_every_order', order='highest', block='aa', highest_order=9: 139
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=0: 0
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=1: 0
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=2: 1
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=3: 2
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=4: 12
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=5: 27
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=6: 57
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=7: 98
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=8: 154
+structure='offdiagonal_every_order', order='highest', block='bb', highest_order=9: 221
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=0: 0
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=1: 0
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=2: 2
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=3: 4
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=4: 17
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=5: 35
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=6: 68
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=7: 112
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=8: 171
+structure='offdiagonal_every_order', order='highest', block='both', highest_order=9: 241
+structure='random_every_order', order='all', block='aa', highest_order=0: 0
+structure='random_every_order', order='all', block='aa', highest_order=1: 0
+structure='random_every_order', order='all', block='aa', highest_order=2: 1
+structure='random_every_order', order='all', block='aa', highest_order=3: 1
+structure='random_every_order', order='all', block='aa', highest_order=4: 10
+structure='random_every_order', order='all', block='aa', highest_order=5: 10
+structure='random_every_order', order='all', block='aa', highest_order=6: 27
+structure='random_every_order', order='all', block='aa', highest_order=7: 27
+structure='random_every_order', order='all', block='aa', highest_order=8: 53
+structure='random_every_order', order='all', block='aa', highest_order=9: 53
+structure='random_every_order', order='all', block='bb', highest_order=0: 0
+structure='random_every_order', order='all', block='bb', highest_order=1: 0
+structure='random_every_order', order='all', block='bb', highest_order=2: 1
+structure='random_every_order', order='all', block='bb', highest_order=3: 1
+structure='random_every_order', order='all', block='bb', highest_order=4: 13
+structure='random_every_order', order='all', block='bb', highest_order=5: 13
+structure='random_every_order', order='all', block='bb', highest_order=6: 38
+structure='random_every_order', order='all', block='bb', highest_order=7: 38
+structure='random_every_order', order='all', block='bb', highest_order=8: 77
+structure='random_every_order', order='all', block='bb', highest_order=9: 77
+structure='random_every_order', order='all', block='both', highest_order=0: 0
+structure='random_every_order', order='all', block='both', highest_order=1: 0
+structure='random_every_order', order='all', block='both', highest_order=2: 2
+structure='random_every_order', order='all', block='both', highest_order=3: 2
+structure='random_every_order', order='all', block='both', highest_order=4: 17
+structure='random_every_order', order='all', block='both', highest_order=5: 17
+structure='random_every_order', order='all', block='both', highest_order=6: 45
+structure='random_every_order', order='all', block='both', highest_order=7: 45
+structure='random_every_order', order='all', block='both', highest_order=8: 86
+structure='random_every_order', order='all', block='both', highest_order=9: 86
+structure='random_every_order', order='highest', block='aa', highest_order=0: 0
+structure='random_every_order', order='highest', block='aa', highest_order=1: 0
+structure='random_every_order', order='highest', block='aa', highest_order=2: 1
+structure='random_every_order', order='highest', block='aa', highest_order=3: 0
+structure='random_every_order', order='highest', block='aa', highest_order=4: 10
+structure='random_every_order', order='highest', block='aa', highest_order=5: 2
+structure='random_every_order', order='highest', block='aa', highest_order=6: 27
+structure='random_every_order', order='highest', block='aa', highest_order=7: 3
+structure='random_every_order', order='highest', block='aa', highest_order=8: 53
+structure='random_every_order', order='highest', block='aa', highest_order=9: 9
+structure='random_every_order', order='highest', block='bb', highest_order=0: 0
+structure='random_every_order', order='highest', block='bb', highest_order=1: 0
+structure='random_every_order', order='highest', block='bb', highest_order=2: 1
+structure='random_every_order', order='highest', block='bb', highest_order=3: 0
+structure='random_every_order', order='highest', block='bb', highest_order=4: 13
+structure='random_every_order', order='highest', block='bb', highest_order=5: 2
+structure='random_every_order', order='highest', block='bb', highest_order=6: 38
+structure='random_every_order', order='highest', block='bb', highest_order=7: 3
+structure='random_every_order', order='highest', block='bb', highest_order=8: 77
+structure='random_every_order', order='highest', block='bb', highest_order=9: 5
+structure='random_every_order', order='highest', block='both', highest_order=0: 0
+structure='random_every_order', order='highest', block='both', highest_order=1: 0
+structure='random_every_order', order='highest', block='both', highest_order=2: 2
+structure='random_every_order', order='highest', block='both', highest_order=3: 0
+structure='random_every_order', order='highest', block='both', highest_order=4: 17
+structure='random_every_order', order='highest', block='both', highest_order=5: 3
+structure='random_every_order', order='highest', block='both', highest_order=6: 45
+structure='random_every_order', order='highest', block='both', highest_order=7: 4
+structure='random_every_order', order='highest', block='both', highest_order=8: 86
+structure='random_every_order', order='highest', block='both', highest_order=9: 10

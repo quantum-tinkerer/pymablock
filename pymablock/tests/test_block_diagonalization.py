@@ -1197,28 +1197,29 @@ def test_number_products_two_block(data_regression):
     If the number of products needs to be updated, check the output of this test
     and update the yaml file accordingly by running `pytest --force-regen`.
     """
+    op = AlgebraElement("A")
 
-    def solve_sylvester(A):
-        return AlgebraElement(f"S({A})")
+    def solve_sylvester(Y):  # noqa: ARG001
+        return op
 
     def eval_dense_first_order(*index):
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
         if index[2] > 1 or any(index[3:]):
             return zero
-        return AlgebraElement(f"H{index}")
+        return op
 
     def eval_dense_every_order(*index):
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
-        return AlgebraElement(f"H{index}")
+        return op
 
     def eval_offdiagonal_every_order(*index):
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
         if index[0] == index[1] and sum(index[2:]) != 0:
             return zero
-        return AlgebraElement(f"H{index}")
+        return op
 
     def eval_randomly_sparse(*index):
         np.random.seed(index[2])
@@ -1228,12 +1229,12 @@ def test_number_products_two_block(data_regression):
         if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
             return zero
         if index[0] == index[1] == 1 and sum(index[2:]) == 0:
-            return AlgebraElement(f"H{index}")  # Not both diagonal blocks are zero
+            return op  # Not both diagonal blocks are zero
         if index[0] == index[1] and p[1] > 0.4:
             return zero
         if index[0] != index[1] and p[2] > 0.4:
             return zero
-        return AlgebraElement(f"H{index}")
+        return op
 
     evals = {
         "dense_first_order": eval_dense_first_order,
@@ -1253,34 +1254,29 @@ def test_number_products_two_block(data_regression):
         "highest": lambda order: (order,),
     }
 
-    multiplication_counts = {}
-    for structure in evals.keys():
-        multiplication_counts[structure] = {}
-        for order in orders.keys():
-            multiplication_counts[structure][order] = {}
-            for block in blocks.keys():
-                multiplication_counts[structure][order][block] = {}
-                for highest_order in range(10):
-                    AlgebraElement.log = []
-                    H = BlockSeries(
-                        eval=evals[structure],
-                        shape=(2, 2),
-                        n_infinite=1,
-                    )
+    mul_counts = {}
+    for (structure, eval), (order, query), (block, indices), highest_order in product(
+        evals.items(), orders.items(), blocks.items(), range(10)
+    ):
+        key = f"{structure=}, {order=}, {block=}, {highest_order=}"
+        AlgebraElement.log = []
+        H = BlockSeries(
+            eval=eval,
+            shape=(2, 2),
+            n_infinite=1,
+        )
 
-                    H_tilde, *_ = block_diagonalize(
-                        H,
-                        solve_sylvester=solve_sylvester,
-                    )
-                    for index in blocks[block]:
-                        for _order in orders[order](highest_order):
-                            H_tilde[(*index, _order)]
+        H_tilde, *_ = block_diagonalize(
+            H,
+            solve_sylvester=solve_sylvester,
+        )
+        for index in indices:
+            for _order in query(highest_order):
+                H_tilde[(*index, _order)]
 
-                    multiplication_counts[structure][order][block][highest_order] = (
-                        Counter(call[1] for call in AlgebraElement.log)["__mul__"]
-                    )
+        mul_counts[key] = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
 
-    data_regression.check(multiplication_counts)
+    data_regression.check(mul_counts)
 
 
 def test_number_products_one_block(data_regression):
