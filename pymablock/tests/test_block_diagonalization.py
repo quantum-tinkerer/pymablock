@@ -1360,6 +1360,19 @@ def test_three_blocks(wanted_orders):
     compare_series(H, H_prime, wanted_orders, atol=1e-6)
 
 
+def test_hamiltonian_shared_decoupled_eigenvalues(wanted_orders):
+    """
+    Test that blocks may overlap in the eigenvalues if their coupling is zero.
+    """
+    N = 4
+    H_0, H_ps = H_list(wanted_orders, N)
+    H_0 = np.kron(np.eye(2), H_0)
+    H_ps = [np.kron(np.eye(2), H_p) for H_p in H_ps]
+    H = hamiltonian_to_BlockSeries([H_0, *H_ps], subspace_indices=np.arange(0, 2 * N))
+    H_tilde, *_ = block_diagonalize(H)
+    compare_series(H_tilde[:N, :N], H_tilde[N:, N:], wanted_orders, atol=1e-6)
+
+
 def test_analytic_full_and_selective():
     H_0 = sympy.diag(*[sympy.Symbol(f"H_{i}", real=True) for i in range(3)])
     H_1 = sympy.Matrix(
