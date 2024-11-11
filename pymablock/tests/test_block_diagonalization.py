@@ -1319,6 +1319,99 @@ def test_number_products_one_block(data_regression):
     data_regression.check(mul_counts)
 
 
+def test_number_products_three_block(data_regression):
+    """
+    Test that the number of products per order of the transformed Hamiltonian
+    is as expected for a three-block Hamiltonian.
+    This is a regression test so that we don't accidentally change the algorithm
+    in a way that increases the number of products.
+
+    If the number of products needs to be updated, check the output of this test
+    and update the yaml file accordingly by running `pytest --force-regen`.
+    """
+    op = AlgebraElement("A")
+
+    def solve_sylvester(Y, index):  # noqa: ARG001
+        return zero if Y is zero else op
+
+    def eval_dense_first_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[2] > 1 or any(index[3:]):
+            return zero
+        return op
+
+    def eval_dense_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        return op
+
+    def eval_offdiagonal_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[0] == index[1] and sum(index[2:]) != 0:
+            return zero
+        return op
+
+    def eval_randomly_sparse(*index):
+        np.random.seed(index[2])
+        p = np.random.random(3)
+        if index[0] != index[1] and sum(index[2:]) == 0:  # H_0 is diagonal
+            return zero
+        if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
+            return zero
+        if index[0] == index[1] == 1 and sum(index[2:]) == 0:
+            return op  # Not both diagonal blocks are zero
+        if index[0] == index[1] and p[1] > 0.4:
+            return zero
+        if index[0] != index[1] and p[2] > 0.4:
+            return zero
+        return op
+
+    evals = {
+        "dense_first_order": eval_dense_first_order,
+        "dense_every_order": eval_dense_every_order,
+        "offdiagonal_every_order": eval_offdiagonal_every_order,
+        "random_every_order": eval_randomly_sparse,
+    }
+
+    blocks = {
+        "aa": [(0, 0)],
+        "bb": [(1, 1)],
+        "cc": [(2, 2)],
+        "all": [(0, 0), (1, 1), (2, 2)],
+    }
+
+    orders = {
+        "all": lambda order: tuple(range(2, order + 1)),
+        "highest": lambda order: (order,),
+    }
+
+    mul_counts = {}
+    for (structure, eval), (order, query), (block, indices), highest_order in product(
+        evals.items(), orders.items(), blocks.items(), range(2, 5)
+    ):
+        key = f"{structure=}, {order=}, {block=}, {highest_order=}"
+        AlgebraElement.log = []
+        H = BlockSeries(
+            eval=eval,
+            shape=(3, 3),
+            n_infinite=1,
+        )
+
+        H_tilde, *_ = block_diagonalize(
+            H,
+            solve_sylvester=solve_sylvester,
+        )
+        for index in indices:
+            for _order in query(highest_order):
+                H_tilde[(*index, _order)]
+
+        mul_counts[key] = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
+
+    data_regression.check(mul_counts)
+
+
 def test_delete_intermediate_terms():
     """Test that the algorithm deletes all intermediate terms that are accessed once.
 
