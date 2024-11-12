@@ -1477,9 +1477,8 @@ def test_mixed_full_partial(wanted_orders):
         shape=(1, 1),
         n_infinite=len(wanted_orders),
     )
-    # The slicing syntax is a workaround of #154
     compare_series(
-        H_tilde_mixed_implicit[:1, :1], H_tilde_mixed[:1, :1], wanted_orders, atol=1e-10
+        H_tilde_mixed_implicit[0, 0], H_tilde_mixed[0, 0], wanted_orders, atol=1e-10
     )
     compare_series(
         H_tilde_mixed[:1, :1], H_tilde_full_subblock, wanted_orders, atol=1e-10
@@ -1500,13 +1499,8 @@ def test_multiblock_kpm_auxiliary(wanted_orders):
         solver_options={"atol": 1e-6, "aux_vectors": np.eye(N)[:, 4:]},
     )
     H_tilde_full, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(6) // 2)
-    # The slicing is a workaround of #154
-    compare_series(
-        H_tilde_implicit[:1, :1], H_tilde_full[:1, :1], wanted_orders, atol=1e-3
-    )
-    compare_series(
-        H_tilde_implicit[1:2, 1:2], H_tilde_full[1:2, 1:2], wanted_orders, atol=1e-3
-    )
+    compare_series(H_tilde_implicit[0, 0], H_tilde_full[0, 0], wanted_orders, atol=1e-3)
+    compare_series(H_tilde_implicit[1, 1], H_tilde_full[1, 1], wanted_orders, atol=1e-3)
 
 
 def test_selective_diagonalization(wanted_orders):

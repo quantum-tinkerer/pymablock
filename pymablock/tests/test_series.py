@@ -4,8 +4,9 @@ from typing import Any
 import numpy as np
 import pytest
 import sympy
+from scipy import sparse
 
-from pymablock.series import AlgebraElement, BlockSeries, cauchy_dot_product
+from pymablock.series import AlgebraElement, BlockSeries, cauchy_dot_product, zero
 
 
 @pytest.fixture(
@@ -53,6 +54,24 @@ def test_infinite_views():
     np.testing.assert_equal(
         test[:, :, 0][:, :, [2, 1, 0], :3], test[:, :, 0, [2, 1, 0], :3]
     )
+
+
+def test_slicing():
+    """
+    Regression test for #154.
+    """
+    H = BlockSeries(
+        data={
+            (0, 0, 0): sparse.eye(2, format="csr"),
+        },
+        shape=(1, 1),
+        n_infinite=1,
+    )
+    H[0, 0, :3]
+    H[:1, :1][0, 0, :3]
+    H[0, 0][:3]
+    assert H[0, 0, 3] is zero
+    assert H[:1, :1][0, 0, 3] is zero
 
 
 def test_fibonacci_series() -> None:
