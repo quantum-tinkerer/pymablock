@@ -136,8 +136,7 @@ class BlockSeries:
         if len(item) == len(self.shape):
             # Make an intermediate scalar BlockSeries that packs all finite
             # dimensions into a single item
-            scalar_item = all(isinstance(element, int) for element in item)
-            if scalar_item:
+            if all(isinstance(element, int) for element in item):
                 return BlockSeries(
                     eval=lambda *index: self[item + index],
                     shape=(),
