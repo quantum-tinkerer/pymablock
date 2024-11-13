@@ -15,7 +15,7 @@ kernelspec:
 
 In this tutorial, we demonstrate how to use Pymablock to compute complicated analytical expressions and block-diagonalize Hamiltonians with more than two subspaces.
 Directly running Pymablock on a large symbolic Hamiltonian is computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.
-Both of these steps benefit from physical insight and advanced manipulation of symbolic expressions.
+Doing so benefits from physical insight and requires manipulation of symbolic expressions.
 
 As an example, we compute supercurrent between two superconductors weakly coupled through a quantum dot.
 
@@ -46,7 +46,8 @@ $$
 
 Here $c_{\alpha, \sigma}$ and $d_{\sigma}$ are the annihilation operators of electrons in the left (L) and right (R) superconductors and quantum dot, respectively, with $\sigma = \uparrow, \downarrow$.
 The superconductors' onsite energies are $\xi_{\alpha}$, and their pairing amplitudes are $\Gamma_{\alpha}$.
-The quantum dot's charging energy is $U$ and $N$ is the offset number of electrons of the dot.
+The quantum dot's charging energy is $U$.
+The offset number of electrons $N = CV_g/e$ is controlled by the gate voltage $V_g$.
 The couplings between the quantum dot and the superconductors are $t_{L} = \lvert t_{L} \rvert e^{i \phi}$ and $t_{R} = \lvert t_{R} \rvert$, where $\phi$ is the phase difference between the superconductors.
 We treat both couplings as independent perturbations.
 
@@ -62,7 +63,7 @@ from sympy.physics.quantum import Dagger
 
 from pymablock import block_diagonalize
 
-# Define symbols
+# Hamiltonian parameters
 U, N = symbols(r"U N", positive=True)
 xis = xi_L, xi_R = symbols(r"\xi_L \xi_R", positive=True)
 Gammas = Gamma_L, Gamma_R = symbols(r"\Gamma_L \Gamma_R", positive=True)
@@ -265,15 +266,16 @@ H, basis = to_matrix(H)
 ```
 
 At this point, we are ready to feed the $64 \times 64$ symbolic Hamiltonian to the block-diagonalization routine of Pymablock.
-However, we anticipate three facts:
+However, to improve the computational efficiency, we utilize the following observations:
 
 - The diagonal elements of the Hamiltonian will appear in the denominators in the effective Hamiltonian.
-These elements correspond to the dot energies $E_n = U (N - n)^2 / 2$ and the energies of the superconductors $E_{\alpha}$.
-- We will take the derivative of the effective Hamiltonian with respect to $\phi$.
+These elements correspond to the dot energies $E_n = U (n - N)^2 / 2$ and the energies of the superconductors $E_{\alpha}$.
+- To compute supercurrent we will need to take the derivative of the effective Hamiltonian with respect to $\phi$.
 - The Hamiltonian separates into two blocks corresponding to even and odd fermion parities.
 
 To make the denominators simpler, we replace the dot energies with $E_n$ right away.
-Additionally, we replace $t_{L} = \lvert t_{L} \rvert e^{i (\phi + \delta \phi)}$, where we use $\delta \phi$ as a small parameter to simplify the calculation of the derivative.
+We then replace $t_{L} = \lvert t_{L} \rvert e^{i (\phi + \delta \phi)}$ and introduce $\delta\phi$ as an extra perturbative parameter.
+Computing a first order response to $\delta \phi$ then directly gives the energy derivative.
 
 ```{code-cell} ipython3
 t_L, phi, dphi = symbols(r"t_L \phi \delta\phi", positive=True)
@@ -288,8 +290,8 @@ Finally, the Hamiltonian is ready for further analysis.
 
 ### Identify the ground states
 
-Before computing the effective Hamiltonian, we identify the ground states of the unperturbed Hamiltonian $H_0$.
-Numerically, we observe that the ground states depend on the number of electrons $N$ in the quantum dot.
+Before computing the effective Hamiltonian, we identify the ground state of the unperturbed Hamiltonian $H_0$.
+The ground state depends on the offset electron number $N$.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -338,7 +340,7 @@ ax.spines["right"].set_visible(False)
 ax.spines["top"].set_visible(False)
 ```
 
-Therefore, we compute the supercurrent for the three regimes separately by considering the ground states for $N=0, 1, 2$ off-set charges in the quantum dot.
+Therefore, we compute the supercurrent for the three regimes separately by considering the ground states with $n=0, 1, 2$ electrons occupying the dot.
 
 ## Compute the supercurrent perturbatively
 
@@ -350,35 +352,35 @@ $$
 
 we need to find the perturbed ground state energy $E(\phi)$.
 To do so, we finally use Pymablock to compute the perturbative corrections to the ground state Hamiltonian.
-Because we are interested in different ground states, we define a separate subspace for $N=0, 1, 2$.
+Because we are interested in different ground states, we define a separate subspace for $n=0, 1, 2$.
 Additionally, to take advantage of the block-diagonal structure of the Hamiltonian, we define separate subspaces for even and odd parity sectors.
 This way, Pymablock avoids computing the matrix elements between states with different parities because they are zero.
-We handle the five subspaces separately calling the block-diagonalization routine with the corresponding subspace indices.
+We handle the five subspaces separately by labeling each basis state in the input to the block-diagonalization routine with the corresponding subspace number.
 
 ```{code-cell} ipython3
 %%time
 
 ground_states = [sympy.S.One, c_up, c_down, c_up * c_down]  # vacuum state
 subspaces = {
-    sympy.S.One: 0,  # N=0
-    c_up: 1,  # N=1
-    c_down: 1,  # N=1
-    c_down * c_up: 2,  # N=2
+    sympy.S.One: 0,  # n=0
+    c_up: 1,  # n=1
+    c_down: 1,  # n=1
+    c_down * c_up: 2,  # n=2
 }
 subspace_indices = [
     subspaces.get(element, 3 if len(element.free_symbols) % 2 else 4) for element in basis
-]  # 3 for even, 4 for odd
+]  # 3 for odd, 4 for even
 H_tilde = block_diagonalize(H, subspace_indices=subspace_indices, symbols=[t_L, t_R, dphi])[0]
 ```
 
-`subspace_indices` is a list with `0` for every basis state that we include in the $N=0$ subspace, `1` for the $N=1$ subspace, `2` for the $N=2$ subspace, `3` for the even parity remaining states, and `4` for the odd parity remaining states.
+`subspace_indices` is a list with `0` for every basis state that we include in the $n=0$ subspace, `1` for the $n=1$ subspace, `2` for the $n=2$ subspace, `3` for the odd parity remaining states, and `4` for the even parity remaining states.
 
 ```{code-cell} ipython3
 :tags: [hide-cell]
 subspace_indices
 ```
 
-We start by finding the corrections to the ground state for $N=0$, which is the vacuum state $\lvert 0\rangle$.
+We start by finding the corrections to the ground state for $n=0$, which is the vacuum state $\lvert 0\rangle$.
 The first nonzero correction to the ground state energy appears in the order $\mathcal{O}(t_L^2 t_R^2)$.
 
 ```{code-cell} ipython3
@@ -386,11 +388,11 @@ The first nonzero correction to the ground state energy appears in the order $\m
 current = H_tilde[0, 0, 2, 2, 1][0, 0].subs({dphi: 1})
 ```
 
-We use the `[0, 0]` index to extract the ground state energy, because for $N=0, 2$ the Hamiltonian is a $1 \times 1$ matrix, and for $N=1$ it is a $2 \times 2$ diagonal matrix with degenerate ground states.
-Additionally, we expanded to first order in $\delta\phi$ and computed its prefactor by setting $\delta\phi = 1$.
+We use the `[0, 0]` index to extract the ground state energy because for $n=0, 2$ the Hamiltonian is a $1 \times 1$ matrix, and for $n=1$ it is a $2 \times 2$ diagonal matrix with degenerate ground states.
+Here we also expand the energy to first order in $\delta\phi$ and computed its prefactor by setting $\delta\phi = 1$.
 This is an efficient alternative to computing the derivative of the Hamiltonian with respect to $\phi$.
 It saves time and avoids unnecessary symbolic manipulations.
-The result, however, is complicated and requires simplification.
+The result, however, is still complicated and requires simplification.
 
 ### Simplify the expression
 
@@ -448,12 +450,12 @@ currents.extend(
     for i in range(1, 3)
 )
 for i, current in enumerate(currents):
-    display_eq(f"I(N={i})", current)
+    display_eq(f"I(n={i})", current)
 ```
 
 ## Visualize the results
 
-Finally, we plot the critical current, $I_{c, N} = \lvert I_N(\phi=\pi/4) \rvert$, as a function of the number of electrons $N$.
+Finally, we plot the critical current, $I_{c, n} = \lvert I_n(\phi=\pi/4) \rvert$, as a function of the number of electrons $N$.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -462,9 +464,9 @@ N_values = np.linspace(-0.5, 2.5, num)
 current_values = [np.array([current.subs({**values, N: N_value}) for N_value in N_values], dtype=float) for current in currents]
 
 fig, ax = plt.subplots(figsize=(8, 3))
-ax.plot(N_values, np.abs(current_values[0]), '-', label=r'$N=0$')
-ax.plot(N_values, np.abs(current_values[1]), '-', label=r'$N=1$')
-ax.plot(N_values, np.abs(current_values[2]), '-', label=r'$N=2$')
+ax.plot(N_values, np.abs(current_values[0]), '-', label=r'$n=0$')
+ax.plot(N_values, np.abs(current_values[1]), '-', label=r'$n=1$')
+ax.plot(N_values, np.abs(current_values[2]), '-', label=r'$n=2$')
 ax.set_xlabel(r'$N$')
 ax.set_ylabel(r'$I_c$')
 ax.set_title(r'Critical current')
