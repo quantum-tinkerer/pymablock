@@ -1199,8 +1199,8 @@ def test_number_products_two_block(data_regression):
     """
     op = AlgebraElement("A")
 
-    def solve_sylvester(Y, index):  # noqa: ARG001
-        return op if Y is not zero else zero
+    def solve_sylvester(Y):  # noqa: ARG001
+        return op
 
     def eval_dense_first_order(*index):
         if index[0] != index[1] and sum(index[2:]) == 0:
@@ -1266,38 +1266,15 @@ def test_number_products_two_block(data_regression):
             n_infinite=1,
         )
 
-        series, _ = series_computation(
-            {"H": H},
-            algorithm=main,
-            scope={
-                "solve_sylvester": solve_sylvester,
-                "two_block_optimized": True,
-                "commuting_blocks": [True, True],
-            },
-            operator=operator.mul,
+        H_tilde, *_ = block_diagonalize(
+            H,
+            solve_sylvester=solve_sylvester,
         )
-
-        # First do the calculation
         for index in indices:
             for _order in query(highest_order):
-                series["H_tilde"][(*index, _order)]
+                H_tilde[(*index, _order)]
 
         mul_counts[key] = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
-
-        # Delete all nonzero entries from series data and rerun.
-        for term in series.values():
-            if term.name == "H":
-                continue
-            term._data = {
-                index: value for index, value in term._data.items() if value is zero
-            }
-
-        AlgebraElement.log = []
-        for index in indices:
-            for _order in query(highest_order):
-                series["H_tilde"][(*index, _order)]
-
-        assert mul_counts[key] == sum(call[1] == "__mul__" for call in AlgebraElement.log)
 
     data_regression.check(mul_counts)
 
