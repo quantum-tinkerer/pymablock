@@ -1187,7 +1187,7 @@ def test_memory_usage_implicit():
         raise ValueError("Memory usage unexpectedly high for implicit algorithm.")
 
 
-def test_number_products(data_regression):
+def test_number_products_two_block(data_regression):
     """
     Test that the number of products per order of the transformed Hamiltonian
     is as expected.
@@ -1197,28 +1197,29 @@ def test_number_products(data_regression):
     If the number of products needs to be updated, check the output of this test
     and update the yaml file accordingly by running `pytest --force-regen`.
     """
+    op = AlgebraElement("A")
 
-    def solve_sylvester(A):
-        return AlgebraElement(f"S({A})")
+    def solve_sylvester(Y):  # noqa: ARG001
+        return op
 
     def eval_dense_first_order(*index):
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
         if index[2] > 1 or any(index[3:]):
             return zero
-        return AlgebraElement(f"H{index}")
+        return op
 
     def eval_dense_every_order(*index):
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
-        return AlgebraElement(f"H{index}")
+        return op
 
     def eval_offdiagonal_every_order(*index):
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
         if index[0] == index[1] and sum(index[2:]) != 0:
             return zero
-        return AlgebraElement(f"H{index}")
+        return op
 
     def eval_randomly_sparse(*index):
         np.random.seed(index[2])
@@ -1228,12 +1229,12 @@ def test_number_products(data_regression):
         if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
             return zero
         if index[0] == index[1] == 1 and sum(index[2:]) == 0:
-            return AlgebraElement(f"H{index}")  # Not both diagonal blocks are zero
+            return op  # Not both diagonal blocks are zero
         if index[0] == index[1] and p[1] > 0.4:
             return zero
         if index[0] != index[1] and p[2] > 0.4:
             return zero
-        return AlgebraElement(f"H{index}")
+        return op
 
     evals = {
         "dense_first_order": eval_dense_first_order,
@@ -1253,34 +1254,205 @@ def test_number_products(data_regression):
         "highest": lambda order: (order,),
     }
 
-    multiplication_counts = {}
-    for structure in evals.keys():
-        multiplication_counts[structure] = {}
-        for order in orders.keys():
-            multiplication_counts[structure][order] = {}
-            for block in blocks.keys():
-                multiplication_counts[structure][order][block] = {}
-                for highest_order in range(10):
-                    AlgebraElement.log = []
-                    H = BlockSeries(
-                        eval=evals[structure],
-                        shape=(2, 2),
-                        n_infinite=1,
-                    )
+    mul_counts = {}
+    for (structure, eval), (order, query), (block, indices), highest_order in product(
+        evals.items(), orders.items(), blocks.items(), range(10)
+    ):
+        key = f"{structure=}, {order=}, {block=}, {highest_order=}"
+        AlgebraElement.log = []
+        H = BlockSeries(
+            eval=eval,
+            shape=(2, 2),
+            n_infinite=1,
+        )
 
-                    H_tilde, *_ = block_diagonalize(
-                        H,
-                        solve_sylvester=solve_sylvester,
-                    )
-                    for index in blocks[block]:
-                        for _order in orders[order](highest_order):
-                            H_tilde[(*index, _order)]
+        H_tilde, *_ = block_diagonalize(
+            H,
+            solve_sylvester=solve_sylvester,
+        )
+        for index in indices:
+            for _order in query(highest_order):
+                H_tilde[(*index, _order)]
 
-                    multiplication_counts[structure][order][block][highest_order] = (
-                        Counter(call[1] for call in AlgebraElement.log)["__mul__"]
-                    )
+        mul_counts[key] = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
 
-    data_regression.check(multiplication_counts)
+    data_regression.check(mul_counts)
+
+
+def test_number_products_one_block(data_regression):
+    """Check the number of products of single-block selective diagonalization"""
+    op = AlgebraElement("A")
+
+    def func(A, index=None):  # noqa: ARG001
+        return zero if A is zero else op
+
+    def eval_all(*index):  # noqa: ARG001
+        return op
+
+    def eval_first(*index):
+        return op if index[2] < 2 else zero
+
+    evals = {
+        "all": eval_all,
+        "first": eval_first,
+    }
+
+    mul_counts = {}
+    for structure, commuting, order in product(evals.keys(), [True, False], range(2, 6)):
+        key = f"{structure=}{', commuting' * commuting}, {order=}"
+        AlgebraElement.log = []
+        series_computation(
+            {"H": BlockSeries(eval=evals[structure], shape=(1, 1), n_infinite=1)},
+            algorithm=main,
+            scope={
+                "solve_sylvester": func,
+                "two_block_optimized": False,
+                "commuting_blocks": [commuting],
+                "offdiag": func,
+                "diag": func,
+            },
+            operator=operator.mul,
+        )[0]["H_tilde"][0, 0, order]
+
+        mul_counts[key] = sum(call[1] == "__mul__" for call in AlgebraElement.log)
+
+    data_regression.check(mul_counts)
+
+
+def test_number_products_three_block(data_regression):
+    """
+    Test that the number of products per order of the transformed Hamiltonian
+    is as expected for a three-block Hamiltonian.
+    This is a regression test so that we don't accidentally change the algorithm
+    in a way that increases the number of products.
+
+    If the number of products needs to be updated, check the output of this test
+    and update the yaml file accordingly by running `pytest --force-regen`.
+    """
+    op = AlgebraElement("A")
+
+    def solve_sylvester(Y, index):  # noqa: ARG001
+        return zero if Y is zero else op
+
+    def eval_dense_first_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[2] > 1 or any(index[3:]):
+            return zero
+        return op
+
+    def eval_dense_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        return op
+
+    def eval_offdiagonal_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[0] == index[1] and sum(index[2:]) != 0:
+            return zero
+        return op
+
+    def eval_randomly_sparse(*index):
+        np.random.seed(index[2])
+        p = np.random.random(3)
+        if index[0] != index[1] and sum(index[2:]) == 0:  # H_0 is diagonal
+            return zero
+        if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
+            return zero
+        if index[0] == index[1] == 1 and sum(index[2:]) == 0:
+            return op  # Not both diagonal blocks are zero
+        if index[0] == index[1] and p[1] > 0.4:
+            return zero
+        if index[0] != index[1] and p[2] > 0.4:
+            return zero
+        return op
+
+    evals = {
+        "dense_first_order": eval_dense_first_order,
+        "dense_every_order": eval_dense_every_order,
+        "offdiagonal_every_order": eval_offdiagonal_every_order,
+        "random_every_order": eval_randomly_sparse,
+    }
+
+    blocks = {
+        "aa": [(0, 0)],
+        "bb": [(1, 1)],
+        "cc": [(2, 2)],
+        "all": [(0, 0), (1, 1), (2, 2)],
+    }
+
+    orders = {
+        "all": lambda order: tuple(range(2, order + 1)),
+        "highest": lambda order: (order,),
+    }
+
+    mul_counts = {}
+    for (structure, eval), (order, query), (block, indices), highest_order in product(
+        evals.items(), orders.items(), blocks.items(), range(2, 5)
+    ):
+        key = f"{structure=}, {order=}, {block=}, {highest_order=}"
+        AlgebraElement.log = []
+        H = BlockSeries(
+            eval=eval,
+            shape=(3, 3),
+            n_infinite=1,
+        )
+
+        H_tilde, *_ = block_diagonalize(
+            H,
+            solve_sylvester=solve_sylvester,
+        )
+        for index in indices:
+            for _order in query(highest_order):
+                H_tilde[(*index, _order)]
+
+        mul_counts[key] = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
+
+    data_regression.check(mul_counts)
+
+
+# TODO: remove xfail after fixing #163
+@pytest.mark.xfail(raises=AssertionError)
+def test_equivalence_2x2_to_3x3_with_decoupled_block():
+    """Check that block-diagonalizing 3x3 with 1 decoupled is the same as 2x2.
+
+    If 1 block is decoupled, we need the exact same number of products as for
+    a 2x2 block-diagonalization. This is a test for #163.
+    """
+    op = AlgebraElement("A")
+
+    def solve_sylvester(Y, index):  # noqa: ARG001
+        return zero if Y is zero else op
+
+    def eval(*index):
+        if index[0] != index[1] and index[2] == 0:
+            return zero
+        if index[0] != index[1] and 2 in index[:2]:
+            return zero
+        return op
+
+    # Count products for 2x2 block-diagonalization
+    AlgebraElement.log = []
+    H = BlockSeries(
+        eval=eval,
+        shape=(2, 2),
+        n_infinite=1,
+    )
+    block_diagonalize(H, solve_sylvester=solve_sylvester)[0][:, :, 4]
+    products_2x2 = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
+
+    # Count products for 3x3 block-diagonalization with 1 decoupled block
+    AlgebraElement.log = []
+    H = BlockSeries(
+        eval=eval,
+        shape=(3, 3),
+        n_infinite=1,
+    )
+    block_diagonalize(H, solve_sylvester=solve_sylvester)[0][:, :, 4]
+    products_3x3 = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
+
+    assert products_2x2 == products_3x3
 
 
 def test_delete_intermediate_terms():
@@ -1475,7 +1647,9 @@ def test_mixed_full_partial(wanted_orders):
     H_0, H_ps = H_list(wanted_orders, N)
     with pytest.raises(ValueError):
         block_diagonalize(
-            [H_0, *H_ps], subspace_eigenvectors=[np.eye(N)[:, :2]], fully_diagonalize=[1]
+            [H_0, *H_ps],
+            subspace_eigenvectors=[np.eye(N)[:, :2]],
+            fully_diagonalize=[1],
         )
 
     H_tilde_mixed_implicit, *_ = block_diagonalize(
