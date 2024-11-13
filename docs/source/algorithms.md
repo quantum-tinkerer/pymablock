@@ -400,33 +400,33 @@ $$
 
 Solving Sylvester's equation and computing the matrix products are the most expensive steps of the algorithms for large Hamiltonians.
 Pymablock can efficiently construct an effective Hamiltonian of a small subspace even when the full Hamiltonian is a sparse matrix that is too costly to diagonalize.
-It does so by avoiding explicit computation of operators in $B$ subspace, and by utilizing the sparsity of the Hamiltonian to compute the Green's function.
+It does so by avoiding forming a matrix representation of operators in the implicit subspace—the one without known eigenvectors, and by utilizing the sparsity of the Hamiltonian to compute the Green's function.
 To do so, Pymablock uses either the [MUMPS sparse solver](https://mumps-solver.org/) via the [python-mumps](https://gitlab.kwant-project.org/kwant/python-mumps/) wrapper or the [KPM method](https://doi.org/10.1103/RevModPhys.78.275).
 
 This approach was originally introduced in [this work](https://arxiv.org/abs/1909.09649).
 
 ::::{admonition} Implementation details
 :class: dropdown info
-We use the matrix $\Psi_A$ of the eigenvectors of the $A$ subspace to rewrite the Hamiltonian as
+We use the matrix $\Psi_E$ of the known eigenvectors of the explicit subspace to rewrite the Hamiltonian as
 
 :::{math}
 \mathcal{H} \to \begin{pmatrix}
-\Psi_A^\dagger \mathcal{H} \Psi_A & \Psi_A^\dagger \mathcal{H} P_B \\
-P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
+\Psi_E^\dagger \mathcal{H} \Psi_E & \Psi_E^\dagger \mathcal{H} P_I \\
+P_I \mathcal{H} \Psi_E & P_I \mathcal{H} P_I
 \end{pmatrix},
 :::
 
-where $P_B = 1 - \Psi_A \Psi_A^\dagger$ is the projector onto the $B$ subspace.
+where $P_I = 1 - \Psi_E \Psi_E^\dagger$ is the projector onto the implicit subspace.
 This Hamiltonian is larger in size than the original one because the $B$ block has additional null vectors corresponding to the $A$ subspace.
-This, however, allows to preserve the sparsity structure of the Hamiltonian by applying $P_B$ and $\mathcal{H}$ separately.
-Additionally, applying $P_B$ is efficient because $\Psi_A$ is a low rank matrix.
+This, however, allows to preserve the sparsity structure of the Hamiltonian by applying $P_I$ and $\mathcal{H}$ separately.
+Additionally, applying $P_I$ is efficient because $\Psi_E$ is a low rank matrix.
 We then perform perturbation theory of the rewritten $\mathcal{H}$.
 
-To solve the Sylvester's equation for the modified Hamiltonian, we write it for every row of $V_{\mathbf{n}}^{AB}$ separately:
+To solve the Sylvester's equation for the modified Hamiltonian, we write it for every row of $V_{\mathbf{n}}^{EI}$ separately:
 
 :::{math}
-V_{\mathbf{n}, ij}^{AB} (E_i - H_0) = Y_{\mathbf{n}, j}
+V_{\mathbf{n}, ij}^{EI} (E_i - H_0) = Y_{\mathbf{n}, j}
 :::
 
-This equation is well-defined despite $E_i - H_0$ is not invertible because $Y_{\mathbf{n}}$ has no components in the $A$ subspace.
+This equation is well-defined despite $E_i - H_0$ is not invertible because $Y_{\mathbf{n}}$ has no components in the explicit subspace.
 ::::
