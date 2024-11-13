@@ -783,11 +783,11 @@ def test_equivalence_explicit_implicit() -> None:
 
 
 def test_dtype_mismatch_error_implicit():
-    """Test that the implicit algorithm raises an error when the dtype of the
-    Hamiltonian and perturbation do not match."""
+    """Test that the implicit mode allows mixing real H_0 with complex H'."""
     rng = np.random.default_rng()
     h_0 = rng.standard_normal(size=(4, 4))
-    h_0 += Dagger(h_0)
+    # We add a diagonal part for numerical stability (MUMPS raises a warning sometimes).
+    h_0 += Dagger(h_0) + 4 * np.diag(np.arange(4))
     vecs = np.linalg.eigh(h_0)[1]
     perturbation = rng.standard_normal(size=(4, 4)) + 1j * rng.standard_normal(
         size=(4, 4)
