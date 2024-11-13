@@ -1412,6 +1412,7 @@ def test_number_products_three_block(data_regression):
     data_regression.check(mul_counts)
 
 
+# TODO: remove xfail after fixing #163
 @pytest.mark.xfail(raises=AssertionError)
 def test_equivalence_2x2_to_3x3_with_decoupled_block():
     """Check that block-diagonalizing 3x3 with 1 decoupled is the same as 2x2.
