@@ -56,33 +56,32 @@ Specifically, we have used a custom object with a counter to measure the algorit
 
 \co{Pymablock supports big sparse problems.}
 A distinguishing feature of Pymablock is its ability to handle large sparse Hamiltonians, that are too costly to diagonalize, as illustrated in Sec.~\ref{sec:induced_gap}.
-Specifically, we consider the situations when the size $N_A$ of the $A$ subspace is small compared to the entire Hilbert space, so that obtaining the basis $\Psi_A$ of the $A$ subspace is feasible using sparse diagonalization.
-The projector on the $A$ subspace $P_A = \Psi_A^\dagger \Psi_A$ is then a low-rank matrix, a property that we exploit to avoid constructing the $B$ subspace explicitly.
-Furthermore, the solution of Sylvester's equation in Eq.~\ref{eq:sylvester} amounts to multiplying $N_A$ large vectors, rows of $Y_{\mathbf{n}}^{AB}$, by the energy denominators $E_i - E_j$, where $E_i$ are the $N_A$ eigenvalues of the $A$ subspace provided by sparse diagonalization.
+Specifically, we consider the situations when the size $N_E$ of the subspace of interest---explicit subspace---is small compared to the entire Hilbert space, so that obtaining the basis $\Psi_E$ of the explicit subspace is feasible using sparse diagonalization.
+The projector on this subspace $P_E = \Psi_E^\dagger \Psi_E$ is then a low-rank matrix, a property that we exploit to avoid constructing the matrix representation of operators in the other, implicit, subspace.
 
 \co{We use the extended sparsity-preserving Hilbert space and LinearOperator objects.}
-The key tool to solve this problem is the projector approach introduced in Ref.~\cite{Irfan_2019}, which introduces an equivalent extended Hamiltonian using the projector $P_B = 1 - P_A$ onto the $B$ subspace:
+The key tool to solve this problem is the projector approach introduced in Ref.~\cite{Irfan_2019}, which introduces an equivalent extended Hamiltonian using the projector $P_I = 1 - P_A$ onto the implicit subspace:
 %
 \begin{align}
 \bar{\mathcal{H}} = \begin{pmatrix}
-\Psi_A^\dagger \mathcal{H} \Psi_A & \Psi_A^\dagger \mathcal{H} P_B \\
-P_B \mathcal{H} \Psi_A & P_B \mathcal{H} P_B
+\Psi_E^\dagger \mathcal{H} \Psi_E & \Psi_E^\dagger \mathcal{H} P_I \\
+P_I \mathcal{H} \Psi_E & P_I \mathcal{H} P_I
 \end{pmatrix}.
 \end{align}
 %
-In other words, the subspace $\bar{A}$ is written in the basis of $\Psi_A$, while the basis of the $\bar{B}$ subspace is the same as the original complete basis of $\mathcal{H}$ to preserve its sparsity.
-We also project out the $A$-degrees of freedom from the $\bar{B}$ subspace to avoid duplicate solutions in $\bar{\mathcal{H}}$, which introduces $N_A$ eigenvectors with zero eigenvalues.
-Introducing $\bar{\mathcal{H}}$ allows to multiply by operators of a form $P_B H_\mathbf{n} P_B$ efficiently by using the low-rank structure of $P_A$.
-In the code we represent the $\bar{B}\bar{B}$ operators as \mintinline{python}|LinearOperator| objects from the SciPy package~\cite{Virtanen_2020}, enabled by the ability of the \mintinline{python}|BlockSeries| to store arbitrary objects.
-Storing the $\bar{A}\bar{A}$ and $\bar{A}\bar{B}$ blocks as dense matrices---efficient because these are small and dense---finishes the implementation of the Hamiltonian.
+In other words, the explicit subspace is written in the basis of $\Psi_E$, while the basis of the implicit subspace is the same as the original complete basis of $\mathcal{H}$ to preserve its sparsity.
+The extended Hamiltonian projects out the $E$-degrees of freedom from the implicit subspace to avoid duplicate solutions in $\bar{\mathcal{H}}$, which introduces $N_E$ eigenvectors with zero eigenvalues.
+Introducing $\bar{\mathcal{H}}$ allows to multiply by operators of a form $P_I H_\mathbf{n} P_I$ efficiently by using the low-rank structure of $P_E$.
+In the code we represent the operators of the implicit subspace as \mintinline{python}|LinearOperator| objects from the SciPy package~\cite{Virtanen_2020}, enabled by the ability of the \mintinline{python}|BlockSeries| to store arbitrary objects.
+Storing the remaining blocks of $\bar{\mathcal{H}}$ as dense matrices---efficient because these are small and dense---finishes the implementation of the Hamiltonian.
 
 \co{We use sparse or KPM solvers to compute the Green's function of the $B$ subspace.}
-To solve the Sylvester's equation we write it for every row of $V_{\mathbf{n}}^{\bar{A}\bar{B}}$ separately:
+To solve the Sylvester's equation we write it for every row of $V_{\mathbf{n}}^{EI}$ separately:
 %
 \begin{align}
-V_{\mathbf{n}, ij}^{\bar{A}\bar{B}} (E_i - H_0) = Y^{\bar{A} \bar{B}}_{\mathbf{n}, j}
+V_{\mathbf{n}, ij}^{EI} (E_i - H_0) = Y^{EI}_{\mathbf{n}, j}
 \end{align}
 %
-This equation has a solution despite $E_i - H_0$ not being invertible because $Y^{\bar{A}\bar{B}}_{\mathbf{n}} P_A = 0$.
+This equation has a solution despite $E_i - H_0$ not being invertible because $Y^{EI}_{\mathbf{n}} P_A = 0$.
 We solve this equation using the MUMPS sparse solver~\cite{Amestoy_2001,Amestoy_2006}, which prepares an efficient sparse LU-decomposition of $E_i - H_0$, or the KPM approximation of the Green's function~\cite{Weisse_2006}.
 Both methods work on sparse Hamiltonians with millions of degrees of freedom.
