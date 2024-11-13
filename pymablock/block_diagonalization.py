@@ -75,18 +75,15 @@ def block_diagonalize(
     ----------
     hamiltonian :
         Full symbolic or numeric Hamiltonian to block diagonalize.
-        The Hamiltonian is normalized to a `~pymablock.series.BlockSeries` by
-        separating it into effective and auxiliary subspaces.
+        The Hamiltonian is normalized to a `~pymablock.series.BlockSeries`.
 
         Supported formats:
 
         - A list,
-            of the form ``[h_0, h_1, h_2, ...]`` where ``h_0`` is the
-            unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first order
-            perturbations. The elements ``h_i`` may be
-            `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
-            `~scipy.sparse.spmatrix`, that require separating the unperturbed
-            Hamiltonian into effective and auxiliary subspaces. Otherwise,
+            of the form ``[h_0, h_1, h_2, ...]`` where ``h_0`` is the unperturbed
+            Hamiltonian and ``h_1, h_2, ...`` are the first order perturbations. The
+            elements ``h_i`` may be `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
+            `~scipy.sparse.spmatrix`, that require separating into blocks. Otherwise,
             ``h_i`` may be a list of lists with the Hamiltonian blocks.
         - A dictionary,
             of the form ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or ``{1:
@@ -94,26 +91,22 @@ def block_diagonalize(
             case, the keys must be tuples of integers indicating the order of
             each perturbation. In the latter case, the keys must be monomials
             and the indices are ordered as in `H.dimension_names`. The values
-            of the dictionary, ``h_i`` may be `~sympy.matrices.dense.Matrix`,
-            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
-            the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
-            blocks.
+            of the dictionary, ``h_i`` have the same format as in the list case.
         - A `~sympy.matrices.dense.Matrix`,
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
             `~pymablock.series.BlockSeries` is done by Taylor expanding in
             ``symbols`` to the desired order.
         - A `~pymablock.series.BlockSeries`,
-            returned unchanged.
+            used directly.
     solve_sylvester :
         A function that solves the Sylvester equation. If not provided,
         it is selected automatically based on the inputs.
     subspace_eigenvectors :
-        A tuple with orthonormal eigenvectors to project the Hamiltonian in and
-        separate it into blocks. If None, the unperturbed Hamiltonian must be
-        block diagonal. If some vectors are missing, the implicit method is
-        used. Mutually exclusive with ``subspace_indices``.
+        A tuple with sets of orthonormal eigenvectors to project the Hamiltonian onto
+        and separate it into blocks. If None, the unperturbed Hamiltonian must be block
+        diagonal. If some vectors are missing, the implicit method is used. Mutually
+        exclusive with ``subspace_indices``.
     subspace_indices :
         An array indicating which state belongs to which subspace. If there are
         two blocks, the labels are 0 for the A (effective) subspace and 1 for
@@ -366,8 +359,11 @@ def hamiltonian_to_BlockSeries(
 ) -> BlockSeries:
     """Normalize a Hamiltonian to be used by the algorithms.
 
-    This function separates the Hamiltonian into a NxN block form consisting of
-    effective and auxiliary subspaces based on the inputs.
+    The normalization consists of the following steps:
+
+    - Determine perturbation parameters from the input format,
+    - Separate the Hamiltonian into blocks based on eigenvectors or subspace indices,
+    - Form a `~pymablock.series.BlockSeries`.
 
     Parameters
     ----------
@@ -379,12 +375,10 @@ def hamiltonian_to_BlockSeries(
         Supported formats:
 
         - A list,
-            of the form ``[h_0, h_1, h_2, ...]`` where ``h_0`` is the
-            unperturbed Hamiltonian and ``h_1, h_2, ...`` are the first order
-            perturbations. The elements ``h_i`` may be
-            `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
-            `~scipy.sparse.spmatrix`, that require separating the unperturbed
-            Hamiltonian into effective and auxiliary subspaces. Otherwise,
+            of the form ``[h_0, h_1, h_2, ...]`` where ``h_0`` is the unperturbed
+            Hamiltonian and ``h_1, h_2, ...`` are the first order perturbations. The
+            elements ``h_i`` may be `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
+            `~scipy.sparse.spmatrix`, that require separating into blocks. Otherwise,
             ``h_i`` may be a list of lists with the Hamiltonian blocks.
         - A dictionary,
             of the form ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or ``{1:
@@ -392,35 +386,28 @@ def hamiltonian_to_BlockSeries(
             case, the keys must be tuples of integers indicating the order of
             each perturbation. In the latter case, the keys must be monomials
             and the indices are ordered as in `H.dimension_names`. The values
-            of the dictionary, ``h_i`` may be `~sympy.matrices.dense.Matrix`,
-            `~numpy.ndarray`, `~scipy.sparse.spmatrix`, that require separating
-            the unperturbed Hamiltonian into effective and auxiliary subspaces.
-            Otherwise, ``h_i`` may be a list of lists with the Hamiltonian
-            blocks.
+            of the dictionary, ``h_i`` have the same format as in the list case.
         - A `~sympy.matrices.dense.Matrix`,
             unless a list of ``symbols`` is provided as perturbative parameters,
             all symbols will be treated as perturbative. The normalization to
-            `~pymablock.series.BlockSeries` is done by Taylor expanding on
+            `~pymablock.series.BlockSeries` is done by Taylor expanding in
             ``symbols`` to the desired order.
         - A `~pymablock.series.BlockSeries`,
-            returned unchanged.
+            used directly.
     subspace_eigenvectors :
-        A tuple with orthonormal eigenvectors to project the Hamiltonian on and
-        separate it into blocks. In the case of 2 blocks the first element of the
-        tuple has the eigenvectors of the A (effective) subspace, and the
-        second element has the eigenvectors of the B (auxiliary) subspace. If
-        None, the unperturbed Hamiltonian must be block diagonal. If some
-        vectors are missing, the last block is defined implicitly. Mutually
+        A tuple with sets of orthonormal eigenvectors to project the Hamiltonian onto
+        and separate it into blocks. If None, the unperturbed Hamiltonian must be block
+        diagonal. If some vectors are missing, the implicit method is used. Mutually
         exclusive with ``subspace_indices``.
     subspace_indices :
-        An array indicating which basis vector belongs to which subspace. In
-        the case of 2 blocks, the labels are 0 for the A (effective) subspace
-        and 1 for the B (auxiliary) subspace. Only applicable if the
-        unperturbed Hamiltonian is diagonal. Mutually exclusive with
+        An array indicating which state belongs to which subspace. If there are
+        two blocks, the labels are 0 for the A (effective) subspace and 1 for
+        the B (auxiliary) subspace. Only applicable if the unperturbed
+        Hamiltonian is diagonal. Mutually exclusive with
         ``subspace_eigenvectors``.
     implicit :
-        Whether to wrap the Hamiltonian of the BB subspace into a linear
-        operator.
+        Whether to wrap the Hamiltonian of the last subspace into a linear
+        operator without .
     symbols :
         Symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
@@ -572,7 +559,7 @@ def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
 
 def solve_sylvester_diagonal(
     eigs: tuple[np.ndarray | sympy.matrices.MatrixBase, ...],
-    vecs_B: np.ndarray | None = None,
+    vecs_implicit: np.ndarray | None = None,
     atol: float = 1e-12,
 ) -> Callable:
     """Define a function for solving a Sylvester's equation for diagonal matrices.
@@ -583,10 +570,13 @@ def solve_sylvester_diagonal(
     Parameters
     ----------
     eigs :
-        List of eigenvalues in each subspace.
-    vecs_B :
-        Eigenvectors of the auxiliary (B) subspace of the
-        unperturbed Hamiltonian.
+        List of arrays of eigenvalues in each subspace. If `vecs_implicit` are provided,
+        the last subspace corresponds to the partial set of eigenvalues of the implicit
+        subspace.
+    vecs_implicit :
+        Partial eigenvectors of the implicit subspace. Only used for KPM. If provided,
+        the last block is returned in the basis of the original Hilbert space rather
+        than eigenbasis of the Hamiltonian.
     atol :
         Absolute tolerance to consider energy differences as exact zeros.
 
@@ -614,10 +604,10 @@ def solve_sylvester_diagonal(
                 raise ValueError("The subspaces must not share eigenvalues.")
             index_checked.add(index[:2])
 
-        if vecs_B is not None and index[1] == len(eigs) - 1:
+        if vecs_implicit is not None and index[1] == len(eigs) - 1:
             # Needed for implicit mode with KPM
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
-            return ((Y @ vecs_B) * energy_denominators) @ Dagger(vecs_B)
+            return ((Y @ vecs_implicit) * energy_denominators) @ Dagger(vecs_implicit)
         if isinstance(Y, np.ndarray):
             energy_differences = eigs_A.reshape(-1, 1) - eigs_B
             with np.errstate(divide="ignore", invalid="ignore"):
@@ -720,9 +710,9 @@ def solve_sylvester_KPM(
             ]
         )
 
-    vecs_B = subspace_eigenvectors[-1]
+    vecs_implicit = subspace_eigenvectors[-1]
     solve_sylvester_explicit = solve_sylvester_diagonal(
-        eigs, vecs_B, atol=solver_options.get("atol")
+        eigs, vecs_implicit, atol=solver_options.get("atol")
     )
 
     def solve_sylvester(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
