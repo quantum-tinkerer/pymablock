@@ -13,22 +13,22 @@ kernelspec:
 
 # Supercurrent through a quantum dot
 
-In this tutorial, we demonstrate how to use Pymablock to compute complicated analytical expressions and use multi-block perturbation theory.
-Directly running Pymablock on a large symbolic Hamiltonian can be computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.
+In this tutorial, we demonstrate how to use Pymablock to compute complicated analytical expressions and block-diagonalize Hamiltonians with more than two subspaces.
+Directly running Pymablock on a large symbolic Hamiltonian is computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.
 Both of these steps benefit from physical insight and advanced manipulation of symbolic expressions.
 
 As an example, we compute supercurrent between two superconductors weakly coupled through a quantum dot.
 
 ![Two superconductors and a quantum dot](superconductors_quantum_dot.svg)
 
-We will compute the supercurrent by treating the tunneling to the quantum dot as a perturbation.
-This requires calculating and manipulating fourth-order corrections to the ground state energy [^1^].
+We compute the supercurrent by treating the tunneling to the quantum dot as a perturbation.
+This requires calculating and manipulating fourth-order corrections in tunneling to the ground state energy [^1^].
 
 [^1^]: [Glazman et al.](http://jetpletters.ru/ps/1121/article_16988.pdf)
 
 ## Define the Hamiltonian
 
-The Hamiltonian of the system is given by
+The Hamiltonian of the system is
 
 $$
 H = H_{\textrm{SC}}+ H_{\textrm{dot}} + H_{T},
@@ -46,9 +46,9 @@ $$
 
 Here $c_{\alpha, \sigma}$ and $d_{\sigma}$ are the annihilation operators of electrons in the left (L) and right (R) superconductors and quantum dot, respectively, with $\sigma = \uparrow, \downarrow$.
 The superconductors' onsite energies are $\xi_{\alpha}$, and their pairing amplitudes are $\Gamma_{\alpha}$.
-The quantum dot's charging energy is $U$ and its offset number of electrons, $N$.
+The quantum dot's charging energy is $U$ and $N$ is the offset number of electrons of the dot.
 The couplings between the quantum dot and the superconductors are $t_{L} = \lvert t_{L} \rvert e^{i \phi}$ and $t_{R} = \lvert t_{R} \rvert$, where $\phi$ is the phase difference between the superconductors.
-We treat both of them as independent perturbations.
+We treat both couplings as independent perturbations.
 
 We start by importing the necessary libraries and defining the symbols and operators in the Hamiltonian.
 
@@ -113,7 +113,7 @@ display_eq("H_{T}", H_T + hc)
 ### Apply the Bogoliubov transformation
 
 While $H_{\textrm{dot}}$ is already diagonal, the superconductors' Hamiltonian $H_{SC}$ is not.
-Therefore, we apply the Bogoliubov transformation on $H_{SC}$, such that the entire unperturbed Hamiltonian $H_0 = H_{SC} + H_{\textrm{dot}}$ is diagonal.
+Therefore, we apply the Bogoliubov transformation to $H_{SC}$, such that the entire unperturbed Hamiltonian $H_0 = H_{SC} + H_{\textrm{dot}}$ is diagonal.
 
 :::{admonition} Avoid symbolic diagonalization
 :class: dropdown tip
@@ -129,7 +129,7 @@ f_{\alpha, \uparrow} = u_\alpha c_{\alpha, \uparrow} + v_\alpha c_{\alpha, \down
 f_{\alpha, \downarrow} = u_\alpha c_{\alpha, \downarrow} - v_\alpha c_{\alpha, \uparrow}
 $$
 
-where $u_\alpha$ and $v_\alpha$ are complex coefficients that satisfy $u_\alpha^2 + v_\alpha^2 = 1$.
+where $u_\alpha$ and $v_\alpha$ are complex coefficients that satisfy $\lvert u_\alpha \rvert^2 + \lvert v_\alpha \rvert^2 = 1$.
 As a result,
 
 $$
@@ -143,10 +143,10 @@ where $E_{\alpha} = \sqrt{\Gamma_{\alpha}^2 + \xi_{\alpha}^2}$ are the Andreev b
 :::{admonition} Avoid square roots
 :class: dropdown tip
 
-Using square roots can lead to complicated expressions, because assumptions about the arguments of square roots are not automatically inferred by sympy.
+Using square roots leads to complicated expressions, because assumptions about the arguments of square roots are not automatically inferred by sympy.
 For example, $\sqrt{a^2}$ is not equivalent to $a$, but rather $\lvert a \rvert$.
 To avoid lengthy expressions from unsimplified expressions with square roots, we replace them with $E_{\alpha}$, $u_{\alpha}$, and $v_{\alpha}$.
-These will appear in the effective Hamiltonian, and we will substitute their values at the end of the calculation.
+These will appear in the effective Hamiltonian, so we substitute their values at the end of the calculation.
 :::
 
 ```{code-cell} ipython3
@@ -170,7 +170,7 @@ H_sc = sum(
 display_eq("H_{SC}", H_sc)
 ```
 
-Similarly, because the tunneling Hamiltonian depends on $d_{\sigma}$, we apply the Bogoliubov transformation to $H_T$ as well.
+Similarly, because the $H_T$ depends on $d_{\sigma}$, we apply the Bogoliubov transformation to it as well.
 
 ```{code-cell} ipython3
 # Bogoliubov coefficients
@@ -198,7 +198,7 @@ H = H_sc + H_dot + H_T + Dagger(H_T)
 display_eq("H_{T}", H_T + hc)
 ```
 
-In this basis, the unperturbed Hamiltonian $H$ is diagonal.
+In this basis, the unperturbed Hamiltonian $H = H_{\textrm{SC}}+ H_{\textrm{dot}}$ is diagonal.
 
 ### Convert the Hamiltonian to a matrix
 
@@ -265,13 +265,15 @@ H, basis = to_matrix(H)
 ```
 
 At this point, we are ready to feed the $64 \times 64$ symbolic Hamiltonian to the block-diagonalization routine of Pymablock.
-However, we anticipate two facts:
+However, we anticipate three facts:
 
 - The diagonal elements of the Hamiltonian will appear in the denominators in the effective Hamiltonian.
 These elements correspond to the dot energies $E_n = U (N - n)^2 / 2$ and the energies of the superconductors $E_{\alpha}$.
+- We will take the derivative of the effective Hamiltonian with respect to $\phi$.
 - The Hamiltonian separates into two blocks corresponding to even and odd fermion parities.
 
 To make the denominators simpler, we replace the dot energies with $E_n$ right away.
+Additionally, we replace $t_{L} = \lvert t_{L} \rvert e^{i (\phi + \delta \phi)}$, where we use $\delta \phi$ as a small parameter to simplify the calculation of the derivative.
 
 ```{code-cell} ipython3
 t_L, phi, dphi = symbols(r"t_L \phi \delta\phi", positive=True)
@@ -286,7 +288,7 @@ Finally, the Hamiltonian is ready for further analysis.
 
 ### Identify the ground states
 
-Before computing the effective Hamiltonian, we need to identify the ground states of the unperturbed Hamiltonian $H_0$.
+Before computing the effective Hamiltonian, we identify the ground states of the unperturbed Hamiltonian $H_0$.
 Numerically, we observe that the ground states depend on the number of electrons $N$ in the quantum dot.
 
 ```{code-cell} ipython3
@@ -376,20 +378,18 @@ H_tilde = block_diagonalize(H, subspace_indices=subspace_indices, symbols=[t_L, 
 subspace_indices
 ```
 
-Because we plan to take a derivative with respect to $\phi$ of the result, we treated $\delta\phi$ as a small parameter that we only compute to the first order and set $\delta\phi = 1$.
-This saves resources by avoiding a computation of the derivative and complicated expressions.
-
 We start by finding the corrections to the ground state for $N=0$, which is the vacuum state $\lvert 0\rangle$.
 The first nonzero correction to the ground state energy appears in the order $\mathcal{O}(t_L^2 t_R^2)$.
 
 ```{code-cell} ipython3
 %%time
-energy = lambda H: sympy.trace(H) / H.shape[0]
-current = energy(H_tilde[0, 0, 2, 2, 1]).doit().subs({dphi: 1})
+current = H_tilde[0, 0, 2, 2, 1][0, 0].subs({dphi: 1})
 ```
 
-Here we computed the trace of `H_22` as a way to obtain the sum of the eigenvalues.
-This is a $1 \times 1$ matrix, and the trace is the only element of this matrix, but we use the `sympy.Trace` function to make the code generalizable to larger matrices.
+We use the `[0, 0]` index to extract the ground state energy, because for $N=0, 2$ the Hamiltonian is a $1 \times 1$ matrix, and for $N=1$ it is a $2 \times 2$ diagonal matrix with degenerate ground states.
+Additionally, we expanded to first order in $\delta\phi$ and computed its prefactor by setting $\delta\phi = 1$.
+This is an efficient alternative to computing the derivative of the Hamiltonian with respect to $\phi$.
+It saves time and avoids unnecessary symbolic manipulations.
 The result, however, is complicated and requires simplification.
 
 ### Simplify the expression
@@ -413,7 +413,8 @@ However, this routine can be unnecessarily slow and it is not guaranteed to simp
 Therefore, we analyze instead the expression and identify common patterns to simplify it manually.
 :::
 
-Therefore, we simplify the expression by factoring out the prefactor, replacing the products of $u_{\alpha}$ and $v_{\alpha}$ with their expressions, and grouping the fractions by their denominators to then simplify the numerators.
+Therefore, we first factor the result, make it real, simplify it, and finally substitute the Bogoliubov coefficients $u_{\alpha}$ and $v_{\alpha}$.
+
 
 ```{code-cell} ipython3
 # Define Bogoliubov substitutions
@@ -428,7 +429,7 @@ def simplify_current(expr):
     return sympy.re(expr.factor()).simplify().subs(subs)
 ```
 
-We see that this simplification produces a compact result.
+This simplification produces a compact result.
 
 ```{code-cell} ipython3
 %%time
@@ -437,17 +438,17 @@ current = simplify_current(current)
 display_eq('I(n=0)', current)
 ```
 
-Applying the same procedure to the other two ground states, we compute the supercurrent for the $n=1$ and $n=2$ ground states.
+Applying the same procedure to the other two ground states, we compute the supercurrent for the $N=1$ and $N=2$ regimes.
 
 ```{code-cell} ipython3
 %%time
 currents = [current]
 currents.extend(
-    simplify_current(energy(H_tilde[i, i, 2, 2, 1]).subs({dphi: 1}).doit())
+    simplify_current(H_tilde[i, i, 2, 2, 1][0, 0]).subs({dphi: 1}).doit()
     for i in range(1, 3)
 )
 for i, current in enumerate(currents):
-    display_eq(f"I(n={i})", current)
+    display_eq(f"I(N={i})", current)
 ```
 
 ## Visualize the results
