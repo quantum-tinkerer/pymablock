@@ -308,3 +308,74 @@ ax_2.set_title(r'Transformed Hamiltonian $\tilde{H}$')
 ax_2.set_xticks([])
 ax_2.set_yticks([]);
 ```
+
+## Selective diagonalization
+
+As an alternative to separating a Hamiltonian into blocks, Pymablock is capable of perturbatively canceling arbitrary off-diagonal terms in a Hamiltonian.
+The only requirement is that any two states to decouple are not degenerate, unless they are already decoupled.
+Let us illustrate this using a Hamiltonian $H_0 + H_1$:
+
+```{code-cell} ipython3
+N = 16
+H_0 = np.diag(np.arange(N) + 0.2 * np.random.randn(N))
+H_1 = 0.1 * np.random.randn(N, N)
+H_1 += H_1.T
+
+plt.imshow(H_0 + H_1, cmap='seismic', vmin=-2, vmax=2)
+plt.title(r'$H_0 + H_1$')
+plt.xticks([])
+plt.yticks([]);
+```
+
+We define a mask that selects the terms to keep in the Hamiltonian.
+To show the arbitrary nature of the mask, we use a smiley face.
+
+```{code-cell} ipython3
+
+smiley_binary = np.array(
+    [
+        [1, 1, 0, 0, 0, 1, 1],
+        [1, 1, 0, 0, 0, 1, 1],
+        [0, 0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0, 1],
+        [0, 1, 1, 1, 1, 1, 0],
+    ],
+    dtype=bool,
+)
+
+mask = np.zeros((N, N), dtype=bool)
+mask[1:smiley_binary.shape[0] + 1, -smiley_binary.shape[1] - 1:-1] = smiley_binary
+mask = ~(mask | mask.T)
+np.fill_diagonal(mask, False)
+
+plt.imshow(mask, cmap='gray')
+plt.title('Mask')
+plt.xticks([])
+plt.yticks([]);
+```
+
+The mask is a boolean array of the same shape as the Hamiltonian, where `True` values indicate the terms to keep in the Hamiltonian, and `False` values indicate the terms to cancel.
+
+We apply the mask to the Hamiltonian by providing it as the `fully_diagonalize` argument to {autolink}`~pymablock.block_diagonalize`.
+
+
+```{code-cell} ipython3
+H_tilde, *_ = pymablock.block_diagonalize([H_0, H_1], fully_diagonalize={0: mask})
+```
+
+The argument `fully_diagonalize` is a dictionary where the keys label the blocks of the Hamiltonian, and the values are the masks that select the terms to keep in that block.
+We only used one block in this example.
+
+Finally, we plot the transformed Hamiltonian $\tilde{H}$
+
+```{code-cell} ipython3
+from matplotlib.colors import TwoSlopeNorm
+
+Heff = H_tilde[0, 0, 0] + H_tilde[0, 0, 1] + H_tilde[0, 0, 2];
+
+plt.imshow(Heff, cmap='seismic', norm=TwoSlopeNorm(vcenter=0))
+plt.title(r'$\tilde{H}$')
+plt.xticks([])
+plt.yticks([]);
+```
