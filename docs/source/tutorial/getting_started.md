@@ -261,7 +261,7 @@ blocks and orders of all its perturbations.
 For example, here define a new `BlockSeries` that only contains the $A$ and $B$ subspaces
 
 ```{code-cell} ipython3
-H_tilde_subblocks = H_tilde[0:2, 0:2]
+H_tilde_subblocks = H_tilde[:2, :2]
 print(type(H_tilde_subblocks))
 print(H_tilde_subblocks.shape)
 print(H_tilde_subblocks.n_infinite)
@@ -291,7 +291,7 @@ The same is true for `BlockSeries` objects that were defined by slicing `H_tilde
 %time H_tilde_subblocks[0, 0, 2, 3]
 ```
 
-The final $3 \times 3$ block-diagonalized Hamiltonian up to second order on each perturbative parameter looks like this:
+The final $3 \times 3$ block-diagonalized Hamiltonian up to second order in each perturbative parameter looks like this:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
