@@ -336,7 +336,6 @@ def block_diagonalize(
             if index[0] not in to_keep:
                 return zero
             x = x[index] if isinstance(x, BlockSeries) else x
-            print(to_keep)
             if isinstance(x, sympy.MatrixBase):
                 return x.multiply_elementwise(to_eliminate[index[0]])
             if sparse.issparse(x):
