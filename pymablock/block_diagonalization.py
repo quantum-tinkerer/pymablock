@@ -156,6 +156,8 @@ def block_diagonalize(
             "Full diagonalization is not yet supported with custom Sylvester solvers."
         )
 
+    hamiltonian = _to_scalar_BlockSeries(hamiltonian, symbols)
+
     # This logic for using implicit mode does not catch the case where the Hamiltonian
     # is already a prepared BlockSeries. That part is checked later.
     use_implicit = False
@@ -168,21 +170,9 @@ def block_diagonalize(
     if use_implicit:
         assert subspace_eigenvectors is not None  # for mypy
         # Build solve_sylvester
-        if isinstance(hamiltonian, list):
-            h_0 = hamiltonian[0]
-        elif isinstance(hamiltonian, dict):
-            h_0 = hamiltonian.get(1, hamiltonian.get(1.0))
-            if h_0 is None:
-                h_0 = hamiltonian[(0,) * len(next(iter(hamiltonian.keys())))]
-        elif isinstance(hamiltonian, BlockSeries):
-            if hamiltonian.shape:
-                raise ValueError(
-                    "`hamiltonian` must be a scalar BlockSeries when using an implicit"
-                    " solver."
-                )
-            h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
-        else:
-            raise TypeError("`hamiltonian` must be a list, dictionary, or BlockSeries.")
+        if hamiltonian.shape:
+            raise ValueError("Implicit mode requires an input not separated into blocks")
+        h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
         if any(h_0.shape[0] != vecs.shape[0] for vecs in subspace_eigenvectors):
             raise ValueError("`subspace_eigenvectors` does not match the shape of `h_0`.")
         if solve_sylvester is None:
@@ -430,18 +420,7 @@ def hamiltonian_to_BlockSeries(
         )
     to_split = subspace_eigenvectors is not None or subspace_indices is not None
 
-    # Convert anything to BlockSeries
-    if isinstance(hamiltonian, list):
-        hamiltonian = _list_to_dict(hamiltonian)
-    elif isinstance(hamiltonian, sympy.MatrixBase):
-        hamiltonian = _sympy_to_BlockSeries(hamiltonian, symbols)
-    if isinstance(hamiltonian, dict):
-        hamiltonian, symbols = _dict_to_BlockSeries(hamiltonian, symbols, atol)
-    elif isinstance(hamiltonian, BlockSeries):
-        pass
-    else:
-        raise TypeError("Unrecognized type for Hamiltonian.")
-    assert isinstance(hamiltonian, BlockSeries)  # for mypy type checking
+    hamiltonian = _to_scalar_BlockSeries(hamiltonian, symbols, atol)
 
     if hamiltonian.shape and to_split:
         raise ValueError("H is already separated but subspace_eigenvectors are provided.")
@@ -486,7 +465,7 @@ def hamiltonian_to_BlockSeries(
             eval=H_eval,
             shape=(n_blocks, n_blocks),
             n_infinite=hamiltonian.n_infinite,
-            dimension_names=symbols,
+            dimension_names=hamiltonian.dimension_names,
             name="H",
         )
         return H
@@ -540,8 +519,6 @@ def hamiltonian_to_BlockSeries(
 
 
 ### Different formats and algorithms of solving Sylvester equation.
-
-
 def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
     """Wrap the solve_sylvester_callable to handle index and zero values."""
 
@@ -816,16 +793,18 @@ def _dict_to_BlockSeries(
 ) -> tuple[BlockSeries, list[sympy.Symbol]]:
     """Convert a dictionary of perturbations to a BlockSeries.
 
+    Additionally, convert numpy zeroth order to sparse array if it is diagonal and
+    normalize sparse to csr.
+
     Parameters
     ----------
     hamiltonian :
-        Unperturbed Hamiltonian and perturbations.
-        The keys can be tuples of integers or symbolic monomials. They
-        indicate the order of the perturbation in its respective value.
-        The values are the perturbations, and can be either a `~numpy.ndarray`,
-        `~scipy.sparse.csr_array` or a list with the blocks of the Hamiltonian.
-        For example, {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2} or
-        {1: h_0, x: h_1, y: h_2}.
+        Unperturbed Hamiltonian and perturbations. The keys can be tuples of integers or
+        symbolic monomials. They indicate the order of the perturbation in its
+        respective value. The values are the perturbations, and can be either a
+        `~numpy.ndarray`, `~scipy.sparse.csr_array` or a list with the blocks of the
+        Hamiltonian. For example, {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2} or {1: h_0, x:
+        h_1, y: h_2}.
     symbols :
         tuple of symbols to use for the BlockSeries.
     atol :
@@ -834,11 +813,9 @@ def _dict_to_BlockSeries(
     Returns
     -------
     H : `~pymablock.series.BlockSeries`
-    symbols :
-        List of symbols in the order they appear in the keys of `hamiltonian`.
-        The tuple keys of ``new_hamiltonian`` are ordered according to this list.
 
     """
+    hamiltonian = copy(hamiltonian)
     key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
     if any(key_types):
         hamiltonian, symbols = _symbolic_keys_to_tuples(hamiltonian)
@@ -853,14 +830,13 @@ def _dict_to_BlockSeries(
     elif sparse.issparse(h_0):  # Normalize sparse matrices for solve_sylvester
         hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
 
-    H_temporary = BlockSeries(
-        data=copy(hamiltonian),
+    return BlockSeries(
+        data=hamiltonian,
         shape=(),
         n_infinite=n_infinite,
         dimension_names=symbols,
         name="H",
     )
-    return H_temporary, symbols
 
 
 def _symbolic_keys_to_tuples(
@@ -906,7 +882,7 @@ def _symbolic_keys_to_tuples(
 
 def _sympy_to_BlockSeries(
     hamiltonian: sympy.MatrixBase,
-    symbols: Sequence[sympy.Symbol] | None = None,
+    symbols: Sequence[sympy.Symbol] = (),
 ) -> BlockSeries:
     """Convert a symbolic Hamiltonian to a BlockSeries.
 
@@ -924,7 +900,7 @@ def _sympy_to_BlockSeries(
     H : `~pymablock.series.BlockSeries`
 
     """
-    if symbols is None:
+    if not symbols:
         symbols = tuple(list(hamiltonian.free_symbols))  # All symbols are perturbative
     if any(n not in hamiltonian.free_symbols for n in symbols):
         raise ValueError("Not all perturbative parameters are in `hamiltonian`.")
@@ -950,6 +926,27 @@ def _sympy_to_BlockSeries(
         name="H",
     )
     return H
+
+
+def _to_scalar_BlockSeries(
+    hamiltonian: list | dict | BlockSeries | sympy.Matrix,
+    symbols: Sequence[sympy.Symbol] = (),
+    atol: float = 1e-12,
+) -> BlockSeries:
+    """Normalize input to BlockSeries without transforming values.
+
+    One exception is that numerical zeroth order term is converted to sparse if it is
+    diagonal, and sparse is normalized to csr.
+    """
+    if isinstance(hamiltonian, BlockSeries):
+        return hamiltonian
+    if isinstance(hamiltonian, sympy.MatrixBase):
+        return _sympy_to_BlockSeries(hamiltonian, symbols)
+    if isinstance(hamiltonian, list):
+        hamiltonian = _list_to_dict(hamiltonian)
+    if isinstance(hamiltonian, dict):
+        return _dict_to_BlockSeries(hamiltonian, symbols, atol)
+    raise TypeError(f"Unsupported input type of Hamiltonian: {type(hamiltonian)}.")
 
 
 def _subspaces_from_indices(

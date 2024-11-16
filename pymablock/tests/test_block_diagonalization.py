@@ -905,7 +905,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
     # Also try that BlockSeries input works
     if isinstance(hamiltonian, dict):
         block_diagonalize(
-            _dict_to_BlockSeries(hamiltonian)[0],
+            _dict_to_BlockSeries(hamiltonian),
             subspace_eigenvectors=[subspace_eigenvectors[0]],
         )
     # hamiltonian is either a list or a dictionary.
