@@ -156,10 +156,22 @@ def block_diagonalize(
             "Full diagonalization is not yet supported with custom Sylvester solvers."
         )
 
-    hamiltonian = _to_scalar_BlockSeries(hamiltonian, symbols)
+    # We may not use the full operator_to_BlockSeries here because we need
+    # access to the unperturbed Hamiltonian in the implicit mode.
+    #
+    # Because both functions below are idempotent, this does not lead to inconsistencies
+    # with operator_to_BlockSeries in the code below.
+    hamiltonian = _unpack_blocks(_to_scalar_BlockSeries(hamiltonian, symbols, atol), atol)
 
-    # This logic for using implicit mode does not catch the case where the Hamiltonian
-    # is already a prepared BlockSeries. That part is checked later.
+    if not hamiltonian.shape:
+        h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
+        # Check that h_0 is diagonal if no eigenvectors are provided
+        if subspace_eigenvectors is None and not is_diagonal(h_0, atol):
+            raise ValueError(
+                "Without eigenvectors provided, the unperturbed Hamiltonian"
+                " must be diagonal."
+            )
+
     use_implicit = False
     if subspace_eigenvectors is not None:
         _check_orthonormality(subspace_eigenvectors, atol=atol)
@@ -172,8 +184,7 @@ def block_diagonalize(
         # Build solve_sylvester
         if hamiltonian.shape:
             raise ValueError("Implicit mode requires an input not separated into blocks")
-        h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
-        if any(h_0.shape[0] != vecs.shape[0] for vecs in subspace_eigenvectors):
+        if h_0.shape[0] != subspace_eigenvectors[0].shape[0]:
             raise ValueError("`subspace_eigenvectors` does not match the shape of `h_0`.")
         if solve_sylvester is None:
             if not all(isinstance(vecs, np.ndarray) for vecs in subspace_eigenvectors):
@@ -181,10 +192,7 @@ def block_diagonalize(
                     "Implicit problem requires numpy arrays for eigenvectors."
                 )
             if direct_solver:
-                solve_sylvester = solve_sylvester_direct(
-                    h_0,
-                    subspace_eigenvectors,
-                )
+                solve_sylvester = solve_sylvester_direct(h_0, subspace_eigenvectors)
             else:
                 solve_sylvester = solve_sylvester_KPM(
                     h_0,
@@ -193,8 +201,9 @@ def block_diagonalize(
                 )
 
     # Normalize the Hamiltonian
-    H = hamiltonian_to_BlockSeries(
+    H = operator_to_BlockSeries(
         hamiltonian,
+        name="H",
         subspace_eigenvectors=subspace_eigenvectors,
         subspace_indices=subspace_indices,
         implicit=use_implicit,
@@ -338,9 +347,10 @@ def block_diagonalize(
 
 
 ### Converting different formats to BlockSeries
-def hamiltonian_to_BlockSeries(
-    hamiltonian: list | dict | BlockSeries | sympy.Matrix,
+def operator_to_BlockSeries(
+    operator: list | dict | BlockSeries | sympy.Matrix,
     *,
+    name: str | None = None,
     subspace_eigenvectors: tuple[Any, Any] | None = None,
     subspace_indices: tuple[int, ...] | None = None,
     implicit: bool = False,
@@ -358,7 +368,7 @@ def hamiltonian_to_BlockSeries(
 
     Parameters
     ----------
-    hamiltonian :
+    operator :
         Full symbolic or numeric Hamiltonian to block diagonalize. The
         Hamiltonian is normalized to a `~pymablock.series.BlockSeries` by
         separating it into effective and auxiliary subspaces.
@@ -385,6 +395,8 @@ def hamiltonian_to_BlockSeries(
             ``symbols`` to the desired order.
         - A `~pymablock.series.BlockSeries`,
             used directly.
+    name:
+        Name of the operator.
     subspace_eigenvectors :
         A tuple with sets of orthonormal eigenvectors to project the Hamiltonian onto
         and separate it into blocks. If None, the unperturbed Hamiltonian must be block
@@ -423,64 +435,31 @@ def hamiltonian_to_BlockSeries(
         )
     to_split = subspace_eigenvectors is not None or subspace_indices is not None
 
-    hamiltonian = _to_scalar_BlockSeries(hamiltonian, symbols, atol)
+    operator = _unpack_blocks(_to_scalar_BlockSeries(operator, symbols, atol), atol)
+    operator.name = name or operator.name
 
-    if hamiltonian.shape and to_split:
-        raise ValueError("H is already separated but subspace_eigenvectors are provided.")
+    if operator.shape:
+        if to_split:
+            raise ValueError(
+                "H is already separated but subspace_eigenvectors are provided."
+            )
 
-    if hamiltonian.shape:
-        if hamiltonian.shape[0] != hamiltonian.shape[1]:
+        if operator.shape[0] != operator.shape[1]:
             raise ValueError("H must be a square block series.")
 
-        return hamiltonian
+        return operator
 
     # Separation into subspace_eigenvectors
     if not to_split:
-        zeroth_order = hamiltonian[(0,) * hamiltonian.n_infinite]
+        zeroth_order = operator[(0,) * operator.n_infinite]
         if sparse.issparse(zeroth_order) or isinstance(
             zeroth_order, (np.ndarray, sympy.MatrixBase)
         ):
             subspace_indices = np.zeros(zeroth_order.shape[0], dtype=int)
-            to_split = True
-
-    if not to_split:
-        if not isinstance(zeroth_order, (tuple, list)):
-            raise ValueError(
-                "Without `subspace_eigenvectors` or `subspace_indices`"
-                " H must be a list of lists or tuple of tuples."
-            )
-
-        # Hamiltonian contains array-like data with block values
-        def H_eval(*index):
-            h = _convert_if_zero(hamiltonian[index[2:]], atol=atol)
-            if h is zero:
-                return zero
-            try:
-                return _convert_if_zero(h[index[0]][index[1]], atol=atol)
-            except Exception as e:
-                raise ValueError(
-                    "Without `subspace_eigenvectors` or `subspace_indices`"
-                    " H must have an NxN block structure."
-                ) from e
-
-        n_blocks = len(zeroth_order)
-        H = BlockSeries(
-            eval=H_eval,
-            shape=(n_blocks, n_blocks),
-            n_infinite=hamiltonian.n_infinite,
-            dimension_names=hamiltonian.dimension_names,
-            name="H",
-        )
-        return H
 
     # Define subspace_eigenvectors
     if subspace_indices is not None:
-        h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
-        if not is_diagonal(h_0, atol):
-            raise ValueError(
-                "If `subspace_indices` is provided, the unperturbed Hamiltonian"
-                " must be diagonal."
-            )
+        h_0 = operator[(0,) * operator.n_infinite]
         symbolic = isinstance(h_0, sympy.MatrixBase)
         subspace_eigenvectors = _subspaces_from_indices(
             subspace_indices, symbolic=symbolic
@@ -496,11 +475,11 @@ def hamiltonian_to_BlockSeries(
     # Separation into subspace_eigenvectors
     n_blocks = len(subspace_eigenvectors)
 
-    def H_eval(*index):
+    def op_eval(*index):
         left, right = index[:2]
         if left > right and hermitian:
-            return Dagger(H[(right, left, *tuple(index[2:]))])
-        original = hamiltonian[index[2:]]
+            return Dagger(op[(right, left, *tuple(index[2:]))])
+        original = operator[index[2:]]
         if original is zero:
             return zero
         if implicit and left == right == n_blocks - 1:
@@ -510,15 +489,16 @@ def hamiltonian_to_BlockSeries(
             atol=atol,
         )
 
-    H = BlockSeries(
-        eval=H_eval,
+    # We must add op to the local scope because op_eval refers to it.
+    op = BlockSeries(
+        eval=op_eval,
         shape=(n_blocks, n_blocks),
-        n_infinite=hamiltonian.n_infinite,
+        n_infinite=operator.n_infinite,
         dimension_names=symbols,
-        name="H",
+        name=name or operator.name,
     )
 
-    return H
+    return op
 
 
 ### Different formats and algorithms of solving Sylvester equation.
@@ -932,7 +912,7 @@ def _sympy_to_BlockSeries(
 
 
 def _to_scalar_BlockSeries(
-    hamiltonian: list | dict | BlockSeries | sympy.Matrix,
+    operator: list | dict | BlockSeries | sympy.Matrix,
     symbols: Sequence[sympy.Symbol] = (),
     atol: float = 1e-12,
 ) -> BlockSeries:
@@ -941,15 +921,47 @@ def _to_scalar_BlockSeries(
     One exception is that numerical zeroth order term is converted to sparse if it is
     diagonal, and sparse is normalized to csr.
     """
-    if isinstance(hamiltonian, BlockSeries):
-        return hamiltonian
-    if isinstance(hamiltonian, sympy.MatrixBase):
-        return _sympy_to_BlockSeries(hamiltonian, symbols)
-    if isinstance(hamiltonian, list):
-        hamiltonian = _list_to_dict(hamiltonian)
-    if isinstance(hamiltonian, dict):
-        return _dict_to_BlockSeries(hamiltonian, symbols, atol)
-    raise TypeError(f"Unsupported input type of Hamiltonian: {type(hamiltonian)}.")
+    if isinstance(operator, BlockSeries):
+        return operator
+    if isinstance(operator, sympy.MatrixBase):
+        return _sympy_to_BlockSeries(operator, symbols)
+    if isinstance(operator, list):
+        operator = _list_to_dict(operator)
+    if isinstance(operator, dict):
+        return _dict_to_BlockSeries(operator, symbols, atol)
+    raise TypeError(f"Unsupported input type of Hamiltonian: {type(operator)}.")
+
+
+def _unpack_blocks(operator: BlockSeries, atol: float = 1e-12) -> BlockSeries:
+    """Check if operator values are list of lists and if so, unpack them into blocks."""
+    if operator.shape:
+        return operator
+
+    if not isinstance(
+        (zeroth_order := operator[(0,) * operator.n_infinite]), (tuple, list)
+    ):
+        return operator
+
+    def op_eval(*index):
+        h = _convert_if_zero(operator[index[2:]], atol=atol)
+        if h is zero:
+            return zero
+        try:
+            return _convert_if_zero(h[index[0]][index[1]], atol=atol)
+        except Exception as e:
+            raise ValueError(
+                "Without `subspace_eigenvectors` or `subspace_indices`"
+                " H must have an NxN block structure."
+            ) from e
+
+    H = BlockSeries(
+        eval=op_eval,
+        shape=2 * (len(zeroth_order),),
+        n_infinite=operator.n_infinite,
+        dimension_names=operator.dimension_names,
+        name="H",
+    )
+    return H
 
 
 def _subspaces_from_indices(
