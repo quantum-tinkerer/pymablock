@@ -346,6 +346,7 @@ def hamiltonian_to_BlockSeries(
     implicit: bool = False,
     symbols: list[sympy.Symbol] | None = None,
     atol: float = 1e-12,
+    hermitian: bool = True,
 ) -> BlockSeries:
     """Normalize a Hamiltonian to be used by the algorithms.
 
@@ -406,6 +407,8 @@ def hamiltonian_to_BlockSeries(
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used to
         validate that the unperturbed Hamiltonian is block-diagonal.
+    hermitian :
+        Whether the operator may be assumed to be Hermitian (for performance).
 
     Returns
     -------
@@ -495,7 +498,7 @@ def hamiltonian_to_BlockSeries(
 
     def H_eval(*index):
         left, right = index[:2]
-        if left > right:
+        if left > right and hermitian:
             return Dagger(H[(right, left, *tuple(index[2:]))])
         original = hamiltonian[index[2:]]
         if original is zero:
