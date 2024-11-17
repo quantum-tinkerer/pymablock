@@ -133,7 +133,8 @@ class BlockSeries:
         if not isinstance(item, tuple):  # Allow indexing with integer
             item = (item,)
 
-        if len(item) == len(self.shape):
+        n_finite = len(self.shape)
+        if len(item) == n_finite and self.n_infinite:
             # Make an intermediate scalar BlockSeries that packs all finite
             # dimensions into a single item
             if all(isinstance(element, int) for element in item):
@@ -158,14 +159,14 @@ class BlockSeries:
                 dimension_names=self.dimension_names,
             )
 
-        self._check_finite(item[-self.n_infinite :])
+        self._check_finite(item[n_finite:])
         self._check_number_perturbations(item)
 
         # Create trial array to use for indexing
         trial_shape = self.shape + tuple(
             [
                 order.stop if isinstance(order, slice) else np.max(order, initial=0) + 1
-                for order in item[-self.n_infinite :]
+                for order in item[n_finite:]
             ]
         )
         trial = np.zeros(trial_shape, dtype=object)
@@ -173,7 +174,7 @@ class BlockSeries:
         trial[item] = 1
 
         data = self._data
-        for index in zip(*np.where(trial)):
+        for index in zip(*np.where(trial)) if trial.shape else ((),):
             if index not in data:
                 # Calling eval gives control away; mark that this value is evaluated
                 # To be able to catch recursion and data corruption.

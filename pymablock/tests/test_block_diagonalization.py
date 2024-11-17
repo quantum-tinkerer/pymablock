@@ -1702,3 +1702,14 @@ def test_selective_diagonalization(wanted_orders):
     compare_series(H, cauchy_dot_product(U, H_tilde, U_adjoint), wanted_orders, atol=1e-6)
     # Check that the eliminated elements are zero
     np.testing.assert_equal(H_tilde[(0, 0, *wanted_orders)][to_eliminate], 0)
+
+
+def test_only_H_0():
+    """Test that the algorithm works with only H_0 (trivially).
+
+    This is a regression test for #132.
+    """
+    block_diagonalize(
+        [np.diag(np.arange(5))],
+        subspace_eigenvectors=(np.eye(5)[:, :3], np.eye(5)[:, 3:]),
+    )
