@@ -159,6 +159,8 @@ class BlockSeries:
                 dimension_names=self.dimension_names,
             )
 
+        # Here and below we use `n_finite:` because `-self.n_infinite:` may be `-0:`,
+        # which would evaluate to all item entries.
         self._check_finite(item[n_finite:])
         self._check_number_perturbations(item)
 
