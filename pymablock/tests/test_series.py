@@ -46,7 +46,7 @@ def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) 
         a = BlockSeries(lambda *x: x, data=None, shape=(5,), n_infinite=2)
         assert shape == a[key].shape
     except Exception as e:
-        assert type(e) == shape
+        assert isinstance(e, shape)
 
 
 def test_infinite_views():
