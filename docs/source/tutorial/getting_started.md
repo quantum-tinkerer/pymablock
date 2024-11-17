@@ -410,7 +410,7 @@ Finally, we plot the transformed Hamiltonian $\tilde{H}$
 ```{code-cell} ipython3
 from matplotlib.colors import TwoSlopeNorm
 
-Heff = H_tilde[0, 0, 0] + H_tilde[0, 0, 1] + H_tilde[0, 0, 2];
+Heff = H_tilde[0, 0, 0] + H_tilde[0, 0, 1] + H_tilde[0, 0, 2]
 
 plt.imshow(Heff, cmap='seismic', norm=TwoSlopeNorm(vcenter=0))
 plt.title(r'$\tilde{H}$')
