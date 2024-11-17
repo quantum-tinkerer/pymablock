@@ -417,7 +417,7 @@ P_I \mathcal{H} \Psi_E & P_I \mathcal{H} P_I
 :::
 
 where $P_I = 1 - \Psi_E \Psi_E^\dagger$ is the projector onto the implicit subspace.
-This Hamiltonian is larger in size than the original one because the $B$ block has additional null vectors corresponding to the $A$ subspace.
+This Hamiltonian is larger in size than the original one because the implicit block has additional eigenvectors with zero eigenvalue corresponding to the explicit subspace.
 This, however, allows to preserve the sparsity structure of the Hamiltonian by applying $P_I$ and $\mathcal{H}$ separately.
 Additionally, applying $P_I$ is efficient because $\Psi_E$ is a low rank matrix.
 We then perform perturbation theory of the rewritten $\mathcal{H}$.
