@@ -754,14 +754,14 @@ def test_equivalence_explicit_implicit() -> None:
         H, subspace_eigenvectors=(eigvecs[:, :a_dim],), implicit=True
     )
 
-    def explicit_wrapped_H_eval(*index):
+    def explicit_wrapped_op_eval(*index):
         result = implicit_H[index]
         if index[:2] == (1, 1):
             return result @ np.eye(n)
         return result
 
     explicit_wrapped_H = BlockSeries(
-        eval=explicit_wrapped_H_eval,
+        eval=explicit_wrapped_op_eval,
         shape=(2, 2),
         n_infinite=H.n_infinite,
     )

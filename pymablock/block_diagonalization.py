@@ -27,7 +27,7 @@ from pymablock.series import (
     zero,
 )
 
-__all__ = ["block_diagonalize"]
+__all__ = ["block_diagonalize", "operator_to_BlockSeries"]
 
 # Common types
 Eigenvectors = tuple[np.ndarray | sympy.Matrix, ...]
@@ -358,75 +358,70 @@ def operator_to_BlockSeries(
     atol: float = 1e-12,
     hermitian: bool = True,
 ) -> BlockSeries:
-    """Normalize a Hamiltonian to be used by the algorithms.
+    """Convert an operator to `~pymablock.series.BlockSeries` format.
 
     The normalization consists of the following steps:
 
     - Determine perturbation parameters from the input format,
-    - Separate the Hamiltonian into blocks based on eigenvectors or subspace indices,
+    - Separate the operator into blocks based on eigenvectors or subspace indices,
     - Form a `~pymablock.series.BlockSeries`.
 
     Parameters
     ----------
     operator :
-        Full symbolic or numeric Hamiltonian to block diagonalize. The
-        Hamiltonian is normalized to a `~pymablock.series.BlockSeries` by
-        separating it into effective and auxiliary subspaces.
+        Full symbolic or numeric operator. It is normalized to a
+        `~pymablock.series.BlockSeries` and separated into blocks corresponding to
+        different subspaces.
 
         Supported formats:
 
         - A list,
             of the form ``[h_0, h_1, h_2, ...]`` where ``h_0`` is the unperturbed
-            Hamiltonian and ``h_1, h_2, ...`` are the first order perturbations. The
+            operator and ``h_1, h_2, ...`` are the first order perturbations. The
             elements ``h_i`` may be `~sympy.matrices.dense.Matrix`, `~numpy.ndarray`,
             `~scipy.sparse.spmatrix`, that require separating into blocks. Otherwise,
-            ``h_i`` may be a list of lists with the Hamiltonian blocks.
+            ``h_i`` may be a list of lists with the operator blocks.
         - A dictionary,
-            of the form ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or ``{1:
-            h_0, x: h_1, y: h_2}`` for symbolic Hamiltonians. In the former
-            case, the keys must be tuples of integers indicating the order of
-            each perturbation. In the latter case, the keys must be monomials
-            and the indices are ordered as in `H.dimension_names`. The values
-            of the dictionary, ``h_i`` have the same format as in the list case.
+            of the form ``{(0, 0): h_0, (1, 0): h_1, (0, 1): h_2}``, or ``{1: h_0, x:
+            h_1, y: h_2}`` for symbolic operators. In the former case, the keys must be
+            tuples of integers indicating the order of each perturbation. In the latter
+            case, the keys must be monomials and the indices are ordered as in
+            `operator.dimension_names`. ``h_i`` have the same format as in the list
+            case.
         - A `~sympy.matrices.dense.Matrix`,
-            unless a list of ``symbols`` is provided as perturbative parameters,
-            all symbols will be treated as perturbative. The normalization to
-            `~pymablock.series.BlockSeries` is done by Taylor expanding in
-            ``symbols`` to the desired order.
+            unless a list of ``symbols`` is provided as perturbative parameters, all
+            symbols will be treated as perturbative. The normalization to
+            `~pymablock.series.BlockSeries` is done by Taylor expanding in ``symbols``
+            to the desired order.
         - A `~pymablock.series.BlockSeries`,
             used directly.
     name:
         Name of the operator.
     subspace_eigenvectors :
-        A tuple with sets of orthonormal eigenvectors to project the Hamiltonian onto
-        and separate it into blocks. If None, the unperturbed Hamiltonian must be block
-        diagonal. If some vectors are missing, the implicit method is used. Mutually
-        exclusive with ``subspace_indices``.
+        A tuple with sets of orthonormal eigenvectors to project the operator onto and
+        separate it into blocks. If some vectors are missing, the last block is defined
+        implicitly. Mutually exclusive with ``subspace_indices``.
     subspace_indices :
-        An array indicating which state belongs to which subspace. If there are
-        two blocks, the labels are 0 for the A (effective) subspace and 1 for
-        the B (auxiliary) subspace. Only applicable if the unperturbed
-        Hamiltonian is diagonal. Mutually exclusive with
-        ``subspace_eigenvectors``.
+        An array indicating which state belongs to which subspace. If there are two
+        blocks, the labels are 0 for the A (effective) subspace and 1 for the B
+        (auxiliary) subspace. Mutually exclusive with ``subspace_eigenvectors``.
     implicit :
-        Whether to wrap the Hamiltonian of the last subspace into a linear
-        operator without .
+        Whether to wrap the operator of the last subspace into a linear operator.
     symbols :
-        Symbols that label the perturbative parameters of a symbolic
-        Hamiltonian. The order of the symbols is mapped to the indices of the
-        Hamiltonian, see `~pymablock.series.BlockSeries`. If None, the
-        perturbative parameters are taken from the unperturbed Hamiltonian.
+        Symbols that label the perturbative parameters of a symbolic operator. The order
+        of the symbols is mapped to the indices of the operator, see
+        `~pymablock.series.BlockSeries`. If None, the perturbative parameters are taken
+        from the unperturbed operator.
     atol :
-        Absolute tolerance to consider matrices as exact zeros. This is used to
-        validate that the unperturbed Hamiltonian is block-diagonal.
+        Absolute tolerance to consider matrices as exact zeros. This is used to validate
+        that the unperturbed operator is block-diagonal.
     hermitian :
         Whether the operator may be assumed to be Hermitian (for performance).
 
     Returns
     -------
-    H : `~pymablock.series.BlockSeries`
-        Initial Hamiltonian in the format required by the algorithms, such that
-        the unperturbed Hamiltonian is block diagonal.
+    operator : `~pymablock.series.BlockSeries`
+        Transformed operator.
 
     """
     if subspace_eigenvectors is not None and subspace_indices is not None:
@@ -441,11 +436,12 @@ def operator_to_BlockSeries(
     if operator.shape:
         if to_split:
             raise ValueError(
-                "H is already separated but subspace_eigenvectors are provided."
+                "operator is already separated into blocks but "
+                "subspace_eigenvectors are provided."
             )
 
         if operator.shape[0] != operator.shape[1]:
-            raise ValueError("H must be a square block series.")
+            raise ValueError("operator must be a square block series.")
 
         return operator
 
@@ -740,12 +736,12 @@ def solve_sylvester_direct(
 
 
 ### Auxiliary functions.
-def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
+def _list_to_dict(operator: list[Any]) -> dict[int, Any]:
     """Convert a list of perturbations to a dictionary.
 
     Parameters
     ----------
-    hamiltonian :
+    operator :
         Unperturbed Hamiltonian and 1st order perturbations.
         [h_0, h_1, h_2, ...], where h_0 is the unperturbed Hamiltonian and the
         remaining elements are the 1st order perturbations.
@@ -753,24 +749,24 @@ def _list_to_dict(hamiltonian: list[Any]) -> dict[int, Any]:
 
     Returns
     -------
-    H : `~pymablock.series.BlockSeries`
+    operator : `~pymablock.series.BlockSeries`
 
     """
-    n_infinite = len(hamiltonian) - 1  # All the perturbations are 1st order
+    n_infinite = len(operator) - 1  # All the perturbations are 1st order
     zeroth_order = (0,) * n_infinite
 
-    hamiltonian = {
-        zeroth_order: hamiltonian[0],
+    operator = {
+        zeroth_order: operator[0],
         **{
             tuple(order): perturbation
-            for order, perturbation in zip(np.eye(n_infinite, dtype=int), hamiltonian[1:])
+            for order, perturbation in zip(np.eye(n_infinite, dtype=int), operator[1:])
         },
     }
-    return hamiltonian
+    return operator
 
 
 def _dict_to_BlockSeries(
-    hamiltonian: dict[tuple[int, ...], Any],
+    operator: dict[tuple[int, ...], Any],
     symbols: Sequence[sympy.Symbol] | None = None,
     atol: float = 1e-12,
 ) -> tuple[BlockSeries, list[sympy.Symbol]]:
@@ -781,7 +777,7 @@ def _dict_to_BlockSeries(
 
     Parameters
     ----------
-    hamiltonian :
+    operator :
         Unperturbed Hamiltonian and perturbations. The keys can be tuples of integers or
         symbolic monomials. They indicate the order of the perturbation in its
         respective value. The values are the perturbations, and can be either a
@@ -795,30 +791,29 @@ def _dict_to_BlockSeries(
 
     Returns
     -------
-    H : `~pymablock.series.BlockSeries`
+    operator : `~pymablock.series.BlockSeries`
 
     """
-    hamiltonian = copy(hamiltonian)
-    key_types = set(isinstance(key, sympy.Basic) for key in hamiltonian.keys())
+    operator = copy(operator)
+    key_types = set(isinstance(key, sympy.Basic) for key in operator.keys())
     if any(key_types):
-        hamiltonian, symbols = _symbolic_keys_to_tuples(hamiltonian)
+        operator, symbols = _symbolic_keys_to_tuples(operator)
 
-    n_infinite = len(next(iter(hamiltonian.keys())))
+    n_infinite = len(next(iter(operator.keys())))
     zeroth_order = (0,) * n_infinite
-    h_0 = hamiltonian[zeroth_order]
+    h_0 = operator[zeroth_order]
 
     if isinstance(h_0, np.ndarray):
         if is_diagonal(h_0, atol):
-            hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
+            operator[zeroth_order] = sparse.csr_array(operator[zeroth_order])
     elif sparse.issparse(h_0):  # Normalize sparse matrices for solve_sylvester
-        hamiltonian[zeroth_order] = sparse.csr_array(hamiltonian[zeroth_order])
+        operator[zeroth_order] = sparse.csr_array(operator[zeroth_order])
 
     return BlockSeries(
-        data=hamiltonian,
+        data=operator,
         shape=(),
         n_infinite=n_infinite,
         dimension_names=symbols,
-        name="H",
     )
 
 
@@ -864,14 +859,14 @@ def _symbolic_keys_to_tuples(
 
 
 def _sympy_to_BlockSeries(
-    hamiltonian: sympy.MatrixBase,
+    operator: sympy.MatrixBase,
     symbols: Sequence[sympy.Symbol] = (),
 ) -> BlockSeries:
     """Convert a symbolic Hamiltonian to a BlockSeries.
 
     Parameters
     ----------
-    hamiltonian :
+    operator :
         Symbolic Hamiltonian.
     symbols :
         List of symbols that are the perturbative coefficients.
@@ -880,19 +875,19 @@ def _sympy_to_BlockSeries(
 
     Returns
     -------
-    H : `~pymablock.series.BlockSeries`
+    operator : `~pymablock.series.BlockSeries`
 
     """
     if not symbols:
-        symbols = tuple(list(hamiltonian.free_symbols))  # All symbols are perturbative
-    if any(n not in hamiltonian.free_symbols for n in symbols):
+        symbols = tuple(list(operator.free_symbols))  # All symbols are perturbative
+    if any(n not in operator.free_symbols for n in symbols):
         raise ValueError("Not all perturbative parameters are in `hamiltonian`.")
 
-    hamiltonian = hamiltonian.expand()
+    operator = operator.expand()
 
-    def H_eval(*index):
+    def op_eval(*index):
         # Get order of perturbation by Taylor expanding
-        expr = sympy.diff(hamiltonian, *((n, i) for n, i in zip(symbols, index)))
+        expr = sympy.diff(operator, *((n, i) for n, i in zip(symbols, index)))
         expr = expr.subs({n: 0 for n in symbols})
         expr = expr / reduce(mul, [sympy.factorial(i) for i in index])
         # Multiply by perturbative coefficients
@@ -901,14 +896,13 @@ def _sympy_to_BlockSeries(
             raise ValueError("Hamiltonian must be Hermitian at every order.")
         return _convert_if_zero(expr)
 
-    H = BlockSeries(
-        eval=H_eval,
+    op = BlockSeries(
+        eval=op_eval,
         shape=(),
         n_infinite=len(symbols),
         dimension_names=symbols,
-        name="H",
     )
-    return H
+    return op
 
 
 def _to_scalar_BlockSeries(
@@ -951,17 +945,16 @@ def _unpack_blocks(operator: BlockSeries, atol: float = 1e-12) -> BlockSeries:
         except Exception as e:
             raise ValueError(
                 "Without `subspace_eigenvectors` or `subspace_indices`"
-                " H must have an NxN block structure."
+                " operator must have an NxN block structure."
             ) from e
 
-    H = BlockSeries(
+    op = BlockSeries(
         eval=op_eval,
         shape=2 * (len(zeroth_order),),
         n_infinite=operator.n_infinite,
         dimension_names=operator.dimension_names,
-        name="H",
     )
-    return H
+    return op
 
 
 def _subspaces_from_indices(
@@ -1001,14 +994,14 @@ def _subspaces_from_indices(
 
 
 def _extract_diagonal(
-    H: BlockSeries,
+    operator: BlockSeries,
     atol: float = 1e-12,
     implicit: bool = False,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Extract the diagonal of the zeroth order of the Hamiltonian."""
     # If using implicit mode, skip the last block.
-    diag_indices = np.arange(H.shape[0] - implicit)
-    h_0 = H[(diag_indices, diag_indices) + (0,) * H.n_infinite]
+    diag_indices = np.arange(operator.shape[0] - implicit)
+    h_0 = operator[(diag_indices, diag_indices) + (0,) * operator.n_infinite]
     is_sympy = any(isinstance(block, sympy.MatrixBase) for block in h_0)
     if not all(is_diagonal(h, atol) for h in h_0):
         warn(
