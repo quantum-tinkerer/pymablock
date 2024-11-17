@@ -309,6 +309,44 @@ ax_2.set_xticks([])
 ax_2.set_yticks([]);
 ```
 
+## Transforming other operators
+
+Earlier we saw that Pymablock computes the Hamiltonian and the unitary transformation as `~pymablock.series.BlockSeries` objects.
+
+To apply this unitary to other operators, we first need to transform them to the same basis and representation.
+Here we create the unperturbed Hamiltonian `H_0`, the perturbation `H_1`, and an additional operator `X`.
+To compute the projection of `X` on the perturbed eigenstates we first perform the block diagonalization.
+
+```{code-cell} ipython3
+H_0 = random_hermitian(4)
+H_1 = 0.1 * random_hermitian(4)
+X = random_hermitian(4)
+_, evecs = np.linalg.eigh(H_0)
+
+H_tilde, U, U_adjoint = block_diagonalize([H_0, H_1], subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]])
+```
+
+To transform `X` to the same representation, we use `operator_to_BlockSeries` function, which has inputs similar to `block_diagonalize`.
+We use the dictionary format to indicate that `X` depends on a single perturbative parameter.
+
+```{code-cell} ipython3
+X = pymablock.operator_to_BlockSeries({(0,): X}, subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]])
+```
+
+Finally, to compute `X` in the perturbed basis, we multiply it by the unitary transformation.
+
+```{code-cell} ipython3
+X_tilde = pymablock.series.cauchy_dot_product(U_adjoint, X, U)
+```
+
+In zeroth order `X` and `X_tilde` coincide, but `X_tilde` contains the perturbative corrections.
+Let us confirm this, and check the second order correction to the projection of `X` on the $A$ subspace.
+
+```{code-cell} ipython3
+assert np.allclose(X_tilde[0, 0, 0], X[0, 0, 0])
+X_tilde[0, 0, 2]
+```
+
 ## Selective diagonalization
 
 As an alternative to separating a Hamiltonian into blocks, Pymablock is capable of perturbatively canceling arbitrary off-diagonal terms in a Hamiltonian.
