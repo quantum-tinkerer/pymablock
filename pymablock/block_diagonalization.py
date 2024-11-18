@@ -209,6 +209,7 @@ def block_diagonalize(
         implicit=use_implicit,
         symbols=symbols,
         atol=atol,
+        hermitian=True,
     )
 
     if H.shape[0] == 1 and not fully_diagonalize:
@@ -356,7 +357,7 @@ def operator_to_BlockSeries(
     implicit: bool = False,
     symbols: list[sympy.Symbol] | None = None,
     atol: float = 1e-12,
-    hermitian: bool = True,
+    hermitian: bool = False,
 ) -> BlockSeries:
     """Convert an operator to `~pymablock.series.BlockSeries` format.
 

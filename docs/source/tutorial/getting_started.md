@@ -333,7 +333,10 @@ For that we apply `operator_to_BlockSeries` function, which has inputs similar t
 
 ```{code-cell} ipython3
 X_series = pymablock.operator_to_BlockSeries(
-    {(0,): X}, subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]]
+    {(0,): X},
+    name="X",
+    hermitian=True,  # Not important here, but slightly improves performance.
+    subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]]
 )
 ```
 
