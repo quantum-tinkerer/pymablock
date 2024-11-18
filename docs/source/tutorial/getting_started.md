@@ -323,27 +323,31 @@ H_1 = 0.1 * random_hermitian(4)
 X = random_hermitian(4)
 _, evecs = np.linalg.eigh(H_0)
 
-H_tilde, U, U_adjoint = block_diagonalize([H_0, H_1], subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]])
+H_tilde, U, U_adjoint = block_diagonalize(
+    [H_0, H_1], subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]]
+)
 ```
 
-To transform `X` to the same representation, we use `operator_to_BlockSeries` function, which has inputs similar to `block_diagonalize`.
-We use the dictionary format to indicate that `X` depends on a single perturbative parameter.
+To compute how `X` acts on the perturbed eigenvectors, we first convert it to the same basis as `H_0` and to a `BlockSeries` object with the same perturbative parameters and blocks.
+For that we apply `operator_to_BlockSeries` function, which has inputs similar to `block_diagonalize`, and use the dictionary format to indicate that `X` depends on a single perturbative parameter.
 
 ```{code-cell} ipython3
-X = pymablock.operator_to_BlockSeries({(0,): X}, subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]])
+X_series = pymablock.operator_to_BlockSeries(
+    {(0,): X}, subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]]
+)
 ```
 
 Finally, to compute `X` in the perturbed basis, we multiply it by the unitary transformation.
 
 ```{code-cell} ipython3
-X_tilde = pymablock.series.cauchy_dot_product(U_adjoint, X, U)
+X_tilde = pymablock.series.cauchy_dot_product(U_adjoint, X_series, U)
 ```
 
 In zeroth order `X` and `X_tilde` coincide, but `X_tilde` contains the perturbative corrections.
 Let us confirm this, and check the second order correction to the projection of `X` on the $A$ subspace.
 
 ```{code-cell} ipython3
-assert np.allclose(X_tilde[0, 0, 0], X[0, 0, 0])
+assert np.allclose(X_tilde[0, 0, 0], X_series[0, 0, 0])
 X_tilde[0, 0, 2]
 ```
 
