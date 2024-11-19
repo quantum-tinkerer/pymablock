@@ -313,9 +313,10 @@ ax_2.set_yticks([]);
 
 Earlier we saw that Pymablock computes the Hamiltonian and the unitary transformation as `~pymablock.series.BlockSeries` objects.
 While the Hamiltonian is the most important object, the unitary transformation allows to transform any other operator to the basis of the of the perturbed Hamiltonian.
+These operators may be density matrices, other Hamiltonians, or any other observable.
 
-Here we create the unperturbed Hamiltonian `H_0`, the perturbation `H_1`, and an additional operator `X`.
-To compute the projection of `X` on the perturbed eigenstates we first perform the block diagonalization.
+Here we create the unperturbed Hamiltonian `H_0`, the perturbation `H_1`, and an additional operator `X` that we want to transform to the basis of effective Hamiltonian.
+First, we perform the block diagonalization.
 
 ```{code-cell} ipython3
 H_0 = random_hermitian(4)
@@ -328,8 +329,8 @@ H_tilde, U, U_adjoint = block_diagonalize(
 )
 ```
 
-To compute how `X` acts on the perturbed eigenvectors, we first convert it to the same basis as `H_0` and to a `BlockSeries` object with the same perturbative parameters and blocks.
-For that we apply `operator_to_BlockSeries` function, which has inputs similar to `block_diagonalize`, and use the dictionary format to indicate that `X` depends on a single perturbative parameter.
+Because `block_diagonalize` parses the input Hamiltonian and separates it into blocks using `subspace_indices` or `subspace_eigenvectors`, we first need to convert `X` into a `BlockSeries` object in the same basis as `H_0` and with the same perturbative parameters and block structure.
+We do this by using `operator_to_BlockSeries` function, which has inputs similar to `block_diagonalize`, and use the dictionary format to indicate that `X` depends on a single perturbative parameter.
 
 ```{code-cell} ipython3
 X_series = pymablock.operator_to_BlockSeries(
