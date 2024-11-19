@@ -85,17 +85,19 @@ H_p_matrix = sympy.Matrix(np.array(flat_matrix_p).reshape(N, N))
 
 H = H_0_matrix + H_p_matrix
 # %%
-xi = 0
-for id, sign in zip([3, 1, 2, 0], [1, -1, -1, 1]):
-    subspace_indices = [1] * len(basis)
-    subspace_indices[id] = 0
-    H_tilde, U, U_adjoint = block_diagonalize(
-        H, subspace_indices=subspace_indices, symbols=[g]
-    )
-    if isinstance(H_tilde[0, 0, 2], sympy.Matrix):
-        xi += sign * H_tilde[0, 0, 2][0, 0]
 
-
+subspaces = {
+    sympy.Rational(1): 0,
+    a_t: 1,
+    a_r: 2,
+    a_t * a_r: 3,
+}
+subspace_indices = [subspaces.get(element, 4) for element in basis]
+H_tilde, U, U_adjoint = block_diagonalize(
+    H, subspace_indices=subspace_indices, symbols=[g]
+)
+# %%
+xi = (H_tilde[0, 0, 2] - H_tilde[1, 1, 2] - H_tilde[2, 2, 2] + H_tilde[3, 3, 2])[0, 0]
 # %%
 def simplify_fraction(expr):
     expr = expr.expand()

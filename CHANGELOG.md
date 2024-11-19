@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implemented selective diagonalization of the Hamiltonian within blocks, which can eliminate any subset of the off-diagonal elements within a block.
 - Implemented functionality for making optimized series algorithms, see {autolink}`~pymablock.algorithm_parsing.series_computation` and a domain-specific language to define those. This is an advanced and an experimental feature, subject to change.
 - Included a tutorial on how to manipulate complex symbolic Hamiltonians and demonstrate multi-block diagonalization.
+- Included a tutorial on how to compute the dispersive shift in a transmon-resonator system.
 
 ### Changed
 
