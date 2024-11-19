@@ -22,9 +22,9 @@ The Hamiltonian of the system is given by
 
 $$
     \mathcal{H} =
-    -\omega_t (a^{\dagger}_{t} a_{t} - \frac{1}{2})
+    -\omega_t a^{\dagger}_{t} a_{t}
     + \frac{\alpha}{2} a^{\dagger}_{t} a^{\dagger}_{t} a_{t} a_{t} +
-    \omega_r (a^{\dagger}_{r} a_{r} + \frac{1}{2}) -
+    \omega_r a^{\dagger}_{r} a_{r} -
     g (a^{\dagger}_{t} - a_{t}) (a^{\dagger}_{r} - a_{r}),
 $$
 
@@ -47,13 +47,7 @@ from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock import block_diagonalize
 
-symbols = sympy.symbols(
-    r"\omega_{t} \omega_{r} \alpha g",
-    real=True,
-    commutative=True,
-    positive=True,
-)
-
+symbols = sympy.symbols(r"\omega_{t} \omega_{r} \alpha g", real=True, positive=True)
 omega_t, omega_r, alpha, g = symbols
 
 a_t, a_r = BosonOp("a_t"), BosonOp("a_r")
