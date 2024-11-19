@@ -312,8 +312,8 @@ ax_2.set_yticks([]);
 ## Transforming other operators
 
 Earlier we saw that Pymablock computes the Hamiltonian and the unitary transformation as `~pymablock.series.BlockSeries` objects.
+While the Hamiltonian is the most important object, the unitary transformation allows to transform any other operator to the basis of the of the perturbed Hamiltonian.
 
-To apply this unitary to other operators, we first need to transform them to the same basis and representation.
 Here we create the unperturbed Hamiltonian `H_0`, the perturbation `H_1`, and an additional operator `X`.
 To compute the projection of `X` on the perturbed eigenstates we first perform the block diagonalization.
 
