@@ -62,8 +62,17 @@ To compute perturbative expansions Pymablock needs three things:
 - Being able to solve the Sylvester's equation $[H_0, V] = Y$.
 
 In the current version of Pymablock, solving Sylvester equation with second-quantized operators is not yet directly supported, and it requires either casting the operators to matrices (as done in the [dispersive shift tutorial](dispersive_shift.md)) or defining a custom solver, which we will do here.
+Sylvester's equation provides a solution for $V$, the antihermitian part of the unitary transformation that block-diagonalizes the Hamiltonian, and it needs to be solved for each perturbative order.
+If the unperturbed Hamiltonian is diagonal, the solution is straightforward:
 
-Because the unperturbed Hamiltonian is diagonal, to compute the energy denominators we only need to count the amount of raising or lowering operators in $Y$ and use this to determine the energy denominators.
+$$
+V_{n,ij} = \frac{Y_{n,ij}}{E_i - E_j}
+$$
+
+where $E_i$ and $E_j$ are the diagonal elements of the unperturbed Hamiltonian corresponding to different subspaces.
+
+Therefore, to use Pymablock with second-quantized operators, we define a custom Sylvester's equation solver that takes $Y$ as input and returns $V$.
+To compute the energy denominators we only need to count the amount of raising or lowering operators in $Y$ and use this to determine the energy denominators.
 
 ```{code-cell} ipython3
 n = Symbol("n", integer=True, positive=True)
