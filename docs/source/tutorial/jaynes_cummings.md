@@ -14,7 +14,7 @@ kernelspec:
 # Jaynes-Cummings model
 
 In this tutorial we demonstrate how to get a CQED effective Hamiltonian using Pymablock with bosonic operators.
-As an example, we use the Jaynes-Cummings model, which describes a two-level bosonic system coupled by ladder operators.
+As an example, we use the Jaynes-Cummings model, which describes a spin coupled to a boson.
 This tutorial shows how to use Pymablock with arbitrary object types by defining a custom Sylvester's equation solver.
 
 Let's start by importing the `sympy` functions we need to define the Hamiltonian.
@@ -51,21 +51,28 @@ H_p = [[0,  g * Dagger(a)], [g * a, 0]]
 Eq(Symbol('H'), Matrix(H_0) + Matrix(H_p), evaluate=False)
 ```
 
-where the basis is the one of the occupied and unoccupied subspaces.
+where the basis corresponds to the two spin states.
 
 ## Custom Sylvester's equation solver
 
-To use Pymablock, we need a custom solver for Sylvester's equation that can compute the energies of the subspaces using bosonic operators.
-We need to define a `solve_sylvester` function that takes $Y_{n+1}$ and returns $V_{n+1}$,
+To compute perturbative expansions Pymablock needs three things:
 
-```{math}
-H_0^{AA} V_{n+1}^{AB} - V_{n+1}^{AB} H_0^{BB} = Y_{n+1} \\
-(V_{n+1}^{AB})_{x,y} = (Y_{n+1})_{x,y} / (E_x - E_y),
-```
+- Having the input Hamiltonian and perturbations
+- Being able to add and multiply operators
+- Being able to solve the Sylvester's equation $[H_0, V] = Y$.
 
-where $Y_{n+1}$ is the right hand side of Sylvester's equation, and $V_{n+1}$ is the block off-diagonal block of the transformation that block diagonalizes the Hamiltonian.
+In the current version of Pymablock, solving Sylvester equation with second-quantized operators is not yet directly supported, and it requires either casting the operators to matrices (as done in the [dispersive shift tutorial](dispersive_shift.md)) or defining a custom solver, which we will do here.
+Sylvester's equation provides a solution for $V$, the antihermitian part of the unitary transformation that block-diagonalizes the Hamiltonian, and it needs to be solved for each perturbative order.
+If the unperturbed Hamiltonian is diagonal, the solution is straightforward:
 
-We implement
+$$
+V_{n,ij} = \frac{Y_{n,ij}}{E_i - E_j}
+$$
+
+where $E_i$ and $E_j$ are the diagonal elements of the unperturbed Hamiltonian corresponding to different subspaces.
+
+Therefore, to use Pymablock with second-quantized operators, we define a custom Sylvester's equation solver that takes $Y$ as input and returns $V$.
+To compute the energy denominators we only need to count the amount of raising or lowering operators in $Y$ and use this to determine the energy denominators.
 
 ```{code-cell} ipython3
 n = Symbol("n", integer=True, positive=True)
