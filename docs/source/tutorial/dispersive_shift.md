@@ -135,6 +135,15 @@ H_tilde, U, U_adjoint = block_diagonalize(
 )
 ```
 
+Here `subspaces_indices` is a list with integers from $0$ to $4$ that indicate to which subspace each basis element belongs.
+The first four elements of `subspaces_indices` correspond to the states $|0 0\rangle$, $|1 0\rangle$, $|0 1\rangle$, and $|1 1\rangle$, and each of them corresponds to a different subspace.
+The number $4$ is used to indicate the subspace of the remaining states.
+This yields the effective Hamiltonian `H_tilde` with $5$ blocks, all decoupled from each other.
+
+```{code-cell} ipython3
+H_tilde.shape
+```
+
 Finally, we compute the dispersive shift from the second order correction to the energies
 
 ```{code-cell} ipython3
