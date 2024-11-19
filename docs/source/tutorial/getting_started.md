@@ -309,6 +309,52 @@ ax_2.set_xticks([])
 ax_2.set_yticks([]);
 ```
 
+## Transforming other operators
+
+Earlier we saw that Pymablock computes the Hamiltonian and the unitary transformation as `~pymablock.series.BlockSeries` objects.
+While the Hamiltonian is the most important object, the unitary transformation allows to transform any other operator to the basis of the of the perturbed Hamiltonian.
+These operators may be density matrices, other Hamiltonians, or any other observable.
+
+Here we create the unperturbed Hamiltonian `H_0`, the perturbation `H_1`, and an additional operator `X` that we want to transform to the basis of effective Hamiltonian.
+First, we perform the block diagonalization.
+
+```{code-cell} ipython3
+H_0 = random_hermitian(4)
+H_1 = 0.1 * random_hermitian(4)
+X = random_hermitian(4)
+_, evecs = np.linalg.eigh(H_0)
+
+H_tilde, U, U_adjoint = block_diagonalize(
+    [H_0, H_1], subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]]
+)
+```
+
+Because `block_diagonalize` parses the input Hamiltonian and separates it into blocks using `subspace_indices` or `subspace_eigenvectors`, we first need to convert `X` into a `BlockSeries` object in the same basis as `H_0` and with the same perturbative parameters and block structure.
+We do this by using `operator_to_BlockSeries` function, which has inputs similar to `block_diagonalize`, and use the dictionary format to indicate that `X` depends on a single perturbative parameter.
+
+```{code-cell} ipython3
+X_series = pymablock.operator_to_BlockSeries(
+    {(0,): X},
+    name="X",
+    hermitian=True,  # Not important here, but slightly improves performance.
+    subspace_eigenvectors=[evecs[:, :2], evecs[:, 2:]]
+)
+```
+
+Finally, to compute `X` in the perturbed basis, we multiply it by the unitary transformation.
+
+```{code-cell} ipython3
+X_tilde = pymablock.series.cauchy_dot_product(U_adjoint, X_series, U)
+```
+
+In zeroth order `X` and `X_tilde` coincide, but `X_tilde` contains the perturbative corrections.
+Let us confirm this, and check the second order correction to the projection of `X` on the $A$ subspace.
+
+```{code-cell} ipython3
+assert np.allclose(X_tilde[0, 0, 0], X_series[0, 0, 0])
+X_tilde[0, 0, 2]
+```
+
 ## Selective diagonalization
 
 As an alternative to separating a Hamiltonian into blocks, Pymablock is capable of perturbatively canceling arbitrary off-diagonal terms in a Hamiltonian.
@@ -372,7 +418,7 @@ Finally, we plot the transformed Hamiltonian $\tilde{H}$
 ```{code-cell} ipython3
 from matplotlib.colors import TwoSlopeNorm
 
-Heff = H_tilde[0, 0, 0] + H_tilde[0, 0, 1] + H_tilde[0, 0, 2];
+Heff = H_tilde[0, 0, 0] + H_tilde[0, 0, 1] + H_tilde[0, 0, 2]
 
 plt.imshow(Heff, cmap='seismic', norm=TwoSlopeNorm(vcenter=0))
 plt.title(r'$\tilde{H}$')

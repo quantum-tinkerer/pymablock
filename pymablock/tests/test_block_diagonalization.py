@@ -17,7 +17,7 @@ from pymablock.algorithms import main
 from pymablock.block_diagonalization import (
     _dict_to_BlockSeries,
     block_diagonalize,
-    hamiltonian_to_BlockSeries,
+    operator_to_BlockSeries,
     solve_sylvester_diagonal,
     solve_sylvester_direct,
     solve_sylvester_KPM,
@@ -399,7 +399,9 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
         Hamiltonian with diagonal unperturbed Hamiltonian
     """
     hamiltonian, subspace_indices, diagonals = diagonal_hamiltonian
-    H = hamiltonian_to_BlockSeries(hamiltonian, subspace_indices=subspace_indices)
+    H = operator_to_BlockSeries(
+        hamiltonian, name="H", subspace_indices=subspace_indices, hermitian=True
+    )
     assert H.shape == (2, 2)
     assert H.n_infinite == len(hamiltonian) - 1
     # Default dimension names
@@ -412,10 +414,13 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
         assert H[block + (0,) * H.n_infinite] is zero
 
     # Check that without subspace indices we get a single block of the full size.
-    H_one_block = hamiltonian_to_BlockSeries(hamiltonian)
+    H_one_block = operator_to_BlockSeries(hamiltonian, name="H", hermitian=True)
     H_0 = H_one_block[(0, 0, *(0,) * H.n_infinite)]
-    H_one_block_explicit = hamiltonian_to_BlockSeries(
-        hamiltonian, subspace_indices=np.zeros_like(subspace_indices)
+    H_one_block_explicit = operator_to_BlockSeries(
+        hamiltonian,
+        subspace_indices=np.zeros_like(subspace_indices),
+        name="H",
+        hermitian=True,
     )
     H_0_explicit = H_one_block_explicit[(0, 0, *(0,) * H_one_block_explicit.n_infinite)]
     # Hamiltonians are converted to sparse matrices
@@ -442,8 +447,11 @@ def test_input_hamiltonian_from_subspaces():
     ]
 
     for hamiltonian in hamiltonians:
-        H = hamiltonian_to_BlockSeries(
-            hamiltonian, subspace_eigenvectors=subspace_eigenvectors
+        H = operator_to_BlockSeries(
+            hamiltonian,
+            name="H",
+            subspace_eigenvectors=subspace_eigenvectors,
+            hermitian=True,
         )
         assert H.shape == (2, 2)
         assert H.n_infinite == len(hamiltonian) - 1
@@ -478,7 +486,7 @@ def test_input_hamiltonian_blocks():
     ]
 
     for hamiltonian in hamiltonians:
-        H = hamiltonian_to_BlockSeries(hamiltonian)
+        H = operator_to_BlockSeries(hamiltonian, name="H", hermitian=True)
         assert H.shape == (2, 2)
         assert H.n_infinite == len(hamiltonian) - 1
         # Default dimension names
@@ -750,24 +758,24 @@ def test_equivalence_explicit_implicit() -> None:
     _, eigvecs = np.linalg.eigh(H_0)
     solve_sylvester = solve_sylvester_direct(sparse.coo_array(H_0), [eigvecs[:, :a_dim]])
 
-    implicit_H = hamiltonian_to_BlockSeries(
-        H, subspace_eigenvectors=(eigvecs[:, :a_dim],), implicit=True
+    implicit_H = operator_to_BlockSeries(
+        H, subspace_eigenvectors=(eigvecs[:, :a_dim],), implicit=True, hermitian=True
     )
 
-    def explicit_wrapped_H_eval(*index):
+    def explicit_wrapped_op_eval(*index):
         result = implicit_H[index]
         if index[:2] == (1, 1):
             return result @ np.eye(n)
         return result
 
     explicit_wrapped_H = BlockSeries(
-        eval=explicit_wrapped_H_eval,
+        eval=explicit_wrapped_op_eval,
         shape=(2, 2),
         n_infinite=H.n_infinite,
     )
 
-    fully_explicit_H = hamiltonian_to_BlockSeries(
-        H, subspace_eigenvectors=(eigvecs[:, :a_dim], eigvecs[:, a_dim:])
+    fully_explicit_H = operator_to_BlockSeries(
+        H, subspace_eigenvectors=(eigvecs[:, :a_dim], eigvecs[:, a_dim:]), hermitian=True
     )
 
     implicit_H_tilde, *_ = block_diagonalize(implicit_H, solve_sylvester=solve_sylvester)
@@ -885,8 +893,12 @@ def test_input_hamiltonian_implicit(implicit_problem):
         Randomly generated Hamiltonian and its eigendecomposition.
     """
     hamiltonian, subspace_eigenvectors = implicit_problem
-    H = hamiltonian_to_BlockSeries(
-        hamiltonian, subspace_eigenvectors=subspace_eigenvectors[:-1], implicit=True
+    H = operator_to_BlockSeries(
+        hamiltonian,
+        name="H",
+        subspace_eigenvectors=subspace_eigenvectors[:-1],
+        implicit=True,
+        hermitian=True,
     )
     assert H.shape == (2, 2)
     assert H.n_infinite == len(hamiltonian) - 1
@@ -905,7 +917,7 @@ def test_input_hamiltonian_implicit(implicit_problem):
     # Also try that BlockSeries input works
     if isinstance(hamiltonian, dict):
         block_diagonalize(
-            _dict_to_BlockSeries(hamiltonian)[0],
+            _dict_to_BlockSeries(hamiltonian),
             subspace_eigenvectors=[subspace_eigenvectors[0]],
         )
     # hamiltonian is either a list or a dictionary.
@@ -932,7 +944,7 @@ def test_input_hamiltonian_BlockSeries(H):
         Hamiltonian
     """
     # List input for diagonal H_0
-    hamiltonian = hamiltonian_to_BlockSeries(H)
+    hamiltonian = operator_to_BlockSeries(H, name="H", hermitian=True)
     assert hamiltonian.shape == H.shape
     assert hamiltonian.n_infinite == H.n_infinite
     assert hamiltonian.dimension_names == H.dimension_names
@@ -957,12 +969,20 @@ def test_input_hamiltonian_symbolic(symbolic_hamiltonian):
     hamiltonian, symbols, subspace_eigenvectors, subspace_indices = symbolic_hamiltonian
 
     # Test if subspace_eigenvectors are provided
-    H_1 = hamiltonian_to_BlockSeries(
-        hamiltonian, subspace_eigenvectors=subspace_eigenvectors, symbols=symbols
+    H_1 = operator_to_BlockSeries(
+        hamiltonian,
+        name="H",
+        subspace_eigenvectors=subspace_eigenvectors,
+        symbols=symbols,
+        hermitian=True,
     )
     # Test if subspace_indices are provided
-    H_2 = hamiltonian_to_BlockSeries(
-        hamiltonian, subspace_indices=subspace_indices, symbols=symbols
+    H_2 = operator_to_BlockSeries(
+        hamiltonian,
+        name="H",
+        subspace_indices=subspace_indices,
+        symbols=symbols,
+        hermitian=True,
     )
     assert H_1.shape == H_2.shape == (2, 2)
     assert H_1.n_infinite == H_2.n_infinite == len(symbols)
@@ -1525,7 +1545,9 @@ def H_list(wanted_orders, N):
 def test_three_blocks(wanted_orders):
     N = 6
     H_0, H_ps = H_list(wanted_orders, N)
-    H = hamiltonian_to_BlockSeries([H_0, *H_ps], subspace_indices=np.arange(N) // 2)
+    H = operator_to_BlockSeries(
+        [H_0, *H_ps], subspace_indices=np.arange(N) // 2, hermitian=True
+    )
     H_tilde, U, U_adjoint = block_diagonalize(H)
     is_unitary(U, U_adjoint, wanted_orders, atol=1e-6)
     H_prime = cauchy_dot_product(U, H_tilde, U_adjoint)
@@ -1540,7 +1562,9 @@ def test_hamiltonian_shared_decoupled_eigenvalues(wanted_orders):
     H_0, H_ps = H_list(wanted_orders, N)
     H_0 = np.kron(np.eye(2), H_0)
     H_ps = [np.kron(np.eye(2), H_p) for H_p in H_ps]
-    H = hamiltonian_to_BlockSeries([H_0, *H_ps], subspace_indices=np.arange(0, 2 * N))
+    H = operator_to_BlockSeries(
+        [H_0, *H_ps], subspace_indices=np.arange(0, 2 * N), hermitian=True
+    )
     H_tilde, *_ = block_diagonalize(H)
     compare_series(H_tilde[:N, :N], H_tilde[N:, N:], wanted_orders, atol=1e-6)
 
@@ -1553,7 +1577,7 @@ def test_analytic_full_and_selective():
             for j in range(3)
         ]
     )
-    H = hamiltonian_to_BlockSeries([H_0, H_1])
+    H = operator_to_BlockSeries([H_0, H_1], hermitian=True)
     H_tilde, U, U_adjoint = block_diagonalize(H)
     is_unitary(U, U_adjoint, (3,), atol=1e-6)
 
@@ -1588,12 +1612,12 @@ def test_three_blocks_repeated(wanted_orders):
 
     H_tilde, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(N))
 
-    H = hamiltonian_to_BlockSeries(
+    H = operator_to_BlockSeries(
         [H_0, *H_ps], subspace_indices=np.clip(np.arange(N), 0, 1)
     )
     H_tilde_A_BC, *_ = block_diagonalize(H)
 
-    H = hamiltonian_to_BlockSeries(
+    H = operator_to_BlockSeries(
         {
             orders: H_tilde_A_BC[(1, 1, *orders)]
             for orders in product(*(range(order + 1) for order in wanted_orders))
@@ -1693,7 +1717,7 @@ def test_multiblock_kpm_auxiliary(wanted_orders):
 def test_selective_diagonalization(wanted_orders):
     N = 20
     H_0, H_ps = H_list(wanted_orders, N)
-    H = hamiltonian_to_BlockSeries([H_0, *H_ps])
+    H = operator_to_BlockSeries([H_0, *H_ps], hermitian=True)
     to_eliminate = np.random.rand(N, N) > 0.8
     to_eliminate = np.logical_or(to_eliminate, to_eliminate.T)
     np.fill_diagonal(to_eliminate, False)
