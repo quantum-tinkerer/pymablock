@@ -11,7 +11,7 @@ kernelspec:
   name: python3
 ---
 
-# Dispersive shift
+# Dispersive shift of a resonator coupled to a transmon
 
 The need for analytical effective Hamiltonians often arises in circuit quantum electrodynamics (cQED) problems.
 In this tutorial, we illustrate how to use Pymablock to compute the the frequency shift of a resonator due to its coupling to the qubit, a phenomenon used to measure the qubit's state [^1^].
@@ -41,11 +41,9 @@ from itertools import product
 
 import numpy as np
 import sympy
-from sympy.physics.quantum.operatorordering import normal_ordered_form
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
-import matplotlib
-import matplotlib.pyplot as plt
+from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock import block_diagonalize
 
@@ -60,16 +58,13 @@ omega_t, omega_r, alpha, g = symbols
 
 a_t, a_r = BosonOp("a_t"), BosonOp("a_r")
 
-H_0 = -omega_t * (Dagger(a_t) * a_t - sympy.Rational(1) / 2) + omega_r * (
-    Dagger(a_r) * a_r + sympy.Rational(1) / 2
+H_0 = (
+    -omega_t * Dagger(a_t) * a_t + omega_r * Dagger(a_r) * a_r
+    + alpha * Dagger(a_t)**2 * a_t**2 / 2
 )
-H_0 += alpha * Dagger(a_t) * Dagger(a_t) * a_t * a_t / sympy.Rational(2)
 
 H_p = (
-    -g * a_t * a_r
-    - g * Dagger(a_t) * Dagger(a_r)
-    + g * a_t * Dagger(a_r)
-    + g * Dagger(a_t) * a_r
+    -g * (Dagger(a_t) - a_t) * (Dagger(a_r) - a_r)
 )
 ```
 
@@ -104,7 +99,7 @@ def collect_constant(expr):
 
 
 def to_matrix(ham, basis):
-    """Generate the matrix elements"""
+    """Compute the matrix elements"""
     N = len(basis)
     ham = normal_ordered_form(ham.expand(), independent=True)
     all_brakets = product(basis, basis)
@@ -117,15 +112,9 @@ def to_matrix(ham, basis):
 ```{code-cell} ipython3
 # Construct the matrix Hamiltonian
 basis = [
-    sympy.Rational(1),
-    a_t,
-    a_r,
-    a_t * a_r,
-    a_t * a_t / sympy.sqrt(2),
-    a_r * a_r / sympy.sqrt(2),
-    a_t * a_t * a_r / sympy.sqrt(2),
-    a_t * a_r * a_r / sympy.sqrt(2),
-    a_t * a_t * a_r * a_r / sympy.Rational(2),
+    a_t**i * a_r**j / sympy.sqrt(sympy.factorial(i) * sympy.factorial(j))
+    for i in range(3)
+    for j in range(3)
 ]
 
 H_0_matrix = to_matrix(H_0, basis)
@@ -133,6 +122,7 @@ H_p_matrix = to_matrix(H_p, basis)
 
 H = H_0_matrix + H_p_matrix
 ```
+
 Because the dispersive shift is
 
 $$
@@ -144,12 +134,7 @@ Therefore, we call `block_diagonalize` to separate the Hamiltonian into multiple
 To do this, we observe that $H_0$ is diagonal, and use `subspace_indices` to assign the elements of its eigenbasis to the desired states.
 
 ```{code-cell} ipython3
-subspaces = {
-    sympy.Rational(1): 0,
-    a_t: 1,
-    a_r: 2,
-    a_t * a_r: 3,
-}
+subspaces = {state: n for n, state in enumerate([1, a_t, a_r, a_t * a_r])}
 subspace_indices = [subspaces.get(element, 4) for element in basis]
 H_tilde, U, U_adjoint = block_diagonalize(
     H, subspace_indices=subspace_indices, symbols=[g]
