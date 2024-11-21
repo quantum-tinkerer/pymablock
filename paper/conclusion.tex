@@ -8,7 +8,7 @@ Its expressions minimize the number of matrix multiplications per order, making 
 
 \co{The package provides a universal interface that handles constructing effective models in all quantum mechanical systems.}
 We provide a Python implementation of the algorithm in the Pymablock package~\cite{Araya_2024}.
-The package is thoroughly tested (94\% test coverage as of version 2.0), becoming a reliable tool for constructing effective Hamiltonians that combine multiple perturbations to high orders.
+The package is thoroughly tested (95\% test coverage as of version 2.1), becoming a reliable tool for constructing effective Hamiltonians that combine multiple perturbations to high orders.
 The core of the Pymablock interface is the \mintinline{python}|BlockSeries| class that handles arbitrary objects as long as they support algebraic operations.
 This enables Pymablock's construction of effective models for large tight-binding models using its implicit method.
 It also allows Pymablock to solve both symbolic and numerical problems in diverse physical settings, and potentially to incorporate it into existing packages, such as scqubits~\cite{Groszkowski_2021}, QuTiP~\cite{Johansson_2012,Johansson_2013}, or dft2kp~\cite{Cassiano_2024}.
