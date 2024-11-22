@@ -16,8 +16,8 @@ In different settings, selected and remaining parts may mean different things.
 In quasi-degenerate perturbation theory, the Hilbert space is subdivided into $A$ and $B$ subspaces, which makes $H_0$ a block-diagonal matrix
 \begin{equation}
   H_0 = \begin{pmatrix}
-    {H_0}_{AA} & 0 \\
-    0 & {H_0}_{BB}
+    {H_0}^{AA} & 0 \\
+    0 & {H_0}^{BB}
     \end{pmatrix},
 \end{equation}
 and the goal of the perturbation theory is to eliminate the offdiagonal $AB$ and $BA$ blocks of $\mathcal{H}$.
@@ -34,7 +34,7 @@ To consider the problem in the most general setting, we only require the selecte
 The separation of an operator into selected and remaining parts is a generalization of taking block-diagonal and block-offdiagonal parts.
 In particular, the separation allows to choose any subset of the offdiagonal matrix elements as remaining, as long as none of the matrix elements belong to an eigensubspace of $H_0$.
 That none of the matrix elements belong to a same eigensubspace of $H_0$ becomes evident in the textbook quasi-degenerate perturbation theory, where the corrections to energies and wavefunctions contain differences between energy of the states from different subspaces.
-The main difference between our generalization and the standard separation into block-diagonal and block-offdiagonal is that the product of a selected part and remaining part of two operators may have a non-zero selected part: $(\mathcal{A}_{S}\mathcal{B}_{R})_{S} \neq 0$, while $(\mathcal{A}_{AA}\mathcal{B}_{AB})_{AA} = 0$.
+The main difference between our generalization and the standard separation into block-diagonal and block-offdiagonal is that the product of a selected part and remaining part of two operators may have a non-zero selected part: $(\mathcal{A}_{S}\mathcal{B}_{R})_{S} \neq 0$, while $(\mathcal{A}^{AA}\mathcal{B}^{AB})^{AA} = 0$.
 The generality of the selected and remaining parts allows to consider all perturbation theory methods with the same algorithm, including multi-block diagonalization, selective diagonalization, and the Schrieffer--Wolff transformation.
 
 All the series we consider may be multivariate, and they represent sums of the form
@@ -96,7 +96,7 @@ e^{\mathcal{S}} = 1 + \mathcal{S} + \frac{1}{2!} \mathcal{S} \mathcal{S}
 \end{equation}
 %
 where $\mathcal{S} = \sum_n S_n$ is an antihermitian polynomial series in the perturbative parameter, making $e^\mathcal{S}$ a unitary transformation.
-Requiring that $\tilde{\mathcal{H}}_{AB} = 0$ gives a recursive equation for $S_n$, whose terms are nested commutators between the series of $\mathcal{S}$ and $\mathcal{H}$.
+Requiring that $\tilde{\mathcal{H}}^{AB} = 0$ gives a recursive equation for $S_n$, whose terms are nested commutators between the series of $\mathcal{S}$ and $\mathcal{H}$.
 Similarly, the transformed Hamiltonian is given by a series of nested commutators
 %
 \begin{equation}
@@ -296,11 +296,11 @@ We now have the complete algorithm:
 \subsection{Equivalence to Schrieffer--Wolff transformation}
 \label{seq:SW_equivalence}
 \co{Our algorithm is equivalent to a Schrieffer--Wolff transformation}
-Pymablock's algorithm applied to $2\times 2$ block-diagonalization and the Schrieffer--Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}_{R} = \tilde{\mathcal{H}}_{AB}=0$.
+Pymablock's algorithm applied to $2\times 2$ block-diagonalization and the Schrieffer--Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}_{R} = \tilde{\mathcal{H}}^{AB}=0$.
 They are therefore equivalent up to a gauge choice in each subspace, $A$ and $B$.
 We establish the equivalence between the two by demonstrating that this gauge choice is the same for both algorithms.
-The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}_{AA} = \mathcal{S}_{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.
-On the other hand, our algorithm produces the unique block-diagonalizing transformation with a block structure $\mathcal{U}_{AA} = \mathcal{U}_{AA}^{\dag}$, $\mathcal{U}_{BB} = \mathcal{U}_{BB}^{\dag}$ and $\mathcal{U}_{AB} = -\mathcal{U}_{BA}^{\dag}$.
+The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}^{AA} = \mathcal{S}^{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.
+On the other hand, our algorithm produces the unique block-diagonalizing transformation with a block structure $\mathcal{U}^{AA} = {\mathcal{U}^{AA}}^{\dag}$, $\mathcal{U}^{BB} = {\mathcal{U}^{BB}}^{\dag}$ and $\mathcal{U}^{AB} = -\mathcal{U}_{BA}^{\dag}$.
 The uniqueness is a consequence of the construction of the algorithm, where calculating every order gives a unique solution satisfying these conditions.
 To see that the two solutions are identical, we expand $\exp \mathcal{S}$ into Taylor series.
 In the resulting series every term containing a product of an even number of terms of $\mathcal{S}$ is a Hermitian, block-diagonal matrix, while every term containing a product of an odd number of terms of $\mathcal{S}$ is an anti-Hermitian block off-diagonal matrix.
