@@ -10,29 +10,32 @@ Pymablock finds a series of the unitary transformation $\mathcal{U}$ (we use cal
 \end{equation}
 %
 with $\mathcal{H}' = \mathcal{H}'_{S} + \mathcal{H}'_{R}$ containing an arbitrary number and orders of perturbations with block-diagonal and block-offdiagonal components, respectively.
-Here and later we use the subscipt $S$ to denote the selected part and $R$ to denote remaining components of a series, with the goal of the perturbation theory to obtain a Hamiltonian with only the selected part.
+Here and later we use the subscript $S$ to denote the selected part and $R$ to denote remaining components of a series, with the goal of the perturbation theory to obtain a Hamiltonian with only the selected part.
+In other words, we aim to find a unitary transformation $\mathcal{U}$ that makes the remaining part of the transformed Hamiltonian vanish.
 In different settings, selected and remaining parts may mean different things.
-In the quasi-degenerate perturbation theory, the Hilbert space is subdivided into $A$ and $B$ subspaces, which makes $H_0$ a block-diagonal matrix
+In quasi-degenerate perturbation theory, the Hilbert space is subdivided into $A$ and $B$ subspaces, which makes $H_0$ a block-diagonal matrix
 \begin{equation}
   H_0 = \begin{pmatrix}
-    H_0^{AA} & 0 \\
-    0 & H_0^{BB}
+    H_0_{AA} & 0 \\
+    0 & H_0_{BB}
     \end{pmatrix},
 \end{equation}
 and the goal of the perturbation theory is to eliminate the offdiagonal $AB$ and $BA$ blocks of $\mathcal{H}$.
-In this case the selected part is the block-diagional part, and the remaining part is the block-offdiagonal part.
-In the context of Rayleigh-Schr\"odinger perturbation theory, $H_0$ is a diagonal matrix so that the selected part is the diagonal, and the remaining part of an operator are all its matrix elements that are not on the diagonal.
+In this case the selected part is the block-diagonal part, and the remaining part is the block-offdiagonal part.
+Differently, in the context of Rayleigh-Schr\"odinger perturbation theory, $H_0$ is a diagonal matrix so that the selected part is the diagonal, and the remaining part of an operator are all its matrix elements that are not on the diagonal.
 
 To consider the problem in the most general setting, we only require the selected and remaining parts of an operator to satisfy the following constraints:
 \begin{enumerate}
   \item The selected and remaining parts of an operator add to identity: $\mathcal{A} = \mathcal{A}_{S} + \mathcal{A}_{R}$.
   \item Taking either part of an operator is idempotent: $(\mathcal{A}_{S})_{S} = \mathcal{A}_{S}$.
   \item Taking either part commutes with Hermitian conjugation: $(\mathcal{A}_{S})^\dagger = (\mathcal{A^\dagger})_{S}$.
-  \item The remaining part of any operator has no matrix elements within eigensubspaces of $H_0$. This is required to ensure that the perturbation theory is well-defined, and guarantees that $(\mathcal{A}_{R} H_0)_{S} = 0$.
+  \item The remaining part of any operator has no matrix elements within eigensubspaces of $H_0$. This is required to ensure that the perturbation theory is well-defined.
 \end{enumerate}
 The separation of an operator into selected and remaining parts is a generalization of taking block-diagonal and block-offdiagonal parts.
 In particular, it allows to choose any subset of the offdiagonal matrix elements as remaining, as long as none of the matrix elements belong to an eigensubspace of $H_0$.
-The main difference between these two ways of separating an operator is that a product of a selected part and remaining part of two operators may have a non-zero selected part: $(\mathcal{A}_{S}\mathcal{B}_{R})_{S} \neq 0$.
+This condition becomes evident in the textbook quasi-degenerate perturbation theory, where the corrections to energies and wavefunctions contain differences between energy of the states from different subspaces.
+The main difference between our generalization and the standard separation into block-diagonal and block-offdiagonal is that the product of a selected part and remaining part of two operators may have a non-zero selected part: $(\mathcal{A}_{S}\mathcal{B}_{R})_{S} \neq 0$, while $(\mathcal{A}_{AA}\mathcal{B}_{AB})_{AA} = 0$.
+The generality of the selected and remaining parts allows to consider a wide range of perturbative problems, including multi-block diagonalization, selective diagonalization, and the Schrieffer--Wolff transformation.
 
 All the series we consider may be multivariate, and they represent sums of the form
 %
@@ -49,7 +52,7 @@ The problem statement, therefore, is finding $\mathcal{U}$ and $\tilde{\mathcal{
 \tilde{\mathcal{H}} = \mathcal{U}^\dagger \mathcal{H} \mathcal{U},\quad \tilde{\mathcal{H}}_{R} = 0,\quad \mathcal{U}^\dagger \mathcal{U} = 1,
 \end{equation}
 %
-which is schematically shown in Fig.~\ref{fig:block_diagonalization}.
+which is schematically shown in Fig.~\ref{fig:block_diagonalization} for the case of two subspaces, where the selected parts are $AA$ and $BB$, and the remaining parts are $AB$ and $BA$.
 Series multiply according to the Cauchy product:
 %
 $$
@@ -91,7 +94,7 @@ e^{\mathcal{S}} = 1 + \mathcal{S} + \frac{1}{2!} \mathcal{S} \mathcal{S}
 \end{equation}
 %
 where $\mathcal{S} = \sum_n S_n$ is an antihermitian polynomial series in the perturbative parameter, making $e^\mathcal{S}$ a unitary transformation.
-Requiring that $\tilde{\mathcal{H}}^{AB} = 0$ gives a recursive equation for $S_n$, whose terms are nested commutators between the series of $\mathcal{S}$ and $\mathcal{H}$.
+Requiring that $\tilde{\mathcal{H}}_{AB} = 0$ gives a recursive equation for $S_n$, whose terms are nested commutators between the series of $\mathcal{S}$ and $\mathcal{H}$.
 Similarly, the transformed Hamiltonian is given by a series of nested commutators
 %
 \begin{equation}
@@ -105,6 +108,7 @@ Regardless of the specific implementation, this expression does not meet either 
   \item The direct computation of the series elements requires $\sim \exp N$ multiplications, and even an optimized one has a $\sim N^2$ scaling.
   \item Evaluating Eq.~\eqref{eq:SW_H} contains multiplications by $H_0$.
 \end{itemize}
+Additionally, the Schrieffer--Wolff transformation is limited to two subspaces, and its generalization to multiple subspaces is an open question~\cite{Mankodi_2024}.
 
 \co{There are algorithms that use different parametrizations for U a difference that is crucial for efficiency, even though the results are equivalent.}
 Alternative parametrizations of the unitary transformation $\mathcal{U}$ require solving unitarity and block diagonalization conditions too, but give rise to a different recursive procedure for the series elements.
@@ -137,8 +141,9 @@ matrix $\mathcal{\rho}$ of a perturbed system as a power series with respect to 
 The elements of the series are found by solving two recursive conditions, $\mathcal{\rho}^2 = \mathcal{\rho}$ and $[\mathcal{H}, \mathcal{\rho}]=0$, which avoid multiplications by $H_0$ and require a single Cauchy product each.
 This approach, however, deals with the entire Hilbert space, rather than the low-energy subspace, and does not provide an effective Hamiltonian.
 Second, the perturbative similarity transform by C.~Bloch~\cite{Bloch_1958,Bravyi_2011} constructs the effective Hamiltonian in a non-orthogonal basis, which preserves the Hamiltonian spectrum while breaking its hermiticity.
-Finally, the recursive Schrieffer--Wolff algorithm~\cite{Li_2022} applies the Schrieffer--Wolff transformation to the output of lower-order iterations, and calculates the effective Hamiltonian at a fixed perturbation strength, rather
+Third, the recursive Schrieffer--Wolff algorithm~\cite{Li_2022} applies the Schrieffer--Wolff transformation to the output of lower-order iterations, and calculates the effective Hamiltonian at a fixed perturbation strength, rather
 than as a series.
+Finally, none of the algorithms above handles more than two subspaces.
 We thus identify the following open question: can we construct an effective Hamiltonian with a linear scaling algorithm that produces compact expressions?
 
 \subsection{Pymablock's algorithm}
@@ -181,9 +186,10 @@ More generally, a Cauchy product $\mathcal{A}\mathcal{B}$ where $\mathcal{A}$ an
 This makes it possible to use $\mathcal{AB}$ in a recurrence relation, a property that we exploit throughout the algorithm.
 
 \co{To fully define the unitary transformation, we make a choice for V.}
-To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}^{AB} = 0$.
+To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}_{R} = 0$.
 Additionally, we constrain $\mathcal{V}$ to have no selected part: $\mathcal{V}_{S} = 0$, a choice we make to minimize the norm of $\mathcal{U}'$~\cite{Cederbaum_1989}.
 In the $2\times 2$ block case, this makes $\mathcal{W}$ block-diagonal and ensures that the resulting unitary transformation is equivalent to the Schrieffer--Wolff transformation (see section~\ref{seq:SW_equivalence}).
+In general, however, $\mathcal{W}_{R} \neq 0$.
 
 \co{We find V and the transformed Hamiltonian.}
 The remaining condition for finding a recurrent relation for $\mathcal{U}'$ is that the transformed Hamiltonian
@@ -288,7 +294,7 @@ We now have the complete algorithm:
 \subsection{Equivalence to Schrieffer--Wolff transformation}
 \label{seq:SW_equivalence}
 \co{Our algorithm is equivalent to a Schrieffer--Wolff transformation}
-Pymablock's algorithm applied to $2\times 2$ block-diagonalization and the Schrieffer--Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}^{AB}=0$.
+Pymablock's algorithm applied to $2\times 2$ block-diagonalization and the Schrieffer--Wolff transformation both find a unitary transformation $\mathcal{U}$ such that $\tilde{\mathcal{H}}_{R} = \tilde{\mathcal{H}}_{AB}=0$.
 They are therefore equivalent up to a gauge choice in each subspace, $A$ and $B$.
 We establish the equivalence between the two by demonstrating that this gauge choice is the same for both algorithms.
 The Schrieffer--Wolff transformation uses $\mathcal{U} = \exp \mathcal{S}$, where $\mathcal{S} = -\mathcal{S}^\dagger$ and $\mathcal{S}_{AA} = \mathcal{S}_{BB} = 0$, this restriction makes the result unique~\cite{Bravyi_2011}.

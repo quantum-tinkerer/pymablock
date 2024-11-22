@@ -38,7 +38,17 @@ Several alternative approaches improve the performance of the Schrieffer--Wolff 
 A more recent line of research even applies the ideas of Schrieffer--Wolff transformation to quantum algorithms for the study of many-body systems~\cite{Wurtz_2020, Zhang_2022}.
 Despite these advances, neither of the approaches combines an optimal scaling with the ability to construct effective Hamiltonians.
 
+\co{Existing algorithms do not generalize beyond two subspaces.}
+Another limitation of the Schrieffer--Wolff transformation is that it only decouples two subspaces at a time.
+While a straightforward generalization to multiple subspaces is to apply the transformation sequentially, this approach is suboptimal and not unique.
+The literature on multi-block diagonalization is scarce and considers two approaches: the least action or the block-diagonality of the generator~\cite{Mankodi_2024}.
+The former constructs a unitary transformation that is as close as possible to the identity, and the latter constructs a unitary transformation in the form of a Schrieffer--Wolff transformation, two approaches that were believed to be equivalent.
+These approaches are useful to design for gates for superconducting qubits~\cite{Magesan_2020} and to characterize nonlocal interactions in multi-qubit systems~\cite{Xu_2024}, both of which require the decoupling of qubit subspaces from different sets of higher energy states.
+Reference~\cite{Mankodi_2024}, however, showed that the two generalizations of the Schrieffer--Wolff transformation yield different effective Hamiltonians when applied to more than two subspaces.
+To our knowledge, there is no general algorithm that constructs effective Hamiltonians for multiple subspaces, and how to do so remains an open question.
+
 \co{We develop an efficient algorithm capable of symbolic and numeric computations and make it available in Pymablock.}
 We introduce an algorithm to construct effective models with optimal scaling, thus making it possible to find high order effective models for systems with millions of degrees of freedom.
-This algorithm exploits the efficiency of recursive evaluations of series satisfying polynomial constraints and obtains the same effective Hamiltonian as the Schrieffer--Wolff transformation.
+This algorithm exploits the efficiency of recursive evaluations of series satisfying polynomial constraints and obtains the same effective Hamiltonian as the Schrieffer--Wolff transformation in the case of two subspaces.
+Pymablock's algorithm, however, deals with any number of subspaces, providing a generalization of the Schrieffer--Wolff transformation for multi-block diagonalization and selective decoupling between any two states.
 We make the algorithm available via the open source package Pymablock \footnote{The documentation and tutorials are available in \url{https://pymablock.readthedocs.io/}}(PYthon MAtrix BLOCK-diagonalization), a versatile tool for the study of numerical and symbolic models.
