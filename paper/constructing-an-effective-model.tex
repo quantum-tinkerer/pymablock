@@ -256,7 +256,7 @@ This is an alternative to separating a Hamiltonian into blocks, and its only req
 To illustrate this, we consider a $16 \times 16$ Hamiltonian $\mathcal{H} = H_0 + H_1$ with $H_0$ a diagonal matrix and $H_1$ a random Hermitian perturbation.
 Our goal is to construct an effective Hamiltonian whose only matrix elements are those in a binary mask, which, without loss of generality, we choose to be a smiley face.
 
-We apply the mask to the Hamiltonian by providing it as the \mintinline{python}|fully_diagonalize| argument to \mintinline{python}|block_diagonalize|\footnote{The full code is available at \url{https://pymablock.readthedocs.io/en/latest/tutorial/getting_started.html#selective-diagonalization}.}.
+We apply the mask to the Hamiltonian by providing it as the \mintinline{python}|fully_diagonalize| argument to \mintinline{python}|block_diagonalize|\footnote{The full code is available at \url{https://pymablock.readthedocs.io/en/latest/tutorial/getting_started.html}.}.
 %
 \begin{minted}{python}
     H_tilde, *_ = block_diagonalize([H_0, H_1], fully_diagonalize={0: mask})
