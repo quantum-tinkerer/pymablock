@@ -59,7 +59,6 @@ run pre-commit:
 
 paper:
   image: gitlab.kwant-project.org:5005/qt/research-docker
-  when: manual
   before_script: []
   script:
     - pip install -e .
