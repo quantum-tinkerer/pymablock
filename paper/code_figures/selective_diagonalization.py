@@ -9,6 +9,7 @@ import pymablock
 color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
 figwidth = matplotlib.rcParams["figure.figsize"][0]
 # %%
+np.random.seed(0)
 N = 16
 H_0 = np.diag(np.arange(N) + 0.2 * np.random.randn(N))
 H_1 = 0.1 * np.random.randn(N, N)
