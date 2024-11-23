@@ -13,6 +13,7 @@ color_cycle = matplotlib.rcParams["axes.prop_cycle"].by_key()["color"]
 # Diagonal unperturbed Hamiltonian
 H_0 = np.diag([-1.0, -1.0, 1.0, 1.0, 1.0, 1.0])
 
+np.random.seed(0)
 
 # Random Hermitian matrix as a perturbation
 def random_hermitian(n):
@@ -63,5 +64,3 @@ ax["D"].set_xticks([])
 ax["D"].set_yticks([])
 
 fig.savefig("../figures/diagrams_H.pdf", bbox_inches="tight")
-
-# %%
