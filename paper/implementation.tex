@@ -85,3 +85,10 @@ V_{\mathbf{n}, ij}^{EI} (E_i - H_0) = Y^{EI}_{\mathbf{n}, j}
 This equation has a solution despite $E_i - H_0$ not being invertible because $Y^{EI}_{\mathbf{n}} P_A = 0$.
 We solve this equation using the MUMPS sparse solver~\cite{Amestoy_2001,Amestoy_2006}, which prepares an efficient sparse LU-decomposition of $E_i - H_0$, or the KPM approximation of the Green's function~\cite{Weisse_2006}.
 Both methods work on sparse Hamiltonians with millions of degrees of freedom.
+
+\subsection{Code generation}
+\label{sec:codegen}
+
+\co{To automate the implementation of the optimizations and allow further development of the algorithm, we design a code generation system.}
+
+\co{This enables further optimizations and extensions of the algorithm.}
