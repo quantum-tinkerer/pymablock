@@ -108,6 +108,7 @@ html_theme_options = {
     ),
 }
 
+tippy_skip_urls = ["https://doi.org/*zenodo*"]  # Provided by datacite and not crossref.
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
