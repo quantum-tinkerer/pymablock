@@ -190,7 +190,14 @@ This makes it possible to use $\mathcal{AB}$ in a recurrence relation, a propert
 \co{To fully define the unitary transformation, we make a choice for V.}
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}_{R} = 0$.
 Additionally, we constrain $\mathcal{V}$ to have no selected part: $\mathcal{V}_{S} = 0$, a choice we make to minimize the norm of $\mathcal{U}'$~\cite{Cederbaum_1989}.
-In the $2\times 2$ block case, this makes $\mathcal{W}$ block-diagonal and ensures that the resulting unitary transformation is equivalent to the Schrieffer--Wolff transformation (see section~\ref{seq:SW_equivalence}).
+That $\mathcal{V}_{S} = 0$ minimizes the norm of $\mathcal{U}'$ follows from the following statements:
+\begin{enumerate}
+  \item The norm of a series is minimal, when each of the subsequent terms is chosen to be minimal order by order.
+  \item The Hermitian part of $\mathcal{U}'$, $W_\mathbf{n}$, is determined by the unitarity condition~\eqref{eq:W} at each order from lower orders of $\mathcal{U}'$.
+  \item The norm of $W_\mathbf{n} + V_\mathbf{n}$ is minimal, when the norm of $V_\mathbf{n}$ is minimal because of Hermiticity properties of $\mathcal{W}$ and $\mathcal{V}$.
+  \item Finally, because $\mathcal{V}_{R}$ is fixed by the requirement $\tilde{\mathcal{H}}_{R} = 0$, $\mathcal{V}_{S}=0$ provides the minimal norm of $\mathcal{U}'$.
+\end{enumerate}
+In the $2\times 2$ block case, this choice makes $\mathcal{W}$ block-diagonal and ensures that the resulting unitary transformation is equivalent to the Schrieffer--Wolff transformation (see section~\ref{seq:SW_equivalence}).
 In general, however, $\mathcal{W}_{R} \neq 0$.
 
 \co{We find V and the transformed Hamiltonian.}
