@@ -90,5 +90,43 @@ Both methods work on sparse Hamiltonians with millions of degrees of freedom.
 \label{sec:codegen}
 
 \co{To automate the implementation of the optimizations and allow further development of the algorithm, we design a code generation system.}
+An efficient computation of a perturbative block-diagonalization requires a significant amount of repeated optimizations.
+These include treating Hermiticity of involved series, differentiating between a $2\times 2$ block-diagonalization from multi-block or selective diagonalization, or deletion of series terms that are only used once.
+To separate the conceptual definition of the algorithm from these optimizations, we designed the code generation system that accepts a high-level description of the algorithm written in a domain-specific language and outputs the optimized Python code using the Python parser and the manipulation of the Python abstract syntax tree.
+For example, the definition of the series $\mathcal{B}$ from Eqs.~(\ref{eq:B_diag},\ref{eq:B_offdiag}) is written as:
+\begin{minted}{python}
+with "B":
+    start = 0
+    if diagonal:
+        ("U'† @ B" - "U'† @ B".adj + "H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / -2
+    if diagonal:
+        zero if commuting_blocks[index[0]] else "V @ H'_diag" + "V @ H'_diag".adj
+    if offdiagonal:
+        -"U'† @ B"
+\end{minted}
+The corresponding compiled function for evaluating the terms of $\mathcal{B}$ begins with
+\begin{minted}{python}
+def series_eval(*index):
+    which = linear_operator_series if use_linear_operator[index[:2]] else series
+    result = zero
+    if index[0] == index[1]:
+        result = _zero_sum(
+            result,
+            diag(
+                _safe_divide(
+                    _zero_sum(
+                        which["U'† @ B"][index], -Dagger(which["U'† @ B"][index]),
+                        which["H'_offdiag @ U'"][index],
+                        Dagger(which["H'_offdiag @ U'"][index]),
+                    ), -2,
+                ), index,
+            ),
+        )
+    ...
+\end{minted}
+Here we only show the beginning of the generated function to illustrate the correspondence between the high-level description and the generated code.
 
 \co{This enables further optimizations and extensions of the algorithm.}
+The code generation system has accommodated multiple rewrites of the algorithm during the development.
+We anticipate that it will enable treating different types of perturbative computations or other related algorithms, such as the derivative removal by adiabatic gate algorithm~\cite{Motzoi_2009,Theis_2018}.
+Our preliminary research already demonstrates that this framework allows for a generalization of our work to the time-dependent perturbation theory.
