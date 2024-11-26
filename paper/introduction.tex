@@ -17,8 +17,9 @@ As a consequence, the effective model is sufficient to describe the low-energy p
 A common approach to constructing an effective Hamiltonian is the Schrieffer--Wolff transformation~\cite{Schrieffer_1966,Bravyi_2011}, also known as Löwdin partitioning~\cite{Lowdin_1962}, or quasi-degenerate perturbation theory.
 This method parameterizes the unitary transformation $\mathcal{U} = e^{-\mathcal{S}}$ and finds the series $\mathcal{S}$ that decouples the $A$ and $B$ subspaces of $\tilde{\mathcal{H}} = e^{\mathcal{S}}\mathcal{H}e^{-\mathcal{S}}$.
 This idea enabled advances in multiple fields of quantum physics.
-As an example, all the k.p models are a result of treating crystalline momentum as a perturbation that only weakly mixes atomic orbitals separated in energy~\cite{Luttinger_1955}.
-More broadly, this method serves as a go-to tool in the study of superconducting circuits and quantum dots, where couplings between circuit elements and drives are treated as perturbations to reproduce the dynamics of the system~\cite{Krantz_2019,Romhanyi_2015}.
+As an example, all the k.p models are a result of treating crystalline momentum as a perturbation that only weakly mixes atomic orbitals separated in energy~\cite{Luttinger_1955,Winkler_2003,McCann_2013,Bernevig_2021}.
+More broadly, this method serves as a go-to tool in the study of superconducting circuits and quantum dots, where couplings between circuit elements and drives are treated as perturbations to reproduce the dynamics of the system~\cite{Krantz_2019,Romhanyi_2015,Venkatraman_2022}.
+Applied to time-dependent Hamiltonians, the Schrieffer--Wolff transformation is an essential tool for the design of quantum gates~\cite{Petrescu_2023}.
 %
 \begin{figure}[h!]
     \centering
@@ -35,6 +36,7 @@ This is a consequence of the recursive equations that define the unitary transfo
 In particular, already a 4-th order perturbative expansion that is necessary for many applications may require hundreds of terms.
 While the computational complexity is only a nuisance when analysing model systems, it becomes a bottleneck whenever the Hilbert space is high-dimensional.
 Several alternative approaches improve the performance of the Schrieffer--Wolff algorithm by either using different parametrizations of the unitary transformation~\cite{Van_Vleck_1929, Shavitt_1980, Lowdin_1962, Klein_1974, Suzuki_1983}, adjusting the problem setting to density matrix perturbation theory~\cite{McWeeny_1962, Truflandier_2020}, or a finding a similarity transform instead of a unitary~\cite{Bloch_1958}.
+For a selected set of problems, eigenoperator expansions have been proposed as a way to construct effective Hamiltonians in second quantized form~\cite{Landi_2024, Reascos_2024}, with the disadvantage of having to compute an eigenoperator decomopsition of the Hamiltonian.
 A more recent line of research even applies the ideas of Schrieffer--Wolff transformation to quantum algorithms for the study of many-body systems~\cite{Wurtz_2020, Zhang_2022}.
 Despite these advances, neither of the approaches combines an optimal scaling with the ability to construct effective Hamiltonians.
 
@@ -43,7 +45,7 @@ Another limitation of the Schrieffer--Wolff transformation is that it only decou
 While a straightforward generalization to multiple subspaces is to apply the transformation sequentially, this approach is suboptimal and not unique.
 The literature on multi-block diagonalization is scarce and considers two approaches: the least action or the block-diagonality of the generator~\cite{Mankodi_2024}.
 The former constructs a unitary transformation that is as close as possible to the identity, and the latter constructs a unitary transformation in the form of a Schrieffer--Wolff transformation.
-These approaches are useful to design for gates for superconducting qubits~\cite{Magesan_2020} and to characterize nonlocal interactions in multi-qubit systems~\cite{Xu_2024}, both of which require the decoupling of qubit subspaces from different sets of higher energy states.
+These approaches are useful to design for gates for superconducting qubits~\cite{Magesan_2020} and to characterize nonlocal interactions in multi-qubit systems~\cite{Xu_2024a}, both of which require the decoupling of qubit subspaces from different sets of higher energy states.
 Reference~\cite{Mankodi_2024}, however, showed that the two generalizations of the Schrieffer--Wolff transformation yield different effective Hamiltonians when applied to more than two subspaces.
 To our knowledge, there is no general algorithm that constructs effective Hamiltonians for multiple subspaces, and how to do so remains an open question.
 

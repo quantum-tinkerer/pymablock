@@ -11,11 +11,12 @@ Pymablock's algorithm is more general than any other perturbation theory method 
 We provide a Python implementation of the algorithm in the Pymablock package~\cite{Araya_2024}.
 The package is thoroughly tested (95\% test coverage as of version 2.1), becoming a reliable tool for constructing effective Hamiltonians that combine multiple perturbations to high orders.
 The core of the Pymablock interface is the \mintinline{python}|BlockSeries| class that handles arbitrary objects as long as they support algebraic operations.
-This enables Pymablock's construction of effective models for large tight-binding models using its implicit method.
+This enables Pymablock's construction of effective models for large tight-binding models using its implicit method as well as for second quantized Hamiltonians upon providing a custom Sylvester equation solver.
 It also allows Pymablock to solve both symbolic and numerical problems in diverse physical settings, and potentially to incorporate it into existing packages, such as scqubits~\cite{Groszkowski_2021}, QuTiP~\cite{Johansson_2012,Johansson_2013}, or dft2kp~\cite{Cassiano_2024}.
 
 \co{The package provides a foundation to implement other perturbative expansions.}
 Beyond the Schrieffer--Wolff transformation, the Pymablock package provides a foundation for defining other perturbative expansions.
 We anticipate extending it to time-dependent problems, where the different regimes of the time-dependent drive modify the recurrence relations that need to be solved.
 Applying the same framework to problems with weak position dependence would allow to construct a nonlinear response theory of quantum materials.
+These two extensions are active areas of research~\cite{Motzoi_2009,Bernevig_2021,Theis_2018,Venkatraman_2022,Xu_2024b, Reascos_2024}.
 Finally, we expect that in the many-particle context the same framework supports implementing different flavors of diagrammatic expansions.
