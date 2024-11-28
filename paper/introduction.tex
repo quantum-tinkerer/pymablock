@@ -18,7 +18,7 @@ A common approach to constructing an effective Hamiltonian is the Schrieffer--Wo
 This method parameterizes the unitary transformation $\mathcal{U} = e^{-\mathcal{S}}$ and finds the series $\mathcal{S}$ that decouples the $A$ and $B$ subspaces of $\tilde{\mathcal{H}} = e^{\mathcal{S}}\mathcal{H}e^{-\mathcal{S}}$.
 This idea enabled advances in multiple fields of quantum physics.
 As an example, all the k.p models are a result of treating crystalline momentum as a perturbation that only weakly mixes atomic orbitals separated in energy~\cite{Luttinger_1955,Winkler_2003,McCann_2013,Bernevig_2021}.
-More broadly, this method serves as a go-to tool in the study of superconducting circuits and quantum dots, where couplings between circuit elements and drives are treated as perturbations to reproduce the dynamics of the system~\cite{Krantz_2019,Romhanyi_2015,Venkatraman_2022}.
+More broadly, this method serves as a go-to tool in the study of superconducting circuits and quantum dots, where couplings between circuit elements and drives are treated as perturbations to reproduce the dynamics of the system~\cite{Krantz_2019,Romhanyi_2015}.
 Applied to time-dependent Hamiltonians, the Schrieffer--Wolff transformation is an essential tool for the design of quantum gates~\cite{Malekakhlagh_2020, Petrescu_2023}.
 %
 \begin{figure}[h!]
@@ -35,19 +35,21 @@ Constructing effective Hamiltonians is, however, both algorithmically complex an
 This is a consequence of the recursive equations that define the unitary transformation, which require an exponentially growing number of matrix products in each order.
 In particular, already a 4-th order perturbative expansion that is necessary for many applications may require hundreds of terms.
 While the computational complexity is only a nuisance when analysing model systems, it becomes a bottleneck whenever the Hilbert space is high-dimensional.
-Several alternative approaches improve the performance of the Schrieffer--Wolff algorithm by either using different parametrizations of the unitary transformation~\cite{Van_Vleck_1929, Shavitt_1980, Lowdin_1962, Klein_1974, Suzuki_1983}, adjusting the problem setting to density matrix perturbation theory~\cite{McWeeny_1962, Truflandier_2020}, or a finding a similarity transform instead of a unitary~\cite{Bloch_1958}.
-For a selected set of problems, eigenoperator expansions have been proposed as a way to construct effective Hamiltonians in second quantized form~\cite{Landi_2024, Reascos_2024}, with the disadvantage of having to compute an eigenoperator decomopsition of the Hamiltonian.
+Several other approaches improve the performance of the Schrieffer--Wolff algorithm by either using different parametrizations of the unitary transformation~\cite{Van_Vleck_1929, Lowdin_1962, Shavitt_1980, Klein_1974, Suzuki_1983}, adjusting the problem setting to density matrix perturbation theory~\cite{McWeeny_1962, Truflandier_2020}, or a finding a similarity transform instead of a unitary~\cite{Bloch_1958}.
+An alternative formulation of the perturbative diagonalization uses Wegner's flow equation to construct a continuous unitary transformation (CUT) that depends on a fictitious flow parameter, which at infinity eliminates the undesired terms from the Hamiltonian~\cite{Wegner_1994, cutpapers...}.
+CUT is common in the study of many-body systems, and it relies on solving a set of differential equations to obtain the effective Hamiltonian~\cite{add stuff}.
 A more recent line of research even applies the ideas of Schrieffer--Wolff transformation to quantum algorithms for the study of many-body systems~\cite{Wurtz_2020, Zhang_2022}.
 Despite these advances, neither of the approaches combines an optimal scaling with the ability to construct effective Hamiltonians.
 
 \co{Existing algorithms do not generalize beyond two subspaces.}
 Another limitation of the Schrieffer--Wolff transformation is that it only decouples two subspaces at a time.
-While a straightforward generalization to multiple subspaces is to apply the transformation sequentially, this approach is suboptimal and not unique.
+While a straightforward generalization of the Schrieffer--Wolff transformation to multiple subspaces is to decouple one block at a time, this approach is suboptimal and depends on the order in which the blocks are decoupled.
 The literature on multi-block diagonalization is scarce and considers two approaches: the least action or the block-diagonality of the generator~\cite{Mankodi_2024}.
-The former constructs a unitary transformation that is as close as possible to the identity, and the latter constructs a unitary transformation in the form of a Schrieffer--Wolff transformation.
-These approaches are useful to design for gates for superconducting qubits~\cite{Magesan_2020} and to characterize nonlocal interactions in multi-qubit systems~\cite{Xu_2024a}, both of which require the decoupling of qubit subspaces from different sets of higher energy states.
+The former constructs a unitary transformation that is as close as possible to the identity, and the latter constructs a block off-diagonal unitary similar to the Schrieffer--Wolff generator.
+These approaches are useful to design gates for superconducting qubits~\cite{Magesan_2020} and to characterize nonlocal interactions in multi-qubit systems~\cite{Xu_2024a}, both of which require the decoupling of qubit subspaces from different sets of higher energy states.
 Reference~\cite{Mankodi_2024}, however, showed that the two generalizations of the Schrieffer--Wolff transformation yield different effective Hamiltonians when applied to more than two subspaces.
-To our knowledge, there is no general algorithm that constructs effective Hamiltonians for multiple subspaces, and how to do so remains an open question.
+While the perturbative CUT method naturally decouples multiple subspaces, in general solving the differential equations inherent to the method may become a computational bottleneck.
+To our knowledge, there is no general algorithm that constructs effective Hamiltonians for multiple subspaces directly from the least action principle, and how to do so remains an open question.
 
 \co{We develop an efficient algorithm capable of symbolic and numeric computations and make it available in Pymablock.}
 We introduce an algorithm to construct effective models with optimal scaling, thus making it possible to find high order effective models for systems with millions of degrees of freedom.
