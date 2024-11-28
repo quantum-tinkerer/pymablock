@@ -111,7 +111,8 @@ Regardless of the specific implementation, this expression does not meet either 
   \item The direct computation of the series elements requires $\sim \exp N$ multiplications, and even an optimized one has a $\sim N^2$ scaling.
   \item Evaluating Eq.~\eqref{eq:SW_H} contains multiplications by $H_0$.
 \end{itemize}
-Additionally, the Schrieffer--Wolff transformation is limited to two subspaces, and its generalization to multiple subspaces is an open question~\cite{Mankodi_2024}.
+Additionally, while in the $2\times 2$ block case the Schrieffer--Wolff transformation produces a minimal unitary transformation, i.e. as close to identity as possible, this is not the case in the multi-block case~\cite{Mankodi_2024}.
+The generalization of this approach to multiple subspaces is an open question~\cite{Mankodi_2024}.
 
 \co{There are algorithms that use different parametrizations for U a difference that is crucial for efficiency, even though the results are equivalent.}
 Alternative parametrizations of the unitary transformation $\mathcal{U}$ require solving unitarity and block diagonalization conditions too, but give rise to a different recursive procedure for the series elements.
@@ -131,6 +132,19 @@ On the other hand, using a polynomial series directly
 %
 gives rise to another recursive equation for $U_i$~\cite{Van_Vleck_1929, Lowdin_1962, Klein_1974, Suzuki_1983}.
 Still, this choice results in an expression for $\tilde{\mathcal{H}}$ whose terms include products by $H_0$, and therefore requires additional simplifications.
+
+\co{Continuous unitary transformations are another approach that relies on solving differential equations.}
+Another approach uses Wegner's flow equation~\cite{Wegner_1994,Kehrein_2007} to construct a continuous unitary transformation (CUT) that depends smoothly on a fictitious parameter $\lambda$, $\mathcal{U}(\lambda)$.
+The goal is to define a generator $\mathcal{\eta}(\lambda)$ such that $\mathcal{H}(\lambda) = \mathcal{U}^\dagger(\lambda) \mathcal{H}(0) \mathcal{U}(\lambda)$ flows towards the desired effective Hamiltonian.
+At $\lambda = \infty$, the transformed Hamiltonian does not contain the undesired terms, $\mathcal{H}(\infty) = \tilde{\mathcal{H}}$.
+Finding the unitary amounts to solving a set of differential equations
+%
+\begin{equation}
+\frac{d\mathcal{U}(\lambda)}{d\lambda} = -\mathcal{U}(\lambda) \mathcal{\eta}(\lambda),
+\end{equation}
+%
+which is susceptible to numerical integration errors when analytical solutions are not available.
+The CUT method is common in the study of many-body systems~\cite{Krull_2012}, and defining the generator benefits from decomposing the Hamiltonian into eigenoperators.
 
 \co{The existing algorithms with linear scaling are not suitable for the construction of an effective Hamiltonian.}
 The following three algorithms satisfy both of our requirements while solving a related problem.
@@ -291,7 +305,7 @@ This is the only step in the algorithm that requires a direct multiplication by 
 In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V_{\mathbf{n}, ij} = (\mathcal{Y}_{R} - [\mathcal{V},
 \mathcal{H}'_{S}]_{R})_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient numerical algorithms to solve Sylvester's equation (see Sec.~\ref{sec:implicit}).
-Alternatively, the eigenoperator decomposition is a convenient way to solve Sylvester's equation in second quantized Hamiltonians without using matrices at all~\cite{Landi_2024,Reascos_2024}.
+An alternative is to use the eigenoperator decomposition, an approach that does not require computing the eigenbasis of $H_0$, and therefore it is better suited for second quantized Hamiltonians~\cite{Landi_2024,Reascos_2024}.
 
 \co{The algorithm is complete.}
 We now have the complete algorithm:
