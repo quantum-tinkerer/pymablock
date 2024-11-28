@@ -272,7 +272,7 @@ Then, we compute the Hermitian part of $\mathcal{X}$ by requiring that $\tilde{\
 Once again, despite $\mathcal{X}$ enters the right hand side, because all the terms lack \nth{0} order, this defines a recursive relation $\mathcal{Y}$.
 To fix $\mathcal{Y}_S$, we use its definition~\eqref{eq:XYZ}, which gives
 \begin{equation}
-  \label{eq:sylvester}
+  \label{eq:lyapunov}
   [\mathcal{V}, H_0] = \mathcal{Y} - [\mathcal{V}, \mathcal{H}'_{S}],
 \end{equation}
 which is a continuous-time Lyapunov equation for $\mathcal{V}$.
@@ -280,13 +280,18 @@ In order for this equation to be satisfiable, the selected part of the right han
 Therefore we find:
 %
 \begin{equation}
-\label{eq:Y_S}
+\label{eq:sylvester}
 \mathcal{Y}_{S} = [\mathcal{V}, \mathcal{H}'_{S}]_{S},
 \end{equation}
 and it vanishes if the selected part corresponds to a block-diagonal matrix.
 
-Having found $\mathcal{Y}$, determining $\mathcal{V}$ from Eq.~\eqref{eq:sylvester} is straightforward, and it needs to be solved only once for every new order.
-In the eigenbasis of $H_0$, the solution of this equation is $V_{\mathbf{n}, ij} = (\mathcal{Y}_{R} - [\mathcal{V}, \mathcal{H}'_{S}]_{R})_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
+The final part is straightforward.
+Finding $\mathcal{V}$ from $\mathcal{Y}$ amounts to solving a Sylvester's equation, Eq.~\ref{eq:sylvester}, which we only need to solve once for every new order.
+This is the only step in the algorithm that requires a direct multiplication by $\mathcal{H}'_{S}$.
+In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V_{\mathbf{n}, ij} = (\mathcal{Y}_{R} - [\mathcal{V},
+\mathcal{H}'_{S}]_{R})_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
+However, even if the eigenbasis of $H_0$ is not available, there are efficient numerical algorithms to solve Sylvester's equation (see Sec.~\ref{sec:implicit}).
+Alternatively, the eigenoperator decomposition is a convenient way to solve Sylvester's equation in second quantized Hamiltonians without using matrices at all~\cite{Landi_2024,Reascos_2024}.
 
 \co{The algorithm is complete.}
 We now have the complete algorithm:
