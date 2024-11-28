@@ -135,12 +135,17 @@ Still, this choice results in an expression for $\tilde{\mathcal{H}}$ whose term
 
 \co{Continuous unitary transformations are another approach that relies on solving differential equations.}
 Another approach uses Wegner's flow equation~\cite{Wegner_1994,Kehrein_2007} to construct a continuous unitary transformation (CUT) that depends smoothly on a fictitious parameter $\lambda$, $\mathcal{U}(\lambda)$.
-The goal is to define a generator $\mathcal{\eta}(\lambda)$ such that $\mathcal{H}(\lambda) = \mathcal{U}^\dagger(\lambda) \mathcal{H}(0) \mathcal{U}(\lambda)$ flows towards the desired effective Hamiltonian.
+The goal is to define a generator $\mathcal{\eta}(\lambda)$ such that $\mathcal{H}(\lambda) = \mathcal{U}^\dagger(\lambda) \mathcal{H}(0) \mathcal{U}(\lambda)$ flows towards the desired effective Hamiltonian:
+%
+\begin{equation}
+\frac{d\mathcal{H}(\lambda)}{d\lambda} = [\mathcal{\eta}(\lambda), \mathcal{H}(\lambda)].
+\end{equation}
+%
 At $\lambda = \infty$, the transformed Hamiltonian does not contain the undesired terms, $\mathcal{H}(\infty) = \tilde{\mathcal{H}}$.
 Finding the unitary amounts to solving a set of differential equations
 %
 \begin{equation}
-\frac{d\mathcal{U}(\lambda)}{d\lambda} = -\mathcal{U}(\lambda) \mathcal{\eta}(\lambda),
+\frac{d\mathcal{U}(\lambda)}{d\lambda} = \mathcal{\eta}(\lambda)\mathcal{U}(\lambda),
 \end{equation}
 %
 which is susceptible to numerical integration errors when analytical solutions are not available.
