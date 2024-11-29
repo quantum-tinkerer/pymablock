@@ -152,13 +152,8 @@ Finding the unitary amounts to solving a set of differential equations
 %
 Together with the Eq.~\eqref{eq:hamiltonian_flow} and an appropriate choice of $\mathcal{\eta}$, this gives a set of coupled differential equations, that become linear if solved order by order.
 The convergence and stability of flow equations depends on the parameterization of the flow generator $\mathcal{\eta}$, and multiple strategies for this choice are known\todo{add citation}.
-To apply the CUT method to second-quantized problems, one decomposes the perturbation into a set of quasiparticle creation and annihilation operators, $T_i$ and $T_i^\dagger$:
-\begin{equation}
-  \label{eq:eigenoperators}
-  \mathcal{H} = H_0 + \sum_i \mathcal{D}_i (T_i + T_i^\dagger),\quad [H_0, T_i] = \omega_i T_i,
-\end{equation}
-with $\mathcal{D}_i$ a scalar series in the perturbative parameter, and $\omega_i$ the energies of the quasiparticles.
-The CUT method is common in the study of many-body systems~\cite{Krull_2012}, and defining the generator benefits from decomposing the Hamiltonian into eigenoperators.
+The CUT method is common in the study of many-body systems~\cite{Krull_2012}, where one needs to either decompose the Hamiltonian into sets of quasiparticle creation and annihilation operators, or choose a different operator basis together with a set of commutation rules.
+Despite the numerical complication of solving differential equations, CUT extends beyond the perturbative regime~\todo{cite}.
 
 \co{The existing algorithms with linear scaling are not suitable for the construction of an effective Hamiltonian.}
 The following three algorithms satisfy both of our requirements while solving a related problem.
@@ -174,7 +169,7 @@ This approach, however, deals with the entire Hilbert space, rather than the low
 Second, the perturbative similarity transform by C.~Bloch~\cite{Bloch_1958,Bravyi_2011} constructs the effective Hamiltonian in a non-orthogonal basis, which preserves the Hamiltonian spectrum while breaking its hermiticity.
 Third, the recursive Schrieffer--Wolff algorithm~\cite{Li_2022} applies the Schrieffer--Wolff transformation to the output of lower-order iterations, and calculates the effective Hamiltonian at a fixed perturbation strength, rather
 than as a series.
-Finally, none of the algorithms above handles more than two subspaces.
+Finally, none of these linear scaling algorithms above handles more than two subspaces.
 We thus identify the following open question: can we construct an effective Hamiltonian with a linear scaling algorithm that produces compact expressions?
 
 \subsection{Pymablock's algorithm}
@@ -254,7 +249,7 @@ To achieve this, we choose $\mathcal{X}=\mathcal{Y}+\mathcal{Z}$ to be the commu
 \mathcal{Z} \equiv [\mathcal{W}, \mathcal{H}_{S}] = -\mathcal{Z}^\dagger.
 \end{equation}
 %
-In the common case, but not the most general case, when the selected part is a block-diagonal operator, $\mathcal{Y}$ is block off-diagonal.
+If the selected part $\mathcal{A}_S$ corresponds to a block-diagonal operator, $\mathcal{Y}$ is block off-diagonal.
 Additionally, in the $2\times 2$ block case $\mathcal{Z}$ is block-diagonal.
 We use $\mathcal{H}_{S} \mathcal{U}' = \mathcal{U}' \mathcal{H}_{S} -\mathcal{X}$ to move $\mathcal{H}_{S}$ through to the right and find
 %
