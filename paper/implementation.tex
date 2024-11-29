@@ -91,7 +91,7 @@ Both methods work on sparse Hamiltonians with millions of degrees of freedom.
 
 \co{To automate the implementation of the optimizations and allow further development of the algorithm, we design a code generation system.}
 An efficient computation of a perturbative block-diagonalization requires a significant amount of repeated optimizations.
-These include keeping track of the Hermiticity of involved series, applying the simpliciations due to block-diagonalization and the presence of only two blocks, or deletion of series terms that are only used once.
+These include keeping track of the Hermiticity of involved series, applying the simplifications due to block-diagonalization and the presence of only two blocks, or deletion of series terms that are only used once.
 To separate the conceptual definition of the algorithm from these optimizations, we designed the code generation system that accepts a high-level description of the algorithm written in a domain-specific language and outputs the optimized Python code using the Python parser and the manipulation of the Python abstract syntax tree.
 For example, the definition of the series $\mathcal{B}$ from Eqs.~(\ref{eq:B_diag},\ref{eq:B_offdiag}) is written as:
 \begin{minted}{python}
