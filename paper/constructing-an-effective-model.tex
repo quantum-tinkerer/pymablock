@@ -156,20 +156,21 @@ The resulting Hamiltonian is a $9 \times 9$ matrix that we construct using Sympy
 
 \co{We call block diagonalize and compute the qubit Hamiltonian}
 Finally, to compute the energy corrections of the lowest levels, we call \mintinline{python}|block_diagonalize| for each state separately, replicating a regular perturbation theory calculation for single wavefunctions.
-To do this, we observe that $H_0$ is diagonal, and use \mintinline{python}|subspace_indices| to assign the elements of its eigenbasis to the $A$ (0) or $B$ (1) subspace.
+To do this, we observe that $H_0$ is diagonal, and use \mintinline{python}|subspace_indices| to assign the elements of its eigenbasis to the $4$ subspaces of interest and the rest.
+This corresponds to a multi-block diagonalization problem with $5$ blocks.
 For example, to find the qubit-dependent frequency shift of the resonator, $\chi$, we start by computing the second order correction to $\ket{0_{t}0_{r}}$:
 %
 \begin{minted}{python}
-indices = [0, 1, 1, 1, 1, 1, 1, 1, 1] # 00 is the first state in the basis
+indices = [0, 1, 2, 3, 4, 4, 4, 4, 4] # 00 is the first state in the basis
 H_tilde, *_ = block_diagonalize(H, subspace_indices=indices, symbols=[g])
-H_tilde[0, 0, 2][0, 0] # 2nd order correction
+H_tilde[0, 0, 2][0, 0] # 2nd order correction to 00
 \end{minted}
 %
 \begin{equation}
     E^{(2)}_{00} = \frac{g^{2}}{-\omega_{r} + \omega_{t}}.
 \end{equation}
 %
-Repeating this process for the other levels requires changing \mintinline{python}|subspace_indices| according to the basis of $H$, and yields the desired resonator frequency shift:
+Repeating this process for the states $\ket{1_{t}0_{r}}$, $\ket{0_{t}1_{r}}$, and $\ket{1_{t}1_{r}}$ requires requesting \mintinline{python}|H_tilde[1, 1, 2][0, 0]|, \mintinline{python}|H_tilde[2, 2, 2][0, 0]|, and \mintinline{python}|H_tilde[3, 3, 2][0, 0]|, and yields the desired resonator frequency shift:
 %
 \begin{equation}
 \begin{aligned}
@@ -245,3 +246,31 @@ In addition, we observe how the proximity gap of the dots increases with the cou
 
 Computing the spectrum of the system for $3$ points in parameter space would require the same time as the total runtime of Pymablock in this example.
 This demonstrates the speed of the implicit method and the efficiency of Pymablock's algorithm.
+
+\subsection{Selective diagonalization}
+\label{sec:selective_diagonalization}
+
+\co{We illustrate the selective diagonalization feature of Pymablock.}
+Lastly, we demonstrate the generality of Pymablock's algorithm by applying it to decouple arbitrary states in a generic Hamiltonian.
+This is an alternative to separating a Hamiltonian into blocks, and it requires that the states to decouple are different in energy.
+To illustrate this, we consider a $16 \times 16$ Hamiltonian $\mathcal{H} = H_0 + H_1$ with $H_0$ a diagonal matrix and $H_1$ a random Hermitian perturbation.
+Our goal is to construct an effective Hamiltonian whose only matrix elements are those in a binary mask, which, without loss of generality, we choose to be a smiley face.
+
+We apply the mask to the Hamiltonian by providing it as the \mintinline{python}|fully_diagonalize| argument to \mintinline{python}|block_diagonalize|\footnote{The full code is available at \url{https://pymablock.readthedocs.io/en/latest/tutorial/getting_started.html\#selective-diagonalization}.}.
+%
+\begin{minted}{python}
+    H_tilde, *_ = block_diagonalize([H_0, H_1], fully_diagonalize={0: mask})
+\end{minted}
+%
+The argument \mintinline{python}|fully_diagonalize| is a dictionary where the keys label the blocks of the Hamiltonian, and the values are the masks that select the terms to keep in that block.
+We only used one block in this example: the entire Hamiltonian.
+Finally, the effective Hamiltonian only contains the terms in the mask, as shown in Fig.~\ref{fig:selective_diagonalization}.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=\linewidth]{figures/selective_diagonalization.pdf}
+    \caption{
+        Selective diagonalization of a Hamiltonian with a random perturbation.
+    }
+\label{fig:selective_diagonalization}
+\end{figure}

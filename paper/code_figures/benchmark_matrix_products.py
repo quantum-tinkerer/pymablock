@@ -105,7 +105,7 @@ for (structure, counts), panel, color in zip(
     ax[panel].spines["top"].set_visible(False)
 
 ax["A"].set_ylabel(r"$\# \textrm{ Matrix products}$")
-ax["A"].set_yticks([0, 100, 200, 300])
-ax["A"].set_yticklabels([r"$0$", r"$100$", r"$200$", r"$300$"])
+ax["A"].set_yticks([0, 100, 200])
+ax["A"].set_yticklabels([r"$0$", r"$100$", r"$200$"])
 fig.savefig("../figures/benchmark_matrix_products.pdf", bbox_inches="tight")
 # %%
