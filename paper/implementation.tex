@@ -91,7 +91,7 @@ Both methods work on sparse Hamiltonians with millions of degrees of freedom.
 
 \co{To automate the implementation of the optimizations and allow further development of the algorithm, we design a code generation system.}
 An efficient computation of a perturbative block-diagonalization requires a significant amount of repeated optimizations.
-These include treating Hermiticity of involved series, differentiating between a $2\times 2$ block-diagonalization from multi-block or selective diagonalization, or deletion of series terms that are only used once.
+These include keeping track of the Hermiticity of involved series, applying the simpliciations due to block-diagonalization and the presence of only two blocks, or deletion of series terms that are only used once.
 To separate the conceptual definition of the algorithm from these optimizations, we designed the code generation system that accepts a high-level description of the algorithm written in a domain-specific language and outputs the optimized Python code using the Python parser and the manipulation of the Python abstract syntax tree.
 For example, the definition of the series $\mathcal{B}$ from Eqs.~(\ref{eq:B_diag},\ref{eq:B_offdiag}) is written as:
 \begin{minted}{python}
@@ -128,5 +128,7 @@ Here we only show the beginning of the generated function to illustrate the corr
 
 \co{This enables further optimizations and extensions of the algorithm.}
 The code generation system has accommodated multiple rewrites of the algorithm during the development.
-We anticipate that it will enable treating different types of perturbative computations or other related algorithms, such as the derivative removal by adiabatic gate algorithm~\cite{Motzoi_2009,Theis_2018}.
-Our preliminary research already demonstrates that this framework allows for a generalization of our work to the time-dependent perturbation theory.
+We anticipate that it will enable treating different types of perturbative computations or other related algorithms, such as the derivative removal by adiabatic gate (DRAG) algorithm~\cite{Motzoi_2009,Theis_2018}.
+Contrary to the perturbation theory setting, DRAG requires that the time-dependent Hamiltonian is block-diagonal in the rotating frame, and it achieves this goal by adding a series of corrections to the original Hamiltonian.
+Its overall setting, however, is similar to time-dependent perturbation theory in that it amounts to solving a system of recurrent algebraic equations.
+Our preliminary research already demonstrates that our code generation framework allows for a generalization of our work to the time-dependent perturbation theory, and we are confident that it applies to the DRAG algorithm as well.
