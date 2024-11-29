@@ -215,7 +215,7 @@ This makes it possible to use $\mathcal{AB}$ in a recurrence relation, a propert
 
 \co{To fully define the unitary transformation, we make a choice for V.}
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}_{R} = 0$.
-Additionally, we constrain $\mathcal{V}$ to have no selected part: $\mathcal{V}_{S} = 0$, a choice we make to minimize the norm of $\mathcal{U}'$~\cite{Cederbaum_1989}.
+Additionally, we constrain $\mathcal{V}$ to have no selected part: $\mathcal{V}_{S} = 0$, a choice we make to minimize the norm of $\mathcal{U}'$, and satisfy the least action principle~\cite{Cederbaum_1989}.
 That $\mathcal{V}_{S} = 0$ minimizes the norm of $\mathcal{U}'$ follows from the following statements:
 \begin{enumerate}
   \item The norm of a series is minimal, when each of the subsequent terms is chosen to be minimal order by order.
@@ -316,7 +316,8 @@ This is the only step in the algorithm that requires a direct multiplication by 
 In the eigenbasis of $H_0$, the solution of Sylvester's equation is $V_{\mathbf{n}, ij} = (\mathcal{Y}_{R} - [\mathcal{V},
 \mathcal{H}'_{S}]_{R})_{\mathbf{n}, ij}/(E_i - E_j)$, where $E_i$ are the eigenvalues of $H_0$.
 However, even if the eigenbasis of $H_0$ is not available, there are efficient numerical algorithms to solve Sylvester's equation (see Sec.~\ref{sec:implicit}).
-An alternative is to use the eigenoperator decomposition, an approach that does not require computing the eigenbasis of $H_0$, and therefore it is better suited for second quantized Hamiltonians~\cite{Landi_2024,Reascos_2024}.
+An alternative is to decompose the Hamiltonian into its eigenoperator basis.
+This approach avoids specifying the eigenbasis of $H_0$, and therefore it is better suited for second-quantized Hamiltonians~\cite{Landi_2024,Reascos_2024}.
 
 \co{The algorithm is complete.}
 We now have the complete algorithm:

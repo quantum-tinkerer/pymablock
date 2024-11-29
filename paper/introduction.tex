@@ -52,7 +52,7 @@ While the perturbative CUT method naturally decouples multiple subspaces~\cite{K
 To our knowledge, there is no general algorithm that constructs effective Hamiltonians for multiple subspaces directly from the least action principle, and how to do so is an open question.
 
 \co{We develop an efficient algorithm capable of symbolic and numeric computations and make it available in Pymablock.}
-We introduce an algorithm to construct effective models with optimal scaling, thus making it possible to find high order effective models for systems with millions of degrees of freedom.
+We introduce an algorithm to construct effective models with optimal scaling, thus making it possible to find high order corrections for systems with millions of degrees of freedom.
 This algorithm exploits the efficiency of recursive evaluations of series satisfying polynomial constraints and obtains the same effective Hamiltonian as the Schrieffer--Wolff transformation in the case of two subspaces.
-Pymablock's algorithm, however, deals with any number of subspaces, providing a generalization of the Schrieffer--Wolff transformation for multi-block diagonalization and selective decoupling between any two states.
+Our algorithm, however, deals with any number of subspaces, providing a generalization of the Schrieffer--Wolff transformation for multi-block diagonalization and selective decoupling between any two states.
 We make the algorithm available via the open source package Pymablock \footnote{The documentation and tutorials are available in \url{https://pymablock.readthedocs.io/}}(PYthon MAtrix BLOCK-diagonalization), a versatile tool for the study of numerical and symbolic models.

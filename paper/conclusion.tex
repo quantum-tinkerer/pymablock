@@ -5,13 +5,14 @@ We developed an algorithm for constructing an effective Hamiltonian that combine
 The main building block of our approach is a set of recurrence relations that define several series that depend on each other and combine into the effective Hamiltonian.
 Our algorithm constructs the same effective Hamiltonians as the Schrieffer--Wolff transformation~\cite{Schrieffer_1966} in the case of $2$ subspaces, while keeping the linear scaling per extra order similar to the density matrix perturbation theory~\cite{McWeeny_1962, Truflandier_2020} or the non-orthogonal perturbation theory~\cite{Bloch_1958}.
 Its expressions minimize the number of matrix multiplications per order, making it appealing both for symbolic and numerical computations.
-Pymablock's algorithm is more general than any other perturbation theory method we are aware of, because it performs multi-block diagonalization and selective diagonalization with a single algorithm.
+Pymablock's algorithm performs multi-block diagonalization and selective diagonalization with a single optimized algorithm.
 
 \co{The package provides a universal interface that handles constructing effective models in all quantum mechanical systems.}
 We provide a Python implementation of the algorithm in the Pymablock package~\cite{Araya_2024}.
 The package is thoroughly tested (95\% test coverage as of version 2.1), becoming a reliable tool for constructing effective Hamiltonians that combine multiple perturbations to high orders.
 The core of the Pymablock interface is the \mintinline{python}|BlockSeries| class that handles arbitrary objects as long as they support algebraic operations.
-This enables Pymablock's construction of effective models for large tight-binding models using its implicit method as well as for second quantized Hamiltonians upon providing a custom Sylvester equation solver.
+This enables Pymablock's construction of effective models for large tight-binding models using its implicit method as well as for second quantized Hamiltonians.
+As of version 2.1, applying Pymablock to second quantized Hamiltonians requires the user to provide a custom solver of the Lyapunov equation, which we plan to streamline in future versions.
 It also allows Pymablock to solve both symbolic and numerical problems in diverse physical settings, and potentially to incorporate it into existing packages, such as scqubits~\cite{Groszkowski_2021}, QuTiP~\cite{Johansson_2012,Johansson_2013}, or dft2kp~\cite{Cassiano_2024}.
 
 \co{The package provides a foundation to implement other perturbative expansions.}
