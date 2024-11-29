@@ -134,21 +134,30 @@ gives rise to another recursive equation for $U_i$~\cite{Van_Vleck_1929, Lowdin_
 Still, this choice results in an expression for $\tilde{\mathcal{H}}$ whose terms include products by $H_0$, and therefore requires additional simplifications.
 
 \co{Continuous unitary transformations are another approach that relies on solving differential equations.}
-Another approach uses Wegner's flow equation~\cite{Wegner_1994,Kehrein_2007} to construct a continuous unitary transformation (CUT) that depends smoothly on a fictitious parameter $\lambda$, $\mathcal{U}(\lambda)$.
-The goal is to define a generator $\mathcal{\eta}(\lambda)$ such that $\mathcal{H}(\lambda) = \mathcal{U}^\dagger(\lambda) \mathcal{H}(0) \mathcal{U}(\lambda)$ flows towards the desired effective Hamiltonian:
+Another approach uses Wegner's flow equation~\cite{Wegner_1994,Kehrein_2007} to construct a continuous unitary transformation (CUT) that depends smoothly on a fictitious parameter $l$, $\mathcal{U}(l)$.
+The goal is to define a generator $\mathcal{\eta}(l)$ such that $\mathcal{H}(l) = \mathcal{U}^\dagger(l) \mathcal{H}(0) \mathcal{U}(l)$ flows towards the desired effective Hamiltonian:
 %
 \begin{equation}
-\frac{d\mathcal{H}(\lambda)}{d\lambda} = [\mathcal{\eta}(\lambda), \mathcal{H}(\lambda)].
+\label{eq:hamiltonian_flow}
+\frac{d\mathcal{H}(l)}{dl} = [\mathcal{\eta}(l), \mathcal{H}(l)],
 \end{equation}
 %
-At $\lambda = \infty$, the transformed Hamiltonian does not contain the undesired terms, $\mathcal{H}(\infty) = \tilde{\mathcal{H}}$.
+where $\mathcal{U}(l)$, $\mathcal{H}(l)$, and $\mathcal{\eta}(l)$ are once again series in the perturbative parameters.
+At $l = \infty$, the transformed Hamiltonian does not contain the undesired terms, $\mathcal{H}(\infty) = \tilde{\mathcal{H}}$.
 Finding the unitary amounts to solving a set of differential equations
 %
 \begin{equation}
-\frac{d\mathcal{U}(\lambda)}{d\lambda} = \mathcal{\eta}(\lambda)\mathcal{U}(\lambda),
+\frac{d\mathcal{U}(l)}{dl} = \mathcal{\eta}(l)\mathcal{U}(l).
 \end{equation}
 %
-which is susceptible to numerical integration errors when analytical solutions are not available.
+Together with the Eq.~\eqref{eq:hamiltonian_flow} and an appropriate choice of $\mathcal{\eta}$, this gives a set of coupled differential equations, that become linear if solved order by order.
+The convergence and stability of flow equations depends on the parameterization of the flow generator $\mathcal{\eta}$, and multiple strategies for this choice are known\todo{add citation}.
+To apply the CUT method to second-quantized problems, one decomposes the perturbation into a set of quasiparticle creation and annihilation operators, $T_i$ and $T_i^\dagger$:
+\begin{equation}
+  \label{eq:eigenoperators}
+  \mathcal{H} = H_0 + \sum_i \mathcal{D}_i (T_i + T_i^\dagger),\quad [H_0, T_i] = \omega_i T_i,
+\end{equation}
+with $\mathcal{D}_i$ a scalar series in the perturbative parameter, and $\omega_i$ the energies of the quasiparticles.
 The CUT method is common in the study of many-body systems~\cite{Krull_2012}, and defining the generator benefits from decomposing the Hamiltonian into eigenoperators.
 
 \co{The existing algorithms with linear scaling are not suitable for the construction of an effective Hamiltonian.}
