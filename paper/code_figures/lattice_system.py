@@ -87,7 +87,7 @@ results = [
 mosaic = [["A", "B"]]
 
 fig, ax = plt.subplot_mosaic(
-    mosaic, figsize=(figwidth, figwidth / 2.3), width_ratios=[1, 1]
+    mosaic, figsize=(figwidth, figwidth / 2.4), width_ratios=[1, 1]
 )
 
 # PANEL A
@@ -263,7 +263,7 @@ alpha_values = [0.2, 0.5, 1]
     )
     for result, barrier, alpha_val in zip(results, barrier_vals, alpha_values)
 ]
-ax["B"].set_xlabel(r"$\delta \mu$")
+ax["B"].set_xlabel(r"$\delta \mu$", labelpad=-5)
 ax["B"].set_ylabel(r"$E$")
 ax["B"].legend(frameon=False, bbox_to_anchor=(0.55, 0.82), fontsize=7)
 ax["B"].spines[["top", "right"]].set_visible(False)

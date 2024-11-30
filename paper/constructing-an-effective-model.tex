@@ -47,7 +47,7 @@ To do this, we first construct the tight-binding model Hamiltonian of bilayer gr
 %
 \begin{figure}[!htbp]
 \centering
-\includegraphics[width=0.3125\linewidth]{figures/bilayer.pdf}
+\includegraphics[width=0.312\linewidth]{figures/bilayer.pdf}
 \caption[]{Crystal structure and hoppings of AB-stacked bilayer graphene.}
 \label{fig:bilayer}
 \end{figure}
@@ -100,7 +100,7 @@ H_tilde, U, U_adjoint = block_diagonalize(
 \end{minted}
 %
 The order of the variables in the perturbative series will be that of \mintinline{python}{symbols}.
-For example, requesting the term $\propto k_x^{i} k_y^{j} m^{l}$ from the effective model is done by calling \mintinline{python}|H_tilde[0, 0, i, j, l]|, where the first two indices are the block indices (AA).
+For example, requesting the term $\propto k_x^{i} k_y^{j} m^{l}$ from the effective Hamiltonian is done by calling \mintinline{python}|H_tilde[0, 0, i, j, l]|, where the first two indices are the block indices (AA).
 The series of the unitary transformation $U$ and $U^\dagger$ are also defined, and we may use them to transform other operators.
 
 \co{We obtain the effective Hamiltonian.}
@@ -170,7 +170,7 @@ H_tilde[0, 0, 2][0, 0] # 2nd order correction to 00
     E^{(2)}_{00} = \frac{g^{2}}{-\omega_{r} + \omega_{t}}.
 \end{equation}
 %
-Repeating this process for the states $\ket{1_{t}0_{r}}$, $\ket{0_{t}1_{r}}$, and $\ket{1_{t}1_{r}}$ requires requesting \mintinline{python}|H_tilde[1, 1, 2][0, 0]|, \mintinline{python}|H_tilde[2, 2, 2][0, 0]|, and \mintinline{python}|H_tilde[3, 3, 2][0, 0]|, and yields the desired resonator frequency shift:
+Repeating this process for the states $\ket{1_{t}0_{r}}$, $\ket{0_{t}1_{r}}$, and $\ket{1_{t}1_{r}}$ requires requesting the terms \mintinline{python}|H_tilde[1, 1, 2][0, 0]|, \mintinline{python}|H_tilde[2, 2, 2][0, 0]|, and \mintinline{python}|H_tilde[3, 3, 2][0, 0]|, and yields the desired resonator frequency shift:
 %
 \begin{equation}
 \begin{aligned}
@@ -181,7 +181,7 @@ Repeating this process for the states $\ket{1_{t}0_{r}}$, $\ket{0_{t}1_{r}}$, an
 \end{equation}
 %
 In this example, we have not used the rotating wave approximation, including the frequently omitted counter-rotating terms $\sim a_{r} a_{t}$ to illustrate the extensibility of Pymablock.
-Computing higher order corrections to the qubit frequency only requires increasing the size of the truncated Hilbert space and requesting \mintinline{python}|H_tilde[0, 0, n]| to the desired order $n$.
+Computing higher order corrections to the qubit frequency only requires increasing the size of the truncated Hilbert space and requesting \mintinline{python}|H_tilde[0, 0, n]| to any order $n$.
 
 \subsection{Induced gap in a double quantum dot}
 \label{sec:induced_gap}
@@ -233,7 +233,7 @@ Finally, we plot the spectrum of the $2$ Andreev states in Fig.~\ref{fig:QD_spec
 %
 \begin{figure}[h!]
 \centering
-\includegraphics[width=\linewidth]{figures/lattice_system.pdf}
+\includegraphics[width=0.9\linewidth]{figures/lattice_system.pdf}
 \caption{
     Hamiltonian (left) and Andreev levels (right) of two quantum dots coupled to a superconductor (inset).
     The barrier $t_b$ between the dots and the superconductor, $H_{10}$, and the asymmetry $\delta \mu$ between the dots' potential, $H_{01}$, are perturbations.
@@ -268,7 +268,7 @@ Finally, the effective Hamiltonian only contains the terms in the mask, as shown
 
 \begin{figure}[h!]
     \centering
-    \includegraphics[width=\linewidth]{figures/selective_diagonalization.pdf}
+    \includegraphics[width=0.7\linewidth]{figures/selective_diagonalization.pdf}
     \caption{
         Selective diagonalization of a Hamiltonian with a random perturbation.
     }
