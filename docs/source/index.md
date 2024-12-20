@@ -128,7 +128,7 @@ It is only pip-installable on Linux, use conda on other platforms.
 
 ## Citing
 
-If you have used Pymablock for work that has lead to a scientific publication, please cite it as
+If you have used Pymablock for work that has lead to a scientific publication, please cite [arXiv:2404.03728](https://arxiv.org/abs/2404.03728) as
 
 ```bibtex
 @misc{Araya2024,
