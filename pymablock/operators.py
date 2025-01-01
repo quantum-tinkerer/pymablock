@@ -1,10 +1,13 @@
 """Second quantization tools for bosonic and fermionic operators."""
 
 from collections import defaultdict
+from typing import Callable
 
 import sympy
 from sympy.physics.quantum import Dagger, boson
 from sympy.physics.quantum.operatorordering import normal_ordered_form
+
+from pymablock.series import zero
 
 
 def find_boson_operators(expr: sympy.Expr):
@@ -20,11 +23,18 @@ def find_boson_operators(expr: sympy.Expr):
     List with all annihilation bosonic operators in an expression.
 
     """
-    return [
+    annihilation_operators = [
         arg
         for arg in expr.free_symbols
         if isinstance(arg, boson.BosonOp) and arg.is_annihilation
     ]
+    creation_operators = [
+        Dagger(arg)
+        for arg in expr.free_symbols
+        if isinstance(arg, boson.BosonOp) and not arg.is_annihilation
+    ]
+
+    return list(set(annihilation_operators + creation_operators))
 
 
 def convert_to_number_operators(expr: sympy.Expr, boson_operators: list):
@@ -69,8 +79,8 @@ def convert_to_number_operators(expr: sympy.Expr, boson_operators: list):
     return total.expand().simplify()
 
 
-def solve_sylvester_bosonic(Y, H_ii, H_jj):
-    """Solve a Sylvester equation for bosonic diagonal Hamiltonians.
+def solve_monomial(Y, H_ii, H_jj):
+    """Solve a Sylvester equation for bosonic monomial.
 
     Given Y, H_ii, and H_jj, return -(E_i - E_j_shifted) * Y_monomial, per
     monomial of creation and annihilation operators in Y.
@@ -100,13 +110,11 @@ def solve_sylvester_bosonic(Y, H_ii, H_jj):
     # 4. For each monomial, shift the numbers in H_jj
     # 5. Multiply by the corresponding monomial in Y.
 
+    if Y == 0:
+        return sympy.S.Zero
+
     boson_operators_Y = find_boson_operators(Y)
     Y_daggers = [Dagger(op) for op in boson_operators_Y]
-    boson_operators_H_ii = find_boson_operators(H_ii)
-    boson_operators_H_jj = find_boson_operators(H_jj)
-
-    H_ii = convert_to_number_operators(H_ii, boson_operators_H_ii)
-    H_jj = convert_to_number_operators(H_jj, boson_operators_H_jj)
 
     result = sympy.S.Zero
     for monomial in Y.expand().as_ordered_terms():
@@ -120,10 +128,40 @@ def solve_sylvester_bosonic(Y, H_ii, H_jj):
 
         shifted_H_jj = H_jj.subs(
             {
-                Dagger(op) * op: Dagger(op) * op + delta_op
+                Dagger(op) * op: Dagger(op) * op - delta_op
                 for delta_op, op in zip(shift, boson_operators_Y)
             }
         )
-        result += ((H_ii - shifted_H_jj).expand().simplify()) ** (-1) * monomial
+        result -= ((H_ii - shifted_H_jj).expand().simplify()) ** (-1) * monomial
 
     return result
+
+
+def solve_sylvester_bosonic(
+    eigs: tuple[sympy.matrices.MatrixBase, ...],
+) -> Callable:
+    """Solve a Sylvester equation for bosonic diagonal Hamiltonians."""
+    boson_operators = set.union(
+        *(set(find_boson_operators(eig)) for eig_block in eigs for eig in eig_block)
+    )
+
+    eigs = tuple(
+        [convert_to_number_operators(eig, boson_operators) for eig in eig_block]
+        for eig_block in eigs
+    )
+
+    def solve_sylvester(
+        Y: sympy.MatrixBase,
+        index: tuple[int, ...],
+    ) -> sympy.MatrixBase:
+        if Y is zero:
+            return zero
+        eigs_A, eigs_B = eigs[index[0]], eigs[index[1]]
+        return sympy.Matrix(
+            [
+                [solve_monomial(Y[i, j], eigs_A[i], eigs_B[j]) for j in range(Y.cols)]
+                for i in range(Y.rows)
+            ]
+        )
+
+    return solve_sylvester
