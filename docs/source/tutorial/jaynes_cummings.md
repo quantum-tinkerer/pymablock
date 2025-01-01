@@ -22,10 +22,9 @@ We will make use of `sympy`'s [quantum mechanics module](https://docs.sympy.org/
 and its [matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html).
 
 ```{code-cell} ipython3
-import sympy
 from sympy import Matrix, Symbol, sqrt, Eq
-from sympy.physics.quantum.boson import BosonOp, BosonFockKet
-from sympy.physics.quantum import qapply, Dagger
+from sympy.physics.quantum.boson import BosonOp
+from sympy.physics.quantum import Dagger
 ```
 
 ## Define a second quantization Hamiltonian
@@ -45,10 +44,10 @@ a = BosonOp("a")
 The Hamiltonian reads
 
 ```{code-cell} ipython3
-H_0 = [[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]]
-H_p = [[0,  g * Dagger(a)], [g * a, 0]]
+H_0 = Matrix([[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]])
+H_p = Matrix([[0,  g * Dagger(a)], [g * a, 0]])
 
-Eq(Symbol('H'), Matrix(H_0) + Matrix(H_p), evaluate=False)
+Eq(Symbol('H'), H_0 + H_p, evaluate=False)
 ```
 
 where the basis corresponds to the two spin states.
@@ -75,28 +74,7 @@ Therefore, to use Pymablock with second-quantized operators, we define a custom 
 To compute the energy denominators we only need to count the amount of raising or lowering operators in $Y$ and use this to determine the energy denominators.
 
 ```{code-cell} ipython3
-n = Symbol("n", integer=True, positive=True)
-basis_ket = BosonFockKet(n)
-
-def expectation_value(v, operator):
-    return qapply(Dagger(v) * operator * v).simplify()
-
-def solve_sylvester(Y):
-    """
-    Solves Sylvester's Equation
-    Y : sympy expression
-
-    Returns:
-    V : sympy expression for off-diagonal block of unitary transformation
-    """
-    E_i = expectation_value(basis_ket, H_0[0][0])
-    V = []
-    for term in Y.expand().as_ordered_terms():
-        term_on_basis = qapply(term * basis_ket).doit()
-        normalized_ket = term_on_basis.as_ordered_factors()[-1]
-        E_j = expectation_value(normalized_ket, H_0[1][1])
-        V.append(term / (E_j - E_i))
-    return sum(V)
+from pymablock.operators import solve_sylvester_bosonic
 ```
 
 ```{important}
@@ -114,8 +92,10 @@ We can now define the block-diagonalization routine by calling {autolink}`~pymab
 
 from pymablock import block_diagonalize
 
+eigs = [[H_0[0, 0], H_0[1, 1]]]
+
 H_tilde, U, U_adjoint = block_diagonalize(
-    [H_0, H_p], solve_sylvester=solve_sylvester, symbols=[g]
+    [H_0, H_p], solve_sylvester=solve_sylvester_bosonic(eigs), symbols=[g]
 )
 ```
 
