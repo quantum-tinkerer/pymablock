@@ -10,6 +10,7 @@ from . import series
 from .block_diagonalization import (
     block_diagonalize, operator_to_BlockSeries
 )
+from . import operators
 
 __all__ = [
     "block_diagonalize",
@@ -17,4 +18,5 @@ __all__ = [
     "series",
     "__version__",
     "__version_tuple__",
+    "operators",
 ]
