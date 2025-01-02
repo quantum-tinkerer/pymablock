@@ -22,7 +22,7 @@ We will make use of `sympy`'s [quantum mechanics module](https://docs.sympy.org/
 and its [matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html).
 
 ```{code-cell} ipython3
-from sympy import Matrix, Symbol, symbols, sqrt, Eq
+from sympy import Matrix, Symbol, symbols, Eq, simplify
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum import Dagger
 ```
@@ -102,7 +102,7 @@ For example, to compute the 2nd order correction of the Hamiltonian of the $\upa
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_{2}^{AA}'), H_tilde[0, 0, 2].expand().simplify(), evaluate=False)
+Eq(Symbol(r'\tilde{H}_{2}^{AA}'), simplify(H_tilde[0, 0, 2].expand()), evaluate=False)
 ```
 
 Higher order corrections work exactly the same:
@@ -110,13 +110,13 @@ Higher order corrections work exactly the same:
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_{4}^{AA}'), H_tilde[0, 0, 4].expand().simplify(), evaluate=False)
+Eq(Symbol(r'\tilde{H}_{4}^{AA}'), simplify(H_tilde[0, 0, 4].expand()), evaluate=False)
 ```
 
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_{6}^{AA}'), H_tilde[0, 0, 6].expand().simplify(), evaluate=False)
+Eq(Symbol(r'\tilde{H}_{6}^{AA}'), simplify(H_tilde[0, 0, 6].expand()), evaluate=False)
 ```
 
 We see that also computing the 6th order correction takes effectively no time.
