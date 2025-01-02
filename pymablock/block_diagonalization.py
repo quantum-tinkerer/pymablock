@@ -278,7 +278,7 @@ def block_diagonalize(
             i: (
                 (np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol).astype(int)
                 if diagonal[i].dtype != object  # numerical array, else sympy
-                else ((diagonal[i].reshape(-1, 1) - diagonal[i] == 0) == True)  # noqa E712
+                else ((diagonal[i].reshape(-1, 1) == diagonal[i]) == True)  # noqa E712
             )
             for i in set(fully_diagonalize)
         }
