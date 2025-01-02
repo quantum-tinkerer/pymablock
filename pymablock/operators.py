@@ -10,6 +10,22 @@ from sympy.physics.quantum.operatorordering import normal_ordered_form
 from pymablock.series import zero
 
 
+def _patch_sympy_matrix_adjoint():
+    """Patch sympy's Matrix.adjoint to work with Dagger.
+
+    TODO: Remove this patch once https://github.com/sympy/sympy/pull/27422 is merged
+    and we depend on a version of sympy that includes it.
+    """
+
+    def _eval_adjoint(self):
+        return self.transpose().applyfunc(lambda x: x.adjoint())
+
+    sympy.MatrixBase.adjoint = _eval_adjoint
+
+
+_patch_sympy_matrix_adjoint()
+
+
 def find_boson_operators(expr: sympy.Expr):
     """Find all the boson operators in an expression.
 
