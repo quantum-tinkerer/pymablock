@@ -22,7 +22,7 @@ We will make use of `sympy`'s [quantum mechanics module](https://docs.sympy.org/
 and its [matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html).
 
 ```{code-cell} ipython3
-from sympy import Matrix, Symbol, sqrt, Eq
+from sympy import Matrix, Symbol, symbols, sqrt, Eq
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum import Dagger
 ```
@@ -33,9 +33,7 @@ We define the onsite energy $\omega_r$, the energy gap $\omega_q$, the perturbat
 
 ```{code-cell} ipython3
 # resonator frequency, qubit frequency, Rabi coupling
-wr = Symbol(r'\omega_r', real=True)
-wq = Symbol(r'\omega_q', real=True)
-g = Symbol(r'g', real=True)
+wr, wq, g = symbols(r'\omega_r \omega_q g', real=True)
 
 # resonator photon annihilation operator
 a = BosonOp("a")
