@@ -8,65 +8,12 @@ from warnings import warn
 import numpy as np
 import sympy
 from mumps import Context as MUMPSContext
-from packaging.version import parse
-from scipy import __version__ as scipy_version
 from scipy import sparse
 from scipy.sparse import identity, spmatrix
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 
 from pymablock.series import one, zero
-
-# Monkey-patch LinearOperator to support right multiplication
-# TODO: Remove this when we depend on scipy >= 1.11, see issue #130.
-if parse(scipy_version) < parse("1.11"):
-    from scipy.sparse.linalg._interface import (
-        _ProductLinearOperator,
-        _ScaledLinearOperator,
-    )
-
-    def __rmul__(self, x):  # noqa: N807
-        if np.isscalar(x):
-            return _ScaledLinearOperator(self, x)
-        return self._rdot(x)
-
-    def _rdot(self: LinearOperator, x: Any) -> Any:
-        """Matrix-matrix or matrix-vector multiplication from the right.
-
-        Parameters
-        ----------
-        self :
-            Linear operator to multiply with.
-        x : array_like
-            1-d or 2-d array, representing a vector or matrix.
-
-        Returns
-        -------
-        xA : array
-            1-d or 2-d array (depending on the shape of x) that represents
-            the result of applying this linear operator on x from the right.
-
-        Notes
-        -----
-        This is copied from dot to implement right multiplication.
-
-        """
-        if isinstance(x, LinearOperator):
-            return _ProductLinearOperator(x, self)
-        if np.isscalar(x):
-            return _ScaledLinearOperator(self, x)
-        x = np.asarray(x)
-
-        if x.ndim == 1 or x.ndim == 2 and x.shape[0] == 1:
-            return self.rmatvec(x.T.conj()).T.conj()
-        if x.ndim == 2:
-            return self.rmatmat(x.T.conj()).T.conj()
-        raise ValueError("expected 1-d or 2-d array or matrix, got %r" % x)
-
-    LinearOperator.__rmul__ = __rmul__
-    LinearOperator._rdot = _rdot
-    LinearOperator.__array_ufunc__ = None
-    del __rmul__, _rdot
 
 
 def direct_greens_function(
