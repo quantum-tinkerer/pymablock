@@ -1,18 +1,12 @@
 """Series with block structure and their product operations."""
 
-import sys
 from collections import Counter
 from collections.abc import Callable
 from functools import reduce, wraps
 from itertools import product
 from operator import matmul, mul
 from secrets import token_hex
-from typing import Any
-
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    Self = Any
+from typing import Any, Self
 
 import numpy as np
 import numpy.ma as ma
