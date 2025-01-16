@@ -1,4 +1,4 @@
-image: ghcr.io/prefix-dev/pixi:0.39.0
+image: ghcr.io/prefix-dev/pixi:0.40.1
 
 variables:
   FF_USE_FASTZIP: "true"
