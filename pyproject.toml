@@ -61,7 +61,9 @@ exclude = [
   "pymablock/__init__.py",
   "trace_perturbation/*",  # not part of the library
 ]
-lint.extend-select = [
+
+[tool.ruff.lint]
+extend-select = [
   "N",
   "D",
   "W",
@@ -77,13 +79,16 @@ lint.extend-select = [
   "FLY",
   "RUF",
 ]
-lint.ignore = [
+ignore = [
 "N802",  # invalid-function-name
 "N803",  # invalid-argument-name
 "N806",  # non-lowercase-variable-in-function
+"D203",  # 1 blank line required before class docstring
+"D213",  # Multi-line docstring summary should start at the second line
 ]
-lint.fixable = ["ALL"]
-lint.unfixable = []
+fixable = ["ALL"]
+unfixable = []
+
 [tool.ruff.lint.extend-per-file-ignores]
 "pymablock/block_diagonalization.py" = [
   "RET503",  # implicit-return
