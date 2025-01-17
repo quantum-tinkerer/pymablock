@@ -148,13 +148,15 @@ packaging = ">=22.0" # For version parsing
 [tool.pixi.host-dependencies]
 git = "*"
 
+[tool.pixi.build-dependencies]
+git = "*"
+
 [tool.pixi.feature.docs.dependencies]
 kwant = "*"
 myst-nb = "*"
 matplotlib-base = "*"
 sphinx-togglebutton = "*"
 sphinx-copybutton = "*"
-git = "*"
 make = "*"
 
 [tool.pixi.feature.test.dependencies]
@@ -185,11 +187,9 @@ sympy = ">=1.13.0"
 [tool.pixi.feature.publish.dependencies]
 hatch = ">=1.7.0,<1.13"
 hatch-vcs = ">=0.4.0,<0.5"
-git = "*"
 
 [tool.pixi.feature.precommit.dependencies]
 pre-commit = "*"
-git = "*"
 
 [tool.pixi.environments]
 default = { solve-group = "default" }
