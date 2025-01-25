@@ -6,3 +6,6 @@
 
 # GitHub syntax highlighting
 pixi.lock linguist-language=YAML
+
+# setuptools-scm git archive
+.git_archival.txt export-subst
