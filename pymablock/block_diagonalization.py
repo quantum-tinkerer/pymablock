@@ -294,7 +294,7 @@ def block_diagonalize(
             for i, to_eliminate in fully_diagonalize.items():
                 if (to_eliminate & equal_eigs[i]).any():
                     raise ValueError(
-                        "Fully diagonalization must not eliminate matrix elements corresponding"
+                        "Full diagonalization must not eliminate matrix elements corresponding"
                         " to equal eigenvalues."
                     )
             to_eliminate = fully_diagonalize
