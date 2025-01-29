@@ -15,7 +15,7 @@ kernelspec:
 
 Pymablock computes perturbative series using the least action principle and minimizes $\Vert \mathcal{U} - 1\Vert$.
 In the $2 \times 2$ block-diagonalization case, this is equivalent to the Schrieffer-Wolff transformation.
-In the more general case of multi-block diagonalization, or the problem of eliminating an arbitrary subset of off-diagonal elements, the Schrieffer-Wolff transformation [does not satisfy](https://doi.org/10.48550/arXiv.2408.14637) the least action principle.
+In the more general case of multi-block diagonalization, or the problem of eliminating an arbitrary subset of off-diagonal elements, the Schrieffer-Wolff transformation [does not satisfy](https://arxiv.org/abs/2408.14637) the least action principle.
 
 In [introducing](algorithms.md) the algorithm, we demonstrate that Pymablock algorithm is more efficient and that it generalizes to multiple perturbations.
 However this leaves open the question whether two algorithms have comparable stability and convergence properties.
