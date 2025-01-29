@@ -32,7 +32,7 @@ tutorial/andreev_supercurrent.md
 :caption: Documentation
 
 algorithms.md
-radius.md
+Comparison to Schrieffer-Wolff <radius.md>
 documentation/pymablock.md
 CHANGELOG.md
 authors.md
