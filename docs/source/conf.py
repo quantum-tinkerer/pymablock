@@ -213,3 +213,4 @@ exec(sphinx_tippy_patch, sphinx_tippy.__dict__)
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 html_css_files = ["local.css"]
+html_favicon = "favicon.png"
