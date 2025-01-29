@@ -20,7 +20,7 @@ However, in more general cases such as multi-block diagonalization or eliminatin
 In [introducing](algorithms.md) the Pymablock algorithm, we show that it is more efficient and naturally extends to multiple perturbations.
 A question remains about whether the two algorithms have comparable stability and convergence.
 
-We will:
+In this section we:
 
 - Implement a prototype selective diagonalization using the Schrieffer-Wolff transformation.
 - Compare its convergence properties with those of Pymablock.
