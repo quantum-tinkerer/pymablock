@@ -1,45 +1,41 @@
 ---
 jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.16.1
+    text_representation:
+        extension: .md
+        format_name: myst
+        format_version: 0.13
+        jupytext_version: 1.16.1
 kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
+    display_name: Python 3 (ipykernel)
+    language: python
+    name: python3
 ---
 
 # Comparison to generalized Schrieffer-Wolff transformation
 
-Pymablock computes perturbative series using the least action principle and minimizes $\Vert \mathcal{U} - 1\Vert$.
-In the $2 \times 2$ block-diagonalization case, this is equivalent to the Schrieffer-Wolff transformation.
-In the more general case of multi-block diagonalization, or the problem of eliminating an arbitrary subset of off-diagonal elements, the Schrieffer-Wolff transformation [does not satisfy](https://arxiv.org/abs/2408.14637) the least action principle.
+Pymablock computes perturbative series using the least action principle by minimizing $\|\mathcal{U} - 1\|$.
+In the two-block case, this is equivalent to the Schrieffer-Wolff transformation.
+However, in more general cases such as multi-block diagonalization or eliminating arbitrary off-diagonal elements, the [Schrieffer-Wolff transformation](https://arxiv.org/abs/2408.14637) does not satisfy the least action principle.
 
-In [introducing](algorithms.md) the algorithm, we demonstrate that Pymablock algorithm is more efficient and that it generalizes to multiple perturbations.
-However this leaves open the question whether two algorithms have comparable stability and convergence properties.
+In [introducing](algorithms.md) the Pymablock algorithm, we show that it is more efficient and naturally extends to multiple perturbations.
+A question remains about whether the two algorithms have comparable stability and convergence.
 
-Let us:
+We will:
 
-- Implement a prototype selective diagonalization that uses the Schrieffer-Wolff transformation.
-- Compare its convergence properties with Pymablock.
+- Implement a prototype selective diagonalization using the Schrieffer-Wolff transformation.
+- Compare its convergence properties with those of Pymablock.
 
-## Selective diagonalization using Schrieffer-Wolff transformation
+## Selective diagonalization via Schrieffer-Wolff
 
-The Schrieffer-Wolff transformation uses a unitary in the form $\exp(\mathcal{S})$ with each order of $\mathcal{S}$ being offdiagonal.
-Similar to the Pymablock setting, we set the *remaining* part of $\tilde{\mathcal{H}} = \exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S})$ to zero at each order, and use the Sylvester equation to solve for $\mathcal{S}$.
+The Schrieffer-Wolff transformation uses a unitary of the form $\exp(\mathcal{S})$, with each order of $\mathcal{S}$ strictly off-diagonal.
+As in Pymablock, we eliminate the specified off-diagonal part of $\tilde{\mathcal{H}} = \exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S})$ at each perturbation order by solving for $\mathcal{S}$ with a Sylvester equation.
 
-To obtain the transformed Hamiltonian, we apply the Baker-Campbell-Hausdorff formula to $\exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S})$:
-
+From the Baker-Campbell-Hausdorff (BCH) formula, we have:
 :::{math}
-\exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S}) = \mathcal{H} + [\mathcal{S}, \mathcal{H}] + \frac{1}{2!} [\mathcal{S}, [\mathcal{S}, \mathcal{H}]] + \ldots.
+\exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S})
+= \mathcal{H} + [\mathcal{S}, \mathcal{H}] + \tfrac{1}{2!} [\mathcal{S}, [\mathcal{S}, \mathcal{H}]] + \ldots.
 :::
-
-Because $S_0 = 0$, the $n$-th order of $\tilde{H}_n$ only contains $S_n$ in the second term in the form $[S_n, H_0]$.
-To find $S_n$ we then compute the $n$-th order of all other terms and solve for $S_n$ using the Sylvester equation.
-
-We start from importing the necessary modules.
+Since $S_0=0$, the $n$-th order of $\tilde{H}_n$ only contains $S_n$ through $[S_n, H_0]$. We obtain $S_n$ from the $n$-th order of the remaining terms and solve using the Sylvester equation.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
@@ -55,35 +51,27 @@ from pymablock.block_diagonalization import solve_sylvester_diagonal, is_diagona
 np.set_printoptions(precision=2, suppress=True)
 
 def zero_sum(*terms):
-    """Sum that returns a singleton zero if empty and omits zero terms."""
+    """
+    Returns the sum of all non-zero terms, or a singleton zero if no terms exist.
+    """
     return sum((term for term in terms if term is not zero), start=zero)
-
 ```
 
-To be able to compute high orders of the Baker-Campbell-Hausdorff series efficiently, it is crucial to avoid expanding the nested commutators directly, as this would result in an exponential number of terms.
-Instead, we compute them recursively: given 1d series $\mathcal{A}$ and $\mathcal{B}$, we define a 2d series $\mathcal{C}$ where the entry $C_{n, m}$ is the $m$-th order of the $n$-nested commutator of $\mathcal{A}$ and $\mathcal{B}$.
-We then use $C_{n, m} = \sum_{k=1}^m A_k C_{n-1, m-k} + \textrm{h.c.}$ (where h.c. stands for Hermitian conjugate), valid when $A$ is antihermitian and $B$ is hermitian.
-As an extra technical complication, we need to handle skipping the term containing $[S_n, H_0]$, which we implement using `skip_last` argument.
-
+Below is a helper function to compute terms of the BCH series efficiently. This function builds nested commutators of two series, A and B, and avoids direct expansion of nested terms:
 
 ```{code-cell} ipython3
-def baker_camphell_hausdorff(
-    A: BlockSeries, B: BlockSeries, skip_last=False,
-) -> BlockSeries:
-    """Compute the series expansion of exp(A) @ B @ exp(-A) using BCH formula."""
-    if not A.n_infinite == B.n_infinite == 1 or not A.shape == B.shape == ():
-        raise ValueError("Only 1x1 infinite blocks are supported")
+def baker_camphell_hausdorff(A: BlockSeries, B: BlockSeries, skip_last=False) -> BlockSeries:
+    """
+    Compute the series expansion of exp(A) @ B @ exp(-A) using the BCH formula.
+    If skip_last is True, the lowest-order terms in the nested commutators are skipped.
+    """
+    if not (A.n_infinite == B.n_infinite == 1 and A.shape == B.shape == ()):
+        raise ValueError("Only 1x1 infinite blocks are supported.")
 
-    # Series where the entry (n, m) is the m-th order of the n-nested
-    # commutator of A and B
+    # Nested commutators store the m-th order of the n-nested commutator of A and B.
+    nested_commutators = BlockSeries(shape=(), n_infinite=2)
 
-    # We use recursion because the n-th order can be defined as the commutator
-    # of n-1-st order with A
-    nested_commutators = BlockSeries(
-        shape=(),
-        n_infinite=2,
-    )
-
+    # Define a function to compute entries of the nested_commutators series on demand.
     def nested_commutators_eval(*index):
         n, m = index
         if n > m:
@@ -99,65 +87,66 @@ def baker_camphell_hausdorff(
                 and A[k] is not zero
             )
         )
-        # We assume that A is antihermitian and B is hermitian
+        # Assume A is anti-Hermitian and B is Hermitian.
         return product + product.T.conj() if product is not zero else zero
 
     nested_commutators.eval = nested_commutators_eval
 
+    # Build the final BCH series summation.
     def bch_eval(m):
         return zero_sum(
             *(nested_commutators[n, m] * (1 / factorial(n)) for n in range(2 * skip_last, m + 1))
         )
 
-    return BlockSeries(
-        eval=bch_eval,
-        shape=(),
-        n_infinite=1,
-    )
+    return BlockSeries(eval=bch_eval, shape=(), n_infinite=1)
 ```
 
-We are now ready to implement the generalized Schrieffer-Wolff transformation, which eliminates terms of of the Hamiltonian specified by a binary `mask` array. Compared to the Pymablock algorithm it is still rather minimal: it only handles numpy arrays, and only a single first-order perturbation.
+The following function implements the generalized Schrieffer-Wolff approach, which zeroes out the specified elements of the Hamiltonian (by a binary ``mask`` array). Here, it focuses on a single first-order perturbation for simplicity:
 
 ```{code-cell} ipython3
 def schrieffer_wolff(H_0, H_1, mask):
+    """
+    Carry out Schrieffer-Wolff diagonalization for a single first-order perturbation.
+    H_0 must be diagonal. The 'mask' array indicates which off-diagonal elements to zero out.
+    """
     if not is_diagonal(H_0):
         raise ValueError("H_0 must be diagonal")
     solve_sylvester = solve_sylvester_diagonal((np.diag(H_0),))
 
+    # Build series objects
     H = BlockSeries(data={(0,): H_0, (1,): H_1}, n_infinite=1, shape=())
-    H_0 = BlockSeries(data={(0,): H_0}, n_infinite=1, shape=())
+    H_0_series = BlockSeries(data={(0,): H_0}, n_infinite=1, shape=())
     H_p = BlockSeries(data={(0,): zero, (1,): H_1}, n_infinite=1, shape=())
     S = BlockSeries(data={(0,): zero}, n_infinite=1, shape=())
 
     exp_S_Hp_exp_mS = baker_camphell_hausdorff(S, H_p)
-    exp_S_H0_exp_mS = baker_camphell_hausdorff(S, H_0, skip_last=True)
+    exp_S_H0_exp_mS = baker_camphell_hausdorff(S, H_0_series, skip_last=True)
 
+    # Define the solver for S at order m.
     def S_eval(m):
         return solve_sylvester(
             zero_sum(exp_S_Hp_exp_mS[m], exp_S_H0_exp_mS[m]) * mask, [0, 0, m]
         )
 
     S.eval = S_eval
-
     return baker_camphell_hausdorff(S, H), S
 ```
 
 ## Comparison of the algorithms
 
-Let us first check that the algorithm is correct by confirming that the result is the same in the $2 \times 2$ block-diagonalization case.
+First, we confirm correctness in the 2×2 block-diagonalization case by verifying that both approaches give matching results for a random Hamiltonian:
 
 ```{code-cell} ipython3
-
-# Hamiltonian
 np.random.seed(0)
 N = 10
 H_0 = np.diag(np.arange(N))
 H_1 = np.random.rand(N, N) + 1j * np.random.rand(N, N)
 H_1 += H_1.conj().T
 
-# Test that 2x2 block-diagonalization agrees with pymablock
+# Create a mask for 2x2 block-diagonalization
 mask = np.zeros((N, N), dtype=bool)
-mask[: N // 2, N // 2 :] = mask[N // 2 :, : N // 2] = True
+mask[: N // 2, N // 2 :] = True
+mask[N // 2 :, : N // 2] = True
 
 H_tilde, *_ = pymablock.block_diagonalize([H_0, H_1], fully_diagonalize={0: mask})
 H_tilde_sw, S = schrieffer_wolff(H_0, H_1, mask)
@@ -166,90 +155,146 @@ n = 5
 np.testing.assert_almost_equal(H_tilde_sw[n], H_tilde[0, 0, n])
 ```
 
-To compare the convergence properties of the two algorithms, we do the following:
+We then compare the convergence properties for different masks:
 
-1. Define a simple diagonal $H_0$, a random Gaussian $H_1$, and a random mask for which elements to eliminate.
-2. Apply both algorithms to $H_0 + \alpha H_1$ for varying $\alpha$ and the order of the perturbation.
-3. Compute the total error as the difference between eigenvalues of $\sum_{n=0}^{N} \tilde{H}_n \alpha^n$ and the exact eigenvalues of $H_0 + \alpha H_1$.
-4. Compute the ratio of errors.
-5. Plot the results.
+1. Define a diagonal $H_0$, a random $H_1$, and a chosen ``mask``.
+2. Construct $H_0 + \alpha H_1$ for varying $\alpha$, apply both methods up to a certain perturbation order, and compare the eigenvalues with exact ones.
+3. Compute and plot the ratio of errors vs. exact energies.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
-def compare_schrieffer_wolff_pymablock(H_0, H_1, mask, n_max=100, alpha_max=0.5):
+import time
+
+def compare_schrieffer_wolff_pymablock(
+    H_0, H_1, mask, n_max=100, alpha_max=0.5, title=""
+):
+    """
+    Compare the Schrieffer-Wolff and Pymablock algorithms by looking at the
+    difference between approximate and exact eigenvalues as alpha varies.
+    """
+    # Use Pymablock's block_diagonalize to get the standard approach.
     H_tilde, *_ = pymablock.block_diagonalize([H_0, H_1], fully_diagonalize={0: mask})
+
+    # Use our Schrieffer-Wolff approach.
     H_tilde_sw, S = schrieffer_wolff(H_0, H_1, mask)
 
     alpha = np.linspace(0, alpha_max, 100).reshape(1, 1, 1, -1)
     powers = np.arange(n_max).reshape(-1, 1, 1, 1)
+
+    # Convert the resulting series objects to arrays for easier operations.
+    start_time = time.time()
     H_orders = H_tilde[0, 0, :n_max]
-    H_orders[0] = H_0
-    H_orders = np.array(list(H_orders))
-    H_orders_sw = np.array(list(H_tilde_sw[:n_max]))
+    H_orders[0] = H_0  # Overwrite zeroth order with the exact H_0
+    time_H_orders = time.time() - start_time
 
-    eigvals_la = np.linalg.eigvalsh(np.cumsum(H_orders[..., None] * alpha ** powers, axis=0).transpose(0, 3, 1, 2))
-    eigvals_sw = np.linalg.eigvalsh(np.cumsum(H_orders_sw[..., None] * alpha ** powers, axis=0).transpose(0, 3, 1, 2))
-    eigvals_exact = np.linalg.eigvalsh((H_0[..., None] + H_1[..., None] * alpha[0, 0, 0]).transpose(2, 0, 1))[None, ...]
+    start_time = time.time()
+    H_orders_sw = H_tilde_sw[:n_max]
+    time_H_orders_sw = time.time() - start_time
 
-    fig = plt.figure()
+    # Compute approximate and exact eigenvalues.
+    eigvals_la = np.linalg.eigvalsh(
+        np.cumsum(np.array(list(H_orders))[..., None] * alpha**powers, axis=0).transpose(
+            0, 3, 1, 2
+        )
+    )
+    eigvals_sw = np.linalg.eigvalsh(
+        np.cumsum(
+            np.array(list(H_orders_sw))[..., None] * alpha**powers, axis=0
+        ).transpose(0, 3, 1, 2)
+    )
+    eigvals_exact = np.linalg.eigvalsh(
+        (H_0[..., None] + H_1[..., None] * alpha[0, 0, 0]).transpose(2, 0, 1)
+    )[None, ...]
+
+    # Create plots for error norms
+    fig = plt.figure(layout="constrained")
     ax1, ax2 = fig.subplots(2, 1, sharex=True)
+
     for order in range(n_max):
-        ax1.plot(
-            alpha.flatten()[1:],
-            np.linalg.norm(eigvals_la[order] - eigvals_exact, axis=(0, -1))[1:],
-            c=plt.cm.inferno(order / n_max),
-            label=f"Least action, order {order}",
-        )
-        ax1.set_ylabel(r"$\|E_\mathrm{LA} - E_{\mathrm{exact}}\|$")
-        ax2.plot(
-            alpha.flatten()[1:],
-            np.linalg.norm(eigvals_sw[order] - eigvals_exact, axis=(0, -1))[1:]
-            / np.linalg.norm(eigvals_la[order] - eigvals_exact, axis=(0, -1))[1:],
-            c=plt.cm.inferno(order / n_max),
-            label=f"Order {order}",
-        )
-        ax2.set_ylabel(r"$\|E_{\mathrm{SW}} - E_{\mathrm{exact}}\| / \|E_{\mathrm{LA}} - E_{\mathrm{exact}}\|$")
+        la_err = np.linalg.norm(eigvals_la[order] - eigvals_exact, axis=(0, -1))
+        sw_err = np.linalg.norm(eigvals_sw[order] - eigvals_exact, axis=(0, -1))
+        ratio = np.divide(sw_err, la_err, out=np.zeros_like(sw_err), where=la_err != 0)
+
+        ax1.plot(alpha.flatten()[1:], la_err[1:], c=plt.cm.inferno(order / n_max))
+        ax2.plot(alpha.flatten()[1:], ratio[1:], c=plt.cm.inferno(order / n_max))
+
+    ax1.set_ylabel("Error Pymablock")
+    ax1.set_title(title)
+    ax2.set_ylabel(
+        " Error SW / Error Pymablock"
+    )
+    ax2.set_title(f"Time Pymablock {time_H_orders:.2f}s, Time SW: {time_H_orders_sw:.2f}s")
+    ax2.set_xlabel(r"$\alpha$")
     for ax in (ax1, ax2):
         ax.semilogy()
-        ax.set_xlabel(r"$\alpha$")
+
+    # Display the mask in an inset
     inset_ax = fig.add_axes([0.15, 0.75, 0.2, 0.2])
-    inset_ax.imshow(mask, cmap='gray', interpolation='none')
+    inset_ax.imshow(mask, cmap="gray", interpolation="none")
     inset_ax.set_xticks([])
     inset_ax.set_yticks([])
-    inset_ax.set_title('Mask')
-    cbar = fig.colorbar(plt.cm.ScalarMappable(cmap='inferno', norm=plt.Normalize(vmin=0, vmax=n_max)), ax=[ax1, ax2], orientation='vertical')
-    cbar.set_label('Order')
+
+    # Add a colorbar to indicate the perturbation order
+    cbar = fig.colorbar(
+        plt.cm.ScalarMappable(cmap="inferno", norm=plt.Normalize(vmin=0, vmax=n_max)),
+        ax=[ax1, ax2],
+        orientation="vertical",
+    )
+    cbar.set_label("Order")
 ```
 
+Finally, we are ready to compare the convergence properties for different masks.
+
+First, we consider a random mask:
+
 ```{code-cell} ipython3
-# Random Hamiltonian and mask
-np.random.seed(0)
+:tags: [hide-input]
+np.random.seed(2)
 N = 9
 H_0 = np.diag(10 * np.random.randn(N))
 H_1 = np.random.rand(N, N) + 1j * np.random.rand(N, N)
 H_1 += H_1.conj().T
 
-# random mask
 mask = np.random.rand(N, N) < 0.3
 mask = mask | mask.T
 mask = mask & ~np.eye(N, dtype=bool)
 
-# width-3 banded mask
-banded_mask = np.ones((N, N), dtype=bool)
-banded_mask ^= np.eye(N, dtype=bool) + np.eye(N, k=1, dtype=bool) + np.eye(N, k=-1, dtype=bool)
-
-# mask for 3x3 block-diagonalization
-three_block_mask = np.ones((N, N), dtype=bool)
-slices = [slice(None, N // 3), slice(N // 3, 2 * N // 3), slice(2 * N // 3, None)]
-three_block_mask[slices[0], slices[0]] = three_block_mask[slices[1], slices[1]] = three_block_mask[slices[2], slices[2]] = False
-
-# Comparisons
-compare_schrieffer_wolff_pymablock(H_0, H_1, mask, n_max=100, alpha_max=1)
-plt.title("Random mask")
-compare_schrieffer_wolff_pymablock(H_0, H_1, banded_mask, n_max=40, alpha_max=0.5)
-plt.title("Banded mask")
-compare_schrieffer_wolff_pymablock(H_0, H_1, three_block_mask, n_max=40, alpha_max=0.5)
-plt.title("3x3 block-diagonalization mask")
+compare_schrieffer_wolff_pymablock(
+    H_0, H_1, mask, n_max=30, alpha_max=2, title="Random Mask"
+)
 ```
 
-We conclude that regardless of the mask the convergence radius and the error behavior are similar.
+Next, we consider a banded mask where we eliminate all off-diagonal elements outside a width-3 band:
+
+```{code-cell} ipython3
+:tags: [hide-input]
+banded_mask = np.ones((N, N), dtype=bool)
+for k in range(-1, 2):
+    banded_mask ^= np.eye(N, k=k, dtype=bool)
+
+compare_schrieffer_wolff_pymablock(
+    H_0, H_1, banded_mask, n_max=60, alpha_max=2, title="Banded Mask"
+)
+```
+
+Finally, we consider 3×3 block-diagonalization:
+
+```{code-cell} ipython3
+:tags: [hide-input]
+three_block_mask = np.ones((N, N), dtype=bool)
+slices = [slice(None, N // 3), slice(N // 3, 2 * N // 3), slice(2 * N // 3, None)]
+for s in slices:
+    three_block_mask[s, s] = False
+
+compare_schrieffer_wolff_pymablock(
+    H_0,
+    H_1,
+    three_block_mask,
+    n_max=100,
+    alpha_max=2,
+    title="3x3 Block-Diagonalization Mask",
+)
+```
+
+We observe that in all cases both approaches exhibit similar radii of convergence and overall error behavior.
+Still, just like we expected, the Pymablock algorithm is much faster.
