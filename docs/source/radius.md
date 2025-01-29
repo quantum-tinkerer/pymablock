@@ -28,14 +28,14 @@ We will:
 ## Selective diagonalization via Schrieffer-Wolff
 
 The Schrieffer-Wolff transformation uses a unitary of the form $\exp(\mathcal{S})$, with each order of $\mathcal{S}$ strictly off-diagonal.
-As in Pymablock, we eliminate the specified off-diagonal part of $\tilde{\mathcal{H}} = \exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S})$ at each perturbation order by solving for $\mathcal{S}$ with a Sylvester equation.
+Just like in Pymablock algorithm, we eliminate the specified off-diagonal part of $\tilde{\mathcal{H}} = \exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S})$ at each perturbation order by solving for $\mathcal{S}$ with a Sylvester equation.
 
 From the Baker-Campbell-Hausdorff (BCH) formula, we have:
 :::{math}
 \exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S})
 = \mathcal{H} + [\mathcal{S}, \mathcal{H}] + \tfrac{1}{2!} [\mathcal{S}, [\mathcal{S}, \mathcal{H}]] + \ldots.
 :::
-Since $S_0=0$, the $n$-th order of $\tilde{H}_n$ only contains $S_n$ through $[S_n, H_0]$. We obtain $S_n$ from the $n$-th order of the remaining terms and solve using the Sylvester equation.
+Because $S_0=0$, the $n$-th order of $\tilde{H}_n$ only contains $S_n$ through $[S_n, H_0]$. We obtain $S_n$ from the $n$-th order of the remaining terms and solve using the Sylvester equation.
 
 ```{code-cell} ipython3
 :tags: [hide-input]
