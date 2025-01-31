@@ -17,14 +17,14 @@ kernelspec:
 This is an advanced topic both code-wise and conceptually. You do not need to follow this even for advanced uses of Pymablock.
 :::
 
-Pymablock computes perturbative series using the least action principle by minimizing $\|\mathcal{U} - 1\|$.
+Pymablock computes Hamiltonian's perturbative series using the least action principle by minimizing $\|\mathcal{U} - 1\|$.
 In the two-block case, this is equivalent to the Schrieffer-Wolff transformation.
 However, in more general cases such as multi-block diagonalization or eliminating arbitrary off-diagonal elements, the Schrieffer-Wolff transformation [does not satisfy](https://doi.org/10.48550/arXiv.2408.14637) the least action principle.
 
 In [introducing](algorithms.md) the Pymablock algorithm, we show that it is more efficient and naturally extends to multiple perturbations.
-A question remains about whether the two algorithms have comparable stability and convergence.
+A question remains: do these two algorithms have comparable stability and convergence?
 
-In this section we:
+To answer this we:
 
 - Implement a prototype selective diagonalization using the Schrieffer-Wolff transformation.
 - Compare its convergence properties with those of Pymablock.
@@ -116,7 +116,9 @@ Here, it focuses on a single first-order perturbation for simplicity:
 def schrieffer_wolff(H_0, H_1, mask):
     """
     Carry out Schrieffer-Wolff diagonalization for a single first-order perturbation.
-    H_0 must be diagonal. The 'mask' array indicates which off-diagonal elements to zero out.
+
+    H_0 must be diagonal. The 'mask' array indicates which off-diagonal elements to
+    eliminate.
     """
     if not is_diagonal(H_0):
         raise ValueError("H_0 must be diagonal")
