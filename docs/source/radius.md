@@ -314,5 +314,5 @@ compare_schrieffer_wolff_pymablock(
 )
 ```
 
-We observe that in all cases both approaches exhibit similar radii of convergence and overall error behavior.
+We observe that in all cases both approaches exhibit similar radii of convergence and overall error behavior—a fact for which we don't have an explanation so far.
 Still, just like we expected, the Pymablock algorithm is much faster.
