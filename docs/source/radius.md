@@ -13,9 +13,13 @@ kernelspec:
 
 # Comparison to generalized Schrieffer-Wolff transformation
 
+:::{note}
+This is an advanced topic both code-wise and conceptually. You do not need to follow this even for advanced uses of Pymablock.
+:::
+
 Pymablock computes perturbative series using the least action principle by minimizing $\|\mathcal{U} - 1\|$.
 In the two-block case, this is equivalent to the Schrieffer-Wolff transformation.
-However, in more general cases such as multi-block diagonalization or eliminating arbitrary off-diagonal elements, the [Schrieffer-Wolff transformation](https://arxiv.org/abs/2408.14637) does not satisfy the least action principle.
+However, in more general cases such as multi-block diagonalization or eliminating arbitrary off-diagonal elements, the Schrieffer-Wolff transformation [does not satisfy](https://doi.org/10.48550/arXiv.2408.14637) the least action principle.
 
 In [introducing](algorithms.md) the Pymablock algorithm, we show that it is more efficient and naturally extends to multiple perturbations.
 A question remains about whether the two algorithms have comparable stability and convergence.
@@ -30,7 +34,7 @@ In this section we:
 The Schrieffer-Wolff transformation uses a unitary of the form $\exp(\mathcal{S})$, with each order of $\mathcal{S}$ strictly off-diagonal.
 Just like in Pymablock algorithm, we eliminate the specified off-diagonal part of $\tilde{\mathcal{H}} = \exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S})$ at each perturbation order by solving for $\mathcal{S}$ with a Sylvester equation.
 
-From the Baker-Campbell-Hausdorff (BCH) formula, we have:
+From the [Baker-Campbell-Hausdorff](https://en.wikipedia.org/wiki/Baker%E2%80%93Campbell%E2%80%93Hausdorff_formula#Campbell_identity) formula, we have:
 :::{math}
 \exp(\mathcal{S}) \mathcal{H} \exp(-\mathcal{S})
 = \mathcal{H} + [\mathcal{S}, \mathcal{H}] + \tfrac{1}{2!} [\mathcal{S}, [\mathcal{S}, \mathcal{H}]] + \ldots.
@@ -57,7 +61,8 @@ def zero_sum(*terms):
     return sum((term for term in terms if term is not zero), start=zero)
 ```
 
-Below is a helper function to compute terms of the BCH series efficiently. This function builds nested commutators of two series, A and B, and avoids direct expansion of nested terms:
+Below is a helper function to compute terms of the Baker–Campbell–Hausdorff series efficiently.
+This function builds nested commutators of two series, A and B, and avoids direct expansion of nested terms:
 
 ```{code-cell} ipython3
 def baker_camphell_hausdorff(A: BlockSeries, B: BlockSeries, skip_last=False) -> BlockSeries:
@@ -101,7 +106,11 @@ def baker_camphell_hausdorff(A: BlockSeries, B: BlockSeries, skip_last=False) ->
     return BlockSeries(eval=bch_eval, shape=(), n_infinite=1)
 ```
 
-The following function implements the generalized Schrieffer-Wolff approach, which zeroes out the specified elements of the Hamiltonian (by a binary ``mask`` array). Here, it focuses on a single first-order perturbation for simplicity:
+The implementation of `baker_camphell_hausdorff` uses the ability to define `BlockSeries` recursively by providing an `eval` function.
+Specifically, evaluating a block of `nested_commutators` with index `(n, m)` uses lower order terms of the same series in its computation.
+
+The following function implements the generalized Schrieffer-Wolff approach, which zeroes out the specified elements of the Hamiltonian (by a binary ``mask`` array).
+Here, it focuses on a single first-order perturbation for simplicity:
 
 ```{code-cell} ipython3
 def schrieffer_wolff(H_0, H_1, mask):
@@ -243,7 +252,7 @@ def compare_schrieffer_wolff_pymablock(
     cbar.set_label("Order")
 ```
 
-Finally, we are ready to compare the convergence properties for different masks.
+Finally, we are ready to compare the convergence properties for different patterns of eliminated matrix elements.
 
 First, we consider a random mask:
 
@@ -264,7 +273,16 @@ compare_schrieffer_wolff_pymablock(
 )
 ```
 
-Next, we consider a banded mask where we eliminate all off-diagonal elements outside a width-3 band:
+Let us unpack what we see here:
+
+- We are eliminating the matrix elements shown with the white color in the inset.
+- In the top panel at low $\alpha$, the error of the Pymablock algorithm drops with the order of perturbation (line color): we are below the convergence radius.
+- At high $\alpha$, the error starts diverging faster and faster with order, and the transition between the two regimes is the convergence radius of the series.
+- Regardless of whether $\alpha$ is high or low, the bottom panel shows that the ratio between two errors stays roughly constant as a function of the perturbation order.
+- While the errors behave similarly, the time taken by the algorithms is vastly different: Pymablock is faster by more than an order of magnitude.
+
+For completeness, let us also consider other masks.
+Here we take a banded mask where we eliminate all off-diagonal elements outside of a width-3 band:
 
 ```{code-cell} ipython3
 :tags: [hide-input]
