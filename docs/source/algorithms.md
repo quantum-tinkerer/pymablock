@@ -184,7 +184,7 @@ Using the Taylor expansion approach is therefore both more complicated and more 
 
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}_{R} = 0$.
 Additionally, we constrain $\mathcal{V}$ to have no selected part: $\mathcal{V}_{S} = 0$, so that its norm and the norm of $\mathcal{U}'$ are minimal.
-This also makes our transformation equivalent to Schrieffer-Wolff transformation in the $2\times 2$ block case.
+This choice is known as the [least action principle](https://doi.org/10.1088/0305-4470/22/13/035) and is equivalent to the Schrieffer-Wolff transformation in the $2\times 2$ block case.
 
 :::{admonition} Equivalence to Schrieffer-Wolff transformation
 :class: dropdown info
