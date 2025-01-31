@@ -403,7 +403,7 @@ Pymablock can efficiently construct an effective Hamiltonian of a small subspace
 It does so by avoiding forming a matrix representation of operators in the implicit subspace—the one without known eigenvectors, and by utilizing the sparsity of the Hamiltonian to compute the Green's function.
 To do so, Pymablock uses either the [MUMPS sparse solver](https://mumps-solver.org/) via the [python-mumps](https://gitlab.kwant-project.org/kwant/python-mumps/) wrapper or the [KPM method](https://doi.org/10.1103/RevModPhys.78.275).
 
-This approach was originally introduced in [this work](https://arxiv.org/abs/1909.09649).
+This approach was originally introduced in [this work](https://doi.org/10.48550/arXiv.1909.09649).
 
 ::::{admonition} Implementation details
 :class: dropdown info
