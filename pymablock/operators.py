@@ -3,12 +3,17 @@
 from collections import defaultdict
 from typing import Callable
 
+import numpy as np
 import sympy
+import sympy.physics
 from packaging.version import parse
 from sympy.physics.quantum import Dagger, boson
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock.series import zero
+
+# Type aliases
+Mask = list[tuple[tuple[list[int], int | None], np.ndarray]]
 
 # Monkey patch sympy to propagate adjoint to matrix elements.
 if parse(sympy.__version__) < parse("1.14.0"):
@@ -100,7 +105,7 @@ def convert_to_number_operators(expr: sympy.Expr, boson_operators: list):
     return total.expand().simplify()
 
 
-def solve_monomial(Y, H_ii, H_jj):
+def solve_monomial(Y, H_ii, H_jj, boson_operators):
     """Solve a Sylvester equation for bosonic monomial.
 
     Given Y, H_ii, and H_jj, return -(E_i - E_j_shifted) * Y_monomial, per
@@ -117,6 +122,8 @@ def solve_monomial(Y, H_ii, H_jj):
         Sectors of the unperturbed Hamiltonian.
     H_jj :
         Sectors of the unperturbed Hamiltonian.
+    boson_operators :
+        List with all possible bosonic operators in the inputs.
 
     Returns
     -------
@@ -134,15 +141,14 @@ def solve_monomial(Y, H_ii, H_jj):
     if Y == 0:
         return sympy.S.Zero
 
-    boson_operators_Y = find_boson_operators(Y)
-    shifts = expr_to_shifts(Y)
+    shifts = expr_to_shifts(Y, boson_operators)
 
     result = sympy.S.Zero
     for shift, monomial in shifts.items():
         shifted_H_jj = H_jj.subs(
             {
                 Dagger(op) * op: Dagger(op) * op - delta
-                for delta, op in zip(shift, boson_operators_Y)
+                for delta, op in zip(shift, boson_operators)
             }
         )
         result -= ((H_ii - shifted_H_jj).expand().simplify()) ** -1 * monomial
@@ -150,20 +156,23 @@ def solve_monomial(Y, H_ii, H_jj):
     return result
 
 
-def expr_to_shifts(expr: sympy.Expr) -> dict[tuple[int, ...], sympy.Expr]:
+def expr_to_shifts(
+    expr: sympy.Expr, boson_operators: list[boson.BosonOp]
+) -> dict[tuple[int, ...], sympy.Expr]:
     """Decompose an expression to a dictionary of shifts.
 
     Parameters
     ----------
     expr :
         Sympy expression with bosonic operators.
+    boson_operators :
+        List with all possible bosonic operators in the expression.
 
     Returns
     -------
     Dictionary with shifts for each monomial.
 
     """
-    boson_operators = find_boson_operators(expr)
     daggers = [Dagger(op) for op in boson_operators]
 
     shifts = defaultdict(lambda: sympy.S.Zero)
@@ -182,12 +191,25 @@ def expr_to_shifts(expr: sympy.Expr) -> dict[tuple[int, ...], sympy.Expr]:
 
 def solve_sylvester_bosonic(
     eigs: tuple[sympy.matrices.MatrixBase, ...],
+    boson_operators: list[boson.BosonOp],
 ) -> Callable:
-    """Solve a Sylvester equation for bosonic diagonal Hamiltonians."""
-    boson_operators = set.union(
-        *(set(find_boson_operators(eig)) for eig_block in eigs for eig in eig_block)
-    )
+    """Solve a Sylvester equation for bosonic diagonal Hamiltonians.
 
+    Parameters
+    ----------
+    eigs :
+        Tuple of lists of expressions representing the diagonal Hamiltonian blocks.
+    boson_operators :
+        List with all possible bosonic operators in the Hamiltonian.
+
+    Returns
+    -------
+    Callable
+        A function that takes a matrix of operators and a tuple of indices, and
+        computes the element-wise solution to the Sylvester equation for those
+        diagonal Hamiltonian blocks.
+
+    """
     eigs = tuple(
         [convert_to_number_operators(eig, boson_operators) for eig in eig_block]
         for eig_block in eigs
@@ -202,7 +224,10 @@ def solve_sylvester_bosonic(
         eigs_A, eigs_B = eigs[index[0]], eigs[index[1]]
         return sympy.Matrix(
             [
-                [solve_monomial(Y[i, j], eigs_A[i], eigs_B[j]) for j in range(Y.cols)]
+                [
+                    solve_monomial(Y[i, j], eigs_A[i], eigs_B[j], boson_operators)
+                    for j in range(Y.cols)
+                ]
                 for i in range(Y.rows)
             ]
         )
@@ -212,7 +237,8 @@ def solve_sylvester_bosonic(
 
 def apply_mask_to_operator(
     operator: sympy.MatrixBase,
-    mask: list[tuple[tuple[list[int], int | None], sympy.MatrixBase]],
+    mask: Mask,
+    boson_operators: list[boson.BosonOp],
 ) -> sympy.MatrixBase:
     """Apply a mask to an operator.
 
@@ -222,8 +248,8 @@ def apply_mask_to_operator(
         Operator to apply the mask to.
     mask :
         Mask to apply to the operator.
-    negate :
-        Whether to negate the mask.
+    boson_operators :
+        List with all possible bosonic operators in the operator.
 
     Returns
     -------
@@ -238,7 +264,7 @@ def apply_mask_to_operator(
     matrix. A many-body mask is a list of tuples of masks for each boson/finite Hilbert
     space.
 
-    For example [(([], 0), Matrix([[0, 1], [1, 0]])), (([], 1), Matrix([[1, 1], [1,
+    For example [(([], 0), np.array([[0, 1], [1, 0]])), (([], 1), Matrix([[1, 1], [1,
     1]]))] corresponds to full diagonalization of boson x spin.
 
     """
@@ -246,7 +272,7 @@ def apply_mask_to_operator(
     for i in range(operator.rows):
         for j in range(operator.cols):
             value = operator[i, j]
-            shifts = expr_to_shifts(value)
+            shifts = expr_to_shifts(value, boson_operators)
             for *mask_bosons, mask_matrix in mask:
                 if not mask_matrix(i, j):
                     continue

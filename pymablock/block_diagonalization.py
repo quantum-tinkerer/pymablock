@@ -13,6 +13,7 @@ import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
 
+from pymablock import operators
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main
 from pymablock.kpm import greens_function, rescale
@@ -31,6 +32,7 @@ __all__ = ["block_diagonalize", "operator_to_BlockSeries"]
 
 # Common types
 Eigenvectors = tuple[np.ndarray | sympy.Matrix, ...]
+Mask = operators.Mask
 
 
 ### The main function for end-users.
@@ -44,7 +46,7 @@ def block_diagonalize(
     solver_options: dict | None = None,
     symbols: sympy.Symbol | Sequence[sympy.Symbol] | None = None,
     atol: float = 1e-12,
-    fully_diagonalize: tuple[int] | dict[int, np.ndarray] | np.ndarray = (),
+    fully_diagonalize: tuple[int] | dict[int, np.ndarray | Mask] | np.ndarray | Mask = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -166,12 +168,19 @@ def block_diagonalize(
 
     if not hamiltonian.shape:
         h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
+        # TODO: Extract bosons around this place perhaps?
         # Check that h_0 is diagonal if no eigenvectors are provided
         if subspace_eigenvectors is None and not is_diagonal(h_0, atol):
             raise ValueError(
                 "Without eigenvectors provided, the unperturbed Hamiltonian"
                 " must be diagonal."
             )
+
+    # TODO: Remove below
+    #
+    # boson_operators = set.union(
+    #     *(set(find_boson_operators(eig)) for eig_block in eigs for eig in eig_block)
+    # )
 
     use_implicit = False
     if subspace_eigenvectors is not None:
@@ -225,6 +234,7 @@ def block_diagonalize(
                 raise ValueError(
                     "The off-diagonal elements of the unperturbed Hamiltonian must be zero."
                 )
+    # TODO: If bosonic, need to check that no shifts are in H_0
 
     # Determine operator to use for multiplication. We prefer matmul, and use mul if
     # matmul is not available.
@@ -1046,6 +1056,14 @@ def _extract_diagonal(
             continue
         eigs = block.diagonal()
         if is_sympy:
+            # Check if any of the expressions contains sympy.physics.quantum.Operator
+            if any(eig.atoms(sympy.physics.quantum.Operator) for eig in eigs):
+                new_eigs = []
+                for eig in eigs:
+                    shifts = operators.expr_to_shifts(eig)
+                    n_bosons = len(next(iter(shifts.items())))
+                    new_eigs.append(shifts[(0,) * n_bosons])
+                eigs = new_eigs
             eigs = np.array(eigs, dtype=object)
         diags.append(eigs)
 
