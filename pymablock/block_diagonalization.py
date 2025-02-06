@@ -44,7 +44,7 @@ def block_diagonalize(
     solver_options: dict | None = None,
     symbols: sympy.Symbol | Sequence[sympy.Symbol] | None = None,
     atol: float = 1e-12,
-    fully_diagonalize: tuple[int] | dict[int, np.ndarray] = (),
+    fully_diagonalize: tuple[int] | dict[int, np.ndarray] | np.ndarray = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -130,13 +130,14 @@ def block_diagonalize(
         Absolute tolerance to consider matrices as exact zeros. This is used
         to validate that the unperturbed Hamiltonian is block-diagonal.
     fully_diagonalize :
-        Indices of the blocks that should be fully diagonalized.
-        If the Hamiltonian only has one block, it is fully diagonalized by
-        default. Alternatively can be a dictionary with the indices of the diagonal
-        blocks as keys and as values appropriately shaped numpy boolean arrays
-        marking which matrix elements should be eliminated by the
-        diagonalization. Must be symmetric, and may not have any True values
-        corresponding to matrix elements coupling degenerate eigenvalues.
+        Indices of the blocks that should be fully diagonalized. If the Hamiltonian only
+        has one block, it is fully diagonalized by default. Alternatively can be a
+        dictionary with the indices of the diagonal blocks as keys and as values
+        appropriately shaped numpy boolean arrays marking which matrix elements should
+        be eliminated by the diagonalization. If there is only one block, the boolean
+        array may be provided directly without a dictionary. Must be symmetric, and may
+        not have any True values corresponding to matrix elements coupling degenerate
+        eigenvalues.
 
     Returns
     -------
@@ -212,8 +213,11 @@ def block_diagonalize(
         hermitian=True,
     )
 
-    if H.shape[0] == 1 and not fully_diagonalize:
-        fully_diagonalize = (0,)
+    if H.shape[0] == 1:
+        if not fully_diagonalize:
+            fully_diagonalize = (0,)
+        elif isinstance(fully_diagonalize, np.ndarray):
+            fully_diagonalize = {0: fully_diagonalize}
 
     for j in range(1, H.shape[0]):
         for i in range(j):
