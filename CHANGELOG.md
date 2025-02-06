@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added a reference implementation of arbitrary order Schrieffer-Wolff transformation to the documentation and a comparison of its convergence radius with Pymablock algorithm.
 
+### Changed
+
+- If the Hamiltonian contains only one block, `fully_diagonalize` can be provided as an array directly.
+
 ### Removed
 
 - Dropped support for Numpy 1.24 and Scipy 1.10 according to the [SPEC-0](https://scientific-python.org/specs/spec-0000/).

@@ -1587,7 +1587,7 @@ def test_analytic_full_and_selective():
     )
     # Now the same but only eliminate the (0, 2) matrix element
     H_tilde, U, U_adjoint = block_diagonalize(
-        H, fully_diagonalize={0: np.array([[0, 0, 1], [0, 0, 0], [1, 0, 0]])}
+        H, fully_diagonalize=np.array([[0, 0, 1], [0, 0, 0], [1, 0, 0]])
     )
     is_unitary(U, U_adjoint, (3,), atol=1e-6)
     compare_series(
@@ -1721,7 +1721,7 @@ def test_selective_diagonalization(wanted_orders):
     to_eliminate = np.random.rand(N, N) > 0.8
     to_eliminate = np.logical_or(to_eliminate, to_eliminate.T)
     np.fill_diagonal(to_eliminate, False)
-    H_tilde, U, U_adjoint = block_diagonalize(H, fully_diagonalize={0: to_eliminate})
+    H_tilde, U, U_adjoint = block_diagonalize(H, fully_diagonalize=to_eliminate)
     is_unitary(U, U_adjoint, wanted_orders, atol=1e-6)
     compare_series(H, cauchy_dot_product(U, H_tilde, U_adjoint), wanted_orders, atol=1e-6)
     # Check that the eliminated elements are zero

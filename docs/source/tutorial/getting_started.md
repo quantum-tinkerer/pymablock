@@ -407,7 +407,7 @@ We apply the mask to the Hamiltonian by providing it as the `fully_diagonalize` 
 
 
 ```{code-cell} ipython3
-H_tilde, *_ = pymablock.block_diagonalize([H_0, H_1], fully_diagonalize={0: mask})
+H_tilde, *_ = pymablock.block_diagonalize([H_0, H_1], fully_diagonalize=mask)
 ```
 
 The argument `fully_diagonalize` is a dictionary where the keys label the blocks of the Hamiltonian, and the values are the masks that select the terms to keep in that block.
