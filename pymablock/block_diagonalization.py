@@ -1026,7 +1026,7 @@ def _extract_diagonal(
     operator: BlockSeries,
     atol: float = 1e-12,
     implicit: bool = False,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, ...]:
     """Extract the diagonal of the zeroth order of the Hamiltonian."""
     # If using implicit mode, skip the last block.
     diag_indices = np.arange(operator.shape[0] - implicit)
