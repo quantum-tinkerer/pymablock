@@ -13,6 +13,8 @@
 import os
 import sys
 
+import sphinx_tippy
+
 import pymablock
 
 package_path = os.path.abspath("../pymablock")
@@ -108,6 +110,103 @@ html_theme_options = {
     ),
 }
 
+tippy_doi_template = """
+{% if "message" in data %} {# Crossref #}
+{% set data = data.message %}
+{% set title = data.title[0] %}
+{% set authors = data.author | map_join('given', 'family') | join(', ') %}
+{% set publisher = data.publisher %}
+{% set created = data.created['date-time'] %}
+{% else %} {# Datacite #}
+{% set data = data.data.attributes %}
+{% set title = data.titles[0].title %}
+{% set authors = data.creators | map_join('givenName', 'familyName') | join(', ') %}
+{% set publisher = data.publisher %}
+{% set created = data.created %}
+{% endif %}
+<div>
+    <h3>{{ title }}</h3>
+    <p><b>Authors:</b> {{ authors }}</p>
+    <p><b>Publisher:</b> {{ publisher }}</p>
+    <p><b>Published:</b> {{ created | iso8601_to_date }}</p>
+</div>
+"""
+
+# Patch sphinx-tippy to resolve both crossref and datacite DOIs.
+sphinx_tippy_patch = """
+from datetime import datetime
+
+def iso8601_to_date(iso8601: str) -> datetime:
+    return datetime.fromisoformat(iso8601).strftime("%Y-%m-%d")
+
+def fetch_doi_tips(app: Sphinx, data: dict[str, TippyPageData]) -> dict[str, str]:
+    '''fetch the doi tooltips, caching them for rebuilds.'''
+    config = get_tippy_config(app)
+    doi_cache: dict[str, str]
+    doi_cache_path = Path(app.outdir, "tippy_doi_cache.json")
+    if doi_cache_path.exists():
+        with doi_cache_path.open("r") as file:
+            doi_cache = json.load(file)
+    else:
+        doi_cache = {}
+    doi_fetch = {
+        doi for page in data.values() for doi in page["dois"] if doi not in doi_cache
+    }
+    for doi in status_iterator(doi_fetch, "Fetching DOI tips", length=len(doi_fetch)):
+        # Resolve the RA from doi.org
+        url = (
+            "https://doi.org/api/handles/"
+            + doi.replace("https://doi.org/", "").split("/")[0]
+        )
+        api_url = config.doi_api
+        try:
+            authorities = requests.get(url).json()["values"]
+            for authority in authorities:
+                if "10." in authority["data"]["value"]:
+                    authority = authority["data"]["value"]
+                    break
+            else:
+                raise ValueError(f"No DOI authority found for {doi}")
+            print(url) #
+            if authority == "10.SERV/DATACITE":
+                api_url = "https://api.datacite.org/dois/"
+            elif authority == "10.SERV/CROSSREF":
+                api_url = "https://api.crossref.org/works/"
+            else:
+                raise ValueError(f"Unknown DOI authority: {authority}")
+        except Exception as exc:
+            LOGGER.warning(
+                f"Could not fetch DOI authority for {doi}: {exc} [tippy.doi]",
+                type="tippy",
+                subtype="doi",
+            )
+            continue
+        url = f"{api_url}{doi}"
+        try:
+            data = requests.get(url).json()
+        except Exception as exc:
+            LOGGER.warning(
+                f"Could not fetch DOI data for {doi}: {exc} [tippy.doi]",
+                type="tippy",
+                subtype="doi",
+            )
+        try:
+            env = Environment()
+            env.filters["map_join"] = map_join
+            env.filters["iso8601_to_date"] = iso8601_to_date
+            template = env.from_string(config.doi_template)
+            doi_cache[doi] = template.render(data=data)
+        except Exception as exc:
+            LOGGER.warning(
+                f"Could not render DOI template for {doi}: {exc} [tippy.doi]",
+                type="tippy",
+                subtype="doi",
+            )
+    with doi_cache_path.open("w") as file:
+        json.dump(doi_cache, file)
+    return doi_cache
+"""
+exec(sphinx_tippy_patch, sphinx_tippy.__dict__)
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
