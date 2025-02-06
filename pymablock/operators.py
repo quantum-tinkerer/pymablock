@@ -135,27 +135,49 @@ def solve_monomial(Y, H_ii, H_jj):
         return sympy.S.Zero
 
     boson_operators_Y = find_boson_operators(Y)
-    Y_daggers = [Dagger(op) for op in boson_operators_Y]
+    shifts = expr_to_shifts(Y)
 
     result = sympy.S.Zero
-    for monomial in Y.expand().as_ordered_terms():
-        shift = [0] * len(boson_operators_Y)
-        for term in monomial.as_ordered_factors():
-            symbol, power = term.as_base_exp()
-            if symbol in boson_operators_Y:
-                shift[boson_operators_Y.index(symbol)] += power
-            elif symbol in Y_daggers:
-                shift[Y_daggers.index(symbol)] -= power
-
+    for shift, monomial in shifts.items():
         shifted_H_jj = H_jj.subs(
             {
-                Dagger(op) * op: Dagger(op) * op - delta_op
-                for delta_op, op in zip(shift, boson_operators_Y)
+                Dagger(op) * op: Dagger(op) * op - delta
+                for delta, op in zip(shift, boson_operators_Y)
             }
         )
-        result -= ((H_ii - shifted_H_jj).expand().simplify()) ** (-1) * monomial
+        result -= ((H_ii - shifted_H_jj).expand().simplify()) ** -1 * monomial
 
     return result
+
+
+def expr_to_shifts(expr: sympy.Expr) -> dict[tuple[int, ...], sympy.Expr]:
+    """Decompose an expression to a dictionary of shifts.
+
+    Parameters
+    ----------
+    expr :
+        Sympy expression with bosonic operators.
+
+    Returns
+    -------
+    Dictionary with shifts for each monomial.
+
+    """
+    boson_operators = find_boson_operators(expr)
+    daggers = [Dagger(op) for op in boson_operators]
+
+    shifts = defaultdict(lambda: sympy.S.Zero)
+    for monomial in expr.expand().as_ordered_terms():
+        shift = [0] * len(boson_operators)
+        for term in monomial.as_ordered_factors():
+            symbol, power = term.as_base_exp()
+            if symbol in boson_operators:
+                shift[boson_operators.index(symbol)] += power
+            elif symbol in daggers:
+                shift[daggers.index(symbol)] -= power
+        shifts[tuple(shift)] += monomial
+
+    return shifts
 
 
 def solve_sylvester_bosonic(
@@ -186,3 +208,54 @@ def solve_sylvester_bosonic(
         )
 
     return solve_sylvester
+
+
+def apply_mask_to_operator(
+    operator: sympy.MatrixBase,
+    mask: list[tuple[tuple[list[int], int | None], sympy.MatrixBase]],
+) -> sympy.MatrixBase:
+    """Apply a mask to an operator.
+
+    Parameters
+    ----------
+    operator :
+        Operator to apply the mask to.
+    mask :
+        Mask to apply to the operator.
+    negate :
+        Whether to negate the mask.
+
+    Returns
+    -------
+    Operator with the mask applied.
+
+    Notes
+    -----
+    For a single boson the mask has a format ([n_0, n_1, n_2, ...], n_max), where all
+    n_i are nonnegative integers that label the powers of boson operators to eliminate.
+    n_max may be None, and it indicates that powers above n_max are eliminated (or not
+    if None). In a finite Hilbert space, the mask is an arbitrary symmetric binary
+    matrix. A many-body mask is a list of tuples of masks for each boson/finite Hilbert
+    space.
+
+    For example [(([], 0), Matrix([[0, 1], [1, 0]])), (([], 1), Matrix([[1, 1], [1,
+    1]]))] corresponds to full diagonalization of boson x spin.
+
+    """
+    result = sympy.zeros(operator.rows, operator.cols)
+    for i in range(operator.rows):
+        for j in range(operator.cols):
+            value = operator[i, j]
+            shifts = expr_to_shifts(value)
+            for *mask_bosons, mask_matrix in mask:
+                if not mask_matrix(i, j):
+                    continue
+                for shift, monomial in shifts.items():
+                    if all(
+                        abs(shift[i]) in ns
+                        or (n_max is not None and abs(shift[i]) >= n_max)
+                        for i, (ns, n_max) in enumerate(mask_bosons)
+                    ):
+                        result[i, j] += monomial
+
+    return result
