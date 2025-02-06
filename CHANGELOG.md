@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added a reference implementation of arbitrary order Schrieffer-Wolff transformation to the documentation and a comparison of its convergence radius with Pymablock algorithm.
+
 ### Removed
 
 - Dropped support for Numpy 1.24 and Scipy 1.10 according to the [SPEC-0](https://scientific-python.org/specs/spec-0000/).

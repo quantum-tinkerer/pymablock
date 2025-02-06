@@ -184,7 +184,7 @@ Using the Taylor expansion approach is therefore both more complicated and more 
 
 To compute $\mathcal{U}'$ we also need to find $\mathcal{V}$, which is defined by the requirement $\tilde{\mathcal{H}}_{R} = 0$.
 Additionally, we constrain $\mathcal{V}$ to have no selected part: $\mathcal{V}_{S} = 0$, so that its norm and the norm of $\mathcal{U}'$ are minimal.
-This also makes our transformation equivalent to Schrieffer-Wolff transformation in the $2\times 2$ block case.
+This choice is known as the [least action principle](https://doi.org/10.1088/0305-4470/22/13/035) and is equivalent to the Schrieffer-Wolff transformation in the $2\times 2$ block case.
 
 :::{admonition} Equivalence to Schrieffer-Wolff transformation
 :class: dropdown info
@@ -403,7 +403,7 @@ Pymablock can efficiently construct an effective Hamiltonian of a small subspace
 It does so by avoiding forming a matrix representation of operators in the implicit subspace—the one without known eigenvectors, and by utilizing the sparsity of the Hamiltonian to compute the Green's function.
 To do so, Pymablock uses either the [MUMPS sparse solver](https://mumps-solver.org/) via the [python-mumps](https://gitlab.kwant-project.org/kwant/python-mumps/) wrapper or the [KPM method](https://doi.org/10.1103/RevModPhys.78.275).
 
-This approach was originally introduced in [this work](https://arxiv.org/abs/1909.09649).
+This approach was originally introduced in [this work](https://doi.org/10.48550/arXiv.1909.09649).
 
 ::::{admonition} Implementation details
 :class: dropdown info
