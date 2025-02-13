@@ -1,8 +1,13 @@
-image: ghcr.io/prefix-dev/pixi:0.40.1
+image: ghcr.io/prefix-dev/pixi:0.41.3
 
 variables:
   FF_USE_FASTZIP: "true"
   CACHE_COMPRESSION_LEVEL: "fastest"
+
+default:
+  before_script:
+    # Workaround for https://github.com/prefix-dev/pixi/issues/2923
+    - pixi global install git
 
 run tests:
   variables:
