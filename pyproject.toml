@@ -30,7 +30,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "pytest-cov", "pytest-randomly", "pytest-regressions", "pytest-ruff"]
+test = ["pytest", "pytest-cov", "pytest-randomly", "pytest-regressions"]
 docs = ["sphinx-book-theme>=1.1.0", "sphinx-tippy"]
 
 [project.urls]
@@ -206,7 +206,6 @@ pytest = "*"
 pytest-cov = "*"
 pytest-randomly = "*"
 pytest-regressions = "*"
-# pytest-ruff is not on conda
 
 [tool.pixi.feature.test.tasks]
 tests = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning"
