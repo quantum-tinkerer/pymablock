@@ -170,26 +170,6 @@ def block_diagonalize(
     # with operator_to_BlockSeries in the code below.
     hamiltonian = _unpack_blocks(_to_scalar_BlockSeries(hamiltonian, symbols, atol), atol)
 
-    if not hamiltonian.shape:
-        h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
-        # TODO: Extract bosons around this place perhaps?
-        # Check that h_0 is diagonal if no eigenvectors are provided
-        if subspace_eigenvectors is None and not is_diagonal(h_0, atol):
-            raise ValueError(
-                "Without eigenvectors provided, the unperturbed Hamiltonian"
-                " must be diagonal."
-            )
-        if boson_operators:
-            for element in h_0.diagonal():
-                # Raises an error if the element is not a function of a number operator.
-                second_quantization.convert_to_number_operators(element, boson_operators)
-
-    # TODO: Remove below
-    #
-    # boson_operators = set.union(
-    #     *(set(find_boson_operators(eig)) for eig_block in eigs for eig in eig_block)
-    # )
-
     use_implicit = False
     if subspace_eigenvectors is not None:
         _check_orthonormality(subspace_eigenvectors, atol=atol)
@@ -198,8 +178,11 @@ def block_diagonalize(
         use_implicit = num_vectors < dim
 
     if use_implicit:
-        if boson_operators:
-            raise ValueError("Implicit mode is not supported with bosonic operators.")
+        if hamiltonian.shape:
+            raise ValueError("Implicit mode requires an input not separated into blocks")
+        h_0 = hamiltonian[(0,) * hamiltonian.n_infinite]
+        if isinstance(h_0, sympy.MatrixBase):
+            raise ValueError("Implicit mode is not supported with symbolic Hamiltonian.")
         assert subspace_eigenvectors is not None  # for mypy
         # Build solve_sylvester
         if hamiltonian.shape:
