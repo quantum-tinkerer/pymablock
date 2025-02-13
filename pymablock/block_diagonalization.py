@@ -220,6 +220,11 @@ def block_diagonalize(
             fully_diagonalize = (0,)
         elif isinstance(fully_diagonalize, np.ndarray):
             fully_diagonalize = {0: fully_diagonalize}
+    else:
+        if isinstance(fully_diagonalize, np.ndarray):
+            raise ValueError(
+                "If the Hamiltonian has multiple blocks, `fully_diagonalize` may not be an ndarray."
+            )
 
     for j in range(1, H.shape[0]):
         for i in range(j):
