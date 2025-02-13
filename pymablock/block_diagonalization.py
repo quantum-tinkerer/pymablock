@@ -233,7 +233,7 @@ def block_diagonalize(
     )
 
     if H.shape[0] == 1:
-        if not fully_diagonalize:
+        if not len(fully_diagonalize):
             fully_diagonalize = (0,)
         elif isinstance(fully_diagonalize, np.ndarray):
             fully_diagonalize = {0: fully_diagonalize}
@@ -268,8 +268,8 @@ def block_diagonalize(
 
     # TODO: Consider reusing H_0_diag as an input for _extract_diagonal
     # If solve_sylvester is not yet defined, use the diagonal one.
-    # if solve_sylvester is None or use_implicit:
-    diagonal = _extract_diagonal(H, atol, use_implicit, boson_operators)
+    if solve_sylvester is None or use_implicit:
+        diagonal = _extract_diagonal(H, atol, use_implicit, boson_operators)
 
     if solve_sylvester is None:
         if not boson_operators:
