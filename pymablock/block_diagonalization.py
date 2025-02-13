@@ -47,7 +47,9 @@ def block_diagonalize(
     solver_options: dict | None = None,
     symbols: sympy.Symbol | Sequence[sympy.Symbol] | None = None,
     atol: float = 1e-12,
-    fully_diagonalize: tuple[int] | dict[int, np.ndarray | Mask] | np.ndarray | Mask = (),
+    fully_diagonalize: (
+        tuple[int] | dict[int, np.ndarray | Mask] | np.ndarray | Mask
+    ) = (),
     boson_operators: Sequence[BosonOp] = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
@@ -226,35 +228,46 @@ def block_diagonalize(
                 "If the Hamiltonian has multiple blocks, `fully_diagonalize` may not be an ndarray."
             )
 
+    zero_order = (0,) * H.n_infinite
+
     for j in range(1, H.shape[0]):
         for i in range(j):
-            if H[(i, j) + (0,) * H.n_infinite] is not zero:
+            if H[(i, j, *zero_order)] is not zero:
                 raise ValueError(
                     "The off-diagonal elements of the unperturbed Hamiltonian must be zero."
                 )
-        if boson_operators:
-            # Check that diagonal blocks of H_0 have no shifts.
-            block = H[(j, j) + (0,) * H.n_infinite]
-            for element in block.diagonal():
-                second_quantization.convert_to_number_operators(element, boson_operators)
 
     # Determine operator to use for multiplication. We prefer matmul, and use mul if
     # matmul is not available.
-    H_0_diag = [
-        block
-        for i in range(H.shape[0])
-        if (block := H[(i, i) + (0,) * H.n_infinite]) is not zero
-    ]
-    if not H_0_diag:
+    H_0_diag = [H[(i, i, *zero_order)] for i in range(H.shape[0])]
+    nonzero_blocks = [block for block in H_0_diag if block is not zero]
+    if not nonzero_blocks:
         raise ValueError("The diagonal of the unperturbed Hamiltonian may not be zero.")
-    if all(hasattr(H, "__matmul__") for H in H_0_diag):
+    if all(hasattr(H, "__matmul__") for H in nonzero_blocks):
         operator = matmul
-    elif all(hasattr(H, "__mul__") for H in H_0_diag):
+    elif all(hasattr(H, "__mul__") for H in nonzero_blocks):
         operator = mul
     else:
         raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
 
-    # TODO: Consider reusing H_0_diag as an input for _extract_diagonal
+    # Extract the default boson operators from the Hamiltonian.
+    if not boson_operators:
+        if any(isinstance(block, sympy.MatrixBase) for block in nonzero_blocks):
+            boson_operators = list(
+                set().union(
+                    *(
+                        second_quantization.find_boson_operators(block)
+                        for block in nonzero_blocks
+                    )
+                )
+            )
+
+    if boson_operators:
+        # Check that diagonal blocks of H_0 conserve quasiparticle number.
+        for block in nonzero_blocks:
+            for element in block.diagonal():
+                second_quantization.convert_to_number_operators(element, boson_operators)
+
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None or use_implicit:
         diagonal = _extract_diagonal(H, atol, use_implicit, boson_operators)
@@ -269,7 +282,7 @@ def block_diagonalize(
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
-    if isinstance(H[(-1, -1) + (0,) * H.n_infinite], sparse.linalg.LinearOperator):
+    if isinstance(H[(-1, -1, *zero_order)], sparse.linalg.LinearOperator):
         use_linear_operator[-1, -1] = True
 
         if H.shape[0] - 1 in fully_diagonalize:
@@ -294,16 +307,19 @@ def block_diagonalize(
         "commuting_blocks": commuting_blocks,
     }
 
-    if fully_diagonalize and not boson_operators:
+    equal_eigs = {
+        i: (
+            (np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol).astype(int)
+            if diagonal[i].dtype != object  # numerical array, else sympy
+            else ((diagonal[i].reshape(-1, 1) == diagonal[i]) == True)  # noqa E712
+        )
+        for i in set(fully_diagonalize)
+    }
+
+    if not fully_diagonalize:
+        pass
+    elif not boson_operators:
         # Determine degenerate eigensubspaces of the blocks to fully diagonalize.
-        equal_eigs = {
-            i: (
-                (np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol).astype(int)
-                if diagonal[i].dtype != object  # numerical array, else sympy
-                else ((diagonal[i].reshape(-1, 1) == diagonal[i]) == True)  # noqa E712
-            )
-            for i in set(fully_diagonalize)
-        }
         if isinstance(fully_diagonalize, dict):
             # Check that `fully_diagonalize` is symmetric.
             for to_eliminate in fully_diagonalize.values():
@@ -327,9 +343,11 @@ def block_diagonalize(
 
         # Convert numpy arrays to sympy matrices if blocks are symbolic.
         to_eliminate = {
-            i: sympy.Matrix(sympy.S.One * eliminate)
-            if diagonal[i].dtype == object
-            else eliminate
+            i: (
+                sympy.Matrix(sympy.S.One * eliminate)
+                if diagonal[i].dtype == object
+                else eliminate
+            )
             for i, eliminate in to_eliminate.items()
         }
         to_keep = {
@@ -359,7 +377,7 @@ def block_diagonalize(
 
         scope["diag"] = diag
         scope["offdiag"] = offdiag
-    if fully_diagonalize and boson_operators:
+    else:
 
         def diag(x, index):
             x = x[index] if isinstance(x, BlockSeries) else x
@@ -1081,13 +1099,13 @@ def _extract_diagonal(
     diag_indices = np.arange(operator.shape[0] - implicit)
     h_0 = operator[(diag_indices, diag_indices) + (0,) * operator.n_infinite]
     is_sympy = any(isinstance(block, sympy.MatrixBase) for block in h_0)
+    warning = (
+        "Cannot confirm that the unperturbed Hamiltonian is diagonal, "
+        "which is required if ``solve_sylvester`` is not provided. "
+        "The algorithm will assume that it is diagonal."
+    )
     if not all(is_diagonal(h, atol) for h in h_0):
-        warn(
-            "Cannot confirm that the unperturbed Hamiltonian is diagonal, "
-            "which is required if ``solve_sylvester`` is not provided. "
-            "The algorithm will assume that it is diagonal.",
-            UserWarning,
-        )
+        warn(warning, UserWarning)
     diags = []
     for block in h_0:
         if block is zero or block is np.ma.masked:
@@ -1097,11 +1115,13 @@ def _extract_diagonal(
         if is_sympy:
             # Check if any of the expressions contains sympy.physics.quantum.Operator
             if boson_operators:
+                zero_shift = (0,) * len(boson_operators)
                 new_eigs = []
                 for eig in eigs:
                     shifts = second_quantization.expr_to_shifts(eig, boson_operators)
-                    n_bosons = len(boson_operators)
-                    new_eigs.append(shifts[(0,) * n_bosons])
+                    new_eigs.append(shifts.pop(zero_shift, 0))
+                    if shifts:
+                        warn(warning, UserWarning)
                 eigs = new_eigs
             eigs = np.array(eigs, dtype=object)
         diags.append(eigs)

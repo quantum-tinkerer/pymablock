@@ -222,6 +222,11 @@ def solve_sylvester_bosonic(
         if Y is zero:
             return zero
         eigs_A, eigs_B = eigs[index[0]], eigs[index[1]]
+        # Handle the case when a block is empty
+        if not eigs_A:
+            eigs_A = eigs[index[0]] = [sympy.S.Zero] * Y.shape[0]
+        if not eigs_B:
+            eigs_B = eigs[index[1]] = [sympy.S.Zero] * Y.shape[1]
         return sympy.Matrix(
             [
                 [
