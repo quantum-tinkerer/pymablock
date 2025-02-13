@@ -212,7 +212,11 @@ tests-latest = "pixi run -e latest tests"
 tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 
 [tool.pixi.feature.docs.tasks]
-docs-build = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+docs-build.cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+docs-build.env.OPENBLAS_NUM_THREADS = "1"
+docs-build.env.OMP_NUM_THREADS = "1"
+docs-build.env.MKL_NUM_THREADS = "1"
+docs-build.env.MKL_DYNAMIC = "FALSE"
 
 [tool.pixi.feature.precommit.tasks]
 git = "git"

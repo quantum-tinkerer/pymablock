@@ -129,25 +129,29 @@ It is only pip-installable on Linux, use conda on other platforms.
 
 ## Citing
 
-If you have used Pymablock for work that has lead to a scientific publication, please cite [arXiv:2404.03728](https://arxiv.org/abs/2404.03728) as
+If you have used Pymablock for work that has lead to a scientific publication, please cite the accompanying [paper](https://doi.org/10.21468/SciPostPhysCodeb.50) as
 
 ```bibtex
-@misc{Araya2024,
-  title={Pymablock: an algorithm and a package for quasi-degenerate perturbation theory},
+@Article{10.21468/SciPostPhysCodeb.50,
+  title={{Pymablock: An algorithm and a package for quasi-degenerate perturbation theory}},
   author={Isidora {Araya Day} and Sebastian Miles and Hugo K. Kerstens and Daniel Varjas and Anton R. Akhmerov},
-  year={2024},
-  eprint={2404.03728},
-  archivePrefix={arXiv},
-  primaryClass={quant-ph},
-  doi={10.48550/arXiv.2404.03728},
+  journal={SciPost Phys. Codebases},
+  pages={50},
+  year={2025},
+  publisher={SciPost},
+  doi={10.21468/SciPostPhysCodeb.50},
+  url={https://scipost.org/10.21468/SciPostPhysCodeb.50},
 }
 
-@misc{Pymablock,
-  author = {{Araya Day}, Isidora and Miles, Sebastian and Varjas, Daniel and Akhmerov, Anton R.},
-  doi = {10.5281/zenodo.7995684},
-  month = {6},
-  title = {Pymablock},
-  year = {2023}
+@Article{10.21468/SciPostPhysCodeb.50-r2.1,
+  title={{Codebase release 2.1 for Pymablock}},
+  author={Isidora {Araya Day} and Sebastian Miles and Hugo K. Kerstens and Daniel Varjas and Anton R. Akhmerov},
+  journal={SciPost Phys. Codebases},
+  pages={50-r2.1},
+  year={2025},
+  publisher={SciPost},
+  doi={10.21468/SciPostPhysCodeb.50-r2.1},
+  url={https://scipost.org/10.21468/SciPostPhysCodeb.50-r2.1},
 }
 ```
 
