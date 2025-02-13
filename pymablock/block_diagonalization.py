@@ -12,7 +12,7 @@ import numpy as np
 import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
-from sympy.physics.quantum.boson import BosonOp
+from sympy.physics.quantum.operator import Operator
 
 from pymablock import second_quantization
 from pymablock.algorithm_parsing import series_computation
@@ -50,7 +50,7 @@ def block_diagonalize(
     fully_diagonalize: (
         tuple[int] | dict[int, np.ndarray | Mask] | np.ndarray | Mask
     ) = (),
-    boson_operators: Sequence[BosonOp] = (),
+    operators: Sequence[Operator] = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -144,7 +144,7 @@ def block_diagonalize(
         array may be provided directly without a dictionary. Must be symmetric, and may
         not have any True values corresponding to matrix elements coupling degenerate
         eigenvalues.
-    boson_operators :
+    operators :
         The set of boson operators that are used in the Hamiltonian.
 
     Returns
@@ -251,9 +251,9 @@ def block_diagonalize(
         raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
 
     # Extract the default boson operators from the Hamiltonian.
-    if not boson_operators:
+    if not operators:
         if any(isinstance(block, sympy.MatrixBase) for block in nonzero_blocks):
-            boson_operators = list(
+            operators = list(
                 set().union(
                     *(
                         second_quantization.find_boson_operators(block)
@@ -262,22 +262,22 @@ def block_diagonalize(
                 )
             )
 
-    if boson_operators:
+    if operators:
         # Check that diagonal blocks of H_0 conserve quasiparticle number.
         for block in nonzero_blocks:
             for element in block.diagonal():
-                second_quantization.convert_to_number_operators(element, boson_operators)
+                second_quantization.convert_to_number_operators(element, operators)
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None or use_implicit:
-        diagonal = _extract_diagonal(H, atol, use_implicit, boson_operators)
+        diagonal = _extract_diagonal(H, atol, use_implicit, operators)
 
     if solve_sylvester is None:
-        if not boson_operators:
+        if not operators:
             solve_sylvester = solve_sylvester_diagonal(diagonal, atol=atol)
         else:
             solve_sylvester = second_quantization.solve_sylvester_bosonic(
-                diagonal, boson_operators
+                diagonal, operators
             )
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
@@ -318,7 +318,7 @@ def block_diagonalize(
 
     if not fully_diagonalize:
         pass
-    elif not boson_operators:
+    elif not operators:
         # Determine degenerate eigensubspaces of the blocks to fully diagonalize.
         if isinstance(fully_diagonalize, dict):
             # Check that `fully_diagonalize` is symmetric.
@@ -381,30 +381,32 @@ def block_diagonalize(
 
         def diag(x, index):
             x = x[index] if isinstance(x, BlockSeries) else x
-            if index[0] not in fully_diagonalize:
+            if index[0] not in fully_diagonalize or x is zero:
                 return x
-            return second_quantization.apply_mask_to_operator(
-                x, fully_diagonalize[index[0]]
+            return x - second_quantization.apply_mask_to_operator(
+                x, fully_diagonalize[index[0]], operators
             )
 
         def offdiag(x, index):
             if index[0] not in fully_diagonalize:
                 return zero
             x = x[index] if isinstance(x, BlockSeries) else x
-            return x - second_quantization.apply_mask_to_operator(
-                x, fully_diagonalize[index[0]]
+            if x is zero:
+                return zero
+            return second_quantization.apply_mask_to_operator(
+                x, fully_diagonalize[index[0]], operators
             )
 
         scope["diag"] = diag
         scope["offdiag"] = offdiag
 
-    operators, _ = series_computation(
+    outputs, _ = series_computation(
         {"H": H},
         algorithm=main,
         scope=scope,
         operator=operator,
     )
-    return operators["H_tilde"], operators["U"], operators["U†"]
+    return outputs["H_tilde"], outputs["U"], outputs["U†"]
 
 
 ### Converting different formats to BlockSeries
@@ -1082,7 +1084,7 @@ def _extract_diagonal(
     operator: BlockSeries,
     atol: float = 1e-12,
     implicit: bool = False,
-    boson_operators: Sequence[sympy.physics.quantum.Operator] = (),
+    operators: Sequence[sympy.physics.quantum.Operator] = (),
 ) -> tuple[np.ndarray, ...]:
     """Extract the diagonal of the zeroth order of the Hamiltonian.
 
@@ -1092,7 +1094,7 @@ def _extract_diagonal(
         Absolute tolerance for numerical zero.
     implicit :
         Whether the last block is defined as a linear operator.
-    boson_operators :
+    operators :
         List of bosonic operators used in the Hamiltonian.
     """
     # If using implicit mode, skip the last block.
@@ -1114,11 +1116,11 @@ def _extract_diagonal(
         eigs = block.diagonal()
         if is_sympy:
             # Check if any of the expressions contains sympy.physics.quantum.Operator
-            if boson_operators:
-                zero_shift = (0,) * len(boson_operators)
+            if operators:
+                zero_shift = (0,) * len(operators)
                 new_eigs = []
                 for eig in eigs:
-                    shifts = second_quantization.expr_to_shifts(eig, boson_operators)
+                    shifts = second_quantization.expr_to_shifts(eig, operators)
                     new_eigs.append(shifts.pop(zero_shift, 0))
                     if shifts:
                         warn(warning, UserWarning)

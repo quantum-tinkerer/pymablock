@@ -71,9 +71,6 @@ where $E_i$ and $E_j$ are the diagonal elements of the unperturbed Hamiltonian c
 Therefore, to use Pymablock with second-quantized operators, we define a custom Sylvester's equation solver that takes $Y$ as input and returns $V$.
 To compute the energy denominators we only need to count the amount of raising or lowering operators in $Y$ and use this to determine the energy denominators.
 
-```{code-cell} ipython3
-from pymablock.operators import solve_sylvester_bosonic
-```
 
 ```{important}
 This Sylvester's solver is specific to the Jaynes-Cummings Hamiltonian.
@@ -88,12 +85,11 @@ We can now define the block-diagonalization routine by calling {autolink}`~pymab
 ```{code-cell} ipython3
 %%time
 
+import numpy as np
 from pymablock import block_diagonalize
 
-eigs = [[H_0[0, 0], H_0[1, 1]]]
-
 H_tilde, U, U_adjoint = block_diagonalize(
-    [H_0, H_p], solve_sylvester=solve_sylvester_bosonic(eigs), symbols=[g]
+    [H_0, H_p], symbols=[g], fully_diagonalize={0: [(([], 0), True ^ np.eye(2, dtype=bool)), (([], 1), np.ones((2, 2), dtype=bool))]}
 )
 ```
 

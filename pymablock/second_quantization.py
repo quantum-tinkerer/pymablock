@@ -279,8 +279,9 @@ def apply_mask_to_operator(
             value = operator[i, j]
             shifts = expr_to_shifts(value, boson_operators)
             for *mask_bosons, mask_matrix in mask:
-                if not mask_matrix(i, j):
+                if not mask_matrix[i, j]:
                     continue
+                found = []
                 for shift, monomial in shifts.items():
                     if all(
                         abs(shift[i]) in ns
@@ -288,5 +289,8 @@ def apply_mask_to_operator(
                         for i, (ns, n_max) in enumerate(mask_bosons)
                     ):
                         result[i, j] += monomial
+                        found.append(shift)
+                for shift in found:
+                    del shifts[shift]
 
     return result
