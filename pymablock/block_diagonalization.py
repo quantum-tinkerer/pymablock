@@ -12,7 +12,7 @@ import numpy as np
 import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
-from sympy.physics.quantum.operator import BosonOp
+from sympy.physics.quantum.boson import BosonOp
 
 from pymablock import second_quantization
 from pymablock.algorithm_parsing import series_computation
