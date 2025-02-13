@@ -167,7 +167,6 @@ def fetch_doi_tips(app: Sphinx, data: dict[str, TippyPageData]) -> dict[str, str
                     break
             else:
                 raise ValueError(f"No DOI authority found for {doi}")
-            print(url) #
             if authority == "10.SERV/DATACITE":
                 api_url = "https://api.datacite.org/dois/"
             elif authority == "10.SERV/CROSSREF":
