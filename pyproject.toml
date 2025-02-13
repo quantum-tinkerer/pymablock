@@ -145,6 +145,12 @@ publish = { features = ["publish"], no-default-feature = true }
 
 # Default feature
 
+[tool.pixi.activation.env]
+OPENBLAS_NUM_THREADS = "1"
+OMP_NUM_THREADS = "1"
+MKL_NUM_THREADS = "1"
+MKL_DYNAMIC = "FALSE"
+
 [tool.pixi.host-dependencies]
 git = "*"
 
@@ -198,10 +204,6 @@ make = "*"
 
 [tool.pixi.feature.docs.tasks.docs-build]
 cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
-env.OPENBLAS_NUM_THREADS = "1"
-env.OMP_NUM_THREADS = "1"
-env.MKL_NUM_THREADS = "1"
-env.MKL_DYNAMIC = "FALSE"
 
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
