@@ -134,7 +134,7 @@ If you have used Pymablock for work that has lead to a scientific publication, p
 ```bibtex
 @Article{10.21468/SciPostPhysCodeb.50,
   title={{Pymablock: An algorithm and a package for quasi-degenerate perturbation theory}},
-  author={Isidora Araya Day and Sebastian Miles and Hugo K. Kerstens and Daniel Varjas and Anton R. Akhmerov},
+  author={Isidora {Araya Day} and Sebastian Miles and Hugo K. Kerstens and Daniel Varjas and Anton R. Akhmerov},
   journal={SciPost Phys. Codebases},
   pages={50},
   year={2025},
@@ -145,7 +145,7 @@ If you have used Pymablock for work that has lead to a scientific publication, p
 
 @Article{10.21468/SciPostPhysCodeb.50-r2.1,
   title={{Codebase release 2.1 for Pymablock}},
-  author={Isidora Araya Day and Sebastian Miles and Hugo K. Kerstens and Daniel Varjas and Anton R. Akhmerov},
+  author={Isidora {Araya Day} and Sebastian Miles and Hugo K. Kerstens and Daniel Varjas and Anton R. Akhmerov},
   journal={SciPost Phys. Codebases},
   pages={50-r2.1},
   year={2025},
