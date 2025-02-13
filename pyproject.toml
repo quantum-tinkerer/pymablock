@@ -191,6 +191,8 @@ myst-nb = "*"
 matplotlib-base = "*"
 sphinx-togglebutton = "*"
 sphinx-copybutton = "*"
+sphinx-book-theme = "*"
+beautifulsoup4 = "*"
 git = "*"
 make = "*"
 
