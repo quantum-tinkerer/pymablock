@@ -28,15 +28,21 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
-[tool.hatch.version]
-source = "vcs"
-[tool.hatch.build.hooks.vcs]
-version-file = "pymablock/_version.py"
+
+[project.optional-dependencies]
+test = ["pytest", "pytest-cov", "pytest-randomly", "pytest-regressions"]
+docs = ["sphinx-book-theme>=1.1.0", "sphinx-tippy"]
 
 [project.urls]
 "Documentation" = "https://pymablock.readthedocs.io/en/latest/"
 "Repository" = "https://gitlab.kwant-project.org/qt/pymablock"
 "Bug Tracker" = "https://gitlab.kwant-project.org/qt/pymablock/-/issues"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "pymablock/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["pymablock"]
@@ -121,21 +127,32 @@ module = [
 ignore_missing_imports = true
 
 [tool.codespell]
-skip = "*.cls,*.bst,*.bib"
+skip = "*.cls,*.bst,*.bib,*.lock"
 ignore-words-list = "nwo,groth,ket,braket"
 
 [tool.pixi.project]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
 
-[tool.pixi.pypi-dependencies]
-pymablock = { path = ".", editable = true }
+[tool.pixi.environments]
+default = { solve-group = "default" }
+docs = { features = ["docs"], solve-group = "mid" }
+minimal = { features = ["minimal", "test"], solve-group = "minimal" }
+mid = { features = ["mid", "test"], solve-group = "mid" }
+latest = { features = ["latest", "test"], solve-group = "default" }
+precommit = { features = ["precommit"], no-default-feature = true }
+publish = { features = ["publish"], no-default-feature = true }
 
-# Pixi dependencies
+# Default feature
 
-[project.optional-dependencies]
-test = ["pytest", "pytest-cov", "pytest-randomly", "pytest-regressions", "pytest-ruff"]
-docs = ["sphinx-book-theme>=1.1.0", "sphinx-tippy"]
+[tool.pixi.activation.env]
+OPENBLAS_NUM_THREADS = "1"
+OMP_NUM_THREADS = "1"
+MKL_NUM_THREADS = "1"
+MKL_DYNAMIC = "FALSE"
+
+[tool.pixi.host-dependencies]
+git = "*"
 
 [tool.pixi.dependencies]
 python = ">=3.11"
@@ -145,24 +162,16 @@ sympy = ">=1.12"
 python-mumps = ">=0.0.1,<0.1"
 packaging = ">=22.0" # For version parsing
 
-[tool.pixi.host-dependencies]
-git = "*"
+[tool.pixi.pypi-dependencies]
+pymablock = { path = ".", editable = true }
 
-[tool.pixi.feature.docs.dependencies]
-kwant = "*"
-myst-nb = "*"
-matplotlib-base = "*"
-sphinx-togglebutton = "*"
-sphinx-copybutton = "*"
-git = "*"
-make = "*"
+[tool.pixi.tasks]
+tests-minimal = "pixi run -e minimal tests"
+tests-mid = "pixi run -e mid tests"
+tests-latest = "pixi run -e latest tests"
+tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 
-[tool.pixi.feature.test.dependencies]
-pytest = "*"
-pytest-cov = "*"
-pytest-randomly = "*"
-pytest-regressions = "*"
-# pytest-ruff is not on conda
+# Features
 
 [tool.pixi.feature.minimal.dependencies]
 python = "~=3.11.0"
@@ -182,45 +191,41 @@ numpy = ">=2.2.0"
 scipy = ">=1.14.0"
 sympy = ">=1.13.0"
 
-[tool.pixi.feature.publish.dependencies]
-hatch = ">=1.7.0,<1.13"
-hatch-vcs = ">=0.4.0,<0.5"
+[tool.pixi.feature.docs.dependencies]
+kwant = "*"
+myst-nb = "*"
+matplotlib-base = "*"
+sphinx-togglebutton = "*"
+sphinx-copybutton = "*"
+sphinx-book-theme = "*"
+beautifulsoup4 = "*"
 git = "*"
+make = "*"
+
+[tool.pixi.feature.docs.tasks.docs-build]
+cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+
+[tool.pixi.feature.test.dependencies]
+pytest = "*"
+pytest-cov = "*"
+pytest-randomly = "*"
+pytest-regressions = "*"
+
+[tool.pixi.feature.test.tasks]
+tests = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning"
 
 [tool.pixi.feature.precommit.dependencies]
 pre-commit = "*"
 git = "*"
 
-[tool.pixi.environments]
-default = { solve-group = "default" }
-docs = { features = ["docs"], solve-group = "mid" }
-minimal = { features = ["minimal", "test"], solve-group = "minimal" }
-mid = { features = ["mid", "test"], solve-group = "mid" }
-latest = { features = ["latest", "test"], solve-group = "default" }
-precommit = { features = ["precommit"], no-default-feature = true }
-publish = { features = ["publish"], no-default-feature = true }
-
-# Tasks
-
-[tool.pixi.feature.test.tasks]
-tests = "pytest -W error -W ignore:ast.NameConstant:DeprecationWarning"
-
-[tool.pixi.tasks]
-tests-minimal = "pixi run -e minimal tests"
-tests-mid = "pixi run -e mid tests"
-tests-latest = "pixi run -e latest tests"
-tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
-
-[tool.pixi.feature.docs.tasks]
-docs-build.cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
-docs-build.env.OPENBLAS_NUM_THREADS = "1"
-docs-build.env.OMP_NUM_THREADS = "1"
-docs-build.env.MKL_NUM_THREADS = "1"
-docs-build.env.MKL_DYNAMIC = "FALSE"
-
 [tool.pixi.feature.precommit.tasks]
 git = "git"
 pre-commit = "pre-commit"
+
+[tool.pixi.feature.publish.dependencies]
+hatch = ">=1.7.0,<1.13"
+hatch-vcs = ">=0.4.0,<0.5"
+git = "*"
 
 [tool.pixi.feature.publish.tasks]
 build = "hatch build"
