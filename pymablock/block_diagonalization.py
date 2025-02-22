@@ -862,6 +862,7 @@ def _symbolic_keys_to_tuples(
 def _sympy_to_BlockSeries(
     operator: sympy.MatrixBase,
     symbols: Sequence[sympy.Symbol] = (),
+    check_hermitian: bool = True,
 ) -> BlockSeries:
     """Convert a symbolic Hamiltonian to a BlockSeries.
 
@@ -873,6 +874,8 @@ def _sympy_to_BlockSeries(
         List of symbols that are the perturbative coefficients.
         If None, all symbols in the Hamiltonian are assumed to be perturbative
         coefficients.
+    check_hermitian :
+        Whether to check if the operator is Hermitian.
 
     Returns
     -------
@@ -885,22 +888,43 @@ def _sympy_to_BlockSeries(
         raise ValueError("Not all perturbative parameters are in `hamiltonian`.")
 
     operator = operator.expand()
+    n_infinite = len(symbols)
+
+    # Define derivatives through lower order derivatives to avoid recomputing.
+    # We also divide these by the product of factorials to use in the Taylor expansion.
+    operator_derivatives = BlockSeries(
+        data={(0,) * n_infinite: operator},
+        shape=(),
+        n_infinite=n_infinite,
+        dimension_names=symbols,
+    )
+
+    def derivative_eval(*index):
+        # Select an axis along which to take the derivative.
+        symbol_number, order = next((i, n) for i, n in enumerate(index) if n)
+        previous_index = list(index)
+        previous_index[symbol_number] -= 1
+        return (
+            operator_derivatives[tuple(previous_index)].diff(symbols[symbol_number])
+            / order
+        )
+
+    operator_derivatives.eval = derivative_eval
 
     def op_eval(*index):
-        # Get order of perturbation by Taylor expanding
-        expr = sympy.diff(operator, *((n, i) for n, i in zip(symbols, index)))
-        expr = expr.subs({n: 0 for n in symbols})
-        expr = expr / reduce(mul, [sympy.factorial(i) for i in index])
-        # Multiply by perturbative coefficients
+        expr = operator_derivatives[index].subs({n: 0 for n in symbols})
+
+        # Sympy three-valued logic requires "is False".
+        if check_hermitian and expr.is_hermitian is False:
+            raise ValueError("Operator must be Hermitian.")
+
         expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
-        if expr.is_hermitian is False:  # Sympy three-valued logic
-            raise ValueError("Hamiltonian must be Hermitian at every order.")
         return _convert_if_zero(expr)
 
     op = BlockSeries(
         eval=op_eval,
         shape=(),
-        n_infinite=len(symbols),
+        n_infinite=n_infinite,
         dimension_names=symbols,
     )
     return op
