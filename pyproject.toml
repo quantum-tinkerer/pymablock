@@ -200,10 +200,9 @@ sphinx-copybutton = "*"
 sphinx-book-theme = "*"
 beautifulsoup4 = "*"
 git = "*"
-make = "*"
 
 [tool.pixi.feature.docs.tasks.docs-build]
-cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+cmd = "python -c \"from matplotlib import pyplot\" && sphinx-build -b html -W -n -T docs/source docs/build/html"
 
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
