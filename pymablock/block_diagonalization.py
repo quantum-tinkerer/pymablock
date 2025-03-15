@@ -12,7 +12,6 @@ import numpy as np
 import sympy
 from scipy import sparse
 from sympy.physics.quantum import Dagger
-from sympy.physics.quantum.operator import Operator
 
 from pymablock import second_quantization
 from pymablock.algorithm_parsing import series_computation
@@ -50,7 +49,6 @@ def block_diagonalize(
     fully_diagonalize: (
         tuple[int] | dict[int, np.ndarray | Mask] | np.ndarray | Mask
     ) = (),
-    operators: Sequence[Operator] = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -144,8 +142,6 @@ def block_diagonalize(
         array may be provided directly without a dictionary. Must be symmetric, and may
         not have any True values corresponding to matrix elements coupling degenerate
         eigenvalues.
-    operators :
-        The set of boson operators that are used in the Hamiltonian.
 
     Returns
     -------
@@ -251,22 +247,17 @@ def block_diagonalize(
         raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
 
     # Extract the default boson operators from the Hamiltonian.
-    if not operators:
-        if any(isinstance(block, sympy.MatrixBase) for block in nonzero_blocks):
-            operators = list(
-                set().union(
-                    *(
-                        second_quantization.find_boson_operators(block)
-                        for block in nonzero_blocks
-                    )
+    if any(isinstance(block, sympy.MatrixBase) for block in nonzero_blocks):
+        operators = list(
+            set().union(
+                *(
+                    second_quantization.find_boson_operators(block)
+                    for block in nonzero_blocks
                 )
             )
-
-    if operators:
-        # Check that diagonal blocks of H_0 conserve quasiparticle number.
-        for block in nonzero_blocks:
-            for element in block.diagonal():
-                second_quantization.convert_to_number_operators(element, operators)
+        )
+    else:
+        operators = ()
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None or use_implicit:
@@ -323,6 +314,13 @@ def block_diagonalize(
         if isinstance(fully_diagonalize, dict):
             # Check that `fully_diagonalize` is symmetric.
             for to_eliminate in fully_diagonalize.values():
+                # Check that `fully_diagonalize` has the right format. In particular we
+                # do not allow `to_eliminate` to have the format made for second
+                # quantized Hamiltonians (type Mask) if H_0 has no operators.
+                if not isinstance(to_eliminate, np.ndarray):
+                    raise ValueError(
+                        "The values of fully_diagonalize dictionary must be numpy arrays."
+                    )
                 if not (to_eliminate == to_eliminate.T).all():
                     raise ValueError(
                         "The values of fully_diagonalize dictionary must be symmetric."
@@ -378,24 +376,52 @@ def block_diagonalize(
         scope["diag"] = diag
         scope["offdiag"] = offdiag
     else:
+        if isinstance(fully_diagonalize, dict):
+            # fully_diagonalize is a dictionary of masks
+            def diag(x, index):
+                x = x[index] if isinstance(x, BlockSeries) else x
+                if index[0] not in fully_diagonalize or x is zero:
+                    return x
+                return x - second_quantization.apply_mask_to_operator(
+                    x, fully_diagonalize[index[0]]
+                )
 
-        def diag(x, index):
-            x = x[index] if isinstance(x, BlockSeries) else x
-            if index[0] not in fully_diagonalize or x is zero:
-                return x
-            return x - second_quantization.apply_mask_to_operator(
-                x, fully_diagonalize[index[0]], operators
-            )
+            def offdiag(x, index):
+                if index[0] not in fully_diagonalize:
+                    return zero
+                x = x[index] if isinstance(x, BlockSeries) else x
+                if x is zero:
+                    return zero
+                return second_quantization.apply_mask_to_operator(
+                    x, fully_diagonalize[index[0]]
+                )
+        else:
+            # fully_diagonalize is a list of block indices to fully diagonalize
+            keep = {
+                block_idx: (
+                    operators,
+                    [(([0], None),) * len(operators) + (equal_eigs[block_idx],)],
+                )
+                for block_idx in fully_diagonalize
+            }
 
-        def offdiag(x, index):
-            if index[0] not in fully_diagonalize:
-                return zero
-            x = x[index] if isinstance(x, BlockSeries) else x
-            if x is zero:
-                return zero
-            return second_quantization.apply_mask_to_operator(
-                x, fully_diagonalize[index[0]], operators
-            )
+            def diag(x, index):
+                x = x[index] if isinstance(x, BlockSeries) else x
+                if index[0] not in keep or x is zero:
+                    return x
+
+                return second_quantization.apply_mask_to_operator(x, keep[index[0]])
+
+            def offdiag(x, index):
+                if index[0] not in keep:
+                    return zero
+                x = x[index] if isinstance(x, BlockSeries) else x
+                if x is zero:
+                    return zero
+
+                return sympy.expand(
+                    x - second_quantization.apply_mask_to_operator(x, keep[index[0]])
+                )
 
         scope["diag"] = diag
         scope["offdiag"] = offdiag

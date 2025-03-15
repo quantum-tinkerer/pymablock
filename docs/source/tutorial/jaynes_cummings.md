@@ -88,9 +88,7 @@ We can now define the block-diagonalization routine by calling {autolink}`~pymab
 import numpy as np
 from pymablock import block_diagonalize
 
-H_tilde, U, U_adjoint = block_diagonalize(
-    [H_0, H_p], symbols=[g], fully_diagonalize={0: [(([], 0), True ^ np.eye(2, dtype=bool)), (([], 1), np.ones((2, 2), dtype=bool))]}
-)
+H_tilde, U, U_adjoint = block_diagonalize([H_0, H_p], symbols=[g])
 ```
 
 For example, to compute the 2nd order correction of the Hamiltonian of the $\uparrow$ subspace (the `(0, 0)` block) we use
@@ -98,7 +96,7 @@ For example, to compute the 2nd order correction of the Hamiltonian of the $\upa
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_{2}^{AA}'), simplify(H_tilde[0, 0, 2].expand()), evaluate=False)
+Eq(Symbol(r'\tilde{H}_2'), simplify(H_tilde[0, 0, 2].expand()), evaluate=False)
 ```
 
 Higher order corrections work exactly the same:
@@ -106,13 +104,13 @@ Higher order corrections work exactly the same:
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_{4}^{AA}'), simplify(H_tilde[0, 0, 4].expand()), evaluate=False)
+Eq(Symbol(r'\tilde{H}_4'), simplify(H_tilde[0, 0, 4].expand()), evaluate=False)
 ```
 
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_{6}^{AA}'), simplify(H_tilde[0, 0, 6].expand()), evaluate=False)
+Eq(Symbol(r'\tilde{H}_6'), simplify(H_tilde[0, 0, 6].expand()), evaluate=False)
 ```
 
 We see that also computing the 6th order correction takes effectively no time.

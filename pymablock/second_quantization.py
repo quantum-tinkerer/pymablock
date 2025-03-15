@@ -13,7 +13,10 @@ from sympy.physics.quantum.operatorordering import normal_ordered_form
 from pymablock.series import zero
 
 # Type aliases
-Mask = list[tuple[tuple[list[int], int | None], np.ndarray]]
+Mask = tuple[
+    list[sympy.physics.quantum.Operator],
+    list[tuple[tuple[list[int], int | None], np.ndarray]],
+]
 
 # Monkey patch sympy to propagate adjoint to matrix elements.
 if parse(sympy.__version__) < parse("1.14.0"):
@@ -243,41 +246,49 @@ def solve_sylvester_bosonic(
 def apply_mask_to_operator(
     operator: sympy.MatrixBase,
     mask: Mask,
-    boson_operators: list[boson.BosonOp],
 ) -> sympy.MatrixBase:
-    """Apply a mask to an operator.
+    """Apply a mask to filter specific terms in a matrix operator.
+
+    This function selectively keeps terms in a symbolic matrix operator based on
+    their powers of creation and annihilation operators.
 
     Parameters
     ----------
     operator :
-        Operator to apply the mask to.
+        Matrix operator containing symbolic expressions with second quantized operators.
     mask :
-        Mask to apply to the operator.
-    boson_operators :
-        List with all possible bosonic operators in the operator.
+        Specification of which terms to keep, see Notes for format details.
 
     Returns
     -------
-    Operator with the mask applied.
+    sympy.MatrixBase
+        A new matrix with the same shape as the input, but containing only the
+        selected terms.
 
     Notes
     -----
-    For a single boson the mask has a format ([n_0, n_1, n_2, ...], n_max), where all
-    n_i are nonnegative integers that label the powers of boson operators to eliminate.
-    n_max may be None, and it indicates that powers above n_max are eliminated (or not
-    if None). In a finite Hilbert space, the mask is an arbitrary symmetric binary
-    matrix. A many-body mask is a list of tuples of masks for each boson/finite Hilbert
-    space.
+    The mask consists of two parts:
+    1. A list of operators to check powers for
+    2. A list of selection rules for keeping terms
 
-    For example [(([], 0), np.array([[0, 1], [1, 0]])), (([], 1), Matrix([[1, 1], [1,
-    1]]))] corresponds to full diagonalization of boson x spin.
+    Each selection rule consists of:
+    - One constraint per operator defining which powers to keep
+    - A boolean matrix indicating which matrix elements to apply the rule to
+
+    For each operator, the constraint is specified as ([n1, n2, ...], n_max) where:
+    - [n1, n2, ...] is a list of specific powers of raising/lowering operators to keep
+    - n_max is an optional threshold. If provided, all powers ≥ n_max will be kept
+    - If n_max is None, only the explicitly listed powers are kept
+
+    A term is kept if it satisfies ALL constraints in at least ONE selection rule.
 
     """
+    operators, mask = mask
     result = sympy.zeros(operator.rows, operator.cols)
     for i in range(operator.rows):
         for j in range(operator.cols):
             value = operator[i, j]
-            shifts = expr_to_shifts(value, boson_operators)
+            shifts = expr_to_shifts(value, operators)
             for *mask_bosons, mask_matrix in mask:
                 if not mask_matrix[i, j]:
                     continue
