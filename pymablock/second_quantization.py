@@ -7,7 +7,8 @@ import numpy as np
 import sympy
 import sympy.physics
 from packaging.version import parse
-from sympy.physics.quantum import Dagger, boson
+from sympy.physics.quantum import Dagger, HermitianOperator, boson, fermion
+from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock.series import zero
@@ -305,3 +306,80 @@ def apply_mask_to_operator(
                     del shifts[shift]
 
     return result
+
+
+class NumberOperator(HermitianOperator):
+    """Number operator for bosonic and fermionic operators."""
+
+    @property
+    def name(self):
+        """Return the name of the operator."""
+        return self.args[0].name
+
+    def __new__(cls, *args, **hints):
+        """Construct a number operator for bosonic modes.
+
+        Parameters
+        ----------
+        operator :
+            Operator that the number operator counts.
+        args :
+            Length-1 list with the operator.
+        hints :
+            Unused; required for compatibility with sympy.
+
+        """
+        try:
+            (operator,) = args
+        except ValueError:
+            raise ValueError("NumberOperator requires a single argument.")
+        if not isinstance(operator, (boson.BosonOp, fermion.FermionOp)):
+            raise TypeError("NumberOperator requires a bosonic or fermionic operator.")
+        if not operator.is_annihilation:
+            raise ValueError("Operator must be an annihilation operator.")
+
+        return super().__new__(cls, operator, **hints)
+
+    def doit(self, **hints):  # noqa: ARG002
+        """Evaluate the operator.
+
+        Returns
+        -------
+        sympy.QExpr
+            The evaluated operator.
+
+        """
+        return Dagger(self.args[0]) * self.args[0]
+
+    def _eval_commutator_NumberOperator(self, other):  # noqa: ARG002
+        """Evaluate the commutator with another NumberOperator."""
+        return sympy.S.Zero
+
+    def _eval_commutator_BosonOp(self, other, **hints):
+        """Evaluate the commutator with a Boson operator."""
+        if isinstance(self.args[0], fermion.FermionOp):
+            return sympy.S.Zero
+        if other.name != self.name and hints.get("independent"):
+            return sympy.S.Zero
+        return normal_ordered_form(
+            Commutator(self.doit(), other, **hints).doit(), **hints
+        )
+
+    def _eval_commutator_FermionOp(self, other, **hints):
+        """Evaluate the commutator with a Fermion operator."""
+        if isinstance(self.args[0], boson.BosonOp):
+            return sympy.S.Zero
+        if other.name != self.name and hints.get("independent"):
+            return sympy.S.Zero
+        return normal_ordered_form(
+            Commutator(self.doit(), other, **hints).doit(), **hints
+        )
+
+    def _print_contents_latex(self, printer, *args):  # noqa: ARG002
+        return r"{N_{%s}}" % str(self.name)
+
+    def _print_contents(self, printer, *args):  # noqa: ARG002
+        return r"N_%s" % str(self.name)
+
+    def _print_contents_pretty(self, printer, *args):
+        return printer._print("N_" + self.args[0], *args)
