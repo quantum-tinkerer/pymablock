@@ -40,31 +40,26 @@ if parse(sympy.__version__) < parse("1.14.0"):
     sympy.Expr._eval_transpose = _eval_transpose
 
 
-def find_boson_operators(expr: sympy.Expr):
-    """Find all the boson operators in an expression.
+def find_operators(expr: sympy.Expr):
+    """Find all the boson and fermionic operators in an expression.
 
     Parameters
     ----------
     expr :
-        Sympy expression with bosonic operators.
+        Sympy expression with bosonic and fermionic operators.
 
     Returns
     -------
-    List with all annihilation bosonic operators in an expression.
+    List with all annihilation bosonic and fermionic operators in an expression.
 
     """
-    annihilation_operators = [
-        arg
-        for arg in expr.free_symbols
-        if isinstance(arg, boson.BosonOp) and arg.is_annihilation
-    ]
-    creation_operators = [
-        Dagger(arg)
-        for arg in expr.free_symbols
-        if isinstance(arg, boson.BosonOp) and not arg.is_annihilation
-    ]
-
-    return list(set(annihilation_operators + creation_operators))
+    return list(
+        set(
+            type(arg)(arg.name)
+            for arg in expr.free_symbols
+            if isinstance(arg, (boson.BosonOp, fermion.FermionOp))
+        )
+    )
 
 
 def convert_to_number_operators(expr: sympy.Expr, boson_operators: list):

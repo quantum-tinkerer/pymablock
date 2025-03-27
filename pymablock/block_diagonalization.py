@@ -250,10 +250,7 @@ def block_diagonalize(
     if any(isinstance(block, sympy.MatrixBase) for block in nonzero_blocks):
         operators = list(
             set().union(
-                *(
-                    second_quantization.find_boson_operators(block)
-                    for block in nonzero_blocks
-                )
+                *(second_quantization.find_operators(block) for block in nonzero_blocks)
             )
         )
     else:
