@@ -8,6 +8,7 @@ import sympy
 import sympy.physics
 from packaging.version import parse
 from sympy.physics.quantum import Dagger, HermitianOperator, boson, fermion
+from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
@@ -62,49 +63,164 @@ def find_operators(expr: sympy.Expr):
     )
 
 
-def convert_to_number_operators(expr: sympy.Expr, boson_operators: list):
-    """Convert an expression to a function of number operators.
+def multiply_b(expr, boson):
+    """Multiply a number-ordered expression by a boson annihilation operator from the right.
+
+    Parameters
+    ----------
+    expr :
+        Number-ordered sympy expression with bosonic operators.
+    boson :
+        Boson annihilation operator to multiply with.
+
+    Returns
+    -------
+    sympy.Expr
+        Number-ordered product expr * boson.
+    """
+    n = NumberOperator(boson)
+
+    number_ordered_terms = []
+    for term in expr.as_ordered_terms():
+        if not term.has(Dagger(boson)):  # only annihilations in term
+            number_ordered_terms.append(term * boson)
+        else:
+            # Commute n and boson
+            term = term.subs(n, n - 1) * n
+            # Find Dagger(boson) in term
+            daggered_boson = next(
+                factor
+                for factor in term.as_ordered_factors()
+                if factor.has(Dagger(boson))
+            )
+            term = term.subs(
+                daggered_boson, Dagger(boson) ** (daggered_boson.as_base_exp()[1] - 1)
+            )
+            number_ordered_terms.append(term)
+    return sympy.Add(*number_ordered_terms)
+
+
+def multiply_daggered_b(expr, daggered_boson):
+    """Multiply a number-ordered expression by a boson creation operator from the right.
+
+    Parameters
+    ----------
+    expr :
+        Number-ordered sympy expression with bosonic operators.
+    daggered_boson :
+        Boson creation operator to multiply with.
+
+    Returns
+    -------
+    sympy.Expr
+        Number-ordered product expr * daggered_boson.
+    """
+    boson = Dagger(daggered_boson)
+    n = NumberOperator(boson)
+    number_ordered_terms = []
+    for term in expr.as_ordered_terms():
+        try:
+            boson_factor = next(
+                (
+                    factor
+                    for factor in term.as_ordered_factors()
+                    if factor.as_base_exp()[0] == boson
+                )
+            )
+            term = term.subs(boson_factor, boson ** (boson_factor.as_base_exp()[1] - 1))
+            number_ordered_terms.append(multiply_fn(term, n + 1))
+        except StopIteration:
+            # Commute n and daggered boson
+            number_ordered_terms.append(daggered_boson * term.subs(n, n + 1))
+    return sympy.Add(*number_ordered_terms)
+
+
+def multiply_fn(expr, nexpr):
+    """Multiply a number-ordered expression by a function of number operators.
+
+    Parameters
+    ----------
+    expr :
+        Number-ordered sympy expression with bosonic operators.
+    nexpr :
+        Expression containing only number operators.
+
+    Returns
+    -------
+    sympy.Expr
+        Number-ordered product expr * nexpr.
+    """
+    number_ordered_terms = []
+    for term in expr.as_ordered_terms():
+        # Find common bosons
+        boson_powers = [
+            (base_exp[0], base_exp[1])
+            for factor in term.as_ordered_factors()
+            if isinstance((base_exp := factor.as_base_exp())[0], BosonOp)
+            and base_exp[0].is_annihilation
+        ]
+        if not boson_powers:
+            number_ordered_terms.append(term * nexpr)
+            continue
+
+        fn = nexpr
+        for boson, power in boson_powers:
+            fn = fn.subs(NumberOperator(boson), NumberOperator(boson) + power)
+        number_ordered_terms.append(fn * term)
+    return sympy.Add(*number_ordered_terms)
+
+
+def order_expression(expr):
+    """Convert an expression to number-ordered form.
 
     Parameters
     ----------
     expr :
         Sympy expression with bosonic operators.
-    boson_operators :
-        List with all bosonic operators in the expression.
 
     Returns
     -------
-    Equivalent expression in terms of number operators.
-
+    sympy.Expr
+        Equivalent expression in normal-ordered form with number operators.
     """
-    daggers = [Dagger(op) for op in boson_operators]
-    terms = expr.expand().as_ordered_terms()
-    total = sympy.S.Zero
-    for term in terms:
-        term = normal_ordered_form(term, independent=True)
-        # 0. Expand again.
-        # 1. Check that powers of creation and annihilation operators are the same.
-        # 2. Compute the prefactor and all powers of the number operator.
-        expression = term.expand()
-        for term in expression.as_ordered_terms():
-            result = sympy.S.One
-            powers = defaultdict(int)
-            for factor in term.as_ordered_factors():
-                symbol, power = factor.as_base_exp()
-                if symbol not in boson_operators and symbol not in daggers:
-                    result *= factor
-                powers[symbol] = power
-            for op, op_dagger in zip(boson_operators, daggers):
-                if powers[op] != powers[op_dagger]:
-                    raise ValueError("Hamiltonian is not diagonal in number basis.")
+    result = sympy.S.Zero
+    for term in expr.as_ordered_terms():
+        composed_term = sympy.S.One
+        for factor in term.as_ordered_factors():
+            base, power = factor.as_base_exp()
+            if isinstance(base, BosonOp) and base.is_annihilation:
+                if power < 0:
+                    raise ValueError(
+                        f"Cannot have negative power of boson operator: {base}"
+                    )
+                for _ in range(power):
+                    composed_term = multiply_b(composed_term, base)
+                continue
+            elif isinstance(base, BosonOp):
+                if power < 0:
+                    raise ValueError(
+                        f"Cannot have negative power of boson operator: {base}"
+                    )
+                for _ in range(power):
+                    composed_term = multiply_daggered_b(composed_term, base)
+                continue
+            elif not base.atoms(BosonOp):  # base is a function of number operators
+                composed_term = multiply_fn(composed_term, base**power)
+                continue
 
-                result *= sympy.Mul(
-                    *[(NumberOperator(op) - i) for i in range(powers[op])]
+            # Composite number-ordered expression
+            base = order_expression(base)
+            if power < 0 and base.atoms(BosonOp):
+                raise ValueError(f"Cannot have negative power of boson operator: {base}")
+            for _ in range(power):
+                composed_term = sympy.Add(
+                    *(
+                        order_expression(composed_term * base_term)
+                        for base_term in base.as_ordered_terms()
+                    )
                 )
-            total += result
-
-    return total.expand()
-
+        result += composed_term
+    return result
 
 def solve_monomial(Y, H_ii, H_jj, boson_operators):
     """Solve a Sylvester equation for bosonic monomial.
@@ -143,16 +259,15 @@ def solve_monomial(Y, H_ii, H_jj, boson_operators):
         return sympy.S.Zero
 
     shifts = expr_to_shifts(Y, boson_operators)
-
     result = sympy.S.Zero
     for shift, monomial in shifts.items():
         shifted_H_jj = H_jj.subs(
             {
-                Dagger(op) * op: Dagger(op) * op - delta
+                NumberOperator(op): NumberOperator(op) - delta
                 for delta, op in zip(shift, boson_operators)
             }
         )
-        result -= ((H_ii - shifted_H_jj).expand().simplify()) ** -1 * monomial
+        result -= ((H_ii - shifted_H_jj)) ** -1 * monomial
 
     return result
 
@@ -186,7 +301,7 @@ def expr_to_shifts(
             elif symbol in daggers:
                 shift[daggers.index(symbol)] -= power
         shifts[tuple(shift)] += monomial
-
+        print(f"Shift: {shift}, Monomial: {monomial}")
     return shifts
 
 
@@ -212,7 +327,7 @@ def solve_sylvester_bosonic(
 
     """
     eigs = tuple(
-        [convert_to_number_operators(eig, boson_operators) for eig in eig_block]
+        [order_expression(eig) for eig in eig_block]
         for eig_block in eigs
     )
 
@@ -328,17 +443,18 @@ class NumberOperator(HermitianOperator):
         """
         try:
             (operator,) = args
+            if not isinstance(operator, (boson.BosonOp, fermion.FermionOp)):
+                raise TypeError("NumberOperator requires a bosonic or fermionic operator.")
+            if not operator.is_annihilation:
+                raise ValueError("Operator must be an annihilation operator.")
+            name = operator.name
+            operator_type = "boson" if isinstance(operator, boson.BosonOp) else "fermion"
         except ValueError:
-            raise ValueError("NumberOperator requires a single argument.")
-        if not isinstance(operator, (boson.BosonOp, fermion.FermionOp)):
-            raise TypeError("NumberOperator requires a bosonic or fermionic operator.")
-        if not operator.is_annihilation:
-            raise ValueError("Operator must be an annihilation operator.")
+            name, operator_type = args
 
         return super().__new__(
             cls,
-            operator.name,
-            "boson" if isinstance(operator, boson.BosonOp) else "fermion",
+            name, operator_type,
             **hints,
         )
 
