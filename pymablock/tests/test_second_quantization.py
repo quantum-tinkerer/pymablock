@@ -1,5 +1,4 @@
 import sympy
-from pytest import mark
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.operatorordering import normal_ordered_form
@@ -15,35 +14,66 @@ from pymablock.second_quantization import (
 
 
 def test_solve_sylvester_bosonic_simple():
-    def test_solve_sylvester_bosonic_simple():
-        # Create symbolic matrices with no bosonic operators
-        a, b, c, d = sympy.symbols("a b c d", real=True)
-        H_ii = sympy.Matrix([[a, 0], [0, b]])
-        H_jj = sympy.Matrix([[c, 0], [0, d]])
+    """Confirm that the index handling is correct."""
+    # Create symbolic matrices with no bosonic operators
+    a, b, c, d = sympy.symbols("a b c d", real=True)
+    H_ii = sympy.Matrix([[a, 0], [0, b]])
+    H_jj = sympy.Matrix([[c, 0], [0, d]])
 
-        # Define eigenvalues for solve_sylvester_bosonic
-        eigs = (((a, b)), ((c, d)))
+    # Define eigenvalues for solve_sylvester_bosonic
+    eigs = (((a, b)), ((c, d)))
 
-        # Empty list of bosonic operators since we're not using any
-        boson_operators = []
+    # Empty list of bosonic operators since we're not using any
+    boson_operators = []
 
-        # Get the solver function
-        solve_sylvester = solve_sylvester_bosonic(eigs, boson_operators)
+    # Get the solver function
+    solve_sylvester = solve_sylvester_bosonic(eigs, boson_operators)
 
-        # Create a test matrix Y
-        Y = sympy.Matrix([[1, 2], [3, 4]])
+    # Create a test matrix Y
+    Y = sympy.Matrix([[1, 2], [3, 4]])
 
-        # Solve the Sylvester equation
-        V = solve_sylvester(Y, index=(0, 0, 0))
+    # Solve the Sylvester equation
+    V = solve_sylvester(Y, index=(0, 1, 1))
 
-        # Verify: H_ii * V - V * H_jj = Y
-        result = H_ii * V - V * H_jj
+    result = -(H_ii * V - V * H_jj)
 
-        # Check if the equation is satisfied
-        assert (result - Y).expand() == sympy.zeros(2, 2)
+    # Check if the equation is satisfied
+    assert (sympy.simplify(result) - Y) == sympy.zeros(2, 2)
 
 
-@mark.xfail(reason="This test is not implemented yet")
+def test_solve_sylvester_bosonic_with_number_operator():
+    """Test solving Sylvester equation with number operators in 1x1 matrices."""
+    # Define a boson operator
+    b = sympy.symbols("b", cls=BosonOp)
+    nb = NumberOperator(b)
+
+    omega, delta = sympy.symbols("omega delta", real=True)
+    # Define the eigenvalues with number operators
+    eigs = (((omega * nb),), ((delta * nb),))
+
+    # List of boson operators
+    boson_operators = [b]
+
+    # Get the solver function
+    solve_sylvester = solve_sylvester_bosonic(eigs, boson_operators)
+
+    # Create a test matrix Y
+    Y = sympy.Matrix([[b]])
+
+    # Solve the Sylvester equation
+    V = solve_sylvester(Y, index=(0, 1, 1))
+
+    # Construct Hamiltonians
+    H_ii = sympy.Matrix([[omega * nb]])
+    H_jj = sympy.Matrix([[delta * nb]])
+
+    # Verify the equation H_ii * V - V * H_jj = -Y
+    result = -(H_ii * V - V * H_jj)
+
+    # Check that the result matches Y after normal ordering
+    assert order_expression(result[0, 0] - Y[0, 0], simplify=True) == 0
+
+
 def test_solve_sylvester_bosonic():
     a, b = sympy.symbols("a b", cls=BosonOp)
     n_a, n_b = NumberOperator(a), NumberOperator(b)
@@ -60,9 +90,11 @@ def test_solve_sylvester_bosonic():
     H_ii = sympy.diag(*eigs[0])
     H_jj = sympy.diag(*eigs[1])
 
-    Y_expected = H_ii * V - V * H_jj
+    Y_expected = -(H_ii * V - V * H_jj)
 
-    assert normal_ordered_form(Y.expand() - Y_expected.expand()) == 0
+    for i in range(Y.shape[0]):
+        for j in range(Y.shape[1]):
+            assert order_expression(Y[i, j] - Y_expected[i, j], simplify=True) == 0
 
 
 def test_multiply_b():
