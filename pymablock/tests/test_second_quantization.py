@@ -8,7 +8,7 @@ from pymablock.second_quantization import (
     multiply_b,
     multiply_daggered_b,
     multiply_fn,
-    order_expression,
+    number_ordered_form,
     solve_sylvester_bosonic,
 )
 
@@ -71,7 +71,7 @@ def test_solve_sylvester_bosonic_with_number_operator():
     result = -(H_ii * V - V * H_jj)
 
     # Check that the result matches Y after normal ordering
-    assert order_expression(result[0, 0] - Y[0, 0], simplify=True) == 0
+    assert number_ordered_form(result[0, 0] - Y[0, 0], simplify=True) == 0
 
 
 def test_solve_sylvester_bosonic():
@@ -94,7 +94,7 @@ def test_solve_sylvester_bosonic():
 
     for i in range(Y.shape[0]):
         for j in range(Y.shape[1]):
-            assert order_expression(Y[i, j] - Y_expected[i, j], simplify=True) == 0
+            assert number_ordered_form(Y[i, j] - Y_expected[i, j], simplify=True) == 0
 
 
 def test_multiply_b():
@@ -153,7 +153,7 @@ def test_multiply_fn():
     assert (result - expected).expand() == 0
 
 
-def test_order_expression():
+def test_number_ordered_form():
     b = BosonOp("b")
     c = BosonOp("c")
     Nb = NumberOperator(b)
@@ -165,7 +165,9 @@ def test_order_expression():
         + (Nc + 1) ** (1) * (b + 1) * (c + Nb * Dagger(c)) ** 2
     )
 
-    result = normal_ordered_form(order_expression(expr).doit().expand(), independent=True)
+    result = normal_ordered_form(
+        number_ordered_form(expr).doit().expand(), independent=True
+    )
     expected = normal_ordered_form(expr.doit().expand(), independent=True)
 
     assert (result - expected).expand() == 0

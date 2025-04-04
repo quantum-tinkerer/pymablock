@@ -248,8 +248,25 @@ def simplify_number_expression(expr: sympy.Expr) -> sympy.Expr:
     return sympy.simplify(expr.subs(substitutions)).subs(inverse)
 
 
-def order_expression(expr, simplify=False):
+def number_ordered_form(expr, simplify=False):
     """Convert an expression to number-ordered form.
+
+    Number ordered form is a form where:
+
+    1. All creation operators are on the left.
+    2. All annihilation operators are on the right.
+    3. There are as many number operators as possible in the middle.
+
+    This means that no term in a number-ordered expression can contain both a
+    creation and an annihilation operator for the same particle.
+
+    Importantly, the part with number operators may contain arbitrary functions
+    of number operators.
+
+    This form makes it easy to manipulate complex expressions, because
+    commuting a creation or annihilation operator through a function of a
+    number operator amounts to replacing corresponding number operator `N` with
+    `N ± 1`.
 
     Parameters
     ----------
@@ -290,13 +307,13 @@ def order_expression(expr, simplify=False):
                 continue
 
             # Composite number-ordered expression
-            base = order_expression(base)
+            base = number_ordered_form(base)
             if power < 0 and base.atoms(BosonOp):
                 raise ValueError(f"Cannot have negative power of boson operator: {base}")
             for _ in range(power):
                 composed_term = sympy.Add(
                     *(
-                        order_expression(composed_term * base_term)
+                        number_ordered_form(composed_term * base_term)
                         for base_term in base.as_ordered_terms()
                     )
                 )
@@ -415,7 +432,7 @@ def solve_sylvester_bosonic(
         diagonal Hamiltonian blocks.
 
     """
-    eigs = tuple([order_expression(eig) for eig in eig_block] for eig_block in eigs)
+    eigs = tuple([number_ordered_form(eig) for eig in eig_block] for eig_block in eigs)
 
     def solve_sylvester(
         Y: sympy.MatrixBase,

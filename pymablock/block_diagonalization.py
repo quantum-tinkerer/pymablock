@@ -1140,14 +1140,10 @@ def _extract_diagonal(
         if is_sympy:
             # Check if any of the expressions contains sympy.physics.quantum.Operator
             if operators:
-                zero_shift = (0,) * len(operators)
-                new_eigs = []
-                for eig in eigs:
-                    shifts = second_quantization.expr_to_shifts(eig, operators)
-                    new_eigs.append(shifts.pop(zero_shift, 0))
-                    if shifts:
-                        warn(warning, UserWarning)
-                eigs = new_eigs
+                eigs = [
+                    second_quantization.number_ordered_form(eig, simplify=False)
+                    for eig in eigs
+                ]
             eigs = np.array(eigs, dtype=object)
         diags.append(eigs)
 
