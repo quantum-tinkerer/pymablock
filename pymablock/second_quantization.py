@@ -98,10 +98,12 @@ def convert_to_number_operators(expr: sympy.Expr, boson_operators: list):
                 if powers[op] != powers[op_dagger]:
                     raise ValueError("Hamiltonian is not diagonal in number basis.")
 
-                result *= sympy.Mul(*[(Dagger(op) * op - i) for i in range(powers[op])])
+                result *= sympy.Mul(
+                    *[(NumberOperator(op) - i) for i in range(powers[op])]
+                )
             total += result
 
-    return total.expand().simplify()
+    return total.expand()
 
 
 def solve_monomial(Y, H_ii, H_jj, boson_operators):
@@ -189,7 +191,7 @@ def expr_to_shifts(
 
 
 def solve_sylvester_bosonic(
-    eigs: tuple[sympy.matrices.MatrixBase, ...],
+    eigs: tuple[tuple[sympy.Expr, ...], ...],
     boson_operators: list[boson.BosonOp],
 ) -> Callable:
     """Solve a Sylvester equation for bosonic diagonal Hamiltonians.
@@ -309,7 +311,7 @@ class NumberOperator(HermitianOperator):
     @property
     def name(self):
         """Return the name of the operator."""
-        return self.args[0].name
+        return self.args[0]
 
     def __new__(cls, *args, **hints):
         """Construct a number operator for bosonic modes.
@@ -333,7 +335,12 @@ class NumberOperator(HermitianOperator):
         if not operator.is_annihilation:
             raise ValueError("Operator must be an annihilation operator.")
 
-        return super().__new__(cls, operator, **hints)
+        return super().__new__(
+            cls,
+            operator.name,
+            "boson" if isinstance(operator, boson.BosonOp) else "fermion",
+            **hints,
+        )
 
     def doit(self, **hints):  # noqa: ARG002
         """Evaluate the operator.
@@ -344,7 +351,10 @@ class NumberOperator(HermitianOperator):
             The evaluated operator.
 
         """
-        return Dagger(self.args[0]) * self.args[0]
+        op = (boson.BosonOp if self.args[1].name == "boson" else fermion.FermionOp)(
+            self.args[0]
+        )
+        return Dagger(op) * op
 
     def _eval_commutator_NumberOperator(self, other):  # noqa: ARG002
         """Evaluate the commutator with another NumberOperator."""
@@ -352,7 +362,7 @@ class NumberOperator(HermitianOperator):
 
     def _eval_commutator_BosonOp(self, other, **hints):
         """Evaluate the commutator with a Boson operator."""
-        if isinstance(self.args[0], fermion.FermionOp):
+        if self.args[1].name == "fermion":
             return sympy.S.Zero
         if other.name != self.name and hints.get("independent"):
             return sympy.S.Zero
@@ -362,7 +372,7 @@ class NumberOperator(HermitianOperator):
 
     def _eval_commutator_FermionOp(self, other, **hints):
         """Evaluate the commutator with a Fermion operator."""
-        if isinstance(self.args[0], boson.BosonOp):
+        if self.args[1].name == "boson":
             return sympy.S.Zero
         if other.name != self.name and hints.get("independent"):
             return sympy.S.Zero
