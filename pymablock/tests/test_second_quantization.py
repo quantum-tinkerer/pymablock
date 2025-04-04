@@ -5,6 +5,7 @@ from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock.second_quantization import (
     NumberOperator,
+    group_ordered,
     multiply_b,
     multiply_daggered_b,
     multiply_fn,
@@ -171,3 +172,81 @@ def test_number_ordered_form():
     expected = normal_ordered_form(expr.doit().expand(), independent=True)
 
     assert (result - expected).expand() == 0
+
+
+def test_group_ordered_idempotence():
+    """Test that grouping and reassembling terms preserves the expression.
+
+    This tests the idempotence of the group_ordered when followed
+    by the reassembly operation. Instead of using number_ordered_form,
+    we directly create a properly number-ordered expression.
+    """
+    # Create boson operators
+    a = sympy.symbols("a", cls=BosonOp)
+    b = sympy.symbols("b", cls=BosonOp)
+
+    # Create number operators
+    Na = NumberOperator(a)
+    Nb = NumberOperator(b)
+
+    # Symbols for coefficients
+    x, y, z = sympy.symbols("x y z", real=True)
+
+    # Create a complex expression that's already in number-ordered form:
+    # Number ordered means NO TERM can have both creation and annihilation
+    # operators for the same particle
+    expr = (
+        # Terms with only number operators
+        2 * Na
+        + 3 * Nb
+        + x * Na * Nb
+        + y * Na**2
+        # Pure creation operators
+        + Dagger(a)
+        + Dagger(a) ** 2
+        + Dagger(a) * Dagger(b)
+        # Pure annihilation operators
+        + a
+        + b**2
+        + a * b
+        # Mixed operators for DIFFERENT particles (a and b)
+        + Dagger(a) * b
+        + Dagger(b) * a
+        + Dagger(a) * Nb * b
+        + 3 * Dagger(b) * (Na + 1) * Na / Nb * a
+        + z * Dagger(b) * Na * a
+    )
+
+    # Group the terms by powers of unmatched operators
+    grouped_result = group_ordered(expr)
+
+    # Reassemble the expression from the grouped result
+    reassembled_expr = sympy.Add(
+        *(i * value * j for (i, j), value in grouped_result.items())
+    )
+
+    # The reassembled expression should be equal to the original expression
+    assert (reassembled_expr - expr).expand() == 0
+
+    # Test with different combinations of creation and annihilation operators
+    # but still following number-ordering rules (no a† and a in same term)
+    expr2 = (
+        # Pure creation or annihilation operators
+        Dagger(a) ** 3
+        + a**2
+        + Dagger(b) ** 2
+        + b
+        # Mixed operators for DIFFERENT particles only
+        + x * Dagger(a) * b**2
+        + Dagger(b) ** 2 * a
+        # With number operators
+        + Dagger(a) * Nb
+        + Na * b
+    )
+
+    grouped_result2 = group_ordered(expr2)
+    reassembled_expr2 = sympy.Add(
+        *(i * value * j for (i, j), value in grouped_result2.items())
+    )
+
+    assert (reassembled_expr2 - expr2).expand() == 0
