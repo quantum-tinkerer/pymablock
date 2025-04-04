@@ -219,21 +219,33 @@ def group_ordered(expr):
     return result
 
 
-def simplify_number_expression(expr):
-    """Simplify a second-quantized expression with only number operators."""
+def simplify_number_expression(expr: sympy.Expr) -> sympy.Expr:
+    """Simplify a second-quantized expression with only number operators.
+
+    Parameters
+    ----------
+    expr :
+        Sympy expression only containing number operators.
+
+    Returns
+    -------
+    sympy.Expr
+        Simplified expression with number operators.
+
+    Raises
+    ------
+    ValueError
+        If the expression contains operators other than number operators.
+
+    """
     if expr.atoms(boson.BosonOp):
         raise ValueError("Expression contains bosonic operators.")
     substitutions = {
         n: sympy.Symbol(f"dummy_{n.name}_{n.args[1]}", real=True)
         for n in expr.atoms(NumberOperator)
     }
-    expr = sympy.simplify(expr.subs(substitutions))
-    return expr.subs(
-        {
-            sympy.Symbol(f"dummy_{n.name}_{n.args[1]}", real=True): n
-            for n in expr.atoms(NumberOperator)
-        }
-    )
+    inverse = {value: key for key, value in substitutions.items()}
+    return sympy.simplify(expr.subs(substitutions)).subs(inverse)
 
 
 def order_expression(expr, simplify=False):
