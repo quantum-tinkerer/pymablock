@@ -96,7 +96,7 @@ For example, to compute the 2nd order correction of the Hamiltonian of the $\upa
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_2'), simplify(H_tilde[0, 0, 2].expand()), evaluate=False)
+Eq(Symbol(r'\tilde{H}_2'), H_tilde[0, 0, 2], evaluate=False)
 ```
 
 Higher order corrections work exactly the same:
@@ -104,13 +104,13 @@ Higher order corrections work exactly the same:
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_4'), simplify(H_tilde[0, 0, 4].expand()), evaluate=False)
+Eq(Symbol(r'\tilde{H}_4'), H_tilde[0, 0, 4], evaluate=False)
 ```
 
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_6'), simplify(H_tilde[0, 0, 6].expand()), evaluate=False)
+Eq(Symbol(r'\tilde{H}_6'), H_tilde[0, 0, 6], evaluate=False)
 ```
 
 We see that also computing the 6th order correction takes effectively no time.
