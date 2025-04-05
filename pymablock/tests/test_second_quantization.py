@@ -1,3 +1,4 @@
+import pytest
 import sympy
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
@@ -5,11 +6,13 @@ from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock.second_quantization import (
     NumberOperator,
+    find_operators,
     group_ordered,
     multiply_b,
     multiply_daggered_b,
     multiply_fn,
     number_ordered_form,
+    simplify_number_expression,
     solve_sylvester_bosonic,
 )
 
@@ -250,3 +253,73 @@ def test_group_ordered_idempotence():
     )
 
     assert (reassembled_expr2 - expr2).expand() == 0
+
+
+def test_find_operators():
+    """Test the find_operators function to identify bosonic operators in expressions."""
+    a = BosonOp("a")
+    b = BosonOp("b")
+
+    # Simple expression with a single operator
+    expr1 = a**2 + 1
+    result1 = find_operators(expr1)
+    assert len(result1) == 1
+    assert result1[0] == a
+
+    # Expression with multiple operators
+    expr2 = a * b + Dagger(a) * Dagger(b)
+    result2 = find_operators(expr2)
+    assert len(result2) == 2
+    assert set(result2) == {a, b}
+
+    # Expression with no operators
+    expr3 = sympy.Symbol("x") + 1
+    result3 = find_operators(expr3)
+    assert result3 == []
+
+
+def test_simplify_number_expression():
+    """Test the simplify_number_expression function."""
+    a = BosonOp("a")
+    Na = NumberOperator(a)
+
+    # Test normal case
+    expr = Na - 2 * (Na)
+    result = simplify_number_expression(expr)
+    assert result == -Na
+
+    # Test with multiple number operators
+    b = BosonOp("b")
+    Nb = NumberOperator(b)
+    expr2 = Na * Nb - Nb * Na
+    result2 = simplify_number_expression(expr2)
+    assert result2 == 0
+
+    # Test that it raises ValueError when given bosonic operators
+    expr3 = Na + a
+    with pytest.raises(ValueError):
+        simplify_number_expression(expr3)
+
+
+def test_number_ordered_form_with_negative_powers():
+    """Test number_ordered_form with negative powers to verify error handling."""
+    a = BosonOp("a")
+
+    # Test that it raises ValueError for negative powers of operators
+    with pytest.raises(ValueError):
+        number_ordered_form(a ** (-1))
+
+    with pytest.raises(ValueError):
+        number_ordered_form(Dagger(a) ** (-1))
+
+    # Test that negative powers of number operators are allowed
+    Na = NumberOperator(a)
+    expr = Na ** (-1) * a
+    result = number_ordered_form(expr)
+    assert result == Na ** (-1) * a
+
+    # Test that negative powers of non-operator expressions are allowed
+    x = sympy.Symbol("x")
+    expr = x ** (-1) * a
+    result = number_ordered_form(expr)
+    assert result == x ** (-1) * a
