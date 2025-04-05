@@ -1,14 +1,16 @@
 ---
-jupytext:
-  text_representation:
-    extension: .md
-    format_name: myst
-    format_version: 0.13
-    jupytext_version: 1.16.1
-kernelspec:
-  display_name: Python 3 (ipykernel)
-  language: python
-  name: python3
+jupyter:
+  jupytext:
+    custom_cell_magics: kql
+    text_representation:
+      extension: .md
+      format_name: markdown
+      format_version: '1.3'
+      jupytext_version: 1.11.2
+  kernelspec:
+    display_name: docs
+    language: python
+    name: python3
 ---
 
 # Dispersive shift of a resonator coupled to a transmon
@@ -35,8 +37,7 @@ We therefore treat $g$ as a perturbative parameter.
 
 We start by importing all necessary packages and defining the Hamiltonian.
 
-```{code-cell} ipython3
-
+```python
 from itertools import product
 
 import numpy as np
@@ -62,10 +63,7 @@ H_p = (
 )
 ```
 
-
-```{code-cell} ipython3
-:tags: [hide-input]
-
+```python tags=["hide-input"]
 def display_eq(title, expr):
     """Print a sympy expression as an equality."""
     display(sympy.Eq(sympy.Symbol(title), expr))
@@ -74,15 +72,57 @@ display_eq("H_{0}", H_0)
 display_eq("H_{p}", H_p)
 ```
 
+The frequency shift of the resonator is given by:
+
+$$
+\chi = \frac{E^{(2)}_{11} - E^{(2)}_{10}}{2} - \frac{E^{(2)}_{01} - E^{(2)}_{00}}{2}
+$$
+
+where $E^{(2)}_{ij}$ is the second order correction to the energy of the state with $i$ excitations in the transmon and $j$ in the resonator.
+We compute $\chi$ using two different approaches.
+
+## Approach I: second quantized form
+
+```python
+H_tilde, U, U_adjoint = block_diagonalize(
+    [sympy.Matrix([[H_0]]), sympy.Matrix([[H_p]])], symbols=[g]
+)
+```
+
+The effective Hamiltonian `H_tilde` is a $1 \times 1$ matrix, a single energy level:
+
+```python
+E_eff = H_tilde[0, 0, 2]
+display_eq("E_{eff}", E_eff[0, 0])
+```
+
+
+```python
+from pymablock.second_quantization import NumberOperator
+
+N_a_t = NumberOperator(a_t)
+N_a_r = NumberOperator(a_r)
+```
+
+
+Finally, we compute the dispersive shift from the second order correction to the energies
+
+```python
+xi = E_eff.subs({N_a_t: 0, N_a_r: 0}) - E_eff.subs({N_a_t: 1, N_a_r: 0}) - E_eff.subs({N_a_t: 0, N_a_r: 1}) + E_eff.subs({N_a_t: 1, N_a_r: 1})
+display_eq(r"\chi", xi)
+```
+
+
+## Approach II: matrix representation
+
+Alternatively, we can compute the effective Hamiltonian in a matrix representation.
 To deal with the infinite dimensional Hilbert space, we observe that the perturbation only changes the occupation numbers of the transmon and the resonator by $\pm 1$.
 Therefore computing $n$-th order corrections to the $n_0$-th state allows to disregard states with any occupation numbers larger than $n_0 + n/2$.
 We want to compute the second order correction to the levels with occupation numbers of either the transmon or the resonator being $0$ and $1$.
 We accordingly truncate the Hilbert space to the lowest 3 levels of the transmon and the resonator.
 The resulting Hamiltonian is a $9 \times 9$ matrix, which we construct by computing the matrix elements of $H_0$ and $H_p$ in the truncated basis.
 
-```{code-cell} ipython3
-:tags: [hide-input]
-
+```python tags=["hide-input"]
 def collect_constant(expr):
     expr = normal_ordered_form(expr.expand(), independent=True)
     constant_terms = []
@@ -103,7 +143,7 @@ def to_matrix(ham, basis):
     return sympy.Matrix(np.array(flat_matrix).reshape(N, N))
 ```
 
-```{code-cell} ipython3
+```python
 # Construct the matrix Hamiltonian
 basis = [
     a_t**i * a_r**j / sympy.sqrt(sympy.factorial(i) * sympy.factorial(j))
@@ -117,17 +157,11 @@ H_p_matrix = to_matrix(H_p, basis)
 H = H_0_matrix + H_p_matrix
 ```
 
-Because the dispersive shift is
-
-$$
-\chi = (E^{(2)}_{11} - E^{(2)}_{10}) - (E^{(2)}_{01} - E^{(2)}_{00})
-$$
-
-we need to compute the energy corrections of the lowest $4$ levels.
+To compute the dispersive shift, we need to compute the energy corrections of the lowest $4$ levels.
 Therefore, we call `block_diagonalize` to separate the Hamiltonian into multiple $1 \times 1$ subspaces, replicating a regular perturbation theory calculation for single wavefunctions.
 To do this, we observe that $H_0$ is diagonal, and use `subspace_indices` to assign the elements of its eigenbasis to the desired states.
 
-```{code-cell} ipython3
+```python
 subspaces = {state: n for n, state in enumerate([1, a_t, a_r, a_t * a_r])}
 subspace_indices = [subspaces.get(element, 4) for element in basis]
 H_tilde, U, U_adjoint = block_diagonalize(
@@ -140,13 +174,13 @@ The first four elements of `subspaces_indices` correspond to the states $|0 0\ra
 The number $4$ is used to indicate the subspace of the remaining states.
 This yields the effective Hamiltonian `H_tilde` with $5$ blocks, all decoupled from each other.
 
-```{code-cell} ipython3
+```python
 H_tilde.shape
 ```
 
 Finally, we compute the dispersive shift from the second order correction to the energies
 
-```{code-cell} ipython3
+```python
 xi = (H_tilde[0, 0, 2] - H_tilde[1, 1, 2] - H_tilde[2, 2, 2] + H_tilde[3, 3, 2])[0, 0]
 
 display_eq(r"\chi", xi)
