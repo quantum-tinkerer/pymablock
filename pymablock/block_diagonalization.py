@@ -11,7 +11,7 @@ from warnings import warn
 import numpy as np
 import sympy
 from scipy import sparse
-from sympy.physics.quantum import Dagger
+from sympy.physics.quantum import Dagger, Operator
 
 from pymablock import second_quantization
 from pymablock.algorithm_parsing import series_computation
@@ -1029,9 +1029,10 @@ def _sympy_to_BlockSeries(
 
     def op_eval(*index):
         expr = operator_derivatives[index].subs({n: 0 for n in symbols})
-
-        # Sympy three-valued logic requires "is False".
-        if check_hermitian and expr.is_hermitian is False:
+        # - Sympy three-valued logic requires "is False".
+        # - The last check is a workaround for sympy issue #27898. (Matrices
+        # with operators are never Hermitian.)
+        if check_hermitian and expr.is_hermitian is False and not expr.atoms(Operator):
             raise ValueError("Operator must be Hermitian.")
 
         expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
