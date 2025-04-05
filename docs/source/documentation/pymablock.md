@@ -36,6 +36,14 @@
    :show-inheritance:
 ```
 
+## Second quantization
+
+```{eval-rst}
+.. automodule:: pymablock.second_quantization
+   :members: NumberOperator, number_ordered_form, simplify_number_expression
+   :show-inheritance:
+```
+
 ## Kernel polynomial method (KPM)
 
 ```{eval-rst}
