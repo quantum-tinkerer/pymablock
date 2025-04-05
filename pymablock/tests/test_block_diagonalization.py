@@ -1741,7 +1741,6 @@ def test_only_H_0():
     )
 
 
-@pytest.mark.xfail(raises=AssertionError)
 def test_boson_operator_diagonalization():
     """Test that operator perturbation theory works the same as the matrix one."""
     a = BosonOp("a")
@@ -1766,17 +1765,33 @@ def test_boson_operator_diagonalization():
     # Now with two bosons
     b = BosonOp("b")
     n_b = NumberOperator(b)
-    H_0 = sympy.Matrix([[n + n_b]])
-    H_1 = sympy.Matrix([[a + Dagger(a)]])
+    H_0 = sympy.Matrix([[n + n_b + n**2 / 3]])
+    H_1 = sympy.Matrix([[a + Dagger(a) + b + Dagger(b) + a * b + Dagger(a) * Dagger(b)]])
     H_tilde, *_ = block_diagonalize([H_0, H_1])
     E_eff = H_tilde[0, 0, 2][0, 0].subs({n: 0, n_b: 0})
     # Now finite matrix
-    N = 4
+    N = 3
+    a_mat = sympy.zeros(N, N)
+    for i in range(N - 1):
+        a_mat[i, (i + 1)] = sympy.sqrt(i + 1)
+    n_mat = sympy.diag(*[i for i in range(N)])
+    b_mat = sympy.KroneckerProduct(a_mat, sympy.eye(N))
     a_mat = sympy.KroneckerProduct(sympy.eye(N), a_mat)
     n_b_mat = sympy.KroneckerProduct(n_mat, sympy.eye(N))
     n_mat = sympy.KroneckerProduct(sympy.eye(N), n_mat)
-    H_0 = sympy.Matrix([[n_mat + n_b_mat]])
-    H_1 = sympy.Matrix([[a_mat + Dagger(a_mat)]])
+    H_0 = sympy.Matrix([[n_mat + n_b_mat + n_mat @ n_mat / 3]])
+    H_1 = sympy.Matrix(
+        [
+            [
+                a_mat
+                + Dagger(a_mat)
+                + b_mat
+                + Dagger(b_mat)
+                + a_mat @ b_mat
+                + Dagger(a_mat) @ Dagger(b_mat)
+            ]
+        ]
+    )
     H_tilde_finite, *_ = block_diagonalize([H_0, H_1])
     # Compare the two
     assert E_eff == H_tilde_finite[0, 0, 2][0, 0]

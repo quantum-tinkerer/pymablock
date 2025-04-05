@@ -39,7 +39,7 @@ def test_solve_sylvester_bosonic_simple():
     # Solve the Sylvester equation
     V = solve_sylvester(Y, index=(0, 1, 1))
 
-    result = -(H_ii * V - V * H_jj)
+    result = H_ii * V - V * H_jj
 
     # Check if the equation is satisfied
     assert (sympy.simplify(result) - Y) == sympy.zeros(2, 2)
@@ -71,8 +71,8 @@ def test_solve_sylvester_bosonic_with_number_operator():
     H_ii = sympy.Matrix([[omega * nb]])
     H_jj = sympy.Matrix([[delta * nb]])
 
-    # Verify the equation H_ii * V - V * H_jj = -Y
-    result = -(H_ii * V - V * H_jj)
+    # Verify the equation H_ii * V - V * H_jj = Y
+    result = H_ii * V - V * H_jj
 
     # Check that the result matches Y after normal ordering
     assert number_ordered_form(result[0, 0] - Y[0, 0], simplify=True) == 0
@@ -94,7 +94,7 @@ def test_solve_sylvester_bosonic():
     H_ii = sympy.diag(*eigs[0])
     H_jj = sympy.diag(*eigs[1])
 
-    Y_expected = -(H_ii * V - V * H_jj)
+    Y_expected = H_ii * V - V * H_jj
 
     for i in range(Y.shape[0]):
         for j in range(Y.shape[1]):

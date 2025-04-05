@@ -372,7 +372,7 @@ def solve_monomial(Y, H_ii, H_jj, boson_operators):
                 for delta, op in zip(shift, boson_operators)
             }
         )
-        result -= (H_ii - shifted_H_jj) ** -1 * monomial
+        result += simplify_number_expression(H_ii - shifted_H_jj) ** -1 * monomial
 
     return result
 
