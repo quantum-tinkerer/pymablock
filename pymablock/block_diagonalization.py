@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Sequence
 from copy import copy
-from functools import reduce
+from functools import partial, reduce
 from inspect import signature
 from operator import matmul, mul
 from typing import Any
@@ -435,27 +435,24 @@ def block_diagonalize(
     )
     if operators:
         # Pass the results through number-ordering with simplification
-        simplified_outputs = []
-        for key in ("H_tilde", "U", "U†"):
-            old = outputs["H_tilde"]
-
-            def simplified_eval(*index):
-                result = old[index]
-                if result is zero:
-                    return zero
-                return result.applyfunc(
-                    lambda x: second_quantization.number_ordered_form(x, simplify=True)
-                )
-
-            new = BlockSeries(
-                shape=old.shape,
-                n_infinite=old.n_infinite,
-                name=old.name,
-                dimension_names=old.dimension_names,
-                eval=simplified_eval,
+        def simplified_eval(*index, name):
+            result = outputs[name][index]
+            if result is zero:
+                return zero
+            return result.applyfunc(
+                lambda x: second_quantization.number_ordered_form(x, simplify=True)
             )
-            simplified_outputs.append(new)
-        return tuple(simplified_outputs)
+
+        return tuple(
+            BlockSeries(
+                shape=outputs[name].shape,
+                n_infinite=outputs[name].n_infinite,
+                name=name,
+                dimension_names=outputs[name].dimension_names,
+                eval=partial(simplified_eval, name=name),
+            )
+            for name in ("H_tilde", "U", "U†")
+        )
     return outputs["H_tilde"], outputs["U"], outputs["U†"]
 
 
