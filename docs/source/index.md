@@ -39,6 +39,13 @@ authors.md
 developer.md
 ```
 
+::::{admonition} **✨ NEW! Second Quantization Support ✨**
+:class: tip
+
+Pymablock now works with second quantization operators!
+Check out our [Jaynes-Cummings model tutorial](tutorial/jaynes_cummings.md) to see second quantization in action.
+::::
+
 ## What is Pymablock?
 
 Pymablock (Python matrix block-diagonalization) is a Python package that constructs effective models using quasi-degenerate perturbation theory.
