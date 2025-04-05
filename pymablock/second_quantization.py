@@ -75,7 +75,7 @@ def multiply_b(expr, operator):
 
     Returns
     -------
-    sympy.Expr
+    sympy.core.expr.Expr
         Number-ordered product expr * operator.
 
     """
@@ -102,7 +102,7 @@ def multiply_b(expr, operator):
     return sympy.Add(*number_ordered_terms)
 
 
-def multiply_daggered_b(expr, daggered_operator):
+def multiply_daggered_b(expr: sympy.Expr, daggered_operator):
     """Multiply a number-ordered expression by a boson creation operator from the right.
 
     Parameters
@@ -114,7 +114,7 @@ def multiply_daggered_b(expr, daggered_operator):
 
     Returns
     -------
-    sympy.Expr
+    sympy.core.expr.Expr
         Number-ordered product expr * daggered_operator.
 
     """
@@ -186,7 +186,7 @@ def group_ordered(expr):
 
     Returns
     -------
-    dict[tuple[sympy.Expr, sympy.Expr], sympy.Expr]
+    dict[tuple[sympy.core.expr.Expr, sympy.core.expr.Expr], sympy.core.expr.Expr]
         Dictionary with keys as tuples of monomials of creation and annihilation operators,
         and values as the terms with number operators.
 
@@ -229,7 +229,7 @@ def simplify_number_expression(expr: sympy.Expr) -> sympy.Expr:
 
     Returns
     -------
-    sympy.Expr
+    sympy.core.expr.Expr
         Simplified expression with number operators.
 
     Raises
@@ -277,7 +277,7 @@ def number_ordered_form(expr, simplify=False):
 
     Returns
     -------
-    sympy.Expr
+    sympy.core.expr.Expr
         Equivalent expression in normal-ordered form with number operators.
 
     """
@@ -526,10 +526,10 @@ def apply_mask_to_operator(
 class NumberOperator(HermitianOperator):
     """Number operator for bosonic and fermionic operators.
 
-    Note:
-    ----
-        This class is used to simplify expressions with second-quantized operators.
-        We do this ourselves, because sympy does not support this yet.
+    Notes
+    -----
+    This class is used to simplify expressions with second-quantized operators. We do
+    this ourselves, because sympy does not support this yet.
 
     """
 
@@ -585,7 +585,7 @@ class NumberOperator(HermitianOperator):
 
         Returns
         -------
-        sympy.QExpr
+        sympy.core.expr.Expr
             The evaluated operator.
 
         """
