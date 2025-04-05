@@ -277,6 +277,26 @@ def test_find_operators():
     result3 = find_operators(expr3)
     assert result3 == []
 
+    # Expression with number operators - should find the original operators
+    Na = NumberOperator(a)
+    Nb = NumberOperator(b)
+    expr4 = Na * Nb + Na**2
+    result4 = find_operators(expr4)
+    assert len(result4) == 2
+    assert set(result4) == {a, b}
+
+    # Expression with mixed number operators and original operators
+    expr5 = Na * b + a * Nb
+    result5 = find_operators(expr5)
+    assert len(result5) == 2
+    assert set(result5) == {a, b}
+
+    # Expression with number operators inside more complex expressions
+    expr6 = (Na + 1) * (Nb - 2) ** 2
+    result6 = find_operators(expr6)
+    assert len(result6) == 2
+    assert set(result6) == {a, b}
+
 
 def test_simplify_number_expression():
     """Test the simplify_number_expression function."""

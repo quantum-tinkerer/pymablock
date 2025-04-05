@@ -54,12 +54,10 @@ def find_operators(expr: sympy.Expr):
     List with all annihilation bosonic and fermionic operators in an expression.
 
     """
+    # Replace all number operators with their evaluated form.
+    expr = expr.subs({i: i.doit() for i in expr.atoms(NumberOperator)})
     return list(
-        set(
-            type(arg)(arg.name)
-            for arg in expr.free_symbols
-            if isinstance(arg, (boson.BosonOp, fermion.FermionOp))
-        )
+        set(type(arg)(arg.name) for arg in expr.atoms(boson.BosonOp, fermion.FermionOp))
     )
 
 
