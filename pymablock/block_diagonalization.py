@@ -110,13 +110,17 @@ def block_diagonalize(
         A tuple with sets of orthonormal eigenvectors to project the Hamiltonian onto
         and separate it into blocks. If None, the unperturbed Hamiltonian must be block
         diagonal. If some vectors are missing, the implicit method is used. Mutually
-        exclusive with ``subspace_indices``.
+        exclusive with ``subspace_indices``. If neither
+        ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
+        BlockSeries is defined with a single block.
     subspace_indices :
         An array indicating which state belongs to which subspace. If there are
         two blocks, the labels are 0 for the A (effective) subspace and 1 for
         the B (auxiliary) subspace. Only applicable if the unperturbed
         Hamiltonian is diagonal. Mutually exclusive with
         ``subspace_eigenvectors``.
+        If neither ``subspace_eigenvectors`` nor ``subspace_indices`` are provided,
+        the BlockSeries is defined with a single block.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
         See docstrings of `~pymablock.block_diagonalization.solve_sylvester_KPM`
@@ -509,11 +513,15 @@ def operator_to_BlockSeries(
     subspace_eigenvectors :
         A tuple with sets of orthonormal eigenvectors to project the operator onto and
         separate it into blocks. If some vectors are missing, the last block is defined
-        implicitly. Mutually exclusive with ``subspace_indices``.
+        implicitly. Mutually exclusive with ``subspace_indices``. If neither
+        ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
+        BlockSeries is defined with a single block.
     subspace_indices :
         An array indicating which state belongs to which subspace. If there are two
         blocks, the labels are 0 for the A (effective) subspace and 1 for the B
         (auxiliary) subspace. Mutually exclusive with ``subspace_eigenvectors``.
+        If neither ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
+        BlockSeries is defined with a single block.
     implicit :
         Whether to wrap the operator of the last subspace into a linear operator.
     symbols :
