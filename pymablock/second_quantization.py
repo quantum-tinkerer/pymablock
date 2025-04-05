@@ -257,8 +257,8 @@ def number_ordered_form(expr, simplify=False):
     2. All annihilation operators are on the right.
     3. There are as many number operators as possible in the middle.
 
-    This means that no term in a number-ordered expression can contain both a
-    creation and an annihilation operator for the same particle.
+    This means that no term in a number-ordered expression can simultaneously contain
+    both a creation and an annihilation operator for the same particle.
 
     Importantly, the part with number operators may contain arbitrary functions
     of number operators.
@@ -524,7 +524,14 @@ def apply_mask_to_operator(
 
 
 class NumberOperator(HermitianOperator):
-    """Number operator for bosonic and fermionic operators."""
+    """Number operator for bosonic and fermionic operators.
+
+    Note:
+    ----
+        This class is used to simplify expressions with second-quantized operators.
+        We do this ourselves, because sympy does not support this yet.
+
+    """
 
     @property
     def name(self):
@@ -566,6 +573,15 @@ class NumberOperator(HermitianOperator):
 
     def doit(self, **hints):  # noqa: ARG002
         """Evaluate the operator.
+
+        For example,
+
+            >>> from sympy.physics.quantum import boson
+            >>> from pymablock.second_quantization import NumberOperator
+            >>> b = boson.BosonOp('b')
+            >>> n = NumberOperator(b)
+            >>> n.doit()
+            Dagger(b)*b
 
         Returns
         -------
