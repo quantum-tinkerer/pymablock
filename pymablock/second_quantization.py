@@ -78,26 +78,28 @@ def multiply_b(expr, operator):
 
     """
     n = NumberOperator(operator)
+    daggered_operator = Dagger(operator)
 
-    number_ordered_terms = []
+    result = sympy.S.Zero
     for term in expr.as_ordered_terms():
-        if not term.has(Dagger(operator)):  # only annihilations in term
-            number_ordered_terms.append(term * operator)
-        else:
-            # Commute n and boson
-            term = term.subs(n, n - 1) * n
-            # Find Dagger(boson) in term
-            daggered_operator = next(
-                factor
-                for factor in term.as_ordered_factors()
-                if factor.has(Dagger(operator))
-            )
-            term = term.subs(
-                daggered_operator,
-                Dagger(operator) ** (daggered_operator.as_base_exp()[1] - 1),
-            )
-            number_ordered_terms.append(term)
-    return sympy.Add(*number_ordered_terms)
+        if not term.has(daggered_operator):
+            result += term * operator
+            continue
+
+        # Commute n and boson and multiply by the new n.
+        term = term.subs(n, n - 1) * n
+        # Find Dagger(operator) in term and decrease its power.
+        daggered_factor = next(
+            factor
+            for factor in term.as_ordered_factors()
+            if factor.has(daggered_operator)
+        )
+        term = term.subs(
+            daggered_factor,
+            daggered_operator ** (daggered_factor.as_base_exp()[1] - 1),
+        )
+        result += term
+    return result
 
 
 def multiply_daggered_b(expr: sympy.Expr, daggered_operator):
@@ -118,24 +120,22 @@ def multiply_daggered_b(expr: sympy.Expr, daggered_operator):
     """
     operator = Dagger(daggered_operator)
     n = NumberOperator(operator)
-    number_ordered_terms = []
+    result = sympy.S.Zero
     for term in expr.as_ordered_terms():
         try:
-            boson_factor = next(
-                (
-                    factor
-                    for factor in term.as_ordered_factors()
-                    if factor.as_base_exp()[0] == operator
-                )
+            operator_factor = next(
+                factor
+                for factor in term.as_ordered_factors()
+                if factor.as_base_exp()[0] == operator
             )
             term = term.subs(
-                boson_factor, operator ** (boson_factor.as_base_exp()[1] - 1)
+                operator_factor, operator ** (operator_factor.as_base_exp()[1] - 1)
             )
-            number_ordered_terms.append(multiply_fn(term, n + 1))
+            result += multiply_fn(term, n + 1)
         except StopIteration:
             # Commute n and daggered operator
-            number_ordered_terms.append(daggered_operator * term.subs(n, n + 1))
-    return sympy.Add(*number_ordered_terms)
+            result += daggered_operator * term.subs(n, n + 1)
+    return result
 
 
 def multiply_fn(expr, nexpr):
@@ -154,24 +154,24 @@ def multiply_fn(expr, nexpr):
         Number-ordered product expr * nexpr.
 
     """
-    number_ordered_terms = []
+    result = sympy.S.Zero
     for term in expr.as_ordered_terms():
-        # Find common bosons
-        boson_powers = [
+        # Find all annihilation operator powers in the term.
+        operator_powers = [
             (base_exp[0], base_exp[1])
             for factor in term.as_ordered_factors()
             if isinstance((base_exp := factor.as_base_exp())[0], BosonOp)
             and base_exp[0].is_annihilation
         ]
-        if not boson_powers:
-            number_ordered_terms.append(term * nexpr)
+        if not operator_powers:
+            result += term * nexpr
             continue
 
         fn = nexpr
-        for operator, power in boson_powers:
+        for operator, power in operator_powers:
             fn = fn.subs(NumberOperator(operator), NumberOperator(operator) + power)
-        number_ordered_terms.append(fn * term)
-    return sympy.Add(*number_ordered_terms)
+        result += fn * term
+    return result
 
 
 def group_ordered(expr):
