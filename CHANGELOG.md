@@ -10,10 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added a reference implementation of arbitrary order Schrieffer-Wolff transformation to the documentation and a comparison of its convergence radius with Pymablock algorithm.
+- Added support for second quantization operators in the Hamiltonian.
 
 ### Changed
 
 - If the Hamiltonian contains only one block, `fully_diagonalize` can be provided as an array directly.
+- Included the second quantization documentation.
+- Updated the [dispersive shift tutorial](tutorial/dispersive_shift.md) to include the second quantization approach.
+- Updated the [Jaynes-Cummings tutorial](tutorial/jaynes_cummings.md) to the new second quantization API.
 
 ### Removed
 
