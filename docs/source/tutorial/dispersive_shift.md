@@ -87,7 +87,7 @@ We compute $\chi$ using two different approaches.
 
 ```{code-cell} ipython3
 H_tilde, U, U_adjoint = block_diagonalize(
-    [sympy.Matrix([[H_0]]), sympy.Matrix([[H_p]])], symbols=[g]
+    sympy.Matrix([[H_0 + H_p]]), symbols=[g]
 )
 ```
 
@@ -106,14 +106,12 @@ N_a_t = NumberOperator(a_t)
 N_a_r = NumberOperator(a_r)
 ```
 
-
 Finally, we compute the dispersive shift from the second order correction to the energies
 
 ```{code-cell} ipython3
 xi_2nd_quantized = E_eff.subs({N_a_t: 0, N_a_r: 0}) - E_eff.subs({N_a_t: 1, N_a_r: 0}) - E_eff.subs({N_a_t: 0, N_a_r: 1}) + E_eff.subs({N_a_t: 1, N_a_r: 1})
 display_eq(r"\chi", xi_2nd_quantized)
 ```
-
 
 ## Approach II: matrix representation
 
@@ -125,40 +123,23 @@ We accordingly truncate the Hilbert space to the lowest 3 levels of the transmon
 The resulting Hamiltonian is a $9 \times 9$ matrix, which we construct by computing the matrix elements of $H_0$ and $H_p$ in the truncated basis.
 
 ```{code-cell} ipython3
-:tags: [hide-input]
+N = 4  # Number of levels for each boson
+a = sympy.zeros(N, N)
+for i in range(N-1):
+    a[i, i+1] = sympy.sqrt(i+1)
+n = sympy.diag(*[i for i in range(N)])
 
-def collect_constant(expr):
-    expr = normal_ordered_form(expr.expand(), independent=True)
-    constant_terms = []
-    for term in expr.as_ordered_terms():
-        if not term.has(sympy.physics.quantum.Operator):
-            constant_terms.append(term)
-    return sum(constant_terms)
+a_t = sympy.KroneckerProduct(a, sympy.eye(N))
+a_r = sympy.KroneckerProduct(sympy.eye(N), a)
 
-
-def to_matrix(ham, basis):
-    """Compute the matrix elements"""
-    N = len(basis)
-    ham = normal_ordered_form(ham.expand(), independent=True)
-    all_brakets = product(basis, basis)
-    flat_matrix = [
-        collect_constant(braket[0] * ham * Dagger(braket[1])) for braket in all_brakets
-    ]
-    return sympy.Matrix(np.array(flat_matrix).reshape(N, N))
-```
-
-```{code-cell} ipython3
-# Construct the matrix Hamiltonian
-basis = [
-    a_t**i * a_r**j / sympy.sqrt(sympy.factorial(i) * sympy.factorial(j))
-    for i in range(3)
-    for j in range(3)
-]
-
-H_0_matrix = to_matrix(H_0, basis)
-H_p_matrix = to_matrix(H_p, basis)
-
-H = H_0_matrix + H_p_matrix
+H_0 = (
+    -omega_t * Dagger(a_t) * a_t + omega_r * Dagger(a_r) * a_r
+    + alpha * Dagger(a_t)**2 * a_t**2 / 2
+)
+H_p = (
+    -g * (Dagger(a_t) - a_t) * (Dagger(a_r) - a_r)
+)
+H = H_0 + H_p
 ```
 
 To compute the dispersive shift, we need to compute the energy corrections of the lowest $4$ levels.
@@ -166,8 +147,8 @@ Therefore, we call `block_diagonalize` to separate the Hamiltonian into multiple
 To do this, we observe that $H_0$ is diagonal, and use `subspace_indices` to assign the elements of its eigenbasis to the desired states.
 
 ```{code-cell} ipython3
-subspaces = {state: n for n, state in enumerate([1, a_t, a_r, a_t * a_r])}
-subspace_indices = [subspaces.get(element, 4) for element in basis]
+subspaces = {state: n for n, state in enumerate([0, 1, N, N+1])}
+subspace_indices = [subspaces.get(state, 4) for state in range(N**2)]
 H_tilde, U, U_adjoint = block_diagonalize(
     H, subspace_indices=subspace_indices, symbols=[g]
 )
