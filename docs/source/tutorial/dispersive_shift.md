@@ -81,9 +81,12 @@ $$
 $$
 
 where $E^{(2)}_{ij}$ is the second order correction to the energy of the state with $i$ excitations in the transmon and $j$ in the resonator.
-We compute $\chi$ using two different approaches.
+To find the corrections, we may use second quantization directly, or compute the matrix representation of the Hamiltonian in a truncated Hilbert space.
+We demonstrate both approaches.
 
 ## Approach I: second quantized form
+
+To compute the effective Hamiltonian in second quantized form, we provide the Hamiltonian following Pymablock's API: wrapped in a `sympy.Matrix` and with `BosonOp` elements.
 
 ```{code-cell} ipython3
 H_tilde, U, U_adjoint = block_diagonalize(
@@ -91,13 +94,27 @@ H_tilde, U, U_adjoint = block_diagonalize(
 )
 ```
 
-The effective Hamiltonian `H_tilde` is a $1 \times 1$ matrix, a single energy level:
+The matrix has a single element, because we are interested in the corrections to the energy of a single state.
+
+:::{admonition} Only diagonal unperturbed Hamiltonians are supported
+:class: warning
+
+Pymablock only supports bosonic Hamiltonians whose unperturbed part is diagonal: diagonal in the matrix representation and diagonal in the bosonic basis.
+When calling `block_diagonalize`, the unperturbed Hamiltonian must be provided as a `sympy.Matrix` with `BosonOp` elements in its entries.
+:::
+
+The effective Hamiltonian is a $1 \times 1$ matrix, whose entry is a function of the number of excitations in the transmon $N_{a_t} = a_t^\dagger a_t$ and the resonator $N_{a_r} = a_r^\dagger a_r$.
 
 ```{code-cell} ipython3
 E_eff = H_tilde[0, 0, 2][0, 0]
 display_eq("E_{eff}", E_eff)
 ```
 
+The expression is long, but it becomes simpler if we evaluate it for specific occupation numbers.
+Pymablock uses number operators to simplify the expressions that contain bosonic operators throughout the algorithm execution.
+
+To compute the dispersive shift, we need to evaluate $E_{eff}$ for the states with $N_{a_t} = 0, 1$ and $N_{a_r} = 0, 1$.
+We do this by first defining the number operators for the transmon and resonator:
 
 ```{code-cell} ipython3
 from pymablock.second_quantization import NumberOperator
@@ -106,11 +123,17 @@ N_a_t = NumberOperator(a_t)
 N_a_r = NumberOperator(a_r)
 ```
 
-Finally, we compute the dispersive shift from the second order correction to the energies
+and then substituting their values in $E_{eff}$:
 
 ```{code-cell} ipython3
-xi_2nd_quantized = E_eff.subs({N_a_t: 0, N_a_r: 0}) - E_eff.subs({N_a_t: 1, N_a_r: 0}) - E_eff.subs({N_a_t: 0, N_a_r: 1}) + E_eff.subs({N_a_t: 1, N_a_r: 1})
-display_eq(r"\chi", xi_2nd_quantized)
+E_eff_00 = E_eff.subs({N_a_t: 0, N_a_r: 0})
+E_eff_01 = E_eff.subs({N_a_t: 0, N_a_r: 1})
+E_eff_10 = E_eff.subs({N_a_t: 1, N_a_r: 0})
+E_eff_11 = E_eff.subs({N_a_t: 1, N_a_r: 1})
+
+xi = E_eff_11 - E_eff_10 - E_eff_01 + E_eff_00
+
+display_eq(r"\chi", xi)
 ```
 
 ## Approach II: matrix representation
