@@ -394,18 +394,31 @@ def expr_to_shifts(
     Dictionary with shifts for each monomial.
 
     """
+    expr = number_ordered_form(expr, simplify=False)
     daggers = [Dagger(op) for op in boson_operators]
-
-    shifts = defaultdict(lambda: sympy.S.Zero)
-    for monomial in expr.expand().as_ordered_terms():
+    groups = group_ordered(expr)
+    # Each group corresponds to a different shift
+    shifts = {}
+    for (creation, annihilation), expression in groups.items():
         shift = [0] * len(boson_operators)
-        for term in monomial.as_ordered_factors():
-            symbol, power = term.as_base_exp()
-            if symbol in boson_operators:
-                shift[boson_operators.index(symbol)] += power
-            elif symbol in daggers:
-                shift[daggers.index(symbol)] -= power
-        shifts[tuple(shift)] += monomial
+        for factor in creation.as_ordered_factors():
+            if factor == sympy.S.One:
+                continue
+            base, power = factor.as_base_exp()
+            if base in daggers:
+                shift[daggers.index(base)] = -power
+            else:
+                raise ValueError(f"Cannot find {base} in the list of boson operators.")
+        for factor in annihilation.as_ordered_factors():
+            if factor == sympy.S.One:
+                continue
+            base, power = factor.as_base_exp()
+            if base in boson_operators:
+                shift[boson_operators.index(base)] = power
+            else:
+                raise ValueError(f"Cannot find {base} in the list of boson operators.")
+
+        shifts[tuple(shift)] = expression
     return shifts
 
 
