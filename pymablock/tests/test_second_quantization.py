@@ -4,6 +4,7 @@ from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
+from pymablock import block_diagonalize
 from pymablock.second_quantization import (
     NumberOperator,
     find_operators,
@@ -166,7 +167,7 @@ def test_number_ordered_form():
     # Test case: Complex expression with multiple operators
     expr = (
         b**2 * Dagger(b) * (c + 1) ** 2
-        + (Nc + 1) ** (1) * (b + 1) * (c + Nb * Dagger(c)) ** 2
+        + (Nc + 1) ** (2) * (b + 1) * (c + Nb * Dagger(c)) ** 2
     )
 
     result = normal_ordered_form(
@@ -343,3 +344,25 @@ def test_number_ordered_form_with_negative_powers():
     expr = x ** (-1) * a
     result = number_ordered_form(expr)
     assert result == x ** (-1) * a
+
+
+def test_hermitian_block_diagonalization():
+    """Test that checks Hermiticity of the block-diagonalized Hamiltonian."""
+
+    bosons = b_1, b_2 = sympy.symbols("b_1 b_2", cls=BosonOp)
+    N_1, N_2 = [NumberOperator(boson) for boson in bosons]
+    J = sympy.symbols("J", positive=True)
+
+    # Define Hamiltonian
+    H = sympy.Matrix([[J * (Dagger(b_1) * b_2 + Dagger(b_2) * b_1) + N_1**2]])
+
+    # Block diagonalize
+    H_tilde, U, _ = block_diagonalize(H, symbols=[J])
+
+    # Check hermiticity
+    for order in range(5):
+        H_order = H_tilde[0, 0, order][0, 0].subs(N_1, 2).subs(N_2, 0)
+
+        # Calculate H_order - Dagger(H_order) which should be 0 if hermitian
+        hermiticity_check = number_ordered_form(H_order - Dagger(H_order), simplify=True)
+        assert hermiticity_check == 0, f"H_tilde[0, 0, {order}] is not hermitian."
