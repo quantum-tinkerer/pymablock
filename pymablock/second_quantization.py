@@ -1,4 +1,8 @@
-"""Second quantization tools for bosonic and fermionic operators."""
+"""Second quantization tools for bosonic and fermionic operators.
+
+See number_ordered_form_plan.md for the plan to implement NumberOrderedForm as an
+Operator subclass for better representation of number-ordered expressions.
+"""
 
 from collections import defaultdict
 from typing import Callable
