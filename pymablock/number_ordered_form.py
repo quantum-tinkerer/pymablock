@@ -187,6 +187,11 @@ class NumberOrderedForm(Operator):
             A NumberOrderedForm instance representing the expression.
 
         """
+        # For scalar expressions (no operators)
+        if not expr.has(BosonOp, FermionOp):
+            # Return a NumberOrderedForm with no operators and a single term
+            return cls([], {(): expr}, validate=False)
+
         # Find all operators in the expression
         all_operators = find_operators(expr)
         # Sort them with bosons first
@@ -202,6 +207,35 @@ class NumberOrderedForm(Operator):
         shifts = expr_to_shifts(ordered_expr, operators)
 
         return cls(operators, shifts)
+
+    def as_expr(self) -> sympy.Expr:
+        """Convert the NumberOrderedForm to a standard SymPy expression.
+
+        Returns
+        -------
+        sympy.Expr
+            A standard SymPy expression equivalent to this NumberOrderedForm.
+
+        """
+        if not self.operators:
+            # If there are no operators, just return the constant term
+            return next(iter(self.terms.values())) if self.terms else sympy.S.Zero
+
+        result = sympy.S.Zero
+        # TODO: This doesn't take care of the ordering of the operators, relevant for
+        # fermions.
+        for powers, coeff in self.terms.items():
+            term = coeff
+            for i, power in enumerate(powers):
+                if power < 0:
+                    # Creation operator (negative power)
+                    term = Dagger(self.operators[i]) ** (-power) * term
+                elif power > 0:
+                    # Annihilation operator (positive power)
+                    term = term * self.operators[i] ** power
+            result += term
+
+        return result
 
     @property
     def operators(self) -> List[OperatorType]:

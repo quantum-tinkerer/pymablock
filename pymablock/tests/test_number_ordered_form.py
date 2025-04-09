@@ -162,7 +162,6 @@ def test_print_contents():
     assert "(0, 1)" in str_rep
 
 
-@pytest.mark.xfail(reason="Not yet implemented")
 def test_from_expr_without_operators():
     """Test creating NumberOrderedForm from an expression without operators."""
     # Create a simple scalar expression
@@ -178,3 +177,52 @@ def test_from_expr_without_operators():
 
     # Check that the coefficient is the scalar value
     assert nof.terms[()] == sympy.S(5)
+
+
+def test_round_trip_conversion():
+    """Test round-trip conversion from expression to NumberOrderedForm and back."""
+    # Create boson operators
+    a = boson.BosonOp("a")
+    b = boson.BosonOp("b")
+
+    # Test cases with different types of expressions (already number-ordered)
+    test_expressions = [
+        # Simple creation and annihilation operators
+        Dagger(a),
+        b,
+        # Linear combination
+        Dagger(a) + b,
+        # Product of operators
+        Dagger(a) * b,
+        # Expression with number operator
+        Dagger(b) * NumberOperator(b) * a,
+        # More complex expression
+        Dagger(a) ** 2 * NumberOperator(b) * b + Dagger(b) * a**2,
+    ]
+
+    for expr in test_expressions:
+        # Convert to NumberOrderedForm and back
+        nof = NumberOrderedForm.from_expr(expr)
+        result = nof.as_expr()
+
+        # Check that the result is equal to the original ordered expression
+        assert expr == result, f"Round-trip conversion failed for {expr}"
+
+
+def test_scalar_round_trip():
+    """Test round-trip conversion for scalar expressions."""
+    # Test with various scalar types
+    scalars = [sympy.S.Zero, sympy.S.One, sympy.S(5), sympy.symbols("x")]
+
+    for scalar in scalars:
+        nof = NumberOrderedForm.from_expr(scalar)
+        result = nof.as_expr()
+        assert result == scalar, f"Scalar round-trip failed for {scalar}"
+
+
+def test_empty_round_trip():
+    """Test round-trip conversion for empty NumberOrderedForm."""
+    # Create an empty NumberOrderedForm with no operators
+    nof = NumberOrderedForm([], {(): sympy.S.Zero}, validate=False)
+    result = nof.as_expr()
+    assert result == sympy.S.Zero
