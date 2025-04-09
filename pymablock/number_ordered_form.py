@@ -52,7 +52,14 @@ class NumberOrderedForm(Operator):
 
     """
 
-    def __new__(cls, operators: List[OperatorType], terms: TermDict, **hints):
+    def __new__(
+        cls,
+        operators: List[OperatorType],
+        terms: TermDict,
+        *,
+        validate: bool = True,
+        **hints,
+    ):
         """Create a new NumberOrderedForm instance.
 
         Parameters
@@ -63,6 +70,8 @@ class NumberOrderedForm(Operator):
             Dictionary mapping operator power tuples to coefficient expressions.
             Negative powers represent creation operators, positive powers represent
             annihilation operators.
+        validate : bool, optional
+            Whether to validate the operators and terms, by default True.
         **hints : dict
             Additional hints passed to the parent class.
 
@@ -72,10 +81,7 @@ class NumberOrderedForm(Operator):
             A new NumberOrderedForm instance.
 
         """
-        # Skip validation for testing when __skip_validation hint is True
-        skip_validation = hints.pop("__skip_validation", False)
-
-        if not skip_validation:
+        if validate:
             # Validate inputs before creating the object
             cls._validate_operators(operators)
             cls._validate_terms(terms, operators)
