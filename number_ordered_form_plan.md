@@ -59,11 +59,11 @@ The current implementation in `second_quantization.py` has several functions rel
 Based on the existing tests in the codebase and the planned functionality of the `NumberOrderedForm` class, we should test the following aspects:
 
 ### Construction and Conversion Tests
-- [ ] **Basic Construction** - Test creating `NumberOrderedForm` instances from various expressions
+- [x] **Basic Construction** - Test creating `NumberOrderedForm` instances from various expressions
 - [ ] **SymPy Protocol Compliance** - Test that `obj == type(obj)(*obj.args)` holds true for our class (essential for SymPy compatibility)
 - [ ] **Round-Trip Conversion** - Test that converting to `NumberOrderedForm` and back to a standard sympy expression preserves equality
-- [ ] **Error Handling** - Test proper error handling for invalid inputs (e.g., negative powers of boson operators)
-- [ ] **Operator Detection** - Test that all operators are properly identified and sorted (bosons before fermions)
+- [x] **Error Handling** - Test proper error handling for invalid inputs (e.g., negative powers of boson operators)
+- [x] **Operator Detection** - Test that all operators are properly identified and sorted (bosons before fermions)
 
 ### Mathematical Operation Tests
 - [ ] **Addition** - Test adding two `NumberOrderedForm` instances
@@ -88,7 +88,7 @@ Based on the existing tests in the codebase and the planned functionality of the
 - [ ] **Block Diagonalization** - Test integration with the block diagonalization functionality
 
 ### Edge Cases and Special Properties
-- [ ] **Empty Expressions** - Test behavior with zero or empty expressions
+- [x] **Empty Expressions** - Test behavior with zero or empty expressions
 - [ ] **Idempotence** - Test that ordering an already number-ordered form leaves it unchanged
 - [ ] **Complex Expressions** - Test with complex expressions containing multiple operators and terms
 - [ ] **Performance** - Benchmark against current implementation for speed and memory usage
@@ -97,20 +97,22 @@ Most of these tests can be modeled after existing tests in `test_second_quantiza
 
 ## Implementation Plan
 
-- [ ] **1. Design and implement the NumberOrderedForm class initialization**
-  - [ ] Subclass from `sympy.physics.quantum.Operator` to integrate with sympy's operator system
-  - [ ] Implement the core data structure:
-    - [ ] `operators`: Sorted list of quantum operators (bosons before fermions)
-    - [ ] `terms`: Dictionary mapping integer tuples (operator powers) to coefficient expressions
-  - [ ] Create basic constructor that only accepts direct arguments:
-    - [ ] `operators`: List of quantum operators
-    - [ ] `terms`: Dictionary with operator powers as keys and coefficients as values
+- [x] **1. Design and implement the NumberOrderedForm class initialization**
+  - [x] Subclass from `sympy.physics.quantum.Operator` to integrate with sympy's operator system
+  - [x] Implement the core data structure:
+    - [x] `operators`: Sorted list of quantum operators (bosons before fermions)
+    - [x] `terms`: Dictionary mapping integer tuples (operator powers) to coefficient expressions
+  - [x] Create basic constructor that only accepts direct arguments:
+    - [x] `operators`: List of quantum operators
+    - [x] `terms`: Dictionary with operator powers as keys and coefficients as values
 
-- [ ] **2. Implement validation methods**
-  - [ ] Validate operators list (must be valid quantum operators, bosons before fermions)
-  - [ ] Validate terms dictionary structure (keys must be tuples matching operators length, values must be valid expressions)
-  - [ ] Verify number operators in the coefficient expressions are consistent with the provided operators
-  - [ ] Check for fermion operators to ensure proper handling of anti-commutation
+- [x] **2. Implement validation methods**
+  - [x] Validate operators list (must be valid quantum operators, bosons before fermions)
+  - [x] Validate terms dictionary structure (keys must be tuples matching operators length, values must be valid expressions)
+  - [x] Verify number operators in the coefficient expressions are consistent with the provided operators
+  - [x] Check for fermion operators to ensure proper handling of anti-commutation
+
+> **Important:** In accordance with SymPy's architecture, the `NumberOrderedForm` class should implement `_eval_*` methods rather than Python's dunder methods (e.g., `__add__`, `__mul__`, etc.). This allows SymPy's dispatcher to handle operations properly, respecting its type hierarchy and operation rules.
 
 - [ ] **3. Implement key operator overloads**
   - [ ] Addition (`__add__`): Combine terms with the same operator powers
