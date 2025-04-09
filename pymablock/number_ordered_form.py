@@ -199,14 +199,7 @@ class NumberOrderedForm(Operator):
         from pymablock.second_quantization import expr_to_shifts, number_ordered_form
 
         ordered_expr = number_ordered_form(expr, simplify=False)
-
-        # Extract terms
         shifts = expr_to_shifts(ordered_expr, operators)
-
-        # If we don't have any terms (empty shifts), add a default term with coefficient 1
-        # to avoid validation errors in tests
-        if not shifts:
-            shifts = {(0,) * len(operators): sympy.S.One}
 
         return cls(operators, shifts)
 

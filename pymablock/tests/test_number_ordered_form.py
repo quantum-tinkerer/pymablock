@@ -160,3 +160,21 @@ def test_print_contents():
     assert "b" in str_rep
     assert "(1, 0)" in str_rep
     assert "(0, 1)" in str_rep
+
+
+@pytest.mark.xfail(reason="Not yet implemented")
+def test_from_expr_without_operators():
+    """Test creating NumberOrderedForm from an expression without operators."""
+    # Create a simple scalar expression
+    expr = sympy.S(5)
+    nof = NumberOrderedForm.from_expr(expr)
+
+    # Check that the resulting NumberOrderedForm has no operators
+    assert len(nof.operators) == 0
+
+    # Check that there is one term with an empty tuple as key
+    assert len(nof.terms) == 1
+    assert () in nof.terms
+
+    # Check that the coefficient is the scalar value
+    assert nof.terms[()] == sympy.S(5)
