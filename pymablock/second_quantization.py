@@ -407,16 +407,12 @@ def expr_to_shifts(
             base, power = factor.as_base_exp()
             if base in daggers:
                 shift[daggers.index(base)] = -power
-            else:
-                raise ValueError(f"Cannot find {base} in the list of boson operators.")
         for factor in annihilation.as_ordered_factors():
             if factor == sympy.S.One:
                 continue
             base, power = factor.as_base_exp()
             if base in boson_operators:
                 shift[boson_operators.index(base)] = power
-            else:
-                raise ValueError(f"Cannot find {base} in the list of boson operators.")
 
         shifts[tuple(shift)] = expression
     return shifts
