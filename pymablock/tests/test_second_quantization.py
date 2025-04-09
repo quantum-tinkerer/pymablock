@@ -418,3 +418,59 @@ def test_apply_mask_to_operator():
     assert (
         number_ordered_form(masked_expr[0, 0] - allowed_matrix[0, 0], simplify=True) == 0
     )
+
+
+def test_boson_operator_diagonalization():
+    """Test that operator perturbation theory works the same as the matrix one."""
+    a = BosonOp("a")
+    n = NumberOperator(a)
+    H_0 = sympy.Matrix([[n + n**2]])
+    H_1 = sympy.Matrix([[n**3 + a + Dagger(a) + sympy.I * (a**2 - Dagger(a) ** 2)]])
+    H_tilde, *_ = block_diagonalize([H_0, H_1])
+    # Now finite matrix
+    N = 7
+    a_mat = sympy.zeros(N, N)
+    for i in range(N - 1):
+        a_mat[i, (i + 1)] = sympy.sqrt(i + 1)
+    n_mat = sympy.diag(*[i for i in range(N)])
+    H_0 = sympy.Matrix([[n_mat + n_mat**2]])
+    H_1 = sympy.Matrix(
+        [[n_mat**3 + a_mat + Dagger(a_mat) + sympy.I * (a_mat**2 - Dagger(a_mat) ** 2)]]
+    )
+    H_tilde_finite, *_ = block_diagonalize([H_0, H_1])
+    # Compare the two
+    assert H_tilde[0, 0, 1].subs({n: 2})[0, 0] == H_tilde_finite[0, 0, 1][2, 2]
+
+    # Now with two bosons
+    b = BosonOp("b")
+    n_b = NumberOperator(b)
+    H_0 = sympy.Matrix([[n + n_b + n**2 / 3]])
+    H_1 = sympy.Matrix([[a + Dagger(a) + b + Dagger(b) + a * b + Dagger(a) * Dagger(b)]])
+    H_tilde, *_ = block_diagonalize([H_0, H_1])
+    E_eff = H_tilde[0, 0, 2][0, 0].subs({n: 0, n_b: 0})
+    # Now finite matrix
+    N = 3
+    a_mat = sympy.zeros(N, N)
+    for i in range(N - 1):
+        a_mat[i, (i + 1)] = sympy.sqrt(i + 1)
+    n_mat = sympy.diag(*[i for i in range(N)])
+    b_mat = sympy.KroneckerProduct(a_mat, sympy.eye(N))
+    a_mat = sympy.KroneckerProduct(sympy.eye(N), a_mat)
+    n_b_mat = sympy.KroneckerProduct(n_mat, sympy.eye(N))
+    n_mat = sympy.KroneckerProduct(sympy.eye(N), n_mat)
+    H_0 = sympy.Matrix([[n_mat + n_b_mat + n_mat @ n_mat / 3]])
+    H_1 = sympy.Matrix(
+        [
+            [
+                a_mat
+                + Dagger(a_mat)
+                + b_mat
+                + Dagger(b_mat)
+                + a_mat @ b_mat
+                + Dagger(a_mat) @ Dagger(b_mat)
+            ]
+        ]
+    )
+    H_tilde_finite, *_ = block_diagonalize([H_0, H_1])
+    # Compare the two
+    assert E_eff == H_tilde_finite[0, 0, 2][0, 0]
