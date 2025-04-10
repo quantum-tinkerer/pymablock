@@ -225,6 +225,21 @@ def test_round_trip_conversion():
         assert expr == result, f"Round-trip conversion failed for {expr}"
 
 
+def test_only_number_operators():
+    """Test NumberOrderedForm with an expression containing only number operators."""
+    a = boson.BosonOp("a")
+    b = boson.BosonOp("b")
+
+    # Create an expression with only number operators
+    expr = NumberOperator(a) + 2 * NumberOperator(b)
+
+    # Convert to NumberOrderedForm
+    nof = NumberOrderedForm.from_expr(expr)
+
+    assert nof.operators == [a, b]
+    assert nof.terms == {(0, 0): expr}
+
+
 def test_scalar_round_trip():
     """Test round-trip conversion for scalar expressions."""
     # Test with various scalar types

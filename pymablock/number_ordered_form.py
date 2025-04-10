@@ -12,7 +12,7 @@ from sympy.physics.quantum import Dagger, Operator
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 
-from pymablock.second_quantization import find_operators
+from pymablock.second_quantization import NumberOperator
 
 # Type aliases
 OperatorType = Union[BosonOp, FermionOp]
@@ -87,7 +87,9 @@ class NumberOrderedForm(Operator):
             cls._validate_terms(terms, operators)
 
         # Create the new object
-        return Operator.__new__(cls, operators, terms, **hints)
+        result = Operator.__new__(cls, operators, terms, **hints)
+        result._n_fermions = sum(isinstance(op, FermionOp) for op in operators)
+        return result
 
     @staticmethod
     def _validate_operators(operators: List[OperatorType]) -> None:
@@ -188,16 +190,21 @@ class NumberOrderedForm(Operator):
 
         """
         # For scalar expressions (no operators)
-        if not expr.has(BosonOp, FermionOp):
+        if not expr.has(BosonOp, FermionOp, NumberOperator):
             # Return a NumberOrderedForm with no operators and a single term
             return cls([], {(): expr}, validate=False)
 
-        # Find all operators in the expression
-        all_operators = find_operators(expr)
-        # Sort them with bosons first
-        bosons = [op for op in all_operators if isinstance(op, BosonOp)]
-        fermions = [op for op in all_operators if isinstance(op, FermionOp)]
-        operators = bosons + fermions
+        # replace n = a†a.
+        expanded = expr.subs({n: n.doit() for n in expr.atoms(NumberOperator)})
+
+        operators = [
+            op
+            for particle in (BosonOp, FermionOp)
+            for op in sorted(
+                {particle(atom.name) for atom in expanded.atoms(particle)},
+                key=lambda op: str(op.name),
+            )
+        ]
 
         # Convert expression to number ordered form using existing function
         # This is temporary until we implement the conversion directly
