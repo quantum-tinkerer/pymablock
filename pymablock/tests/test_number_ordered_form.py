@@ -3,6 +3,7 @@
 import pytest
 import sympy
 from sympy.physics.quantum import Dagger, boson, fermion
+from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock.number_ordered_form import NumberOrderedForm
 from pymablock.second_quantization import NumberOperator
@@ -257,3 +258,48 @@ def test_empty_round_trip():
     nof = NumberOrderedForm([], {(): sympy.S.Zero}, validate=False)
     result = nof.as_expr()
     assert result == sympy.S.Zero
+
+
+def test_multiply_op():
+    """Test the _multiply_op method using normal_ordered_form as a reference."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    x, y = sympy.symbols("x y")
+    n_a, n_b = NumberOperator(a), NumberOperator(b)
+
+    terms = [
+        # No operators
+        {(0, 0): sympy.S.One},
+        # Only number operators
+        {(0, 0): n_a},
+        {(0, 0): n_b},
+        {(0, 0): n_a * n_b},
+        # One operator
+        {(0, 2): sympy.S.One},
+        {(0, 1): n_a},
+        {(0, 1): n_b},
+        {(0, -1): sympy.S.One},
+        # Both
+        {(3, 3): n_a},
+        {(3, -3): n_b},
+        {(-3, 3): n_a + n_b},
+        {(-3, -3): n_a * n_b},
+    ]
+    to_multiply = {
+        (0, 1): a,
+        (0, 2): a**2,
+        (0, -1): Dagger(a),
+        (0, -2): Dagger(a) ** 2,
+        (1, 1): b,
+        (1, 2): b**2,
+        (1, -1): Dagger(b),
+        (1, -2): Dagger(b) ** 2,
+    }
+    for term, (op, expr) in zip(terms, to_multiply.items()):
+        nof = NumberOrderedForm([a, b], term)
+        result = sympy.expand(nof._multiply_op(*op).as_expr().doit())
+        expected = sympy.expand(nof.as_expr().doit() * expr)
+        assert sympy.expand(
+            normal_ordered_form(result, independent=True)
+        ) == sympy.expand(
+            normal_ordered_form(expected, independent=True)
+        ), f"Failed for term {term} with operator {op}"

@@ -340,6 +340,72 @@ class NumberOrderedForm(Operator):
         """
         return printer._print(self.as_expr())
 
+    def _multiply_op(self, op_index: int, op_power: int):
+        """Multiply this NumberOrderedForm by an operator power.
+
+        This implements multiplication by self.operators[op_index]^op_power,
+        where positive op_power represents annihilation operators and
+        negative op_power represents creation operators.
+
+        Parameters
+        ----------
+        op_index : int
+            The index of the operator in self.operators to multiply by.
+        op_power : int
+            The power of the operator. Negative for creation operators,
+            positive for annihilation operators.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The result of the multiplication.
+
+        Raises
+        ------
+        ValueError
+            If the op_index is out of range.
+
+        """
+        if op_index < 0 or op_index >= len(self.operators):
+            raise ValueError(
+                f"Operator index {op_index} out of range [0, {len(self.operators)})"
+            )
+
+        if op_power == 0:
+            return self  # Multiplying by op^0 = 1 doesn't change anything
+
+        operator = self.operators[op_index]
+        if isinstance(operator, FermionOp):
+            raise NotImplementedError
+        n_operator = NumberOperator(operator)
+
+        # Create a new terms dictionary for the result
+        new_terms = {}
+
+        for powers, coeff in self.terms.items():
+            orig_power = powers[op_index]  # Power of the operator at op_index
+            new_power = orig_power + op_power
+            new_powers = tuple(
+                new_power if i == op_index else p for i, p in enumerate(powers)
+            )
+            if op_power > 0:  # Multiplying by an annihilation operator
+                # Compute how many new number operators appear
+                to_pair = min(op_power, max(-orig_power, 0))
+                for _ in range(to_pair):
+                    coeff = coeff.subs(n_operator, n_operator - 1) * n_operator
+            else:
+                to_pair = min(-op_power, max(orig_power, 0))
+                # We're bringing all unmatched creation operators to the left
+                coeff = coeff.subs(n_operator, n_operator + (-op_power - to_pair))
+                new_numbers = sympy.Mul(*[n_operator + i for i in range(1, to_pair + 1)])
+                if new_power > 0:
+                    new_numbers = new_numbers.subs(n_operator, n_operator + new_power)
+                coeff = coeff * new_numbers
+            new_terms[new_powers] = coeff
+
+        # Create the new NumberOrderedForm with the same operators but new terms
+        return type(self)(self.operators, new_terms)
+
     def _eval_Eq(self, other):
         """Evaluate equality between this NumberOrderedForm and another object.
 
