@@ -61,7 +61,7 @@ Based on the existing tests in the codebase and the planned functionality of the
 ### Construction and Conversion Tests
 - [x] **Basic Construction** - Test creating `NumberOrderedForm` instances from various expressions
 - [ ] **SymPy Protocol Compliance** - Test that `obj == type(obj)(*obj.args)` holds true for our class (essential for SymPy compatibility)
-- [ ] **Round-Trip Conversion** - Test that converting to `NumberOrderedForm` and back to a standard sympy expression preserves equality
+- [x] **Round-Trip Conversion** - Test that converting to `NumberOrderedForm` and back to a standard sympy expression preserves equality
 - [x] **Error Handling** - Test proper error handling for invalid inputs (e.g., negative powers of boson operators)
 - [x] **Operator Detection** - Test that all operators are properly identified and sorted (bosons before fermions)
 
@@ -114,28 +114,21 @@ Most of these tests can be modeled after existing tests in `test_second_quantiza
 
 > **Important:** In accordance with SymPy's architecture, the `NumberOrderedForm` class should implement `_eval_*` methods rather than Python's dunder methods (e.g., `__add__`, `__mul__`, etc.). This allows SymPy's dispatcher to handle operations properly, respecting its type hierarchy and operation rules.
 
-- [ ] **3. Implement key operator overloads**
-  - [ ] Addition (`__add__`): Combine terms with the same operator powers
-  - [ ] Multiplication (`__mul__`): Handle all cases (NumberOrderedForm × NumberOrderedForm, NumberOrderedForm × operator, etc.)
-  - [ ] Commutation (`_eval_commutator_*`): Implement commutation rules with various operator types
-  - [ ] Powers, negation and other algebraic operations
-
-- [ ] **4. Implement direct manipulation methods**
-  - [ ] `get_creation_part()`: Extract only creation operator components
-  - [ ] `get_annihilation_part()`: Extract only annihilation operator components
-  - [ ] `get_number_part()`: Extract only number operator components
-  - [ ] `filter_powers(powers_dict)`: Filter terms based on operator powers
+- [ ] **3. Implement operator multiplication by operator powers**
+  - [x] Implement `_multiply_op(self, op_index, op_power)` to handle multiplication with operator powers, and corresponding to `nof * nof.operators[op_index]**op_power` (where `nof` is the current instance).
+  - [x] Implement `_multiply_expr(self, expr)` to handle multiplication with expressions containing only number operators.
+  - [ ] Use these to implement multiplication with other `NumberOrderedForm` instances.
+  - [ ] Support fermions in `_multiply_op`
 
 - [ ] **5. Implement utility methods**
+  - [x] `as_expr()`: Convert the `NumberOrderedForm` back to a sympy expression
   - [ ] `simplify()`: Simplify the number operator expressions in the terms
   - [ ] `apply_mask(mask)`: Apply filtering mask (replacing current `apply_mask_to_operator`)
   - [ ] `get_shifts()`: Get all the operator power shifts in the expression
   - [ ] `sort()`: Normalize the internal representation
 
-- [ ] **6. Implement display methods**
-  - [ ] String representation (`__str__`) for readable console output
-  - [ ] LaTeX representation (`_latex_`) for mathematical typesetting
-  - [ ] Pretty printing for nicer terminal output
+- [x] **6. Implement display methods**
+  - [x] Use `as_expr()` to compute the string representation.
 
 - [ ] **7. Update existing functions to use NumberOrderedForm**
   - [ ] Convert `number_ordered_form()` to a factory function returning a NumberOrderedForm instance

@@ -303,3 +303,78 @@ def test_multiply_op():
         ) == sympy.expand(
             normal_ordered_form(expected, independent=True)
         ), f"Failed for term {term} with operator {op}"
+
+
+def test_multiply_expr():
+    """Test the _multiply_expr method using normal_ordered_form as a reference."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    x, y = sympy.symbols("x y", real=True)
+    n_a, n_b = NumberOperator(a), NumberOperator(b)
+
+    # Create various NumberOrderedForm instances to multiply
+    nof_cases = [
+        # Empty NumberOrderedForm (just constant)
+        NumberOrderedForm([a, b], {(0, 0): sympy.S.One}),
+        # Simple operator terms
+        NumberOrderedForm([a, b], {(1, 0): sympy.S.One}),  # a
+        NumberOrderedForm([a, b], {(-1, 0): sympy.S.One}),  # a†
+        # Multiple terms
+        NumberOrderedForm([a, b], {(1, 0): x, (-1, 0): y}),  # x*a + y*a†
+        # Complex expressions
+        NumberOrderedForm([a, b], {(1, 2): x, (-1, -2): y}),  # x*a*b^2 + y*a†*b†^2
+    ]
+
+    # Expressions to multiply by.
+
+    # Sympy struggles in comparing expressions with number operators, so we choose
+    # relatively simple examples.
+
+    expr_cases = [
+        # Simple scalars
+        sympy.S.One,
+        sympy.S(2),
+        x,
+        x * y,
+        # Number operators
+        n_a,
+        n_b,
+        # Combinations of number operators and scalars
+        x * n_a,
+        n_a + n_b,
+        x * n_a + y * n_b,
+    ]
+
+    for nof in nof_cases:
+        for expr in expr_cases:
+            # Apply _multiply_expr
+            result = nof._multiply_expr(expr).as_expr()
+
+            expected = NumberOrderedForm.from_expr(nof.as_expr() * expr).as_expr()
+
+            assert (
+                result == expected
+            ), f"_multiply_expr failed with nof={nof.as_expr()}, expr={expr}"
+
+
+def test_multiply_expr_raises_error():
+    """Test that _multiply_expr raises an error when the expression contains operators."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    n_a = NumberOperator(a)
+
+    # Create a simple NumberOrderedForm
+    nof = NumberOrderedForm([a, b], {(0, 0): sympy.S.One})
+
+    # Test expressions containing operators or their daggers
+    invalid_expressions = [
+        a,  # Annihilation operator
+        Dagger(a),  # Creation operator
+        n_a + a,  # Number operator + annihilation operator
+        sympy.S(2) * Dagger(b),  # Scalar * creation operator
+        a * Dagger(a),  # Product of operators
+    ]
+
+    for expr in invalid_expressions:
+        with pytest.raises(
+            ValueError, match="Expression contains creation or annihilation operators"
+        ):
+            nof._multiply_expr(expr)

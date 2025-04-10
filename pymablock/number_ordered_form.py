@@ -429,6 +429,45 @@ class NumberOrderedForm(Operator):
             )
         return None  # Let SymPy handle other cases
 
+    def _multiply_expr(self, expr):
+        """Multiply by an expression without creation or annihilation operators.
+
+        Parameters
+        ----------
+        expr : sympy.Expr
+            Expression to multiply by.
+            This expression should not contain any creation or annihilation operators.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The result of the multiplication.
+
+        Raises
+        ------
+        ValueError
+            If the expression contains creation or annihilation operators.
+
+        """
+        if expr.has(*self.operators) or expr.has(*(Dagger(op) for op in self.operators)):
+            raise ValueError(
+                "Expression contains creation or annihilation operators, "
+                "which cannot be multiplied directly."
+            )
+
+        new_terms = {}
+        for powers, coeff in self.terms.items():
+            multiplier = expr
+            for i, power in enumerate(powers):
+                if power < 0:
+                    continue
+                n_i = NumberOperator(self.operators[i])
+                multiplier = multiplier.subs(n_i, n_i + power)
+            new_terms[powers] = coeff * multiplier
+
+        # Return a new NumberOrderedForm instance with the updated terms
+        return type(self)(self.operators, new_terms)
+
     def _eval_is_zero(self):
         """Check if this NumberOrderedForm is zero.
 
