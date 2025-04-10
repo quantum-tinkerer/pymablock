@@ -261,8 +261,8 @@ class NumberOrderedForm(Operator):
         """
         return dict(self.args[1])
 
-    def _print_contents(self, printer, *args):  # noqa: ARG002
-        """Print the contents of the NumberOrderedForm.
+    def _sympystr(self, printer):
+        """Print the expression in a string format.
 
         Parameters
         ----------
@@ -277,11 +277,61 @@ class NumberOrderedForm(Operator):
             String representation of the NumberOrderedForm.
 
         """
-        operators_str = ", ".join(str(op) for op in self.operators)
-        terms_str = ", ".join(
-            f"{powers}: {coeff}" for powers, coeff in self.terms.items()
-        )
-        return f"NumberOrderedForm([{operators_str}], {{{terms_str}}})"
+        return printer._print(self.as_expr())
+
+    def _sympyrepr(self, printer):
+        """Return a string representation for recreating the object.
+
+        Parameters
+        ----------
+        printer : object
+            SymPy printer object.
+        *args
+            Additional arguments for the printer.
+
+        Returns
+        -------
+        str
+            String that can be evaluated to recreate the object.
+
+        """
+        return printer._print(self.as_expr())
+
+    def _pretty(self, printer):
+        """Return a pretty form of the expression.
+
+        Parameters
+        ----------
+        printer : object
+            SymPy pretty printer object.
+        *args
+            Additional arguments for the printer.
+
+        Returns
+        -------
+        pretty print form
+            Pretty representation of the NumberOrderedForm.
+
+        """
+        return printer._print(self.as_expr())
+
+    def _latex(self, printer):
+        """Return a LaTeX representation of the expression.
+
+        Parameters
+        ----------
+        printer : object
+            SymPy LaTeX printer object.
+        *args
+            Additional arguments for the printer.
+
+        Returns
+        -------
+        str
+            LaTeX representation of the NumberOrderedForm.
+
+        """
+        return printer._print(self.as_expr())
 
     def _eval_Eq(self, other):
         """Evaluate equality between this NumberOrderedForm and another object.

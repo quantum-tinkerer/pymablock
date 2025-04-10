@@ -147,19 +147,35 @@ def test_from_expr():
         assert isinstance(nof.terms[power], sympy.Expr)
 
 
-def test_print_contents():
-    """Test string representation of NumberOrderedForm."""
+def test_printing_methods():
+    """Test the printing methods of NumberOrderedForm."""
     a = boson.BosonOp("a")
     b = boson.BosonOp("b")
 
-    nof = NumberOrderedForm([a, b], {(1, 0): sympy.S.One, (0, 1): sympy.S(2)})
+    # Create a NumberOrderedForm with a simple expression
+    expr = Dagger(a) * b + sympy.S(2) * Dagger(b)
+    nof = NumberOrderedForm.from_expr(expr)
 
-    # Check that string contains operator names and terms
-    str_rep = nof._print_contents(None)
-    assert "a" in str_rep
-    assert "b" in str_rep
-    assert "(1, 0)" in str_rep
-    assert "(0, 1)" in str_rep
+    # Get the expression from as_expr for comparison
+    orig_expr = nof.as_expr()
+
+    # Test string representation
+    assert str(nof) == str(orig_expr)
+
+    # Test representation
+    assert repr(nof) == repr(orig_expr)
+
+    # Test pretty printing via sympy.pretty
+    assert sympy.pretty(nof) == sympy.pretty(orig_expr)
+
+    # Test LaTeX representation via sympy.latex
+    assert sympy.latex(nof) == sympy.latex(orig_expr)
+
+    # Additional test with a simple scalar expression
+    scalar_nof = NumberOrderedForm.from_expr(sympy.S(42))
+    scalar_expr = scalar_nof.as_expr()
+
+    assert str(scalar_nof) == str(scalar_expr)
 
 
 def test_from_expr_without_operators():
