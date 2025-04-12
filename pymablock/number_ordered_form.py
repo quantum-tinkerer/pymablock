@@ -5,7 +5,7 @@ which represents operators with creation operators on the left, annihilation ope
 and number operators in the middle.
 """
 
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple
 
 import sympy
 from sympy.physics.quantum import Dagger, Operator
@@ -15,9 +15,36 @@ from sympy.physics.quantum.fermion import FermionOp
 from pymablock.second_quantization import NumberOperator
 
 # Type aliases
-OperatorType = Union[BosonOp, FermionOp]
+OperatorType = BosonOp | FermionOp
 PowerKey = Tuple[int, ...]
 TermDict = Dict[PowerKey, sympy.Expr]
+
+
+def _find_operators(expr: sympy.Expr) -> List[OperatorType]:
+    """Find all quantum operators in a SymPy expression.
+
+    Parameters
+    ----------
+    expr :
+        The expression to search for quantum operators.
+
+    Returns
+    -------
+    List[OperatorType]
+        A list of unique quantum operators found in the expression. Boson operators are
+        listed before fermion operators and both are sorted by their names.
+
+    """
+    # replace n -> a† * a.
+    expanded = expr.subs({n: n.doit() for n in expr.atoms(NumberOperator)})
+    return [
+        op
+        for particle in (BosonOp, FermionOp)
+        for op in sorted(
+            {particle(atom.name) for atom in expanded.atoms(particle)},
+            key=lambda op: str(op.name),
+        )
+    ]
 
 
 class NumberOrderedForm(Operator):
@@ -175,13 +202,16 @@ class NumberOrderedForm(Operator):
                     )
 
     @classmethod
-    def from_expr(cls, expr: sympy.Expr) -> "NumberOrderedForm":
+    def from_expr(cls, expr: sympy.Expr, operators=None) -> "NumberOrderedForm":
         """Create a NumberOrderedForm instance from a sympy expression.
 
         Parameters
         ----------
         expr : sympy.Expr
             Sympy expression with quantum operators.
+        operators : List[OperatorType], optional
+            List of quantum operators to use. If None, operators will be extracted from
+            the expression.
 
         Returns
         -------
@@ -194,17 +224,8 @@ class NumberOrderedForm(Operator):
             # Return a NumberOrderedForm with no operators and a single term
             return cls([], {(): expr}, validate=False)
 
-        # replace n = a†a.
-        expanded = expr.subs({n: n.doit() for n in expr.atoms(NumberOperator)})
-
-        operators = [
-            op
-            for particle in (BosonOp, FermionOp)
-            for op in sorted(
-                {particle(atom.name) for atom in expanded.atoms(particle)},
-                key=lambda op: str(op.name),
-            )
-        ]
+        if not operators:
+            operators = _find_operators(expr)
 
         # Convert expression to number ordered form using existing function
         # This is temporary until we implement the conversion directly
