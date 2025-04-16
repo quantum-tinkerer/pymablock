@@ -5,6 +5,7 @@ which represents operators with creation operators on the left, annihilation ope
 and number operators in the middle.
 """
 
+from collections import defaultdict
 from typing import Dict, List, Tuple
 
 import sympy
@@ -427,29 +428,6 @@ class NumberOrderedForm(Operator):
         # Create the new NumberOrderedForm with the same operators but new terms
         return type(self)(self.operators, new_terms)
 
-    def _eval_Eq(self, other):
-        """Evaluate equality between this NumberOrderedForm and another object.
-
-        This method is called by SymPy's equality operator.
-
-        Parameters
-        ----------
-        other : object
-            Object to compare with.
-
-        Returns
-        -------
-        sympy.Basic
-            True if equal, False otherwise.
-
-        """
-        if isinstance(other, NumberOrderedForm):
-            return (
-                all(op1 == op2 for op1, op2 in zip(self.operators, other.operators))
-                and self.terms == other.terms
-            )
-        return None  # Let SymPy handle other cases
-
     def _multiply_expr(self, expr):
         """Multiply by an expression without creation or annihilation operators.
 
@@ -488,6 +466,121 @@ class NumberOrderedForm(Operator):
 
         # Return a new NumberOrderedForm instance with the updated terms
         return type(self)(self.operators, new_terms)
+
+    def _expand_operators(self, new_operators: List[OperatorType]) -> "NumberOrderedForm":
+        """Expand the operators in this NumberOrderedForm.
+
+        This method creates a new NumberOrderedForm with the same terms but expanded
+        operators.
+
+        Parameters
+        ----------
+        new_operators : List[OperatorType]
+            List of new quantum operators to use. Has to contain at least all the
+            original operators, and must be correctly ordered.
+
+        Returns
+        -------
+        NumberOrderedForm
+            A new NumberOrderedForm with the expanded operators.
+
+        Notes
+        -----
+        Because this method is internal, it does not validate `new_operators`.
+
+        """
+        index_mapping = [
+            self.operators.index(op) if op in self.operators else -1
+            for op in new_operators
+        ]
+        new_terms = {
+            tuple(
+                powers[index_mapping[i]] if index_mapping[i] != -1 else 0
+                for i in range(len(new_operators))
+            ): coeff
+            for powers, coeff in self.terms.items()
+        }
+        return type(self)(new_operators, new_terms)
+
+    def __add__(self, other) -> "NumberOrderedForm":
+        """Add this NumberOrderedForm with another object.
+
+        Parameters
+        ----------
+        other : object
+            Object to add to this NumberOrderedForm.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The result of the addition.
+
+        """
+        if not isinstance(other, NumberOrderedForm):
+            try:
+                other = NumberOrderedForm.from_expr(sympy.sympify(other))
+            except Exception:
+                return NotImplemented
+
+        if other.operators != self.operators:
+            new_operators = sorted(
+                set(self.operators).union(other.operators),
+                key=lambda op: (isinstance(op, BosonOp), str(op.name)),
+            )
+            self_expanded = self._expand_operators(new_operators)
+            other_expanded = other._expand_operators(new_operators)
+        else:
+            self_expanded = self
+            other_expanded = other
+
+        new_terms = defaultdict(lambda: sympy.S.Zero)
+        for powers, coeff in self_expanded.terms.items():
+            new_terms[powers] += coeff
+        for powers, coeff in other_expanded.terms.items():
+            new_terms[powers] += coeff
+        return type(self)(self_expanded.operators, dict(new_terms))
+
+    def __radd__(self, other) -> "NumberOrderedForm":
+        """Add another object with this NumberOrderedForm.
+
+        This method is called when the left operand doesn't support addition with
+        a NumberOrderedForm.
+
+        Parameters
+        ----------
+        other : object
+            Object to add with this NumberOrderedForm.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The result of the addition.
+
+        """
+        return self.__add__(other)
+
+    def _eval_Eq(self, other):
+        """Evaluate equality between this NumberOrderedForm and another object.
+
+        This method is called by SymPy's equality operator.
+
+        Parameters
+        ----------
+        other : object
+            Object to compare with.
+
+        Returns
+        -------
+        sympy.Basic
+            True if equal, False otherwise.
+
+        """
+        if isinstance(other, NumberOrderedForm):
+            return (
+                all(op1 == op2 for op1, op2 in zip(self.operators, other.operators))
+                and self.terms == other.terms
+            )
+        return None  # Let SymPy handle other cases
 
     def _eval_is_zero(self):
         """Check if this NumberOrderedForm is zero.

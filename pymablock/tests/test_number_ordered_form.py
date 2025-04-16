@@ -319,9 +319,9 @@ def test_multiply_expr():
         NumberOrderedForm([a, b], {(1, 0): sympy.S.One}),  # a
         NumberOrderedForm([a, b], {(-1, 0): sympy.S.One}),  # a†
         # Multiple terms
-        NumberOrderedForm([a, b], {(1, 0): x, (-1, 0): y}),  # x*a + y*a†
+        NumberOrderedForm([a, b], {(1, 0): x, (-1, 0): y}),  # x*a + a†*y
         # Complex expressions
-        NumberOrderedForm([a, b], {(1, 2): x, (-1, -2): y}),  # x*a*b^2 + y*a†*b†^2
+        NumberOrderedForm([a, b], {(1, 2): x, (-1, -2): y}),  # x*a*b^2 + a†*b†^2*y
     ]
 
     # Expressions to multiply by.
@@ -378,3 +378,52 @@ def test_multiply_expr_raises_error():
             ValueError, match="Expression contains creation or annihilation operators"
         ):
             nof._multiply_expr(expr)
+
+
+def test_addition():
+    """Test addition of NumberOrderedForm."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    x, y = sympy.symbols("x y", real=True)
+
+    # Test adding two NumberOrderedForm instances with same operators
+    nof1 = NumberOrderedForm([a, b], {(1, 0): x, (0, 0): sympy.S.One})  # x*a + 1
+    nof2 = NumberOrderedForm([a, b], {(-1, 0): y, (0, 1): sympy.S(2)})  # y*a† + 2*b
+
+    result = nof1 + nof2
+    expected = NumberOrderedForm.from_expr(nof1.as_expr() + nof2.as_expr())
+
+    # Use sympy.expand and normal_ordered_form for comparison to handle equivalent forms
+    assert sympy.expand(
+        normal_ordered_form(result.as_expr(), independent=True)
+    ) == sympy.expand(normal_ordered_form(expected.as_expr(), independent=True))
+
+    # Test adding with different operators (should combine operators list)
+    c = boson.BosonOp("c")
+    nof3 = NumberOrderedForm([a], {(1,): x})  # x*a
+    nof4 = NumberOrderedForm([c], {(1,): y})  # y*c
+
+    result = nof3 + nof4
+    expected = NumberOrderedForm.from_expr(nof3.as_expr() + nof4.as_expr())
+
+    assert result.as_expr() == expected.as_expr()
+    assert len(result.operators) == 2
+    # Use string comparison for operator names
+    assert all(str(op.name) in ["a", "c"] for op in result.operators)
+
+    # Test adding with a sympy expression
+    nof5 = NumberOrderedForm([a], {(1,): x})  # x*a
+    scalar = sympy.S(3)  # 3
+
+    result = nof5 + scalar
+    expected = NumberOrderedForm.from_expr(nof5.as_expr() + scalar)
+
+    assert result.as_expr() == expected.as_expr()
+
+    # Test adding with a sympy expression containing operators
+    expr_with_operators = Dagger(a) * b
+    nof6 = NumberOrderedForm([a, b], {(1, 0): x})  # x*a
+
+    result = nof6 + expr_with_operators
+    expected = NumberOrderedForm.from_expr(nof6.as_expr() + expr_with_operators)
+
+    assert result.as_expr() == expected.as_expr()
