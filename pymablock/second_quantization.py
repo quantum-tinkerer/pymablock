@@ -11,7 +11,7 @@ import numpy as np
 import sympy
 import sympy.physics
 from packaging.version import parse
-from sympy.physics.quantum import Dagger, HermitianOperator, boson, fermion
+from sympy.physics.quantum import Dagger, HermitianOperator, Operator, boson, fermion
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.operatorordering import normal_ordered_form
@@ -43,6 +43,10 @@ if parse(sympy.__version__) < parse("1.14.0"):
 
     sympy.MatrixBase.adjoint = _eval_adjoint
     sympy.Expr._eval_transpose = _eval_transpose
+
+    # Only implements skipping identity, and is deleted in 1.14.
+    del BosonOp.__mul__
+    del Operator.__mul__
 
 
 def find_operators(expr: sympy.Expr):

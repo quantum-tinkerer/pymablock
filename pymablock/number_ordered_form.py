@@ -80,6 +80,10 @@ class NumberOrderedForm(Operator):
 
     """
 
+    # Same as dense matrices
+    _op_priority = 10.01
+    _class_priority = 4
+
     def __new__(
         cls,
         operators: List[OperatorType],
@@ -304,24 +308,6 @@ class NumberOrderedForm(Operator):
         -------
         str
             String representation of the NumberOrderedForm.
-
-        """
-        return printer._print(self.as_expr())
-
-    def _sympyrepr(self, printer):
-        """Return a string representation for recreating the object.
-
-        Parameters
-        ----------
-        printer : object
-            SymPy printer object.
-        *args
-            Additional arguments for the printer.
-
-        Returns
-        -------
-        str
-            String that can be evaluated to recreate the object.
 
         """
         return printer._print(self.as_expr())
@@ -558,6 +544,88 @@ class NumberOrderedForm(Operator):
 
         """
         return self.__add__(other)
+
+    def __mul__(self, other) -> "NumberOrderedForm":
+        """Multiply this NumberOrderedForm with another object.
+
+        Parameters
+        ----------
+        other : object
+            Object to multiply with this NumberOrderedForm.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The result of the multiplication.
+
+        """
+        if not isinstance(other, NumberOrderedForm):
+            if other.is_commutative:
+                pass
+            try:
+                other = NumberOrderedForm.from_expr(sympy.sympify(other))
+            except Exception:
+                return NotImplemented
+
+        if other.operators != self.operators:
+            new_operators = sorted(
+                set(self.operators).union(other.operators),
+                key=lambda op: (isinstance(op, BosonOp), str(op.name)),
+            )
+            self_expanded = self._expand_operators(new_operators)
+            other_expanded = other._expand_operators(new_operators)
+        else:
+            self_expanded = self
+            other_expanded = other
+
+        result = type(self)(self_expanded.operators, {}, validate=False)
+        for powers, coeff in other_expanded.terms.items():
+            # First multiply by creation operators, those are with negative powers
+            partial = NumberOrderedForm(self_expanded.operators, self_expanded.terms)
+            for i, power in enumerate(powers):
+                if not power < 0:
+                    continue
+                partial = partial._multiply_op(i, power)
+            # Now multiply by the number part
+            partial = partial._multiply_expr(coeff)
+            # Finally, multiply by annihilation operators
+            for i, power in enumerate(powers):
+                if not power > 0:
+                    continue
+                partial = partial._multiply_op(i, power)
+            # Add the result to the new terms
+            result = result + partial
+
+        return result
+
+    def __rmul__(self, other) -> "NumberOrderedForm":
+        """Right multiply this NumberOrderedForm with another object.
+
+        This method is called when the left operand doesn't support multiplication with
+        a NumberOrderedForm.
+
+        Parameters
+        ----------
+        other : object
+            Object to multiply with this NumberOrderedForm.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The result of the multiplication.
+
+        Notes
+        -----
+        Since NumberOrderedForm is non-commutative, this first converts the other object
+        to a NumberOrderedForm, then applies regular multiplication: other * self.
+
+        """
+        print("Multiplying by", other)
+        try:
+            other_nof = NumberOrderedForm.from_expr(sympy.sympify(other))
+            return other_nof * self
+        except Exception:
+            return NotImplemented
 
     def _eval_Eq(self, other):
         """Evaluate equality between this NumberOrderedForm and another object.

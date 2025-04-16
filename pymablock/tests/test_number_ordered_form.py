@@ -427,3 +427,103 @@ def test_addition():
     expected = NumberOrderedForm.from_expr(nof6.as_expr() + expr_with_operators)
 
     assert result.as_expr() == expected.as_expr()
+
+
+def test_multiplication():
+    """Test the __mul__ and __rmul__ methods for NumberOrderedForm."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    x, y = sympy.symbols("x y", real=True)
+    n_a = NumberOperator(a)
+
+    # Test multiplying two NumberOrderedForm instances with same operators
+    nof1 = NumberOrderedForm([a, b], {(0, 0): x})  # x
+    nof2 = NumberOrderedForm([a, b], {(1, 0): sympy.S.One})  # a
+
+    result = nof1 * nof2
+    expected = NumberOrderedForm.from_expr(nof1.as_expr() * nof2.as_expr())
+
+    # Compare using normal ordered forms for consistent comparison
+    result_normal = normal_ordered_form(result.as_expr(), independent=True)
+    expected_normal = normal_ordered_form(expected.as_expr(), independent=True)
+    assert sympy.expand(result_normal) == sympy.expand(expected_normal)
+
+    # Test more complex multiplication with same operators
+    nof3 = NumberOrderedForm([a, b], {(-1, 0): x, (0, 1): sympy.S(2)})  # x*a† + 2*b
+    nof4 = NumberOrderedForm([a, b], {(1, 0): y, (0, 0): n_a})  # y*a + n_a
+
+    result = nof3 * nof4
+    expected = NumberOrderedForm.from_expr(nof3.as_expr() * nof4.as_expr())
+
+    # We need to compare the normal ordered forms because direct comparison might fail
+    # due to different but equivalent expressions
+    result_normal = normal_ordered_form(result.as_expr(), independent=True)
+    expected_normal = normal_ordered_form(expected.as_expr(), independent=True)
+
+    assert sympy.expand(result_normal) == sympy.expand(expected_normal)
+
+    # Test multiplication with different operators
+    c = boson.BosonOp("c")
+    nof5 = NumberOrderedForm([a], {(1,): x})  # x*a
+    nof6 = NumberOrderedForm([c], {(1,): y})  # y*c
+
+    result = nof5 * nof6
+    expected = NumberOrderedForm.from_expr(nof5.as_expr() * nof6.as_expr())
+
+    # Use normal ordered form for comparison
+    result_normal = normal_ordered_form(result.as_expr(), independent=True)
+    expected_normal = normal_ordered_form(expected.as_expr(), independent=True)
+    assert sympy.expand(result_normal) == sympy.expand(expected_normal)
+    assert all(str(op.name) in ["a", "c"] for op in result.operators)
+
+    # Test multiplication with a scalar
+    nof7 = NumberOrderedForm([a], {(1,): sympy.S.One})  # a
+    scalar = sympy.S(3)  # 3
+
+    result = nof7 * scalar
+    expected = NumberOrderedForm([a], {(1,): sympy.S(3)})  # 3*a
+
+    # Use normal ordered form for comparison
+    result_normal = normal_ordered_form(result.as_expr(), independent=True)
+    expected_normal = normal_ordered_form(expected.as_expr(), independent=True)
+    assert sympy.expand(result_normal) == sympy.expand(expected_normal)
+
+    # Test right multiplication with a scalar (__rmul__)
+    result = scalar * nof7
+    # Skip direct comparison and just check that the result when converted back to an
+    # expression looks correct
+    assert result.as_expr() == sympy.S(3) * nof7.as_expr()
+
+    # Test right multiplication with commutative expressions
+    symbol = sympy.symbols("z")
+    nof8 = NumberOrderedForm([a], {(1,): sympy.S.One})  # a
+    result = symbol * nof8
+    expected = NumberOrderedForm([a], {(1,): symbol})  # z*a
+
+    assert result == expected
+
+    # Test multiplication with a sympy expression containing number operators
+    expr_with_number_op = n_a
+    nof9 = NumberOrderedForm([a], {(1,): sympy.S.One})  # a
+
+    result = nof9 * expr_with_number_op
+    expected = NumberOrderedForm.from_expr(nof9.as_expr() * expr_with_number_op)
+
+    assert result == expected
+
+    # Test right multiplication with a sympy expression containing number operators
+    result = expr_with_number_op * nof9
+    expected = NumberOrderedForm.from_expr(expr_with_number_op * nof9.as_expr())
+
+    # For non-commutative operators, left*right != right*left
+    # We need to compare normal ordered forms to handle equivalent expressions
+    result_normal = normal_ordered_form(result.as_expr(), independent=True)
+    expected_normal = normal_ordered_form(expected.as_expr(), independent=True)
+
+    assert sympy.expand(result_normal) == sympy.expand(expected_normal)
+    expr_with_number_op = n_a
+    nof8 = NumberOrderedForm([a], {(1,): sympy.S.One})  # a
+
+    result = nof8 * expr_with_number_op
+    expected = NumberOrderedForm.from_expr(nof8.as_expr() * expr_with_number_op)
+
+    assert result == expected
