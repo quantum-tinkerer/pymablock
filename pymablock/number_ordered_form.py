@@ -355,17 +355,22 @@ class NumberOrderedForm(Operator):
             return next(iter(self.terms.values())) if self.terms else sympy.S.Zero
 
         result = sympy.S.Zero
-        # TODO: This doesn't take care of the ordering of the operators, relevant for
-        # fermions.
+        reversed_operators = list(reversed(self.operators))
+
         for powers, coeff in self.terms.items():
             term = coeff
-            for i, power in enumerate(powers):
-                if power < 0:
-                    # Creation operator (negative power)
-                    term = Dagger(self.operators[i]) ** (-power) * term
-                elif power > 0:
-                    # Annihilation operator (positive power)
-                    term = term * self.operators[i] ** power
+            for op, power in zip(reversed_operators, reversed(powers)):
+                if not power > 0:
+                    continue
+                # Annihilation operator (positive power)
+                term = term * op**power
+
+            for op, power in zip(reversed_operators, reversed(powers)):
+                if not power < 0:
+                    continue
+                # Creation operator (negative power)
+                term = Dagger(op) ** (-power) * term
+
             result += term
 
         return result
