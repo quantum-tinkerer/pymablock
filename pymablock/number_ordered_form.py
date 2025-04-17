@@ -286,9 +286,6 @@ class NumberOrderedForm(Operator):
             If a coefficient contains creation or annihilation operators.
 
         """
-        if not terms:
-            raise ValueError("Empty terms dictionary")
-
         for powers, coeff in terms.items():
             # Check that powers tuple has the right length
             if len(powers) != len(operators):
@@ -876,7 +873,7 @@ class NumberOrderedForm(Operator):
         }
         return type(self)(self.operators, new_terms)
 
-    def _eval_Eq(self, other):
+    def __eq__(self, other):
         """Evaluate equality between this NumberOrderedForm and another object.
 
         This method is called by SymPy's equality operator.
@@ -892,12 +889,19 @@ class NumberOrderedForm(Operator):
             True if equal, False otherwise.
 
         """
-        if isinstance(other, NumberOrderedForm):
-            return (
-                all(op1 == op2 for op1, op2 in zip(self.operators, other.operators))
-                and self.terms == other.terms
-            )
-        return None  # Let SymPy handle other cases
+        if not isinstance(other, NumberOrderedForm):
+            try:
+                other = NumberOrderedForm.from_expr(sympy.sympify(other))
+            except Exception:
+                return None  # Let SymPy handle the comparison
+        return (
+            all(op1 == op2 for op1, op2 in zip(self.operators, other.operators))
+            and self.terms == other.terms
+        )
+
+    def __hash__(self):
+        """Compute the hash of this NumberOrderedForm."""
+        return super().__hash__()
 
     def _eval_is_zero(self):
         """Check if this NumberOrderedForm is zero.
