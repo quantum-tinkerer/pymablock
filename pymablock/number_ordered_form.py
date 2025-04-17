@@ -371,27 +371,8 @@ class NumberOrderedForm(Operator):
             # Convert base to NumberOrderedForm
             base_nof = NumberOrderedForm.from_expr(base, operators=operators)
 
-            # For integer exponents, convert to repeated multiplication
-            if exp.is_Integer and exp.is_positive:
-                result = base_nof
-                for _ in range(int(exp) - 1):
-                    result = result * base_nof
-                return result
-
-            # For non-integer exponents, check that the base has only
-            # number operators (no unmatched creation/annihilation operators)
-            zero_key = tuple(0 for _ in base_nof.operators)
-
-            # Check if there are any keys other than the zero key
-            if not all(powers == zero_key for powers in base_nof.terms):
-                raise ValueError(
-                    f"Cannot raise expression with unmatched creation or annihilation "
-                    f"operators to non-integer power: {base}**{exp}"
-                )
-
-            # Since the base only contains number operators, it's safe to apply the power
-            # We extract the coefficient and raise it to the given exponent
-            return cls(operators, {zero_key: next(iter(base_nof.terms.values())) ** exp})
+            # Use the __pow__ method to handle the exponentiation
+            return base_nof**exp
 
         # Handle function calls (like exp, sin, etc.)
         if isinstance(expr, sympy.Function):
@@ -871,7 +852,6 @@ class NumberOrderedForm(Operator):
         to a NumberOrderedForm, then applies regular multiplication: other * self.
 
         """
-        print("Multiplying by", other)
         try:
             other_nof = NumberOrderedForm.from_expr(sympy.sympify(other))
             return other_nof * self
@@ -1007,3 +987,71 @@ class NumberOrderedForm(Operator):
 
         """
         return self.apply_sympy_func(sympy.simplify, **kwargs)
+
+    def __pow__(self, exp) -> "NumberOrderedForm":
+        """Raise this NumberOrderedForm to a power.
+
+        Parameters
+        ----------
+        exp : sympy.Expr
+            The exponent to raise this NumberOrderedForm to.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The result of raising this NumberOrderedForm to the given power.
+
+        Raises
+        ------
+        ValueError
+            If trying to raise an expression with unmatched creation/annihilation operators
+            to a non-integer power.
+        TypeError
+            If the exponent is not a valid type.
+
+        """
+        if not isinstance(exp, (int, sympy.Integer, sympy.Expr)):
+            return NotImplemented
+
+        if exp == 0:
+            return type(self)(self.operators, {(): sympy.S.One})
+
+        # For integer exponents, convert to repeated multiplication
+        if (isinstance(exp, int) or exp.is_Integer) and exp > 0:
+            result = self
+            for _ in range(exp - 1):
+                result = result * self
+            return result
+
+        # For non-integer exponents, check that the expression only has
+        # number operators (no unmatched creation/annihilation operators)
+        zero_key = tuple(0 for _ in self.operators)
+
+        # Check if there are any keys other than the zero key
+        if not all(powers == zero_key for powers in self.terms):
+            raise ValueError(
+                f"Cannot raise expression with unmatched creation or annihilation "
+                f"operators to non-integer power: {self}**{exp}"
+            )
+
+        # Since the expression only contains number operators, it's safe to apply the power
+        # We extract the coefficient and raise it to the given exponent
+        return type(self)(
+            self.operators, {zero_key: next(iter(self.terms.values())) ** exp}
+        )
+
+    def __truediv__(self, other) -> "NumberOrderedForm":
+        """Divide this NumberOrderedForm by another object."""
+        if not isinstance(other, NumberOrderedForm):
+            try:
+                other = NumberOrderedForm.from_expr(sympy.sympify(other))
+            except Exception:
+                return NotImplemented
+
+        return self * (other**-1)
+
+    def _eval_subs(self, old, new):
+        raise NotImplementedError(
+            "Substitution in NumberOrderedForm is not implemented. "
+            "Use the apply_sympy_func method instead."
+        )
