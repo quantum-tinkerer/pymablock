@@ -503,12 +503,11 @@ class NumberOrderedForm(Operator):
                     coeff = coeff.subs(n_operator, n_operator - 1) * n_operator
             else:
                 to_pair = min(-op_power, max(orig_power, 0))
-                # We're bringing all unmatched creation operators to the left
-                coeff = coeff.subs(n_operator, n_operator + (-op_power - to_pair))
+                # Create the new number operators from all pairs
                 new_numbers = sympy.Mul(*[n_operator + i for i in range(1, to_pair + 1)])
-                if new_power > 0:
-                    new_numbers = new_numbers.subs(n_operator, n_operator + new_power)
                 coeff = coeff * new_numbers
+                # Bring all unmatched creation operators to the left
+                coeff = coeff.subs(n_operator, n_operator + (-op_power - to_pair))
             new_terms[new_powers] = coeff
 
         # Create the new NumberOrderedForm with the same operators but new terms
