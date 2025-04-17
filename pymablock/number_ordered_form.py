@@ -16,6 +16,7 @@ from sympy.physics.quantum.fermion import FermionOp
 from pymablock.second_quantization import NumberOperator
 
 # Type aliases
+operator_types = BosonOp, FermionOp
 OperatorType = BosonOp | FermionOp
 PowerKey = Tuple[int, ...]
 TermDict = Dict[PowerKey, sympy.Expr]
@@ -40,7 +41,7 @@ def _find_operators(expr: sympy.Expr) -> List[OperatorType]:
     expanded = expr.subs({n: n.doit() for n in expr.atoms(NumberOperator)})
     return [
         op
-        for particle in (BosonOp, FermionOp)
+        for particle in operator_types
         for op in sorted(
             {particle(atom.name) for atom in expanded.atoms(particle)},
             key=lambda op: str(op.name),
@@ -143,7 +144,7 @@ class NumberOrderedForm(Operator):
 
         """
         for op in operators:
-            if not isinstance(op, (BosonOp, FermionOp)):
+            if not isinstance(op, OperatorType):
                 raise TypeError(f"Expected BosonOp or FermionOp, got {type(op)}")
             if not op.is_annihilation:
                 raise ValueError(f"Operator must be an annihilation operator: {op}")
@@ -275,11 +276,9 @@ class NumberOrderedForm(Operator):
                     f"operators to non-integer power: {base}**{exp}"
                 )
 
-            # Now we can safely convert the base expression to expr and apply the power
-            # Since it's a pure number expression, just containing number operators
-            return NumberOrderedForm.from_expr(
-                base_nof.as_expr() ** exp, operators=operators
-            )
+            # Since the base only contains number operators, it's safe to apply the power
+            # We extract the coefficient and raise it to the given exponent
+            return cls(operators, {zero_key: next(iter(base_nof.terms.values())) ** exp})
 
         # Handle function calls (like exp, sin, etc.)
         if isinstance(expr, sympy.Function):
@@ -297,13 +296,16 @@ class NumberOrderedForm(Operator):
                         f"creation or annihilation operators: {expr.args[i]}"
                     )
 
-            # Now we can safely convert the arguments to expr and apply the function
-            # Since they're pure number expressions, just containing number operators
-            arg_exprs = [arg_nof.as_expr() for arg_nof in arg_nofs]
-            return NumberOrderedForm.from_expr(expr.func(*arg_exprs), operators=operators)
+            # Now we can safely convert the arguments to expressions
+            # Extract the coefficients from the zero keys for each argument
+            zero_key = tuple(0 for _ in operators)
+            arg_exprs = [next(iter(arg_nof.terms.values())) for arg_nof in arg_nofs]
+
+            # Return a new NumberOrderedForm with the function applied to the coefficients
+            return cls(operators, {zero_key: expr.func(*arg_exprs)})
 
         # Handle BosonOp or FermionOp (both creation and annihilation operators)
-        if isinstance(expr, (BosonOp, FermionOp)):
+        if isinstance(expr, OperatorType):
             # Find the corresponding annihilation operator in our operators list
             annihilation_op = expr if expr.is_annihilation else type(expr)(expr.name)
 
