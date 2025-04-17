@@ -878,6 +878,24 @@ class NumberOrderedForm(Operator):
         except Exception:
             return NotImplemented
 
+    def _eval_adjoint(self):
+        """Evaluate the adjoint of this NumberOrderedForm.
+
+        This method is called by SymPy's adjoint operator.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The adjoint of this NumberOrderedForm.
+
+        """
+        # Take the adjoint of each term and negate the powers
+        new_terms = {
+            tuple(-power for power in powers): Dagger(coeff)
+            for powers, coeff in self.terms.items()
+        }
+        return type(self)(self.operators, new_terms)
+
     def _eval_Eq(self, other):
         """Evaluate equality between this NumberOrderedForm and another object.
 
