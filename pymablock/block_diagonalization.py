@@ -440,9 +440,7 @@ def block_diagonalize(
             result = outputs[name][index]
             if result is zero:
                 return zero
-            return result.applyfunc(
-                lambda x: second_quantization.number_ordered_form(x, simplify=True)
-            )
+            return result.applyfunc(lambda x: NumberOrderedForm.from_expr(x).simplify())
 
         return tuple(
             BlockSeries(

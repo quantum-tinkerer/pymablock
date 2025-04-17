@@ -289,7 +289,6 @@ def apply_mask_to_operator(
             # We need to take special care because the mask might not contain all
             # operators appearing in the expression.
             operators, shifts = NumberOrderedForm.from_expr(value).args
-            print(shifts)
             # Convert from sympy subclass because sympy dicts are immutable
             mask_indices = [operators.index(op) for op in mask_operators]
             for *mask_bosons, mask_matrix in mask:
