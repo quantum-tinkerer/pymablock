@@ -3,18 +3,13 @@ import pytest
 import sympy
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
-from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock import block_diagonalize
+from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.second_quantization import (
-    NumberOperator,
     apply_mask_to_operator,
     find_operators,
     group_ordered,
-    multiply_b,
-    multiply_daggered_b,
-    multiply_fn,
-    number_ordered_form,
     simplify_number_expression,
     solve_sylvester_bosonic,
 )
@@ -78,7 +73,7 @@ def test_solve_sylvester_bosonic_with_number_operator():
     result = H_ii * V - V * H_jj
 
     # Check that the result matches Y after normal ordering
-    assert number_ordered_form(result[0, 0] - Y[0, 0], simplify=True) == 0
+    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0], simplify=True) == 0
 
 
 def test_solve_sylvester_bosonic():
@@ -101,83 +96,10 @@ def test_solve_sylvester_bosonic():
 
     for i in range(Y.shape[0]):
         for j in range(Y.shape[1]):
-            assert number_ordered_form(Y[i, j] - Y_expected[i, j], simplify=True) == 0
-
-
-def test_multiply_b():
-    b = BosonOp("b")
-    Nb = NumberOperator(b)
-
-    # Test case 1: Simple expression with only annihilation operators
-    expr1 = b**2
-    result1 = multiply_b(expr1, b)
-    expected1 = b**3
-    assert (result1 - expected1).expand() == 0
-
-    # Test case 2: Expression with creation operators
-    expr2 = Dagger(b) * b
-    result2 = normal_ordered_form(multiply_b(expr2, b).doit().expand())
-    expected2 = normal_ordered_form((b * Dagger(b) * b).doit().expand())
-    assert (result2 - expected2).expand() == 0
-
-    # Test case 3: Complex expression with multiple terms
-    expr3 = Nb + Nb**2 * b + Dagger(b) * Nb
-    result3 = normal_ordered_form(multiply_b(expr3, b).doit().expand())
-    expected3 = normal_ordered_form((expr3 * b).doit().expand())
-    assert (result3 - expected3).expand() == 0
-
-
-def test_multiply_daggered_b():
-    b = BosonOp("b")
-    Nb = NumberOperator(b)
-
-    # Test case 1: Simple expression with number operator
-    expr1 = Nb
-    result1 = normal_ordered_form(multiply_daggered_b(expr1, Dagger(b)).doit().expand())
-    expected1 = normal_ordered_form((Nb * Dagger(b)).doit().expand())
-    assert (result1 - expected1).expand() == 0
-
-    # Test case 2: Expression with annihilation operators
-    expr2 = b
-    result2 = normal_ordered_form(multiply_daggered_b(expr2, Dagger(b)).doit().expand())
-    expected2 = normal_ordered_form((b * Dagger(b)).doit().expand())
-    assert (result2 - expected2).expand() == 0
-
-
-def test_multiply_fn():
-    b = BosonOp("b")
-    c = BosonOp("c")
-    Nb = NumberOperator(b)
-    Nc = NumberOperator(c)
-
-    # Test case: Expression with multiple operators
-    fn = (Nb**2 + 1) * Nb * (Nc + 1)
-    expr = b**2 * c
-
-    result = normal_ordered_form(multiply_fn(expr, fn).doit().expand(), independent=True)
-    expected = normal_ordered_form((expr * fn).doit().expand(), independent=True)
-
-    assert (result - expected).expand() == 0
-
-
-def test_number_ordered_form():
-    b = BosonOp("b")
-    c = BosonOp("c")
-    Nb = NumberOperator(b)
-    Nc = NumberOperator(c)
-
-    # Test case: Complex expression with multiple operators
-    expr = (
-        b**2 * Dagger(b) * (c + 1) ** 2
-        + (Nc + 1) ** (2) * (b + 1) * (c + Nb * Dagger(c)) ** 2
-    )
-
-    result = normal_ordered_form(
-        number_ordered_form(expr).doit().expand(), independent=True
-    )
-    expected = normal_ordered_form(expr.doit().expand(), independent=True)
-
-    assert (result - expected).expand() == 0
+            assert (
+                NumberOrderedForm.from_expr(Y[i, j] - Y_expected[i, j], simplify=True)
+                == 0
+            )
 
 
 def test_group_ordered_idempotence():
@@ -324,30 +246,6 @@ def test_simplify_number_expression():
         simplify_number_expression(expr3)
 
 
-def test_number_ordered_form_with_negative_powers():
-    """Test number_ordered_form with negative powers to verify error handling."""
-    a = BosonOp("a")
-
-    # Test that it raises ValueError for negative powers of operators
-    with pytest.raises(ValueError):
-        number_ordered_form(a ** (-1))
-
-    with pytest.raises(ValueError):
-        number_ordered_form(Dagger(a) ** (-1))
-
-    # Test that negative powers of number operators are allowed
-    Na = NumberOperator(a)
-    expr = Na ** (-1) * a
-    result = number_ordered_form(expr)
-    assert result == Na ** (-1) * a
-
-    # Test that negative powers of non-operator expressions are allowed
-    x = sympy.Symbol("x")
-    expr = x ** (-1) * a
-    result = number_ordered_form(expr)
-    assert result == x ** (-1) * a
-
-
 @pytest.mark.xfail(reason="There is a bug in the mask probably")
 def test_hermitian_block_diagonalization():
     """Test that checks Hermiticity of the block-diagonalized Hamiltonian."""
@@ -367,7 +265,9 @@ def test_hermitian_block_diagonalization():
         H_order = H_tilde[0, 0, order][0, 0].subs(N_1, 2).subs(N_2, 0)
 
         # Calculate H_order - Dagger(H_order) which should be 0 if hermitian
-        hermiticity_check = number_ordered_form(H_order - Dagger(H_order), simplify=True)
+        hermiticity_check = NumberOrderedForm.from_expr(
+            H_order - Dagger(H_order)
+        ).simplify()
         assert hermiticity_check == 0, f"H_tilde[0, 0, {order}] is not hermitian."
 
 
@@ -393,7 +293,10 @@ def test_apply_mask_to_operator():
 
     # The mask should filter out all terms except the allowed ones
     assert (
-        number_ordered_form(masked_expr[0, 0] - allowed_matrix[0, 0], simplify=True) == 0
+        NumberOrderedForm.from_expr(masked_expr[0, 0] - allowed_matrix[0, 0])
+        .simplify()
+        .as_expr()
+        == 0
     )
 
     # Create number operators
@@ -416,7 +319,10 @@ def test_apply_mask_to_operator():
 
     # The mask should filter out all terms except the allowed ones
     assert (
-        number_ordered_form(masked_expr[0, 0] - allowed_matrix[0, 0], simplify=True) == 0
+        NumberOrderedForm.from_expr(masked_expr[0, 0] - allowed_matrix[0, 0])
+        .simplify()
+        .as_expr()
+        == 0
     )
 
 
