@@ -332,6 +332,9 @@ class NumberOrderedForm(Operator):
             A NumberOrderedForm instance representing the expression.
 
         """
+        if isinstance(expr, NumberOrderedForm):
+            return expr
+
         # For scalar expressions (no operators)
         if not expr.has(BosonOp, FermionOp, NumberOperator):
             # Return a NumberOrderedForm with no operators and a single term
@@ -758,6 +761,40 @@ class NumberOrderedForm(Operator):
 
         """
         return self.__add__(other)
+
+    def __sub__(self, other) -> "NumberOrderedForm":
+        """Subtract another object from this NumberOrderedForm.
+
+        Parameters
+        ----------
+        other : object
+            Object to subtract from this NumberOrderedForm.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The result of the subtraction.
+
+        """
+        if not isinstance(other, NumberOrderedForm):
+            try:
+                other = NumberOrderedForm.from_expr(sympy.sympify(other))
+            except Exception:
+                return NotImplemented
+
+        return self + (-other)
+
+    def __neg__(self) -> "NumberOrderedForm":
+        """Negate this NumberOrderedForm.
+
+        Returns
+        -------
+        NumberOrderedForm
+            The negated NumberOrderedForm.
+
+        """
+        new_terms = {powers: -coeff for powers, coeff in self.terms.items()}
+        return type(self)(self.operators, new_terms)
 
     def __mul__(self, other) -> "NumberOrderedForm":
         """Multiply this NumberOrderedForm with another object.

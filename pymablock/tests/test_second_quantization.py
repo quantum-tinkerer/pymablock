@@ -302,7 +302,8 @@ def test_apply_mask_to_operator():
     # Create number operators
     N_1, N_2 = [NumberOperator(boson) for boson in (b_1, b_2)]
 
-    # Test case 2: Basic mask that allows only number operators
+    # Test case 2: Basic mask that allows only number operators, but with an operator
+    # not contained in the mask
     allowed_terms = [N_1, N_1**2, (b_1 * N_1 * Dagger(b_1)) * b_2]
     allowed_matrix = sympy.Matrix(
         [[sympy.Add(*allowed_terms) + Dagger(sympy.Add(*allowed_terms))]]
