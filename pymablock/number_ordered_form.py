@@ -1051,7 +1051,9 @@ class NumberOrderedForm(Operator):
         return self * (other**-1)
 
     def _eval_subs(self, old, new):
-        raise NotImplementedError(
-            "Substitution in NumberOrderedForm is not implemented. "
-            "Use the apply_sympy_func method instead."
+        if old in self.operators or new in self.operators:
+            raise ValueError("Cannot substitute operators in NumberOrderedForm.")
+        return type(self)(
+            self.operators,
+            {tuple(powers): coeff.subs(old, new) for powers, coeff in self.terms.items()},
         )
