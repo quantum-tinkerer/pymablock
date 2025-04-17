@@ -144,6 +144,27 @@ def test_from_expr():
         assert isinstance(nof.terms[power], sympy.Expr)
 
 
+def test_dagger():
+    """Test the Dagger method of NumberOrderedForm."""
+    a = boson.BosonOp("a")
+    b = boson.BosonOp("b")
+
+    # Create a NumberOrderedForm
+    expr = (Dagger(a) + b) * a**2
+    nof = NumberOrderedForm.from_expr(expr)
+
+    # Get the daggered form
+    nof_daggered = Dagger(nof)
+
+    # Check that the operators are the same
+    assert (
+        normal_ordered_form(
+            (nof_daggered.as_expr().doit().expand() - Dagger(expr).expand()).expand()
+        )
+        == 0
+    )
+
+
 def test_compare_from_expr():
     """Test that from_expr handles products of operators correctly."""
 
