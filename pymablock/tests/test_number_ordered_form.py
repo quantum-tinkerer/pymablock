@@ -149,6 +149,26 @@ def test_compare_from_expr():
 
     b = boson.BosonOp("b")
 
+    fn1 = NumberOrderedForm.from_expr(b * Dagger(b) ** 2)
+    fn2 = NumberOrderedForm.from_expr(b * Dagger(b)) * NumberOrderedForm.from_expr(
+        Dagger(b)
+    )
+    assert (
+        normal_ordered_form(fn1.as_expr().doit())
+        - normal_ordered_form(fn2.as_expr().doit())
+        == 0
+    )
+
+    fn1 = NumberOrderedForm.from_expr(Dagger(b) * b * Dagger(b))
+    fn2 = NumberOrderedForm.from_expr(Dagger(b) * b) * NumberOrderedForm.from_expr(
+        Dagger(b)
+    )
+    assert (
+        normal_ordered_form(fn1.as_expr().doit())
+        - normal_ordered_form(fn2.as_expr().doit())
+        == 0
+    )
+
     fn1 = NumberOrderedForm.from_expr(b * Dagger(b) ** 2 * b)
     fn2 = NumberOrderedForm.from_expr((b * Dagger(b))) * NumberOrderedForm.from_expr(
         Dagger(b) * b
