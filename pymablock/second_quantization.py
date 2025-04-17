@@ -43,6 +43,18 @@ if parse(sympy.__version__) < parse("1.14.0"):
     sympy.MatrixBase.adjoint = _eval_adjoint
     sympy.Expr._eval_transpose = _eval_transpose
 
+    # Monkey patch sympy to override the sum method to ExpressionRawDomain.
+    def sum(self, items):  # noqa ARG001
+        """Slower, but overridable version of sympy.Add."""
+        if not items:
+            return sympy.S.Zero
+        result = items[0]
+        for item in items[1:]:
+            result += item
+        return result
+
+    sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = sum
+
     # Only implements skipping identity, and is deleted in 1.14.
     del BosonOp.__mul__
     del Operator.__mul__
