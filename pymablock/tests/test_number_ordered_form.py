@@ -834,3 +834,12 @@ def test_number_ordered_form_with_negative_powers():
     expr = x ** (-1) * a
     nof = NumberOrderedForm.from_expr(expr)
     assert nof.as_expr() == expr
+
+
+def test_raise_if_substitution():
+    """Test that substitution raises an error."""
+    a = boson.BosonOp("a")
+    nof = NumberOrderedForm([a], {(1,): sympy.S.One})
+
+    with pytest.raises(NotImplementedError):
+        nof.subs(a, a + 1)
