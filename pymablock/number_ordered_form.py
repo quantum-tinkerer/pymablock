@@ -784,7 +784,7 @@ class NumberOrderedForm(Operator):
         """
         return bool(self.terms)
 
-    def _apply_sympy_func(self, func, *args, **kwargs):
+    def apply_sympy_func(self, func, *args, **kwargs):
         """Apply a SymPy function to the terms of this NumberOrderedForm.
 
         This method temporarily replaces NumberOperators with unique symbols,
@@ -842,4 +842,4 @@ class NumberOrderedForm(Operator):
             A simplified NumberOrderedForm
 
         """
-        return self._apply_sympy_func(sympy.simplify, **kwargs)
+        return self.apply_sympy_func(sympy.simplify, **kwargs)
