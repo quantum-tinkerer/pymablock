@@ -296,7 +296,6 @@ def test_empty_round_trip():
 def test_multiply_op():
     """Test the _multiply_op method using normal_ordered_form as a reference."""
     a, b = sympy.symbols("a b", cls=boson.BosonOp)
-    x, y = sympy.symbols("x y")
     n_a, n_b = NumberOperator(a), NumberOperator(b)
 
     terms = [
@@ -336,6 +335,22 @@ def test_multiply_op():
         ) == sympy.expand(
             normal_ordered_form(expected, independent=True)
         ), f"Failed for term {term} with operator {op}"
+
+
+def test_multiply_op_twice():
+    b = boson.BosonOp("b")
+    fn1 = NumberOrderedForm([b], {(1,): sympy.S.One})._multiply_op(0, -2)
+    fn2 = (
+        NumberOrderedForm([b], {(1,): sympy.S.One})
+        ._multiply_op(0, -1)
+        ._multiply_op(0, -1)
+    )
+
+    assert (
+        normal_ordered_form(fn1.as_expr().doit())
+        - normal_ordered_form(fn2.as_expr().doit())
+        == 0
+    ), f"Failed for fn1: {fn1.as_expr()} and fn2: {fn2.as_expr()}"
 
 
 def test_multiply_expr():
