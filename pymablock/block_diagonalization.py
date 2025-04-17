@@ -23,6 +23,7 @@ from pymablock.linalg import (
     direct_greens_function,
     is_diagonal,
 )
+from pymablock.number_ordered_form import NumberOrderedForm
 from pymablock.series import (
     BlockSeries,
     zero,
@@ -1169,10 +1170,7 @@ def _extract_diagonal(
         if is_sympy:
             # Check if any of the expressions contains sympy.physics.quantum.Operator
             if operators:
-                eigs = [
-                    second_quantization.number_ordered_form(eig, simplify=False)
-                    for eig in eigs
-                ]
+                eigs = [NumberOrderedForm.from_expr(eig).simplify() for eig in eigs]
             eigs = np.array(eigs, dtype=object)
         diags.append(eigs)
 
