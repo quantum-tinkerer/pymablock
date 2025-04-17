@@ -144,6 +144,23 @@ def test_from_expr():
         assert isinstance(nof.terms[power], sympy.Expr)
 
 
+def test_compare_from_expr():
+    """Test that from_expr handles products of operators correctly."""
+
+    b = boson.BosonOp("b")
+
+    fn1 = NumberOrderedForm.from_expr(b * Dagger(b) ** 2 * b)
+    fn2 = NumberOrderedForm.from_expr((b * Dagger(b))) * NumberOrderedForm.from_expr(
+        Dagger(b) * b
+    )
+
+    assert (
+        normal_ordered_form(fn1.as_expr().doit())
+        - normal_ordered_form(fn2.as_expr().doit())
+        == 0
+    )
+
+
 def test_printing_methods():
     """Test the printing methods of NumberOrderedForm."""
     a = boson.BosonOp("a")
