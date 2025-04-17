@@ -142,9 +142,6 @@ class NumberOrderedForm(Operator):
             If an operator is not an annihilation operator.
 
         """
-        if not operators:
-            raise ValueError("Empty operators list")
-
         for op in operators:
             if not isinstance(op, (BosonOp, FermionOp)):
                 raise TypeError(f"Expected BosonOp or FermionOp, got {type(op)}")

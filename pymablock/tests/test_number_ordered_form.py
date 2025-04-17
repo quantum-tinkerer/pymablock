@@ -37,10 +37,6 @@ def test_number_ordered_form_validation():
     a = boson.BosonOp("a")
     b = boson.BosonOp("b")
 
-    # Test with empty operators list
-    with pytest.raises(ValueError, match="Empty operators list"):
-        NumberOrderedForm([], {(0,): sympy.S.One})
-
     # Test with non-quantum operator
     with pytest.raises(TypeError, match="Expected BosonOp or FermionOp"):
         NumberOrderedForm([sympy.Symbol("x")], {(0,): sympy.S.One})
