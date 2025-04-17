@@ -19,4 +19,5 @@ __all__ = [
     "__version__",
     "__version_tuple__",
     "second_quantization",
+    "number_ordered_form",
 ]
