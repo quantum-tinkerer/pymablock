@@ -189,18 +189,16 @@ def solve_monomial(Y, H_ii, H_jj, boson_operators):
         return sympy.S.Zero
 
     shifts = NumberOrderedForm.from_expr(Y).terms
-
     result = sympy.S.Zero
     for shift, monomial in shifts.items():
-        shifted_H_jj = H_jj.subs(
+        shifted_H_jj = H_jj.as_expr().subs(
             {
                 NumberOperator(op): NumberOperator(op) + delta
                 for delta, op in zip(shift, boson_operators)
             }
         )
-        result += simplify_number_expression(H_ii - shifted_H_jj) ** -1 * monomial
-
-    return result
+        result += NumberOrderedForm.from_expr((H_ii - shifted_H_jj) ** -1 * monomial)
+    return result.simplify()
 
 
 def solve_sylvester_bosonic(

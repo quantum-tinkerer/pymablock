@@ -40,7 +40,9 @@ def test_solve_sylvester_bosonic_simple():
     result = H_ii * V - V * H_jj
 
     # Check if the equation is satisfied
-    assert (sympy.simplify(result) - Y) == sympy.zeros(2, 2)
+    for i in range(Y.shape[0]):
+        for j in range(Y.shape[1]):
+            assert (result[i, j] - Y[i, j]).simplify() == 0
 
 
 def test_solve_sylvester_bosonic_with_number_operator():
@@ -73,7 +75,7 @@ def test_solve_sylvester_bosonic_with_number_operator():
     result = H_ii * V - V * H_jj
 
     # Check that the result matches Y after normal ordering
-    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0], simplify=True) == 0
+    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify() == 0
 
 
 def test_solve_sylvester_bosonic():
@@ -96,10 +98,8 @@ def test_solve_sylvester_bosonic():
 
     for i in range(Y.shape[0]):
         for j in range(Y.shape[1]):
-            assert (
-                NumberOrderedForm.from_expr(Y[i, j] - Y_expected[i, j], simplify=True)
-                == 0
-            )
+            result = NumberOrderedForm.from_expr(Y[i, j]) - Y_expected[i, j]
+            assert result.simplify() == 0, f"Failed for Y[{i}, {j}]: {result.simplify()}"
 
 
 def test_group_ordered_idempotence():
@@ -346,7 +346,7 @@ def test_boson_operator_diagonalization():
     )
     H_tilde_finite, *_ = block_diagonalize([H_0, H_1])
     # Compare the two
-    assert H_tilde[0, 0, 1].subs({n: 2})[0, 0] == H_tilde_finite[0, 0, 1][2, 2]
+    assert H_tilde[0, 0, 1][0, 0].as_expr().subs({n: 2}) == H_tilde_finite[0, 0, 1][2, 2]
 
     # Now with two bosons
     b = BosonOp("b")
@@ -354,7 +354,7 @@ def test_boson_operator_diagonalization():
     H_0 = sympy.Matrix([[n + n_b + n**2 / 3]])
     H_1 = sympy.Matrix([[a + Dagger(a) + b + Dagger(b) + a * b + Dagger(a) * Dagger(b)]])
     H_tilde, *_ = block_diagonalize([H_0, H_1])
-    E_eff = H_tilde[0, 0, 2][0, 0].subs({n: 0, n_b: 0})
+    E_eff = H_tilde[0, 0, 2][0, 0].as_expr().subs({n: 0, n_b: 0})
     # Now finite matrix
     N = 3
     a_mat = sympy.zeros(N, N)
