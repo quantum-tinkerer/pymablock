@@ -10,17 +10,122 @@ from collections import defaultdict
 from typing import Dict, List, Tuple
 
 import sympy
-from sympy.physics.quantum import Dagger, Operator
+from sympy.physics.quantum import Dagger, HermitianOperator, Operator, boson, fermion
 from sympy.physics.quantum.boson import BosonOp
+from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.fermion import FermionOp
-
-from pymablock.second_quantization import NumberOperator
+from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 # Type aliases
 operator_types = BosonOp, FermionOp
 OperatorType = BosonOp | FermionOp
 PowerKey = Tuple[int, ...]
 TermDict = Dict[PowerKey, sympy.Expr]
+
+
+class NumberOperator(HermitianOperator):
+    """Number operator for bosonic and fermionic operators.
+
+    Notes
+    -----
+    This class is used to simplify expressions with second-quantized operators. We do
+    this ourselves, because sympy does not support this yet.
+
+    """
+
+    @property
+    def name(self):
+        """Return the name of the operator."""
+        return self.args[0]
+
+    def __new__(cls, *args, **hints):
+        """Construct a number operator for bosonic modes.
+
+        Parameters
+        ----------
+        operator :
+            Operator that the number operator counts.
+        args :
+            Length-1 list with the operator.
+        hints :
+            Unused; required for compatibility with sympy.
+
+        """
+        try:
+            (operator,) = args
+            if not isinstance(operator, (boson.BosonOp, fermion.FermionOp)):
+                raise TypeError(
+                    "NumberOperator requires a bosonic or fermionic operator."
+                )
+            if not operator.is_annihilation:
+                raise ValueError("Operator must be an annihilation operator.")
+            name = operator.name
+            operator_type = "boson" if isinstance(operator, boson.BosonOp) else "fermion"
+        except ValueError:
+            name, operator_type = args
+
+        return super().__new__(
+            cls,
+            name,
+            operator_type,
+            **hints,
+        )
+
+    def doit(self, **hints):  # noqa: ARG002
+        """Evaluate the operator.
+
+        For example,
+
+            >>> from sympy.physics.quantum import boson
+            >>> from pymablock.second_quantization import NumberOperator
+            >>> b = boson.BosonOp('b')
+            >>> n = NumberOperator(b)
+            >>> n.doit()
+            Dagger(b)*b
+
+        Returns
+        -------
+        sympy.core.expr.Expr
+            The evaluated operator.
+
+        """
+        op = (boson.BosonOp if self.args[1].name == "boson" else fermion.FermionOp)(
+            self.args[0]
+        )
+        return Dagger(op) * op
+
+    def _eval_commutator_NumberOperator(self, other):  # noqa: ARG002
+        """Evaluate the commutator with another NumberOperator."""
+        return sympy.S.Zero
+
+    def _eval_commutator_BosonOp(self, other, **hints):
+        """Evaluate the commutator with a Boson operator."""
+        if self.args[1].name == "fermion":
+            return sympy.S.Zero
+        if other.name != self.name and hints.get("independent"):
+            return sympy.S.Zero
+        return normal_ordered_form(
+            Commutator(self.doit(), other, **hints).doit(), **hints
+        )
+
+    def _eval_commutator_FermionOp(self, other, **hints):
+        """Evaluate the commutator with a Fermion operator."""
+        if self.args[1].name == "boson":
+            return sympy.S.Zero
+        if other.name != self.name and hints.get("independent"):
+            return sympy.S.Zero
+        return normal_ordered_form(
+            Commutator(self.doit(), other, **hints).doit(), **hints
+        )
+
+    def _print_contents_latex(self, printer, *args):  # noqa: ARG002
+        return r"{N_{%s}}" % str(self.name)
+
+    def _print_contents(self, printer, *args):  # noqa: ARG002
+        return r"N_%s" % str(self.name)
+
+    def _print_contents_pretty(self, printer, *args):
+        return printer._print("N_" + self.args[0], *args)
 
 
 def _find_operators(expr: sympy.Expr) -> List[OperatorType]:
