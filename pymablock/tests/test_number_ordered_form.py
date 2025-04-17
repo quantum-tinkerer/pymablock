@@ -660,3 +660,156 @@ def test_sympy_simplify_integration():
 
     # Check result
     assert result.as_expr() == n_b
+
+    # Test multiply_b - Multiplying by annihilation operator
+    b_op = boson.BosonOp("b")
+    Nb = NumberOperator(b_op)
+
+    # Test case 1: Simple expression with only annihilation operators
+    expr1 = b_op**2
+    nof_expr1 = NumberOrderedForm.from_expr(expr1)
+    result1 = nof_expr1 * b_op  # Multiply by annihilation operator
+    expected1 = NumberOrderedForm.from_expr(b_op**3)
+    assert (
+        normal_ordered_form(
+            result1.as_expr().doit().expand() - expected1.as_expr().doit().expand()
+        )
+        == 0
+    )
+
+    # Test case 2: Expression with creation operators
+    expr2 = Dagger(b_op) * b_op
+    nof_expr2 = NumberOrderedForm.from_expr(expr2)
+    result2 = nof_expr2 * b_op  # Multiply by annihilation operator
+    expected2 = NumberOrderedForm.from_expr((Dagger(b_op) * b_op * b_op))
+    assert (
+        normal_ordered_form(
+            result2.as_expr().doit().expand() - expected2.as_expr().doit().expand()
+        )
+        == 0
+    )
+
+    # Test case 3: Complex expression with multiple terms
+    expr3 = Nb + Nb**2 * b_op + Dagger(b_op) * Nb
+    nof_expr3 = NumberOrderedForm.from_expr(expr3)
+    result3 = nof_expr3 * b_op  # Multiply by annihilation operator
+    expected3 = NumberOrderedForm.from_expr(expr3 * b_op)
+    assert (
+        normal_ordered_form(
+            (
+                result3.as_expr().doit().expand() - expected3.as_expr().doit().expand()
+            ).expand()
+        )
+        == 0
+    )
+
+    # Test multiply_daggered_b - Multiplying by creation operator
+
+    # Test case 1: Simple expression with number operator
+    expr1 = Nb
+    nof_expr1 = NumberOrderedForm.from_expr(expr1)
+    result1 = nof_expr1 * Dagger(b_op)  # Multiply by creation operator
+    expected1 = NumberOrderedForm.from_expr(Nb * Dagger(b_op))
+    assert (
+        normal_ordered_form(
+            (
+                result1.as_expr().doit().expand() - expected1.as_expr().doit().expand()
+            ).expand()
+        )
+        == 0
+    )
+
+    # Test case 2: Expression with annihilation operators
+    expr2 = b_op
+    nof_expr2 = NumberOrderedForm.from_expr(expr2)
+    result2 = nof_expr2 * Dagger(b_op)  # Multiply by creation operator
+    expected2 = NumberOrderedForm.from_expr(b_op * Dagger(b_op))
+    assert (
+        normal_ordered_form(
+            (
+                result2.as_expr().doit().expand() - expected2.as_expr().doit().expand()
+            ).expand()
+        )
+        == 0
+    )
+
+    # Test multiply_fn - Multiplying by number operator expressions
+
+    c_op = boson.BosonOp("c")
+    Nc = NumberOperator(c_op)
+
+    # Test case: Expression with multiple operators
+    fn = (Nb**2 + 1) * Nb * (Nc + 1)
+    expr = b_op**2 * c_op
+
+    # Create NumberOrderedForm instances
+    nof_expr = NumberOrderedForm.from_expr(expr)
+    nof_fn = NumberOrderedForm.from_expr(fn)
+
+    # Using the multiplication operator between NumberOrderedForm objects
+    result = nof_expr * nof_fn
+    expected = NumberOrderedForm.from_expr(expr * fn)
+
+    assert (
+        normal_ordered_form(
+            (
+                result.as_expr().doit().expand() - expected.as_expr().doit().expand()
+            ).expand()
+        )
+        == 0
+    )
+
+
+def test_number_ordered_form_function():
+    """Test the number_ordered_form function for converting expressions to number-ordered form."""
+    b = boson.BosonOp("b")
+    c = boson.BosonOp("c")
+    Nb = NumberOperator(b)
+    Nc = NumberOperator(c)
+
+    # Test case: Complex expression with multiple operators
+    expr = b**2 * Dagger(b)
+
+    # Convert expression to NumberOrderedForm and back
+    nof = NumberOrderedForm.from_expr(expr)
+    result = nof.as_expr().doit().expand()
+    expected = expr.doit().expand()
+
+    assert normal_ordered_form((result - expected).expand(), independent=True) == 0
+
+    # Test case: Complex expression with multiple operators
+    expr = (
+        b**2 * Dagger(b) * (c + 1) ** 2
+        + (Nc + 1) ** (2) * (b + 1) * (c + Nb * Dagger(c)) ** 2
+    )
+
+    # Convert expression to NumberOrderedForm and back
+    nof = NumberOrderedForm.from_expr(expr)
+    result = nof.as_expr().doit().expand()
+    expected = expr.doit().expand()
+
+    assert normal_ordered_form((result - expected).expand(), independent=True) == 0
+
+
+def test_number_ordered_form_with_negative_powers():
+    """Test NumberOrderedForm with negative powers to verify error handling."""
+    a = boson.BosonOp("a")
+
+    # Test that it raises ValueError for negative powers of operators
+    with pytest.raises(ValueError):
+        NumberOrderedForm.from_expr(a ** (-1))
+
+    with pytest.raises(ValueError):
+        NumberOrderedForm.from_expr(Dagger(a) ** (-1))
+
+    # Test that negative powers of number operators are allowed
+    Na = NumberOperator(a)
+    expr = Na ** (-1) * a
+    nof = NumberOrderedForm.from_expr(expr)
+    assert nof.as_expr() == expr
+
+    # Test that negative powers of non-operator expressions are allowed
+    x = sympy.Symbol("x")
+    expr = x ** (-1) * a
+    nof = NumberOrderedForm.from_expr(expr)
+    assert nof.as_expr() == expr
