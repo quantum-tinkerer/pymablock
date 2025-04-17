@@ -548,3 +548,115 @@ def test_multiplication():
     expected = NumberOrderedForm.from_expr(nof8.as_expr() * expr_with_number_op)
 
     assert result == expected
+
+
+def test_simplify_basic():
+    """Test basic simplification of number operators."""
+    # Create a boson operator
+    a = boson.BosonOp("a")
+    b = boson.BosonOp("b")
+    n_a = NumberOperator(a)
+    n_b = NumberOperator(b)
+
+    # Create expressions that can be simplified
+    # Use expanded numerator to prevent automatic simplification
+    expr1 = (n_a**2 + n_a) / (n_a + 1)  # Should simplify to n_a
+    expr2 = (n_a**2 - n_a) / n_a  # Should simplify to (n_a - 1)
+
+    # Intertwine different number operators to prevent automatic simplification
+    expr3 = (n_a + 1) * n_b / (n_a + 1)  # Should simplify to n_b
+
+    # Convert to NumberOrderedForm
+    nof1 = NumberOrderedForm.from_expr(expr1)
+    nof2 = NumberOrderedForm.from_expr(expr2)
+    nof3 = NumberOrderedForm.from_expr(expr3)
+
+    # Apply simplification
+    result1 = nof1.simplify()
+    result2 = nof2.simplify()
+    result3 = nof3.simplify()
+
+    # Convert back to expressions for easier comparison
+    simplified1 = result1.as_expr()
+    simplified2 = result2.as_expr()
+    simplified3 = result3.as_expr()
+
+    # Check results
+    assert simplified1 == n_a
+    assert simplified2 == (n_a - 1)
+    assert simplified3 == n_b
+
+
+def test_simplify_with_operators():
+    """Test simplification with creation and annihilation operators."""
+    # Create boson operators
+    a = boson.BosonOp("a")
+    b = boson.BosonOp("b")
+    n_a = NumberOperator(a)
+    n_b = NumberOperator(b)
+
+    # Create expression with operators and a part that can be simplified
+    # Use intertwined number operators to prevent automatic simplification
+    expr = (
+        Dagger(a) * n_a * (n_a + 2) * ((n_b + 1) / (n_b + 1)) * (n_a + 1) / (n_a + 1) * b
+    )
+
+    # Convert to NumberOrderedForm
+    nof = NumberOrderedForm.from_expr(expr)
+
+    # Apply simplification
+    result = nof.simplify()
+
+    # The simplified result should have n_a * (n_a + 2) in the coefficient
+    expected = Dagger(a) * n_a * (n_a + 2) * b
+    assert result.as_expr() == expected
+
+
+def test_simplify_complex_expression():
+    """Test simplification of complex expressions."""
+    # Create boson operators
+    a = boson.BosonOp("a")
+    b = boson.BosonOp("b")
+    n_a = NumberOperator(a)
+    n_b = NumberOperator(b)
+
+    # Create a more complex expression with multiple operators
+    # Using expanded numerator and intertwined operators to prevent automatic simplification
+    expr = (
+        Dagger(a) * (n_a**2 + n_a) * Dagger(b)
+        + a * ((n_b + 1) * (n_b + 2) / (n_b + 2)) * b
+    )
+
+    # Convert to NumberOrderedForm
+    nof = NumberOrderedForm.from_expr(expr)
+
+    # Apply simplification
+    result = nof.simplify()
+
+    # Expected simplified expression
+    # Expected simplified expression
+    expected = Dagger(a) * Dagger(b) * n_a * (n_a + 1) + (n_b + 1) * b * a
+
+    assert result.as_expr() == expected
+
+
+def test_sympy_simplify_integration():
+    """Test that the simplify method integrates with SymPy's simplify function."""
+    # Create a boson operator
+    a = boson.BosonOp("a")
+    b = boson.BosonOp("b")
+    n_a = NumberOperator(a)
+    n_b = NumberOperator(b)
+
+    # Create a simple expression that can be simplified
+    # Use intertwined number operators to prevent automatic simplification
+    expr = (n_a + 1) * n_b / (n_a + 1)
+
+    # Convert to NumberOrderedForm
+    nof = NumberOrderedForm.from_expr(expr)
+
+    # Use SymPy's simplify function (should call _eval_simplify)
+    result = sympy.simplify(nof)
+
+    # Check result
+    assert result.as_expr() == n_b

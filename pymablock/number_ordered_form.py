@@ -5,6 +5,7 @@ which represents operators with creation operators on the left, annihilation ope
 and number operators in the middle.
 """
 
+import uuid
 from collections import defaultdict
 from typing import Dict, List, Tuple
 
@@ -782,3 +783,63 @@ class NumberOrderedForm(Operator):
 
         """
         return bool(self.terms)
+
+    def _apply_sympy_func(self, func, *args, **kwargs):
+        """Apply a SymPy function to the terms of this NumberOrderedForm.
+
+        This method temporarily replaces NumberOperators with unique symbols,
+        applies the function, then substitutes back the NumberOperators.
+
+        Parameters
+        ----------
+        func : callable
+            SymPy function to apply (e.g., sympy.simplify, sympy.factor)
+        *args
+            Additional positional arguments for the function
+        **kwargs
+            Additional keyword arguments for the function
+
+        Returns
+        -------
+        NumberOrderedForm
+            A new NumberOrderedForm with the function applied to its terms
+
+        """
+        # Create number operators for all the operators in this NumberOrderedForm
+        substitutions = {
+            NumberOperator(op): sympy.Symbol(f"dummy_{uuid.uuid4().hex}", real=True)
+            for op in self.operators
+        }
+        reverse = {v: k for k, v in substitutions.items()}
+
+        # Create a new terms dictionary for the result
+        new_terms = {}
+
+        # Process each term in the terms dictionary
+        for powers, coeff in self.terms.items():
+            dummy_expr = coeff.subs(substitutions)
+            result_expr = func(dummy_expr, *args, **kwargs)
+            result_with_n_ops = result_expr.subs(reverse)
+            new_terms[powers] = result_with_n_ops
+
+        # Create a new NumberOrderedForm with the same operators but new terms
+        return type(self)(self.operators, new_terms)
+
+    def _eval_simplify(self, **kwargs):
+        """SymPy's hook for the simplify() function.
+
+        This allows the SymPy simplify() function to work correctly with
+        NumberOrderedForm instances.
+
+        Parameters
+        ----------
+        **kwargs
+            Keyword arguments to pass to sympy.simplify
+
+        Returns
+        -------
+        NumberOrderedForm
+            A simplified NumberOrderedForm
+
+        """
+        return self._apply_sympy_func(sympy.simplify, **kwargs)
