@@ -58,21 +58,21 @@ The current implementation in `second_quantization.py` has several functions rel
 
 Based on the existing tests in the codebase and the planned functionality of the `NumberOrderedForm` class, we should test the following aspects:
 
-### Construction and Conversion Tests
+### SymPy Integration Tests
 - [x] **Basic Construction** - Test creating `NumberOrderedForm` instances from various expressions
-- [ ] **SymPy Protocol Compliance** - Test that `obj == type(obj)(*obj.args)` holds true for our class (essential for SymPy compatibility)
+- [x] **SymPy Protocol Compliance** - Test that `obj == type(obj)(*obj.args)` holds true for our class (essential for SymPy compatibility)
 - [x] **Round-Trip Conversion** - Test that converting to `NumberOrderedForm` and back to a standard sympy expression preserves equality
 - [x] **Error Handling** - Test proper error handling for invalid inputs (e.g., negative powers of boson operators)
 - [x] **Operator Detection** - Test that all operators are properly identified and sorted (bosons before fermions)
 
 ### Mathematical Operation Tests
-- [ ] **Addition** - Test adding two `NumberOrderedForm` instances
-- [ ] **Multiplication** - Test multiplying `NumberOrderedForm` with various types:
-  - [ ] With another `NumberOrderedForm`
-  - [ ] With creation operators
-  - [ ] With annihilation operators
-  - [ ] With number operators
-  - [ ] With scalar expressions
+- [x] **Addition** - Test adding two `NumberOrderedForm` instances
+- [x] **Multiplication** - Test multiplying `NumberOrderedForm` with various types:
+  - [x] With another `NumberOrderedForm`
+  - [x] With creation operators
+  - [x] With annihilation operators
+  - [x] With number operators
+  - [x] With scalar expressions
 - [ ] **Commutation Relations** - Test commutation with different operator types
 - [ ] **Power Operations** - Test raising `NumberOrderedForm` to powers
 
@@ -89,7 +89,7 @@ Based on the existing tests in the codebase and the planned functionality of the
 
 ### Edge Cases and Special Properties
 - [x] **Empty Expressions** - Test behavior with zero or empty expressions
-- [ ] **Idempotence** - Test that ordering an already number-ordered form leaves it unchanged
+- [x] **Idempotence** - Test that ordering an already number-ordered form leaves it unchanged
 - [ ] **Complex Expressions** - Test with complex expressions containing multiple operators and terms
 - [ ] **Performance** - Benchmark against current implementation for speed and memory usage
 
@@ -114,18 +114,15 @@ Most of these tests can be modeled after existing tests in `test_second_quantiza
 
 > **Important:** In accordance with SymPy's architecture, the `NumberOrderedForm` class should implement `_eval_*` methods rather than Python's dunder methods (e.g., `__add__`, `__mul__`, etc.). This allows SymPy's dispatcher to handle operations properly, respecting its type hierarchy and operation rules.
 
-- [ ] **3. Implement operator multiplication by operator powers**
+- [x] **3. Implement operator multiplication by operator powers**
   - [x] Implement `_multiply_op(self, op_index, op_power)` to handle multiplication with operator powers, and corresponding to `nof * nof.operators[op_index]**op_power` (where `nof` is the current instance).
   - [x] Implement `_multiply_expr(self, expr)` to handle multiplication with expressions containing only number operators.
-  - [ ] Use these to implement multiplication with other `NumberOrderedForm` instances.
-  - [ ] Support fermions in `_multiply_op`
+  - [x] Use these to implement multiplication with other `NumberOrderedForm` instances.
+  - [ ] Support fermions in `_multiply_op` (skipped for now as marked with NotImplementedError)
 
 - [ ] **5. Implement utility methods**
   - [x] `as_expr()`: Convert the `NumberOrderedForm` back to a sympy expression
   - [ ] `simplify()`: Simplify the number operator expressions in the terms
-  - [ ] `apply_mask(mask)`: Apply filtering mask (replacing current `apply_mask_to_operator`)
-  - [ ] `get_shifts()`: Get all the operator power shifts in the expression
-  - [ ] `sort()`: Normalize the internal representation
 
 - [x] **6. Implement display methods**
   - [x] Use `as_expr()` to compute the string representation.
@@ -137,17 +134,17 @@ Most of these tests can be modeled after existing tests in `test_second_quantiza
   - [ ] Update any code that relies on the current implementation pattern
 
 - [ ] **8. Comprehensive testing**
-  - [ ] Test initialization from various expressions (bosonic, fermionic, mixed)
-  - [ ] Test algebraic operations (addition, multiplication, powers)
+  - [x] Test initialization from various expressions (bosonic, fermionic, mixed)
+  - [x] Test algebraic operations (addition, multiplication, powers)
   - [ ] Test commutation relations with different operator types
   - [ ] Test utility methods like simplify and apply_mask
   - [ ] Test compatibility with existing codebase functionality
   - [ ] Benchmark against current implementation
 
 - [ ] **9. Documentation**
-  - [ ] Comprehensive class docstring explaining the data structure and approach
-  - [ ] Method docstrings with parameters, return types, and examples
-  - [ ] Update module-level documentation to explain the new class
+  - [x] Comprehensive class docstring explaining the data structure and approach
+  - [x] Method docstrings with parameters, return types, and examples
+  - [x] Update module-level documentation to explain the new class
   - [ ] Add usage examples in docstrings and tests
 
 ## Benefits
