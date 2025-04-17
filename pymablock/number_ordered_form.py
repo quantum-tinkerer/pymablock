@@ -232,14 +232,111 @@ class NumberOrderedForm(Operator):
         if not operators:
             operators = _find_operators(expr)
 
-        # Convert expression to number ordered form using existing function
-        # This is temporary until we implement the conversion directly
-        from pymablock.second_quantization import expr_to_shifts, number_ordered_form
+        # Handle Add expressions by converting each term and summing
+        if isinstance(expr, sympy.Add):
+            terms = [
+                NumberOrderedForm.from_expr(term, operators=operators)
+                for term in expr.args
+            ]
+            return sum(terms, start=NumberOrderedForm([], {}, validate=False))
 
-        ordered_expr = number_ordered_form(expr, simplify=False)
-        shifts = expr_to_shifts(ordered_expr, operators)
+        # Handle Mul expressions by converting each factor and multiplying
+        if isinstance(expr, sympy.Mul):
+            factors = [
+                NumberOrderedForm.from_expr(factor, operators=operators)
+                for factor in expr.args
+            ]
+            result = factors[0]
+            for factor in factors[1:]:
+                result = result * factor
+            return result
 
-        return cls(operators, shifts)
+        # Handle Pow expressions
+        if isinstance(expr, sympy.Pow):
+            # Handle power expressions like a**2 or Dagger(a)**3
+            base = expr.base
+            exp = expr.exp
+
+            # Convert base to NumberOrderedForm
+            base_nof = NumberOrderedForm.from_expr(base, operators=operators)
+
+            # For integer exponents, convert to repeated multiplication
+            if exp.is_Integer and exp.is_positive:
+                result = base_nof
+                for _ in range(int(exp) - 1):
+                    result = result * base_nof
+                return result
+
+            # For non-integer exponents, check that the base has only
+            # number operators (no unmatched creation/annihilation operators)
+            zero_key = tuple(0 for _ in base_nof.operators)
+
+            # Check if there are any keys other than the zero key
+            if not all(powers == zero_key for powers in base_nof.terms):
+                raise ValueError(
+                    f"Cannot raise expression with unmatched creation or annihilation "
+                    f"operators to non-integer power: {base}**{exp}"
+                )
+
+            # Now we can safely convert the base expression to expr and apply the power
+            # Since it's a pure number expression, just containing number operators
+            return NumberOrderedForm.from_expr(
+                base_nof.as_expr() ** exp, operators=operators
+            )
+
+        # Handle function calls (like exp, sin, etc.)
+        if isinstance(expr, sympy.Function):
+            # Convert each argument to NumberOrderedForm
+            arg_nofs = [
+                NumberOrderedForm.from_expr(arg, operators=operators) for arg in expr.args
+            ]
+
+            # Check that each argument has only number operators (no unmatched creation/annihilation operators)
+            for i, arg_nof in enumerate(arg_nofs):
+                zero_key = tuple(0 for _ in arg_nof.operators)
+                if not all(powers == zero_key for powers in arg_nof.terms):
+                    raise ValueError(
+                        f"Cannot apply function {expr.func} to expression with unmatched "
+                        f"creation or annihilation operators: {expr.args[i]}"
+                    )
+
+            # Now we can safely convert the arguments to expr and apply the function
+            # Since they're pure number expressions, just containing number operators
+            arg_exprs = [arg_nof.as_expr() for arg_nof in arg_nofs]
+            return NumberOrderedForm.from_expr(expr.func(*arg_exprs), operators=operators)
+
+        # Handle BosonOp or FermionOp (both creation and annihilation operators)
+        if isinstance(expr, (BosonOp, FermionOp)):
+            # Find the corresponding annihilation operator in our operators list
+            annihilation_op = expr if expr.is_annihilation else type(expr)(expr.name)
+
+            if annihilation_op not in operators:
+                raise ValueError(
+                    f"Operator {annihilation_op} not found in operators list"
+                )
+
+            op_index = operators.index(annihilation_op)
+
+            # Determine the power (1 for annihilation, -1 for creation)
+            power = 1 if expr.is_annihilation else -1
+
+            # Create a term with the appropriate power
+            powers = tuple(0 if i != op_index else power for i in range(len(operators)))
+            return cls(operators, {powers: sympy.S.One})
+
+        # Handle NumberOperator
+        if isinstance(expr, NumberOperator):
+            # Number operator N_a should be represented as a scalar term
+            # with no explicit creation or annihilation operators
+            powers = tuple(0 for _ in range(len(operators)))
+            coeff = expr  # Keep the NumberOperator as the coefficient
+
+            return cls(operators, {powers: coeff})
+
+        # If we've reached this point, we don't know how to handle this expression type
+        raise ValueError(
+            f"Cannot convert expression of type {type(expr)} to NumberOrderedForm: {expr}"
+        )
 
     def as_expr(self) -> sympy.Expr:
         """Convert the NumberOrderedForm to a standard SymPy expression.
@@ -486,7 +583,7 @@ class NumberOrderedForm(Operator):
             ): coeff
             for powers, coeff in self.terms.items()
         }
-        return type(self)(new_operators, new_terms)
+        return type(self)(new_operators, new_terms, validate=False)
 
     def __add__(self, other) -> "NumberOrderedForm":
         """Add this NumberOrderedForm with another object.
