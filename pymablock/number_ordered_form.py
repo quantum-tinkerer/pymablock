@@ -191,6 +191,10 @@ class NumberOrderedForm(Operator):
                     f"operators length ({len(operators)})"
                 )
 
+            for power in powers:
+                if not isinstance(power, int) and not isinstance(power, sympy.Integer):
+                    raise TypeError(f"Power must be an integer, got {type(power)}")
+
             # Check that the coefficient is a valid sympy expression
             if not isinstance(coeff, sympy.Expr):
                 raise TypeError(
