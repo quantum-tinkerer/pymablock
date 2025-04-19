@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 import sympy
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
@@ -112,7 +111,6 @@ def test_solve_sylvester_bosonic():
             ), f"Failed for Y[{i}, {j}]: {result.simplify()}"
 
 
-@pytest.mark.xfail(reason="There is a bug in the mask probably")
 def test_hermitian_block_diagonalization():
     """Test that checks Hermiticity of the block-diagonalized Hamiltonian."""
 
@@ -121,7 +119,7 @@ def test_hermitian_block_diagonalization():
     J = sympy.symbols("J", positive=True)
 
     # Define Hamiltonian
-    H = sympy.Matrix([[J * (Dagger(b_1) * b_2 + Dagger(b_2) * b_1) + N_1**2]])
+    H = sympy.Matrix([[J * (Dagger(b_1) * b_2 + Dagger(b_2) * b_1) + N_1**2 + N_2 / 3]])
 
     # Block diagonalize
     H_tilde, *_ = block_diagonalize(H, symbols=[J])
@@ -131,9 +129,9 @@ def test_hermitian_block_diagonalization():
         H_order = H_tilde[0, 0, order][0, 0].subs(N_1, 2).subs(N_2, 0)
 
         # Calculate H_order - Dagger(H_order) which should be 0 if hermitian
-        hermiticity_check = NumberOrderedForm.from_expr(
-            H_order - Dagger(H_order)
-        ).simplify()
+        hermiticity_check = (
+            NumberOrderedForm.from_expr(H_order - Dagger(H_order)).simplify().as_expr()
+        )
         assert hermiticity_check == 0, f"H_tilde[0, 0, {order}] is not hermitian."
 
 
