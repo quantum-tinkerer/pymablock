@@ -809,6 +809,34 @@ def test_dtype_mismatch_error_implicit():
     H_tilde[0, 0, 2]
 
 
+def test_solve_sylvester_diagonal():
+    """
+    Test that solve_sylvester_diagonal correctly computes the solution to the Sylvester equation.
+
+    The Sylvester equation has the form: A*X - X*B = Y
+    For diagonal A and B, this simplifies to: (a_i - b_j)*X_ij = Y_ij
+
+    This test verifies that the solution X obtained from solve_sylvester_diagonal
+    actually satisfies the equation A*X - X*B = Y using random eigenvalues.
+    """
+    # Test with random eigenvalues
+    n_A = 5
+    n_B = 4
+    # Ensure gap between eigenvalues to avoid near-singular cases
+    eigs_A = -5 + 10 * np.sort(np.random.rand(n_A))
+    eigs_B = 5 + 10 * np.sort(np.random.rand(n_B))
+
+    A = np.diag(eigs_A)
+    B = np.diag(eigs_B)
+
+    Y = np.random.rand(n_A, n_B) + 1j * np.random.rand(n_A, n_B)
+
+    X = solve_sylvester_diagonal((eigs_A, eigs_B))(Y, (0, 1))
+
+    # Check that X solves the Sylvester equation: A*X - X*B = Y
+    np.testing.assert_allclose(A @ X - X @ B, Y, atol=1e-13)
+
+
 def test_solve_sylvester_direct_vs_diagonal() -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
