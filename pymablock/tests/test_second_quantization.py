@@ -8,7 +8,6 @@ from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.second_quantization import (
     apply_mask_to_operator,
-    find_operators,
     solve_sylvester_bosonic,
 )
 
@@ -98,49 +97,6 @@ def test_solve_sylvester_bosonic():
         for j in range(Y.shape[1]):
             result = NumberOrderedForm.from_expr(Y[i, j]) - Y_expected[i, j]
             assert result.simplify() == 0, f"Failed for Y[{i}, {j}]: {result.simplify()}"
-
-
-def test_find_operators():
-    """Test the find_operators function to identify bosonic operators in expressions."""
-    a = BosonOp("a")
-    b = BosonOp("b")
-
-    # Simple expression with a single operator
-    expr1 = a**2 + 1
-    result1 = find_operators(expr1)
-    assert len(result1) == 1
-    assert result1[0] == a
-
-    # Expression with multiple operators
-    expr2 = a * b + Dagger(a) * Dagger(b)
-    result2 = find_operators(expr2)
-    assert len(result2) == 2
-    assert set(result2) == {a, b}
-
-    # Expression with no operators
-    expr3 = sympy.Symbol("x") + 1
-    result3 = find_operators(expr3)
-    assert result3 == []
-
-    # Expression with number operators - should find the original operators
-    Na = NumberOperator(a)
-    Nb = NumberOperator(b)
-    expr4 = Na * Nb + Na**2
-    result4 = find_operators(expr4)
-    assert len(result4) == 2
-    assert set(result4) == {a, b}
-
-    # Expression with mixed number operators and original operators
-    expr5 = Na * b + a * Nb
-    result5 = find_operators(expr5)
-    assert len(result5) == 2
-    assert set(result5) == {a, b}
-
-    # Expression with number operators inside more complex expressions
-    expr6 = (Na + 1) * (Nb - 2) ** 2
-    result6 = find_operators(expr6)
-    assert len(result6) == 2
-    assert set(result6) == {a, b}
 
 
 @pytest.mark.xfail(reason="There is a bug in the mask probably")

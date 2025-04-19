@@ -23,7 +23,7 @@ from pymablock.linalg import (
     direct_greens_function,
     is_diagonal,
 )
-from pymablock.number_ordered_form import NumberOrderedForm
+from pymablock.number_ordered_form import NumberOrderedForm, find_operators
 from pymablock.series import (
     BlockSeries,
     zero,
@@ -254,9 +254,7 @@ def block_diagonalize(
     # Extract the default boson operators from the Hamiltonian.
     if any(isinstance(block, sympy.MatrixBase) for block in nonzero_blocks):
         operators = list(
-            set().union(
-                *(second_quantization.find_operators(block) for block in nonzero_blocks)
-            )
+            set().union(*(find_operators(block) for block in nonzero_blocks))
         )
     else:
         operators = ()

@@ -128,7 +128,7 @@ class NumberOperator(HermitianOperator):
         return printer._print("N_" + self.args[0], *args)
 
 
-def _find_operators(expr: sympy.Expr) -> List[OperatorType]:
+def find_operators(expr: sympy.Expr) -> List[OperatorType]:
     """Find all quantum operators in a SymPy expression.
 
     Parameters
@@ -338,7 +338,7 @@ class NumberOrderedForm(Operator):
             return cls([], {(): expr}, validate=False)
 
         if not operators:
-            operators = _find_operators(expr)
+            operators = find_operators(expr)
 
         # Handle Add expressions by converting each term and summing
         if isinstance(expr, sympy.Add):

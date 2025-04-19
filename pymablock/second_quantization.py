@@ -10,7 +10,7 @@ import numpy as np
 import sympy
 import sympy.physics
 from packaging.version import parse
-from sympy.physics.quantum import Operator, boson, fermion
+from sympy.physics.quantum import Operator, boson
 from sympy.physics.quantum.boson import BosonOp
 
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
@@ -57,26 +57,6 @@ if parse(sympy.__version__) < parse("1.14.0"):
     # Only implements skipping identity, and is deleted in 1.14.
     del BosonOp.__mul__
     del Operator.__mul__
-
-
-def find_operators(expr: sympy.Expr):
-    """Find all the boson and fermionic operators in an expression.
-
-    Parameters
-    ----------
-    expr :
-        Sympy expression with bosonic and fermionic operators.
-
-    Returns
-    -------
-    List with all annihilation bosonic and fermionic operators in an expression.
-
-    """
-    # Replace all number operators with their evaluated form.
-    expr = expr.subs({i: i.doit() for i in expr.atoms(NumberOperator)})
-    return list(
-        set(type(arg)(arg.name) for arg in expr.atoms(boson.BosonOp, fermion.FermionOp))
-    )
 
 
 def solve_monomial(Y, H_ii, H_jj, boson_operators):
