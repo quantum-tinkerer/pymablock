@@ -890,3 +890,44 @@ def test_raise_if_substitution():
 
     with pytest.raises(NotImplementedError):
         nof.subs(a, a + 1)
+
+
+def test_is_particle_conserving():
+    """Test the is_particle_conserving method."""
+    a = boson.BosonOp("a")
+    b = boson.BosonOp("b")
+    x, y = sympy.symbols("x y", real=True)
+
+    # Number-conserving expressions (balanced creation and annihilation)
+    # Simple a†a (number operator)
+    nof1 = NumberOrderedForm.from_expr(Dagger(a) * a)
+    assert nof1.is_particle_conserving()
+
+    # a†b (destroys b, creates a)
+    nof2 = NumberOrderedForm.from_expr(Dagger(a) * b)
+    assert not nof2.is_particle_conserving()
+
+    # More complex number operator expression
+    nof3 = NumberOrderedForm.from_expr(Dagger(a) * a + (Dagger(b) * b) ** 3)
+    assert nof3.is_particle_conserving()
+
+    # Scalar expressions
+    nof4 = NumberOrderedForm.from_expr(x + y)
+    assert nof4.is_particle_conserving()
+
+    # Non-number-conserving expressions
+    # Single creation operator a†
+    nof5 = NumberOrderedForm.from_expr(Dagger(a))
+    assert not nof5.is_particle_conserving()
+
+    # Single annihilation operator a
+    nof6 = NumberOrderedForm.from_expr(a)
+    assert not nof6.is_particle_conserving()
+
+    # Unbalanced expression a†a† + b
+    nof7 = NumberOrderedForm.from_expr(Dagger(a) * Dagger(a) + b)
+    assert not nof7.is_particle_conserving()
+
+    # Mixed term with non-conserving components a†a + b
+    nof8 = NumberOrderedForm.from_expr(Dagger(a) * a + b)
+    assert not nof8.is_particle_conserving()

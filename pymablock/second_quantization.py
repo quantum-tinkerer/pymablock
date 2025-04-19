@@ -95,17 +95,33 @@ def solve_monomial(Y, H_ii, H_jj, boson_operators):
     if Y == 0:
         return sympy.S.Zero
 
-    shifts = NumberOrderedForm.from_expr(Y).terms
-    result = sympy.S.Zero
-    for shift, monomial in shifts.items():
-        shifted_H_jj = H_jj.as_expr().subs(
+    Y = NumberOrderedForm.from_expr(Y)
+
+    shifts = Y.terms
+    new_shifts = {}
+    for shift, coeff in shifts.items():
+        # Commute H_ii and H_jj through creation and annihilation operators
+        # respectively.
+        shifted_H_jj = H_jj.subs(
             {
                 NumberOperator(op): NumberOperator(op) + delta
                 for delta, op in zip(shift, boson_operators)
+                if delta < 0
             }
         )
-        result += NumberOrderedForm.from_expr((H_ii - shifted_H_jj) ** -1 * monomial)
-    return result.simplify()
+        shifted_H_ii = H_ii.subs(
+            {
+                NumberOperator(op): NumberOperator(op) + delta
+                for delta, op in zip(shift, boson_operators)
+                if delta > 0
+            }
+        )
+        new_shifts[shift] = (shifted_H_ii - shifted_H_jj) ** -1 * coeff
+
+    return NumberOrderedForm(
+        operators=Y.args[0],
+        terms=new_shifts,
+    )
 
 
 def solve_sylvester_bosonic(
@@ -132,6 +148,11 @@ def solve_sylvester_bosonic(
     eigs = tuple(
         [NumberOrderedForm.from_expr(eig) for eig in eig_block] for eig_block in eigs
     )
+    if any(not eig.is_particle_conserving() for eig_block in eigs for eig in eig_block):
+        raise ValueError(
+            "The diagonal Hamiltonian blocks must contain only number-conserving expressions."
+        )
+    eigs = tuple(tuple(eig.as_expr() for eig in eig_block) for eig_block in eigs)
 
     def solve_sylvester(
         Y: sympy.MatrixBase,

@@ -379,18 +379,19 @@ class NumberOrderedForm(Operator):
             ]
 
             # Check that each argument has only number operators (no unmatched creation/annihilation operators)
-            for i, arg_nof in enumerate(arg_nofs):
-                zero_key = tuple(0 for _ in arg_nof.operators)
-                if not all(powers == zero_key for powers in arg_nof.terms):
+            for arg_nof in arg_nofs:
+                if not arg_nof.is_particle_conserving():
                     raise ValueError(
                         f"Cannot apply function {expr.func} to expression with unmatched "
-                        f"creation or annihilation operators: {expr.args[i]}"
+                        f"creation or annihilation operators: {arg_nof}"
                     )
 
             # Now we can safely convert the arguments to expressions
             # Extract the coefficients from the zero keys for each argument
             zero_key = tuple(0 for _ in operators)
-            arg_exprs = [next(iter(arg_nof.terms.values())) for arg_nof in arg_nofs]
+            arg_exprs = [
+                next(iter(arg_nof.terms.values()), sympy.S.Zero) for arg_nof in arg_nofs
+            ]
 
             # Return a new NumberOrderedForm with the function applied to the coefficients
             return cls(operators, {zero_key: expr.func(*arg_exprs)})
@@ -1029,19 +1030,16 @@ class NumberOrderedForm(Operator):
 
         # For non-integer exponents, check that the expression only has
         # number operators (no unmatched creation/annihilation operators)
-        zero_key = tuple(0 for _ in self.operators)
-
-        # Check if there are any keys other than the zero key
-        if not all(powers == zero_key for powers in self.terms):
+        if not self.is_particle_conserving():
             raise ValueError(
                 f"Cannot raise expression with unmatched creation or annihilation "
                 f"operators to non-integer power: {self}**{exp}"
             )
 
         # Since the expression only contains number operators, it's safe to apply the power
-        # We extract the coefficient and raise it to the given exponent
+        # We extract the coefficient (if exists) and raise it to the given exponent.
         return type(self)(
-            self.operators, {zero_key: next(iter(self.terms.values())) ** exp}
+            self.operators, {key: value**exp for key, value in self.terms.items()}
         )
 
     def __truediv__(self, other) -> "NumberOrderedForm":
@@ -1053,6 +1051,18 @@ class NumberOrderedForm(Operator):
                 return NotImplemented
 
         return self * (other**-1)
+
+    def is_particle_conserving(self) -> bool:
+        """Check if this expression conserves particle numbers.
+
+        Returns
+        -------
+        bool
+            True if the expression has no unpaired creation or annihilation operators,
+            False otherwise.
+
+        """
+        return all(not any(powers) for powers in self.terms)
 
     def _eval_subs(self, old, new):
         if old in self.operators or new in self.operators:
