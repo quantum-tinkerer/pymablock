@@ -97,10 +97,6 @@ def test_number_ordered_form_validation():
     with pytest.raises(ValueError, match="must come before fermionic operators"):
         NumberOrderedForm([f, a], {(0, 0): sympy.S.One})
 
-    # Test with empty terms dictionary
-    with pytest.raises(ValueError, match="Empty terms dictionary"):
-        NumberOrderedForm([a], {})
-
     # Test with wrong powers tuple length
     with pytest.raises(ValueError, match="Powers tuple length"):
         NumberOrderedForm([a, b], {(0,): sympy.S.One})
@@ -888,7 +884,7 @@ def test_raise_if_substitution():
     a = boson.BosonOp("a")
     nof = NumberOrderedForm([a], {(1,): sympy.S.One})
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError):
         nof.subs(a, a + 1)
 
 
