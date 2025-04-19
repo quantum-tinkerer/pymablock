@@ -106,14 +106,14 @@ def solve_monomial(Y, H_ii, H_jj, boson_operators):
             {
                 NumberOperator(op): NumberOperator(op) + delta
                 for delta, op in zip(shift, boson_operators)
-                if delta < 0
+                if delta > 0
             }
         )
         shifted_H_ii = H_ii.subs(
             {
-                NumberOperator(op): NumberOperator(op) + delta
+                NumberOperator(op): NumberOperator(op) - delta
                 for delta, op in zip(shift, boson_operators)
-                if delta > 0
+                if delta < 0
             }
         )
         new_shifts[shift] = (shifted_H_ii - shifted_H_jj) ** -1 * coeff

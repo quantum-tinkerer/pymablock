@@ -65,14 +65,25 @@ def test_solve_sylvester_bosonic_with_number_operator():
     V = solve_sylvester(Y, index=(0, 1, 1))
 
     # Construct Hamiltonians
-    H_ii = sympy.Matrix([[omega * nb]])
-    H_jj = sympy.Matrix([[delta * nb]])
+    H_ii = sympy.Matrix([eigs[0]])
+    H_jj = sympy.Matrix([eigs[1]])
 
     # Verify the equation H_ii * V - V * H_jj = Y
     result = H_ii * V - V * H_jj
 
     # Check that the result matches Y after normal ordering
-    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify() == 0
+    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().as_expr() == 0
+
+    # Same for Dagger(b)
+    Y = sympy.Matrix([[Dagger(b)]])
+
+    # Solve the Sylvester equation
+    V = solve_sylvester(Y, index=(0, 1, 1))
+
+    result = H_ii * V - V * H_jj
+
+    # Check that the result matches Y after normal ordering
+    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().as_expr() == 0
 
 
 def test_solve_sylvester_bosonic():
@@ -96,7 +107,9 @@ def test_solve_sylvester_bosonic():
     for i in range(Y.shape[0]):
         for j in range(Y.shape[1]):
             result = NumberOrderedForm.from_expr(Y[i, j]) - Y_expected[i, j]
-            assert result.simplify() == 0, f"Failed for Y[{i}, {j}]: {result.simplify()}"
+            assert (
+                result.simplify().as_expr() == 0
+            ), f"Failed for Y[{i}, {j}]: {result.simplify()}"
 
 
 @pytest.mark.xfail(reason="There is a bug in the mask probably")
@@ -204,12 +217,12 @@ def test_boson_operator_diagonalization():
     # Now with two bosons
     b = BosonOp("b")
     n_b = NumberOperator(b)
-    H_0 = sympy.Matrix([[n + n_b + n**2 / 3]])
+    H_0 = sympy.Matrix([[n + n_b / 5 + n**2 / 3]])
     H_1 = sympy.Matrix([[a + Dagger(a) + b + Dagger(b) + a * b + Dagger(a) * Dagger(b)]])
     H_tilde, *_ = block_diagonalize([H_0, H_1])
     E_eff = H_tilde[0, 0, 2][0, 0].as_expr().subs({n: 0, n_b: 0})
     # Now finite matrix
-    N = 3
+    N = 4
     a_mat = sympy.zeros(N, N)
     for i in range(N - 1):
         a_mat[i, (i + 1)] = sympy.sqrt(i + 1)
@@ -218,7 +231,7 @@ def test_boson_operator_diagonalization():
     a_mat = sympy.KroneckerProduct(sympy.eye(N), a_mat)
     n_b_mat = sympy.KroneckerProduct(n_mat, sympy.eye(N))
     n_mat = sympy.KroneckerProduct(sympy.eye(N), n_mat)
-    H_0 = sympy.Matrix([[n_mat + n_b_mat + n_mat @ n_mat / 3]])
+    H_0 = sympy.Matrix([[n_mat + n_b_mat / 5 + n_mat * n_mat / 3]])
     H_1 = sympy.Matrix(
         [
             [
@@ -226,8 +239,8 @@ def test_boson_operator_diagonalization():
                 + Dagger(a_mat)
                 + b_mat
                 + Dagger(b_mat)
-                + a_mat @ b_mat
-                + Dagger(a_mat) @ Dagger(b_mat)
+                + a_mat * b_mat
+                + Dagger(a_mat) * Dagger(b_mat)
             ]
         ]
     )
