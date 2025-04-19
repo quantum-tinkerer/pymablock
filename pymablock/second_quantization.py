@@ -4,7 +4,6 @@ See number_ordered_form_plan.md for the plan to implement NumberOrderedForm as a
 Operator subclass for better representation of number-ordered expressions.
 """
 
-from collections import defaultdict
 from typing import Callable
 
 import numpy as np
@@ -78,49 +77,6 @@ def find_operators(expr: sympy.Expr):
     return list(
         set(type(arg)(arg.name) for arg in expr.atoms(boson.BosonOp, fermion.FermionOp))
     )
-
-
-def group_ordered(expr):
-    """Group the terms in a number-ordered expression by powers of unmatched operators.
-
-    Parameters
-    ----------
-    expr :
-        Sympy expression with bosonic operators.
-
-    Returns
-    -------
-    dict[tuple[sympy.core.expr.Expr, sympy.core.expr.Expr], sympy.core.expr.Expr]
-        Dictionary with keys as tuples of monomials of creation and annihilation operators,
-        and values as the terms with number operators.
-
-    """
-    result = defaultdict(lambda: sympy.S.Zero)
-    for term in expr.as_ordered_terms():
-        creation_powers = sympy.Mul(
-            *(
-                factor
-                for factor in term.as_ordered_factors()
-                if (
-                    isinstance((factor.as_base_exp())[0], BosonOp)
-                    and not (factor.as_base_exp())[0].is_annihilation
-                )
-            )
-        )
-        annihilation_powers = sympy.Mul(
-            *(
-                factor
-                for factor in term.as_ordered_factors()
-                if (
-                    isinstance((factor.as_base_exp())[0], BosonOp)
-                    and (factor.as_base_exp())[0].is_annihilation
-                )
-            )
-        )
-        result[(creation_powers, annihilation_powers)] += sympy.Mul(
-            *(factor for factor in term.as_ordered_factors() if not factor.atoms(BosonOp))
-        )
-    return result
 
 
 def solve_monomial(Y, H_ii, H_jj, boson_operators):
