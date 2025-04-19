@@ -10,7 +10,6 @@ from pymablock.second_quantization import (
     apply_mask_to_operator,
     find_operators,
     group_ordered,
-    simplify_number_expression,
     solve_sylvester_bosonic,
 )
 
@@ -221,29 +220,6 @@ def test_find_operators():
     result6 = find_operators(expr6)
     assert len(result6) == 2
     assert set(result6) == {a, b}
-
-
-def test_simplify_number_expression():
-    """Test the simplify_number_expression function."""
-    a = BosonOp("a")
-    Na = NumberOperator(a)
-
-    # Test normal case
-    expr = Na - 2 * (Na)
-    result = simplify_number_expression(expr)
-    assert result == -Na
-
-    # Test with multiple number operators
-    b = BosonOp("b")
-    Nb = NumberOperator(b)
-    expr2 = Na * Nb - Nb * Na
-    result2 = simplify_number_expression(expr2)
-    assert result2 == 0
-
-    # Test that it raises ValueError when given bosonic operators
-    expr3 = Na + a
-    with pytest.raises(ValueError):
-        simplify_number_expression(expr3)
 
 
 @pytest.mark.xfail(reason="There is a bug in the mask probably")

@@ -123,35 +123,6 @@ def group_ordered(expr):
     return result
 
 
-def simplify_number_expression(expr: sympy.Expr) -> sympy.Expr:
-    """Simplify a second-quantized expression with only number operators.
-
-    Parameters
-    ----------
-    expr :
-        Sympy expression only containing number operators.
-
-    Returns
-    -------
-    sympy.core.expr.Expr
-        Simplified expression with number operators.
-
-    Raises
-    ------
-    ValueError
-        If the expression contains operators other than number operators.
-
-    """
-    if expr.atoms(boson.BosonOp):
-        raise ValueError("Expression contains bosonic operators.")
-    substitutions = {
-        n: sympy.Symbol(f"dummy_{n.name}_{n.args[1]}", real=True)
-        for n in expr.atoms(NumberOperator)
-    }
-    inverse = {value: key for key, value in substitutions.items()}
-    return sympy.simplify(expr.subs(substitutions)).subs(inverse)
-
-
 def solve_monomial(Y, H_ii, H_jj, boson_operators):
     """Solve a Sylvester equation for bosonic monomial.
 

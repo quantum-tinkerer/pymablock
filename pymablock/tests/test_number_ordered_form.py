@@ -671,7 +671,7 @@ def test_sympy_simplify_integration():
 
     # Create a simple expression that can be simplified
     # Use intertwined number operators to prevent automatic simplification
-    expr = (n_a + 1) * n_b / (n_a + 1)
+    expr = (n_a + 1) * n_b / (n_a + 1) + n_a * n_b - n_b * n_a
 
     # Convert to NumberOrderedForm
     nof = NumberOrderedForm.from_expr(expr)
