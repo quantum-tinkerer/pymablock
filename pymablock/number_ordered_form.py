@@ -225,8 +225,9 @@ class NumberOrderedForm(Operator):
             cls._validate_operators(operators)
             cls._validate_terms(terms, operators)
 
-        # Create the new object
-        result = Operator.__new__(cls, operators, terms, **hints)
+        operators = sympy.core.containers.Tuple(*operators)
+        terms = sympy.core.containers.Dict(terms)
+        result = sympy.Expr.__new__(cls, operators, terms, **hints)
         result._n_fermions = sum(isinstance(op, FermionOp) for op in operators)
         return result
 
