@@ -226,7 +226,8 @@ def apply_mask_to_operator(
             value = operator[i, j]
             # We need to take special care because the mask might not contain all
             # operators appearing in the expression or vice versa.
-            operators, shifts = NumberOrderedForm.from_expr(value).args
+            assert isinstance(value, NumberOrderedForm)
+            operators, shifts = value.args
             mask_indices = [
                 operators.index(op) if op in operators else None for op in mask_operators
             ]
@@ -249,6 +250,7 @@ def apply_mask_to_operator(
                     terms={
                         shift: value for shift, value in shifts.items() if shift in keep
                     },
+                    validate=False,
                 )
 
     return result

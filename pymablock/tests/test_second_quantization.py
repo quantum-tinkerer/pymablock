@@ -153,7 +153,8 @@ def test_apply_mask_to_operator():
 
     # Mask that only allows terms with matched creation/annihilation of b_1
     mask = ([b_1], [(([0], None), np.array([[True]]))])
-    masked_expr = apply_mask_to_operator(allowed_matrix + not_allowed_matrix, mask)
+    input = (allowed_matrix + not_allowed_matrix).applyfunc(NumberOrderedForm.from_expr)
+    masked_expr = apply_mask_to_operator(input, mask)
 
     # The mask should filter out all terms except the allowed ones
     assert (
@@ -180,7 +181,8 @@ def test_apply_mask_to_operator():
 
     # Mask that only allows terms with matched creation/annihilation of b_1
     mask = ([b_1], [(([0], None), np.array([[True]]))])
-    masked_expr = apply_mask_to_operator(allowed_matrix + not_allowed_matrix, mask)
+    input = (allowed_matrix + not_allowed_matrix).applyfunc(NumberOrderedForm.from_expr)
+    masked_expr = apply_mask_to_operator(input, mask)
 
     # The mask should filter out all terms except the allowed ones
     assert (

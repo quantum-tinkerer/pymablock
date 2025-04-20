@@ -437,9 +437,7 @@ def block_diagonalize(
                 if x is zero:
                     return zero
 
-                return sympy.expand(
-                    x - second_quantization.apply_mask_to_operator(x, keep[index[0]])
-                )
+                return x - second_quantization.apply_mask_to_operator(x, keep[index[0]])
 
         scope["diag"] = diag
         scope["offdiag"] = offdiag
