@@ -251,13 +251,31 @@ def block_diagonalize(
     else:
         raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
 
-    # Extract the default boson operators from the Hamiltonian.
-    if any(isinstance(block, sympy.MatrixBase) for block in nonzero_blocks):
+    # Extract the default boson operators from the Hamiltonian. If operators aren't
+    # empty, we're dealing with a second-quantized problem.
+    if any(isinstance(block, (sympy.MatrixBase, sympy.Expr)) for block in nonzero_blocks):
         operators = list(
             set().union(*(find_operators(block) for block in nonzero_blocks))
         )
     else:
         operators = ()
+
+    # To handle the second-quantized problem, convert the Hamiltonian to our
+    # NumberOrderedForm.
+    if operators:
+        H_eval_orig = H.eval
+
+        def H_eval(*index):
+            result = H_eval_orig(*index)
+            if result is zero:
+                return zero
+            if isinstance(result, sympy.Matrix):
+                return result.applyfunc(
+                    lambda x: NumberOrderedForm.from_expr(x, operators)
+                )
+            return NumberOrderedForm.from_expr(result, operators)
+
+        H.eval = H_eval
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None or use_implicit:
@@ -438,7 +456,7 @@ def block_diagonalize(
             result = outputs[name][index]
             if result is zero:
                 return zero
-            return result.applyfunc(lambda x: NumberOrderedForm.from_expr(x).simplify())
+            return result.applyfunc(lambda x: NumberOrderedForm.from_expr(x))
 
         return tuple(
             BlockSeries(
