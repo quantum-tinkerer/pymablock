@@ -219,22 +219,25 @@ def apply_mask_to_operator(
     A term is kept if it satisfies ALL constraints in at least ONE selection rule.
 
     """
-    mask_operators, mask = mask
+    mask_operators, rules = mask
     result = sympy.zeros(operator.rows, operator.cols)
     for i in range(operator.rows):
         for j in range(operator.cols):
             value = operator[i, j]
             # We need to take special care because the mask might not contain all
-            # operators appearing in the expression.
+            # operators appearing in the expression or vice versa.
             operators, shifts = NumberOrderedForm.from_expr(value).args
-            # Convert from sympy subclass because sympy dicts are immutable
-            mask_indices = [operators.index(op) for op in mask_operators]
-            for *mask_bosons, mask_matrix in mask:
+            mask_indices = [
+                operators.index(op) if op in operators else None for op in mask_operators
+            ]
+            for *mask_bosons, mask_matrix in rules:
                 if not mask_matrix[i, j]:
                     continue
                 keep = []
                 for shift in shifts:
-                    mask_shift = [shift[idx] for idx in mask_indices]
+                    mask_shift = [
+                        shift[idx] if idx is not None else 0 for idx in mask_indices
+                    ]
                     if all(
                         abs(op_shift) in ns
                         or (n_max is not None and abs(op_shift) >= n_max)
