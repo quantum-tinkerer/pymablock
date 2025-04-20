@@ -306,11 +306,10 @@ class NumberOrderedForm(Operator):
                 )
 
             # Check for unwanted creation or annihilation operators in the coefficient
-            for op in operators:
-                if coeff.has(op) or coeff.has(Dagger(op)):
-                    raise ValueError(
-                        f"Coefficient contains creation or annihilation operators: {coeff}"
-                    )
+            if coeff.has(operator_types):
+                raise ValueError(
+                    f"Coefficient contains creation or annihilation operators: {coeff}"
+                )
 
     @classmethod
     def from_expr(cls, expr: sympy.Expr, operators=None) -> "NumberOrderedForm":
@@ -395,7 +394,7 @@ class NumberOrderedForm(Operator):
             ]
 
             # Return a new NumberOrderedForm with the function applied to the coefficients
-            return cls(operators, {zero_key: expr.func(*arg_exprs)})
+            return cls(operators, {zero_key: expr.func(*arg_exprs)}, validate=False)
 
         # Handle BosonOp or FermionOp (both creation and annihilation operators)
         if isinstance(expr, OperatorType):
@@ -414,7 +413,7 @@ class NumberOrderedForm(Operator):
 
             # Create a term with the appropriate power
             powers = tuple(0 if i != op_index else power for i in range(len(operators)))
-            return cls(operators, {powers: sympy.S.One})
+            return cls(operators, {powers: sympy.S.One}, validate=False)
 
         # Handle NumberOperator
         if isinstance(expr, NumberOperator):
@@ -423,7 +422,7 @@ class NumberOrderedForm(Operator):
             powers = tuple(0 for _ in range(len(operators)))
             coeff = expr  # Keep the NumberOperator as the coefficient
 
-            return cls(operators, {powers: coeff})
+            return cls(operators, {powers: coeff}, validate=False)
 
         # If we've reached this point, we don't know how to handle this expression type
         raise ValueError(
@@ -474,7 +473,7 @@ class NumberOrderedForm(Operator):
             The list of operators.
 
         """
-        return list(self.args[0])
+        return self.args[0]
 
     @property
     def terms(self) -> TermDict:
@@ -486,7 +485,7 @@ class NumberOrderedForm(Operator):
             The dictionary of terms.
 
         """
-        return dict(self.args[1])
+        return self.args[1]
 
     def _sympystr(self, printer):
         """Print the expression in a string format.
@@ -609,7 +608,7 @@ class NumberOrderedForm(Operator):
             new_terms[new_powers] = coeff
 
         # Create the new NumberOrderedForm with the same operators but new terms
-        return type(self)(self.operators, new_terms)
+        return type(self)(self.operators, new_terms, validate=False)
 
     def _multiply_expr(self, expr):
         """Multiply by an expression without creation or annihilation operators.
@@ -648,7 +647,7 @@ class NumberOrderedForm(Operator):
             new_terms[powers] = coeff * multiplier
 
         # Return a new NumberOrderedForm instance with the updated terms
-        return type(self)(self.operators, new_terms)
+        return type(self)(self.operators, new_terms, validate=False)
 
     def _expand_operators(self, new_operators: List[OperatorType]) -> "NumberOrderedForm":
         """Expand the operators in this NumberOrderedForm.
@@ -721,7 +720,7 @@ class NumberOrderedForm(Operator):
             new_terms[powers] += coeff
         for powers, coeff in other_expanded.terms.items():
             new_terms[powers] += coeff
-        return type(self)(self_expanded.operators, dict(new_terms))
+        return type(self)(self_expanded.operators, dict(new_terms), validate=False)
 
     def __radd__(self, other) -> "NumberOrderedForm":
         """Add another object with this NumberOrderedForm.
@@ -774,7 +773,7 @@ class NumberOrderedForm(Operator):
 
         """
         new_terms = {powers: -coeff for powers, coeff in self.terms.items()}
-        return type(self)(self.operators, new_terms)
+        return type(self)(self.operators, new_terms, validate=False)
 
     def __mul__(self, other) -> "NumberOrderedForm":
         """Multiply this NumberOrderedForm with another object.
@@ -812,7 +811,9 @@ class NumberOrderedForm(Operator):
         result = type(self)(self_expanded.operators, {}, validate=False)
         for powers, coeff in other_expanded.terms.items():
             # First multiply by creation operators, those are with negative powers
-            partial = NumberOrderedForm(self_expanded.operators, self_expanded.terms)
+            partial = NumberOrderedForm(
+                self_expanded.operators, self_expanded.terms, validate=False
+            )
             for i, power in enumerate(powers):
                 if not power < 0:
                     continue
@@ -873,7 +874,7 @@ class NumberOrderedForm(Operator):
             tuple(-power for power in powers): Dagger(coeff)
             for powers, coeff in self.terms.items()
         }
-        return type(self)(self.operators, new_terms)
+        return type(self)(self.operators, new_terms, validate=False)
 
     def __eq__(self, other):
         """Evaluate equality between this NumberOrderedForm and another object.
@@ -973,7 +974,7 @@ class NumberOrderedForm(Operator):
             new_terms[powers] = result_with_n_ops
 
         # Create a new NumberOrderedForm with the same operators but new terms
-        return type(self)(self.operators, new_terms)
+        return type(self)(self.operators, new_terms, validate=False)
 
     def _eval_simplify(self, **kwargs):
         """SymPy's hook for the simplify() function.
@@ -1040,7 +1041,9 @@ class NumberOrderedForm(Operator):
         # Since the expression only contains number operators, it's safe to apply the power
         # We extract the coefficient (if exists) and raise it to the given exponent.
         return type(self)(
-            self.operators, {key: value**exp for key, value in self.terms.items()}
+            self.operators,
+            {key: value**exp for key, value in self.terms.items()},
+            validate=False,
         )
 
     def __truediv__(self, other) -> "NumberOrderedForm":
@@ -1071,4 +1074,5 @@ class NumberOrderedForm(Operator):
         return type(self)(
             self.operators,
             {tuple(powers): coeff.subs(old, new) for powers, coeff in self.terms.items()},
+            validate=False,
         )
