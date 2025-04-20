@@ -467,7 +467,7 @@ class NumberOrderedForm(Operator):
                 if not power < 0:
                     continue
                 # Creation operator (negative power)
-                term = Dagger(op) ** (-power) * term
+                term = op.adjoint() ** (-power) * term
 
             result += term
 
@@ -646,7 +646,7 @@ class NumberOrderedForm(Operator):
             If the expression contains creation or annihilation operators.
 
         """
-        if expr.has(*self.operators) or expr.has(*(Dagger(op) for op in self.operators)):
+        if expr.has(*operator_types):
             raise ValueError(
                 "Expression contains creation or annihilation operators, "
                 "which cannot be multiplied directly."
@@ -886,10 +886,10 @@ class NumberOrderedForm(Operator):
 
         """
         # Take the adjoint of each term and negate the powers
-        new_terms = {
-            tuple(-power for power in powers): Dagger(coeff)
+        new_terms = (
+            (tuple(-power for power in powers), coeff.adjoint())
             for powers, coeff in self.terms.items()
-        }
+        )
         return type(self)(self.operators, new_terms, validate=False)
 
     def __eq__(self, other):
