@@ -61,7 +61,7 @@ def test_number_ordered_form_init():
     # Create operators
     a = boson.BosonOp("a")
     b = boson.BosonOp("b")
-    operators = [a, b]
+    operators = (a, b)
 
     # Create terms dictionary
     terms = {
@@ -307,7 +307,7 @@ def test_only_number_operators():
     # Convert to NumberOrderedForm
     nof = NumberOrderedForm.from_expr(expr)
 
-    assert nof.operators == [a, b]
+    assert nof.operators == (a, b)
     assert nof.terms == {(0, 0): expr}
 
 

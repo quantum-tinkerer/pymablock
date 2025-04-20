@@ -308,7 +308,7 @@ class NumberOrderedForm(Operator):
                 )
 
             # Check for unwanted creation or annihilation operators in the coefficient
-            if coeff.has(operator_types):
+            if coeff.has(*operator_types):
                 raise ValueError(
                     f"Coefficient contains creation or annihilation operators: {coeff}"
                 )
