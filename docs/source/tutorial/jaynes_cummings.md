@@ -79,7 +79,7 @@ For example, to compute the 2nd order correction of the Hamiltonian of the $\upa
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_2'), H_tilde[0, 0, 2], evaluate=False)
+Eq(Symbol(r'\tilde{H}_2'), simplify(H_tilde[0, 0, 2]), evaluate=False)
 ```
 
 The output contains $N_a = a^\dagger a$, the number operator for the bosonic mode, which is a {autolink}`~pymablock.second_quantization.NumberOperator` object:
@@ -105,13 +105,13 @@ Higher order corrections to the Hamiltonian work exactly the same:
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_4'), H_tilde[0, 0, 4], evaluate=False)
+Eq(Symbol(r'\tilde{H}_4'), simplify(H_tilde[0, 0, 4]), evaluate=False)
 ```
 
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_6'), H_tilde[0, 0, 6], evaluate=False)
+Eq(Symbol(r'\tilde{H}_6'), simplify(H_tilde[0, 0, 6]), evaluate=False)
 ```
 
 We see that also computing the 6th order correction takes effectively no time.
