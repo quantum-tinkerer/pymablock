@@ -297,7 +297,10 @@ class NumberOrderedForm(Operator):
             If a coefficient contains creation or annihilation operators.
 
         """
-        for powers, coeff in terms.items():
+        if isinstance(terms, dict):
+            terms = terms.items()
+
+        for powers, coeff in terms:
             # Check that powers tuple has the right length
             if len(powers) != len(operators):
                 raise ValueError(
@@ -455,7 +458,7 @@ class NumberOrderedForm(Operator):
         result = sympy.S.Zero
         reversed_operators = list(reversed(self.operators))
 
-        for powers, coeff in self.terms.items():
+        for powers, coeff in self.args[1]:
             term = coeff
             for op, power in zip(reversed_operators, reversed(powers)):
                 if not power > 0:
@@ -599,7 +602,7 @@ class NumberOrderedForm(Operator):
         # Create a new terms dictionary for the result
         new_terms = {}
 
-        for powers, coeff in self.terms.items():
+        for powers, coeff in self.args[1]:
             orig_power = powers[op_index]  # Power of the operator at op_index
             new_power = orig_power + op_power
             new_powers = tuple(
@@ -608,8 +611,8 @@ class NumberOrderedForm(Operator):
             if op_power > 0:  # Multiplying by an annihilation operator
                 # Compute how many new number operators appear
                 to_pair = min(op_power, max(-orig_power, 0))
-                for _ in range(to_pair):
-                    coeff = coeff.subs(n_operator, n_operator - 1) * n_operator
+                coeff = coeff.subs(n_operator, n_operator - to_pair)
+                coeff = sympy.Mul(coeff, *(n_operator - i for i in range(to_pair)))
             else:
                 to_pair = min(-op_power, max(orig_power, 0))
                 # Create the new number operators from all pairs
@@ -653,7 +656,7 @@ class NumberOrderedForm(Operator):
             )
 
         new_terms = {}
-        for powers, coeff in self.terms.items():
+        for powers, coeff in self.args[1]:
             multiplier = expr
             for i, power in enumerate(powers):
                 if power < 0:
@@ -696,7 +699,7 @@ class NumberOrderedForm(Operator):
                 powers[index_mapping[i]] if index_mapping[i] != -1 else 0
                 for i in range(len(new_operators))
             ): coeff
-            for powers, coeff in self.terms.items()
+            for powers, coeff in self.args[1]
         }
         return type(self)(new_operators, new_terms, validate=False)
 
@@ -732,11 +735,11 @@ class NumberOrderedForm(Operator):
             other_expanded = other
 
         new_terms = defaultdict(lambda: sympy.S.Zero)
-        for powers, coeff in self_expanded.terms.items():
+        for powers, coeff in self_expanded.args[1]:
             new_terms[powers] += coeff
-        for powers, coeff in other_expanded.terms.items():
+        for powers, coeff in other_expanded.args[1]:
             new_terms[powers] += coeff
-        return type(self)(self_expanded.operators, dict(new_terms), validate=False)
+        return type(self)(self_expanded.operators, new_terms, validate=False)
 
     def __radd__(self, other) -> "NumberOrderedForm":
         """Add another object with this NumberOrderedForm.
@@ -788,7 +791,7 @@ class NumberOrderedForm(Operator):
             The negated NumberOrderedForm.
 
         """
-        new_terms = {powers: -coeff for powers, coeff in self.terms.items()}
+        new_terms = {powers: -coeff for powers, coeff in self.args[1]}
         return type(self)(self.operators, new_terms, validate=False)
 
     def __mul__(self, other) -> "NumberOrderedForm":
@@ -825,10 +828,10 @@ class NumberOrderedForm(Operator):
             other_expanded = other
 
         result = type(self)(self_expanded.operators, {}, validate=False)
-        for powers, coeff in other_expanded.terms.items():
+        for powers, coeff in other_expanded.args[1]:
             # First multiply by creation operators, those are with negative powers
             partial = NumberOrderedForm(
-                self_expanded.operators, self_expanded.terms, validate=False
+                self_expanded.operators, self_expanded.args[1], validate=False
             )
             for i, power in enumerate(powers):
                 if not power < 0:
@@ -888,7 +891,7 @@ class NumberOrderedForm(Operator):
         # Take the adjoint of each term and negate the powers
         new_terms = (
             (tuple(-power for power in powers), coeff.adjoint())
-            for powers, coeff in self.terms.items()
+            for powers, coeff in self.args[1]
         )
         return type(self)(self.operators, new_terms, validate=False)
 
@@ -933,7 +936,7 @@ class NumberOrderedForm(Operator):
             True if zero, False if non-zero, None if undetermined.
 
         """
-        if not self.terms:
+        if not self.args[1]:
             return True
         return None  # Let SymPy try other approaches
 
@@ -949,7 +952,7 @@ class NumberOrderedForm(Operator):
             True if the form contains any terms, False otherwise.
 
         """
-        return bool(self.terms)
+        return bool(self.args[1])
 
     def apply_sympy_func(self, func, *args, **kwargs):
         """Apply a SymPy function to the terms of this NumberOrderedForm.
@@ -983,7 +986,7 @@ class NumberOrderedForm(Operator):
         new_terms = {}
 
         # Process each term in the terms dictionary
-        for powers, coeff in self.terms.items():
+        for powers, coeff in self.args[1]:
             dummy_expr = coeff.subs(substitutions)
             result_expr = func(dummy_expr, *args, **kwargs)
             result_with_n_ops = result_expr.subs(reverse)
@@ -1058,7 +1061,7 @@ class NumberOrderedForm(Operator):
         # We extract the coefficient (if exists) and raise it to the given exponent.
         return type(self)(
             self.operators,
-            {key: value**exp for key, value in self.terms.items()},
+            {key: value**exp for key, value in self.args[1]},
             validate=False,
         )
 
@@ -1082,13 +1085,13 @@ class NumberOrderedForm(Operator):
             False otherwise.
 
         """
-        return all(not any(powers) for powers in self.terms)
+        return all(not any(powers) for powers, _ in self.args[1])
 
     def _eval_subs(self, old, new):
         if old in self.operators or new in self.operators:
             raise ValueError("Cannot substitute operators in NumberOrderedForm.")
         return type(self)(
             self.operators,
-            {tuple(powers): coeff.subs(old, new) for powers, coeff in self.terms.items()},
+            {tuple(powers): coeff.subs(old, new) for powers, coeff in self.args[1]},
             validate=False,
         )
