@@ -227,8 +227,16 @@ class NumberOrderedForm(Operator):
 
         if not isinstance(operators, sympy.core.containers.Tuple):
             operators = sympy.core.containers.Tuple(*operators)
-        if not isinstance(terms, sympy.core.containers.Dict):
-            terms = sympy.core.containers.Dict(terms)
+        # Convert terms dict to a tuple of (power_tuple, coefficient) tuples
+        if isinstance(terms, dict):
+            terms = sympy.core.containers.Tuple(
+                *(sympy.core.containers.Tuple(k, v) for k, v in terms.items())
+            )
+        elif not isinstance(terms, sympy.core.containers.Tuple):
+            terms_items = list(terms)
+            terms = sympy.core.containers.Tuple(
+                *(sympy.core.containers.Tuple(k, v) for k, v in terms_items)
+            )
         result = sympy.Expr.__new__(cls, operators, terms, **hints)
         result._n_fermions = sum(isinstance(op, FermionOp) for op in operators)
         return result
@@ -486,8 +494,14 @@ class NumberOrderedForm(Operator):
         Dict[Tuple[int, ...], sympy.Expr]
             The dictionary of terms.
 
+        Notes
+        -----
+        Internally, terms are stored as a tuple of (key, value) tuples for better performance.
+        This property converts the internal representation to a dictionary for compatibility.
+
         """
-        return self.args[1]
+        # Convert tuple of tuples to dictionary
+        return {k: v for k, v in self.args[1]}
 
     def _sympystr(self, printer):
         """Print the expression in a string format.
