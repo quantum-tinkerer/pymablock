@@ -224,6 +224,8 @@ def apply_mask_to_operator(
     for i in range(operator.rows):
         for j in range(operator.cols):
             value = operator[i, j]
+            if not value:
+                continue
             # We need to take special care because the mask might not contain all
             # operators appearing in the expression or vice versa.
             assert isinstance(value, NumberOrderedForm)
@@ -232,10 +234,10 @@ def apply_mask_to_operator(
             mask_indices = [
                 operators.index(op) if op in operators else None for op in mask_operators
             ]
+            keep = set()
             for *mask_bosons, mask_matrix in rules:
                 if not mask_matrix[i, j]:
                     continue
-                keep = []
                 for shift in terms:
                     mask_shift = [
                         shift[idx] if idx is not None else 0 for idx in mask_indices
@@ -245,11 +247,11 @@ def apply_mask_to_operator(
                         or (n_max is not None and abs(op_shift) >= n_max)
                         for op_shift, (ns, n_max) in zip(mask_shift, mask_bosons)
                     ):
-                        keep.append(shift)
-                result[i, j] = NumberOrderedForm(
-                    operators=operators,
-                    terms={shift: terms[shift] for shift in keep},
-                    validate=False,
-                )
+                        keep.add(shift)
+            result[i, j] = NumberOrderedForm(
+                operators=operators,
+                terms={shift: terms[shift] for shift in keep},
+                validate=False,
+            )
 
     return result
