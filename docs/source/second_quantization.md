@@ -53,10 +53,12 @@ class NumberOrderedForm:
 For example, consider the expression $a^\dagger b + 2$ (where $a$ and $b$ are different modes):
 
 Mathematically, this represents:
+
 - The term $a^\dagger b$ with one creation operator for mode $a$ and one annihilation operator for mode $b$
 - A scalar term 2
 
 In the implementation, this would be represented as:
+
 ```python
 operators = [a, b]
 terms = {
@@ -68,10 +70,12 @@ terms = {
 For a more complex example, the expression $2 \cdot a^{\dagger 2} \cdot n_b \cdot c^3 + a^{\dagger} \cdot \frac{3N_a}{N_b+1} \cdot c^2$ represents:
 
 Mathematically:
+
 - First term: Two creation operators for mode $a$, a number operator for mode $b$ as part of the coefficient, three annihilation operators for mode $c$, and a scalar coefficient of 2
 - Second term: One creation operator for mode $a$, two annihilation operators for mode $c$, and a non-polynomial coefficient $\frac{3N_a}{N_b+1}$
 
 In the implementation:
+
 ```python
 operators = [a, b, c]
 terms = {
@@ -81,6 +85,7 @@ terms = {
 ```
 
 Where the tuple structure (e.g., `(-2, 0, 3)`) represents:
+
 - Negative values: creation operators (-2 for $a$ means two creation operators)
 - Positive values: annihilation operators (3 for $c$ means three annihilation operators)
 - Zero values: no creation or annihilation operators for that mode (0 for $b$)
@@ -91,23 +96,18 @@ This data structure enables efficient symbolic manipulation of quantum expressio
 
 The real power of number-ordered forms becomes apparent when we multiply quantum operators. When creation and annihilation operators interact, they follow specific commutation rules that are elegantly captured in this representation.
 
-Consider what happens when we multiply quantum operators:
-
-#### Fundamental Commutation Relations
-
 The bosonic commutation relation forms the foundation of all manipulations:
 
 $$[a, a^\dagger] = aa^\dagger - a^\dagger a = 1 \quad \Rightarrow \quad aa^\dagger = 1 + a^\dagger a = 1 + N_a$$
 
-This leads directly to the key rules for how operators shift number operators:
+This leads directly to the rule for how operators shift number operators:
 
 $$a \cdot f(N_a) = f(N_a - 1) \cdot a \quad\quad a^\dagger \cdot f(N_a) = f(N_a + 1) \cdot a^\dagger$$
-
-#### Single-Mode Multiplication Table
 
 To illustrate how number-ordered form manipulations work in practice, let's examine multiplication rules for a single mode through a multiplication table. This table shows the result of multiplying different forms of number-ordered terms from the left by various operators.
 
 Consider three possible forms of number-ordered terms with a single mode:
+
 1. $(a^\dagger)^n \cdot f(N_a)$ - Creation operators followed by a function of the number operator
 2. $g(N_a)$ - Just a function of the number operator
 3. $h(N_a) \cdot a^m$ - A function of the number operator followed by annihilation operators
@@ -133,8 +133,6 @@ The quantum Sylvester equation takes the form:
 $$H_i X_{ij} - X_{ij} H_j = Y_{ij}$$
 
 where $H_i$ and $H_j$ are Hamiltonian blocks, $Y_{ij}$ is a perturbation term, and $X_{ij}$ is the unknown.
-
-### Solving with Number-Ordered Forms
 
 The number-ordered approach solves the Sylvester equation for a single quantum mode:
 
@@ -162,3 +160,57 @@ The solution is:
 $$X = (a^\dagger)^n \cdot \frac{f_Y(N)}{H_i(N-n) - H_j(N+m)} \cdot a^m$$
 
 The generalization to multiple modes follows the same pattern. For each mode, apply the appropriate shifts to the Hamiltonian based on the creation and annihilation operators in the perturbation term. The solution maintains the operator structure of the original perturbation.
+
+### Filtering terms of number ordered forms
+
+When working with second quantized operators in perturbation theory, it's often necessary to selectively eliminate specific terms from the operators. Pymablock provides a mechanism for specifying which terms to keep or eliminate based on the powers of creation and annihilation operators.
+
+#### Matrix-Based Expression Format
+
+Pymablock uses a matrix-based specification where SymPy expressions define elimination rules for different elements of the operator matrix:
+
+- An expression matrix `M` has the same shape as the operator being filtered
+- Each element `M[i, j]` defines the elimination rules for element `(i, j)` of the operator: every term of the number-ordered form of that element is eliminated from the corresponding element of the operator.
+
+#### Example
+
+For a 2×2 block operator with modes `a` and `b`, you can specify:
+
+```python
+from sympy import Matrix, symbols
+from sympy.physics.quantum.boson import BosonOp
+from sympy.physics.quantum import Dagger
+
+a = BosonOp('a')
+b = BosonOp('b')
+ad = Dagger(a)
+bd = Dagger(b)
+n = symbols('n', integer=True, nonnegative=True)
+
+# Define elimination rules for each block
+elimination_rules = Matrix([
+    [0, a**3],                             # Keep all in (0,0), eliminate a³ in (0,1)
+    [ad**3 + bd**2, a**(2+n) + ad**(2+n)]  # Multiple rules in (1,0) and (1,1)
+])
+```
+
+This specifies:
+
+- Block (0,0): Keep all terms
+- Block (0,1): Eliminate terms with exactly 3 annihilation operators for mode `a`
+- Block (1,0): Eliminate terms with either 3 creation operators for mode `a` or 2 creation operators for mode `b`
+- Block (1,1): Eliminate terms with 2 or more creation or annihilation operators for mode `a`
+
+#### Application in Block Diagonalization
+
+When using `block_diagonalize` with second quantized operators, the `fully_diagonalize` parameter accepts this matrix-based format to control term elimination:
+
+```python
+H_tilde, *_ = block_diagonalize(
+    sympy.Matrix([[H_0 + H_p]]),
+    fully_diagonalize=elimination_rules,
+    symbols=[g]
+)
+```
+
+This approach provides fine-grained control over which quantum terms to include in the effective Hamiltonian, making it possible to implement physical approximations like the rotating wave approximation, number conservation constraints, or selective truncation of higher-order terms.
