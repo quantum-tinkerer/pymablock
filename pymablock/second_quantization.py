@@ -7,7 +7,6 @@ Operator subclass for better representation of number-ordered expressions.
 from typing import Callable
 
 import sympy
-import sympy.physics
 from packaging.version import parse
 from sympy.physics.quantum import Operator, boson
 from sympy.physics.quantum.boson import BosonOp
@@ -52,14 +51,21 @@ if parse(sympy.__version__) < parse("1.14.0"):
     del Operator.__mul__
 
 
-def solve_monomial(Y, H_ii, H_jj, boson_operators):
+def solve_monomial(
+    Y: sympy.Expr,
+    H_ii: sympy.Expr,
+    H_jj: sympy.Expr,
+    boson_operators: list[boson.BosonOp],
+) -> NumberOrderedForm:
     """Solve a Sylvester equation for bosonic monomial.
 
-    Given Y, H_ii, and H_jj, return -(E_i - E_j_shifted) * Y_monomial, per
+    Given `Y`, `H_ii`, and `H_jj`, return `-(E_i_shifted - E_j_shifted) * Y_monomial`, per
     monomial of creation and annihilation operators in Y.
 
-    H_ii and H_jj are scalar expressions containing number operators of
+    `H_ii` and `H_jj` are scalar expressions containing number operators of
     possibly several bosons.
+
+    See more details of how this works in the second quantization documentation.
 
     Parameters
     ----------
@@ -84,7 +90,6 @@ def solve_monomial(Y, H_ii, H_jj, boson_operators):
     # 3. Separate the terms of Y into monomials.
     # 4. For each monomial, shift the numbers in H_jj
     # 5. Multiply by the corresponding monomial in Y.
-
     if Y == 0:
         return sympy.S.Zero
 
@@ -181,6 +186,8 @@ def apply_mask_to_operator(
 
     This function selectively keeps terms in a symbolic matrix operator based on
     their powers of creation and annihilation operators.
+
+    See more details of how this works in the second quantization documentation.
 
     Parameters
     ----------
