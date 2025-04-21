@@ -40,7 +40,26 @@
 
 ```{eval-rst}
 .. automodule:: pymablock.second_quantization
-   :members: NumberOperator, number_ordered_form, simplify_number_expression
+   :members: solve_monomial, solve_sylvester_bosonic, apply_mask_to_operator
+   :show-inheritance:
+```
+
+## Number ordered form
+
+```{eval-rst}
+.. autoclass:: pymablock.number_ordered_form.NumberOperator
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoclass:: pymablock.number_ordered_form.NumberOrderedForm
+   :show-inheritance:
+   :no-index: __new__
+```
+
+```{eval-rst}
+.. automodule:: pymablock.number_ordered_form
+   :members: find_operators
    :show-inheritance:
 ```
 
