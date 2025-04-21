@@ -1,6 +1,7 @@
 # Second Quantization Tools
 
-This document explains the conceptual foundations of number-ordered forms and solving Sylvester equations for quantum operators in second quantization, which form the basis for Pymablock's approach to quantum mechanical calculations.
+This document explains the conceptual foundations of the second quantization tools in Pymablock.
+Specifically, it covers the implementation of number-ordered forms and the solution of Sylvester equations for quantum operators in second quantization, which are the basis for Pymablock's approach to quantum mechanical calculations.
 
 ## Number-Ordered Forms
 
@@ -8,25 +9,23 @@ This document explains the conceptual foundations of number-ordered forms and so
 
 #### From Normal Ordering to Number-Ordered Forms
 
-In quantum field theory and many-body physics, normal ordering is a fundamental concept where creation operators are placed to the left of annihilation operators in an expression. This ordering is typically denoted with colons, as in $:a^\dagger a a^\dagger:$ = $a^\dagger a^\dagger a$. Normal ordering provides a reference for calculating expectation values and is essential for perturbation theory.
+In quantum field theory and many-body physics, normal ordering is a fundamental concept where creation operators are placed to the left of annihilation operators in an expression: $a^\dagger a a^\dagger$ becomes $a^\dagger a^\dagger a$ when normal ordered.
+Normal ordering provides a reference for calculating expectation values and is essential for perturbation theory.
 
-However, simplifying expressions with normal ordering becomes extremely challenging for complex quantum systems. The non-commutative nature of quantum operators leads to an explosion of terms as expressions grow. Even worse, non-polynomial functions of operators—such as when number operators appear in denominators (like $\frac{1}{N_a + 2}$)—cannot be represented in normal-ordered form at all.
+However, simplifying expressions with normal ordering is challenging for complex quantum systems, because the non-commutative nature of quantum operators leads to an explosion of terms as expressions grow.
+Even worse, non-polynomial functions of operators—such as when number operators appear in denominators (like $\frac{1}{N_a + 2}$)—cannot be represented in normal-ordered form at all.
 
-Number-ordered form addresses these challenges by providing a more structured representation where:
+Instead, Pymablock uses a **number-ordered form** to represent second quantized operators.
+The number-ordered form addresses these challenges by providing a more structured representation where:
 
 1. Creation operators appear on the left
 2. Annihilation operators appear on the right
 3. Number operators and scalar expressions appear in the middle
 
-The fundamental property of this ordering is that **no term can simultaneously contain both creation and annihilation operators for the same quantum mode**. This separation creates a clean structure with a crucial advantage: the middle part of each term contains only commuting operators (number operators and scalars), which can be simplified using standard algebraic tools.
-
-#### Why This Representation is Powerful
-
-Number-ordered forms enable systematic handling of quantum expressions because:
-
-1. They can represent non-polynomial functions of number operators
-2. The middle section (containing only number operators and scalars) can be manipulated with conventional symbolic algebra
-3. Creation and annihilation operators for the same mode never appear together, avoiding complex commutation calculations
+The fundamental property of this ordering is that **no term can simultaneously contain both creation and annihilation operators for the same quantum mode**.
+This separation creates a clean structure with a crucial advantage: the middle part of each term contains only commuting operators (number operators and scalars), which can be simplified using standard algebraic tools.
+This allows to represent and simplify non-polynomial functions of number operators, for example.
+Altogether, number-ordered forms are a powerful tool for manipulating second quantized operators in Pymablock.
 
 ### Mathematical Structure and Implementation
 
@@ -46,7 +45,7 @@ class NumberOrderedForm:
 
     # 2. A dictionary mapping operator powers to coefficients
     terms = {
-        (creation_powers, annihilation_powers): coefficient_expression
+        (a_power, b_power, c_power, ...): coefficient_expression
     }
 ```
 
@@ -67,6 +66,8 @@ terms = {
 }
 ```
 
+where negative values in the tuple indicate creation operators and positive values indicate annihilation operators.
+
 For a more complex example, the expression $2 \cdot a^{\dagger 2} \cdot n_b \cdot c^3 + a^{\dagger} \cdot \frac{3N_a}{N_b+1} \cdot c^2$ represents:
 
 Mathematically:
@@ -84,19 +85,12 @@ terms = {
 }
 ```
 
-Where the tuple structure (e.g., `(-2, 0, 3)`) represents:
-
-- Negative values: creation operators (-2 for $a$ means two creation operators)
-- Positive values: annihilation operators (3 for $c$ means three annihilation operators)
-- Zero values: no creation or annihilation operators for that mode (0 for $b$)
-
-This data structure enables efficient symbolic manipulation of quantum expressions and makes it possible to handle cases where traditional normal ordering would be impractical or impossible. Most importantly, because the coefficients contain only commuting operators (number operators and scalars), they can be manipulated using standard algebraic techniques.
-
 ### Quantum Operator Multiplication
 
-The real power of number-ordered forms becomes apparent when we multiply quantum operators. When creation and annihilation operators interact, they follow specific commutation rules that are elegantly captured in this representation.
+The real power of number-ordered forms becomes apparent when we multiply quantum operators.
+When creation and annihilation operators appear in an expression, they follow specific commutation rules.
 
-The bosonic commutation relation forms the foundation of all manipulations:
+For example, the bosonic commutation relation forms the foundation of all manipulations with bosons:
 
 $$[a, a^\dagger] = aa^\dagger - a^\dagger a = 1 \quad \Rightarrow \quad aa^\dagger = 1 + a^\dagger a = 1 + N_a$$
 
@@ -120,14 +114,17 @@ The table below shows what happens when we multiply these terms (columns) from t
 | $j(N_a)$ | $(a^\dagger)^n \cdot j(N_a+n) \cdot f(N_a)$ | $j(N_a) \cdot g(N_a)$ | $j(N_a) \cdot h(N_a) \cdot a^m$ |
 | $a$ | $(a^\dagger)^{n-1} \cdot (N_a - n + 2) \cdot f(N_a)$ | $g(N_a-1) \cdot a$ | $h(N_a-1) \cdot a^{m+1}$ |
 
-This multiplication table provides a systematic way to derive any number-ordered term by multiplying a number-ordered term from the left with an operator. By repeatedly applying these rules, we can efficiently compute the product of any sequence of operators while maintaining the number-ordered form.
+This multiplication table provides a systematic way to derive any number-ordered term by multiplying a number-ordered term from the left with an operator.
+By repeatedly applying these rules for all terms in a number-ordered expression, we compute the product of any sequence of operators while maintaining the number-ordered form.
 
-The full multiplication of two number-ordered forms is achieved by applying this procedure term by term. This involves distributing the multiplication over all pair-wise combinations of terms from each form.
-
-The algebraic framework is completed with two additional operations. First, addition simply merges terms with identical operator powers. Second, taking the adjoint negates all the powers, which turns creation operators into annihilation operators and vice versa. The adjoint also conjugates all coefficients. Together, these operations provide all the necessary tools to manipulate quantum expressions in number-ordered form. This approach enables efficient symbolic computation with quantum operators that would be intractable with conventional normal ordering.
+The algebraic framework is completed with two additional operations.
+First, addition simply merges terms with identical operator powers.
+Second, taking the adjoint negates all the powers, which turns creation operators into annihilation operators and vice versa, and conjugates the coefficients.
+Together, these operations provide all the necessary tools to manipulate quantum expressions in number-ordered form in Pymablock.
 
 ## Solving Sylvester Equations
 
+Once per perturbative order, Pymablock solves a Sylvester equation as described in the [algorithm](algorithms.md).
 The quantum Sylvester equation takes the form:
 
 $$H_i X_{ij} - X_{ij} H_j = Y_{ij}$$
@@ -138,9 +135,11 @@ The number-ordered approach solves the Sylvester equation for a single quantum m
 
 $$H_i X - X H_j = Y$$
 
-$H_i$ and $H_j$ are functions of $N$. $Y$ is a number-ordered term with either creation or annihilation operators (not both) for a given mode.
+$H_i$ and $H_j$ are functions of $N$.
+$Y$ is a number-ordered term with either creation or annihilation operators (not both) for a given mode.
 
-Express $Y = (a^\dagger)^n \cdot f_Y(N) \cdot a^m$ (with either $n=0$ or $m=0$). $X$ shares this operator structure: $X = (a^\dagger)^n \cdot f_X(N) \cdot a^m$. The Sylvester equation becomes:
+Express $Y = (a^\dagger)^n \cdot f_Y(N) \cdot a^m$ (with either $n=0$ or $m=0$).
+$X$ shares this operator structure: $X = (a^\dagger)^n \cdot f_X(N) \cdot a^m$. The Sylvester equation becomes:
 
 $$H_i(N) \cdot (a^\dagger)^n \cdot f_X(N) \cdot a^m - (a^\dagger)^n \cdot f_X(N) \cdot a^m \cdot H_j(N) = (a^\dagger)^n \cdot f_Y(N) \cdot a^m$$
 
@@ -159,11 +158,14 @@ The solution is:
 
 $$X = (a^\dagger)^n \cdot \frac{f_Y(N)}{H_i(N-n) - H_j(N+m)} \cdot a^m$$
 
-The generalization to multiple modes follows the same pattern. For each mode, apply the appropriate shifts to the Hamiltonian based on the creation and annihilation operators in the perturbation term. The solution maintains the operator structure of the original perturbation.
+The generalization to multiple modes follows the same pattern.
+For each mode, apply the appropriate shifts to the Hamiltonian based on the creation and annihilation operators in the perturbation term.
+The solution maintains the operator structure of the original perturbation.
 
 ### Filtering terms of number ordered forms
 
-When working with second quantized operators in perturbation theory, it's often necessary to selectively eliminate specific terms from the operators. Pymablock provides a mechanism for specifying which terms to keep or eliminate based on the powers of creation and annihilation operators.
+When working with second quantized operators in perturbation theory, the goal is often often to eliminate specific terms from the operators.
+Pymablock provides a format for specifying which terms to keep or eliminate based on the powers of creation and annihilation operators.
 
 #### Matrix-Based Expression Format
 
@@ -183,14 +185,12 @@ from sympy.physics.quantum import Dagger
 
 a = BosonOp('a')
 b = BosonOp('b')
-ad = Dagger(a)
-bd = Dagger(b)
 n = symbols('n', integer=True, nonnegative=True)
 
 # Define elimination rules for each block
 elimination_rules = Matrix([
     [0, a**3],                             # Keep all in (0,0), eliminate a³ in (0,1)
-    [ad**3 + bd**2, a**(2+n) + ad**(2+n)]  # Multiple rules in (1,0) and (1,1)
+    [Dagger(a)**3 + Dagger(b)**2, a**(2+n) + Dagger(a)**(2+n)]  # Multiple rules in (1,0) and (1,1)
 ])
 ```
 
