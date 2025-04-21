@@ -85,6 +85,8 @@ terms = {
 }
 ```
 
+For more details about the `pymablock.number_ordered_form.NumberOrderedForm` class, see the documentation.
+
 ### Quantum Operator Multiplication
 
 The real power of number-ordered forms becomes apparent when we multiply quantum operators.
@@ -162,6 +164,8 @@ The generalization to multiple modes follows the same pattern.
 For each mode, apply the appropriate shifts to the Hamiltonian based on the creation and annihilation operators in the perturbation term.
 The solution maintains the operator structure of the original perturbation.
 
+In Pymablock, the `pymablock.second_quantization.solve_sylvester_bosonic` function implements this approach.
+
 ### Filtering terms of number ordered forms
 
 When working with second quantized operators in perturbation theory, the goal is often often to eliminate specific terms from the operators.
@@ -200,6 +204,8 @@ This specifies:
 - Block (0,1): Eliminate terms with exactly 3 annihilation operators for mode `a`
 - Block (1,0): Eliminate terms with either 3 creation operators for mode `a` or 2 creation operators for mode `b`
 - Block (1,1): Eliminate terms with 2 or more creation or annihilation operators for mode `a`
+
+In Pymablock, the `pymablock.second_quantization.apply_mask_to_operator` function applies these rules to the operator matrix to filter out unwanted terms.
 
 #### Application in Block Diagonalization
 
