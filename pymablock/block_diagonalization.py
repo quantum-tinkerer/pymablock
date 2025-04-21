@@ -33,7 +33,6 @@ __all__ = ["block_diagonalize", "operator_to_BlockSeries"]
 
 # Common types
 Eigenvectors = tuple[np.ndarray | sympy.Matrix, ...]
-Mask = second_quantization.Mask
 
 
 ### The main function for end-users.
@@ -48,7 +47,7 @@ def block_diagonalize(
     symbols: sympy.Symbol | Sequence[sympy.Symbol] | None = None,
     atol: float = 1e-12,
     fully_diagonalize: (
-        tuple[int] | dict[int, np.ndarray | Mask] | np.ndarray | Mask
+        tuple[int] | dict[int, np.ndarray | sympy.Matrix] | np.ndarray | sympy.Matrix
     ) = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
@@ -146,7 +145,8 @@ def block_diagonalize(
         be eliminated by the diagonalization. If there is only one block, the boolean
         array may be provided directly without a dictionary. Must be symmetric, and may
         not have any True values corresponding to matrix elements coupling degenerate
-        eigenvalues.
+        eigenvalues. If the Hamiltonian is symbolic, the entries of the array correspond
+        to sums of all possible operator powers to eliminate.
 
     Returns
     -------
@@ -395,13 +395,20 @@ def block_diagonalize(
         scope["offdiag"] = offdiag
     else:
         if isinstance(fully_diagonalize, dict):
-            # fully_diagonalize is a dictionary of masks
+            # fully_diagonalize is a dictionary with the indices of the diagonal blocks
+            # as keys and and values sympy matrices with second quantized expressions
+            # showing which matrix elements should be eliminated by the diagonalization.
+            fully_diagonalize = {
+                key: sympy.sympify(value).applyfunc(NumberOrderedForm.from_expr)
+                for key, value in fully_diagonalize.items()
+            }
+
             def diag(x, index):
                 x = x[index] if isinstance(x, BlockSeries) else x
                 if index[0] not in fully_diagonalize or x is zero:
                     return x
-                return x - second_quantization.apply_mask_to_operator(
-                    x, fully_diagonalize[index[0]]
+                return second_quantization.apply_mask_to_operator(
+                    x, fully_diagonalize[index[0]], keep=False
                 )
 
             def offdiag(x, index):
@@ -411,14 +418,13 @@ def block_diagonalize(
                 if x is zero:
                     return zero
                 return second_quantization.apply_mask_to_operator(
-                    x, fully_diagonalize[index[0]]
+                    x, fully_diagonalize[index[0]], keep=True
                 )
         else:
             # fully_diagonalize is a list of block indices to fully diagonalize
             keep = {
-                block_idx: (
-                    operators,
-                    [(([0], None),) * len(operators) + (equal_eigs[block_idx],)],
+                block_idx: sympy.Matrix(equal_eigs[block_idx].astype(int)).applyfunc(
+                    NumberOrderedForm.from_expr
                 )
                 for block_idx in fully_diagonalize
             }
@@ -428,7 +434,9 @@ def block_diagonalize(
                 if index[0] not in keep or x is zero:
                     return x
 
-                return second_quantization.apply_mask_to_operator(x, keep[index[0]])
+                return second_quantization.apply_mask_to_operator(
+                    x, keep[index[0]], keep=True
+                )
 
             def offdiag(x, index):
                 if index[0] not in keep:
@@ -437,7 +445,9 @@ def block_diagonalize(
                 if x is zero:
                     return zero
 
-                return x - second_quantization.apply_mask_to_operator(x, keep[index[0]])
+                return second_quantization.apply_mask_to_operator(
+                    x, keep[index[0]], keep=False
+                )
 
         scope["diag"] = diag
         scope["offdiag"] = offdiag
