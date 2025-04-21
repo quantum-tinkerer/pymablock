@@ -6,7 +6,6 @@ Operator subclass for better representation of number-ordered expressions.
 
 from typing import Callable
 
-import numpy as np
 import sympy
 import sympy.physics
 from packaging.version import parse
@@ -15,12 +14,6 @@ from sympy.physics.quantum.boson import BosonOp
 
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.series import zero
-
-# Type aliases
-Mask = tuple[
-    list[sympy.physics.quantum.Operator],
-    list[tuple[tuple[list[int], int | None], np.ndarray]],
-]
 
 # Monkey patch sympy to propagate adjoint to matrix elements.
 if parse(sympy.__version__) < parse("1.14.0"):
@@ -181,7 +174,8 @@ def solve_sylvester_bosonic(
 
 def apply_mask_to_operator(
     operator: sympy.MatrixBase,
-    mask: Mask,
+    mask: sympy.MatrixBase,
+    keep: bool = True,
 ) -> sympy.MatrixBase:
     """Apply a mask to filter specific terms in a matrix operator.
 
@@ -193,7 +187,13 @@ def apply_mask_to_operator(
     operator :
         Matrix operator containing symbolic expressions with second quantized operators.
     mask :
-        Specification of which terms to keep, see Notes for format details.
+        A matrix with `NumberOrderedForm` that define selection criteria. Specifically,
+        the elements of the `operator[i, j]` with powers matching any `mask[i, j].terms`
+        are selected.
+    keep :
+        If True (default), keep the terms that satisfy any of the conditions. If False
+        discard the terms that satisfy any of the conditions. Used for inverting the
+        mask.
 
     Returns
     -------
@@ -201,57 +201,15 @@ def apply_mask_to_operator(
         A new matrix with the same shape as the input, but containing only the
         selected terms.
 
-    Notes
-    -----
-    The mask consists of two parts:
-    1. A list of operators to check powers for
-    2. A list of selection rules for keeping terms
-
-    Each selection rule consists of:
-    - One constraint per operator defining which powers to keep
-    - A boolean matrix indicating which matrix elements to apply the rule to
-
-    For each operator, the constraint is specified as ([n1, n2, ...], n_max) where:
-    - [n1, n2, ...] is a list of specific powers of raising/lowering operators to keep
-    - n_max is an optional threshold. If provided, all powers ≥ n_max will be kept
-    - If n_max is None, only the explicitly listed powers are kept
-
-    A term is kept if it satisfies ALL constraints in at least ONE selection rule.
-
     """
-    mask_operators, rules = mask
     result = sympy.zeros(operator.rows, operator.cols)
     for i in range(operator.rows):
         for j in range(operator.cols):
             value = operator[i, j]
             if not value:
                 continue
-            # We need to take special care because the mask might not contain all
-            # operators appearing in the expression or vice versa.
+            value, mask[i, j] = value._combine_operators(mask[i, j])
             assert isinstance(value, NumberOrderedForm)
-            operators = value.operators
-            terms = value.terms
-            mask_indices = [
-                operators.index(op) if op in operators else None for op in mask_operators
-            ]
-            keep = set()
-            for *mask_bosons, mask_matrix in rules:
-                if not mask_matrix[i, j]:
-                    continue
-                for shift in terms:
-                    mask_shift = [
-                        shift[idx] if idx is not None else 0 for idx in mask_indices
-                    ]
-                    if all(
-                        abs(op_shift) in ns
-                        or (n_max is not None and abs(op_shift) >= n_max)
-                        for op_shift, (ns, n_max) in zip(mask_shift, mask_bosons)
-                    ):
-                        keep.add(shift)
-            result[i, j] = NumberOrderedForm(
-                operators=operators,
-                terms={shift: terms[shift] for shift in keep},
-                validate=False,
-            )
+            result[i, j] = value.filter_terms(list(mask[i, j].terms), keep)
 
     return result

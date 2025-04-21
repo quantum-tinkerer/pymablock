@@ -733,7 +733,7 @@ class NumberOrderedForm(Operator):
             except Exception:
                 return NotImplemented
 
-        self_expanded, other_expanded = self.combine_operators(other)
+        self_expanded, other_expanded = self._combine_operators(other)
 
         new_terms = defaultdict(lambda: sympy.S.Zero)
         for powers, coeff in self_expanded.args[1]:
@@ -1103,7 +1103,7 @@ class NumberOrderedForm(Operator):
         )
 
     def filter_terms(
-        self, conditions: tuple[tuple[sympy.Expr, ...], ...]
+        self, conditions: tuple[tuple[sympy.Expr, ...], ...], keep: bool = False
     ) -> "NumberOrderedForm":
         """Filter the terms of this NumberOrderedForm based on given conditions.
 
@@ -1112,18 +1112,22 @@ class NumberOrderedForm(Operator):
         conditions :
             Tuples of conditions to filter the terms. Each condition is a tuple
             containing the powers of operators, possibly symbolic, e.g. `3 + n`.
+        keep :
+            If True, keep the terms that satisfy any of the conditions. If False
+            (default), keep the terms that do not satisfy any of the conditions.
 
         Returns
         -------
         NumberOrderedForm
-            A new NumberOrderedForm with only the terms that do not satisfy any
-            of the conditions.
+            A new NumberOrderedForm with only the terms that do not satisfy any of the
+            conditions.
 
         """
         new_terms = {
             powers: coeff
             for powers, coeff in self.args[1]
-            if not any(
+            if not bool(keep)
+            != any(
                 all(
                     # is_zero is False when it is guaranteed that a solution does not
                     # exist. This takes care of e.g. 3 - n, where n is a positive

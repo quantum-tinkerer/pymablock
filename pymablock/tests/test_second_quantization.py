@@ -1,4 +1,3 @@
-import numpy as np
 import sympy
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
@@ -139,6 +138,7 @@ def test_apply_mask_to_operator():
     """Test the apply_mask_to_operator function with various mask configurations."""
     # Create boson operators
     b_1, b_2 = sympy.symbols("b_1 b_2", cls=BosonOp)
+    n = sympy.symbols("n", integer=True, positive=True)
 
     # Test case 1: Basic mask that allows only number operators
     allowed_terms = [Dagger(b_1) * b_1]
@@ -151,10 +151,11 @@ def test_apply_mask_to_operator():
         [[sympy.Add(*not_allowed_terms) + Dagger(sympy.Add(*not_allowed_terms))]]
     )
 
-    # Mask that only allows terms with matched creation/annihilation of b_1
-    mask = ([b_1], [(([0], None), np.array([[True]]))])
+    mask_nof = NumberOrderedForm.from_expr(sympy.S.One)
+    mask = sympy.Matrix([[mask_nof]])
+
     input = (allowed_matrix + not_allowed_matrix).applyfunc(NumberOrderedForm.from_expr)
-    masked_expr = apply_mask_to_operator(input, mask)
+    masked_expr = apply_mask_to_operator(input, mask, keep=True)
 
     # The mask should filter out all terms except the allowed ones
     assert (
@@ -167,8 +168,7 @@ def test_apply_mask_to_operator():
     # Create number operators
     N_1, N_2 = [NumberOperator(boson) for boson in (b_1, b_2)]
 
-    # Test case 2: Basic mask that allows only number operators, but with an operator
-    # not contained in the mask
+    # Test case 2: Eliminate first order powers of b_1 times anything
     allowed_terms = [N_1, N_1**2, (b_1 * N_1 * Dagger(b_1)) * b_2]
     allowed_matrix = sympy.Matrix(
         [[sympy.Add(*allowed_terms) + Dagger(sympy.Add(*allowed_terms))]]
@@ -179,10 +179,13 @@ def test_apply_mask_to_operator():
         [[sympy.Add(*not_allowed_terms) + Dagger(sympy.Add(*not_allowed_terms))]]
     )
 
-    # Mask that only allows terms with matched creation/annihilation of b_1
-    mask = ([b_1], [(([0], None), np.array([[True]]))])
+    # Create a mask matrix for test case 2
+    # This mask filters out terms with unmatched b_1
+    mask_nof = NumberOrderedForm.from_expr(b_1 * (b_2**n + Dagger(b_2) ** n + 1))
+    mask = sympy.Matrix([[mask_nof + Dagger(mask_nof)]])
+
     input = (allowed_matrix + not_allowed_matrix).applyfunc(NumberOrderedForm.from_expr)
-    masked_expr = apply_mask_to_operator(input, mask)
+    masked_expr = apply_mask_to_operator(input, mask, keep=False)
 
     # The mask should filter out all terms except the allowed ones
     assert (
