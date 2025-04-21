@@ -325,7 +325,7 @@ class NumberOrderedForm(Operator):
                 )
 
     @classmethod
-    def from_expr(cls, expr: sympy.Expr, operators=None) -> "NumberOrderedForm":
+    def from_expr(cls, expr, operators=None) -> "NumberOrderedForm":
         """Create a NumberOrderedForm instance from a sympy expression.
 
         Parameters
@@ -342,6 +342,12 @@ class NumberOrderedForm(Operator):
             A NumberOrderedForm instance representing the expression.
 
         """
+        if not isinstance(expr, sympy.Expr):
+            try:
+                expr = sympy.sympify(expr)
+            except Exception:
+                raise ValueError(f"Cannot convert {expr} to a sympy expression")
+
         if isinstance(expr, NumberOrderedForm):
             return expr
 

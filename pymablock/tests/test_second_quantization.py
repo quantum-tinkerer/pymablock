@@ -151,7 +151,7 @@ def test_apply_mask_to_operator():
         [[sympy.Add(*not_allowed_terms) + Dagger(sympy.Add(*not_allowed_terms))]]
     )
 
-    mask_nof = NumberOrderedForm.from_expr(sympy.S.One)
+    mask_nof = NumberOrderedForm.from_expr(1)
     mask = sympy.Matrix([[mask_nof]])
 
     input = (allowed_matrix + not_allowed_matrix).applyfunc(NumberOrderedForm.from_expr)
