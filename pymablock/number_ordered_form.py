@@ -733,6 +733,17 @@ class NumberOrderedForm(Operator):
             except Exception:
                 return NotImplemented
 
+        self_expanded, other_expanded = self.combine_operators(other)
+
+        new_terms = defaultdict(lambda: sympy.S.Zero)
+        for powers, coeff in self_expanded.args[1]:
+            new_terms[powers] += coeff
+        for powers, coeff in other_expanded.args[1]:
+            new_terms[powers] += coeff
+        return type(self)(self_expanded.operators, new_terms, validate=False)
+
+    def _combine_operators(self, other):
+        """Convert this NumberOrderedForm and another to have the same operator list."""
         if other.operators != self.operators:
             new_operators = sorted(
                 set(self.operators).union(other.operators),
@@ -743,13 +754,7 @@ class NumberOrderedForm(Operator):
         else:
             self_expanded = self
             other_expanded = other
-
-        new_terms = defaultdict(lambda: sympy.S.Zero)
-        for powers, coeff in self_expanded.args[1]:
-            new_terms[powers] += coeff
-        for powers, coeff in other_expanded.args[1]:
-            new_terms[powers] += coeff
-        return type(self)(self_expanded.operators, new_terms, validate=False)
+        return self_expanded, other_expanded
 
     def __radd__(self, other) -> "NumberOrderedForm":
         """Add another object with this NumberOrderedForm.
@@ -826,16 +831,7 @@ class NumberOrderedForm(Operator):
             except Exception:
                 return NotImplemented
 
-        if other.operators != self.operators:
-            new_operators = sorted(
-                set(self.operators).union(other.operators),
-                key=lambda op: (isinstance(op, BosonOp), str(op.name)),
-            )
-            self_expanded = self._expand_operators(new_operators)
-            other_expanded = other._expand_operators(new_operators)
-        else:
-            self_expanded = self
-            other_expanded = other
+        self_expanded, other_expanded = self._combine_operators(other)
 
         result = type(self)(self_expanded.operators, {}, validate=False)
         for powers, coeff in other_expanded.args[1]:
