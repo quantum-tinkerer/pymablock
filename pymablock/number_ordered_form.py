@@ -1101,3 +1101,37 @@ class NumberOrderedForm(Operator):
             {tuple(powers): coeff.subs(old, new) for powers, coeff in self.args[1]},
             validate=False,
         )
+
+    def filter_terms(
+        self, conditions: tuple[tuple[sympy.Expr, ...], ...]
+    ) -> "NumberOrderedForm":
+        """Filter the terms of this NumberOrderedForm based on given conditions.
+
+        Parameters
+        ----------
+        conditions :
+            Tuples of conditions to filter the terms. Each condition is a tuple
+            containing the powers of operators, possibly symbolic, e.g. `3 + n`.
+
+        Returns
+        -------
+        NumberOrderedForm
+            A new NumberOrderedForm with only the terms that do not satisfy any
+            of the conditions.
+
+        """
+        new_terms = {
+            powers: coeff
+            for powers, coeff in self.args[1]
+            if not any(
+                all(
+                    # is_zero is False when it is guaranteed that a solution does not
+                    # exist. This takes care of e.g. 3 - n, where n is a positive
+                    # integer.
+                    (power - ref).is_zero is not False
+                    for power, ref in zip(powers, condition)
+                )
+                for condition in conditions
+            )
+        }
+        return type(self)(self.operators, new_terms, validate=False)
