@@ -208,6 +208,10 @@ def apply_mask_to_operator(
             value = operator[i, j]
             if not value:
                 continue
+            if not mask[i, j]:
+                if not keep:
+                    result[i, j] = value
+                continue
             value, mask[i, j] = value._combine_operators(mask[i, j])
             assert isinstance(value, NumberOrderedForm)
             result[i, j] = value.filter_terms(list(mask[i, j].terms), keep)
