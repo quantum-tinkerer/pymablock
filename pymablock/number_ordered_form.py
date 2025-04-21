@@ -378,6 +378,16 @@ class NumberOrderedForm(Operator):
             base = expr.base
             exp = expr.exp
 
+            # Handle exponentiation of single operators directly.
+            if isinstance(base, OperatorType) and exp.is_integer and exp.is_positive:
+                # Find the operator index in the operators list
+                op = base if base.is_annihilation else type(base)(base.name)
+                powers = tuple(
+                    exp * (1 if base.is_annihilation else -1) if op == operator else 0
+                    for operator in operators
+                )
+                return cls(operators, {powers: sympy.S.One}, validate=False)
+
             # Convert base to NumberOrderedForm
             base_nof = NumberOrderedForm.from_expr(base, operators=operators)
 
