@@ -33,6 +33,7 @@ tutorial/andreev_supercurrent.md
 
 algorithms.md
 Comparison to Schrieffer-Wolff <radius.md>
+second_quantization.md
 documentation/pymablock.md
 CHANGELOG.md
 authors.md
