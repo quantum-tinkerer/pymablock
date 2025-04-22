@@ -200,6 +200,7 @@ sphinx-togglebutton = "*"
 sphinx-copybutton = "*"
 sphinx-book-theme = "*"
 beautifulsoup4 = "*"
+soupsieve = "*"
 git = "*"
 
 [tool.pixi.feature.docs.tasks.docs-build]

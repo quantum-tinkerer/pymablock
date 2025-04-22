@@ -167,6 +167,8 @@ class NumberOrderedForm(Operator):
     commuting a creation or annihilation operator through a function of a number operator
     simply replaces the corresponding number operator `N` with `N ± 1`.
 
+    See more details in the second quantization documentation.
+
     Parameters
     ----------
     operators : List[OperatorType]
@@ -341,6 +343,27 @@ class NumberOrderedForm(Operator):
         NumberOrderedForm
             A NumberOrderedForm instance representing the expression.
 
+        Examples
+        --------
+        Create a NumberOrderedForm from a sympy expression with bosonic operators:
+
+        >>> from sympy.physics.quantum import boson
+        >>> from pymablock.number_ordered_form import NumberOrderedForm
+        >>> a = boson.BosonOp('a')
+        >>> expr = a.adjoint() * a + 1  # a^† * a + 1
+        >>> nof = NumberOrderedForm.from_expr(expr)
+        >>> nof
+        1 + a'*a
+
+        Using a number operator:
+
+        >>> from pymablock.number_ordered_form import NumberOperator
+        >>> n_a = NumberOperator(a)
+        >>> expr = n_a + 2
+        >>> nof = NumberOrderedForm.from_expr(expr)
+        >>> nof
+        2 + N_a
+
         """
         if not isinstance(expr, sympy.Expr):
             try:
@@ -465,6 +488,28 @@ class NumberOrderedForm(Operator):
         -------
         sympy.Expr
             A standard SymPy expression equivalent to this NumberOrderedForm.
+
+        Examples
+        --------
+        Convert a NumberOrderedForm to a standard SymPy expression:
+
+        >>> from sympy.physics.quantum import boson
+        >>> from pymablock.number_ordered_form import (
+        ...     NumberOrderedForm, NumberOperator
+        ... )
+        >>> a = boson.BosonOp('a')
+        >>> # Create NumberOrderedForm with creation and annihilation operators
+        >>> nof = NumberOrderedForm.from_expr(a.adjoint() * a + 2)
+        >>> nof
+        2 + a'*a
+        >>> # Convert back to a standard SymPy expression
+        >>> expr = nof.as_expr()
+        >>> expr
+        2 + Dagger(a)*a
+        >>> # You can also use as_expr() with number operators
+        >>> nof2 = NumberOrderedForm.from_expr(NumberOperator(a) + 3)
+        >>> nof2.as_expr()
+        3 + N_a
 
         """
         if not self.operators:

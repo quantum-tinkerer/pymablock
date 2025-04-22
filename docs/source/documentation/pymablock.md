@@ -48,12 +48,13 @@
 
 ```{eval-rst}
 .. autoclass:: pymablock.number_ordered_form.NumberOperator
+   :members: name, doit
    :show-inheritance:
 ```
 
 ```{eval-rst}
 .. autoclass:: pymablock.number_ordered_form.NumberOrderedForm
-   :show-inheritance:
+   :members: operators, terms, from_expr, as_expr, apply_sympy_func, is_particle_conserving filter_terms
    :no-index: __new__
 ```
 
