@@ -6,6 +6,7 @@ from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.second_quantization import (
     apply_mask_to_operator,
+    group_by_symbolic_denominators,
     solve_sylvester_bosonic,
 )
 
@@ -250,3 +251,10 @@ def test_boson_operator_diagonalization():
     H_tilde_finite, *_ = block_diagonalize([H_0, H_1])
     # Compare the two
     assert E_eff == H_tilde_finite[0, 0, 2][0, 0]
+
+
+def test_group_by_denominator():
+    expr = sympy.sympify("(x / a + (b / c + 2 * d / 3 / a) / 4) / 2 / a")
+    result = group_by_symbolic_denominators(expr)
+    expected = sympy.sympify("(x / 2 + d / 12) / a**2 + b / 8 / a / c")
+    assert result == expected

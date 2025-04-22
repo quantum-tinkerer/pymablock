@@ -4,6 +4,7 @@ See number_ordered_form_plan.md for the plan to implement NumberOrderedForm as a
 Operator subclass for better representation of number-ordered expressions.
 """
 
+import itertools
 from typing import Callable
 
 import sympy
@@ -119,7 +120,7 @@ def solve_monomial(
     return NumberOrderedForm(
         operators=Y.args[0],
         terms=new_shifts,
-    )
+    ).apply_sympy_func(group_by_symbolic_denominators)
 
 
 def solve_sylvester_bosonic(
@@ -252,3 +253,83 @@ def apply_mask_to_operator(
             result[i, j] = value.filter_terms(list(mask[i, j].terms), keep)
 
     return result
+
+
+def group_by_symbolic_denominators(expr: sympy.Expr) -> dict[sympy.Expr, sympy.Expr]:
+    """Group terms in a sympy expression by their symbolic denominators.
+
+    This function recursively traverses the expression, collects terms with the same symbolic denominator (ignoring purely numeric denominators), and returns a dictionary mapping each symbolic denominator to the sum of its numerators.
+
+    Parameters
+    ----------
+    expr : sympy.Expr
+        The sympy expression to group.
+
+    Returns
+    -------
+    dict[sympy.Expr, sympy.Expr]
+        A dictionary mapping each symbolic denominator to the sum of its numerators.
+
+    Examples
+    --------
+    >>> from sympy import symbols
+    >>> a, b, c, d, e = symbols('a b c d e')
+    >>> expr = (a/(2*b) + c/b + c/d) / e
+    >>> group_by_symbolic_denominators(expr)
+    {b*e: a/2 + c, d*e: c}
+
+    """
+    from sympy import Add, Mul
+
+    # sympy .as_numer_denom also gathers multiple terms together; we want to
+    # keep them separate.
+    def split_numerator_denominator(expr):
+        numerator = []
+        denom = []
+        for factor in expr.as_ordered_factors():
+            if factor.is_number:
+                numerator.append(factor)
+            elif factor.is_Pow and factor.args[1] < 0:
+                denom.append(factor)
+            else:
+                numerator.append(factor)
+
+        return Mul(*numerator), Mul(*denom)
+
+    def one_level_expand(expr):
+        """Expand only the top level of a product.
+
+        Only expand the factors of a product, rather than their contents.
+        """
+        all_terms = [factor.as_ordered_terms() for factor in expr.as_ordered_factors()]
+        # Distribute multiplication across all term combinations
+        expanded = []
+        for factors in itertools.product(*all_terms):
+            expanded.append(Mul(*factors))
+        return Add(*expanded)
+
+    result: dict[sympy.Expr, sympy.Expr] = {}
+
+    result = {}
+    numerator, denom = split_numerator_denominator(expr)
+    intermediate = {denom: one_level_expand(numerator)}
+
+    while intermediate:
+        denom, numerator = intermediate.popitem()
+        if not isinstance(numerator, sympy.Add):
+            # Single term, can't process further
+            result[denom] = result.get(denom, 0) + numerator
+            continue
+
+        for term in numerator.as_ordered_terms():
+            new_numerator, new_denom = split_numerator_denominator(term)
+            new_denom = new_denom * denom
+            new_numerator = one_level_expand(new_numerator)
+            if not isinstance(new_numerator, sympy.Add):
+                # Single term, can't process further
+                result[new_denom] = result.get(new_denom, 0) + new_numerator
+                continue
+
+            intermediate[new_denom] = intermediate.get(new_denom, 0) + new_numerator
+
+    return sympy.Add(*(numerator * denom for denom, numerator in result.items()))
