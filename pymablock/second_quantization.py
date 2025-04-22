@@ -208,6 +208,34 @@ def apply_mask_to_operator(
         A new matrix with the same shape as the input, but containing only the
         selected terms.
 
+    Examples
+    --------
+    Let's filter out terms in a Hamiltonian matrix based on their boson number operators:
+
+    >>> import sympy
+    >>> from sympy.physics.quantum import boson, Dagger
+    >>> from pymablock.number_ordered_form import NumberOrderedForm
+    >>> from pymablock.second_quantization import apply_mask_to_operator
+    >>>
+    >>> # Create bosonic operators
+    >>> a = boson.BosonOp('a')
+    >>> b = boson.BosonOp('b')
+    >>>
+    >>> # Create a matrix with different operator terms
+    >>> H = sympy.Matrix([[a * Dagger(a) + b * Dagger(b), a * Dagger(b)],
+            [b * Dagger(a), a * Dagger(a) - b * Dagger(b)]])
+    >>> # Convert to NumberOrderedForm for easier handling
+    >>> H_nof = sympy.Matrix([[NumberOrderedForm.from_expr(H[i, j]) for j in range(H.cols)]
+                    for i in range(H.rows)])
+    >>>
+    >>> # Create a mask that selects only terms with a specific power pattern
+    >>> # Select only terms with exactly one 'a' operator and one 'b' operator
+    >>> mask = sympy.Matrix([[sympy.S.Zero, NumberOrderedForm([a, b], {(1, -1): sympy.S.One})],
+                [NumberOrderedForm([a, b], {(1, 1): sympy.S.One}), sympy.S.Zero]])
+    >>> H_filtered = apply_mask_to_operator(H_nof, mask, keep=True)
+    >>> # H_filtered now contains only the terms that match the mask:
+    >>> # [[0, Dagger(b)a], [0, 0]]
+
     """
     result = sympy.zeros(operator.rows, operator.cols)
     for i in range(operator.rows):

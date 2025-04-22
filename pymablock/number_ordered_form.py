@@ -353,7 +353,7 @@ class NumberOrderedForm(Operator):
         >>> expr = a.adjoint() * a + 1  # a^† * a + 1
         >>> nof = NumberOrderedForm.from_expr(expr)
         >>> nof
-        1 + a'*a
+        1 + N_a
 
         Using a number operator:
 
@@ -501,11 +501,11 @@ class NumberOrderedForm(Operator):
         >>> # Create NumberOrderedForm with creation and annihilation operators
         >>> nof = NumberOrderedForm.from_expr(a.adjoint() * a + 2)
         >>> nof
-        2 + a'*a
+        2 + N_a
         >>> # Convert back to a standard SymPy expression
         >>> expr = nof.as_expr()
         >>> expr
-        2 + Dagger(a)*a
+        2 + N_a
         >>> # You can also use as_expr() with number operators
         >>> nof2 = NumberOrderedForm.from_expr(NumberOperator(a) + 3)
         >>> nof2.as_expr()
