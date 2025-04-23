@@ -252,6 +252,48 @@ def test_boson_operator_diagonalization():
     # Compare the two
     assert E_eff == H_tilde_finite[0, 0, 2][0, 0]
 
+    # One boson and a 2x2 matrix Hamiltonian (Jaynes-Cummings)
+    a = BosonOp("a")
+    n = NumberOperator(a)
+    omega_r, omega_q, g = sympy.symbols("omega_r omega_q g", real=True)
+
+    # Define the Jaynes-Cummings Hamiltonian in operator form
+    H_0 = sympy.Matrix([[n * omega_r + omega_q / 2, 0], [0, n * omega_r - omega_q / 2]])
+    H_1 = sympy.Matrix([[0, g * Dagger(a)], [g * a, 0]])
+
+    # Define separate subspaces (up and down) for the Jaynes-Cummings model
+    subspace_indices = [0, 1]
+    H_tilde, *_ = block_diagonalize(
+        [H_0, H_1], subspace_indices=subspace_indices, symbols=[g]
+    )
+
+    # Compute the energy correction to the first level
+    E_eff_up = H_tilde[0, 0, 4][0, 0].as_expr().subs({n: 0})
+    E_eff_down = H_tilde[1, 1, 4][0, 0].as_expr().subs({n: 0})
+
+    # Now finite matrix representation
+    N = 5
+    a_mat = sympy.zeros(N, N)
+    for i in range(N - 1):
+        a_mat[i, (i + 1)] = sympy.sqrt(i + 1)
+    n_mat = sympy.diag(*[i for i in range(N)])
+
+    # Construct the 2x2 block matrices with the bosonic operators
+    H_0_up = n_mat * omega_r + omega_q / 2 * sympy.eye(N)
+    H_0_down = n_mat * omega_r - omega_q / 2 * sympy.eye(N)
+    H_0_mat = [[H_0_up, sympy.zeros(N, N)], [sympy.zeros(N, N), H_0_down]]
+
+    H_1_up_down = g * Dagger(a_mat)
+    H_1_down_up = g * a_mat
+    H_1_mat = [[sympy.zeros(N, N), H_1_up_down], [H_1_down_up, sympy.zeros(N, N)]]
+
+    # Block diagonalize the matrix representation
+    H_tilde_finite, *_ = block_diagonalize([H_0_mat, H_1_mat])
+
+    # Compare the effective energies from both approaches
+    assert sympy.simplify(E_eff_up - H_tilde_finite[0, 0, 4][0, 0]) == 0
+    assert sympy.simplify(E_eff_down - H_tilde_finite[1, 1, 4][0, 0]) == 0
+
 
 def test_group_by_denominator():
     expr = sympy.sympify("(x / a + (b / c + 2 * d / 3 / a) / 4) / 2 / a")
