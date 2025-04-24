@@ -259,7 +259,7 @@ def test_boson_operator_diagonalization():
 
     # Define the Jaynes-Cummings Hamiltonian in operator form
     H_0 = sympy.Matrix([[n * omega_r + omega_q / 2, 0], [0, n * omega_r - omega_q / 2]])
-    H_1 = sympy.Matrix([[0, g * Dagger(a)], [g * a, 0]])
+    H_1 = sympy.Matrix([[0, g * a], [g * Dagger(a), 0]])
 
     # Define separate subspaces (up and down) for the Jaynes-Cummings model
     subspace_indices = [0, 1]
@@ -283,8 +283,8 @@ def test_boson_operator_diagonalization():
     H_0_down = n_mat * omega_r - omega_q / 2 * sympy.eye(N)
     H_0_mat = [[H_0_up, sympy.zeros(N, N)], [sympy.zeros(N, N), H_0_down]]
 
-    H_1_up_down = g * Dagger(a_mat)
-    H_1_down_up = g * a_mat
+    H_1_up_down = g * a_mat
+    H_1_down_up = g * Dagger(a_mat)
     H_1_mat = [[sympy.zeros(N, N), H_1_up_down], [H_1_down_up, sympy.zeros(N, N)]]
 
     # Block diagonalize the matrix representation

@@ -43,7 +43,7 @@ The Hamiltonian reads
 
 ```{code-cell} ipython3
 H_0 = Matrix([[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]])
-H_p = Matrix([[0,  g * Dagger(a)], [g * a, 0]])
+H_p = Matrix([[0,  g * a], [g * Dagger(a), 0]])
 
 Eq(Symbol('H'), H_0 + H_p, evaluate=False)
 ```
