@@ -4,8 +4,7 @@
 *.rst filter=whitespace
 *.md filter=whitespace
 
-# GitHub syntax highlighting
-pixi.lock linguist-language=YAML
-
 # setuptools-scm git archive
 .git_archival.txt export-subst
+# SCM syntax highlighting & preventing 3-way merges
+pixi.lock merge=binary linguist-language=YAML linguist-generated=true
