@@ -292,3 +292,65 @@ def test_boson_operator_diagonalization():
     # Compare the effective energies from both approaches
     assert sympy.simplify(E_eff_up - H_tilde_finite[0, 0, 4][0, 0]) == 0
     assert sympy.simplify(E_eff_down - H_tilde_finite[1, 1, 4][0, 0]) == 0
+
+
+def test_selective_block_diagonalization():
+    """Test that various masks correctly filter specific terms in block diagonalization.
+
+    This test verifies that different masks can be used with block_diagonalize to:
+    1. Eliminate only first-order terms (a + a†)
+    2. Apply rotating wave approximation (RWA) by filtering out counter-rotating terms
+    3. Eliminate higher-order terms
+    """
+    # Define the Jaynes-Cummings model
+    a = BosonOp("a")
+    n = NumberOperator(a)
+    k = sympy.symbols("k", integer=True, nonnegative=True)
+    omega_r, omega_q, g = sympy.symbols("omega_r omega_q g", real=True)
+
+    # Define the Jaynes-Cummings Hamiltonian in operator form
+    # H_0 describes the resonator and qubit energies
+    H_0 = sympy.Matrix([[n * omega_r + omega_q / 2, 0], [0, n * omega_r - omega_q / 2]])
+    H_1 = sympy.Matrix([[0, g * (a + Dagger(a))], [g * (a + Dagger(a)), 0]])
+
+    # Test case 1: Eliminate only 1st order terms (a + a†)
+    mask = sympy.Matrix([[sympy.S.Zero, a + Dagger(a)], [a + Dagger(a), sympy.S.Zero]])
+    result = sympy.Add(
+        *block_diagonalize([H_0, H_1], symbols=[g], fully_diagonalize=mask)[0][
+            0, 0, :4
+        ].compressed()
+    )
+
+    # Confirm that masked terms are indeed zero
+    assert not result[0, 1].terms.keys() & {(1,), (-1,)}
+
+    # Test case 2: Apply high order RWA by filtering out creation operators in the upper triangle
+    # and annihilation operators in the lower triangle
+    mask = sympy.Matrix([[sympy.S.Zero, Dagger(a) ** k], [a**k, sympy.S.Zero]])
+
+    result = sympy.Add(
+        *block_diagonalize([H_0, H_1], symbols=[g], fully_diagonalize=mask)[0][
+            0, 0, :4
+        ].compressed()
+    )
+
+    # Confirm that all powers in result[0, 1] are positive (annihilation operators only)
+    assert all(pow[0] >= 0 for pow in result[0, 1].terms)
+
+    # Test case 3: Eliminate only a and Dagger(a) with powers above one
+    mask = sympy.Matrix(
+        [
+            [sympy.S.Zero, a ** (k + 2) + Dagger(a) ** (k + 2)],
+            [a ** (k + 2) + Dagger(a) ** (k + 2), sympy.S.Zero],
+        ]
+    )
+
+    # Verify that higher-order terms are eliminated
+    higher_order_terms = sympy.Add(
+        *block_diagonalize([H_0, H_1], symbols=[g], fully_diagonalize=mask)[0][
+            0, 0, 2:6
+        ].compressed()
+    )
+
+    # Confirm that all higher-order terms are zero
+    assert higher_order_terms.applyfunc(lambda x: x.as_expr()).is_zero_matrix

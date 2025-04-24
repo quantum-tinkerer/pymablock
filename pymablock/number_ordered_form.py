@@ -1109,9 +1109,25 @@ class NumberOrderedForm(Operator):
         # For non-integer exponents, check that the expression only has
         # number operators (no unmatched creation/annihilation operators)
         if not self.is_particle_conserving():
-            raise ValueError(
-                f"Cannot raise expression with unmatched creation or annihilation "
-                f"operators to non-integer power: {self}**{exp}"
+            if len(self.terms) > 1:
+                raise ValueError(
+                    f"Cannot raise expression with unmatched creation or annihilation "
+                    f"operators to non-integer power: {self}**{exp}"
+                )
+
+            # One term, may exponentiate if the coefficient is commutative.
+            powers, coeff = next(iter(self.terms.items()))
+            if not coeff.is_commutative or exp.is_negative:
+                raise ValueError(
+                    f"Cannot raise expression with unmatched creation or annihilation "
+                    f"operators to non-integer power: {self}**{exp}"
+                )
+
+            # Note: does not take care of fermion nilpotency.
+            return type(self)(
+                self.operators,
+                {tuple(i * exp for i in powers): coeff**exp},
+                validate=False,
             )
 
         # Since the expression only contains number operators, it's safe to apply the power

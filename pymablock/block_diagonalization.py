@@ -221,10 +221,10 @@ def block_diagonalize(
     if H.shape[0] == 1:
         if not len(fully_diagonalize):
             fully_diagonalize = (0,)
-        elif isinstance(fully_diagonalize, np.ndarray):
+        elif isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase)):
             fully_diagonalize = {0: fully_diagonalize}
     else:
-        if isinstance(fully_diagonalize, np.ndarray):
+        if isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase)):
             raise ValueError(
                 "If the Hamiltonian has multiple blocks, `fully_diagonalize` may not be an ndarray."
             )
@@ -398,8 +398,11 @@ def block_diagonalize(
             # fully_diagonalize is a dictionary with the indices of the diagonal blocks
             # as keys and and values sympy matrices with second quantized expressions
             # showing which matrix elements should be eliminated by the diagonalization.
+
+            # We convert it to a numpy array so that the elements are mutable
+            # (we are going to store the operators we encounter).
             fully_diagonalize = {
-                key: sympy.sympify(value).applyfunc(NumberOrderedForm.from_expr)
+                key: np.array(sympy.sympify(value).applyfunc(NumberOrderedForm.from_expr))
                 for key, value in fully_diagonalize.items()
             }
 
@@ -421,10 +424,13 @@ def block_diagonalize(
                     x, fully_diagonalize[index[0]], keep=True
                 )
         else:
-            # fully_diagonalize is a list of block indices to fully diagonalize
+            # fully_diagonalize is a list of block indices to fully diagonalize.
+            # Like above, we convert it to a numpy array.
             keep = {
-                block_idx: sympy.Matrix(equal_eigs[block_idx].astype(int)).applyfunc(
-                    NumberOrderedForm.from_expr
+                block_idx: np.array(
+                    sympy.Matrix(equal_eigs[block_idx].astype(int)).applyfunc(
+                        NumberOrderedForm.from_expr
+                    )
                 )
                 for block_idx in fully_diagonalize
             }

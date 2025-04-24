@@ -6,6 +6,7 @@ Operator subclass for better representation of number-ordered expressions.
 
 from typing import Callable
 
+import numpy as np
 import sympy
 from packaging.version import parse
 from sympy.physics.quantum import Operator, boson
@@ -179,7 +180,7 @@ def solve_sylvester_bosonic(
 
 def apply_mask_to_operator(
     operator: sympy.MatrixBase,
-    mask: sympy.MatrixBase,
+    mask: np.ndarray,
     keep: bool = True,
 ) -> sympy.MatrixBase:
     """Apply a mask to filter specific terms in a matrix operator.
