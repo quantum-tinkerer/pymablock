@@ -82,23 +82,9 @@ For example, to compute the 2nd order correction of the Hamiltonian of the $\upa
 Eq(Symbol(r'\tilde{H}_2'), simplify(H_tilde[0, 0, 2]), evaluate=False)
 ```
 
-The output contains $N_a = a^\dagger a$, the number operator for the bosonic mode, which is a {autolink}`~pymablock.number_ordered_form.NumberOperator` object:
+The output contains $N_a = a^\dagger a$, the number operator for the bosonic mode, which is a {autolink}`~pymablock.number_ordered_form.NumberOperator` object, and furthermore the output is stored in the {autolink}`~pymablock.number_ordered_form.NumberOrderedForm` class that Pymablock uses for efficient manipulation of second quantized expressions.
 
-```{code-cell} ipython3
-from pymablock.number_ordered_form import NumberOperator
-
-NumberOperator(a)
-```
-
-Pymablock's number operators can be used in the same way as `sympy` bosonic operators, because they are a subclass of `sympy`'s Hermitian operators.
-We use them to simplify the Hamiltonian and obtain shorter expressions.
-To recover `sympy`'s bosonic operators, use the `doit` method:
-
-```{code-cell} ipython3
-NumberOperator(a).doit()
-```
-
-Check out the [second quantization module documentation](../documentation/pymablock.md) for more information on how to use number operators and simplify expressions that contain them.
+Check out the [documentation](../second_quantization.md) for more information on how to use number operators and simplify expressions that contain them.
 
 Higher order corrections to the Hamiltonian work exactly the same:
 

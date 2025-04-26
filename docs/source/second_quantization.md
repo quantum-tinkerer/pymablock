@@ -85,7 +85,9 @@ terms = {
 }
 ```
 
-For more details about the {autolink}`~pymablock.number_ordered_form.NumberOrderedForm` class, see the documentation.
+In order to not store the original $a^\dagger a$ terms in the coefficients, Pymablock uses {autolink}`~pymablock.number_ordered_form.NumberOperator` objects to represent number operators.
+
+For more details about the implementation, see {autolink}`~pymablock.number_ordered_form.NumberOrderedForm`.
 
 ### Quantum Operator Multiplication
 
@@ -127,7 +129,6 @@ Together, these operations provide all the necessary tools to manipulate quantum
 ### Use within Pymablock
 
 Whenever the user provides input to {autolink}`~pymablock.block_diagonalize` which is a matrix containing second quantized operators, Pymablock computes the output as {autolink}`~pymablock.series.BlockSeries` of matrices containing number-ordered forms.
-Furthermore, all coefficients of the number-ordered forms are expressions containing {autolink}`~pymablock.number_ordered_form.NumberOperator` objects, which Pymablock uses to avoid storing the original $a^\dagger a$ terms in the coefficients.
 
 To convert the matrices to regular sympy expressions, use `result.applyfunc(lambda x: x.as_expr())`, however for many applications this is not necessary because the number-ordered forms already allow to easily manipulate the expressions.
 

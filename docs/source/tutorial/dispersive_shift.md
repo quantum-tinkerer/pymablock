@@ -111,13 +111,13 @@ display_eq("E_{eff}", E_eff)
 ```
 
 The expression is long, but it becomes simpler if we evaluate it for specific occupation numbers.
-Pymablock uses number operators to simplify the expressions that contain bosonic operators throughout the algorithm execution.
+Pymablock uses number operators combined with the *number-ordered form* of quantum operators to simplify the expressions that contain bosonic operators throughout the algorithm execution (see [here](../second_quantization.md) for the explanation of the algorithm).
 
 To compute the dispersive shift, we need to evaluate $E_{eff}$ for the states with $N_{a_t} = 0, 1$ and $N_{a_r} = 0, 1$.
 We do this by first defining the number operators for the transmon and resonator:
 
 ```{code-cell} ipython3
-from pymablock.second_quantization import NumberOperator
+from pymablock.number_ordered_form import NumberOperator
 
 N_a_t = NumberOperator(a_t)
 N_a_r = NumberOperator(a_r)
