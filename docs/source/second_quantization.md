@@ -124,6 +124,15 @@ First, addition simply merges coefficients of terms with identical operator powe
 Second, taking the adjoint negates all the powers, which turns creation operators into annihilation operators and vice versa, and conjugates the coefficients.
 Together, these operations provide all the necessary tools to manipulate quantum expressions in number-ordered form in Pymablock.
 
+### Use within Pymablock
+
+Whenever the user provides input to {autolink}`~pymablock.block_diagonalize` which is a matrix containing second quantized operators, Pymablock computes the output as {autolink}`~pymablock.series.BlockSeries` of matrices containing number-ordered forms.
+Furthermore, all coefficients of the number-ordered forms are expressions containing {autolink}`~pymablock.number_ordered_form.NumberOperator` objects, which Pymablock uses to avoid storing the original $a^\dagger a$ terms in the coefficients.
+
+To convert the matrices to regular sympy expressions, use `result.applyfunc(lambda x: x.as_expr())`, however for many applications this is not necessary because the number-ordered forms already allow to easily manipulate the expressions.
+
+Then to replace the number operators with their operator form, use `result.doit()` to obtain the matrix with the original creation and annihilation operators.
+
 ## Solving Sylvester Equations
 
 Once per perturbative order, Pymablock solves a Sylvester equation as described in the [algorithm](algorithms.md).

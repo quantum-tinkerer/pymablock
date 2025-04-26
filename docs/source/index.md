@@ -43,8 +43,8 @@ developer.md
 ::::{admonition} **✨ NEW! Second Quantization Support ✨**
 :class: tip
 
-Pymablock now works with second quantization operators!
-Check out our [dispersive shift tutorial](tutorial/dispersive_shift.md) and [Jaynes-Cummings model tutorial](tutorial/jaynes_cummings.md) to see second quantization in action.
+Pymablock now works with second quantized operators!
+Check out our [dispersive shift tutorial](tutorial/dispersive_shift.md) and [Jaynes-Cummings model tutorial](tutorial/jaynes_cummings.md) to see second quantization in action, and see the theoretical background in [second quantization notes](second_quantization.md).
 ::::
 
 ## What is Pymablock?
