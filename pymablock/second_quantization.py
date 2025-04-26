@@ -4,7 +4,7 @@ See number_ordered_form_plan.md for the plan to implement NumberOrderedForm as a
 Operator subclass for better representation of number-ordered expressions.
 """
 
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 import sympy

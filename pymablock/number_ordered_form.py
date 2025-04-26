@@ -7,7 +7,7 @@ and number operators in the middle.
 
 import uuid
 from collections import defaultdict
-from typing import Callable, Dict, List, Tuple
+from collections.abc import Callable
 
 import sympy
 from packaging.specifiers import SpecifierSet
@@ -73,8 +73,8 @@ del _sum
 # Type aliases
 operator_types = BosonOp, FermionOp
 OperatorType = BosonOp | FermionOp
-PowerKey = Tuple[int, ...]
-TermDict = Dict[PowerKey, sympy.Expr]
+PowerKey = tuple[int, ...]
+TermDict = dict[PowerKey, sympy.Expr]
 
 
 class NumberOperator(HermitianOperator):
@@ -180,7 +180,7 @@ class NumberOperator(HermitianOperator):
         return printer._print("N_" + self.args[0], *args)
 
 
-def find_operators(expr: sympy.Expr) -> List[OperatorType]:
+def find_operators(expr: sympy.Expr) -> list[OperatorType]:
     """Find all quantum operators in a SymPy expression.
 
     Parameters
@@ -190,7 +190,7 @@ def find_operators(expr: sympy.Expr) -> List[OperatorType]:
 
     Returns
     -------
-    operators : `List[OperatorType]`
+    operators : `list[OperatorType]`
         A list of unique quantum operators found in the expression. Boson operators are
         listed before fermion operators and both are sorted by their names.
 
@@ -240,7 +240,7 @@ class NumberOrderedForm(Operator):
 
     def __new__(
         cls,
-        operators: List[OperatorType],
+        operators: list[OperatorType],
         terms: TermDict,
         *,
         validate: bool = True,
@@ -289,7 +289,7 @@ class NumberOrderedForm(Operator):
         return result
 
     @staticmethod
-    def _validate_operators(operators: List[OperatorType]) -> None:
+    def _validate_operators(operators: list[OperatorType]) -> None:
         """Validate the operators list.
 
         Parameters
@@ -322,14 +322,14 @@ class NumberOrderedForm(Operator):
                 raise ValueError("Bosonic operators must come before fermionic operators")
 
     @staticmethod
-    def _validate_terms(terms: TermDict, operators: List[OperatorType]) -> None:
+    def _validate_terms(terms: TermDict, operators: list[OperatorType]) -> None:
         """Validate the terms dictionary.
 
         Parameters
         ----------
-        terms : Dict[Tuple[int, ...], sympy.Expr]
+        terms : dict[tuple[int, ...], sympy.Expr]
             Dictionary mapping operator power tuples to coefficient expressions.
-        operators : List[OperatorType]
+        operators : list[OperatorType]
             List of quantum operators to validate against.
 
         Raises
@@ -373,7 +373,7 @@ class NumberOrderedForm(Operator):
 
     @classmethod
     def from_expr(
-        cls, expr: sympy.Expr, operators: List[OperatorType] | None = None
+        cls, expr: sympy.Expr, operators: list[OperatorType] | None = None
     ) -> "NumberOrderedForm":
         """Create a NumberOrderedForm instance from a sympy expression.
 
@@ -585,7 +585,7 @@ class NumberOrderedForm(Operator):
         return result
 
     @property
-    def operators(self) -> List[OperatorType]:
+    def operators(self) -> list[OperatorType]:
         """The list of included operators."""
         return self.args[0]
 
@@ -764,7 +764,7 @@ class NumberOrderedForm(Operator):
         # Return a new NumberOrderedForm instance with the updated terms
         return type(self)(self.operators, new_terms, validate=False)
 
-    def _expand_operators(self, new_operators: List[OperatorType]) -> "NumberOrderedForm":
+    def _expand_operators(self, new_operators: list[OperatorType]) -> "NumberOrderedForm":
         """Expand the operators in this NumberOrderedForm.
 
         This method creates a new NumberOrderedForm with the same terms but expanded
@@ -772,7 +772,7 @@ class NumberOrderedForm(Operator):
 
         Parameters
         ----------
-        new_operators : List[OperatorType]
+        new_operators : list[OperatorType]
             List of new quantum operators to use. Has to contain at least all the
             original operators, and must be correctly ordered.
 
