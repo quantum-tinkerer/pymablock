@@ -9,7 +9,7 @@ Specifically, it covers the implementation of number-ordered forms and the solut
 
 #### From Normal Ordering to Number-Ordered Forms
 
-In quantum field theory and many-body physics, normal ordering is a fundamental concept where creation operators are placed to the left of annihilation operators in an expression: $a^\dagger a a^\dagger$ becomes $a^\dagger a^\dagger a$ when normal ordered.
+In quantum field theory and many-body physics, normal ordering is a fundamental concept where creation operators are placed to the left of annihilation operators in an expression: $a^\dagger a a^\dagger$ becomes $a^\dagger a^\dagger a + a^\dagger$ when normal ordered.
 Normal ordering provides a reference for calculating expectation values and is essential for perturbation theory.
 
 However, simplifying expressions with normal ordering is challenging for complex quantum systems, because the non-commutative nature of quantum operators leads to an explosion of terms as expressions grow.
