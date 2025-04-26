@@ -8,61 +8,17 @@ from typing import Callable
 
 import numpy as np
 import sympy
-from packaging.version import parse
-from sympy.physics.quantum import Operator, boson
 from sympy.physics.quantum.boson import BosonOp
 
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.series import zero
-
-# Monkey patch sympy to propagate adjoint to matrix elements.
-if parse(sympy.__version__) < parse("1.14.0"):
-
-    def _eval_adjoint(self):
-        return self.transpose().applyfunc(lambda x: x.adjoint())
-
-    def _eval_transpose(self):
-        from sympy.functions.elementary.complexes import conjugate
-
-        if self.is_commutative:
-            return self
-        if self.is_hermitian:
-            return conjugate(self)
-        if self.is_antihermitian:
-            return -conjugate(self)
-        return None
-
-    sympy.MatrixBase.adjoint = _eval_adjoint
-    sympy.Expr._eval_transpose = _eval_transpose
-
-    # Only implements skipping identity, and is deleted in 1.14.
-    try:
-        del BosonOp.__mul__
-        del Operator.__mul__
-    except AttributeError:
-        pass
-
-
-# TODO: reimplement once https://github.com/sympy/sympy/issues/27385 is fixed.
-# Monkey patch sympy to override the sum method to ExpressionRawDomain.
-def sum(self, items):  # noqa ARG001
-    """Slower, but overridable version of sympy.Add."""
-    if not items:
-        return sympy.S.Zero
-    result = items[0]
-    for item in items[1:]:
-        result += item
-    return result
-
-
-sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = sum
 
 
 def solve_monomial(
     Y: sympy.Expr,
     H_ii: sympy.Expr,
     H_jj: sympy.Expr,
-    boson_operators: list[boson.BosonOp],
+    boson_operators: list[BosonOp],
 ) -> NumberOrderedForm:
     """Solve a Sylvester equation for bosonic monomial.
 
@@ -132,7 +88,7 @@ def solve_monomial(
 
 def solve_sylvester_bosonic(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
-    boson_operators: list[boson.BosonOp],
+    boson_operators: list[BosonOp],
 ) -> Callable:
     """Solve a Sylvester equation for bosonic diagonal Hamiltonians.
 

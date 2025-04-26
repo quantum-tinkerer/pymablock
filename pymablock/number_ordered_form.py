@@ -10,6 +10,7 @@ from collections import defaultdict
 from typing import Callable, Dict, List, Tuple
 
 import sympy
+from packaging.specifiers import SpecifierSet
 from sympy.physics.quantum import Dagger, HermitianOperator, Operator
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
@@ -21,6 +22,52 @@ __all__ = [
     "NumberOrderedForm",
     "find_operators",
 ]
+
+
+# Monkey patch sympy to propagate adjoint to matrix elements.
+if sympy.__version__ in SpecifierSet("<1.14"):
+
+    def _eval_adjoint(self):
+        return self.transpose().applyfunc(lambda x: x.adjoint())
+
+    def _eval_transpose(self):
+        from sympy.functions.elementary.complexes import conjugate
+
+        if self.is_commutative:
+            return self
+        if self.is_hermitian:
+            return conjugate(self)
+        if self.is_antihermitian:
+            return -conjugate(self)
+        return None
+
+    sympy.MatrixBase.adjoint = _eval_adjoint
+    sympy.Expr._eval_transpose = _eval_transpose
+    del _eval_adjoint
+    del _eval_transpose
+
+    # Only implements skipping identity, and is deleted in 1.14.
+    try:
+        del BosonOp.__mul__
+        del Operator.__mul__
+    except AttributeError:
+        pass
+
+
+# TODO: reimplement once https://github.com/sympy/sympy/issues/27385 is fixed.
+# Monkey patch sympy to override the sum method to ExpressionRawDomain.
+def _sum(self, items):  # noqa ARG001
+    """Slower, but overridable version of sympy.Add."""
+    if not items:
+        return sympy.S.Zero
+    result = items[0]
+    for item in items[1:]:
+        result += item
+    return result
+
+
+sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum
+del _sum
 
 
 # Type aliases
