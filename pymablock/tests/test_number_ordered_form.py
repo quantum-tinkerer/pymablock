@@ -2,7 +2,7 @@
 
 import pytest
 import sympy
-from sympy.physics.quantum import Dagger, boson, fermion
+from sympy.physics.quantum import Commutator, Dagger, IdentityOperator, boson, fermion
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock.number_ordered_form import (
@@ -10,6 +10,38 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
     find_operators,
 )
+
+
+def test_number_operator_interface():
+    """Test the name of the NumberOperator."""
+    # Create a boson operator
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    n_a, n_b = NumberOperator(a), NumberOperator(b)
+    n_f = NumberOperator(f)
+
+    # Check the name of the NumberOperator
+    assert n_a.name == sympy.Symbol("a")
+
+    # Check that it cannot be instantiated with not a wrong operator
+    with pytest.raises(TypeError):
+        NumberOperator(IdentityOperator())
+    # Also not with a creation operator
+    with pytest.raises(ValueError):
+        NumberOperator(Dagger(a))
+
+    assert Commutator(n_a, n_b).doit() == 0
+    assert Commutator(n_a, n_f).doit() == 0
+
+    assert Commutator(n_a, a).doit() == -a
+    assert Commutator(n_a, b).doit(independent=True) == 0
+    assert Commutator(n_a, f).doit() == 0
+    assert Commutator(n_f, a).doit(independent=True) == 0
+    assert Commutator(n_f, g).doit(independent=True) == 0
+    assert Commutator(n_f, f).doit() == -f
+
+    assert sympy.latex(n_a) == "{N_{a}}"
+    assert sympy.pretty(n_a) == "N_a"
 
 
 def test_find_operators():
@@ -109,6 +141,15 @@ def test_number_ordered_form_validation():
     with pytest.raises(ValueError, match="contains creation or annihilation operators"):
         NumberOrderedForm([a], {(0,): a * sympy.S.One})
 
+    # Test that fractional powers are not allowed
+    with pytest.raises(TypeError, match="Power must be an integer"):
+        NumberOrderedForm([a], {(1.5,): sympy.S.One})
+
+    # Test that symbolic non-integer powers are not allowed
+    k = sympy.symbols("k")
+    with pytest.raises(TypeError, match="Power must be an integer"):
+        NumberOrderedForm([a], {(k,): sympy.S.One})
+
 
 def test_boolean_evaluation():
     """Test boolean evaluation of NumberOrderedForm."""
@@ -185,6 +226,17 @@ def test_from_expr():
     # Check that all coefficients are sympy expressions
     for power in nof.terms:
         assert isinstance(nof.terms[power], sympy.Expr)
+
+    # Try on something that cannot be sympified
+    with pytest.raises(ValueError):
+        NumberOrderedForm.from_expr("not an expression")
+
+    # Apply to a sympy function
+    with pytest.raises(ValueError):
+        NumberOrderedForm.from_expr(sympy.sin(a))
+
+    nof2 = NumberOrderedForm.from_expr(sympy.sin(a * Dagger(a)))
+    assert nof2.as_expr() == sympy.sin(NumberOperator(a) + 1)
 
 
 def test_dagger():
@@ -612,6 +664,55 @@ def test_multiplication():
     expected = NumberOrderedForm.from_expr(nof8.as_expr() * expr_with_number_op)
 
     assert result == expected
+
+
+def test_division():
+    """Test division of NumberOrderedForm by scalars."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    x, y = sympy.symbols("x y", real=True)
+
+    # Test division by a scalar
+    nof1 = NumberOrderedForm([a], {(1,): sympy.S(6)})  # 6*a
+    scalar = sympy.S(2)  # 2
+
+    result = nof1 / scalar
+    expected = NumberOrderedForm([a], {(1,): sympy.S(3)})  # 3*a
+
+    assert result == expected
+
+    # Test division by a symbol
+    nof2 = NumberOrderedForm([a, b], {(1, 0): x, (0, 1): x * y})  # x*a + x*y*b
+    symbol = x  # x
+
+    result = nof2 / symbol
+    expected = NumberOrderedForm([a, b], {(1, 0): sympy.S.One, (0, 1): y})  # a + y*b
+
+    assert result == expected
+
+    # Test division by a more complex expression
+    nof3 = NumberOrderedForm([a], {(1,): x**2 * y})  # x^2*y*a
+    expr = x * y  # x*y
+
+    result = nof3 / expr
+    expected = NumberOrderedForm([a], {(1,): x})  # x*a
+
+    assert result == expected
+
+    # Test division by number operator
+    nof4 = NumberOrderedForm([a], {(1,): sympy.S.One})  # a
+    non_scalar = NumberOperator(a)  # Na
+
+    result = nof4 / non_scalar
+    expected = NumberOrderedForm([a], {(1,): sympy.S.One / (NumberOperator(a) + 1)})
+
+    assert result == expected
+
+    # Test division by an unsimplifiable expression
+    nof5 = NumberOrderedForm([a], {(1,): sympy.S.One})  # a
+    unsimplifiable_expr = "not an expression"  # Invalid expression
+
+    with pytest.raises(TypeError):
+        nof5 / unsimplifiable_expr
 
 
 def test_simplify_basic():

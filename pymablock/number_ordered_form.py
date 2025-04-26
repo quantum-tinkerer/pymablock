@@ -177,7 +177,7 @@ class NumberOperator(HermitianOperator):
         return r"N_%s" % str(self.name)
 
     def _print_contents_pretty(self, printer, *args):
-        return printer._print("N_" + self.args[0], *args)
+        return printer._print("N_%s" % str(self.name), *args)
 
 
 def find_operators(expr: sympy.Expr) -> list[OperatorType]:
@@ -687,8 +687,7 @@ class NumberOrderedForm(Operator):
                 f"Operator index {op_index} out of range [0, {len(self.operators)})"
             )
 
-        if op_power == 0:
-            return self  # Multiplying by op^0 = 1 doesn't change anything
+        assert op_power != 0, "op_power must be non-zero"
 
         operator = self.operators[op_index]
         if isinstance(operator, FermionOp):
