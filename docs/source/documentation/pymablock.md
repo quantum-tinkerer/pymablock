@@ -36,14 +36,6 @@
    :show-inheritance:
 ```
 
-## Second quantization
-
-```{eval-rst}
-.. automodule:: pymablock.second_quantization
-   :members: solve_monomial, solve_sylvester_bosonic, apply_mask_to_operator
-   :show-inheritance:
-```
-
 ## Number ordered form
 
 ```{eval-rst}
@@ -54,13 +46,21 @@
 
 ```{eval-rst}
 .. autoclass:: pymablock.number_ordered_form.NumberOrderedForm
-   :members: operators, terms, from_expr, as_expr, apply_sympy_func, is_particle_conserving filter_terms
-   :no-index: __new__
+   :members:
+   :class-doc-from: class
 ```
 
 ```{eval-rst}
 .. automodule:: pymablock.number_ordered_form
-   :members: find_operators
+   :members: find_operators, BosonOp, FermionOp
+   :show-inheritance:
+```
+
+## Second quantization
+
+```{eval-rst}
+.. automodule:: pymablock.second_quantization
+   :members: solve_sylvester_bosonic, apply_mask_to_operator
    :show-inheritance:
 ```
 

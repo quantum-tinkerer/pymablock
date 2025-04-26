@@ -7,14 +7,21 @@ and number operators in the middle.
 
 import uuid
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import sympy
-from sympy.physics.quantum import Dagger, HermitianOperator, Operator, boson, fermion
+from sympy.physics.quantum import Dagger, HermitianOperator, Operator
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.operatorordering import normal_ordered_form
+
+__all__ = [
+    "NumberOperator",
+    "NumberOrderedForm",
+    "find_operators",
+]
+
 
 # Type aliases
 operator_types = BosonOp, FermionOp
@@ -53,14 +60,14 @@ class NumberOperator(HermitianOperator):
         """
         try:
             (operator,) = args
-            if not isinstance(operator, (boson.BosonOp, fermion.FermionOp)):
+            if not isinstance(operator, operator_types):
                 raise TypeError(
                     "NumberOperator requires a bosonic or fermionic operator."
                 )
             if not operator.is_annihilation:
                 raise ValueError("Operator must be an annihilation operator.")
             name = operator.name
-            operator_type = "boson" if isinstance(operator, boson.BosonOp) else "fermion"
+            operator_type = "boson" if isinstance(operator, BosonOp) else "fermion"
         except ValueError:
             name, operator_type = args
 
@@ -71,27 +78,25 @@ class NumberOperator(HermitianOperator):
             **hints,
         )
 
-    def doit(self, **hints):  # noqa: ARG002
+    def doit(self, **hints) -> sympy.Expr:  # noqa: ARG002
         """Evaluate the operator.
 
         For example,
 
-            >>> from sympy.physics.quantum import boson
-            >>> from pymablock.second_quantization import NumberOperator
-            >>> b = boson.BosonOp('b')
-            >>> n = NumberOperator(b)
-            >>> n.doit()
-            Dagger(b)*b
+        >>> from sympy.physics.quantum.boson import BosonOp
+        >>> from pymablock.second_quantization import NumberOperator
+        >>> b = BosonOp('b')
+        >>> n = NumberOperator(b)
+        >>> n.doit()
+        Dagger(b)*b
 
         Returns
         -------
-        sympy.core.expr.Expr
+        result : `~sympy.core.expr.Expr`
             The evaluated operator.
 
         """
-        op = (boson.BosonOp if self.args[1].name == "boson" else fermion.FermionOp)(
-            self.args[0]
-        )
+        op = (BosonOp if self.args[1].name == "boson" else FermionOp)(self.args[0])
         return Dagger(op) * op
 
     def _eval_commutator_NumberOperator(self, other):  # noqa: ARG002
@@ -138,7 +143,7 @@ def find_operators(expr: sympy.Expr) -> List[OperatorType]:
 
     Returns
     -------
-    List[OperatorType]
+    operators : `List[OperatorType]`
         A list of unique quantum operators found in the expression. Boson operators are
         listed before fermion operators and both are sorted by their names.
 
@@ -171,21 +176,14 @@ class NumberOrderedForm(Operator):
 
     Parameters
     ----------
-    operators : List[OperatorType]
+    operators :
         List of quantum operators (annihilation operators only).
-    terms : Dict[Tuple[int, ...], sympy.Expr]
+    terms :
         Dictionary mapping operator power tuples to coefficient expressions.
         Negative powers represent creation operators, positive powers represent
         annihilation operators.
     **hints : dict
         Additional hints passed to the parent class.
-
-    Attributes
-    ----------
-    operators : List[OperatorType]
-        Sorted list of quantum operators (bosons before fermions).
-    terms : Dict[Tuple[int, ...], sympy.Expr]
-        Dictionary mapping operator power tuples to coefficient expressions.
 
     """
 
@@ -205,13 +203,13 @@ class NumberOrderedForm(Operator):
 
         Parameters
         ----------
-        operators : List[OperatorType]
-            List of quantum operators (annihilation operators only).
-        terms : Dict[Tuple[int, ...], sympy.Expr]
+        operators :
+            List of operators (annihilation operators only).
+        terms :
             Dictionary mapping operator power tuples to coefficient expressions.
             Negative powers represent creation operators, positive powers represent
             annihilation operators.
-        validate : bool, optional
+        validate :
             Whether to validate the operators and terms, by default True.
         **hints : dict
             Additional hints passed to the parent class.
@@ -249,7 +247,7 @@ class NumberOrderedForm(Operator):
 
         Parameters
         ----------
-        operators : List[OperatorType]
+        operators :
             List of quantum operators to validate.
 
         Raises
@@ -327,14 +325,16 @@ class NumberOrderedForm(Operator):
                 )
 
     @classmethod
-    def from_expr(cls, expr, operators=None) -> "NumberOrderedForm":
+    def from_expr(
+        cls, expr: sympy.Expr, operators: List[OperatorType] | None = None
+    ) -> "NumberOrderedForm":
         """Create a NumberOrderedForm instance from a sympy expression.
 
         Parameters
         ----------
-        expr : sympy.Expr
+        expr :
             Sympy expression with quantum operators.
-        operators : List[OperatorType], optional
+        operators :
             List of quantum operators to use. If None, operators will be extracted from
             the expression.
 
@@ -349,7 +349,7 @@ class NumberOrderedForm(Operator):
 
         >>> from sympy.physics.quantum import boson
         >>> from pymablock.number_ordered_form import NumberOrderedForm
-        >>> a = boson.BosonOp('a')
+        >>> a = BosonOp('a')
         >>> expr = a.adjoint() * a + 1  # a^† * a + 1
         >>> nof = NumberOrderedForm.from_expr(expr)
         >>> nof
@@ -375,7 +375,7 @@ class NumberOrderedForm(Operator):
             return expr
 
         # For scalar expressions (no operators)
-        if not expr.has(BosonOp, FermionOp, NumberOperator):
+        if not expr.has(*operator_types, NumberOperator):
             # Return a NumberOrderedForm with no operators and a single term
             return cls([], {(): expr}, validate=False)
 
@@ -486,18 +486,18 @@ class NumberOrderedForm(Operator):
 
         Returns
         -------
-        sympy.Expr
+        result : `~sympy.core.expr.Expr`
             A standard SymPy expression equivalent to this NumberOrderedForm.
 
         Examples
         --------
         Convert a NumberOrderedForm to a standard SymPy expression:
 
-        >>> from sympy.physics.quantum import boson
+        >>> from sympy.physics.quantum.boson import BosonOp
         >>> from pymablock.number_ordered_form import (
         ...     NumberOrderedForm, NumberOperator
         ... )
-        >>> a = boson.BosonOp('a')
+        >>> a = BosonOp('a')
         >>> # Create NumberOrderedForm with creation and annihilation operators
         >>> nof = NumberOrderedForm.from_expr(a.adjoint() * a + 2)
         >>> nof
@@ -539,24 +539,12 @@ class NumberOrderedForm(Operator):
 
     @property
     def operators(self) -> List[OperatorType]:
-        """Get the list of operators.
-
-        Returns
-        -------
-        List[OperatorType]
-            The list of operators.
-
-        """
+        """The list of included operators."""
         return self.args[0]
 
     @property
     def terms(self) -> TermDict:
-        """Get the dictionary of terms.
-
-        Returns
-        -------
-        Dict[Tuple[int, ...], sympy.Expr]
-            The dictionary of terms.
+        """The dictionary of terms.
 
         Notes
         -----
@@ -690,12 +678,12 @@ class NumberOrderedForm(Operator):
         # Create the new NumberOrderedForm with the same operators but new terms
         return type(self)(self.operators, new_terms, validate=False)
 
-    def _multiply_expr(self, expr):
+    def _multiply_expr(self, expr: sympy.Expr):
         """Multiply by an expression without creation or annihilation operators.
 
         Parameters
         ----------
-        expr : sympy.Expr
+        expr :
             Expression to multiply by.
             This expression should not contain any creation or annihilation operators.
 
@@ -1011,7 +999,7 @@ class NumberOrderedForm(Operator):
         """
         return bool(self.args[1])
 
-    def apply_sympy_func(self, func, *args, **kwargs):
+    def applyfunc(self, func: Callable, *args, **kwargs):
         """Apply a SymPy function to the terms of this NumberOrderedForm.
 
         This method temporarily replaces NumberOperators with unique symbols,
@@ -1019,7 +1007,7 @@ class NumberOrderedForm(Operator):
 
         Parameters
         ----------
-        func : callable
+        func :
             SymPy function to apply (e.g., sympy.simplify, sympy.factor)
         *args
             Additional positional arguments for the function
@@ -1069,14 +1057,14 @@ class NumberOrderedForm(Operator):
             A simplified NumberOrderedForm
 
         """
-        return self.apply_sympy_func(sympy.simplify, **kwargs)
+        return self.applyfunc(sympy.simplify, **kwargs)
 
-    def __pow__(self, exp) -> "NumberOrderedForm":
+    def __pow__(self, exp: sympy.Expr) -> "NumberOrderedForm":
         """Raise this NumberOrderedForm to a power.
 
         Parameters
         ----------
-        exp : sympy.Expr
+        exp :
             The exponent to raise this NumberOrderedForm to.
 
         Returns
@@ -1170,7 +1158,7 @@ class NumberOrderedForm(Operator):
         )
 
     def filter_terms(
-        self, conditions: tuple[tuple[sympy.Expr, ...], ...], keep: bool = False
+        self, conditions: tuple[tuple[sympy.core.Expr, ...], ...], keep: bool = False
     ) -> "NumberOrderedForm":
         """Filter the terms of this NumberOrderedForm based on given conditions.
 

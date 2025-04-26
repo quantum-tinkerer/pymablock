@@ -748,7 +748,7 @@ def solve_sylvester_KPM(
 
     Returns
     -------
-    solve_sylvester: Callable
+    solve_sylvester: `Callable`
         Function that applies divide by energies to the right hand side of
         Sylvester's equation.
 

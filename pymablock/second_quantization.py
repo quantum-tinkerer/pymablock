@@ -87,7 +87,8 @@ def solve_monomial(
 
     Returns
     -------
-    Result of the Sylvester equation for bosonic operators.
+    NumberOrderedForm
+        Result of the Sylvester equation for bosonic operators.
 
     """
     # Plan:
@@ -188,7 +189,7 @@ def apply_mask_to_operator(
     operator: sympy.MatrixBase,
     mask: np.ndarray,
     keep: bool = True,
-) -> sympy.MatrixBase:
+) -> sympy.Matrix:
     """Apply a mask to filter specific terms in a matrix operator.
 
     This function selectively keeps terms in a symbolic matrix operator based on
@@ -201,9 +202,9 @@ def apply_mask_to_operator(
     operator :
         Matrix operator containing symbolic expressions with second quantized operators.
     mask :
-        A matrix with `NumberOrderedForm` that define selection criteria. Specifically,
-        the elements of the `operator[i, j]` with powers matching any `mask[i, j].terms`
-        are selected.
+        A matrix with `~pymablock.number_ordered_form.NumberOrderedForm` elements that
+        define selection criteria. Specifically, the elements of the `operator[i, j]`
+        with powers matching any `mask[i, j].terms` are selected.
     keep :
         If True (default), keep the terms that satisfy any of the conditions. If False
         discard the terms that satisfy any of the conditions. Used for inverting the
@@ -211,7 +212,7 @@ def apply_mask_to_operator(
 
     Returns
     -------
-    sympy.MatrixBase
+    filtered: `sympy.matrices.dense.MutableDenseMatrix`
         A new matrix with the same shape as the input, but containing only the
         selected terms.
 

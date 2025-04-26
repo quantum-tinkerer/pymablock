@@ -11,6 +11,7 @@ from .block_diagonalization import (
     block_diagonalize, operator_to_BlockSeries
 )
 from . import second_quantization
+from . import number_ordered_form
 
 __all__ = [
     "block_diagonalize",

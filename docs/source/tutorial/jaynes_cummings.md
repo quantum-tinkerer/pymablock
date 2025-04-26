@@ -82,10 +82,10 @@ For example, to compute the 2nd order correction of the Hamiltonian of the $\upa
 Eq(Symbol(r'\tilde{H}_2'), simplify(H_tilde[0, 0, 2]), evaluate=False)
 ```
 
-The output contains $N_a = a^\dagger a$, the number operator for the bosonic mode, which is a {autolink}`~pymablock.second_quantization.NumberOperator` object:
+The output contains $N_a = a^\dagger a$, the number operator for the bosonic mode, which is a {autolink}`~pymablock.number_ordered_form.NumberOperator` object:
 
 ```{code-cell} ipython3
-from pymablock.second_quantization import NumberOperator
+from pymablock.number_ordered_form import NumberOperator
 
 NumberOperator(a)
 ```
