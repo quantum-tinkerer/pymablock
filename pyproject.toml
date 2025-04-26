@@ -188,7 +188,7 @@ sympy = "~=1.13.0"
 [tool.pixi.feature.latest.dependencies]
 python = "~=3.13.0"
 numpy = ">=2.2.0"
-scipy = ">=1.14.0"
+scipy = ">=1.15.0"
 sympy = ">=1.13.0"
 
 [tool.pixi.feature.docs.dependencies]
