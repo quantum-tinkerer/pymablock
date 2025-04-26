@@ -21,8 +21,8 @@ kernelspec:
 tutorial/getting_started.md
 tutorial/bilayer_graphene.md
 Induced superconducting gap <tutorial/induced_gap.md>
-Dispersive shift of a resonator <tutorial/dispersive_shift.md>
 tutorial/jaynes_cummings.md
+Dispersive shift of a resonator <tutorial/dispersive_shift.md>
 tutorial/andreev_supercurrent.md
 ```
 

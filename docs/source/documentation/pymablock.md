@@ -40,13 +40,14 @@
 
 ```{eval-rst}
 .. autoclass:: pymablock.number_ordered_form.NumberOperator
-   :members: name, doit
+   :members:
    :show-inheritance:
 ```
 
 ```{eval-rst}
 .. autoclass:: pymablock.number_ordered_form.NumberOrderedForm
    :members:
+   :show-inheritance:
    :class-doc-from: class
 ```
 
