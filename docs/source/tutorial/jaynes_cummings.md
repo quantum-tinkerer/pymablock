@@ -63,7 +63,7 @@ from pymablock import block_diagonalize
 H_tilde, U, U_adjoint = block_diagonalize([H_0, H_p], symbols=[g])
 ```
 
-The function `block_diagonalize` takes the Hamiltonian and the perturbative parameter as input.
+The function {autolink}`block_diagonalize` takes the Hamiltonian and the perturbative parameter as input.
 Differently from the rest of the tutorials, here we do not provide `susbpace_vectors` or `subspace_indices`.
 Pymablock treats the Hamiltonian as a single block, where the goal is to remove all terms that are not diagonal.
 The output therefore is a $2 \times 2$ block-diagonal Hamiltonian that only contains number operators.
@@ -71,7 +71,7 @@ The output therefore is a $2 \times 2$ block-diagonal Hamiltonian that only cont
 ```{note}
 Pymablock only supports diagonal unperturbed Hamiltonians when using bosonic operators.
 This means that $H_0$ must be block-diagonal and its entries need to be convertible to functions of the number operator, without single boson terms.
-This limitation may be lifted using advanced functionality, by providing a custom `solve_sylvester` input to the `block_diagonalize` function.
+This limitation may be lifted using advanced functionality, by providing a custom `solve_sylvester` input to the {autolink}`block_diagonalize` function.
 ```
 
 For example, to compute the 2nd order correction of the Hamiltonian of the $\uparrow$ subspace (the `(0, 0)` block) we use
@@ -82,9 +82,22 @@ For example, to compute the 2nd order correction of the Hamiltonian of the $\upa
 Eq(Symbol(r'\tilde{H}_2'), simplify(H_tilde[0, 0, 2]), evaluate=False)
 ```
 
-The output contains $N_a = a^\dagger a$, the number operator for the bosonic mode, which is a {autolink}`~pymablock.number_ordered_form.NumberOperator` object, and furthermore the output is stored in the {autolink}`~pymablock.number_ordered_form.NumberOrderedForm` class that Pymablock uses for efficient manipulation of second quantized expressions.
+:::{admonition} Pymablock's number operator
+:class: dropdown
+
+Pymablock's output contains $N_a = a^\dagger a$, the number operator for the bosonic mode, which is a {autolink}`~pymablock.number_ordered_form.NumberOperator` object.
+Furthermore, the output is stored in the {autolink}`~pymablock.number_ordered_form.NumberOrderedForm` class that Pymablock uses for efficient manipulation of second quantized expressions.
+
+To see the result in terms of individual bosonic operators, we may use the `doit` method:
+
+```python
+
+simplify(H_tilde[0, 0, 2])[0, 0].doit()
+```
 
 Check out the [documentation](../second_quantization.md) for more information on how to use number operators and simplify expressions that contain them.
+
+:::
 
 Higher order corrections to the Hamiltonian work exactly the same:
 

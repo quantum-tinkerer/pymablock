@@ -100,7 +100,7 @@ The matrix has a single element, because we are interested in the corrections to
 :class: warning
 
 Pymablock only supports bosonic Hamiltonians whose unperturbed part is diagonal: diagonal in the matrix representation and diagonal in the bosonic basis.
-When calling `block_diagonalize`, the unperturbed Hamiltonian must be provided as a `sympy.Matrix` with `BosonOp` elements in its entries.
+When calling {autolink}`block_diagonalize`, the unperturbed Hamiltonian must be provided as a `sympy.Matrix` with `BosonOp` elements in its entries.
 :::
 
 The effective Hamiltonian is a $1 \times 1$ matrix, whose entry is a function of the number of excitations in the transmon $N_{a_t} = a_t^\dagger a_t$ and the resonator $N_{a_r} = a_r^\dagger a_r$.
@@ -111,13 +111,14 @@ display_eq("E_{eff}", E_eff)
 ```
 
 The expression is long, but it becomes simpler if we evaluate it for specific occupation numbers.
-Pymablock uses number operators combined with the *number-ordered form* of quantum operators to simplify the expressions that contain bosonic operators throughout the algorithm execution:
 
-```{code-cell} ipython3
-type(E_eff)
-```
+:::{admonition} Pymablock's number-ordered form
+:class: dropdown
 
+Pymablock uses number operators combined with the *number-ordered form* of quantum operators to simplify the expressions that contain bosonic operators throughout the algorithm execution.
 See [here](../second_quantization.md) for the explanation of the algorithm.
+
+:::
 
 To compute the dispersive shift, we need to evaluate $E_{eff}$ for the states with $N_{a_t} = 0, 1$ and $N_{a_r} = 0, 1$.
 We do this by first defining the number operators for the transmon and resonator:
@@ -142,7 +143,7 @@ chi = E_eff_11 - E_eff_10 - E_eff_01 + E_eff_00
 display_eq(r"\chi", chi)
 ```
 
-Note that $\chi$ is also a `NumberOrderedForm` object and we may use `chi.as_expr()` to convert it to a `sympy` expression.
+Note that $\chi$ is also a {autolink}`pymablock.number_ordered_form.NumberOrderedForm` object and we may use `chi.as_expr()` to convert it to a `sympy` expression.
 
 ## Approach II: matrix representation
 
