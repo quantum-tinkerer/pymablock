@@ -3,7 +3,7 @@
 import pytest
 import sympy
 from packaging.specifiers import SpecifierSet
-from sympy.physics.quantum import Commutator, Dagger, IdentityOperator, boson, fermion
+from sympy.physics.quantum import Commutator, Dagger, HermitianOperator, boson, fermion
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock.number_ordered_form import (
@@ -26,7 +26,7 @@ def test_number_operator_interface():
 
     # Check that it cannot be instantiated with not a wrong operator
     with pytest.raises(TypeError):
-        NumberOperator(IdentityOperator())
+        NumberOperator(HermitianOperator("a"))
     # Also not with a creation operator
     with pytest.raises(ValueError):
         NumberOperator(Dagger(a))
