@@ -111,7 +111,13 @@ display_eq("E_{eff}", E_eff)
 ```
 
 The expression is long, but it becomes simpler if we evaluate it for specific occupation numbers.
-Pymablock uses number operators combined with the *number-ordered form* of quantum operators to simplify the expressions that contain bosonic operators throughout the algorithm execution (see [here](../second_quantization.md) for the explanation of the algorithm).
+Pymablock uses number operators combined with the *number-ordered form* of quantum operators to simplify the expressions that contain bosonic operators throughout the algorithm execution:
+
+```{code-cell} ipython3
+type(E_eff)
+```
+
+See [here](../second_quantization.md) for the explanation of the algorithm.
 
 To compute the dispersive shift, we need to evaluate $E_{eff}$ for the states with $N_{a_t} = 0, 1$ and $N_{a_r} = 0, 1$.
 We do this by first defining the number operators for the transmon and resonator:
@@ -131,10 +137,12 @@ E_eff_01 = E_eff.subs({N_a_t: 0, N_a_r: 1})
 E_eff_10 = E_eff.subs({N_a_t: 1, N_a_r: 0})
 E_eff_11 = E_eff.subs({N_a_t: 1, N_a_r: 1})
 
-xi = sympy.simplify(E_eff_11 - E_eff_10 - E_eff_01 + E_eff_00)
+chi = E_eff_11 - E_eff_10 - E_eff_01 + E_eff_00
 
-display_eq(r"\chi", xi)
+display_eq(r"\chi", chi)
 ```
+
+Note that $\chi$ is also a `NumberOrderedForm` object and we may use `chi.as_expr()` to convert it to a `sympy` expression.
 
 ## Approach II: matrix representation
 
@@ -189,9 +197,9 @@ H_tilde.shape
 Finally, we compute the dispersive shift from the second order correction to the energies
 
 ```{code-cell} ipython3
-xi = (H_tilde[0, 0, 2] - H_tilde[1, 1, 2] - H_tilde[2, 2, 2] + H_tilde[3, 3, 2])[0, 0]
+chi = (H_tilde[0, 0, 2] - H_tilde[1, 1, 2] - H_tilde[2, 2, 2] + H_tilde[3, 3, 2])[0, 0]
 
-display_eq(r"\chi", xi)
+display_eq(r"\chi", chi)
 ```
 
 In this example, we have not used the rotating wave approximation, including the frequently omitted counter-rotating terms $\sim a_{r} a_{t}$ to illustrate the extensibility of Pymablock.
