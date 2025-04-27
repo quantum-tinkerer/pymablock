@@ -4,8 +4,8 @@ build:
   os: ubuntu-22.04
   commands:
     - asdf plugin add pixi https://github.com/pavelzw/asdf-pixi.git
-    - asdf install pixi 0.39.5
-    - asdf global pixi 0.39.5
+    - asdf install pixi latest
+    - asdf global pixi latest
     - pixi run docs-build
     - mkdir -p $READTHEDOCS_OUTPUT/html/
     - cp -r docs/build/html/** $READTHEDOCS_OUTPUT/html/
