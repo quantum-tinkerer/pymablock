@@ -13,6 +13,11 @@ from sympy.physics.quantum.boson import BosonOp
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.series import zero
 
+__all__ = [
+    "apply_mask_to_operator",
+    "solve_sylvester_bosonic",
+]
+
 
 def solve_monomial(
     Y: sympy.Expr,
@@ -46,14 +51,11 @@ def solve_monomial(
     NumberOrderedForm
         Result of the Sylvester equation for bosonic operators.
 
+    Notes
+    -----
+    See the second quantization documentation for the derivation.
+
     """
-    # Plan:
-    # 1. Find all the boson operators in Y, H_ii, and H_jj.
-    # 2. Manipulate H_ii and H_jj so that are explicit functions of number
-    #    operators.
-    # 3. Separate the terms of Y into monomials.
-    # 4. For each monomial, shift the numbers in H_jj
-    # 5. Multiply by the corresponding monomial in Y.
     if Y == 0:
         return sympy.S.Zero
 
@@ -189,8 +191,7 @@ def apply_mask_to_operator(
     >>> H = sympy.Matrix([[a * Dagger(a) + b * Dagger(b), a * Dagger(b)],
             [b * Dagger(a), a * Dagger(a) - b * Dagger(b)]])
     >>> # Convert to NumberOrderedForm for easier handling
-    >>> H_nof = sympy.Matrix([[NumberOrderedForm.from_expr(H[i, j]) for j in range(H.cols)]
-                    for i in range(H.rows)])
+    >>> H_nof = H.applyfunc(NumberOrderedForm.from_expr)
     >>>
     >>> # Create a mask that selects only terms with a specific power pattern
     >>> # Select only terms with exactly one 'a' operator and one 'b' operator
