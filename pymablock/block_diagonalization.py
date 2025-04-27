@@ -145,8 +145,9 @@ def block_diagonalize(
         be eliminated by the diagonalization. If there is only one block, the boolean
         array may be provided directly without a dictionary. Must be symmetric, and may
         not have any True values corresponding to matrix elements coupling degenerate
-        eigenvalues. If the Hamiltonian is symbolic, the entries of the array correspond
-        to sums of all possible operator powers to eliminate.
+        eigenvalues. If the Hamiltonian has second-quantized operators, the array may be
+        a sympy matrix instead, and its entries must correspond to sums of all possible
+        operator powers to eliminate, e.g. ``a + Dagger(a)`` or ``a ** k + Dagger(a) ** k``.
 
     Returns
     -------
