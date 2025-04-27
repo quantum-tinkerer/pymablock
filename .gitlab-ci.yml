@@ -41,7 +41,6 @@ run coverage:
 
 run docs:
   script:
-    - pixi install -e docs  # Attempt to fix the weird cache issue
     - pixi run docs-build
   artifacts:
     paths:
