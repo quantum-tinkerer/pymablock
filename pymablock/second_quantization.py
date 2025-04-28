@@ -33,7 +33,8 @@ def solve_monomial(
     `H_ii` and `H_jj` are scalar expressions containing number operators of
     possibly several bosons.
 
-    See more details of how this works in the second quantization documentation.
+    See more details of how this works in the :doc:`second quantization
+    documentation <../second_quantization>`.
 
     Parameters
     ----------
@@ -153,7 +154,8 @@ def apply_mask_to_operator(
     This function selectively keeps terms in a symbolic matrix operator based on
     their powers of creation and annihilation operators.
 
-    See more details of how this works in the second quantization documentation.
+    See more details of how this works in the :doc:`second quantization
+    documentation <../second_quantization>`.
 
     Parameters
     ----------

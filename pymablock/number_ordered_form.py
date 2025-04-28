@@ -219,7 +219,8 @@ class NumberOrderedForm(Operator):
     commuting a creation or annihilation operator through a function of a number operator
     simply replaces the corresponding number operator `N` with `N ± 1`.
 
-    See more details in the second quantization documentation.
+    See the :doc:`second quantization documentation <../second_quantization>` for a
+    detailed description.
 
     Parameters
     ----------
