@@ -242,6 +242,14 @@ def test_from_expr():
     assert nof2.as_expr() == sympy.sin(NumberOperator(a) + 1)
 
 
+def test_doit():
+    """Test the doit method of NumberOrderedForm."""
+    a = boson.BosonOp("a")
+    n_a = NumberOperator(a)
+    nof = NumberOrderedForm.from_expr(Dagger(a) * n_a)
+    assert nof.doit() == Dagger(a) ** 2 * a
+
+
 def test_dagger():
     """Test the Dagger method of NumberOrderedForm."""
     a = boson.BosonOp("a")

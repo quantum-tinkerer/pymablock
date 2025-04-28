@@ -584,6 +584,22 @@ class NumberOrderedForm(Operator):
 
         return result
 
+    def doit(self, **hints) -> sympy.Expr:
+        """Evaluate the NumberOrderedForm.
+
+        Parameters
+        ----------
+        **hints :
+            Additional hints passed to the parent class.
+
+        Returns
+        -------
+        result : `~sympy.core.expr.Expr`
+            The evaluated NumberOrderedForm.
+
+        """
+        return self.as_expr().doit(**hints)
+
     @property
     def operators(self) -> list[OperatorType]:
         """The list of included operators."""
