@@ -52,9 +52,7 @@
 ```
 
 ```{eval-rst}
-.. automodule:: pymablock.number_ordered_form
-   :members: find_operators, BosonOp, FermionOp
-   :show-inheritance:
+.. autofunction:: pymablock.number_ordered_form.find_operators
 ```
 
 ## Second quantization
