@@ -108,6 +108,7 @@ html_theme_options = {
         "module=CoreAdminHome&action=optOutJS&divId=matomo-opt-out"
         '&language=auto&showIntro=1"></script>'
     ),
+    "show_toc_level": 2,
 }
 
 tippy_doi_template = """
