@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Dropped support for Numpy 1.24 and Scipy 1.10 according to the [SPEC-0](https://scientific-python.org/specs/spec-0000/).
+- Dropped support for Numpy 1.25, Scipy 1.11, and Sympy 1.12 according to the [SPEC-0](https://scientific-python.org/specs/spec-0000/).
 
 ## [2.1.0] - 2024-11-19
 

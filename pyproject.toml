@@ -13,8 +13,8 @@ readme = "README.md"
 # This project follows https://scientific-python.org/specs/spec-0000/
 requires-python = ">=3.11"
 dependencies = [
-    "numpy>=1.24",
-    "scipy>=1.11",
+    "numpy>=1.26",
+    "scipy>=1.12",
     "sympy>=1.13",
     "python-mumps>=0.0.1,<0.1",
     "packaging>=22.0",  # For version parsing
@@ -175,8 +175,8 @@ tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 
 [tool.pixi.feature.minimal.dependencies]
 python = "~=3.11.0"
-numpy = "~=1.25.0"
-scipy = "~=1.11.0"
+numpy = "~=1.26.0"
+scipy = "~=1.12.0"
 sympy = "~=1.13.0"
 
 [tool.pixi.feature.mid.dependencies]
