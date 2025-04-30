@@ -2,7 +2,6 @@
 
 import pytest
 import sympy
-from packaging.specifiers import SpecifierSet
 from sympy.physics.quantum import Commutator, Dagger, HermitianOperator, boson, fermion
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
@@ -39,9 +38,7 @@ def test_number_operator_interface():
     assert Commutator(n_a, f).doit() == 0
     assert Commutator(n_f, a).doit(independent=True) == 0
     assert Commutator(n_f, g).doit(independent=True) == 0
-    if sympy.__version__ in SpecifierSet(">=1.13"):
-        # Fermion exponentiation was fixed in sympy 1.13
-        assert Commutator(n_f, f).doit() == -f
+    assert Commutator(n_f, f).doit() == -f
 
     assert sympy.latex(n_a) == "{N_{a}}"
     assert sympy.pretty(n_a) == "N_a"

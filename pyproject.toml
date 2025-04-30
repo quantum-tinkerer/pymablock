@@ -15,7 +15,7 @@ requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.11",
-    "sympy>=1.12",
+    "sympy>=1.13",
     "python-mumps>=0.0.1,<0.1",
     "packaging>=22.0",  # For version parsing
 ]
@@ -158,7 +158,7 @@ git = "*"
 python = ">=3.11"
 numpy = ">=1.25"
 scipy = ">=1.11"
-sympy = ">=1.12"
+sympy = ">=1.13"
 python-mumps = ">=0.0.1,<0.1"
 packaging = ">=22.0" # For version parsing
 
@@ -177,7 +177,7 @@ tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 python = "~=3.11.0"
 numpy = "~=1.25.0"
 scipy = "~=1.11.0"
-sympy = "~=1.12.0"
+sympy = "~=1.13.0"
 
 [tool.pixi.feature.mid.dependencies]
 python = "~=3.12.0"
@@ -189,7 +189,7 @@ sympy = "~=1.13.0"
 python = "~=3.13.0"
 numpy = ">=2.2.0"
 scipy = ">=1.15.0"
-sympy = ">=1.13.0"
+sympy = ">=1.14.0"
 
 [tool.pixi.feature.docs.dependencies]
 kwant = "*"
