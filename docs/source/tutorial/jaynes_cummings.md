@@ -15,17 +15,16 @@ kernelspec:
 
 In this tutorial we demonstrate how to get a CQED effective Hamiltonian using Pymablock with bosonic operators.
 As an example, we use the Jaynes-Cummings model, which describes a spin coupled to a boson.
-This tutorial shows how to use Pymablock with arbitrary object types by defining a custom Sylvester's equation solver.
+This tutorial shows how to use Pymablock with second-quantized operators, without the need to transform the Hamiltonian to a matrix representation.
 
 Let's start by importing the `sympy` functions we need to define the Hamiltonian.
 We will make use of `sympy`'s [quantum mechanics module](https://docs.sympy.org/latest/modules/physics/quantum/index.html)
 and its [matrices](https://docs.sympy.org/latest/tutorials/intro-tutorial/matrices.html).
 
 ```{code-cell} ipython3
-import sympy
-from sympy import Matrix, Symbol, sqrt, Eq
-from sympy.physics.quantum.boson import BosonOp, BosonFockKet
-from sympy.physics.quantum import qapply, Dagger
+from sympy import Matrix, Symbol, symbols, Eq, simplify
+from sympy.physics.quantum.boson import BosonOp
+from sympy.physics.quantum import Dagger
 ```
 
 ## Define a second quantization Hamiltonian
@@ -34,9 +33,7 @@ We define the onsite energy $\omega_r$, the energy gap $\omega_q$, the perturbat
 
 ```{code-cell} ipython3
 # resonator frequency, qubit frequency, Rabi coupling
-wr = Symbol(r'\omega_r', real=True)
-wq = Symbol(r'\omega_q', real=True)
-g = Symbol(r'g', real=True)
+wr, wq, g = symbols(r'\omega_r \omega_q g', real=True)
 
 # resonator photon annihilation operator
 a = BosonOp("a")
@@ -45,65 +42,13 @@ a = BosonOp("a")
 The Hamiltonian reads
 
 ```{code-cell} ipython3
-H_0 = [[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]]
-H_p = [[0,  g * Dagger(a)], [g * a, 0]]
+H_0 = Matrix([[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]])
+H_p = Matrix([[0,  g * a], [g * Dagger(a), 0]])
 
-Eq(Symbol('H'), Matrix(H_0) + Matrix(H_p), evaluate=False)
+Eq(Symbol('H'), H_0 + H_p, evaluate=False)
 ```
 
 where the basis corresponds to the two spin states.
-
-## Custom Sylvester's equation solver
-
-To compute perturbative expansions Pymablock needs three things:
-
-- Having the input Hamiltonian and perturbations
-- Being able to add and multiply operators
-- Being able to solve the Sylvester's equation $[H_0, V] = Y$.
-
-In the current version of Pymablock, solving Sylvester equation with second-quantized operators is not yet directly supported, and it requires either casting the operators to matrices (as done in the [dispersive shift tutorial](dispersive_shift.md)) or defining a custom solver, which we will do here.
-Sylvester's equation provides a solution for $V$, the antihermitian part of the unitary transformation that block-diagonalizes the Hamiltonian, and it needs to be solved for each perturbative order.
-If the unperturbed Hamiltonian is diagonal, the solution is straightforward:
-
-$$
-V_{n,ij} = \frac{Y_{n,ij}}{E_i - E_j}
-$$
-
-where $E_i$ and $E_j$ are the diagonal elements of the unperturbed Hamiltonian corresponding to different subspaces.
-
-Therefore, to use Pymablock with second-quantized operators, we define a custom Sylvester's equation solver that takes $Y$ as input and returns $V$.
-To compute the energy denominators we only need to count the amount of raising or lowering operators in $Y$ and use this to determine the energy denominators.
-
-```{code-cell} ipython3
-n = Symbol("n", integer=True, positive=True)
-basis_ket = BosonFockKet(n)
-
-def expectation_value(v, operator):
-    return qapply(Dagger(v) * operator * v).simplify()
-
-def solve_sylvester(Y):
-    """
-    Solves Sylvester's Equation
-    Y : sympy expression
-
-    Returns:
-    V : sympy expression for off-diagonal block of unitary transformation
-    """
-    E_i = expectation_value(basis_ket, H_0[0][0])
-    V = []
-    for term in Y.expand().as_ordered_terms():
-        term_on_basis = qapply(term * basis_ket).doit()
-        normalized_ket = term_on_basis.as_ordered_factors()[-1]
-        E_j = expectation_value(normalized_ket, H_0[1][1])
-        V.append(term / (E_j - E_i))
-    return sum(V)
-```
-
-```{important}
-This Sylvester's solver is specific to the Jaynes-Cummings Hamiltonian.
-Using a different CQED Hamiltonian would require adapting
-`solve_sylvester` accordingly.
-```
 
 ## Get the Hamiltonian corrections
 
@@ -112,33 +57,61 @@ We can now define the block-diagonalization routine by calling {autolink}`~pymab
 ```{code-cell} ipython3
 %%time
 
+import numpy as np
 from pymablock import block_diagonalize
 
-H_tilde, U, U_adjoint = block_diagonalize(
-    [H_0, H_p], solve_sylvester=solve_sylvester, symbols=[g]
-)
+H_tilde, U, U_adjoint = block_diagonalize([H_0, H_p], symbols=[g])
 ```
 
-For example, to compute the 2nd order correction of the Hamiltonian of the $\uparrow$ subspace (the `(0, 0)` block) we use
+The function {autolink}`block_diagonalize` takes the Hamiltonian and the perturbative parameter as input.
+Differently from the rest of the tutorials, here we do not provide `susbpace_vectors` or `subspace_indices`.
+Pymablock treats the Hamiltonian as a **single block**, where the goal is to remove all terms that are not diagonal.
+The output therefore is a $2 \times 2$ diagonal Hamiltonian that only contains one block with number operators.
+
+```{note}
+Pymablock only supports diagonal unperturbed Hamiltonians when using bosonic operators.
+This means that $H_0$ must be block-diagonal and its entries need to be convertible to functions of the number operator, without single boson terms.
+This limitation may be lifted using advanced functionality, by providing a custom `solve_sylvester` input to the {autolink}`block_diagonalize` function.
+```
+
+For example, to compute the 2nd order correction of the Hamiltonian of the $↑, ↓$ subspaces we use
 
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_{2}^{AA}'), H_tilde[0, 0, 2].expand().simplify(), evaluate=False)
+Eq(Symbol(r'\tilde{H}_2'), simplify(H_tilde[0, 0, 2]), evaluate=False)
 ```
 
-Higher order corrections work exactly the same:
+:::{admonition} Pymablock's number operator
+:class: dropdown
+
+Pymablock's output contains $N_a = a^\dagger a$, the number operator for the bosonic mode, which is a {autolink}`~pymablock.number_ordered_form.NumberOperator` object.
+Furthermore, the output is stored in the {autolink}`~pymablock.number_ordered_form.NumberOrderedForm` class that Pymablock uses for efficient manipulation of second quantized expressions.
+In the example above, the diagonal entries of the Hamiltonian are {autolink}`~pymablock.number_ordered_form.NumberOrderedForm` objects.
+
+To see the result in terms of individual bosonic operators, we may use the `doit` method:
+
+```python
+
+simplify(H_tilde[0, 0, 2])[0, 0].doit()
+```
+
+Check out the [documentation](../second_quantization.md) for more information on how to use number operators and simplify expressions that contain them.
+
+:::
+
+Higher order corrections to the Hamiltonian work exactly the same:
 
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_{4}^{AA}'), H_tilde[0, 0, 4].expand().simplify(), evaluate=False)
+Eq(Symbol(r'\tilde{H}_4'), simplify(H_tilde[0, 0, 4]), evaluate=False)
 ```
 
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_{6}^{AA}'), H_tilde[0, 0, 6].expand().simplify(), evaluate=False)
+Eq(Symbol(r'\tilde{H}_6'), simplify(H_tilde[0, 0, 6]), evaluate=False)
 ```
 
 We see that also computing the 6th order correction takes effectively no time.

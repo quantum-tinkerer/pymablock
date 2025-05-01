@@ -13,9 +13,9 @@ readme = "README.md"
 # This project follows https://scientific-python.org/specs/spec-0000/
 requires-python = ">=3.11"
 dependencies = [
-    "numpy>=1.24",
-    "scipy>=1.11",
-    "sympy>=1.12",
+    "numpy>=1.26",
+    "scipy>=1.12",
+    "sympy>=1.13",
     "python-mumps>=0.0.1,<0.1",
     "packaging>=22.0",  # For version parsing
 ]
@@ -158,7 +158,7 @@ git = "*"
 python = ">=3.11"
 numpy = ">=1.25"
 scipy = ">=1.11"
-sympy = ">=1.12"
+sympy = ">=1.13"
 python-mumps = ">=0.0.1,<0.1"
 packaging = ">=22.0" # For version parsing
 
@@ -175,9 +175,9 @@ tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
 
 [tool.pixi.feature.minimal.dependencies]
 python = "~=3.11.0"
-numpy = "~=1.25.0"
-scipy = "~=1.11.0"
-sympy = "~=1.12.0"
+numpy = "~=1.26.0"
+scipy = "~=1.12.0"
+sympy = "~=1.13.0"
 
 [tool.pixi.feature.mid.dependencies]
 python = "~=3.12.0"
@@ -188,22 +188,22 @@ sympy = "~=1.13.0"
 [tool.pixi.feature.latest.dependencies]
 python = "~=3.13.0"
 numpy = ">=2.2.0"
-scipy = ">=1.14.0"
-sympy = ">=1.13.0"
+scipy = ">=1.15.0"
+sympy = ">=1.14.0"
 
 [tool.pixi.feature.docs.dependencies]
 kwant = "*"
 myst-nb = "*"
 matplotlib-base = "*"
+sphinx = ">=8.2.0"
 sphinx-togglebutton = "*"
 sphinx-copybutton = "*"
 sphinx-book-theme = "*"
 beautifulsoup4 = "*"
 git = "*"
-make = "*"
 
 [tool.pixi.feature.docs.tasks.docs-build]
-cmd = "python -c \"from matplotlib import pyplot\" && make -C docs/ html SPHINXOPTS=\"-WT --keep-going -n\""
+cmd = "python -c \"from matplotlib import pyplot\" && sphinx-build -b html -n -WT docs/source docs/build/html"
 
 [tool.pixi.feature.test.dependencies]
 pytest = "*"

@@ -36,6 +36,33 @@
    :show-inheritance:
 ```
 
+## Number ordered form
+
+```{eval-rst}
+.. autoclass:: pymablock.number_ordered_form.NumberOperator
+   :members:
+   :show-inheritance:
+```
+
+```{eval-rst}
+.. autoclass:: pymablock.number_ordered_form.NumberOrderedForm
+   :members:
+   :show-inheritance:
+   :class-doc-from: class
+```
+
+```{eval-rst}
+.. autofunction:: pymablock.number_ordered_form.find_operators
+```
+
+## Second quantization
+
+```{eval-rst}
+.. automodule:: pymablock.second_quantization
+   :members: solve_sylvester_bosonic, apply_mask_to_operator
+   :show-inheritance:
+```
+
 ## Kernel polynomial method (KPM)
 
 ```{eval-rst}

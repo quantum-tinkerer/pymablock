@@ -68,12 +68,86 @@ H_p = (
 
 def display_eq(title, expr):
     """Print a sympy expression as an equality."""
-    display(sympy.Eq(sympy.Symbol(title), expr))
+    display(sympy.Eq(sympy.Symbol(title), expr, evaluate=False))
 
 display_eq("H_{0}", H_0)
 display_eq("H_{p}", H_p)
 ```
 
+The frequency shift of the resonator is given by:
+
+$$
+\chi = \frac{E^{(2)}_{11} - E^{(2)}_{10}}{2} - \frac{E^{(2)}_{01} - E^{(2)}_{00}}{2}
+$$
+
+where $E^{(2)}_{ij}$ is the second order correction to the energy of the state with $i$ excitations in the transmon and $j$ in the resonator.
+To find the corrections, we may use second quantization directly, or compute the matrix representation of the Hamiltonian in a truncated Hilbert space.
+We demonstrate both approaches.
+
+## Approach I: second quantized form
+
+To compute the effective Hamiltonian in second quantized form, we provide the Hamiltonian following Pymablock's API: wrapped in a `sympy.Matrix` and with `BosonOp` elements.
+
+```{code-cell} ipython3
+H_tilde, U, U_adjoint = block_diagonalize(
+    sympy.Matrix([[H_0 + H_p]]), symbols=[g]
+)
+```
+
+The matrix has a single element, because we are interested in the corrections to the energy of a single state.
+
+:::{admonition} Only diagonal unperturbed Hamiltonians are supported
+:class: warning
+
+Pymablock only supports bosonic Hamiltonians whose unperturbed part is diagonal: diagonal in the matrix representation and diagonal in the bosonic basis.
+When calling {autolink}`block_diagonalize`, the unperturbed Hamiltonian must be provided as a `sympy.Matrix` with `BosonOp` elements in its entries.
+:::
+
+The effective Hamiltonian is a $1 \times 1$ matrix, whose entry is a function of the number of excitations in the transmon $N_{a_t} = a_t^\dagger a_t$ and the resonator $N_{a_r} = a_r^\dagger a_r$.
+
+```{code-cell} ipython3
+E_eff = H_tilde[0, 0, 2][0, 0]
+display_eq("E_{eff}", E_eff)
+```
+
+The expression is long, but it becomes simpler if we evaluate it for specific occupation numbers.
+
+:::{admonition} Pymablock's number-ordered form
+:class: dropdown
+
+Pymablock uses number operators combined with the *number-ordered form* of quantum operators to simplify the expressions that contain bosonic operators throughout the algorithm execution.
+See [here](../second_quantization.md) for the explanation of the algorithm.
+
+:::
+
+To compute the dispersive shift, we need to evaluate $E_{eff}$ for the states with $N_{a_t} = 0, 1$ and $N_{a_r} = 0, 1$.
+We do this by first defining the number operators for the transmon and resonator:
+
+```{code-cell} ipython3
+from pymablock.number_ordered_form import NumberOperator
+
+N_a_t = NumberOperator(a_t)
+N_a_r = NumberOperator(a_r)
+```
+
+and then substituting their values in $E_{eff}$:
+
+```{code-cell} ipython3
+E_eff_00 = E_eff.subs({N_a_t: 0, N_a_r: 0})
+E_eff_01 = E_eff.subs({N_a_t: 0, N_a_r: 1})
+E_eff_10 = E_eff.subs({N_a_t: 1, N_a_r: 0})
+E_eff_11 = E_eff.subs({N_a_t: 1, N_a_r: 1})
+
+chi = E_eff_11 - E_eff_10 - E_eff_01 + E_eff_00
+
+display_eq(r"\chi", chi)
+```
+
+Note that $\chi$ is also a {autolink}`pymablock.number_ordered_form.NumberOrderedForm` object and we may use `chi.as_expr()` to convert it to a `sympy` expression.
+
+## Approach II: matrix representation
+
+Alternatively, we can compute the effective Hamiltonian in a matrix representation.
 To deal with the infinite dimensional Hilbert space, we observe that the perturbation only changes the occupation numbers of the transmon and the resonator by $\pm 1$.
 Therefore computing $n$-th order corrections to the $n_0$-th state allows to disregard states with any occupation numbers larger than $n_0 + n/2$.
 We want to compute the second order correction to the levels with occupation numbers of either the transmon or the resonator being $0$ and $1$.
@@ -81,55 +155,32 @@ We accordingly truncate the Hilbert space to the lowest 3 levels of the transmon
 The resulting Hamiltonian is a $9 \times 9$ matrix, which we construct by computing the matrix elements of $H_0$ and $H_p$ in the truncated basis.
 
 ```{code-cell} ipython3
-:tags: [hide-input]
+N = 4  # Number of levels for each boson
+a = sympy.zeros(N, N)
+for i in range(N-1):
+    a[i, i+1] = sympy.sqrt(i+1)
+n = sympy.diag(*[i for i in range(N)])
 
-def collect_constant(expr):
-    expr = normal_ordered_form(expr.expand(), independent=True)
-    constant_terms = []
-    for term in expr.as_ordered_terms():
-        if not term.has(sympy.physics.quantum.Operator):
-            constant_terms.append(term)
-    return sum(constant_terms)
+a_t = sympy.KroneckerProduct(a, sympy.eye(N))
+a_r = sympy.KroneckerProduct(sympy.eye(N), a)
 
-
-def to_matrix(ham, basis):
-    """Compute the matrix elements"""
-    N = len(basis)
-    ham = normal_ordered_form(ham.expand(), independent=True)
-    all_brakets = product(basis, basis)
-    flat_matrix = [
-        collect_constant(braket[0] * ham * Dagger(braket[1])) for braket in all_brakets
-    ]
-    return sympy.Matrix(np.array(flat_matrix).reshape(N, N))
+H_0 = (
+    -omega_t * Dagger(a_t) * a_t + omega_r * Dagger(a_r) * a_r
+    + alpha * Dagger(a_t)**2 * a_t**2 / 2
+)
+H_p = (
+    -g * (Dagger(a_t) - a_t) * (Dagger(a_r) - a_r)
+)
+H = H_0 + H_p
 ```
 
-```{code-cell} ipython3
-# Construct the matrix Hamiltonian
-basis = [
-    a_t**i * a_r**j / sympy.sqrt(sympy.factorial(i) * sympy.factorial(j))
-    for i in range(3)
-    for j in range(3)
-]
-
-H_0_matrix = to_matrix(H_0, basis)
-H_p_matrix = to_matrix(H_p, basis)
-
-H = H_0_matrix + H_p_matrix
-```
-
-Because the dispersive shift is
-
-$$
-\chi = (E^{(2)}_{11} - E^{(2)}_{10}) - (E^{(2)}_{01} - E^{(2)}_{00})
-$$
-
-we need to compute the energy corrections of the lowest $4$ levels.
+To compute the dispersive shift, we need to compute the energy corrections of the lowest $4$ levels.
 Therefore, we call `block_diagonalize` to separate the Hamiltonian into multiple $1 \times 1$ subspaces, replicating a regular perturbation theory calculation for single wavefunctions.
 To do this, we observe that $H_0$ is diagonal, and use `subspace_indices` to assign the elements of its eigenbasis to the desired states.
 
 ```{code-cell} ipython3
-subspaces = {state: n for n, state in enumerate([1, a_t, a_r, a_t * a_r])}
-subspace_indices = [subspaces.get(element, 4) for element in basis]
+subspaces = {state: n for n, state in enumerate([0, 1, N, N+1])}
+subspace_indices = [subspaces.get(state, 4) for state in range(N**2)]
 H_tilde, U, U_adjoint = block_diagonalize(
     H, subspace_indices=subspace_indices, symbols=[g]
 )
@@ -147,9 +198,9 @@ H_tilde.shape
 Finally, we compute the dispersive shift from the second order correction to the energies
 
 ```{code-cell} ipython3
-xi = (H_tilde[0, 0, 2] - H_tilde[1, 1, 2] - H_tilde[2, 2, 2] + H_tilde[3, 3, 2])[0, 0]
+chi = (H_tilde[0, 0, 2] - H_tilde[1, 1, 2] - H_tilde[2, 2, 2] + H_tilde[3, 3, 2])[0, 0]
 
-display_eq(r"\chi", xi)
+display_eq(r"\chi", chi)
 ```
 
 In this example, we have not used the rotating wave approximation, including the frequently omitted counter-rotating terms $\sim a_{r} a_{t}$ to illustrate the extensibility of Pymablock.

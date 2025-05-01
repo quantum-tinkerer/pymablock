@@ -72,6 +72,11 @@ intersphinx_mapping = {
 }
 
 default_role = "autolink"
+# TODO: disable when https://github.com/sympy/sympy/issues/27553 is fixed.
+nitpick_ignore = [
+    ("py:class", "sympy.physics.quantum.boson.BosonOp"),
+    ("py:class", "sympy.physics.quantum.fermion.FermionOp"),
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -108,6 +113,7 @@ html_theme_options = {
         "module=CoreAdminHome&action=optOutJS&divId=matomo-opt-out"
         '&language=auto&showIntro=1"></script>'
     ),
+    "show_toc_level": 2,
 }
 
 tippy_doi_template = """

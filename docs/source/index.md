@@ -21,8 +21,8 @@ kernelspec:
 tutorial/getting_started.md
 tutorial/bilayer_graphene.md
 Induced superconducting gap <tutorial/induced_gap.md>
-Dispersive shift of a resonator <tutorial/dispersive_shift.md>
 tutorial/jaynes_cummings.md
+Dispersive shift of a resonator <tutorial/dispersive_shift.md>
 tutorial/andreev_supercurrent.md
 ```
 
@@ -33,11 +33,19 @@ tutorial/andreev_supercurrent.md
 
 algorithms.md
 Comparison to Schrieffer-Wolff <radius.md>
+second_quantization.md
 documentation/pymablock.md
 CHANGELOG.md
 authors.md
 developer.md
 ```
+
+::::{admonition} **✨ NEW! Second Quantization Support ✨**
+:class: tip
+
+Pymablock now works with second-quantized bosonic operators!
+Check out our [dispersive shift tutorial](tutorial/dispersive_shift.md) and [Jaynes-Cummings model tutorial](tutorial/jaynes_cummings.md) to see second quantization in action, and see the theoretical background in [second quantization notes](second_quantization.md).
+::::
 
 ## What is Pymablock?
 
