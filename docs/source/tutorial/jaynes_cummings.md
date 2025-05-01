@@ -65,8 +65,8 @@ H_tilde, U, U_adjoint = block_diagonalize([H_0, H_p], symbols=[g])
 
 The function {autolink}`block_diagonalize` takes the Hamiltonian and the perturbative parameter as input.
 Differently from the rest of the tutorials, here we do not provide `susbpace_vectors` or `subspace_indices`.
-Pymablock treats the Hamiltonian as a single block, where the goal is to remove all terms that are not diagonal.
-The output therefore is a $2 \times 2$ block-diagonal Hamiltonian that only contains number operators.
+Pymablock treats the Hamiltonian as a **single block**, where the goal is to remove all terms that are not diagonal.
+The output therefore is a $2 \times 2$ diagonal Hamiltonian that only contains one block with number operators.
 
 ```{note}
 Pymablock only supports diagonal unperturbed Hamiltonians when using bosonic operators.
@@ -74,7 +74,7 @@ This means that $H_0$ must be block-diagonal and its entries need to be converti
 This limitation may be lifted using advanced functionality, by providing a custom `solve_sylvester` input to the {autolink}`block_diagonalize` function.
 ```
 
-For example, to compute the 2nd order correction of the Hamiltonian of the $\uparrow$ subspace (the `(0, 0)` block) we use
+For example, to compute the 2nd order correction of the Hamiltonian of the $↑, ↓$ subspaces we use
 
 ```{code-cell} ipython3
 %%time
@@ -87,6 +87,7 @@ Eq(Symbol(r'\tilde{H}_2'), simplify(H_tilde[0, 0, 2]), evaluate=False)
 
 Pymablock's output contains $N_a = a^\dagger a$, the number operator for the bosonic mode, which is a {autolink}`~pymablock.number_ordered_form.NumberOperator` object.
 Furthermore, the output is stored in the {autolink}`~pymablock.number_ordered_form.NumberOrderedForm` class that Pymablock uses for efficient manipulation of second quantized expressions.
+In the example above, the diagonal entries of the Hamiltonian are {autolink}`~pymablock.number_ordered_form.NumberOrderedForm` objects.
 
 To see the result in terms of individual bosonic operators, we may use the `doit` method:
 
