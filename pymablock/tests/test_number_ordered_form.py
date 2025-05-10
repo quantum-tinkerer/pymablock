@@ -45,10 +45,14 @@ def test_number_operator_interface():
 
 
 def test_find_operators():
-    """Test the find_operators function to identify bosonic operators in expressions."""
-    # TODO: Also confirm ordering and fermionic operators
+    """Test the find_operators function to identify bosonic and fermionic operators in expressions."""
+    # Bosonic operators
     a = boson.BosonOp("a")
     b = boson.BosonOp("b")
+
+    # Fermionic operators
+    f = fermion.FermionOp("f")
+    g = fermion.FermionOp("g")
 
     # Simple expression with a single operator
     expr1 = a**2 + 1
@@ -74,6 +78,14 @@ def test_find_operators():
     result4 = find_operators(expr4)
     assert len(result4) == 2
     assert set(result4) == {a, b}
+
+    # Test with fermionic operators
+    f = fermion.FermionOp("f")
+    g = fermion.FermionOp("g")
+    expr_f = f * Dagger(f) + g * Dagger(g)
+    result_f = find_operators(expr_f)
+    assert len(result_f) == 2
+    assert set(result_f) == {f, g}
 
     # Expression with mixed number operators and original operators
     expr5 = Na * b + a * Nb
@@ -1036,3 +1048,235 @@ def test_is_particle_conserving():
     # Mixed term with non-conserving components a†a + b
     nof8 = NumberOrderedForm.from_expr(Dagger(a) * a + b)
     assert not nof8.is_particle_conserving()
+
+
+def test_fermionic_nilpotence():
+    """Test that fermion operators are nilpotent (f² = 0, f†² = 0)."""
+    f = fermion.FermionOp("f")
+
+    # Test nilpotence using NumberOrderedForm operations
+    # First, create a NumberOrderedForm instance with a fermion operator
+    nof_f = NumberOrderedForm.from_expr(f)
+
+    # Squaring using our NumberOrderedForm operations
+    nof_squared = nof_f * nof_f
+    assert nof_squared.terms == {}  # Should be empty, representing zero
+    assert nof_squared.as_expr() == sympy.S.Zero
+
+    # Similarly for creation operator
+    nof_dagger_f = NumberOrderedForm.from_expr(Dagger(f))
+    nof_dagger_squared = nof_dagger_f * nof_dagger_f
+    assert nof_dagger_squared.terms == {}  # Should be empty, representing zero
+    assert nof_dagger_squared.as_expr() == sympy.S.Zero
+
+    # Test in more complex expressions
+    nof_f_plus_1 = nof_f + NumberOrderedForm.from_expr(sympy.S.One)
+    nof_squared_plus_1 = nof_f_plus_1 * nof_f
+    # This should just return f since f² = 0
+    assert nof_squared_plus_1.as_expr() == f
+
+    # Test with daggered operator
+    nof_dagger_f_plus_1 = nof_dagger_f + NumberOrderedForm.from_expr(sympy.S.One)
+    nof_dagger_squared_plus_1 = nof_dagger_f_plus_1 * nof_dagger_f
+    # This should just return f† since (f†)² = 0
+    assert nof_dagger_squared_plus_1.as_expr() == Dagger(f)
+
+
+def test_fermion_anticommutation():
+    """Test the anti-commutation relations of fermion operators."""
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    n_f, n_g = NumberOperator(f), NumberOperator(g)
+
+    # Test anti-commutation between different fermion operators
+    # Create NOFs for individual operators first
+    nof_f = NumberOrderedForm.from_expr(f)
+    nof_g = NumberOrderedForm.from_expr(g)
+
+    # f * g + g * f = 0
+    result1 = nof_f * nof_g + nof_g * nof_f
+    assert result1.as_expr() == sympy.S.Zero
+
+    # Similar test for creation operators
+    nof_df = NumberOrderedForm.from_expr(Dagger(f))
+    nof_dg = NumberOrderedForm.from_expr(Dagger(g))
+
+    # Dagger(f) * Dagger(g) + Dagger(g) * Dagger(f) = 0
+    result2 = nof_df * nof_dg + nof_dg * nof_df
+    assert result2.as_expr() == sympy.S.Zero
+
+    # Test anti-commutation between creation and annihilation operators
+    expr3 = f * Dagger(f) + Dagger(f) * f
+    nof3 = NumberOrderedForm.from_expr(expr3)
+    assert nof3.as_expr() == sympy.S.One
+
+    # Test with different fermions
+    expr4 = f * Dagger(g) + Dagger(g) * f
+    nof4 = NumberOrderedForm.from_expr(expr4)
+    assert nof4.as_expr() == sympy.S.Zero
+
+    # Test in more complex expressions
+    expr5 = f * g * Dagger(g) * Dagger(f) - Dagger(f) * Dagger(g) * g * f
+    nof5 = NumberOrderedForm.from_expr(expr5)
+    expected5 = NumberOrderedForm.from_expr((1 - n_f) * (1 - n_g) - n_f * n_g)
+    assert nof5.as_expr() == expected5.as_expr()
+
+
+def test_fermionic_number_operators():
+    """Test fermion number operators and their properties."""
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    n_f = NumberOperator(f)
+    n_g = NumberOperator(g)
+
+    # Test that fermionic number operators are idempotent (n_f^2 = n_f)
+    # We need to create the NumberOrderedForm directly for the test
+    nof_n_f = NumberOrderedForm.from_expr(n_f)
+    nof_squared = nof_n_f * nof_n_f
+    assert nof_squared.as_expr() == n_f
+
+    # Test that number operators commute with each other
+    expr2 = n_f * n_g - n_g * n_f
+    nof2 = NumberOrderedForm.from_expr(expr2).simplify()
+    assert nof2.as_expr() == sympy.S.Zero
+
+    # Test relations between number operators and fermion operators
+    # n_f * f = 0 (annihilating an empty state)
+    expr3 = n_f * f
+    nof3 = NumberOrderedForm.from_expr(expr3)
+    assert nof3.as_expr() == sympy.S.Zero
+
+    # f * n_f = f (annihilating an occupied state)
+    expr4 = f * n_f
+    nof4 = NumberOrderedForm.from_expr(expr4)
+    assert nof4.as_expr() == f
+
+    # n_f * Dagger(f) = Dagger(f) (creating in an empty state)
+    expr5 = n_f * Dagger(f)
+    nof5 = NumberOrderedForm.from_expr(expr5)
+    assert nof5.as_expr() == Dagger(f)
+
+    # Dagger(f) * n_f = 0 (creating in an occupied state)
+    expr6 = Dagger(f) * n_f
+    nof6 = NumberOrderedForm.from_expr(expr6)
+    assert nof6.as_expr() == sympy.S.Zero
+
+    # Test 1 - n_f is the projection onto the empty state
+    expr7 = (sympy.S.One - n_f) * f
+    nof7 = NumberOrderedForm.from_expr(expr7)
+    assert nof7.as_expr() == f
+
+    expr8 = (sympy.S.One - n_f) * Dagger(f)
+    nof8 = NumberOrderedForm.from_expr(expr8)
+    assert nof8.as_expr() == 0
+
+
+def test_mixed_boson_fermion():
+    """Test expressions that mix bosonic and fermionic operators."""
+    a = boson.BosonOp("a")
+    f = fermion.FermionOp("f")
+    n_a = NumberOperator(a)
+    n_f = NumberOperator(f)
+
+    # Test operator ordering in mixed expressions
+    expr1 = f * a * Dagger(a) * Dagger(f)
+    nof1 = NumberOrderedForm.from_expr(expr1)
+
+    # Should maintain bosons and fermions correctly ordered with proper signs
+    # Compare with the expression converted back to normal form
+    assert normal_ordered_form(nof1.as_expr().doit() - nof1.as_expr().doit()) == 0
+
+    # Test that bosonic and fermionic number operators commute
+    expr2 = n_a * n_f - n_f * n_a
+    nof2 = NumberOrderedForm.from_expr(expr2).simplify()
+    assert nof2.as_expr() == sympy.S.Zero
+
+    # Test mixed operators with NumberOrderedForm multiplication
+    nof_a = NumberOrderedForm.from_expr(a)
+    nof_f = NumberOrderedForm.from_expr(f)
+
+    # Multiplying should preserve both types
+    result = nof_a * nof_f
+    expected = NumberOrderedForm.from_expr(a * f)
+
+    # Use normal ordered form to compare results properly
+    assert normal_ordered_form(result.as_expr() - expected.as_expr()) == 0
+
+    # Test complex mixed expression
+    expr3 = Dagger(a) * n_f * a + f * n_a * Dagger(f)
+    nof3 = NumberOrderedForm.from_expr(expr3)
+
+    # Simplify and compare
+    result3 = nof3.simplify()
+    expected3 = NumberOrderedForm.from_expr(n_a)
+    assert result3.as_expr() == expected3.as_expr()
+
+
+def test_fermion_sign_rules():
+    """Test sign rules when fermion operators are reordered during multiplication."""
+    f, g, h = sympy.symbols("f g h", cls=fermion.FermionOp)
+
+    # Test in more complex expressions
+    expr3 = f * Dagger(g) * h
+    nof4 = NumberOrderedForm.from_expr(expr3)
+
+    # Number ordered form should preserve the sign when reordering
+    expected4 = -Dagger(g) * h * f
+    assert normal_ordered_form(nof4.as_expr() - expected4) == 0
+
+    # Test multiplication by number operator doesn't change signs
+    n_f = NumberOperator(f)
+    expr5 = f * n_f * g
+    nof5 = NumberOrderedForm.from_expr(expr5)
+
+    # Should still maintain the sign rule for fermions
+    expected5 = -g * f
+    assert normal_ordered_form(nof5.as_expr() - expected5) == 0
+
+    # Test sign rules with creation operators
+    expr3 = Dagger(f) * Dagger(g) * Dagger(h)
+    nof3 = NumberOrderedForm.from_expr(expr3)
+
+    # Creation operators should be ordered in reverse
+    expected3 = -Dagger(h) * Dagger(g) * Dagger(f)
+    assert normal_ordered_form(nof3.as_expr() - expected3) == 0
+
+    # Test sign rules in mixed creation-annihilation expressions
+    expr4 = f * Dagger(g) * h
+    nof4 = NumberOrderedForm.from_expr(expr4)
+
+    # Number ordered form should preserve the sign when reordering
+    expected4 = -Dagger(g) * h * f
+    assert normal_ordered_form(nof4.as_expr() - expected4) == 0
+
+    # Test multiplication by number operator doesn't change signs
+    n_f = NumberOperator(f)
+    expr5 = f * n_f * g
+    nof5 = NumberOrderedForm.from_expr(expr5)
+
+    # Should still maintain the sign rule for fermions
+    expected5 = -g * f
+    assert normal_ordered_form(nof5.as_expr() - expected5) == 0
+
+    # Test sign rules with creation operators
+    expr3 = Dagger(f) * Dagger(g) * Dagger(h)
+    nof3 = NumberOrderedForm.from_expr(expr3)
+
+    # Creation operators should be ordered in reverse
+    expected3 = -Dagger(h) * Dagger(g) * Dagger(f)
+    assert normal_ordered_form(nof3.as_expr() - expected3) == 0
+
+    # Test sign rules in mixed creation-annihilation expressions
+    expr4 = f * Dagger(g) * h
+    nof4 = NumberOrderedForm.from_expr(expr4)
+
+    # Number ordered form should preserve the sign when reordering
+    expected4 = -Dagger(g) * h * f
+    assert normal_ordered_form(nof4.as_expr() - expected4) == 0
+
+    # Test multiplication by number operator doesn't change signs
+    n_f = NumberOperator(f)
+    expr5 = f * n_f * g
+    nof5 = NumberOrderedForm.from_expr(expr5)
+
+    # Should still maintain the sign rule for fermions
+    expected5 = -g * f
+    assert normal_ordered_form(nof5.as_expr() - expected5) == 0

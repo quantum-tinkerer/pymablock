@@ -146,6 +146,25 @@ class NumberOperator(HermitianOperator):
         op = (BosonOp if self.args[1].name == "boson" else FermionOp)(self.args[0])
         return Dagger(op) * op
 
+    def _eval_power(self, exp):
+        """Evaluate the power of the operator.
+
+        Parameters
+        ----------
+        exp :
+            The exponent to raise the operator to.
+
+        Returns
+        -------
+        result : `~sympy.core.expr.Expr`
+            The evaluated operator raised to the given power.
+
+        """
+        print(type(exp))
+        if exp.is_integer and exp != 0 and self.args[1].name == "fermion":
+            return self  # Fermionic number operators are idempotent.
+        return super()._eval_power(exp)
+
     def _eval_commutator_NumberOperator(self, other):  # noqa: ARG002
         """Evaluate the commutator with another NumberOperator."""
         return sympy.S.Zero
@@ -455,6 +474,10 @@ class NumberOrderedForm(Operator):
             base = expr.base
             exp = expr.exp
 
+            # Apply fermion nilpotence rules
+            if isinstance(base, FermionOp) and exp > 1:
+                return cls(operators, {}, validate=False)
+
             # Handle exponentiation of single operators directly.
             if isinstance(base, OperatorType) and exp.is_integer and exp.is_positive:
                 # Find the operator index in the operators list
@@ -707,36 +730,94 @@ class NumberOrderedForm(Operator):
         assert op_power != 0, "op_power must be non-zero"
 
         operator = self.operators[op_index]
-        if isinstance(operator, FermionOp):
-            raise NotImplementedError
+
         n_operator = NumberOperator(operator)
 
         # Create a new terms dictionary for the result
         new_terms = {}
 
-        for powers, coeff in self.args[1]:
-            orig_power = powers[op_index]  # Power of the operator at op_index
-            new_power = orig_power + op_power
-            new_powers = tuple(
-                new_power if i == op_index else p for i, p in enumerate(powers)
-            )
-            if op_power > 0:  # Multiplying by an annihilation operator
-                # Compute how many new number operators appear
-                to_pair = min(op_power, max(-orig_power, 0))
-                coeff = coeff.subs(n_operator, n_operator - to_pair)
-                coeff = sympy.Mul(coeff, *(n_operator - i for i in range(to_pair)))
-            else:
-                to_pair = min(-op_power, max(orig_power, 0))
-                # Create the new number operators from all pairs
-                new_numbers = sympy.Mul(*[n_operator + i for i in range(1, to_pair + 1)])
-                coeff = coeff * new_numbers
-                if new_power > 0:
-                    # Bring all unmatched annihilation operators to the right
-                    coeff = coeff.subs(n_operator, n_operator + new_power)
+        if isinstance(operator, BosonOp):
+            for powers, coeff in self.args[1]:
+                orig_power = powers[op_index]  # Power of the operator at op_index
+                new_power = orig_power + op_power
+                new_powers = tuple(
+                    new_power if i == op_index else p for i, p in enumerate(powers)
+                )
+                if op_power > 0:  # Multiplying by an annihilation operator
+                    # Compute how many new number operators appear
+                    to_pair = min(op_power, max(-orig_power, 0))
+                    coeff = coeff.subs(n_operator, n_operator - to_pair)
+                    coeff = sympy.Mul(coeff, *(n_operator - i for i in range(to_pair)))
                 else:
-                    # Bring all unmatched creation operators to the left
-                    coeff = coeff.subs(n_operator, n_operator + (-op_power - to_pair))
-            new_terms[new_powers] = coeff
+                    to_pair = min(-op_power, max(orig_power, 0))
+                    # Create the new number operators from all pairs
+                    new_numbers = sympy.Mul(
+                        *[n_operator + i for i in range(1, to_pair + 1)]
+                    )
+                    coeff = coeff * new_numbers
+                    if new_power > 0:
+                        # Bring all unmatched annihilation operators to the right
+                        coeff = coeff.subs(n_operator, n_operator + new_power)
+                    else:
+                        # Bring all unmatched creation operators to the left
+                        coeff = coeff.subs(n_operator, n_operator + (-op_power - to_pair))
+                new_terms[new_powers] = coeff
+        else:
+            if abs(op_power) > 1:
+                # Fermionic operators are nilpotent
+                return type(self)(self.operators, {}, validate=False)
+            for powers, coeff in self.args[1]:
+                orig_power = powers[op_index]
+                new_power = orig_power + op_power
+                if abs(new_power) > 1:
+                    # Fermionic operators are nilpotent
+                    continue
+                new_powers = tuple(
+                    new_power if i == op_index else p for i, p in enumerate(powers)
+                )
+                if op_power == 1:
+                    # Annihilation operator, n_c * c = 0
+                    coeff = coeff.subs(n_operator, sympy.S.Zero)
+                    if orig_power:
+                        coeff = n_operator * coeff
+                        # Count all fermion annihilation operators and all creation
+                        # operators that are later than the current one.
+                        preceding_fermions = sum(
+                            pow for pow in powers[-self._n_fermions :] if pow > 0
+                        ) + sum(pow for pow in powers[op_index + 1 :] if pow < 0)
+                    else:
+                        # Count all annihilation operators that are earlier than the
+                        # current one.
+                        preceding_fermions = sum(
+                            pow for pow in powers[-self._n_fermions : op_index] if pow > 0
+                        )
+                        preceding_fermions += sum(
+                            pow for pow in powers[-self._n_fermions : op_index] if pow < 0
+                        )
+                else:
+                    # Creation operator, n_c * c† = c†
+                    coeff = coeff.subs(n_operator, sympy.S.One)
+                    if orig_power:
+                        coeff = (sympy.S.One - n_operator) * coeff
+                        # Count all annihilation operators that are earlier than the
+                        # current one.
+                        preceding_fermions = sum(
+                            pow for pow in powers[-self._n_fermions : op_index] if pow > 0
+                        )
+                        preceding_fermions += sum(
+                            pow for pow in powers[-self._n_fermions : op_index] if pow < 0
+                        )
+                    else:
+                        # Count all annihilation operators and all creation operators
+                        # that are later than the current one.
+                        preceding_fermions = sum(
+                            pow for pow in powers[-self._n_fermions : op_index] if pow > 0
+                        ) + sum(pow for pow in powers[op_index + 1 :] if pow < 0)
+                if preceding_fermions % 2:
+                    # Fermionic sign change
+                    coeff = -coeff
+
+                new_terms[new_powers] = coeff
 
         # Create the new NumberOrderedForm with the same operators but new terms
         return type(self)(self.operators, new_terms, validate=False)
@@ -771,10 +852,21 @@ class NumberOrderedForm(Operator):
         for powers, coeff in self.args[1]:
             multiplier = expr
             for i, power in enumerate(powers):
-                if power <= 0:
+                if power == 0:
                     continue
-                n_i = NumberOperator(self.operators[i])
-                multiplier = multiplier.subs(n_i, n_i + power)
+                gen = self.operators[i]
+                n_i = NumberOperator(gen)
+                if isinstance(gen, BosonOp):
+                    if power > 0:
+                        # a * n_a = n_a + 1
+                        multiplier = multiplier.subs(n_i, n_i + power)
+                else:  # FermionOp
+                    if power < 0:
+                        # c† * n_c = 0
+                        multiplier = multiplier.subs(n_i, sympy.S.Zero)
+                    else:
+                        # c * n_c = c.
+                        multiplier = multiplier.subs(n_i, sympy.S.One)
             new_terms[powers] = coeff * multiplier
 
         # Return a new NumberOrderedForm instance with the updated terms
@@ -849,7 +941,7 @@ class NumberOrderedForm(Operator):
         if other.operators != self.operators:
             new_operators = sorted(
                 set(self.operators).union(other.operators),
-                key=lambda op: (isinstance(op, BosonOp), str(op.name)),
+                key=lambda op: (operator_types.index(type(op)), str(op.name)),
             )
             self_expanded = self._expand_operators(new_operators)
             other_expanded = other._expand_operators(new_operators)
