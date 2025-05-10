@@ -6,25 +6,22 @@ from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.second_quantization import (
     apply_mask_to_operator,
-    solve_sylvester_bosonic,
+    solve_sylvester_2nd_quant,
 )
 
 
-def test_solve_sylvester_bosonic_simple():
+def test_solve_sylvester_2nd_quant_simple():
     """Confirm that the index handling is correct."""
     # Create symbolic matrices with no bosonic operators
     a, b, c, d = sympy.symbols("a b c d", real=True)
     H_ii = sympy.Matrix([[a, 0], [0, b]])
     H_jj = sympy.Matrix([[c, 0], [0, d]])
 
-    # Define eigenvalues for solve_sylvester_bosonic
+    # Define eigenvalues for solve_sylvester_2nd_quant
     eigs = (((a, b)), ((c, d)))
 
-    # Empty list of bosonic operators since we're not using any
-    boson_operators = []
-
     # Get the solver function
-    solve_sylvester = solve_sylvester_bosonic(eigs, boson_operators)
+    solve_sylvester = solve_sylvester_2nd_quant(eigs)
 
     # Create a test matrix Y
     Y = sympy.Matrix([[1, 2], [3, 4]])
@@ -40,7 +37,7 @@ def test_solve_sylvester_bosonic_simple():
             assert (result[i, j] - Y[i, j]).simplify() == 0
 
 
-def test_solve_sylvester_bosonic_with_number_operator():
+def test_solve_sylvester_2nd_quant_with_number_operator():
     """Test solving Sylvester equation with number operators in 1x1 matrices."""
     # Define a boson operator
     b = sympy.symbols("b", cls=BosonOp)
@@ -50,11 +47,8 @@ def test_solve_sylvester_bosonic_with_number_operator():
     # Define the eigenvalues with number operators
     eigs = (((omega * nb),), ((delta * nb),))
 
-    # List of boson operators
-    boson_operators = [b]
-
     # Get the solver function
-    solve_sylvester = solve_sylvester_bosonic(eigs, boson_operators)
+    solve_sylvester = solve_sylvester_2nd_quant(eigs)
 
     # Create a test matrix Y
     Y = sympy.Matrix([[b]])
@@ -84,15 +78,14 @@ def test_solve_sylvester_bosonic_with_number_operator():
     assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().as_expr() == 0
 
 
-def test_solve_sylvester_bosonic():
+def test_solve_sylvester_2nd_quant():
     a, b = sympy.symbols("a b", cls=BosonOp)
     n_a, n_b = NumberOperator(a), NumberOperator(b)
     g, J = sympy.symbols("g J", real=True)
 
     eigs = ((g * n_a**2, 2 + n_a), (J * n_a, 1 + n_b))
-    boson_operators = [a, b]
 
-    solve_sylvester = solve_sylvester_bosonic(eigs, boson_operators)
+    solve_sylvester = solve_sylvester_2nd_quant(eigs)
 
     Y = sympy.Matrix([[a, a * b], [Dagger(a), n_a]])
     V = solve_sylvester(Y, index=(0, 1, 1))

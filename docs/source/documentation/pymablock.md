@@ -59,7 +59,7 @@
 
 ```{eval-rst}
 .. automodule:: pymablock.second_quantization
-   :members: solve_sylvester_bosonic, apply_mask_to_operator
+   :members: solve_sylvester_2nd_quant, apply_mask_to_operator
    :show-inheritance:
 ```
 

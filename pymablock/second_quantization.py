@@ -15,7 +15,7 @@ from pymablock.series import zero
 
 __all__ = [
     "apply_mask_to_operator",
-    "solve_sylvester_bosonic",
+    "solve_sylvester_2nd_quant",
 ]
 
 
@@ -23,7 +23,6 @@ def solve_monomial(
     Y: sympy.Expr,
     H_ii: sympy.Expr,
     H_jj: sympy.Expr,
-    boson_operators: list[BosonOp],
 ) -> NumberOrderedForm:
     """Solve a Sylvester equation for bosonic monomial.
 
@@ -44,8 +43,6 @@ def solve_monomial(
         Sectors of the unperturbed Hamiltonian.
     H_jj :
         Sectors of the unperturbed Hamiltonian.
-    boson_operators :
-        List with all possible bosonic operators in the inputs.
 
     Returns
     -------
@@ -61,6 +58,7 @@ def solve_monomial(
         return sympy.S.Zero
 
     Y = NumberOrderedForm.from_expr(Y)
+    operators = Y.operators
 
     shifts = Y.terms
     new_shifts = {}
@@ -69,15 +67,21 @@ def solve_monomial(
         # respectively.
         shifted_H_jj = H_jj.subs(
             {
-                NumberOperator(op): NumberOperator(op) + delta
-                for delta, op in zip(shift, boson_operators)
+                NumberOperator(op): (
+                    NumberOperator(op) + delta if isinstance(op, BosonOp) else sympy.S.One
+                )
+                for delta, op in zip(shift, operators)
                 if delta > 0
             }
         )
         shifted_H_ii = H_ii.subs(
             {
-                NumberOperator(op): NumberOperator(op) - delta
-                for delta, op in zip(shift, boson_operators)
+                NumberOperator(op): (
+                    NumberOperator(op) - delta
+                    if isinstance(op, BosonOp)
+                    else sympy.S.Zero
+                )
+                for delta, op in zip(shift, operators)
                 if delta < 0
             }
         )
@@ -89,9 +93,8 @@ def solve_monomial(
     )
 
 
-def solve_sylvester_bosonic(
+def solve_sylvester_2nd_quant(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
-    boson_operators: list[BosonOp],
 ) -> Callable:
     """Solve a Sylvester equation for bosonic diagonal Hamiltonians.
 
@@ -99,8 +102,6 @@ def solve_sylvester_bosonic(
     ----------
     eigs :
         Tuple of lists of expressions representing the diagonal Hamiltonian blocks.
-    boson_operators :
-        List with all possible bosonic operators in the Hamiltonian.
 
     Returns
     -------
@@ -133,10 +134,7 @@ def solve_sylvester_bosonic(
             eigs_B = eigs[index[1]] = [sympy.S.Zero] * Y.shape[1]
         return sympy.Matrix(
             [
-                [
-                    solve_monomial(Y[i, j], eigs_A[i], eigs_B[j], boson_operators)
-                    for j in range(Y.cols)
-                ]
+                [solve_monomial(Y[i, j], eigs_A[i], eigs_B[j]) for j in range(Y.cols)]
                 for i in range(Y.rows)
             ]
         )
