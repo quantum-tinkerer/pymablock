@@ -771,7 +771,7 @@ class NumberOrderedForm(Operator):
         for powers, coeff in self.args[1]:
             multiplier = expr
             for i, power in enumerate(powers):
-                if power < 0:
+                if power <= 0:
                     continue
                 n_i = NumberOperator(self.operators[i])
                 multiplier = multiplier.subs(n_i, n_i + power)
