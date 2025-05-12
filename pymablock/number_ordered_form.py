@@ -872,6 +872,34 @@ class NumberOrderedForm(Operator):
         # Return a new NumberOrderedForm instance with the updated terms
         return type(self)(self.operators, new_terms, validate=False)
 
+    def _cancel_fermion_numbers(self):
+        """Cancel fermionic number operators.
+
+        If the coefficient has `n_f`, while the term has either `f` or `f†`,
+        `n_f` may be safely replaced with `0` because of the fermionic nilpotence.
+
+        Returns
+        -------
+        NumberOrderedForm
+            A new NumberOrderedForm with the fermionic number operators canceled.
+
+        """
+        if not self._n_fermions:
+            # No fermionic operators, nothing to do
+            return self
+        new_terms = {}
+        fermions = self.operators[len(self.operators) - self._n_fermions :]
+        for powers, coeff in self.args[1]:
+            for p, op in zip(powers[len(self.operators) - self._n_fermions :], fermions):
+                if not p:
+                    continue
+                coeff = coeff.subs(NumberOperator(op), sympy.S.Zero)
+            if coeff == 0:
+                continue
+            new_terms[powers] = coeff
+
+        return type(self)(self.operators, new_terms, validate=False)
+
     def _expand_operators(self, new_operators: list[OperatorType]) -> "NumberOrderedForm":
         """Expand the operators in this NumberOrderedForm.
 

@@ -77,9 +77,7 @@ def solve_monomial(
         shifted_H_ii = H_ii.subs(
             {
                 NumberOperator(op): (
-                    NumberOperator(op) - delta
-                    if isinstance(op, BosonOp)
-                    else sympy.S.Zero
+                    NumberOperator(op) - delta if isinstance(op, BosonOp) else sympy.S.One
                 )
                 for delta, op in zip(shift, operators)
                 if delta < 0
@@ -90,7 +88,7 @@ def solve_monomial(
     return NumberOrderedForm(
         operators=Y.args[0],
         terms=new_shifts,
-    )
+    )._cancel_fermion_numbers()
 
 
 def solve_sylvester_2nd_quant(
