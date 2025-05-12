@@ -791,9 +791,6 @@ class NumberOrderedForm(Operator):
                         preceding_fermions = sum(
                             pow for pow in powers[-self._n_fermions : op_index] if pow > 0
                         )
-                        preceding_fermions += sum(
-                            pow for pow in powers[-self._n_fermions : op_index] if pow < 0
-                        )
                 else:
                     # Creation operator, n_c * c† = c†
                     coeff = coeff.subs(n_operator, sympy.S.One)
@@ -803,9 +800,6 @@ class NumberOrderedForm(Operator):
                         # current one.
                         preceding_fermions = sum(
                             pow for pow in powers[-self._n_fermions : op_index] if pow > 0
-                        )
-                        preceding_fermions += sum(
-                            pow for pow in powers[-self._n_fermions : op_index] if pow < 0
                         )
                     else:
                         # Count all annihilation operators and all creation operators
