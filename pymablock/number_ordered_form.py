@@ -1214,6 +1214,28 @@ class NumberOrderedForm(Operator):
         # Create a new NumberOrderedForm with the same operators but new terms
         return type(self)(self.operators, new_terms, validate=False)
 
+    def _linearize_binary_operators(self):
+        """Convert coefficients with binary number operators to linear form.
+
+        This method applies `f(n_a) = (1 - n_a ) * f(0) + n_a * f(1)` to all binary
+        number operators (fermions) in the terms of this NumberOrderedForm.
+        """
+        new_terms = {}
+        if not self._n_fermions:
+            # No fermionic operators, nothing to do
+            return self
+
+        fermion_numbers = [
+            NumberOperator(op) for op in self.operators[-self._n_fermions :]
+        ]
+        for powers, coeff in self.args[1]:
+            for fermion_number in fermion_numbers:
+                coeff = (sympy.S.One - fermion_number) * coeff.subs(
+                    fermion_number, sympy.S.Zero
+                ) + fermion_number * coeff.subs(fermion_number, sympy.S.One)
+            new_terms[powers] = coeff
+        return type(self)(self.operators, new_terms, validate=False)
+
     def _eval_simplify(self, **kwargs):
         """SymPy's hook for the simplify() function.
 
@@ -1231,7 +1253,26 @@ class NumberOrderedForm(Operator):
             A simplified NumberOrderedForm
 
         """
-        return self.applyfunc(sympy.simplify, **kwargs)
+        return self._linearize_binary_operators().applyfunc(sympy.simplify, **kwargs)
+
+    def _eval_expand(self, **kwargs):
+        """SymPy's hook for the expand() function.
+
+        This allows the SymPy expand() function to work correctly with
+        NumberOrderedForm instances.
+
+        Parameters
+        ----------
+        **kwargs
+            Keyword arguments to pass to sympy.expand
+
+        Returns
+        -------
+        NumberOrderedForm
+            An expanded NumberOrderedForm
+
+        """
+        return self._linearize_binary_operators().applyfunc(sympy.expand, **kwargs)
 
     def __pow__(self, exp: sympy.Expr) -> "NumberOrderedForm":
         """Raise this NumberOrderedForm to a power.
