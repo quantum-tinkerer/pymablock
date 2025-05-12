@@ -94,7 +94,7 @@ class NumberOperator(HermitianOperator):
         return self.args[0]
 
     def __new__(cls, *args, **hints):
-        """Construct a number operator for bosonic modes.
+        """Construct a number operator for bosonic or fermionic mode.
 
         Parameters
         ----------

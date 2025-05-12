@@ -19,18 +19,15 @@ __all__ = [
 ]
 
 
-def solve_monomial(
+def solve_scalar(
     Y: sympy.Expr,
     H_ii: sympy.Expr,
     H_jj: sympy.Expr,
 ) -> NumberOrderedForm:
-    """Solve a Sylvester equation for bosonic monomial.
-
-    Given `Y`, `H_ii`, and `H_jj`, return `-(E_i_shifted - E_j_shifted) * Y_monomial`, per
-    monomial of creation and annihilation operators in Y.
+    """Solve a scalar Sylvester equation with 2nd quantized operators.
 
     `H_ii` and `H_jj` are scalar expressions containing number operators of
-    possibly several bosons.
+    possibly several bosons and fermions.
 
     See more details of how this works in the :doc:`second quantization
     documentation <../second_quantization>`.
@@ -38,7 +35,7 @@ def solve_monomial(
     Parameters
     ----------
     Y :
-        Expression with raising and lowering bosonic operators.
+        Expression with raising and lowering bosonic and fermionic operators.
     H_ii :
         Sectors of the unperturbed Hamiltonian.
     H_jj :
@@ -47,7 +44,7 @@ def solve_monomial(
     Returns
     -------
     NumberOrderedForm
-        Result of the Sylvester equation for bosonic operators.
+        Result of the Sylvester equation for 2nd quantized operators.
 
     Notes
     -----
@@ -94,7 +91,7 @@ def solve_monomial(
 def solve_sylvester_2nd_quant(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
 ) -> Callable:
-    """Solve a Sylvester equation for bosonic diagonal Hamiltonians.
+    """Solve a Sylvester equation for 2nd quantized diagonal Hamiltonians.
 
     Parameters
     ----------
@@ -132,7 +129,7 @@ def solve_sylvester_2nd_quant(
             eigs_B = eigs[index[1]] = [sympy.S.Zero] * Y.shape[1]
         return sympy.Matrix(
             [
-                [solve_monomial(Y[i, j], eigs_A[i], eigs_B[j]) for j in range(Y.cols)]
+                [solve_scalar(Y[i, j], eigs_A[i], eigs_B[j]) for j in range(Y.cols)]
                 for i in range(Y.rows)
             ]
         )

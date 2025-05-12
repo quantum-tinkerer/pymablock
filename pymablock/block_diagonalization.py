@@ -252,8 +252,8 @@ def block_diagonalize(
     else:
         raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
 
-    # Extract the default boson operators from the Hamiltonian. If operators aren't
-    # empty, we're dealing with a second-quantized problem.
+    # Extract the default operators from the Hamiltonian. If operators aren't empty,
+    # we're dealing with a second-quantized problem.
     if any(isinstance(block, (sympy.MatrixBase, sympy.Expr)) for block in nonzero_blocks):
         operators = list(
             set().union(*(find_operators(block) for block in nonzero_blocks))
@@ -1157,7 +1157,7 @@ def _extract_diagonal(
     implicit :
         Whether the last block is defined as a linear operator.
     operators :
-        List of bosonic operators used in the Hamiltonian.
+        List of second-quantized operators used in the Hamiltonian.
     """
     # If using implicit mode, skip the last block.
     diag_indices = np.arange(operator.shape[0] - implicit)
