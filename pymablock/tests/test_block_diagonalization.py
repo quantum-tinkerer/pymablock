@@ -69,12 +69,17 @@ def compare_series(
         if any(isinstance(value, type(one)) for value in values):
             assert value1 == value2
         elif all(isinstance(value, sympy.MatrixBase) for value in values):
-            assert sympy.simplify(value1 - value2).is_zero_matrix
+            assert (
+                sympy.simplify(value1 - value2)
+                .applyfunc(lambda x: x.as_expr())
+                .is_zero_matrix
+            )
         elif any(isinstance(value, sympy.MatrixBase) for value in values):
             # The only non-symbolic option is zero
             values.remove(zero)
             values = values[0]
-            values.simplify()
+            values = sympy.simplify(values)
+            values = values.applyfunc(lambda x: x.as_expr())
             assert values.is_zero_matrix
         else:
             # Convert all numeric types to dense arrays
