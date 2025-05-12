@@ -1092,32 +1092,10 @@ def test_fermion_anticommutation():
     f, g = sympy.symbols("f g", cls=fermion.FermionOp)
     n_f, n_g = NumberOperator(f), NumberOperator(g)
 
-    # Test anti-commutation between different fermion operators
-    # Create NOFs for individual operators first
-    nof_f = NumberOrderedForm.from_expr(f)
-    nof_g = NumberOrderedForm.from_expr(g)
-
-    # f * g + g * f = 0
-    result1 = nof_f * nof_g + nof_g * nof_f
-    assert result1.as_expr() == sympy.S.Zero
-
-    # Similar test for creation operators
-    nof_df = NumberOrderedForm.from_expr(Dagger(f))
-    nof_dg = NumberOrderedForm.from_expr(Dagger(g))
-
-    # Dagger(f) * Dagger(g) + Dagger(g) * Dagger(f) = 0
-    result2 = nof_df * nof_dg + nof_dg * nof_df
-    assert result2.as_expr() == sympy.S.Zero
-
     # Test anti-commutation between creation and annihilation operators
     expr3 = f * Dagger(f) + Dagger(f) * f
     nof3 = NumberOrderedForm.from_expr(expr3)
     assert nof3.as_expr() == sympy.S.One
-
-    # Test with different fermions
-    expr4 = f * Dagger(g) + Dagger(g) * f
-    nof4 = NumberOrderedForm.from_expr(expr4)
-    assert nof4.as_expr() == sympy.S.Zero
 
     # Test in more complex expressions
     expr5 = f * g * Dagger(g) * Dagger(f) - Dagger(f) * Dagger(g) * g * f
@@ -1194,17 +1172,6 @@ def test_mixed_boson_fermion():
     nof2 = NumberOrderedForm.from_expr(expr2).simplify()
     assert nof2.as_expr() == sympy.S.Zero
 
-    # Test mixed operators with NumberOrderedForm multiplication
-    nof_a = NumberOrderedForm.from_expr(a)
-    nof_f = NumberOrderedForm.from_expr(f)
-
-    # Multiplying should preserve both types
-    result = nof_a * nof_f
-    expected = NumberOrderedForm.from_expr(a * f)
-
-    # Use normal ordered form to compare results properly
-    assert normal_ordered_form(result.as_expr() - expected.as_expr()) == 0
-
     # Test complex mixed expression
     expr3 = Dagger(a) * n_f * a + f * n_a * Dagger(f)
     nof3 = NumberOrderedForm.from_expr(expr3)
@@ -1215,23 +1182,30 @@ def test_mixed_boson_fermion():
     assert result3.as_expr() == expected3.as_expr()
 
 
-def test_fermion_sign_rules():
-    """Test sign rules when fermion operators are reordered during multiplication."""
-    fermions = sympy.symbols("a:j", cls=fermion.FermionOp)
+def test_independent_operator_commutation():
+    """Test that sign of the permutation is the parity of its fermionic part."""
+    bosons = sympy.symbols("a:f", cls=boson.BosonOp)
+    fermions = sympy.symbols("a:f", cls=fermion.FermionOp)
+    operators = bosons + fermions
     for _ in range(10):
         # Generate a random operator.
         nof = NumberOrderedForm(
-            fermions,
+            operators,
             {
                 tuple(
-                    int(i) for i in np.random.randint(-1, 2, size=len(fermions))
+                    int(i) for i in np.random.randint(-1, 2, size=len(operators))
                 ): sympy.S.One
             },
         )
-        operators = nof.as_expr().as_ordered_factors()
-        permutation = Permutation.random(len(operators))
-        permuted = sympy.Mul(
-            sympy.S(-1) ** permutation.parity(),
-            *(operators[i] for i in permutation),
+        orig = nof.as_expr().as_ordered_factors()
+        permutation = Permutation.random(len(orig))
+        new = tuple(orig[i] for i in permutation)
+        # New fermionic parity
+        fermionic_new = tuple(
+            orig.index(op) for op in new if isinstance(op, fermion.FermionOp)
         )
-        assert (nof - permuted).as_expr() == 0
+
+        permuted = sympy.Mul(*new)
+        if Permutation(np.argsort(fermionic_new)).parity():
+            permuted *= -1
+        assert (nof - NumberOrderedForm.from_expr(permuted)).as_expr() == 0
