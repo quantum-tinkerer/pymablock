@@ -797,19 +797,13 @@ class NumberOrderedForm(Operator):
                     preceding_fermions = sum(
                         int(pow == 1) for pow in powers[-self._n_fermions : op_index]
                     )
-                    print(
-                        f"{powers=}, {op_index=}, {preceding_fermions=}, {op_power=}, {new_power=}"
-                    )
                 else:
                     # Multiplying creation by annihilation or nothing by creation =>
                     # count all annihilation operators and all creation operators that
                     # are later than the current one.
                     preceding_fermions = sum(
                         int(pow == 1) for pow in powers[-self._n_fermions :]
-                    ) + sum(int(pow == -1) for pow in powers[op_index:])
-                    print(
-                        f"{powers=}, {op_index=}, {preceding_fermions=}, {op_power=}, {new_power=}"
-                    )
+                    ) + sum(int(pow == -1) for pow in powers[op_index + 1 :])
 
                 if preceding_fermions % 2:
                     # Fermionic sign change
