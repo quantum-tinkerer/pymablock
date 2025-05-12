@@ -126,6 +126,17 @@ First, addition simply merges coefficients of terms with identical operator powe
 Second, taking the adjoint negates all the powers, which turns creation operators into annihilation operators and vice versa, and conjugates the coefficients.
 Together, these operations provide all the necessary tools to manipulate quantum expressions in number-ordered form in Pymablock.
 
+Fermions and spins work in a similar way, except for the different commutation relations.
+Firstly, the creation and annihilation operators are nilpotent: if $a$ is a fermion or spin $1/2$ operator, then $(a^\dagger)^2 = 0$ and $a^2 = 0$.
+This also means that the number operator is idempotent: $N_a^2 = N_a$, which also allows to linearize any function of the number operator because $f(N_a) = f(1) N_a + f(0) (1 - N_a)$.
+These rules, as well as the commutation relations, combine into the multiplication table for fermions and spins:
+
+| Left × Term | $a^\dagger$ | $N_a$ | $a$ |
+|-------------|-------------|-------|-----|
+| $a^\dagger$ | $0$ | $0$ | $N_a$ |
+| $N_a$ | $a^\dagger$ | $N_a$ | $0$ |
+| $a$ | $1-N_a$ | $a$ | $0$ |
+
 ### Use within Pymablock
 
 Whenever the user provides input to {autolink}`~pymablock.block_diagonalize` which is a matrix containing second quantized operators, Pymablock computes the output as {autolink}`~pymablock.series.BlockSeries` of matrices containing number-ordered forms.
@@ -164,6 +175,8 @@ Because $H_i$ and $H_j$ commute with $f_X(N)$, the solution is:
 $$X = (a^\dagger)^n \cdot \frac{f_Y(N)}{H_i(N-n) - H_j(N+m)} \cdot a^m$$
 
 The generalization to multiple modes follows the same pattern: for each mode, apply the appropriate shifts to the Hamiltonian based on the creation and annihilation operators in the perturbation term and find the solution with the same powers of creation and annihilation operators as the right hand side.
+
+The solution for fermions and spins is similar and follows from the multiplication table.
 
 In Pymablock, the {autolink}`~pymablock.second_quantization.solve_sylvester_bosonic` function implements this approach.
 
