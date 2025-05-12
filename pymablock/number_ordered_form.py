@@ -11,6 +11,7 @@ from collections.abc import Callable
 
 import sympy
 from packaging.specifiers import SpecifierSet
+from sympy.core.logic import fuzzy_and
 from sympy.physics.quantum import Dagger, HermitianOperator, Operator
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
@@ -779,34 +780,37 @@ class NumberOrderedForm(Operator):
                     # Annihilation operator, n_c * c = 0
                     coeff = coeff.subs(n_operator, sympy.S.Zero)
                     if orig_power:
+                        # c† * c = n_c
                         coeff = n_operator * coeff
-                        # Count all fermion annihilation operators and all creation
-                        # operators that are later than the current one.
-                        preceding_fermions = sum(
-                            pow for pow in powers[-self._n_fermions :] if pow > 0
-                        ) + sum(pow for pow in powers[op_index + 1 :] if pow < 0)
-                    else:
-                        # Count all annihilation operators that are earlier than the
-                        # current one.
-                        preceding_fermions = sum(
-                            pow for pow in powers[-self._n_fermions : op_index] if pow > 0
-                        )
                 else:
                     # Creation operator, n_c * c† = c†
                     coeff = coeff.subs(n_operator, sympy.S.One)
                     if orig_power:
+                        # c * c† = 1 - n_c
                         coeff = (sympy.S.One - n_operator) * coeff
-                        # Count all annihilation operators that are earlier than the
-                        # current one.
-                        preceding_fermions = sum(
-                            pow for pow in powers[-self._n_fermions : op_index] if pow > 0
-                        )
-                    else:
-                        # Count all annihilation operators and all creation operators
-                        # that are later than the current one.
-                        preceding_fermions = sum(
-                            pow for pow in powers[-self._n_fermions : op_index] if pow > 0
-                        ) + sum(pow for pow in powers[op_index + 1 :] if pow < 0)
+
+                # Count the fermions with which we need to commute the new operator.
+                if orig_power == 1 or new_power == 1:
+                    # Either multiplying annihilation by creation or nothing by
+                    # annihilation => count all annihilation operators that are earlier
+                    # than the current one.
+                    preceding_fermions = sum(
+                        int(pow == 1) for pow in powers[-self._n_fermions : op_index]
+                    )
+                    print(
+                        f"{powers=}, {op_index=}, {preceding_fermions=}, {op_power=}, {new_power=}"
+                    )
+                else:
+                    # Multiplying creation by annihilation or nothing by creation =>
+                    # count all annihilation operators and all creation operators that
+                    # are later than the current one.
+                    preceding_fermions = sum(
+                        int(pow == 1) for pow in powers[-self._n_fermions :]
+                    ) + sum(int(pow == -1) for pow in powers[op_index:])
+                    print(
+                        f"{powers=}, {op_index=}, {preceding_fermions=}, {op_power=}, {new_power=}"
+                    )
+
                 if preceding_fermions % 2:
                     # Fermionic sign change
                     coeff = -coeff
@@ -1158,9 +1162,8 @@ class NumberOrderedForm(Operator):
             True if zero, False if non-zero, None if undetermined.
 
         """
-        if not self.args[1]:
-            return True
-        return None  # Let SymPy try other approaches
+        print("hi")
+        return fuzzy_and(coeff.is_zero for _, coeff in self.args[1])
 
     def __bool__(self):
         """Check if the NumberOrderedForm is non-zero.

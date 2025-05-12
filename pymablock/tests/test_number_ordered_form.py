@@ -1,7 +1,9 @@
 """Tests for the NumberOrderedForm class."""
 
+import numpy as np
 import pytest
 import sympy
+from sympy.combinatorics import Permutation
 from sympy.physics.quantum import Commutator, Dagger, HermitianOperator, boson, fermion
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
@@ -10,6 +12,9 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
     find_operators,
 )
+
+# Here and in other tests we need to convert `NumberOrderedForm` to `Expr` in
+# order to check if it is zero because of https://github.com/sympy/sympy/issues/10728
 
 
 def test_number_operator_interface():
@@ -1212,71 +1217,21 @@ def test_mixed_boson_fermion():
 
 def test_fermion_sign_rules():
     """Test sign rules when fermion operators are reordered during multiplication."""
-    f, g, h = sympy.symbols("f g h", cls=fermion.FermionOp)
-
-    # Test in more complex expressions
-    expr3 = f * Dagger(g) * h
-    nof4 = NumberOrderedForm.from_expr(expr3)
-
-    # Number ordered form should preserve the sign when reordering
-    expected4 = -Dagger(g) * h * f
-    assert normal_ordered_form(nof4.as_expr() - expected4) == 0
-
-    # Test multiplication by number operator doesn't change signs
-    n_f = NumberOperator(f)
-    expr5 = f * n_f * g
-    nof5 = NumberOrderedForm.from_expr(expr5)
-
-    # Should still maintain the sign rule for fermions
-    expected5 = -g * f
-    assert normal_ordered_form(nof5.as_expr() - expected5) == 0
-
-    # Test sign rules with creation operators
-    expr3 = Dagger(f) * Dagger(g) * Dagger(h)
-    nof3 = NumberOrderedForm.from_expr(expr3)
-
-    # Creation operators should be ordered in reverse
-    expected3 = -Dagger(h) * Dagger(g) * Dagger(f)
-    assert normal_ordered_form(nof3.as_expr() - expected3) == 0
-
-    # Test sign rules in mixed creation-annihilation expressions
-    expr4 = f * Dagger(g) * h
-    nof4 = NumberOrderedForm.from_expr(expr4)
-
-    # Number ordered form should preserve the sign when reordering
-    expected4 = -Dagger(g) * h * f
-    assert normal_ordered_form(nof4.as_expr() - expected4) == 0
-
-    # Test multiplication by number operator doesn't change signs
-    n_f = NumberOperator(f)
-    expr5 = f * n_f * g
-    nof5 = NumberOrderedForm.from_expr(expr5)
-
-    # Should still maintain the sign rule for fermions
-    expected5 = -g * f
-    assert normal_ordered_form(nof5.as_expr() - expected5) == 0
-
-    # Test sign rules with creation operators
-    expr3 = Dagger(f) * Dagger(g) * Dagger(h)
-    nof3 = NumberOrderedForm.from_expr(expr3)
-
-    # Creation operators should be ordered in reverse
-    expected3 = -Dagger(h) * Dagger(g) * Dagger(f)
-    assert normal_ordered_form(nof3.as_expr() - expected3) == 0
-
-    # Test sign rules in mixed creation-annihilation expressions
-    expr4 = f * Dagger(g) * h
-    nof4 = NumberOrderedForm.from_expr(expr4)
-
-    # Number ordered form should preserve the sign when reordering
-    expected4 = -Dagger(g) * h * f
-    assert normal_ordered_form(nof4.as_expr() - expected4) == 0
-
-    # Test multiplication by number operator doesn't change signs
-    n_f = NumberOperator(f)
-    expr5 = f * n_f * g
-    nof5 = NumberOrderedForm.from_expr(expr5)
-
-    # Should still maintain the sign rule for fermions
-    expected5 = -g * f
-    assert normal_ordered_form(nof5.as_expr() - expected5) == 0
+    fermions = sympy.symbols("a:j", cls=fermion.FermionOp)
+    for _ in range(10):
+        # Generate a random operator.
+        nof = NumberOrderedForm(
+            fermions,
+            {
+                tuple(
+                    int(i) for i in np.random.randint(-1, 2, size=len(fermions))
+                ): sympy.S.One
+            },
+        )
+        operators = nof.as_expr().as_ordered_factors()
+        permutation = Permutation.random(len(operators))
+        permuted = sympy.Mul(
+            sympy.S(-1) ** permutation.parity(),
+            *(operators[i] for i in permutation),
+        )
+        assert (nof - permuted).as_expr() == 0
