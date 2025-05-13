@@ -4,7 +4,15 @@ import numpy as np
 import pytest
 import sympy
 from sympy.combinatorics import Permutation
-from sympy.physics.quantum import Commutator, Dagger, HermitianOperator, boson, fermion
+from sympy.physics.quantum import (
+    Commutator,
+    Dagger,
+    HermitianOperator,
+    boson,
+    fermion,
+    pauli,
+    represent,
+)
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock.number_ordered_form import (
@@ -22,8 +30,10 @@ def test_number_operator_interface():
     # Create a boson operator
     a, b = sympy.symbols("a b", cls=boson.BosonOp)
     f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    s, z = sympy.symbols("s z", cls=pauli.SigmaPlus)
     n_a, n_b = NumberOperator(a), NumberOperator(b)
     n_f = NumberOperator(f)
+    n_s = NumberOperator(s)
 
     # Check the name of the NumberOperator
     assert n_a.name == sympy.Symbol("a")
@@ -31,12 +41,12 @@ def test_number_operator_interface():
     # Check that it cannot be instantiated with not a wrong operator
     with pytest.raises(TypeError):
         NumberOperator(HermitianOperator("a"))
-    # Also not with a creation operator
-    with pytest.raises(ValueError):
-        NumberOperator(Dagger(a))
+
+    assert NumberOperator(Dagger(a)) == NumberOperator(a)
 
     assert Commutator(n_a, n_b).doit() == 0
     assert Commutator(n_a, n_f).doit() == 0
+    assert Commutator(n_s, n_a).doit() == 0
 
     assert Commutator(n_a, a).doit() == -a
     assert Commutator(n_a, b).doit(independent=True) == 0
@@ -44,6 +54,7 @@ def test_number_operator_interface():
     assert Commutator(n_f, a).doit(independent=True) == 0
     assert Commutator(n_f, g).doit(independent=True) == 0
     assert Commutator(n_f, f).doit() == -f
+    assert Commutator(n_s, pauli.SigmaX(z.name)).doit(independent=True) == 0
 
     assert sympy.latex(n_a) == "{N_{a}}"
     assert sympy.pretty(n_a) == "N_a"
@@ -134,16 +145,18 @@ def test_number_ordered_form_validation():
     b = boson.BosonOp("b")
 
     # Test with non-quantum operator
-    with pytest.raises(TypeError, match="Expected BosonOp or FermionOp"):
+    with pytest.raises(
+        TypeError, match="Operators must be BosonOp, SigmaMinus, or FermionOp."
+    ):
         NumberOrderedForm([sympy.Symbol("x")], {(0,): sympy.S.One})
 
     # Test with creation operator instead of annihilation
-    with pytest.raises(ValueError, match="must be an annihilation operator"):
+    with pytest.raises(ValueError, match="Operators must be annihilation operators."):
         NumberOrderedForm([Dagger(a)], {(0,): sympy.S.One})
 
     # Test with boson after fermion
     f = fermion.FermionOp("f")
-    with pytest.raises(ValueError, match="must come before fermionic operators"):
+    with pytest.raises(ValueError, match="Operators must be sorted by type and name."):
         NumberOrderedForm([f, a], {(0, 0): sympy.S.One})
 
     # Test with wrong powers tuple length
@@ -151,7 +164,7 @@ def test_number_ordered_form_validation():
         NumberOrderedForm([a, b], {(0,): sympy.S.One})
 
     # Test with non-sympy expression coefficient
-    with pytest.raises(TypeError, match="must be a sympy expression"):
+    with pytest.raises(sympy.SympifyError):
         NumberOrderedForm([a], {(0,): "not an expression"})
 
     # Test with creation/annihilation operator in coefficient
@@ -254,6 +267,15 @@ def test_from_expr():
 
     nof2 = NumberOrderedForm.from_expr(sympy.sin(a * Dagger(a)))
     assert nof2.as_expr() == sympy.sin(NumberOperator(a) + 1)
+
+
+def test_spin_conversion():
+    """Test round-trip conversion of spin operators to NumberOrderedForm."""
+    for op in pauli.SigmaX, pauli.SigmaY, pauli.SigmaZ:
+        expr = op("s")
+        nof3 = NumberOrderedForm.from_expr(expr)
+        diff = nof3.doit().expand() - expr
+        assert diff.is_zero or represent(diff).is_zero_matrix
 
 
 def test_doit():

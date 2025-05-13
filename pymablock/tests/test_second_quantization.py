@@ -1,5 +1,5 @@
 import sympy
-from sympy.physics.quantum import Dagger
+from sympy.physics.quantum import Dagger, pauli
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 
@@ -171,7 +171,7 @@ def test_apply_mask_to_operator():
         [[sympy.Add(*allowed_terms) + Dagger(sympy.Add(*allowed_terms))]]
     )
 
-    not_allowed_terms = [(((N_1 - 1) ** (-2) * N_1) ** 4 - 1) * b_1]
+    not_allowed_terms = [(((N_1 - sympy.S.One) ** (-2) * N_1) ** 4 - sympy.S.One) * b_1]
     not_allowed_matrix = sympy.Matrix(
         [[sympy.Add(*not_allowed_terms) + Dagger(sympy.Add(*not_allowed_terms))]]
     )
@@ -667,3 +667,46 @@ def test_holstein_model():
     # Check that without an electron (n_f = 0), there's no correction
     E_2_no_electron = H_tilde[0, 0, 2][0, 0].subs({n_f: 0}).as_expr()
     assert E_2_no_electron == 0
+
+
+def test_jaynes_cummings_solve_sylvester():
+    """Test the Jaynes-Cummings Hamiltonian."""
+    wr, wq, g = sympy.symbols("wr wq g", real=True)
+    a = sympy.symbols("a", cls=BosonOp)  # Boson operator
+    H = wr * Dagger(a) * a + wq * pauli.SigmaZ("s") / 2
+
+    solve_sylvester = solve_sylvester_2nd_quant(2 * ((H,),))
+
+    Y = sympy.Matrix(
+        [[g * (pauli.SigmaPlus("s") * a + pauli.SigmaMinus("s") * Dagger(a))]]
+    )
+    V = solve_sylvester(Y, index=(0, 0, 1))
+    H_ii = H_jj = sympy.Matrix([[H]])
+
+    result = H_ii * V - V * H_jj
+    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().as_expr() == 0
+
+
+def test_jaynes_cummings_block_diagonalize():
+    """Test the Jaynes-Cummings Hamiltonian with block diagonalization."""
+    wr, wq, g = sympy.symbols("wr wq g", real=True)
+    a = sympy.symbols("a", cls=BosonOp)  # Boson operator
+    H = wr * Dagger(a) * a + wq * pauli.SigmaZ("s") / 2
+
+    H_0 = sympy.Matrix([[H]])
+    H_1 = sympy.Matrix(
+        [[g * (pauli.SigmaPlus("s") * a + pauli.SigmaMinus("s") * Dagger(a))]]
+    )
+    H = operator_to_BlockSeries([H_0, H_1])
+
+    H_tilde, U, U_dagger = block_diagonalize([H_0, H_1])
+
+    # Check that the first order term is zero
+    assert H_tilde[0, 0, 1][0, 0].as_expr() == 0
+
+    # Check unitarity
+    is_unitary(U, U_dagger, wanted_orders=(4,))
+
+    # Reconstruct the Hamiltonian
+    H_reconstructed = cauchy_dot_product(U, cauchy_dot_product(H_tilde, U_dagger))
+    compare_series(H, H_reconstructed, wanted_orders=(4,))

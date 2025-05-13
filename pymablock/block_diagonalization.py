@@ -23,7 +23,11 @@ from pymablock.linalg import (
     direct_greens_function,
     is_diagonal,
 )
-from pymablock.number_ordered_form import NumberOrderedForm, find_operators
+from pymablock.number_ordered_form import (
+    NumberOrderedForm,
+    find_operators,
+    generator_types,
+)
 from pymablock.series import (
     BlockSeries,
     zero,
@@ -257,6 +261,11 @@ def block_diagonalize(
     if any(isinstance(block, (sympy.MatrixBase, sympy.Expr)) for block in nonzero_blocks):
         operators = list(
             set().union(*(find_operators(block) for block in nonzero_blocks))
+        )
+        operators = tuple(
+            sorted(
+                operators, key=lambda op: (generator_types.index(type(op)), str(op.name))
+            )
         )
     else:
         operators = ()

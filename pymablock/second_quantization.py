@@ -1,4 +1,4 @@
-"""Second quantization tools for bosonic and fermionic operators.
+"""Second quantization tools.
 
 See number_ordered_form_plan.md for the plan to implement NumberOrderedForm as an
 Operator subclass for better representation of number-ordered expressions.
@@ -27,7 +27,7 @@ def solve_scalar(
     """Solve a scalar Sylvester equation with 2nd quantized operators.
 
     `H_ii` and `H_jj` are scalar expressions containing number operators of
-    possibly several bosons and fermions.
+    possibly several bosons, fermions, and spin operators.
 
     See more details of how this works in the :doc:`second quantization
     documentation <../second_quantization>`.
@@ -35,7 +35,7 @@ def solve_scalar(
     Parameters
     ----------
     Y :
-        Expression with raising and lowering bosonic and fermionic operators.
+        Expression with raising and lowering bosonic, fermionic, and spin operators.
     H_ii :
         Sectors of the unperturbed Hamiltonian.
     H_jj :
@@ -80,12 +80,19 @@ def solve_scalar(
                 if delta < 0
             }
         )
-        new_shifts[shift] = (shifted_H_ii - shifted_H_jj) ** -1 * coeff
+        denominator = shifted_H_ii - shifted_H_jj
+        # Denominators often simplify because linear powers of bosonic operators cancel.
+        denominator = denominator.simplify().as_expr()
+        new_shifts[shift] = (denominator) ** -sympy.S.One * coeff
 
-    return NumberOrderedForm(
-        operators=Y.args[0],
-        terms=new_shifts,
-    )._cancel_fermion_numbers()
+    return (
+        NumberOrderedForm(
+            operators=Y.args[0],
+            terms=new_shifts,
+        )
+        ._cancel_binary_operator_numbers()
+        ._linearize_binary_operators()
+    )
 
 
 def solve_sylvester_2nd_quant(
@@ -113,7 +120,6 @@ def solve_sylvester_2nd_quant(
         raise ValueError(
             "The diagonal Hamiltonian blocks must contain only number-conserving expressions."
         )
-    eigs = tuple(tuple(eig.as_expr() for eig in eig_block) for eig_block in eigs)
 
     def solve_sylvester(
         Y: sympy.MatrixBase,
@@ -207,8 +213,9 @@ def apply_mask_to_operator(
                 if not keep:
                     result[i, j] = value
                 continue
+            value = NumberOrderedForm.from_expr(value)
             value, mask[i, j] = value._combine_operators(mask[i, j])
             assert isinstance(value, NumberOrderedForm)
-            result[i, j] = value.filter_terms(list(mask[i, j].terms), keep)
+            result[i, j] = value.filter_terms(tuple(mask[i, j].terms), keep)
 
     return result
