@@ -70,6 +70,11 @@ def _sum(self, items):  # noqa ARG001
 sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum
 del _sum
 
+if sympy.__version__ in SpecifierSet("<1.15"):
+    # Define is_annihilation on spins for API uniformity
+    pauli.SigmaPlus.is_annihilation = False
+    pauli.SigmaMinus.is_annihilation = True
+
 
 # Type aliases
 operator_types = BosonOp, FermionOp
