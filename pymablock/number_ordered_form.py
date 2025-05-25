@@ -254,8 +254,8 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
         names.
 
     """
-    # replace n -> a† * a.
-    expanded = expr.subs({n: n.doit() for n in expr.atoms(NumberOperator)})
+    # replace n -> a† * a and convert number ordered forms to expressions.
+    expanded = expr.doit()
     return [
         op
         for particle, generator in zip(operator_types, generator_types)
@@ -826,7 +826,7 @@ class NumberOrderedForm(Operator):
                 if op_power > 0:  # Multiplying by an annihilation operator
                     # Compute how many new number operators appear
                     to_pair = min(op_power, max(-orig_power, 0))
-                    coeff = coeff.subs(n_operator, n_operator - to_pair)
+                    coeff = coeff.xreplace({n_operator: n_operator - to_pair})
                     coeff = sympy.Mul(coeff, *(n_operator - i for i in range(to_pair)))
                 else:
                     to_pair = min(-op_power, max(orig_power, 0))
@@ -837,11 +837,11 @@ class NumberOrderedForm(Operator):
                     coeff = coeff * new_numbers
                     if new_power > 0:
                         # Bring all unmatched annihilation operators to the right
-                        coeff = coeff.subs(n_operator, n_operator + new_power)
+                        coeff = coeff.xreplace({n_operator: n_operator + new_power})
                     else:
                         # Bring all unmatched creation operators to the left
-                        coeff = coeff.subs(
-                            n_operator, n_operator + sympy.S(-op_power - to_pair)
+                        coeff = coeff.xreplace(
+                            {n_operator: n_operator + sympy.S(-op_power - to_pair)}
                         )
                 new_terms[new_powers] = coeff
         else:  # Fermions and spins
@@ -859,13 +859,13 @@ class NumberOrderedForm(Operator):
                 )
                 if op_power is One:
                     # Annihilation operator, n_c * c = 0
-                    coeff = coeff.subs(n_operator, sympy.S.Zero)
+                    coeff = coeff.xreplace({n_operator: Zero})
                     if orig_power:
                         # c† * c = n_c
                         coeff = n_operator * coeff
                 else:
                     # Creation operator, n_c * c† = c†
-                    coeff = coeff.subs(n_operator, One)
+                    coeff = coeff.xreplace({n_operator: One})
                     if orig_power:
                         # c * c† = 1 - n_c
                         coeff = (One - n_operator) * coeff
@@ -925,7 +925,7 @@ class NumberOrderedForm(Operator):
 
         new_terms = {}
         for powers, coeff in self.args[1]:
-            multiplier = expr
+            replacements = {}
             for i, power in enumerate(powers):
                 if power == 0:
                     continue
@@ -934,15 +934,16 @@ class NumberOrderedForm(Operator):
                 if isinstance(gen, BosonOp):
                     if power > 0:
                         # a * n_a = n_a + 1
-                        multiplier = multiplier.subs(n_i, n_i + power)
+                        replacements[n_i] = n_i + power
                 else:  # Fermion or spin
                     if power < 0:
                         # c† * n_c = 0
-                        multiplier = multiplier.subs(n_i, sympy.S.Zero)
+                        replacements[n_i] = Zero
                     else:
                         # c * n_c = c.
-                        multiplier = multiplier.subs(n_i, One)
-            new_terms[powers] = coeff * multiplier
+                        replacements[n_i] = One
+
+            new_terms[powers] = coeff * expr.xreplace(replacements)
 
         # Return a new NumberOrderedForm instance with the updated terms
         return type(self)(self.operators, new_terms, validate=False)
@@ -965,10 +966,12 @@ class NumberOrderedForm(Operator):
 
         new_terms = {}
         for powers, coeff in self.args[1]:
+            replacements = {}
             for p, op in zip(powers[self._n_bosons :], binary_ops):
                 if not p:
                     continue
-                coeff = coeff.subs(NumberOperator(op), sympy.S.Zero)
+                replacements[NumberOperator(op)] = Zero
+            coeff = coeff.xreplace(replacements)
             if coeff == 0:
                 continue
             new_terms[powers] = coeff
@@ -1295,9 +1298,9 @@ class NumberOrderedForm(Operator):
 
         # Process each term in the terms dictionary
         for powers, coeff in self.args[1]:
-            dummy_expr = coeff.subs(substitutions)
+            dummy_expr = coeff.xreplace(substitutions)
             result_expr = func(dummy_expr, *args, **kwargs)
-            result_with_n_ops = result_expr.subs(reverse)
+            result_with_n_ops = result_expr.xreplace(reverse)
             new_terms[powers] = result_with_n_ops
 
         # Create a new NumberOrderedForm with the same operators but new terms
@@ -1320,9 +1323,9 @@ class NumberOrderedForm(Operator):
         new_terms = {}
         for powers, coeff in self.args[1]:
             for number in binary_numbers:
-                coeff = (One - number) * coeff.subs(
-                    number, sympy.S.Zero
-                ) + number * coeff.subs(number, One)
+                coeff = (One - number) * coeff.xreplace(
+                    {number: Zero}
+                ) + number * coeff.xreplace({number: One})
             new_terms[powers] = coeff
         return type(self)(self.operators, new_terms, validate=False)
 
