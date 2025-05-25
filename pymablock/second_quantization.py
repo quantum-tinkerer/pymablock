@@ -62,7 +62,7 @@ def solve_scalar(
     for shift, coeff in shifts.items():
         # Commute H_ii and H_jj through creation and annihilation operators
         # respectively.
-        shifted_H_jj = H_jj.subs(
+        shifted_H_jj = H_jj.xreplace(
             {
                 NumberOperator(op): (
                     NumberOperator(op) + delta if isinstance(op, BosonOp) else sympy.S.One
@@ -71,7 +71,7 @@ def solve_scalar(
                 if delta > 0
             }
         )
-        shifted_H_ii = H_ii.subs(
+        shifted_H_ii = H_ii.xreplace(
             {
                 NumberOperator(op): (
                     NumberOperator(op) - delta if isinstance(op, BosonOp) else sympy.S.One
