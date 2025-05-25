@@ -32,7 +32,7 @@ One = sympy.S.One
 Tuple = sympy.Tuple
 
 # Monkey patch sympy to propagate adjoint to matrix elements.
-if sympy.__version__ in SpecifierSet("<1.14"):
+if sympy.__version__ in SpecifierSet("<1.14"):  # pragma: no cover
 
     def _eval_adjoint(self):
         return self.transpose().applyfunc(lambda x: x.adjoint())
@@ -404,9 +404,6 @@ class NumberOrderedForm(Operator):
             If a coefficient contains creation or annihilation operators.
 
         """
-        if isinstance(terms, dict):
-            terms = terms.items()  # type: ignore
-
         for powers, coeff in terms:
             # Check that powers tuple has the right length
             if len(powers) != len(operators):
@@ -418,12 +415,6 @@ class NumberOrderedForm(Operator):
             for power in powers:
                 if not power.is_integer:
                     raise TypeError(f"Power must be an integer, got {power}")
-
-            # Check that the coefficient is a valid sympy expression
-            if not isinstance(coeff, sympy.Expr):
-                raise TypeError(
-                    f"Coefficient must be a sympy expression, got {type(coeff)}"
-                )
 
             # Check for unwanted creation or annihilation operators in the coefficient
             if coeff.has(*operator_types):
@@ -516,13 +507,6 @@ class NumberOrderedForm(Operator):
             # Handle power expressions like a**2 or Dagger(a)**3
             base = expr.base
             exp = expr.exp
-
-            # Apply fermion nilpotence rules
-            if (
-                isinstance(base, (FermionOp, pauli.SigmaMinus, pauli.SigmaPlus))
-                and exp > One
-            ):
-                return cls(operators, Tuple(), validate=False)
 
             # Handle exponentiation of single operators directly.
             if (
@@ -822,11 +806,7 @@ class NumberOrderedForm(Operator):
             If the op_index is out of range.
 
         """
-        if op_index < 0 or op_index >= len(self.operators):
-            raise ValueError(
-                f"Operator index {op_index} out of range [0, {len(self.operators)})"
-            )
-
+        assert 0 <= op_index < len(self.operators), "op_index out of range"
         assert op_power != 0, "op_power must be non-zero"
 
         operator = self.operators[op_index]
@@ -867,7 +847,7 @@ class NumberOrderedForm(Operator):
         else:  # Fermions and spins
             if abs(op_power) > One:
                 # Fermionic and spin operators are nilpotent
-                return type(self)(self.operators, {}, validate=False)
+                return type(self)(self.operators, Tuple(), validate=False)
             for powers, coeff in self.args[1]:
                 orig_power = powers[op_index]
                 new_power = orig_power + op_power
@@ -1365,25 +1345,6 @@ class NumberOrderedForm(Operator):
         """
         return self._linearize_binary_operators().applyfunc(sympy.simplify, **kwargs)
 
-    def _eval_expand(self, **kwargs):
-        """SymPy's hook for the expand() function.
-
-        This allows the SymPy expand() function to work correctly with
-        NumberOrderedForm instances.
-
-        Parameters
-        ----------
-        **kwargs
-            Keyword arguments to pass to sympy.expand
-
-        Returns
-        -------
-        NumberOrderedForm
-            An expanded NumberOrderedForm
-
-        """
-        return self._linearize_binary_operators().applyfunc(sympy.expand, **kwargs)
-
     def __pow__(self, exp: sympy.Expr) -> "NumberOrderedForm":
         """Raise this NumberOrderedForm to a power.
 
@@ -1484,7 +1445,9 @@ class NumberOrderedForm(Operator):
             raise ValueError("Cannot substitute operators in NumberOrderedForm.")
         return type(self)(
             self.operators,
-            {powers: coeff.subs(old, new) for powers, coeff in self.args[1]},
+            Tuple(
+                *(Tuple(powers, coeff.subs(old, new)) for powers, coeff in self.args[1])
+            ),
             validate=False,
         )
 

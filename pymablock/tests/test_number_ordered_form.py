@@ -54,7 +54,15 @@ def test_number_operator_interface():
     assert Commutator(n_f, a).doit(independent=True) == 0
     assert Commutator(n_f, g).doit(independent=True) == 0
     assert Commutator(n_f, f).doit() == -f
-    assert Commutator(n_s, pauli.SigmaX(z.name)).doit(independent=True) == 0
+    for op in (pauli.SigmaX, pauli.SigmaY, pauli.SigmaZ):
+        assert Commutator(n_a, op(s.name)).doit() == 0
+        assert Commutator(n_s, op(z.name)).doit(independent=True) == 0
+        assert NumberOrderedForm.from_expr(
+            2 * Commutator(n_s, op(s.name)).doit()
+        ) == NumberOrderedForm.from_expr(
+            Commutator(pauli.SigmaZ(s.name), op(s.name)).doit()
+        )
+    assert Commutator(n_s, pauli.SigmaZ(s.name)).doit() == 0
 
     assert sympy.latex(n_a) == "{N_{a}}"
     assert sympy.pretty(n_a) == "N_a"
@@ -267,6 +275,10 @@ def test_from_expr():
 
     nof2 = NumberOrderedForm.from_expr(sympy.sin(a * Dagger(a)))
     assert nof2.as_expr() == sympy.sin(NumberOperator(a) + 1)
+
+    # Check that if we provide operators and another one appears, there's an error.
+    with pytest.raises(ValueError, match="not found in operators list"):
+        NumberOrderedForm.from_expr(Dagger(a) + b, operators=[a])
 
 
 def test_spin_conversion():
@@ -538,6 +550,38 @@ def test_multiply_expr():
             assert (
                 result == expected
             ), f"_multiply_expr failed with nof={nof.as_expr()}, expr={expr}"
+
+
+def test_exponentiation():
+    """Test the exponentiation of NumberOrderedForm."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+
+    # Test nilpotence
+    assert (NumberOrderedForm([f], {(1,): sympy.S.One}) ** 2).as_expr() == 0
+    assert (NumberOrderedForm([a], {(1,): sympy.S.One}) ** 0).as_expr() == sympy.S.One
+    nof = NumberOrderedForm.from_expr(a + b + f + g)
+    assert nof**3 == nof * nof * nof
+
+    with pytest.raises(ValueError, match="unmatched creation or annihilation operators"):
+        NumberOrderedForm.from_expr(Dagger(a) + b) ** -1
+
+    with pytest.raises(TypeError):
+        NumberOrderedForm.from_expr(Dagger(a) * a) ** 1.5
+
+    k = sympy.symbols("k", positive=True, integer=True)
+    assert (NumberOrderedForm.from_expr(f) ** (k + 1)).as_expr() == 0
+
+
+def test_expand():
+    """Test the expand method of NumberOrderedForm."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    assert (
+        sympy.expand(NumberOrderedForm.from_expr((a + b) ** 2)).as_expr()
+        == a**2
+        + 2 * b * a
+        + b**2  # Reverse alphabetical order for annihilation operators
+    )
 
 
 def test_multiply_expr_raises_error():
