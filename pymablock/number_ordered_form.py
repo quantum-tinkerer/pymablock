@@ -66,7 +66,7 @@ if sympy.__version__ in SpecifierSet("<1.14"):  # pragma: no cover
 def _sum(self, items):  # noqa ARG001
     """Slower, but overridable version of sympy.Add."""
     if not items:
-        return sympy.S.Zero
+        return Zero
     result = items[0]
     for item in items[1:]:
         result += item
@@ -182,14 +182,14 @@ class NumberOperator(HermitianOperator):
 
     def _eval_commutator_NumberOperator(self, other):  # noqa: ARG002
         """Evaluate the commutator with another NumberOperator."""
-        return sympy.S.Zero
+        return Zero
 
     def _eval_commutator_BosonOp(self, other, **hints):
         """Evaluate the commutator with a boson operator."""
         if self.args[1].name != "BosonOp":
-            return sympy.S.Zero
+            return Zero
         if other.name != self.name and hints.get("independent"):
-            return sympy.S.Zero
+            return Zero
         return normal_ordered_form(
             Commutator(self.doit(), other, **hints).doit(), **hints
         )
@@ -197,9 +197,9 @@ class NumberOperator(HermitianOperator):
     def _eval_commutator_FermionOp(self, other, **hints):
         """Evaluate the commutator with a fermion operator."""
         if self.args[1].name != "FermionOp":
-            return sympy.S.Zero
+            return Zero
         if other.name != self.name and hints.get("independent"):
-            return sympy.S.Zero
+            return Zero
         return normal_ordered_form(
             Commutator(self.doit(), other, **hints).doit(), **hints
         )
@@ -207,9 +207,9 @@ class NumberOperator(HermitianOperator):
     def _eval_commutator_SigmaX(self, other, **hints):
         """Evaluate the commutator with a SigmaX operator."""
         if self.args[1].name != "SigmaOpBase":
-            return sympy.S.Zero
+            return Zero
         if other.name != self.name and hints.get("independent"):
-            return sympy.S.Zero
+            return Zero
         return normal_ordered_form(
             Commutator(self.doit(), other, **hints).doit(), **hints
         )
@@ -217,16 +217,16 @@ class NumberOperator(HermitianOperator):
     def _eval_commutator_SigmaY(self, other, **hints):
         """Evaluate the commutator with a SigmaY operator."""
         if self.args[1].name != "SigmaOpBase":
-            return sympy.S.Zero
+            return Zero
         if other.name != self.name and hints.get("independent"):
-            return sympy.S.Zero
+            return Zero
         return normal_ordered_form(
             Commutator(self.doit(), other, **hints).doit(), **hints
         )
 
     def _eval_commutator_SigmaZ(self, other, **hints):  # noqa: ARG002
         """Evaluate the commutator with a SigmaZ operator."""
-        return sympy.S.Zero
+        return Zero
 
     def _print_contents_latex(self, printer, *args):  # noqa: ARG002
         return r"{N_{%s}}" % str(self.name)
@@ -548,9 +548,7 @@ class NumberOrderedForm(Operator):
             # Now we can safely convert the arguments to expressions
             # Extract the coefficients from the zero keys for each argument
             zero_key = (Zero,) * len(operators)
-            arg_exprs = [
-                next(iter(arg_nof.terms.values()), sympy.S.Zero) for arg_nof in arg_nofs
-            ]
+            arg_exprs = [next(iter(arg_nof.terms.values()), Zero) for arg_nof in arg_nofs]
 
             # Return a new NumberOrderedForm with the function applied to the coefficients
             return cls(
@@ -669,9 +667,9 @@ class NumberOrderedForm(Operator):
         """
         if not self.operators:
             # If there are no operators, just return the constant term
-            return next(iter(self.terms.values())) if self.terms else sympy.S.Zero
+            return next(iter(self.terms.values())) if self.terms else Zero
 
-        result = sympy.S.Zero
+        result = Zero
         reversed_operators = list(reversed(self.operators))
 
         for powers, coeff in self.args[1]:
@@ -1037,7 +1035,7 @@ class NumberOrderedForm(Operator):
 
         self_expanded, other_expanded = self._combine_operators(other)
 
-        new_terms = defaultdict(lambda: sympy.S.Zero)
+        new_terms = defaultdict(lambda: Zero)
         for powers, coeff in self_expanded.args[1]:
             new_terms[powers] += coeff
         for powers, coeff in other_expanded.args[1]:
