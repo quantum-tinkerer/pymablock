@@ -51,7 +51,11 @@ def block_diagonalize(
     symbols: sympy.Symbol | Sequence[sympy.Symbol] | None = None,
     atol: float = 1e-12,
     fully_diagonalize: (
-        tuple[int] | dict[int, np.ndarray | sympy.Matrix] | np.ndarray | sympy.Matrix
+        tuple[int, ...]
+        | dict[int, np.ndarray | sympy.Matrix | sympy.Expr]
+        | np.ndarray
+        | sympy.Matrix
+        | sympy.Expr
     ) = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
@@ -226,13 +230,22 @@ def block_diagonalize(
     if H.shape[0] == 1:
         if not len(fully_diagonalize):
             fully_diagonalize = (0,)
-        elif isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase)):
+        elif isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase, sympy.Expr)):
             fully_diagonalize = {0: fully_diagonalize}
     else:
-        if isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase)):
+        if isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase, sympy.Expr)):
             raise ValueError(
                 "If the Hamiltonian has multiple blocks, `fully_diagonalize` may not be an ndarray."
             )
+
+    # Convert scalar expressions in fully_diagonalize to sympy matrices. For that it is
+    # sufficient to test for sympy.Expr because sympy.MatrixBase is not a subclass of
+    # sympy.Expr.
+    if isinstance(fully_diagonalize, dict):
+        fully_diagonalize = {
+            key: (sympy.Matrix(value) if isinstance(value, sympy.Expr) else value)
+            for key, value in fully_diagonalize.items()
+        }
 
     zero_order = (0,) * H.n_infinite
 
@@ -249,6 +262,11 @@ def block_diagonalize(
     nonzero_blocks = [block for block in H_0_diag if block is not zero]
     if not nonzero_blocks:
         raise ValueError("The diagonal of the unperturbed Hamiltonian may not be zero.")
+
+    # Check if H_0_diag contains scalar expressions (not matrices). Once again we use
+    # that sympy.MatrixBase is not a subclass of sympy.Expr.
+    scalar_input = any(isinstance(block, sympy.Expr) for block in nonzero_blocks)
+
     if all(hasattr(H, "__matmul__") for H in nonzero_blocks):
         operator = matmul
     elif all(hasattr(H, "__mul__") for H in nonzero_blocks):
@@ -273,19 +291,28 @@ def block_diagonalize(
     # To handle the second-quantized problem, convert the Hamiltonian to our
     # NumberOrderedForm.
     if operators:
-        H_eval_orig = H.eval
+        H_orig = H
 
         def H_eval(*index):
-            result = H_eval_orig(*index)
+            result = H_orig[index]
             if result is zero:
                 return zero
+
+            if scalar_input and not isinstance(result, sympy.MatrixBase):
+                result = sympy.Matrix([[result]])
+
             if isinstance(result, sympy.Matrix):
                 return result.applyfunc(
                     lambda x: NumberOrderedForm.from_expr(x, operators)
                 )
-            return NumberOrderedForm.from_expr(result, operators)
 
-        H.eval = H_eval
+        H = BlockSeries(
+            eval=H_eval,
+            shape=H_orig.shape,
+            n_infinite=H_orig.n_infinite,
+            dimension_names=H_orig.dimension_names,
+            name=H_orig.name,
+        )
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None or use_implicit:
@@ -472,6 +499,33 @@ def block_diagonalize(
         scope=scope,
         operator=operator,
     )
+
+    # Unwrap results for scalar inputs - convert 1x1 matrices back to scalars
+    if scalar_input and operators:
+
+        def create_unwrapping_eval(block_series):
+            """Create an eval function that unwraps 1x1 matrices to scalars."""
+
+            def unwrapping_eval(*index):
+                result = block_series[index]
+                if result is zero:
+                    return zero
+                if isinstance(result, sympy.Matrix) and result.shape == (1, 1):
+                    return result[0, 0]
+                return result
+
+            return BlockSeries(
+                eval=unwrapping_eval,
+                shape=block_series.shape,
+                n_infinite=block_series.n_infinite,
+                dimension_names=block_series.dimension_names,
+                name=block_series.name,
+            )
+
+        return tuple(
+            create_unwrapping_eval(outputs[name]) for name in ["H_tilde", "U", "U†"]
+        )
+
     return outputs["H_tilde"], outputs["U"], outputs["U†"]
 
 
@@ -585,6 +639,15 @@ def operator_to_BlockSeries(
             zeroth_order, (np.ndarray, sympy.MatrixBase)
         ):
             subspace_indices = np.zeros(zeroth_order.shape[0], dtype=int)
+        elif isinstance(zeroth_order, sympy.Expr):
+            # Symbolic operator, we assume it is a single block.
+            return BlockSeries(
+                eval=lambda *index: operator[index[2:]],
+                shape=(1, 1),
+                n_infinite=operator.n_infinite,
+                dimension_names=symbols,
+                name=name or operator.name,
+            )
 
     # Define subspace_eigenvectors
     if subspace_indices is not None:
@@ -593,7 +656,10 @@ def operator_to_BlockSeries(
         subspace_eigenvectors = _subspaces_from_indices(
             subspace_indices, symbolic=symbolic
         )
-    subspace_eigenvectors = tuple(subspace_eigenvectors)
+
+    if subspace_eigenvectors is not None:
+        subspace_eigenvectors = tuple(subspace_eigenvectors)
+
     if implicit:
         # Define subspace_eigenvectors for implicit
         subspace_eigenvectors = (
@@ -613,6 +679,10 @@ def operator_to_BlockSeries(
             return zero
         if implicit and left == right == n_blocks - 1:
             original = aslinearoperator(original)
+        if subspace_eigenvectors is None:
+            # No subspace_eigenvectors provided, return the original operator
+            return original
+
         return _convert_if_zero(
             Dagger(subspace_eigenvectors[left]) @ original @ subspace_eigenvectors[right],
             atol=atol,
@@ -1075,7 +1145,7 @@ def _to_scalar_BlockSeries(
     """
     if isinstance(operator, BlockSeries):
         return operator
-    if isinstance(operator, sympy.MatrixBase):
+    if isinstance(operator, (sympy.Expr, sympy.MatrixBase)):
         return _sympy_to_BlockSeries(operator, symbols)
     if isinstance(operator, list):
         operator = _list_to_dict(operator)

@@ -710,3 +710,23 @@ def test_jaynes_cummings_block_diagonalize():
     # Reconstruct the Hamiltonian
     H_reconstructed = cauchy_dot_product(U, cauchy_dot_product(H_tilde, U_dagger))
     compare_series(H, H_reconstructed, wanted_orders=(4,))
+
+
+def test_jaynes_cummings_scalar_input():
+    """Test the Jaynes-Cummings Hamiltonian with block diagonalization."""
+    wr, wq, g = sympy.symbols("wr wq g", real=True)
+    a = sympy.symbols("a", cls=BosonOp)  # Boson operator
+    H = wr * Dagger(a) * a + wq * pauli.SigmaZ("s") / 2
+
+    H_0 = H
+    H_1 = g * (pauli.SigmaPlus("s") * a + pauli.SigmaMinus("s") * Dagger(a))
+
+    H_tilde, U, U_dagger = block_diagonalize([H_0, H_1])
+
+    H_0_matrix = sympy.Matrix([[H_0]])
+    H_1_matrix = sympy.Matrix([[H_1]])
+    H_tilde_matrix, U_matrix, U_dagger_matrix = block_diagonalize(
+        [H_0_matrix, H_1_matrix]
+    )
+    assert H_tilde_matrix[0, 0, 3][0, 0] == H_tilde[0, 0, 3]
+    assert U_matrix[0, 0, 3][0, 0] == U[0, 0, 3]

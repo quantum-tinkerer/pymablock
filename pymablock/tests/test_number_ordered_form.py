@@ -1275,3 +1275,25 @@ def test_independent_operator_commutation():
         if Permutation(np.argsort(fermionic_new)).parity():
             permuted *= -1
         assert (nof - NumberOrderedForm.from_expr(permuted)).as_expr() == 0
+
+
+def test_is_zero():
+    """Test the is_zero method of NumberOrderedForm."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    x, y = sympy.symbols("x y", real=True)
+
+    # Create a NumberOrderedForm that is zero
+    nof_zero = NumberOrderedForm([a, b], {(0, 0): sympy.S.Zero})
+    assert nof_zero.is_zero is True
+
+    # Test fuzzy logic
+    nof_maybe = NumberOrderedForm([a, b], {(1, 0): x, (0, 0): sympy.S.Zero})
+    assert nof_maybe.is_zero is None
+
+    # Create a non-zero NumberOrderedForm
+    nof_non_zero = NumberOrderedForm([a, b], {(1, 0): sympy.S.One})
+    assert nof_non_zero.is_zero is False
+
+    # Test with an empty NumberOrderedForm
+    nof_empty = NumberOrderedForm([], {})
+    assert nof_empty.is_zero

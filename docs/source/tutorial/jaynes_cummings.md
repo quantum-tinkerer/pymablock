@@ -123,12 +123,12 @@ Instead of defining the Hamiltonian as a 2x2 matrix, we can use the spin operato
 ```{code-cell} ipython3
 from sympy.physics.quantum import pauli
 
-H_0 = Matrix([[wr * Dagger(a) * a + wq * pauli.SigmaZ("s") / 2]])
-H_p = Matrix([[g * (pauli.SigmaPlus("s") * a + pauli.SigmaMinus("s") * Dagger(a))]])
+H_0 = wr * Dagger(a) * a + wq * pauli.SigmaZ("s") / 2
+H_p = g * (pauli.SigmaPlus("s") * a + pauli.SigmaMinus("s") * Dagger(a))
 
 H_tilde, *_ = block_diagonalize([H_0, H_p], symbols=[g])
 
-Eq(Symbol(r'\tilde{H}_4'), simplify(H_tilde[0, 0, 4][0, 0]), evaluate=False)
+Eq(Symbol(r'\tilde{H}_4'), simplify(H_tilde[0, 0, 4]), evaluate=False)
 ```
 
 This gives the same result (here $N_s$ is the number operator for the spin).

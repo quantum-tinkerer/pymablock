@@ -298,6 +298,9 @@ class NumberOrderedForm(Operator):
     _op_priority = 10.01
     _class_priority = 4
 
+    # Number ordered forms may represent commutative expressions.
+    is_commutative = None
+
     # Attribute types
     _n_fermions: int
     _n_bosons: int

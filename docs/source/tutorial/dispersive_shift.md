@@ -86,27 +86,22 @@ We demonstrate both approaches.
 
 ## Approach I: second quantized form
 
-To compute the effective Hamiltonian in second quantized form, we provide the Hamiltonian following Pymablock's API: wrapped in a `sympy.Matrix` and with `BosonOp` elements.
+To compute the effective Hamiltonian in second quantized form, we provide the Hamiltonian as an expression with `BosonOp` elements.
 
 ```{code-cell} ipython3
-H_tilde, U, U_adjoint = block_diagonalize(
-    sympy.Matrix([[H_0 + H_p]]), symbols=[g]
-)
+H_tilde, U, U_adjoint = block_diagonalize(H_0 + H_p, symbols=[g])
 ```
-
-The matrix has a single element, because we are interested in the corrections to the energy of a single state.
 
 :::{admonition} Only diagonal unperturbed Hamiltonians are supported
 :class: warning
 
-Pymablock only supports bosonic Hamiltonians whose unperturbed part is diagonal: diagonal in the matrix representation and diagonal in the bosonic basis.
-When calling {autolink}`block_diagonalize`, the unperturbed Hamiltonian must be provided as a `sympy.Matrix` with `BosonOp` elements in its entries.
+Pymablock only supports bosonic Hamiltonians whose unperturbed part is diagonal: diagonal in the matrix representation (if the Hamiltonian is a matrix) and diagonal in the bosonic basis.
 :::
 
-The effective Hamiltonian is a $1 \times 1$ matrix, whose entry is a function of the number of excitations in the transmon $N_{a_t} = a_t^\dagger a_t$ and the resonator $N_{a_r} = a_r^\dagger a_r$.
+The effective Hamiltonian is a function of the number of excitations in the transmon $N_{a_t} = a_t^\dagger a_t$ and the resonator $N_{a_r} = a_r^\dagger a_r$.
 
 ```{code-cell} ipython3
-E_eff = H_tilde[0, 0, 2][0, 0]
+E_eff = H_tilde[0, 0, 2]
 display_eq("E_{eff}", E_eff)
 ```
 
