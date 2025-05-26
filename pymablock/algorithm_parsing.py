@@ -6,7 +6,7 @@ import ast
 import dataclasses
 import inspect
 from collections import Counter, defaultdict
-from collections.abc import Callable  # noqa: TCH003 (sphinx needs unconditional import)
+from collections.abc import Callable  # noqa: TC003 (sphinx needs unconditional import)
 from enum import Enum
 from functools import cache
 from itertools import chain
