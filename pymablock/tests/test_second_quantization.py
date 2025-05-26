@@ -4,7 +4,7 @@ from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 
 from pymablock import block_diagonalize, operator_to_BlockSeries
-from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
+from pymablock.number_ordered_form import LadderOp, NumberOperator, NumberOrderedForm
 from pymablock.second_quantization import (
     apply_mask_to_operator,
     solve_sylvester_2nd_quant,
@@ -102,9 +102,9 @@ def test_solve_sylvester_2nd_quant():
     for i in range(Y.shape[0]):
         for j in range(Y.shape[1]):
             result = NumberOrderedForm.from_expr(Y[i, j]) - Y_expected[i, j]
-            assert (
-                result.simplify().as_expr() == 0
-            ), f"Failed for Y[{i}, {j}]: {result.simplify()}"
+            assert result.simplify().as_expr() == 0, (
+                f"Failed for Y[{i}, {j}]: {result.simplify()}"
+            )
 
 
 def test_hermitian_block_diagonalization():
@@ -730,3 +730,37 @@ def test_jaynes_cummings_scalar_input():
     )
     assert H_tilde_matrix[0, 0, 3][0, 0] == H_tilde[0, 0, 3]
     assert U_matrix[0, 0, 3][0, 0] == U[0, 0, 3]
+
+
+def test_ladder_and_fermion_block_diagonalize():
+    """Test block diagonalization with all operator types: boson, ladder, spin, fermion, and number operators."""
+    wp, wf = sympy.symbols("wp wf", real=True)
+
+    # Create different types of operators
+    m = LadderOp("m")
+    f = sympy.symbols("f", cls=FermionOp)
+
+    # Create corresponding number operators
+    n_m = NumberOperator(m)
+    n_f = NumberOperator(f)
+
+    # Create a Hamiltonian with all operator types
+    # Base Hamiltonian with number operators for bosons, ladder operators, and fermions
+    H_0 = sympy.Matrix([[wp * n_m + wf * n_f]])
+
+    # Perturbation with interaction terms between different operator types
+    H_1 = sympy.Matrix([[f * Dagger(m)]])
+    H_1 += H_1.adjoint()
+
+    # Convert to BlockSeries
+    H = operator_to_BlockSeries([H_0, H_1])
+
+    # Block diagonalize the system
+    H_tilde, U, U_dagger = block_diagonalize([H_0, H_1])
+
+    # Check unitarity of the transformation
+    is_unitary(U, U_dagger, wanted_orders=(2,))
+
+    # Verify that the transformation preserves the original Hamiltonian
+    H_reconstructed = cauchy_dot_product(U, cauchy_dot_product(H_tilde, U_dagger))
+    compare_series(H, H_reconstructed, wanted_orders=(2,))

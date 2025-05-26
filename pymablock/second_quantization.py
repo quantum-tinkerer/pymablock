@@ -10,7 +10,7 @@ import numpy as np
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 
-from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
+from pymablock.number_ordered_form import LadderOp, NumberOperator, NumberOrderedForm
 from pymablock.series import zero
 
 __all__ = [
@@ -65,7 +65,9 @@ def solve_scalar(
         shifted_H_jj = H_jj.xreplace(
             {
                 NumberOperator(op): (
-                    NumberOperator(op) + delta if isinstance(op, BosonOp) else sympy.S.One
+                    NumberOperator(op) + delta
+                    if isinstance(op, (BosonOp, LadderOp))
+                    else sympy.S.One
                 )
                 for delta, op in zip(shift, operators)
                 if delta > 0
@@ -74,7 +76,9 @@ def solve_scalar(
         shifted_H_ii = H_ii.xreplace(
             {
                 NumberOperator(op): (
-                    NumberOperator(op) - delta if isinstance(op, BosonOp) else sympy.S.One
+                    NumberOperator(op) - delta
+                    if isinstance(op, (BosonOp, LadderOp))
+                    else sympy.S.One
                 )
                 for delta, op in zip(shift, operators)
                 if delta < 0

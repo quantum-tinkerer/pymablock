@@ -82,10 +82,70 @@ if sympy.__version__ in SpecifierSet("<1.15"):
     pauli.SigmaMinus.is_annihilation = True  # type: ignore
 
 
+class LadderOp(Operator):
+    """Ladder operator on a lattice.
+
+    Notes
+    -----
+    Like a `~sympy.physics.quantum.boson.BosonOp`, but creation and annihilation
+    operators commute. This is useful for simulating Floquet systems. The operator
+    implementation is minimal, and is meant to be used in combination with the
+    `~pymablock.number_ordered_form.NumberOperator` class.
+
+    Implementation mostly copied from `~sympy.physics.quantum.boson.BosonOp`.
+
+    """
+
+    is_commutative = False
+    is_hermitian = False
+    is_antihermitian = False
+
+    @property
+    def name(self):
+        return self.args[0]
+
+    @property
+    def is_annihilation(self):
+        return bool(self.args[1])
+
+    def __new__(cls, *args, **hints):  # noqa: ARG004
+        if len(args) not in [1, 2]:
+            raise ValueError("1 or 2 parameters expected, got %s" % args)
+
+        if len(args) == 1:
+            args = (args[0], One)
+
+        if len(args) == 2:
+            args = (args[0], sympy.Integer(args[1]))
+
+        return Operator.__new__(cls, *args)
+
+    def _eval_adjoint(self):
+        return type(self)(self.name, not self.is_annihilation)
+
+    def _print_contents_latex(self, printer, *args):  # noqa: ARG002
+        if self.is_annihilation:
+            return r"{%s}" % str(self.name)
+        return r"{{%s}^\dagger}" % str(self.name)
+
+    def _print_contents(self, printer, *args):  # noqa: ARG002
+        if self.is_annihilation:
+            return r"%s" % str(self.name)
+        return r"Dagger(%s)" % str(self.name)
+
+    def _print_contents_pretty(self, printer, *args):
+        from sympy.printing.pretty.stringpict import prettyForm
+
+        pform = printer._print(self.args[0], *args)
+        if self.is_annihilation:
+            return pform
+        return pform ** prettyForm("\N{DAGGER}")
+
+
 # Type aliases
-operator_types = BosonOp, pauli.SigmaOpBase, FermionOp
-OperatorType = BosonOp | pauli.SigmaOpBase | FermionOp
-generator_types = (BosonOp, pauli.SigmaMinus, FermionOp)
+operator_types = BosonOp, LadderOp, pauli.SigmaOpBase, FermionOp
+OperatorType = BosonOp | LadderOp | pauli.SigmaOpBase | FermionOp
+generator_types = (BosonOp, LadderOp, pauli.SigmaMinus, FermionOp)
 operator_type_by_name = {sympy.Symbol(op.__name__): op for op in operator_types}
 PowerKey = tuple[int | sympy.Integer, ...]
 TermDict = dict[PowerKey, sympy.Expr] | tuple[tuple[PowerKey, sympy.Expr], ...] | Tuple
@@ -107,7 +167,7 @@ class NumberOperator(HermitianOperator):
         return self.args[0]  # type: ignore
 
     def __new__(cls, *args, **hints):
-        """Construct a number operator for bosonic, fermionic, or spin mode.
+        """Construct a number operator for bosonic, ladder, fermionic, or spin mode.
 
         Parameters
         ----------
@@ -123,7 +183,7 @@ class NumberOperator(HermitianOperator):
             (operator,) = args
             if not isinstance(operator, operator_types):
                 raise TypeError(
-                    "NumberOperator requires a bosonic, fermionic, or spin operator."
+                    "NumberOperator requires a bosonic, ladder, fermionic, or spin operator."
                 )
             name = operator.name
             operator_type = next(
@@ -159,6 +219,8 @@ class NumberOperator(HermitianOperator):
         """
         if self.args[1].name == "SigmaOpBase":
             return (pauli.SigmaZ(self.args[0]) + sympy.S.One) / sympy.S(2)
+        if self.args[1].name == "LadderOp":
+            return self  # No alternative form of ladder number operators.
         op = operator_type_by_name[self.args[1]](self.args[0])
         return Dagger(op) * op
 
@@ -176,7 +238,11 @@ class NumberOperator(HermitianOperator):
             The evaluated operator raised to the given power.
 
         """
-        if exp.is_integer and exp != 0 and self.args[1].name != "BosonOp":
+        if (
+            exp.is_integer
+            and exp != 0
+            and self.args[1].name not in ("BosonOp", "LadderOp")
+        ):
             return self  # Fermionic and spin number operators are idempotent.
         return super()._eval_power(exp)
 
@@ -255,15 +321,23 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
 
     """
     # replace n -> a† * a and convert number ordered forms to expressions.
-    expanded = expr.doit()
-    return [
-        op
-        for particle, generator in zip(operator_types, generator_types)
-        for op in sorted(
-            {generator(atom.name) for atom in expanded.atoms(particle)},
-            key=lambda op: str(op.name),
-        )
-    ]
+    # Number operator of ladder operators need to be included separately.
+    expr = expr.doit()
+    return sorted(
+        set().union(
+            (
+                op
+                for particle, generator in zip(operator_types, generator_types)
+                for op in (generator(atom.name) for atom in expr.atoms(particle))
+            ),
+            (
+                LadderOp(atom.name)
+                for atom in expr.atoms(NumberOperator)
+                if atom.args[1].name == "LadderOp"
+            ),
+        ),
+        key=lambda op: (generator_types.index(type(op)), str(op.name)),
+    )
 
 
 class NumberOrderedForm(Operator):
@@ -302,8 +376,12 @@ class NumberOrderedForm(Operator):
     is_commutative = None
 
     # Attribute types
-    _n_fermions: int
     _n_bosons: int
+    _n_ladders: int
+    # Number of infinite order operators (bosons + ladders)
+    _n_inf_order: int
+    _n_spins: int
+    _n_fermions: int
     args: tuple[tuple[tuple[sympy.Integer, ...], sympy.Expr], ...]
 
     def __new__(
@@ -350,8 +428,13 @@ class NumberOrderedForm(Operator):
             terms_items = list(terms)
             terms = Tuple(*(Tuple(k, v) for k, v in terms_items))
         result = sympy.Expr.__new__(cls, operators, terms, **hints)
+
         result._n_bosons = sum(isinstance(op, BosonOp) for op in operators)
+        result._n_ladders = sum(isinstance(op, LadderOp) for op in operators)
+        result._n_inf_order = result._n_bosons + result._n_ladders
+        result._n_spins = sum(isinstance(op, pauli.SigmaMinus) for op in operators)
         result._n_fermions = sum(isinstance(op, FermionOp) for op in operators)
+
         return result
 
     @staticmethod
@@ -374,7 +457,9 @@ class NumberOrderedForm(Operator):
 
         """
         if not all(isinstance(op, generator_types) for op in operators):
-            raise TypeError("Operators must be BosonOp, SigmaMinus, or FermionOp.")
+            raise TypeError(
+                "Operators must be BosonOp, LadderOp, SigmaMinus, or FermionOp."
+            )
         if not all(op.is_annihilation for op in operators):
             raise ValueError("Operators must be annihilation operators.")
 
@@ -817,7 +902,7 @@ class NumberOrderedForm(Operator):
         # Create a new terms dictionary for the result
         new_terms = {}
 
-        if isinstance(operator, BosonOp):
+        if op_index < self._n_inf_order:  # Bosons and ladders
             for powers, coeff in self.args[1]:
                 orig_power = powers[op_index]  # Power of the operator at op_index
                 new_power = orig_power + op_power
@@ -828,14 +913,18 @@ class NumberOrderedForm(Operator):
                     # Compute how many new number operators appear
                     to_pair = min(op_power, max(-orig_power, 0))
                     coeff = coeff.xreplace({n_operator: n_operator - to_pair})
-                    coeff = sympy.Mul(coeff, *(n_operator - i for i in range(to_pair)))
+                    if op_index < self._n_bosons:  # Bosons
+                        coeff = sympy.Mul(
+                            coeff, *(n_operator - i for i in range(to_pair))
+                        )
                 else:
                     to_pair = min(-op_power, max(orig_power, 0))
                     # Create the new number operators from all pairs
-                    new_numbers = sympy.Mul(
-                        *[n_operator + sympy.S(i) for i in range(1, to_pair + 1)]
-                    )
-                    coeff = coeff * new_numbers
+                    if op_index < self._n_bosons:  # Bosons
+                        new_numbers = sympy.Mul(
+                            *[n_operator + sympy.S(i) for i in range(1, to_pair + 1)]
+                        )
+                        coeff = coeff * new_numbers
                     if new_power > 0:
                         # Bring all unmatched annihilation operators to the right
                         coeff = coeff.xreplace({n_operator: n_operator + new_power})
@@ -932,7 +1021,7 @@ class NumberOrderedForm(Operator):
                     continue
                 gen = self.operators[i]
                 n_i = NumberOperator(gen)
-                if isinstance(gen, BosonOp):
+                if i < self._n_inf_order:  # Bosons or ladders
                     if power > 0:
                         # a * n_a = n_a + 1
                         replacements[n_i] = n_i + power
@@ -961,14 +1050,14 @@ class NumberOrderedForm(Operator):
             A new NumberOrderedForm with the fermionic and spin number operators canceled.
 
         """
-        if not (binary_ops := self.operators[self._n_bosons :]):
+        if not (binary_ops := self.operators[self._n_inf_order :]):
             # No binary operators, nothing to do
             return self
 
         new_terms = {}
         for powers, coeff in self.args[1]:
             replacements = {}
-            for p, op in zip(powers[self._n_bosons :], binary_ops):
+            for p, op in zip(powers[self._n_inf_order :], binary_ops):
                 if not p:
                     continue
                 replacements[NumberOperator(op)] = Zero
@@ -1315,7 +1404,7 @@ class NumberOrderedForm(Operator):
         """
         if not (
             binary_numbers := [
-                NumberOperator(op) for op in self.operators[self._n_bosons :]
+                NumberOperator(op) for op in self.operators[self._n_inf_order :]
             ]
         ):
             # No binary operators, nothing to do
@@ -1405,7 +1494,7 @@ class NumberOrderedForm(Operator):
                     f"operators to non-positive power: {self}**{exp}"
                 )
 
-            if any(powers[self._n_bosons :]) and exp > 1:
+            if any(powers[self._n_inf_order :]) and exp > 1:
                 return type(self)(self.operators, {}, validate=False)
 
             return type(self)(

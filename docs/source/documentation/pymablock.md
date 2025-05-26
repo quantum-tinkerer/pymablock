@@ -39,6 +39,12 @@
 ## Number ordered form
 
 ```{eval-rst}
+.. autoclass:: pymablock.number_ordered_form.LadderOp
+   :members:
+   :show-inheritance:
+```
+
+```{eval-rst}
 .. autoclass:: pymablock.number_ordered_form.NumberOperator
    :members:
    :show-inheritance:

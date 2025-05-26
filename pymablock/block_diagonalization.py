@@ -228,10 +228,10 @@ def block_diagonalize(
     )
 
     if H.shape[0] == 1:
-        if not len(fully_diagonalize):
-            fully_diagonalize = (0,)
-        elif isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase, sympy.Expr)):
+        if isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase, sympy.Expr)):
             fully_diagonalize = {0: fully_diagonalize}
+        elif not len(fully_diagonalize):
+            fully_diagonalize = (0,)
     else:
         if isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase, sympy.Expr)):
             raise ValueError(
@@ -243,7 +243,7 @@ def block_diagonalize(
     # sympy.Expr.
     if isinstance(fully_diagonalize, dict):
         fully_diagonalize = {
-            key: (sympy.Matrix(value) if isinstance(value, sympy.Expr) else value)
+            key: (sympy.Matrix([[value]]) if isinstance(value, sympy.Expr) else value)
             for key, value in fully_diagonalize.items()
         }
 
