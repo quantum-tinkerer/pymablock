@@ -137,6 +137,22 @@ These rules, as well as the commutation relations, combine into the multiplicati
 | $N_a$ | $a^\dagger$ | $N_a$ | $0$ |
 | $a$ | $1-N_a$ | $a$ | $0$ |
 
+### Ladder Operators
+
+Pymablock also considers ladder operators on a lattice ({autolink}`~pymablock.number_ordered_form.LadderOp`), which appear in Floquet systems—time-dependent systems with periodic drive.
+These operators are similar to bosons, except creation and annihilation operators commute with each other.
+In other words, the ladder operators $a$ and $a^\dagger$, and the number operator $N_a$, satisfy the following relations:
+
+$$[a, a^\dagger] = 0, \quad [N_a, a] = -a, \quad [N_a, a^\dagger] = a^\dagger.$$
+
+The multiplication table for ladder operators is similar to the one for bosons, but simpler:
+
+| Left × Term | $(a^\dagger)^n \cdot f(N_a)$ | $g(N_a)$ | $h(N_a) \cdot a^m$ |
+|-------------|------------------------------|----------|-------------------|
+| $a^\dagger$ | $(a^\dagger)^{n+1} \cdot f(N_a)$ | $a^\dagger \cdot g(N_a)$ | $h(N_a+1) \cdot a^{m-1}$ |
+| $j(N_a)$ | $(a^\dagger)^n \cdot j(N_a+n) \cdot f(N_a)$ | $j(N_a) \cdot g(N_a)$ | $j(N_a) \cdot h(N_a) \cdot a^m$ |
+| $a$ | $(a^\dagger)^{n-1} \cdot f(N_a)$ | $g(N_a-1) \cdot a$ | $h(N_a-1) \cdot a^{m+1}$ |
+
 ### Use within Pymablock
 
 Whenever the user provides input to {autolink}`~pymablock.block_diagonalize` which is a matrix containing second quantized operators, Pymablock computes the output as {autolink}`~pymablock.series.BlockSeries` of matrices containing number-ordered forms.

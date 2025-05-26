@@ -58,6 +58,7 @@ myst_enable_extensions = [
     "substitution",
     "colon_fence",
 ]
+myst_heading_anchors = 3
 nb_execution_timeout = 480
 nb_execution_raise_on_error = True
 autodoc_typehints = "description"
