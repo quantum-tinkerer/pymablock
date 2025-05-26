@@ -69,17 +69,12 @@ def compare_series(
         if any(isinstance(value, type(one)) for value in values):
             assert value1 == value2
         elif all(isinstance(value, sympy.MatrixBase) for value in values):
-            assert (
-                sympy.simplify(value1 - value2)
-                .applyfunc(lambda x: x.as_expr())
-                .is_zero_matrix
-            )
+            assert sympy.simplify(value1 - value2).is_zero_matrix
         elif any(isinstance(value, sympy.MatrixBase) for value in values):
             # The only non-symbolic option is zero
             values.remove(zero)
             values = values[0]
             values = sympy.simplify(values)
-            values = values.applyfunc(lambda x: x.as_expr())
             assert values.is_zero_matrix
         else:
             # Convert all numeric types to dense arrays
@@ -1606,7 +1601,7 @@ def test_analytic_full_and_selective():
     H_0 = sympy.diag(*[sympy.Symbol(f"H_{i}", real=True) for i in range(3)])
     H_1 = sympy.Matrix(
         [
-            [sympy.Symbol(f"H_{sorted([i,j])}", real=True) for i in range(3)]
+            [sympy.Symbol(f"H_{sorted([i, j])}", real=True) for i in range(3)]
             for j in range(3)
         ]
     )

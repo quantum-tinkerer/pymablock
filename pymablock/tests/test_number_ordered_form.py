@@ -601,7 +601,7 @@ def test_exponentiation():
     f, g = sympy.symbols("f g", cls=fermion.FermionOp)
 
     # Test nilpotence
-    assert (NumberOrderedForm([f], {(1,): sympy.S.One}) ** 2).as_expr() == 0
+    assert (NumberOrderedForm([f], {(1,): sympy.S.One}) ** 2).is_zero
     assert (NumberOrderedForm([a], {(1,): sympy.S.One}) ** 0).as_expr() == sympy.S.One
     nof = NumberOrderedForm.from_expr(a + b + f + g)
     assert nof**3 == nof * nof * nof
@@ -613,7 +613,7 @@ def test_exponentiation():
         NumberOrderedForm.from_expr(Dagger(a) * a) ** 1.5
 
     k = sympy.symbols("k", positive=True, integer=True)
-    assert (NumberOrderedForm.from_expr(f) ** (k + 1)).as_expr() == 0
+    assert (NumberOrderedForm.from_expr(f) ** (k + 1)).is_zero
 
 
 def test_expand():
@@ -1345,7 +1345,7 @@ def test_fermionic_number_operators():
 
     expr8 = (sympy.S.One - n_f) * Dagger(f)
     nof8 = NumberOrderedForm.from_expr(expr8)
-    assert nof8.as_expr() == 0
+    assert nof8.is_zero
 
 
 def test_mixed_boson_fermion():
@@ -1404,7 +1404,7 @@ def test_independent_operator_commutation():
         permuted = sympy.Mul(*new)
         if Permutation(np.argsort(fermionic_new)).parity():
             permuted *= -1
-        assert (nof - NumberOrderedForm.from_expr(permuted)).as_expr() == 0
+        assert (nof - NumberOrderedForm.from_expr(permuted)).is_zero
 
 
 def test_is_zero():

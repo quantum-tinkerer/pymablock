@@ -68,7 +68,7 @@ def test_solve_sylvester_2nd_quant_with_number_operator():
     result = H_ii * V - V * H_jj
 
     # Check that the result matches Y after normal ordering
-    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().as_expr() == 0
+    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().is_zero
 
     # Same for Dagger(b)
     Y = sympy.Matrix([[Dagger(b)]])
@@ -79,7 +79,7 @@ def test_solve_sylvester_2nd_quant_with_number_operator():
     result = H_ii * V - V * H_jj
 
     # Check that the result matches Y after normal ordering
-    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().as_expr() == 0
+    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().is_zero
 
 
 def test_solve_sylvester_2nd_quant():
@@ -102,7 +102,7 @@ def test_solve_sylvester_2nd_quant():
     for i in range(Y.shape[0]):
         for j in range(Y.shape[1]):
             result = NumberOrderedForm.from_expr(Y[i, j]) - Y_expected[i, j]
-            assert result.simplify().as_expr() == 0, (
+            assert result.simplify().is_zero, (
                 f"Failed for Y[{i}, {j}]: {result.simplify()}"
             )
 
@@ -125,10 +125,9 @@ def test_hermitian_block_diagonalization():
         H_order = H_tilde[0, 0, order][0, 0].subs(N_1, 2).subs(N_2, 0)
 
         # Calculate H_order - Dagger(H_order) which should be 0 if hermitian
-        hermiticity_check = (
-            NumberOrderedForm.from_expr(H_order - Dagger(H_order)).simplify().as_expr()
-        )
-        assert hermiticity_check == 0, f"H_tilde[0, 0, {order}] is not hermitian."
+        assert (
+            NumberOrderedForm.from_expr(H_order - Dagger(H_order)).simplify().is_zero
+        ), f"H_tilde[0, 0, {order}] is not hermitian."
 
 
 def test_apply_mask_to_operator():
@@ -158,8 +157,7 @@ def test_apply_mask_to_operator():
     assert (
         NumberOrderedForm.from_expr(masked_expr[0, 0] - allowed_matrix[0, 0])
         .simplify()
-        .as_expr()
-        == 0
+        .is_zero
     )
 
     # Create number operators
@@ -188,8 +186,7 @@ def test_apply_mask_to_operator():
     assert (
         NumberOrderedForm.from_expr(masked_expr[0, 0] - allowed_matrix[0, 0])
         .simplify()
-        .as_expr()
-        == 0
+        .is_zero
     )
 
 
@@ -350,7 +347,7 @@ def test_selective_block_diagonalization():
     )
 
     # Confirm that all higher-order terms are zero
-    assert higher_order_terms.applyfunc(lambda x: x.as_expr()).is_zero_matrix
+    assert higher_order_terms.is_zero_matrix
 
 
 def test_solve_sylvester_2nd_quant_fermion_simple():
@@ -367,8 +364,8 @@ def test_solve_sylvester_2nd_quant_fermion_simple():
     H_tilde, *_ = block_diagonalize([H_0, H_1])
 
     # Check that the off-diagonal terms are eliminated
-    assert H_tilde[0, 0, 1][0, 1].as_expr() == 0
-    assert H_tilde[0, 0, 1][1, 0].as_expr() == 0
+    assert H_tilde[0, 0, 1][0, 1].is_zero
+    assert H_tilde[0, 0, 1][1, 0].is_zero
 
     second_order_00 = H_tilde[0, 0, 2][0, 0].as_expr()
     second_order_11 = H_tilde[0, 0, 2][1, 1].as_expr()
@@ -376,14 +373,8 @@ def test_solve_sylvester_2nd_quant_fermion_simple():
     expected_00 = -(1 - n_f)
     expected_11 = n_f
 
-    assert (
-        NumberOrderedForm.from_expr(second_order_00 - expected_00).simplify().as_expr()
-        == 0
-    )
-    assert (
-        NumberOrderedForm.from_expr(second_order_11 - expected_11).simplify().as_expr()
-        == 0
-    )
+    assert NumberOrderedForm.from_expr(second_order_00 - expected_00).simplify().is_zero
+    assert NumberOrderedForm.from_expr(second_order_11 - expected_11).simplify().is_zero
 
 
 def test_solve_sylvester_2nd_quant_fermion_complex():
@@ -418,7 +409,7 @@ def test_solve_sylvester_2nd_quant_fermion_complex():
     for i in range(Y.shape[0]):
         for j in range(Y.shape[1]):
             result = NumberOrderedForm.from_expr(Y[i, j] - expected[i, j]).simplify()
-            assert result.as_expr() == 0, f"Failed for Y[{i}, {j}]: {result}"
+            assert result.is_zero, f"Failed for Y[{i}, {j}]: {result}"
 
 
 def test_block_diagonalize_fermion_simple():
@@ -572,7 +563,7 @@ def test_mixed_fermion_boson_sylvester():
 
     # Verify the equation H_ii * V1 - V1 * H_jj = Y1
     result1 = H_ii * V1 - V1 * H_jj
-    assert NumberOrderedForm.from_expr(result1[0, 0] - Y1[0, 0]).simplify().as_expr() == 0
+    assert NumberOrderedForm.from_expr(result1[0, 0] - Y1[0, 0]).simplify().is_zero
 
     # Test case 2: Boson operator in Y
     Y2 = sympy.Matrix([[a]])
@@ -580,7 +571,7 @@ def test_mixed_fermion_boson_sylvester():
 
     # Verify the equation H_ii * V2 - V2 * H_jj = Y2
     result2 = H_ii * V2 - V2 * H_jj
-    assert NumberOrderedForm.from_expr(result2[0, 0] - Y2[0, 0]).simplify().as_expr() == 0
+    assert NumberOrderedForm.from_expr(result2[0, 0] - Y2[0, 0]).simplify().is_zero
 
     # Test case 3: Mixed boson-fermion operator in Y
     Y3 = sympy.Matrix([[a * f]])
@@ -588,7 +579,7 @@ def test_mixed_fermion_boson_sylvester():
 
     # Verify the equation H_ii * V3 - V3 * H_jj = Y3
     result3 = H_ii * V3 - V3 * H_jj
-    assert NumberOrderedForm.from_expr(result3[0, 0] - Y3[0, 0]).simplify().as_expr() == 0
+    assert NumberOrderedForm.from_expr(result3[0, 0] - Y3[0, 0]).simplify().is_zero
 
 
 def test_mixed_fermion_boson_diagonalization():
@@ -665,8 +656,7 @@ def test_holstein_model():
     assert sympy.simplify(E_2_with_electron - expected_shift) == 0
 
     # Check that without an electron (n_f = 0), there's no correction
-    E_2_no_electron = H_tilde[0, 0, 2][0, 0].subs({n_f: 0}).as_expr()
-    assert E_2_no_electron == 0
+    assert H_tilde[0, 0, 2][0, 0].subs({n_f: 0}).is_zero
 
 
 def test_jaynes_cummings_solve_sylvester():
@@ -684,7 +674,7 @@ def test_jaynes_cummings_solve_sylvester():
     H_ii = H_jj = sympy.Matrix([[H]])
 
     result = H_ii * V - V * H_jj
-    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().as_expr() == 0
+    assert NumberOrderedForm.from_expr(result[0, 0] - Y[0, 0]).simplify().is_zero
 
 
 def test_jaynes_cummings_block_diagonalize():
@@ -702,7 +692,7 @@ def test_jaynes_cummings_block_diagonalize():
     H_tilde, U, U_dagger = block_diagonalize([H_0, H_1])
 
     # Check that the first order term is zero
-    assert H_tilde[0, 0, 1][0, 0].as_expr() == 0
+    assert H_tilde[0, 0, 1][0, 0].is_zero
 
     # Check unitarity
     is_unitary(U, U_dagger, wanted_orders=(4,))
