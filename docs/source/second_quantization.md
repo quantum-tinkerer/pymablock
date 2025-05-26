@@ -225,9 +225,9 @@ When using {autolink}`~pymablock.block_diagonalize` with second quantized operat
 
 ```python
 H_tilde, *_ = block_diagonalize(
-    sympy.Matrix([[H_0 + H_p]]),
+    [H_0, H_p],
     fully_diagonalize=elimination_rules,
-    symbols=[g]
+    symbols=[g],
 )
 ```
 
