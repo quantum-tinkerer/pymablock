@@ -133,7 +133,7 @@ E_eff_01 = E_eff.subs({N_a_t: 0, N_a_r: 1})
 E_eff_10 = E_eff.subs({N_a_t: 1, N_a_r: 0})
 E_eff_11 = E_eff.subs({N_a_t: 1, N_a_r: 1})
 
-chi = sympy.cancel(E_eff_11 - E_eff_10 - E_eff_01 + E_eff_00)
+chi = E_eff_11 - E_eff_10 - E_eff_01 + E_eff_00
 
 display_eq(r"\chi", chi)
 ```

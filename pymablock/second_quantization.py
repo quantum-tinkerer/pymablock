@@ -84,10 +84,17 @@ def solve_scalar(
                 if delta < 0
             }
         )
-        denominator = shifted_H_ii - shifted_H_jj
+        # Ensure that the energy denominator always has the same sign to simplify the
+        # expression. We do this by multiplying the denominator by -1 if the shift is
+        # lexicographically negative.
+        sign = -sympy.S.One if tuple(shift) < (0,) * len(shift) else sympy.S.One
+        if sign is sympy.S.One:
+            denominator = shifted_H_ii - shifted_H_jj
+        else:
+            denominator = shifted_H_jj - shifted_H_ii
         # Denominators often simplify because linear powers of bosonic operators cancel.
         denominator = denominator.simplify().as_expr()
-        new_shifts[shift] = (denominator) ** -sympy.S.One * coeff
+        new_shifts[shift] = sign * (denominator) ** -sympy.S.One * coeff
 
     return (
         NumberOrderedForm(

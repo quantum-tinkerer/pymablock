@@ -41,7 +41,7 @@ Eigenvectors = tuple[np.ndarray | sympy.Matrix, ...]
 
 ### The main function for end-users.
 def block_diagonalize(
-    hamiltonian: list | dict | BlockSeries | sympy.Matrix,
+    hamiltonian: list | dict | BlockSeries | sympy.Matrix | sympy.Expr,
     *,
     solve_sylvester: Callable | None = None,
     subspace_eigenvectors: Eigenvectors | None = None,
