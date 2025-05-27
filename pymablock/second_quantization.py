@@ -23,6 +23,7 @@ def solve_scalar(
     Y: sympy.Expr,
     H_ii: sympy.Expr,
     H_jj: sympy.Expr,
+    diagonal: bool = False,
 ) -> NumberOrderedForm:
     """Solve a scalar Sylvester equation with 2nd quantized operators.
 
@@ -36,10 +37,14 @@ def solve_scalar(
     ----------
     Y :
         Expression with raising and lowering bosonic, fermionic, and spin operators.
+        Must be Hermitian.
     H_ii :
         Sectors of the unperturbed Hamiltonian.
     H_jj :
         Sectors of the unperturbed Hamiltonian.
+    diagonal : bool
+        If True, we're evaluating the diagonal entry, which means that `Y` is Hermitian
+        and `H_ii` and `H_jj` are equal. This is used to speed up the computation.
 
     Returns
     -------
@@ -60,6 +65,12 @@ def solve_scalar(
     shifts = Y.terms
     new_shifts = {}
     for shift, coeff in shifts.items():
+        # Ensure that the energy denominator always has the same sign to simplify the
+        # expression. We do this by multiplying the denominator by -1 if the shift is
+        # lexicographically negative.
+        sign = -sympy.S.One if tuple(shift) < (0,) * len(shift) else sympy.S.One
+        if diagonal and sign is sympy.S.One:
+            continue
         # Commute H_ii and H_jj through creation and annihilation operators
         # respectively.
         shifted_H_jj = H_jj.xreplace(
@@ -84,10 +95,6 @@ def solve_scalar(
                 if delta < 0
             }
         )
-        # Ensure that the energy denominator always has the same sign to simplify the
-        # expression. We do this by multiplying the denominator by -1 if the shift is
-        # lexicographically negative.
-        sign = -sympy.S.One if tuple(shift) < (0,) * len(shift) else sympy.S.One
         if sign is sympy.S.One:
             denominator = shifted_H_ii - shifted_H_jj
         else:
@@ -96,7 +103,7 @@ def solve_scalar(
         denominator = denominator.simplify().as_expr()
         new_shifts[shift] = sign * (denominator) ** -sympy.S.One * coeff
 
-    return (
+    result = (
         NumberOrderedForm(
             operators=Y.args[0],
             terms=new_shifts,
@@ -104,6 +111,11 @@ def solve_scalar(
         ._cancel_binary_operator_numbers()
         ._linearize_binary_operators()
     )
+
+    if diagonal:
+        result -= result.adjoint()
+
+    return result
 
 
 def solve_sylvester_2nd_quant(
@@ -144,12 +156,24 @@ def solve_sylvester_2nd_quant(
             eigs_A = eigs[index[0]] = [sympy.S.Zero] * Y.shape[0]
         if not eigs_B:
             eigs_B = eigs[index[1]] = [sympy.S.Zero] * Y.shape[1]
-        return sympy.Matrix(
-            [
-                [solve_scalar(Y[i, j], eigs_A[i], eigs_B[j]) for j in range(Y.cols)]
-                for i in range(Y.rows)
-            ]
-        )
+        result = sympy.zeros(*Y.shape)
+        for i in range(Y.rows):
+            for j in range(Y.cols):
+                # Only compute upper triangle of diagonal blocks
+                if index[0] != index[1] or i >= j:
+                    result[i, j] = solve_scalar(
+                        Y[i, j],
+                        eigs_A[i],
+                        eigs_B[j],
+                        diagonal=(i == j and index[0] == index[1]),
+                    )
+        for i in range(Y.rows):
+            for j in range(Y.cols):
+                # Fill the lower triangle with minus conjugate transpose
+                if index[0] == index[1] and i < j:
+                    result[i, j] = -result[j, i].adjoint()
+
+        return result
 
     return solve_sylvester
 
