@@ -45,7 +45,10 @@ The Hamiltonian reads
 H_0 = Matrix([[wr * Dagger(a) * a + wq / 2, 0], [0, wr * Dagger(a) * a - wq / 2]])
 H_p = Matrix([[0,  g * a], [g * Dagger(a), 0]])
 
-Eq(Symbol('H'), H_0 + H_p, evaluate=False)
+def display_eq(title, expr):
+    return Eq(Symbol(title), expr, evaluate=False)
+
+display_eq('H', H_0 + H_p)
 ```
 
 where the basis corresponds to the two spin states.
@@ -79,7 +82,7 @@ For example, to compute the 2nd order correction of the Hamiltonian of the $↑,
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_2'), H_tilde[0, 0, 2], evaluate=False)
+display_eq(r'\tilde{H}_2', H_tilde[0, 0, 2])
 ```
 
 :::{admonition} Pymablock's number operator
@@ -105,13 +108,13 @@ Higher order corrections to the Hamiltonian work exactly the same:
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_4'), H_tilde[0, 0, 4], evaluate=False)
+display_eq(r'\tilde{H}_4', H_tilde[0, 0, 4])
 ```
 
 ```{code-cell} ipython3
 %%time
 
-Eq(Symbol(r'\tilde{H}_6'), H_tilde[0, 0, 6], evaluate=False)
+display_eq(r'\tilde{H}_6', H_tilde[0, 0, 6])
 ```
 
 We see that also computing the 6th order correction takes effectively no time.
@@ -128,7 +131,7 @@ H_p = g * (pauli.SigmaPlus("s") * a + pauli.SigmaMinus("s") * Dagger(a))
 
 H_tilde, *_ = block_diagonalize([H_0, H_p], symbols=[g])
 
-Eq(Symbol(r'\tilde{H}_4'), simplify(H_tilde[0, 0, 4]), evaluate=False)
+display_eq(r'\tilde{H}_4', simplify(H_tilde[0, 0, 4]))
 ```
 
 This gives the same result (here $N_s$ is the number operator for the spin).

@@ -403,7 +403,7 @@ To simplify the supercurrent expression, we first identify common patterns:
 + The numerators contain products of $u_{\alpha} v_{\alpha}$, $u_{\alpha}^2$, and $v_{\alpha}^2$, all of which are free of square roots.
 
 ```{code-cell} ipython3
-display(Eq(Symbol('I(n=0)'), current))
+display_eq('I(n=0)', current)
 ```
 
 :::{admonition} Do not call `simplify()` on large expressions

@@ -87,8 +87,8 @@ from pymablock.block_diagonalization import block_diagonalize
 from pymablock.number_ordered_form import LadderOp, NumberOperator
 
 # Helper function to display equations nicely
-def display_eq(quantity, value):
-    display(Eq(quantity, value, evaluate=False))
+def display_eq(title, value):
+    display(Eq(Symbol(title), value, evaluate=False))
 
 # System parameters
 omega_0, Omega, g = symbols('omega_0 Omega g', real=True)
@@ -106,7 +106,7 @@ H_0 = omega_0/2 * sigma_z + Omega * N_a
 H_p = g/2 * sigma_x * (a + Dagger(a))
 
 # Display the full Hamiltonian
-display_eq(Symbol('H_{Floquet}'), H_0 + H_p)
+display_eq('H_{Floquet}', H_0 + H_p)
 ```
 
 ## Full Perturbation Theory
@@ -121,9 +121,9 @@ H_full, U_full, U_adjoint_full = block_diagonalize(
 )
 
 # Examine different orders of the effective Hamiltonian
-display_eq(Symbol('H_{eff}^{(0)}'), H_full[0, 0, 0])
-display_eq(Symbol('H_{eff}^{(1)}'), H_full[0, 0, 1])
-display_eq(Symbol('H_{eff}^{(2)}'), H_full[0, 0, 2])
+display_eq('H_{eff}^{(0)}', H_full[0, 0, 0])
+display_eq('H_{eff}^{(1)}', H_full[0, 0, 1])
+display_eq('H_{eff}^{(2)}', H_full[0, 0, 2])
 ```
 
 The first order correction is zero: the perturbation is off-diagonal and therefore we eliminated it completely.
@@ -133,7 +133,7 @@ We see that the result contains $N_s \equiv (\sigma_z^{(s)} + 1) / 2$, the numbe
 This is a consequence of Pymablock using the number ordered form to perform the calculations, but we can also substitute the original Pauli operators back in:
 
 ```{code-cell} ipython3
-display_eq(Symbol('H_{eff}^{(2)}'), simplify(H_full[0, 0, 2]).doit().expand())
+display_eq('H_{eff}^{(2)}', simplify(H_full[0, 0, 2]).doit().expand())
 ```
 
 ## Applying the Rotating Wave Approximation
@@ -168,8 +168,8 @@ H_rwa, U_rwa, U_adjoint_rwa = block_diagonalize(
 )
 
 # Examine different orders of the effective Hamiltonian with RWA
-display_eq(Symbol('H_{RWA}^{(1)}'), H_rwa[0, 0, 1])
-display_eq(Symbol('H_{RWA}^{(2)}'), simplify(H_rwa[0, 0, 2]).doit().expand())
+display_eq('H_{RWA}^{(1)}', H_rwa[0, 0, 1])
+display_eq('H_{RWA}^{(2)}', simplify(H_rwa[0, 0, 2]).doit().expand())
 ```
 
 The first order effective Hamiltonian is now non-zero because we only eliminate the counter-rotating terms.
@@ -193,8 +193,8 @@ H_co = g/4 * (sigma_plus * Dagger(a) + sigma_minus * a)
 H_counter = g/4 * (sigma_plus * a + sigma_minus * Dagger(a))
 
 # Verify that H_co + H_counter = H_p
-display_eq(Symbol('H_{co}'), H_co)
-display_eq(Symbol('H_{counter}'), H_counter)
+display_eq('H_{co}', H_co)
+display_eq('H_{counter}', H_counter)
 ```
 
 Now we can perform block diagonalization with two separate perturbative parameters.
@@ -207,19 +207,19 @@ H_sep, U_sep, U_adjoint_sep = block_diagonalize(
 
 # Examine terms with different orders in co- and counter-rotating terms
 # (1,0): First order in co-rotating, zero order in counter-rotating
-display_eq(Symbol('H_{eff}^{(1,0)}'), H_sep[0, 0, 1, 0])
+display_eq('H_{eff}^{(1,0)}', H_sep[0, 0, 1, 0])
 
 # (0,1): Zero order in co-rotating, first order in counter-rotating
-display_eq(Symbol('H_{eff}^{(0,1)}'), H_sep[0, 0, 0, 1])
+display_eq('H_{eff}^{(0,1)}', H_sep[0, 0, 0, 1])
 
 # (2,0): Second order in co-rotating only
-display_eq(Symbol('H_{eff}^{(2,0)}'), H_sep[0, 0, 2, 0])
+display_eq('H_{eff}^{(2,0)}', H_sep[0, 0, 2, 0])
 
 # (0,2): Second order in counter-rotating only
-display_eq(Symbol('H_{eff}^{(0,2)}'), H_sep[0, 0, 0, 2])
+display_eq('H_{eff}^{(0,2)}', H_sep[0, 0, 0, 2])
 
 # (1,1): First order in both (cross term)
-display_eq(Symbol('H_{eff}^{(1,1)}'), H_sep[0, 0, 1, 1])
+display_eq('H_{eff}^{(1,1)}', H_sep[0, 0, 1, 1])
 ```
 
 This separation allows us to identify which terms arise from purely co-rotating interactions, purely counter-rotating interactions, or cross-terms between them.
