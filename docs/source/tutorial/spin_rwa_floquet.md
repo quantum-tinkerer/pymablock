@@ -123,7 +123,7 @@ H_full, U_full, U_adjoint_full = block_diagonalize(
 # Examine different orders of the effective Hamiltonian
 display_eq(Symbol('H_{eff}^{(0)}'), H_full[0, 0, 0])
 display_eq(Symbol('H_{eff}^{(1)}'), H_full[0, 0, 1])
-display_eq(Symbol('H_{eff}^{(2)}'), simplify(H_full[0, 0, 2]))
+display_eq(Symbol('H_{eff}^{(2)}'), H_full[0, 0, 2])
 ```
 
 The first order correction is zero: the perturbation is off-diagonal and therefore we eliminated it completely.
@@ -195,8 +195,6 @@ H_counter = g/4 * (sigma_plus * a + sigma_minus * Dagger(a))
 # Verify that H_co + H_counter = H_p
 display_eq(Symbol('H_{co}'), H_co)
 display_eq(Symbol('H_{counter}'), H_counter)
-display_eq(Symbol('H_{co} + H_{counter}'), simplify(H_co + H_counter))
-display_eq(Symbol('H_p'), H_p)
 ```
 
 Now we can perform block diagonalization with two separate perturbative parameters.
@@ -215,13 +213,13 @@ display_eq(Symbol('H_{eff}^{(1,0)}'), H_sep[0, 0, 1, 0])
 display_eq(Symbol('H_{eff}^{(0,1)}'), H_sep[0, 0, 0, 1])
 
 # (2,0): Second order in co-rotating only
-display_eq(Symbol('H_{eff}^{(2,0)}'), simplify(H_sep[0, 0, 2, 0]))
+display_eq(Symbol('H_{eff}^{(2,0)}'), H_sep[0, 0, 2, 0])
 
 # (0,2): Second order in counter-rotating only
-display_eq(Symbol('H_{eff}^{(0,2)}'), simplify(H_sep[0, 0, 0, 2]))
+display_eq(Symbol('H_{eff}^{(0,2)}'), H_sep[0, 0, 0, 2])
 
 # (1,1): First order in both (cross term)
-display_eq(Symbol('H_{eff}^{(1,1)}'), simplify(H_sep[0, 0, 1, 1]))
+display_eq(Symbol('H_{eff}^{(1,1)}'), H_sep[0, 0, 1, 1])
 ```
 
 This separation allows us to identify which terms arise from purely co-rotating interactions, purely counter-rotating interactions, or cross-terms between them.
