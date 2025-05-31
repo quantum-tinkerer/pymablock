@@ -1661,7 +1661,7 @@ class NumberOrderedForm(Operator):
                 {
                     # Here we simplify the polynomial of number operators (coeff).
                     # This may be improved in the future with better heuristics.
-                    term: sympy.collect_const(sympy.simplify(coeff))
+                    term: sympy.collect_const(sympy.simplify(coeff)).doit()
                     for term, coeff in sympy.poly(
                         # EXRAW domain does not expand its terms. This is important to
                         # not automatically expand expressions like (n + 1) ** 5
