@@ -342,7 +342,7 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
 def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     """Convert a NumberOperator to its placeholder symbol."""
     return sympy.Symbol(
-        f"number_operator_placeholder_{op.name}_{type(op).__name__}",
+        f"number_operator_placeholder_{op.args[0]}_{op.args[1]}",
         integer=True,
     )
 
