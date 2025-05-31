@@ -10,7 +10,12 @@ import numpy as np
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 
-from pymablock.number_ordered_form import LadderOp, NumberOperator, NumberOrderedForm
+from pymablock.number_ordered_form import (
+    LadderOp,
+    NumberOperator,
+    NumberOrderedForm,
+    _number_operator_to_placeholder,
+)
 from pymablock.series import zero
 
 __all__ = [
@@ -73,10 +78,12 @@ def solve_scalar(
             continue
         # Commute H_ii and H_jj through creation and annihilation operators
         # respectively.
+        #
+        # Here we use a private function to get access to the placeholders
         shifted_H_jj = H_jj.xreplace(
             {
-                NumberOperator(op): (
-                    NumberOperator(op) + delta
+                _number_operator_to_placeholder(NumberOperator(op)): (
+                    _number_operator_to_placeholder(NumberOperator(op)) + delta
                     if isinstance(op, (BosonOp, LadderOp))
                     else sympy.S.One
                 )
@@ -86,8 +93,8 @@ def solve_scalar(
         )
         shifted_H_ii = H_ii.xreplace(
             {
-                NumberOperator(op): (
-                    NumberOperator(op) - delta
+                _number_operator_to_placeholder(NumberOperator(op)): (
+                    _number_operator_to_placeholder(NumberOperator(op)) - delta
                     if isinstance(op, (BosonOp, LadderOp))
                     else sympy.S.One
                 )
@@ -100,7 +107,9 @@ def solve_scalar(
         else:
             denominator = shifted_H_jj - shifted_H_ii
         # Denominators often simplify because linear powers of bosonic operators cancel.
-        denominator = sympy.collect_const(denominator.simplify().as_expr())
+        denominator = sympy.collect_const(
+            next(iter((denominator.simplify().terms.values())))
+        )
         new_shifts[shift] = sign * (denominator) ** -sympy.S.One * coeff
 
     result = (

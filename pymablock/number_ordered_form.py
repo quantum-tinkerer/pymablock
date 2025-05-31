@@ -5,7 +5,6 @@ which represents operators with creation operators on the left, annihilation ope
 and number operators in the middle.
 """
 
-import uuid
 from collections import defaultdict
 from collections.abc import Callable, Sequence
 
@@ -340,6 +339,14 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
     )
 
 
+def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
+    """Convert a NumberOperator to its placeholder symbol."""
+    return sympy.Symbol(
+        f"number_operator_placeholder_{op.name}_{type(op).__name__}",
+        integer=True,
+    )
+
+
 class NumberOrderedForm(Operator):
     """Number ordered form of quantum operators.
 
@@ -382,6 +389,12 @@ class NumberOrderedForm(Operator):
     _n_inf_order: int
     _n_spins: int
     _n_fermions: int
+    # List of placeholder symbols for NumberOperator instances, ordered like operators
+    _number_operator_placeholders = list[sympy.Symbol]
+    # Mapping from placeholder symbols to NumberOperator instances for reverse lookup
+    _placeholder_to_number_operator: dict[sympy.Symbol, NumberOperator]
+    # Inverse mapping
+    _number_operator_to_placeholder: dict[NumberOperator, sympy.Symbol]
     args: tuple[tuple[tuple[sympy.Integer, ...], sympy.Expr], ...]
 
     def __new__(
@@ -415,18 +428,43 @@ class NumberOrderedForm(Operator):
         """
         if not isinstance(operators, Tuple):
             operators = Tuple(*operators)
+
+        if validate:
+            cls._validate_operators(operators)
+
         # Convert terms dict to a tuple of (power_tuple, coefficient) tuples
         if isinstance(terms, dict):
             terms = Tuple(*(Tuple(k, v) for k, v in terms.items()))
 
-        if validate:
-            # Validate inputs before creating the object
-            cls._validate_operators(operators)
-            cls._validate_terms(terms, operators)
-
         elif not isinstance(terms, Tuple):
             terms_items = list(terms)
             terms = Tuple(*(Tuple(k, v) for k, v in terms_items))
+
+        # Create placeholders for NumberOperators corresponding to each operator
+        number_operators = [NumberOperator(op) for op in operators]
+        number_operator_placeholders = [
+            _number_operator_to_placeholder(op) for op in number_operators
+        ]
+        _placeholder_to_number_operator = {
+            placeholder: n_op
+            for placeholder, n_op in zip(number_operator_placeholders, number_operators)
+        }
+        replacements = {
+            n_op: placeholder
+            for placeholder, n_op in zip(number_operator_placeholders, number_operators)
+        }
+
+        # Replace NumberOperators with placeholders in terms
+        if validate:
+            new_terms = []
+            for powers, coeff in terms:
+                new_terms.append(Tuple(powers, coeff.xreplace(replacements)))
+            terms = Tuple(*new_terms)
+
+        if validate:
+            # Validate inputs before creating the object
+            cls._validate_terms(terms, operators)
+
         result = sympy.Expr.__new__(cls, operators, terms, **hints)
 
         result._n_bosons = sum(isinstance(op, BosonOp) for op in operators)
@@ -434,6 +472,9 @@ class NumberOrderedForm(Operator):
         result._n_inf_order = result._n_bosons + result._n_ladders
         result._n_spins = sum(isinstance(op, pauli.SigmaMinus) for op in operators)
         result._n_fermions = sum(isinstance(op, FermionOp) for op in operators)
+        result._placeholder_to_number_operator = _placeholder_to_number_operator
+        result._number_operator_to_placeholder = replacements
+        result._number_operator_placeholders = number_operator_placeholders
 
         return result
 
@@ -505,9 +546,10 @@ class NumberOrderedForm(Operator):
                     raise TypeError(f"Power must be an integer, got {power}")
 
             # Check for unwanted creation or annihilation operators in the coefficient
-            if coeff.has(*operator_types):
+            if not coeff.is_commutative:
                 raise ValueError(
-                    f"Coefficient contains creation or annihilation operators: {coeff}"
+                    f"Coefficient {coeff} must be a commutative expression. Use "
+                    "validate=True to convert NumberOperators to placeholders."
                 )
 
     @classmethod
@@ -670,7 +712,9 @@ class NumberOrderedForm(Operator):
                 operators,
                 Tuple(
                     Tuple(
-                        (Zero,) * len(operators), sympy.S(2) * NumberOperator(expr) - One
+                        (Zero,) * len(operators),
+                        sympy.S(2) * _number_operator_to_placeholder(NumberOperator(expr))
+                        - One,
                     )
                 ),
                 validate=False,
@@ -715,7 +759,11 @@ class NumberOrderedForm(Operator):
             )
 
         if isinstance(expr, NumberOperator):
-            return cls(operators, {(0,) * len(operators): expr}, validate=False)
+            return cls(
+                operators,
+                {(0,) * len(operators): _number_operator_to_placeholder(expr)},
+                validate=False,
+            )
 
         # If we've reached this point, we don't know how to handle this expression type
         raise ValueError(
@@ -761,6 +809,8 @@ class NumberOrderedForm(Operator):
         reversed_operators = list(reversed(self.operators))
 
         for powers, coeff in self.args[1]:
+            # Replace any placeholders with NumberOperator instances
+            coeff = coeff.xreplace(self._placeholder_to_number_operator)
             term = coeff
             for op, power in zip(reversed_operators, reversed(powers)):
                 if not power > Zero:
@@ -896,8 +946,7 @@ class NumberOrderedForm(Operator):
         assert op_power != 0, "op_power must be non-zero"
 
         operator = self.operators[op_index]
-
-        n_operator = NumberOperator(operator)
+        n_operator = self._number_operator_placeholders[op_index]
 
         # Create a new terms dictionary for the result
         new_terms = {}
@@ -1019,8 +1068,7 @@ class NumberOrderedForm(Operator):
             for i, power in enumerate(powers):
                 if power == 0:
                     continue
-                gen = self.operators[i]
-                n_i = NumberOperator(gen)
+                n_i = self._number_operator_placeholders[i]
                 if i < self._n_inf_order:  # Bosons or ladders
                     if power > 0:
                         # a * n_a = n_a + 1
@@ -1060,7 +1108,7 @@ class NumberOrderedForm(Operator):
             for p, op in zip(powers[self._n_inf_order :], binary_ops):
                 if not p:
                     continue
-                replacements[NumberOperator(op)] = Zero
+                replacements[_number_operator_to_placeholder(NumberOperator(op))] = Zero
             coeff = coeff.xreplace(replacements)
             if coeff == 0:
                 continue
@@ -1319,10 +1367,9 @@ class NumberOrderedForm(Operator):
                 other = NumberOrderedForm.from_expr(sympy.sympify(other))
             except Exception:
                 return None  # Let SymPy handle the comparison
-        return (
-            all(op1 == op2 for op1, op2 in zip(self.operators, other.operators))
-            and self.terms == other.terms
-        )
+        if self.operators != other.operators:
+            self, other = self._combine_operators(other)
+        return self.terms == other.terms
 
     def __hash__(self):
         """Compute the hash of this NumberOrderedForm."""
@@ -1358,8 +1405,11 @@ class NumberOrderedForm(Operator):
     def applyfunc(self, func: Callable, *args, **kwargs):
         """Apply a SymPy function to the terms of this NumberOrderedForm.
 
-        This method temporarily replaces NumberOperators with unique symbols,
-        applies the function, then substitutes back the NumberOperators.
+        Notes
+        -----
+        `NumberOrderedForm` stores its coefficients with number operators replaced with
+        integer placeholder symbols. This method does applies the function to those
+        coefficients, but does not change the operators themselves.
 
         Parameters
         ----------
@@ -1376,24 +1426,14 @@ class NumberOrderedForm(Operator):
             A new NumberOrderedForm with the function applied to its terms
 
         """
-        # Create number operators for all the operators in this NumberOrderedForm
-        substitutions = {
-            NumberOperator(op): sympy.Symbol(f"dummy_{uuid.uuid4().hex}", real=True)
-            for op in self.operators
-        }
-        reverse = {v: k for k, v in substitutions.items()}
-
         # Create a new terms dictionary for the result
         new_terms = {}
 
         # Process each term in the terms dictionary
         for powers, coeff in self.args[1]:
-            dummy_expr = coeff.xreplace(substitutions)
-            result_expr = func(dummy_expr, *args, **kwargs)
-            result_with_n_ops = result_expr.xreplace(reverse)
-            new_terms[powers] = result_with_n_ops
+            result_expr = func(coeff, *args, **kwargs)
+            new_terms[powers] = result_expr
 
-        # Create a new NumberOrderedForm with the same operators but new terms
         return type(self)(self.operators, new_terms, validate=False)
 
     def _linearize_binary_operators(self):
@@ -1404,7 +1444,8 @@ class NumberOrderedForm(Operator):
         """
         if not (
             binary_numbers := [
-                NumberOperator(op) for op in self.operators[self._n_inf_order :]
+                _number_operator_to_placeholder(NumberOperator(op))
+                for op in self.operators[self._n_inf_order :]
             ]
         ):
             # No binary operators, nothing to do
@@ -1536,6 +1577,10 @@ class NumberOrderedForm(Operator):
     def _eval_subs(self, old, new):
         if old in self.operators or new in self.operators:
             raise ValueError("Cannot substitute operators in NumberOrderedForm.")
+
+        old = old.xreplace(self._number_operator_to_placeholder)
+        new = new.xreplace(self._number_operator_to_placeholder)
+
         return type(self)(
             self.operators,
             Tuple(

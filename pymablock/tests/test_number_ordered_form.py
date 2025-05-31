@@ -21,6 +21,7 @@ from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
+    _number_operator_to_placeholder,
     find_operators,
 )
 
@@ -179,10 +180,14 @@ def test_number_ordered_form_init():
 
     # Create terms dictionary
     terms = {
-        (0, 0): sympy.S.One,  # Constant term
-        (-1, 0): NumberOperator(a),  # a† term with number operator coefficient
-        (0, 1): sympy.S(2),  # b term with scalar coefficient
-        (-1, 1): sympy.S(3) * NumberOperator(a),  # a†b term with coefficient
+        # Constant term
+        (0, 0): sympy.S.One,
+        # a† term with number operator coefficient
+        (-1, 0): _number_operator_to_placeholder(NumberOperator(a)),
+        # b term with scalar coefficient
+        (0, 1): sympy.S(2),
+        # a†b term with coefficient
+        (-1, 1): sympy.S(3) * _number_operator_to_placeholder(NumberOperator(a)),
     }
 
     # Create the NumberOrderedForm
@@ -222,7 +227,9 @@ def test_number_ordered_form_validation():
         NumberOrderedForm([a], {(0,): "not an expression"})
 
     # Test with creation/annihilation operator in coefficient
-    with pytest.raises(ValueError, match="contains creation or annihilation operators"):
+    with pytest.raises(
+        ValueError, match="Coefficient a must be a commutative expression"
+    ):
         NumberOrderedForm([a], {(0,): a * sympy.S.One})
 
     # Test that fractional powers are not allowed
@@ -263,16 +270,16 @@ def test_equality():
     nof2 = NumberOrderedForm([a], {(0,): sympy.S.One})
     assert nof1 == nof2
 
-    # Different operators
+    # Different operators, same value
     nof3 = NumberOrderedForm([b], {(0,): sympy.S.One})
-    assert nof1 != nof3
+    assert nof1 == nof3
 
     # Different terms
     nof4 = NumberOrderedForm([a], {(0,): sympy.S(2)})
     assert nof1 != nof4
 
     # Different object type
-    assert nof1 != sympy.S.One
+    assert nof1 == sympy.S.One
 
 
 def test_from_expr():
@@ -462,7 +469,7 @@ def test_only_number_operators():
     nof = NumberOrderedForm.from_expr(expr)
 
     assert nof.operators == (a, b)
-    assert nof.terms == {(0, 0): expr}
+    assert nof.terms == {(0, 0): expr.xreplace(nof._number_operator_to_placeholder)}
 
 
 def test_scalar_round_trip():
@@ -586,7 +593,9 @@ def test_multiply_expr():
     for nof in nof_cases:
         for expr in expr_cases:
             # Apply _multiply_expr
-            result = nof._multiply_expr(expr).as_expr()
+            result = nof._multiply_expr(
+                expr.xreplace(nof._number_operator_to_placeholder).as_expr()
+            )
 
             expected = NumberOrderedForm.from_expr(nof.as_expr() * expr).as_expr()
 

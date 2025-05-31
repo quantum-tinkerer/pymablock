@@ -87,7 +87,7 @@ def test_solve_sylvester_2nd_quant():
     n_a, n_b = NumberOperator(a), NumberOperator(b)
     g, J = sympy.symbols("g J", real=True)
 
-    eigs = ((g * n_a**2, 2 + n_a), (J * n_a, 1 + n_b))
+    eigs = ((g * n_a**2, sympy.S(2) + n_a), (J * n_a, sympy.S.One + n_b))
 
     solve_sylvester = solve_sylvester_2nd_quant(eigs)
 
