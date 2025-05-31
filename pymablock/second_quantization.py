@@ -100,7 +100,7 @@ def solve_scalar(
         else:
             denominator = shifted_H_jj - shifted_H_ii
         # Denominators often simplify because linear powers of bosonic operators cancel.
-        denominator = denominator.simplify().as_expr()
+        denominator = sympy.collect_const(denominator.simplify().as_expr())
         new_shifts[shift] = sign * (denominator) ** -sympy.S.One * coeff
 
     result = (
