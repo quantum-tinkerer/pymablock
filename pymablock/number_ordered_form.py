@@ -1626,3 +1626,54 @@ class NumberOrderedForm(Operator):
             )
         )
         return type(self)(self.operators, new_terms, validate=False)
+
+    def _poly_simplify(self) -> "NumberOrderedForm":
+        """Simplify a NumberOrderedForm by converting it to polynomials and back.
+
+        This uses as generators all possible expressions sympy finds, except for the
+        number operators.
+        """
+        if not self.operators:
+            # No operators, nothing to simplify
+            return self
+
+        new_terms = {}
+        for powers, coeff in self.args[1]:
+            if not coeff.free_symbols:
+                # If the coefficient is a constant, just keep it as is
+                new_terms[powers] = coeff
+                continue
+
+            # Convert the coefficient to a polynomial and extract the generators
+            poly = sympy.poly(coeff)
+            number_gens = tuple(
+                gen for gen in poly.gens if gen in self._number_operator_placeholders
+            )
+            non_number_gens = tuple(
+                gen for gen in poly.gens if gen not in self._number_operator_placeholders
+            )
+            if len(number_gens) == len(poly.gens):
+                # If there are no non-number operator generators, keep the coefficient as is
+                new_terms[powers] = coeff
+                continue
+
+            new_terms[powers] = sympy.Poly.from_dict(
+                {
+                    # Here we simplify the polynomial of number operators (coeff).
+                    # This may be improved in the future with better heuristics.
+                    term: sympy.collect_const(sympy.simplify(coeff))
+                    for term, coeff in sympy.poly(
+                        # EXRAW domain does not expand its terms. This is important to
+                        # not automatically expand expressions like (n + 1) ** 5
+                        coeff,
+                        gens=non_number_gens,
+                        domain=sympy.EXRAW,
+                    )
+                    .as_dict()
+                    .items()
+                },
+                gens=non_number_gens,
+                domain=sympy.EXRAW,
+            ).as_expr()
+
+        return type(self)(self.operators, new_terms, validate=False)

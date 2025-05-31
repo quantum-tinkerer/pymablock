@@ -500,22 +500,34 @@ def block_diagonalize(
         operator=operator,
     )
 
-    # Unwrap results for scalar inputs - convert 1x1 matrices back to scalars
-    if scalar_input and operators:
+    # Simplify the results and unwrap them for scalar inputs - convert 1x1 matrices back
+    # to scalars
+    if operators:
 
-        def create_unwrapping_eval(block_series):
+        def create_postprocessing_eval(block_series):
             """Create an eval function that unwraps 1x1 matrices to scalars."""
 
-            def unwrapping_eval(*index):
+            def postprocessing_eval(*index):
                 result = block_series[index]
-                if result is zero:
-                    return zero
-                if isinstance(result, sympy.Matrix) and result.shape == (1, 1):
+                if not isinstance(result, sympy.MatrixBase):
+                    return result
+
+                result = result.applyfunc(
+                    lambda x: x._poly_simplify()
+                    if isinstance(x, NumberOrderedForm)
+                    else x
+                )
+
+                if (
+                    scalar_input
+                    and isinstance(result, sympy.MatrixBase)
+                    and result.shape == (1, 1)
+                ):
                     return result[0, 0]
                 return result
 
             return BlockSeries(
-                eval=unwrapping_eval,
+                eval=postprocessing_eval,
                 shape=block_series.shape,
                 n_infinite=block_series.n_infinite,
                 dimension_names=block_series.dimension_names,
@@ -523,7 +535,7 @@ def block_diagonalize(
             )
 
         return tuple(
-            create_unwrapping_eval(outputs[name]) for name in ["H_tilde", "U", "U†"]
+            create_postprocessing_eval(outputs[name]) for name in ["H_tilde", "U", "U†"]
         )
 
     return outputs["H_tilde"], outputs["U"], outputs["U†"]
