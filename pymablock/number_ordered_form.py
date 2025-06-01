@@ -454,15 +454,14 @@ class NumberOrderedForm(Operator):
             for placeholder, n_op in zip(number_operator_placeholders, number_operators)
         }
 
-        # Replace NumberOperators with placeholders in terms
         if validate:
+            # Replace NumberOperators with placeholders in terms
             new_terms = []
             for powers, coeff in terms:
                 new_terms.append(Tuple(powers, coeff.xreplace(replacements)))
             terms = Tuple(*new_terms)
 
-        if validate:
-            # Validate inputs before creating the object
+            # Validate only after conversion
             cls._validate_terms(terms, operators)
 
         result = sympy.Expr.__new__(cls, operators, terms, **hints)
