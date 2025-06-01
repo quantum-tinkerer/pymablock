@@ -390,7 +390,7 @@ class NumberOrderedForm(Operator):
     _n_spins: int
     _n_fermions: int
     # List of placeholder symbols for NumberOperator instances, ordered like operators
-    _number_operator_placeholders = list[sympy.Symbol]
+    _number_operator_placeholders: list[sympy.Symbol]
     # Mapping from placeholder symbols to NumberOperator instances for reverse lookup
     _placeholder_to_number_operator: dict[sympy.Symbol, NumberOperator]
     # Inverse mapping
@@ -1295,7 +1295,7 @@ class NumberOrderedForm(Operator):
                     continue
                 partial = partial._multiply_op(i, power)
             # Add the result to the new terms
-            result = result + partial
+            result = result + partial._linearize_binary_operators()
 
         return result
 
@@ -1526,16 +1526,23 @@ class NumberOrderedForm(Operator):
                     f"operators to non-integer power: {self}**{exp}"
                 )
 
-            # One term, may exponentiate if the coefficient is commutative.
             powers, coeff = next(iter(self.terms.items()))
-            if not coeff.is_commutative or exp.is_negative:
+
+            if any(powers[self._n_inf_order :]) and exp > 1:
+                return type(self)(self.operators, {}, validate=False)
+
+            # One term, may exponentiate to a positive power if the coefficient is
+            # commutative
+            if coeff.has(*self._number_operator_placeholders):
+                raise ValueError(
+                    "Cannot raise expression with creation/annihilation and number "
+                    f"operators to a non-integer power: {self}**{exp}"
+                )
+            if exp.is_negative:
                 raise ValueError(
                     f"Cannot raise expression with unmatched creation or annihilation "
                     f"operators to non-positive power: {self}**{exp}"
                 )
-
-            if any(powers[self._n_inf_order :]) and exp > 1:
-                return type(self)(self.operators, {}, validate=False)
 
             return type(self)(
                 self.operators,
