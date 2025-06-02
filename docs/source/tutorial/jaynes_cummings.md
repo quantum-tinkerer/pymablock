@@ -121,7 +121,7 @@ We see that also computing the 6th order correction takes effectively no time.
 
 ## Spin operators
 
-Instead of defining the Hamiltonian as a 2x2 matrix, we can use the spin operators.
+An alternative to defining the Hamiltonian as a 2x2 matrix is to use spin operators:
 
 ```{code-cell} ipython3
 from sympy.physics.quantum import pauli
@@ -129,9 +129,15 @@ from sympy.physics.quantum import pauli
 H_0 = wr * Dagger(a) * a + wq * pauli.SigmaZ("s") / 2
 H_p = g * (pauli.SigmaPlus("s") * a + pauli.SigmaMinus("s") * Dagger(a))
 
+display_eq('H', H_0 + H_p)
+```
+
+Similarly as before, we provide the Hamiltonian to {autolink}`block_diagonalize`:
+
+```{code-cell} ipython3
 H_tilde, *_ = block_diagonalize([H_0, H_p], symbols=[g])
 
 display_eq(r'\tilde{H}_4', simplify(H_tilde[0, 0, 4]))
 ```
 
-This gives the same result (here $N_s$ is the number operator for the spin).
+The fourth order correction to the Hamiltonian depends on the spin occupation number $N_s$, such that for $N_s = 0, 1$ we recover the diagonal entries of the previous example.
