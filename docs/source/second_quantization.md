@@ -1,7 +1,8 @@
 # Second Quantization Tools
 
 This document explains the conceptual foundations of the second quantization tools in Pymablock.
-Specifically, it covers the implementation of number-ordered forms and the solution of Sylvester equations for quantum operators in second quantization, which are the basis for Pymablock's approach to quantum mechanical calculations.
+Specifically, it covers the implementation of number-ordered forms and the solution of Sylvester equations, which are the basis for Pymablock's approach to second quantization.
+We illustrate how our approach works with all common types of second-quantized operators.
 
 ## Number-Ordered Forms
 
@@ -9,7 +10,7 @@ Specifically, it covers the implementation of number-ordered forms and the solut
 
 #### From Normal Ordering to Number-Ordered Forms
 
-In many-body physics, normal ordering is a fundamental concept where creation operators are placed to the left of annihilation operators in an expression: $a^\dagger a a^\dagger$ becomes $a^\dagger a^\dagger a + a^\dagger$ when normal-ordered.
+In many-body physics, normal ordering is a fundamental concept where creation operators are placed to the left of annihilation operators in an expression: $a^\dagger a a^\dagger$, with a bosonic annihilation operator $a$, becomes $a^\dagger a^\dagger a + a^\dagger$ when normal-ordered.
 Normal ordering provides a reference for calculating expectation values and is essential for perturbation theory.
 
 However, simplifying complex expressions with normal ordering is challenging, because the non-commutative nature of operators leads to an explosion of number of terms as expressions grow.
@@ -94,6 +95,8 @@ For more details about the implementation, see {autolink}`~pymablock.number_orde
 The real power of number-ordered forms becomes apparent when we multiply quantum operators.
 The multiplication of of quantum operators follows from the commutation relations of individual operators.
 
+#### Bosons
+
 For example, the bosonic commutation relation forms the foundation of all manipulations with bosons:
 
 $$[a, a^\dagger] = aa^\dagger - a^\dagger a = 1 \quad \Rightarrow \quad aa^\dagger = 1 + a^\dagger a = 1 + N_a.$$
@@ -125,6 +128,8 @@ The algebraic framework is completed with two additional operations.
 First, addition simply merges coefficients of terms with identical operator powers.
 Second, taking the adjoint negates all the powers, which turns creation operators into annihilation operators and vice versa, and conjugates the coefficients.
 Together, these operations provide all the necessary tools to manipulate quantum expressions in number-ordered form in Pymablock.
+
+#### Fermions and Spins
 
 Fermions and spins work in a similar way, except for the different commutation relations.
 Firstly, the creation and annihilation operators are nilpotent: if $a$ is a fermion or spin $1/2$ operator, then $(a^\dagger)^2 = 0$ and $a^2 = 0$.
