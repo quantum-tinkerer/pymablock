@@ -11,9 +11,11 @@ kernelspec:
   name: python3
 ---
 
-# Rotating wave approximation in Floquet Formalism
+# Rabi model of a spin under periodic driving
 
 In this tutorial, we demonstrate how to apply the rotating wave approximation (RWA) to a spin system under periodic driving using the Floquet formalism in Pymablock.
+As a minimal example, we focus on obtaining the corrections to the quasi-energy levels of the system.
+This is similar to both the [Jaynes-Cummings model](jaynes_cummings.md) and the [dispersive shift computation](dispersive_shift.md).
 
 ## Time-Dependent Hamiltonian
 
@@ -31,10 +33,9 @@ $$H(t) = \frac{\omega_0}{2}\sigma_z + \frac{g}{2} \sigma_x (e^{i\Omega t} + e^{-
 
 ## Floquet Hamiltonian with Ladder Operators
 
-In the Floquet formalism, we represent the exponential terms using ladder operators. These follow the commutation relations described in the [Second Quantization Tools](../second_quantization.md#ladder-operators) section.
+To tackle this problem, we represent the exponential terms using ladder operators. These follow the commutation relations described in the [Second Quantization Tools](../second_quantization.md#ladder-operators) section.
 
-Fourier transforming the Hamiltonian leads to a Floquet Hamiltonian of the form:
-The Floquet Hamiltonian as an infinite matrix is:
+Applying the discrete Fourier transform to the time-dependent Schrödinger equation yields an infinite size block Hamiltonian:
 
 $$H_{Floquet} = \begin{pmatrix}
 \ddots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\
@@ -47,6 +48,7 @@ $$H_{Floquet} = \begin{pmatrix}
 \end{pmatrix},$$
 
 with $H_0$ and $V_\pm$ $2 \times 2$ matrices.
+Here each block corresponds to a different Fourier component of the spin wave function, and the off-diagonal blocks couple these components by $V_\pm$.
 By introducing the ladder operator $a$ and its number operator $N_a$ that satisfy:
 
 $$
@@ -141,40 +143,6 @@ display_eq('H_{eff}^{(2)}', simplify(H_full[0, 0, 2]).doit().expand())
 Pymablock offers two ways to apply the rotating wave approximation (RWA): either by separating the perturbation into different terms or by specifying which terms to eliminate.
 Which method to use in general depends on the specific problem at hand.
 
-### Specifying what to eliminate
-
-The rotating wave approximation involves eliminating rapidly oscillating terms. We can achieve this by only eliminating some of the terms in the perturbation expansion:
-
-```{code-cell} ipython3
-# Create elimination rules matrix for RWA
-k = Symbol('k', integer=True, positive=True)
-sigma_plus = pauli.SigmaPlus("s")
-to_eliminate = sigma_plus * a + Dagger(sigma_plus) * Dagger(a) + sigma_z * (a**k + Dagger(a)**k)
-```
-
-This eliminates:
-
-- The terms $\sigma_+ a$ and $\sigma_- a^\dagger$ (counter-rotating terms)
-- The terms with any power of the ladder operator on the diagonal.
-
-The latter is needed to avoid generating terms like $\sigma_z (a^2 + a^{\dagger 2})$.
-
-```{code-cell} ipython3
-# Apply block diagonalization with RWA filtering
-H_rwa, U_rwa, U_adjoint_rwa = block_diagonalize(
-    [H_0, H_p],
-    symbols=[g],
-    fully_diagonalize=to_eliminate,
-)
-
-# Examine different orders of the effective Hamiltonian with RWA
-display_eq('H_{RWA}^{(1)}', H_rwa[0, 0, 1])
-display_eq('H_{RWA}^{(2)}', simplify(H_rwa[0, 0, 2]).doit().expand())
-```
-
-The first order effective Hamiltonian is now non-zero because we only eliminate the counter-rotating terms.
-On the other hand, the second order effective Hamiltonian now only has contributions from the near-resonant terms with energy denominators $\omega - \Omega$.
-
 ### Separating perturbation terms
 
 Instead of treating the entire interaction $H_p = \frac{g}{2} \sigma_x (a + a^\dagger)$ as a single perturbation, we can separate it into co-rotating and counter-rotating terms.
@@ -224,6 +192,44 @@ display_eq('H_{eff}^{(1,1)}', H_sep[0, 0, 1, 1])
 
 This separation allows us to identify which terms arise from purely co-rotating interactions, purely counter-rotating interactions, or cross-terms between them.
 As expected, all first-order terms are zero since both perturbations are off-diagonal.
+
+### Specifying what to eliminate
+
+A more advanced approach is to directly specify which terms should be eliminated in the perturbative Hamiltonian.
+It is more verbose, and is likely not necessary for most applications, but it offers more control over the final result.
+
+The rotating wave approximation involves eliminating rapidly oscillating terms.
+We can achieve this by only eliminating some of the terms in the perturbation expansion:
+
+```{code-cell} ipython3
+# Create elimination rules matrix for RWA
+k = Symbol('k', integer=True, positive=True)
+sigma_plus = pauli.SigmaPlus("s")
+to_eliminate = sigma_plus * a + Dagger(sigma_plus) * Dagger(a) + sigma_z * (a**k + Dagger(a)**k)
+```
+
+This eliminates:
+
+- The terms $\sigma_+ a$ and $\sigma_- a^\dagger$ (counter-rotating terms)
+- The terms with any power of the ladder operator on the diagonal.
+
+The latter is needed to avoid generating terms like $\sigma_z (a^2 + a^{\dagger 2})$.
+
+```{code-cell} ipython3
+# Apply block diagonalization with RWA filtering
+H_rwa, U_rwa, U_adjoint_rwa = block_diagonalize(
+    [H_0, H_p],
+    symbols=[g],
+    fully_diagonalize=to_eliminate,
+)
+
+# Examine different orders of the effective Hamiltonian with RWA
+display_eq('H_{RWA}^{(1)}', H_rwa[0, 0, 1])
+display_eq('H_{RWA}^{(2)}', simplify(H_rwa[0, 0, 2]).doit().expand())
+```
+
+The first order effective Hamiltonian is now non-zero because we only eliminate the counter-rotating terms.
+On the other hand, the second order effective Hamiltonian now only has contributions from the near-resonant terms with energy denominators $\omega - \Omega$.
 
 ## Conclusion
 

@@ -23,7 +23,7 @@ tutorial/bilayer_graphene.md
 Induced superconducting gap <tutorial/induced_gap.md>
 tutorial/jaynes_cummings.md
 Dispersive shift of a resonator <tutorial/dispersive_shift.md>
-RWA in Floquet formalism <tutorial/spin_rwa_floquet.md>
+Rabi model <tutorial/spin_rwa_floquet.md>
 tutorial/andreev_supercurrent.md
 ```
 
