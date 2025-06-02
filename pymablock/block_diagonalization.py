@@ -111,6 +111,7 @@ def block_diagonalize(
             ``symbols`` to the desired order.
         - A `~pymablock.series.BlockSeries`,
             used directly.
+        - A single `~sympy.core.expr.Expr` containing the second-quantized Hamiltonian.
     solve_sylvester :
         A function that solves the Sylvester equation. If not provided,
         it is selected automatically based on the inputs.
@@ -141,7 +142,7 @@ def block_diagonalize(
         Symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
         Hamiltonian, see `~pymablock.series.BlockSeries`. If None, the
-        perturbative parameters are taken from the unperturbed Hamiltonian.
+        perturbative parameters are taken from the input Hamiltonian.
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used
         to validate that the unperturbed Hamiltonian is block-diagonal.

@@ -42,14 +42,14 @@ def solve_scalar(
     ----------
     Y :
         Expression with raising and lowering bosonic, fermionic, and spin operators.
-        Must be Hermitian.
     H_ii :
         Sectors of the unperturbed Hamiltonian.
     H_jj :
         Sectors of the unperturbed Hamiltonian.
     diagonal : bool
-        If True, we're evaluating the diagonal entry, which means that `Y` is Hermitian
-        and `H_ii` and `H_jj` are equal. This is used to speed up the computation.
+        If True, we're evaluating the diagonal entry of the matrix operator,
+        which means that `Y` is Hermitian and `H_ii` and `H_jj` are equal. This
+        is used to speed up the computation.
 
     Returns
     -------
