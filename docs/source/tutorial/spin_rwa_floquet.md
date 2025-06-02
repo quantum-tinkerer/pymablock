@@ -13,9 +13,11 @@ kernelspec:
 
 # Rabi model of a spin under periodic driving
 
-In this tutorial, we demonstrate how to apply the rotating wave approximation (RWA) to a spin system under periodic driving using the Floquet formalism in Pymablock.
-As a minimal example, we focus on obtaining the corrections to the quasi-energy levels of the system.
-This is similar to both the [Jaynes-Cummings model](jaynes_cummings.md) and the [dispersive shift computation](dispersive_shift.md).
+In this tutorial, we demonstrate how to apply the rotating wave approximation (RWA) to a spin system under periodic driving.
+Pymablock's approach to periodic time-dependent Hamiltonians is to introduce an artificial dimension and work in the Fourier space.
+
+As a minimal demonstration, we focus on obtaining the corrections to the quasi-energy levels of the system.
+This system is similar to both the [Jaynes-Cummings model](jaynes_cummings.md) and the [dispersive shift computation](dispersive_shift.md).
 
 ## Time-Dependent Hamiltonian
 
@@ -113,10 +115,9 @@ display_eq('H_{Floquet}', H_0 + H_p)
 
 ## Full Perturbation Theory
 
-First, let's perform block diagonalization without any term elimination to see the full perturbative expansion:
+First, let's apply full perturbative diagonalization:
 
 ```{code-cell} ipython3
-# Apply full block diagonalization without RWA
 H_full, U_full, U_adjoint_full = block_diagonalize(
     [H_0, H_p],
     symbols=[g],
@@ -140,14 +141,16 @@ display_eq('H_{eff}^{(2)}', simplify(H_full[0, 0, 2]).doit().expand())
 
 ## Applying the Rotating Wave Approximation
 
-Pymablock offers two ways to apply the rotating wave approximation (RWA): either by separating the perturbation into different terms or by specifying which terms to eliminate.
-Which method to use in general depends on the specific problem at hand.
+To obtain a simpler effective Hamiltonian, we may want to treat the co- and counter-rotating terms on a different footing.
+Pymablock offers two ways to do so: either by separating the perturbation into different terms and computing the result to different orders in each perturbation, or by directly specifying which terms should be eliminated from the final Hamiltonian.
+
+The first approach is more straightforward, so we recommend starting with it and only considering the second one if you need more control over the final result.
 
 ### Separating perturbation terms
 
-Instead of treating the entire interaction $H_p = \frac{g}{2} \sigma_x (a + a^\dagger)$ as a single perturbation, we can separate it into co-rotating and counter-rotating terms.
-The co-rotating terms are those that create excitations plus their Hermitian conjugate ($\sigma_+ a^\dagger + \sigma_- a$), while the counter-rotating terms are the rest ($\sigma_+ a + \sigma_- a^\dagger$).
-This allows us to treat each part independently and specify different orders for each perturbation.
+Instead of treating the entire interaction $H_p = \frac{g}{2} \sigma_x (a + a^\dagger)$ as a single perturbation, we separate it into co-rotating and counter-rotating terms.
+The co-rotating terms are those that create or annihilate pairs of excitations: $\sigma_+ a^\dagger + \sigma_- a$, while the counter-rotating terms preserve the excitation number: $\sigma_+ a + \sigma_- a^\dagger$.
+Let us define these terms explicitly.
 
 ```{code-cell} ipython3
 # Separate the perturbation into co-rotating and counter-rotating parts
@@ -165,7 +168,7 @@ display_eq('H_{co}', H_co)
 display_eq('H_{counter}', H_counter)
 ```
 
-Now we can perform block diagonalization with two separate perturbative parameters.
+Now we perform block diagonalization with two separate perturbative parameters.
 The order specification $(i, j)$ corresponds to $g_{co}^i \cdot g_{counter}^j$:
 
 ```{code-cell} ipython3
@@ -199,7 +202,7 @@ A more advanced approach is to directly specify which terms should be eliminated
 It is more verbose, and is likely not necessary for most applications, but it offers more control over the final result.
 
 The rotating wave approximation involves eliminating rapidly oscillating terms.
-We can achieve this by only eliminating some of the terms in the perturbation expansion:
+We achieve this by only eliminating some of the terms in the perturbation expansion, using the [elimination rules](../second_quantization.md#filtering-terms-of-number-ordered-forms):
 
 ```{code-cell} ipython3
 # Create elimination rules matrix for RWA
@@ -228,7 +231,7 @@ display_eq('H_{RWA}^{(1)}', H_rwa[0, 0, 1])
 display_eq('H_{RWA}^{(2)}', simplify(H_rwa[0, 0, 2]).doit().expand())
 ```
 
-The first order effective Hamiltonian is now non-zero because we only eliminate the counter-rotating terms.
+The first order effective Hamiltonian is now nonzero because we only eliminate the counter-rotating terms.
 On the other hand, the second order effective Hamiltonian now only has contributions from the near-resonant terms with energy denominators $\omega - \Omega$.
 
 ## Conclusion
