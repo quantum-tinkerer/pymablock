@@ -203,7 +203,9 @@ In this basis, the unperturbed Hamiltonian $H = H_{\textrm{SC}}+ H_{\textrm{dot}
 
 ### Convert the Hamiltonian to a matrix
 
-Pymablock does not yet support working directly with operators. In the [Jaynes–Cummings tutorial](jaynes_cummings.md) we implemented a custom `solve_sylvester` function. Here the simplest option is to convert the Hamiltonian to a matrix representation.
+One may apply Pymablock to this Hamiltonian directly, but it turns out to be too slow because Pymablock then fully diagonalizes the Hamiltonian symbolically in second quantization.
+
+Instead, we convert the Hamiltonian to a matrix representation, split it into blocks, and only compute corrections to the few eigenenergies of interest.
 The following code cell defines a function `to_matrix(...)` that computes the matrix representation of a Hamiltonian `H` with fermionic operators and the corresponding `basis`.
 The details of the implementation are hidden for brevity.
 
@@ -403,7 +405,7 @@ To simplify the supercurrent expression, we first identify common patterns:
 + The numerators contain products of $u_{\alpha} v_{\alpha}$, $u_{\alpha}^2$, and $v_{\alpha}^2$, all of which are free of square roots.
 
 ```{code-cell} ipython3
-display(Eq(Symbol('I(n=0)'), current))
+display_eq('I(n=0)', current)
 ```
 
 :::{admonition} Do not call `simplify()` on large expressions

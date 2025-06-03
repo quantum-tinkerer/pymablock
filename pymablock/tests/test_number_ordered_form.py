@@ -1,24 +1,57 @@
 """Tests for the NumberOrderedForm class."""
 
+from itertools import combinations
+
+import numpy as np
 import pytest
 import sympy
-from sympy.physics.quantum import Commutator, Dagger, HermitianOperator, boson, fermion
+from sympy.combinatorics import Permutation
+from sympy.physics.quantum import (
+    Commutator,
+    Dagger,
+    HermitianOperator,
+    boson,
+    fermion,
+    pauli,
+    represent,
+)
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 from pymablock.number_ordered_form import (
+    LadderOp,
     NumberOperator,
     NumberOrderedForm,
+    _number_operator_to_placeholder,
     find_operators,
 )
 
+# Here and in other tests we need to convert `NumberOrderedForm` to `Expr` in
+# order to check if it is zero because of https://github.com/sympy/sympy/issues/10728
+
+
+def test_ladder_operator_interface():
+    """Minimal API test for LadderOp."""
+    a = LadderOp("n", True)  # Annihilation operator
+    assert a == LadderOp("n", True)  # Same operator
+    assert a.name == sympy.Symbol("n")
+    assert a.is_annihilation is True
+    assert Dagger(a) == LadderOp("n", False)  # Creation operator
+    assert Dagger(a).is_annihilation is False
+    assert a.is_commutative is False  # LadderOp is not commutative
+    assert a.is_hermitian is False  # LadderOp is not Hermitian
+
 
 def test_number_operator_interface():
-    """Test the name of the NumberOperator."""
+    """Test the API of the NumberOperator."""
     # Create a boson operator
     a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    n = LadderOp("n")
     f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    s, z = sympy.symbols("s z", cls=pauli.SigmaPlus)
     n_a, n_b = NumberOperator(a), NumberOperator(b)
+    n_n = NumberOperator(n)
     n_f = NumberOperator(f)
+    n_s = NumberOperator(s)
 
     # Check the name of the NumberOperator
     assert n_a.name == sympy.Symbol("a")
@@ -26,12 +59,11 @@ def test_number_operator_interface():
     # Check that it cannot be instantiated with not a wrong operator
     with pytest.raises(TypeError):
         NumberOperator(HermitianOperator("a"))
-    # Also not with a creation operator
-    with pytest.raises(ValueError):
-        NumberOperator(Dagger(a))
 
-    assert Commutator(n_a, n_b).doit() == 0
-    assert Commutator(n_a, n_f).doit() == 0
+    assert NumberOperator(Dagger(a)) == NumberOperator(a)
+
+    for first, second in combinations([n_a, n_b, n_n, n_f, n_s], 2):
+        assert Commutator(first, second).doit() == 0
 
     assert Commutator(n_a, a).doit() == -a
     assert Commutator(n_a, b).doit(independent=True) == 0
@@ -39,27 +71,48 @@ def test_number_operator_interface():
     assert Commutator(n_f, a).doit(independent=True) == 0
     assert Commutator(n_f, g).doit(independent=True) == 0
     assert Commutator(n_f, f).doit() == -f
+    for op in (pauli.SigmaX, pauli.SigmaY, pauli.SigmaZ):
+        assert Commutator(n_a, op(s.name)).doit() == 0
+        assert Commutator(n_s, op(z.name)).doit(independent=True) == 0
+        assert NumberOrderedForm.from_expr(
+            2 * Commutator(n_s, op(s.name)).doit()
+        ) == NumberOrderedForm.from_expr(
+            Commutator(pauli.SigmaZ(s.name), op(s.name)).doit()
+        )
+    assert Commutator(n_s, pauli.SigmaZ(s.name)).doit() == 0
 
     assert sympy.latex(n_a) == "{N_{a}}"
     assert sympy.pretty(n_a) == "N_a"
 
 
 def test_find_operators():
-    """Test the find_operators function to identify bosonic operators in expressions."""
-    # TODO: Also confirm ordering and fermionic operators
+    """Test the find_operators function to identify bosonic, fermionic, spin and ladder operators in expressions."""
+    # Bosonic operators
     a = boson.BosonOp("a")
     b = boson.BosonOp("b")
+
+    # Fermionic operators
+    f = fermion.FermionOp("f")
+    g = fermion.FermionOp("g")
+
+    # Spin operators
+    s_plus = pauli.SigmaPlus("s")
+    t_plus = pauli.SigmaPlus("t")
+    s_minus = s_plus.adjoint()
+    s_z = pauli.SigmaZ("s")
+
+    # Ladder operators
+    ladder_1 = LadderOp("l1")
+    ladder_2 = LadderOp("l2")
 
     # Simple expression with a single operator
     expr1 = a**2 + 1
     result1 = find_operators(expr1)
-    assert len(result1) == 1
     assert result1[0] == a
 
     # Expression with multiple operators
     expr2 = a * b + Dagger(a) * Dagger(b)
     result2 = find_operators(expr2)
-    assert len(result2) == 2
     assert set(result2) == {a, b}
 
     # Expression with no operators
@@ -72,20 +125,50 @@ def test_find_operators():
     Nb = NumberOperator(b)
     expr4 = Na * Nb + Na**2
     result4 = find_operators(expr4)
-    assert len(result4) == 2
     assert set(result4) == {a, b}
+
+    # Test with fermionic operators
+    expr_f = f * Dagger(f) + g * Dagger(g)
+    result_f = find_operators(expr_f)
+    assert set(result_f) == {f, g}
 
     # Expression with mixed number operators and original operators
     expr5 = Na * b + a * Nb
     result5 = find_operators(expr5)
-    assert len(result5) == 2
     assert set(result5) == {a, b}
 
     # Expression with number operators inside more complex expressions
     expr6 = (Na + 1) * (Nb - 2) ** 2
     result6 = find_operators(expr6)
-    assert len(result6) == 2
     assert set(result6) == {a, b}
+
+    # Test with spin operators
+    Ns = NumberOperator(s_plus)
+    Nt = NumberOperator(t_plus)
+    expr7 = s_plus + Dagger(s_plus) + s_z
+    result7 = find_operators(expr7)
+    assert result7[0] == s_minus
+
+    # Expression with multiple spin operators
+    expr8 = s_plus * t_plus.adjoint() + Ns * Nt
+    result8 = find_operators(expr8)
+    assert set(result8) == {s_minus, t_plus.adjoint()}
+
+    # Expression combining spin and other operator types
+    expr9 = s_plus * a + f * Dagger(f) + Ns
+    result9 = find_operators(expr9)
+    assert set(result9) == {s_minus, a, f}
+
+    # Test with ladder operators
+    Nl1 = NumberOperator(ladder_1)
+    expr10 = ladder_1 + Dagger(ladder_1) + Nl1
+    result10 = find_operators(expr10)
+    assert result10[0] == ladder_1
+
+    # Expression with multiple ladder operators and other types
+    expr11 = Dagger(ladder_2) + a * Nl1
+    result11 = find_operators(expr11)
+    assert set(result11) == {ladder_1, ladder_2, a}
 
 
 def test_number_ordered_form_init():
@@ -97,10 +180,14 @@ def test_number_ordered_form_init():
 
     # Create terms dictionary
     terms = {
-        (0, 0): sympy.S.One,  # Constant term
-        (-1, 0): NumberOperator(a),  # a† term with number operator coefficient
-        (0, 1): sympy.S(2),  # b term with scalar coefficient
-        (-1, 1): sympy.S(3) * NumberOperator(a),  # a†b term with coefficient
+        # Constant term
+        (0, 0): sympy.S.One,
+        # a† term with number operator coefficient
+        (-1, 0): _number_operator_to_placeholder(NumberOperator(a)),
+        # b term with scalar coefficient
+        (0, 1): sympy.S(2),
+        # a†b term with coefficient
+        (-1, 1): sympy.S(3) * _number_operator_to_placeholder(NumberOperator(a)),
     }
 
     # Create the NumberOrderedForm
@@ -117,16 +204,18 @@ def test_number_ordered_form_validation():
     b = boson.BosonOp("b")
 
     # Test with non-quantum operator
-    with pytest.raises(TypeError, match="Expected BosonOp or FermionOp"):
+    with pytest.raises(
+        TypeError, match="Operators must be BosonOp, LadderOp, SigmaMinus, or FermionOp."
+    ):
         NumberOrderedForm([sympy.Symbol("x")], {(0,): sympy.S.One})
 
     # Test with creation operator instead of annihilation
-    with pytest.raises(ValueError, match="must be an annihilation operator"):
+    with pytest.raises(ValueError, match="Operators must be annihilation operators."):
         NumberOrderedForm([Dagger(a)], {(0,): sympy.S.One})
 
     # Test with boson after fermion
     f = fermion.FermionOp("f")
-    with pytest.raises(ValueError, match="must come before fermionic operators"):
+    with pytest.raises(ValueError, match="Operators must be sorted by type and name."):
         NumberOrderedForm([f, a], {(0, 0): sympy.S.One})
 
     # Test with wrong powers tuple length
@@ -134,11 +223,13 @@ def test_number_ordered_form_validation():
         NumberOrderedForm([a, b], {(0,): sympy.S.One})
 
     # Test with non-sympy expression coefficient
-    with pytest.raises(TypeError, match="must be a sympy expression"):
+    with pytest.raises(sympy.SympifyError):
         NumberOrderedForm([a], {(0,): "not an expression"})
 
     # Test with creation/annihilation operator in coefficient
-    with pytest.raises(ValueError, match="contains creation or annihilation operators"):
+    with pytest.raises(
+        ValueError, match="Coefficient a must be a commutative expression"
+    ):
         NumberOrderedForm([a], {(0,): a * sympy.S.One})
 
     # Test that fractional powers are not allowed
@@ -179,16 +270,16 @@ def test_equality():
     nof2 = NumberOrderedForm([a], {(0,): sympy.S.One})
     assert nof1 == nof2
 
-    # Different operators
+    # Different operators, same value
     nof3 = NumberOrderedForm([b], {(0,): sympy.S.One})
-    assert nof1 != nof3
+    assert nof1 == nof3
 
     # Different terms
     nof4 = NumberOrderedForm([a], {(0,): sympy.S(2)})
     assert nof1 != nof4
 
     # Different object type
-    assert nof1 != sympy.S.One
+    assert nof1 == sympy.S.One
 
 
 def test_from_expr():
@@ -199,9 +290,6 @@ def test_from_expr():
     # Simple expression: a† + b
     expr = Dagger(a) + b
     nof = NumberOrderedForm.from_expr(expr)
-
-    # Check operators - we should have exactly 2
-    assert len(nof.operators) == 2
 
     # Check that the operators are a and b (by name as strings)
     names = sorted([str(op.name) for op in nof.operators])
@@ -237,6 +325,19 @@ def test_from_expr():
 
     nof2 = NumberOrderedForm.from_expr(sympy.sin(a * Dagger(a)))
     assert nof2.as_expr() == sympy.sin(NumberOperator(a) + 1)
+
+    # Check that if we provide operators and another one appears, there's an error.
+    with pytest.raises(ValueError, match="not found in operators list"):
+        NumberOrderedForm.from_expr(Dagger(a) + b, operators=[a])
+
+
+def test_spin_conversion():
+    """Test round-trip conversion of spin operators to NumberOrderedForm."""
+    for op in pauli.SigmaX, pauli.SigmaY, pauli.SigmaZ:
+        expr = op("s")
+        nof3 = NumberOrderedForm.from_expr(expr)
+        diff = nof3.doit().expand() - expr
+        assert diff.is_zero or represent(diff).is_zero_matrix
 
 
 def test_doit():
@@ -368,7 +469,7 @@ def test_only_number_operators():
     nof = NumberOrderedForm.from_expr(expr)
 
     assert nof.operators == (a, b)
-    assert nof.terms == {(0, 0): expr}
+    assert nof.terms == {(0, 0): expr.xreplace(nof._number_operator_to_placeholder)}
 
 
 def test_scalar_round_trip():
@@ -429,9 +530,9 @@ def test_multiply_op():
         expected = sympy.expand(nof.as_expr().doit() * expr)
         assert sympy.expand(
             normal_ordered_form(result, independent=True)
-        ) == sympy.expand(
-            normal_ordered_form(expected, independent=True)
-        ), f"Failed for term {term} with operator {op}"
+        ) == sympy.expand(normal_ordered_form(expected, independent=True)), (
+            f"Failed for term {term} with operator {op}"
+        )
 
 
 def test_multiply_op_twice():
@@ -492,13 +593,46 @@ def test_multiply_expr():
     for nof in nof_cases:
         for expr in expr_cases:
             # Apply _multiply_expr
-            result = nof._multiply_expr(expr).as_expr()
+            result = nof._multiply_expr(
+                expr.xreplace(nof._number_operator_to_placeholder).as_expr()
+            )
 
             expected = NumberOrderedForm.from_expr(nof.as_expr() * expr).as_expr()
 
-            assert (
-                result == expected
-            ), f"_multiply_expr failed with nof={nof.as_expr()}, expr={expr}"
+            assert result == expected, (
+                f"_multiply_expr failed with nof={nof.as_expr()}, expr={expr}"
+            )
+
+
+def test_exponentiation():
+    """Test the exponentiation of NumberOrderedForm."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+
+    # Test nilpotence
+    assert (NumberOrderedForm([f], {(1,): sympy.S.One}) ** 2).is_zero
+    assert (NumberOrderedForm([a], {(1,): sympy.S.One}) ** 0).as_expr() == sympy.S.One
+    nof = NumberOrderedForm.from_expr(a + b + f + g)
+    assert nof**3 == nof * nof * nof
+
+    with pytest.raises(ValueError, match="unmatched creation or annihilation operators"):
+        NumberOrderedForm.from_expr(Dagger(a) + b) ** -1
+
+    with pytest.raises(TypeError):
+        NumberOrderedForm.from_expr(Dagger(a) * a) ** 1.5
+
+    k = sympy.symbols("k", positive=True, integer=True)
+    assert (NumberOrderedForm.from_expr(f) ** (k + 1)).is_zero
+
+
+def test_expand():
+    """Test the expand method of NumberOrderedForm."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    # Reverse alphabetical order for annihilation operators
+    assert (
+        sympy.expand(NumberOrderedForm.from_expr((a + b) ** 2)).as_expr()
+        == a**2 + 2 * b * a + b**2
+    )
 
 
 def test_multiply_expr_raises_error():
@@ -672,6 +806,94 @@ def test_multiplication():
     expected = NumberOrderedForm.from_expr(nof8.as_expr() * expr_with_number_op)
 
     assert result == expected
+
+
+def test_multiplication_with_ladder_operators():
+    """Test the multiplication of NumberOrderedForm with ladder operators."""
+    m = sympy.symbols("m", cls=LadderOp)
+    n_m = NumberOperator(m)
+    nof_m = NumberOrderedForm([m], {(1,): sympy.S.One})
+    nof_n_m = NumberOrderedForm([m], {(0,): n_m})
+    assert (nof_m * nof_m.adjoint() - sympy.S.One).is_zero
+    assert (nof_m.adjoint() * nof_m - sympy.S.One).is_zero
+    assert (nof_m * nof_n_m * nof_m.adjoint() - nof_n_m - sympy.S.One).is_zero
+
+
+def test_multiplication_with_missing_operators():
+    """Test multiplication of NumberOrderedForm with a longer list of operators."""
+    # Create a mix of different operator types
+    a = boson.BosonOp("a")
+    b = boson.BosonOp("b")
+    f = fermion.FermionOp("f")
+    s = pauli.SigmaMinus("s")
+    m = LadderOp("m")  # Just used in the operators list, not in actual expressions
+
+    # Create number operators
+    n_a = NumberOperator(a)
+
+    # Create a list of operators that's longer than what we'll actually use
+    # Note: The order matters - internally sorted by type and name
+    full_operators = [a, b, m, s, f]  # Boson, Ladder, Spin, Fermion order
+
+    # Create expressions using only a subset of the operators
+    expr1 = a * Dagger(a)  # Only uses boson operator 'a'
+    expr2 = sympy.S(2) * b + n_a  # Uses boson operators 'a' and 'b'
+
+    # Create NumberOrderedForm objects with the full list of operators
+    # but expressions that only use a subset
+    nof1 = NumberOrderedForm.from_expr(expr1, operators=full_operators)
+    nof2 = NumberOrderedForm.from_expr(expr2, operators=full_operators)
+
+    # Test multiplication
+    result = nof1 * nof2
+
+    # Create the expected result directly with full operator list
+    expected = NumberOrderedForm.from_expr(expr1 * expr2, operators=full_operators)
+
+    assert expected == result
+
+    # Verify the operators list in the result is still the full list
+    assert all(
+        str(op.name) == str(full_op.name)
+        for op, full_op in zip(result.operators, full_operators, strict=True)
+    )
+
+    # Test multiplication with expressions using different subsets of operators
+    expr3 = n_a + sympy.S(3)  # Uses only 'a'
+    expr4 = f * Dagger(f)  # Uses only fermion 'f'
+
+    nof3 = NumberOrderedForm.from_expr(expr3, operators=full_operators)
+    nof4 = NumberOrderedForm.from_expr(expr4, operators=full_operators)
+
+    result2 = nof3 * nof4
+    expected2 = NumberOrderedForm.from_expr(expr3 * expr4, operators=full_operators)
+
+    assert (result2 - expected2).simplify().is_zero
+
+    # Verify the operators list is still preserved
+    assert len(result2.operators) == len(full_operators)
+
+    # Test multiplication with expressions using the spin operator
+    expr5 = s * Dagger(s)  # Uses spin operator 's'
+    nof5 = NumberOrderedForm.from_expr(expr5, operators=full_operators)
+
+    result3 = nof1 * nof5
+    expected3 = NumberOrderedForm.from_expr(expr1 * expr5, operators=full_operators)
+
+    # Compare results
+    assert (result3 - expected3).simplify().is_zero
+
+    # Test with powers of operators
+    expr6 = a**2 + sympy.S(2) * b
+    expr7 = Dagger(a) + f
+
+    nof6 = NumberOrderedForm.from_expr(expr6, operators=full_operators)
+    nof7 = NumberOrderedForm.from_expr(expr7, operators=full_operators)
+
+    result4 = nof6 * nof7
+    expected4 = NumberOrderedForm.from_expr(expr6 * expr7, operators=full_operators)
+
+    assert (result4 - expected4).simplify().is_zero
 
 
 def test_division():
@@ -1036,3 +1258,181 @@ def test_is_particle_conserving():
     # Mixed term with non-conserving components a†a + b
     nof8 = NumberOrderedForm.from_expr(Dagger(a) * a + b)
     assert not nof8.is_particle_conserving()
+
+
+def test_fermionic_nilpotence():
+    """Test that fermion operators are nilpotent (f² = 0, f†² = 0)."""
+    f = fermion.FermionOp("f")
+
+    # Test nilpotence using NumberOrderedForm operations
+    # First, create a NumberOrderedForm instance with a fermion operator
+    nof_f = NumberOrderedForm.from_expr(f)
+
+    # Squaring using our NumberOrderedForm operations
+    nof_squared = nof_f * nof_f
+    assert nof_squared.terms == {}  # Should be empty, representing zero
+    assert nof_squared.as_expr() == sympy.S.Zero
+
+    # Similarly for creation operator
+    nof_dagger_f = NumberOrderedForm.from_expr(Dagger(f))
+    nof_dagger_squared = nof_dagger_f * nof_dagger_f
+    assert nof_dagger_squared.terms == {}  # Should be empty, representing zero
+    assert nof_dagger_squared.as_expr() == sympy.S.Zero
+
+    # Test in more complex expressions
+    nof_f_plus_1 = nof_f + NumberOrderedForm.from_expr(sympy.S.One)
+    nof_squared_plus_1 = nof_f_plus_1 * nof_f
+    # This should just return f since f² = 0
+    assert nof_squared_plus_1.as_expr() == f
+
+    # Test with daggered operator
+    nof_dagger_f_plus_1 = nof_dagger_f + NumberOrderedForm.from_expr(sympy.S.One)
+    nof_dagger_squared_plus_1 = nof_dagger_f_plus_1 * nof_dagger_f
+    # This should just return f† since (f†)² = 0
+    assert nof_dagger_squared_plus_1.as_expr() == Dagger(f)
+
+
+def test_fermion_anticommutation():
+    """Test the anti-commutation relations of fermion operators."""
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    n_f, n_g = NumberOperator(f), NumberOperator(g)
+
+    # Test anti-commutation between creation and annihilation operators
+    expr3 = f * Dagger(f) + Dagger(f) * f
+    nof3 = NumberOrderedForm.from_expr(expr3)
+    assert nof3.as_expr() == sympy.S.One
+
+    # Test in more complex expressions
+    expr5 = f * g * Dagger(g) * Dagger(f) - Dagger(f) * Dagger(g) * g * f
+    nof5 = NumberOrderedForm.from_expr(expr5)
+    expected5 = NumberOrderedForm.from_expr((1 - n_f) * (1 - n_g) - n_f * n_g)
+    assert nof5.as_expr() == expected5.as_expr()
+
+
+def test_fermionic_number_operators():
+    """Test fermion number operators and their properties."""
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    n_f = NumberOperator(f)
+    n_g = NumberOperator(g)
+
+    # Test that fermionic number operators are idempotent (n_f^2 = n_f)
+    # We need to create the NumberOrderedForm directly for the test
+    nof_n_f = NumberOrderedForm.from_expr(n_f)
+    nof_squared = nof_n_f * nof_n_f
+    assert nof_squared.as_expr() == n_f
+
+    # Test that number operators commute with each other
+    expr2 = n_f * n_g - n_g * n_f
+    nof2 = NumberOrderedForm.from_expr(expr2).simplify()
+    assert nof2.as_expr() == sympy.S.Zero
+
+    # Test relations between number operators and fermion operators
+    # n_f * f = 0 (annihilating an empty state)
+    expr3 = n_f * f
+    nof3 = NumberOrderedForm.from_expr(expr3)
+    assert nof3.as_expr() == sympy.S.Zero
+
+    # f * n_f = f (annihilating an occupied state)
+    expr4 = f * n_f
+    nof4 = NumberOrderedForm.from_expr(expr4)
+    assert nof4.as_expr() == f
+
+    # n_f * Dagger(f) = Dagger(f) (creating in an empty state)
+    expr5 = n_f * Dagger(f)
+    nof5 = NumberOrderedForm.from_expr(expr5)
+    assert nof5.as_expr() == Dagger(f)
+
+    # Dagger(f) * n_f = 0 (creating in an occupied state)
+    expr6 = Dagger(f) * n_f
+    nof6 = NumberOrderedForm.from_expr(expr6)
+    assert nof6.as_expr() == sympy.S.Zero
+
+    # Test 1 - n_f is the projection onto the empty state
+    expr7 = (sympy.S.One - n_f) * f
+    nof7 = NumberOrderedForm.from_expr(expr7)
+    assert nof7.as_expr() == f
+
+    expr8 = (sympy.S.One - n_f) * Dagger(f)
+    nof8 = NumberOrderedForm.from_expr(expr8)
+    assert nof8.is_zero
+
+
+def test_mixed_boson_fermion():
+    """Test expressions that mix bosonic and fermionic operators."""
+    a = boson.BosonOp("a")
+    f = fermion.FermionOp("f")
+    n_a = NumberOperator(a)
+    n_f = NumberOperator(f)
+
+    # Test operator ordering in mixed expressions
+    expr1 = f * a * Dagger(a) * Dagger(f)
+    nof1 = NumberOrderedForm.from_expr(expr1)
+
+    # Should maintain bosons and fermions correctly ordered with proper signs
+    # Compare with the expression converted back to normal form
+    assert normal_ordered_form(nof1.as_expr().doit() - nof1.as_expr().doit()) == 0
+
+    # Test that bosonic and fermionic number operators commute
+    expr2 = n_a * n_f - n_f * n_a
+    nof2 = NumberOrderedForm.from_expr(expr2).simplify()
+    assert nof2.as_expr() == sympy.S.Zero
+
+    # Test complex mixed expression
+    expr3 = Dagger(a) * n_f * a + f * n_a * Dagger(f)
+    nof3 = NumberOrderedForm.from_expr(expr3)
+
+    # Simplify and compare
+    result3 = nof3.simplify()
+    expected3 = NumberOrderedForm.from_expr(n_a)
+    assert result3.as_expr() == expected3.as_expr()
+
+
+def test_independent_operator_commutation():
+    """Test that sign of the permutation is the parity of its fermionic part."""
+    bosons = sympy.symbols("a:f", cls=boson.BosonOp)
+    fermions = sympy.symbols("a:f", cls=fermion.FermionOp)
+    operators = bosons + fermions
+    for _ in range(10):
+        # Generate a random operator.
+        nof = NumberOrderedForm(
+            operators,
+            {
+                tuple(
+                    int(i) for i in np.random.randint(-1, 2, size=len(operators))
+                ): sympy.S.One
+            },
+        )
+        orig = nof.as_expr().as_ordered_factors()
+        permutation = Permutation.random(len(orig))
+        new = tuple(orig[i] for i in permutation)
+        # New fermionic parity
+        fermionic_new = tuple(
+            orig.index(op) for op in new if isinstance(op, fermion.FermionOp)
+        )
+
+        permuted = sympy.Mul(*new)
+        if Permutation(np.argsort(fermionic_new)).parity():
+            permuted *= -1
+        assert (nof - NumberOrderedForm.from_expr(permuted)).is_zero
+
+
+def test_is_zero():
+    """Test the is_zero method of NumberOrderedForm."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    x, y = sympy.symbols("x y", real=True)
+
+    # Create a NumberOrderedForm that is zero
+    nof_zero = NumberOrderedForm([a, b], {(0, 0): sympy.S.Zero})
+    assert nof_zero.is_zero is True
+
+    # Test fuzzy logic
+    nof_maybe = NumberOrderedForm([a, b], {(1, 0): x, (0, 0): sympy.S.Zero})
+    assert nof_maybe.is_zero is None
+
+    # Create a non-zero NumberOrderedForm
+    nof_non_zero = NumberOrderedForm([a, b], {(1, 0): sympy.S.One})
+    assert nof_non_zero.is_zero is False
+
+    # Test with an empty NumberOrderedForm
+    nof_empty = NumberOrderedForm([], {})
+    assert nof_empty.is_zero

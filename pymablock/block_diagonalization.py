@@ -23,7 +23,11 @@ from pymablock.linalg import (
     direct_greens_function,
     is_diagonal,
 )
-from pymablock.number_ordered_form import NumberOrderedForm, find_operators
+from pymablock.number_ordered_form import (
+    NumberOrderedForm,
+    find_operators,
+    generator_types,
+)
 from pymablock.series import (
     BlockSeries,
     zero,
@@ -37,7 +41,7 @@ Eigenvectors = tuple[np.ndarray | sympy.Matrix, ...]
 
 ### The main function for end-users.
 def block_diagonalize(
-    hamiltonian: list | dict | BlockSeries | sympy.Matrix,
+    hamiltonian: list | dict | BlockSeries | sympy.Matrix | sympy.Expr,
     *,
     solve_sylvester: Callable | None = None,
     subspace_eigenvectors: Eigenvectors | None = None,
@@ -47,7 +51,11 @@ def block_diagonalize(
     symbols: sympy.Symbol | Sequence[sympy.Symbol] | None = None,
     atol: float = 1e-12,
     fully_diagonalize: (
-        tuple[int] | dict[int, np.ndarray | sympy.Matrix] | np.ndarray | sympy.Matrix
+        tuple[int, ...]
+        | dict[int, np.ndarray | sympy.Matrix | sympy.Expr]
+        | np.ndarray
+        | sympy.Matrix
+        | sympy.Expr
     ) = (),
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
@@ -72,7 +80,7 @@ def block_diagonalize(
     For large numerical calculations with a sparse Hamiltonian and a low
     dimensional relevant subspace, the algorithm uses an implicit representation
     of the spectrum and does not require full diagonalization. This is enabled
-    if ``subspace_vectors`` do not span the full space of the unperturbed
+    if ``subspace_eigenvectors`` do not span the full space of the unperturbed
     Hamiltonian.
 
     Parameters
@@ -103,6 +111,7 @@ def block_diagonalize(
             ``symbols`` to the desired order.
         - A `~pymablock.series.BlockSeries`,
             used directly.
+        - A single `~sympy.core.expr.Expr` containing the second-quantized Hamiltonian.
     solve_sylvester :
         A function that solves the Sylvester equation. If not provided,
         it is selected automatically based on the inputs.
@@ -128,12 +137,12 @@ def block_diagonalize(
     direct_solver :
         Whether to use the direct solver that relies on MUMPS (default).
         Otherwise, the KPM solver is used. Only applicable if the implicit
-        method is used (i.e. `subspace_vectors` is incomplete)
+        method is used (i.e. `subspace_eigenvectors` is incomplete)
     symbols :
         Symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
         Hamiltonian, see `~pymablock.series.BlockSeries`. If None, the
-        perturbative parameters are taken from the unperturbed Hamiltonian.
+        perturbative parameters are taken from the input Hamiltonian.
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used
         to validate that the unperturbed Hamiltonian is block-diagonal.
@@ -220,15 +229,24 @@ def block_diagonalize(
     )
 
     if H.shape[0] == 1:
-        if not len(fully_diagonalize):
-            fully_diagonalize = (0,)
-        elif isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase)):
+        if isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase, sympy.Expr)):
             fully_diagonalize = {0: fully_diagonalize}
+        elif not len(fully_diagonalize):
+            fully_diagonalize = (0,)
     else:
-        if isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase)):
+        if isinstance(fully_diagonalize, (np.ndarray, sympy.MatrixBase, sympy.Expr)):
             raise ValueError(
                 "If the Hamiltonian has multiple blocks, `fully_diagonalize` may not be an ndarray."
             )
+
+    # Convert scalar expressions in fully_diagonalize to sympy matrices. For that it is
+    # sufficient to test for sympy.Expr because sympy.MatrixBase is not a subclass of
+    # sympy.Expr.
+    if isinstance(fully_diagonalize, dict):
+        fully_diagonalize = {
+            key: (sympy.Matrix([[value]]) if isinstance(value, sympy.Expr) else value)
+            for key, value in fully_diagonalize.items()
+        }
 
     zero_order = (0,) * H.n_infinite
 
@@ -245,6 +263,11 @@ def block_diagonalize(
     nonzero_blocks = [block for block in H_0_diag if block is not zero]
     if not nonzero_blocks:
         raise ValueError("The diagonal of the unperturbed Hamiltonian may not be zero.")
+
+    # Check if H_0_diag contains scalar expressions (not matrices). Once again we use
+    # that sympy.MatrixBase is not a subclass of sympy.Expr.
+    scalar_input = any(isinstance(block, sympy.Expr) for block in nonzero_blocks)
+
     if all(hasattr(H, "__matmul__") for H in nonzero_blocks):
         operator = matmul
     elif all(hasattr(H, "__mul__") for H in nonzero_blocks):
@@ -252,11 +275,16 @@ def block_diagonalize(
     else:
         raise ValueError("The unperturbed Hamiltonian is not a valid operator.")
 
-    # Extract the default boson operators from the Hamiltonian. If operators aren't
-    # empty, we're dealing with a second-quantized problem.
+    # Extract the default operators from the Hamiltonian. If operators aren't empty,
+    # we're dealing with a second-quantized problem.
     if any(isinstance(block, (sympy.MatrixBase, sympy.Expr)) for block in nonzero_blocks):
         operators = list(
             set().union(*(find_operators(block) for block in nonzero_blocks))
+        )
+        operators = tuple(
+            sorted(
+                operators, key=lambda op: (generator_types.index(type(op)), str(op.name))
+            )
         )
     else:
         operators = ()
@@ -264,19 +292,28 @@ def block_diagonalize(
     # To handle the second-quantized problem, convert the Hamiltonian to our
     # NumberOrderedForm.
     if operators:
-        H_eval_orig = H.eval
+        H_orig = H
 
         def H_eval(*index):
-            result = H_eval_orig(*index)
+            result = H_orig[index]
             if result is zero:
                 return zero
+
+            if scalar_input and not isinstance(result, sympy.MatrixBase):
+                result = sympy.Matrix([[result]])
+
             if isinstance(result, sympy.Matrix):
                 return result.applyfunc(
                     lambda x: NumberOrderedForm.from_expr(x, operators)
                 )
-            return NumberOrderedForm.from_expr(result, operators)
 
-        H.eval = H_eval
+        H = BlockSeries(
+            eval=H_eval,
+            shape=H_orig.shape,
+            n_infinite=H_orig.n_infinite,
+            dimension_names=H_orig.dimension_names,
+            name=H_orig.name,
+        )
 
     # If solve_sylvester is not yet defined, use the diagonal one.
     if solve_sylvester is None or use_implicit:
@@ -286,9 +323,7 @@ def block_diagonalize(
         if not operators:
             solve_sylvester = solve_sylvester_diagonal(diagonal, atol=atol)
         else:
-            solve_sylvester = second_quantization.solve_sylvester_bosonic(
-                diagonal, operators
-            )
+            solve_sylvester = second_quantization.solve_sylvester_2nd_quant(diagonal)
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
@@ -465,6 +500,45 @@ def block_diagonalize(
         scope=scope,
         operator=operator,
     )
+
+    # Simplify the results and unwrap them for scalar inputs - convert 1x1 matrices back
+    # to scalars
+    if operators:
+
+        def create_postprocessing_eval(block_series):
+            """Create an eval function that unwraps 1x1 matrices to scalars."""
+
+            def postprocessing_eval(*index):
+                result = block_series[index]
+                if not isinstance(result, sympy.MatrixBase):
+                    return result
+
+                result = result.applyfunc(
+                    lambda x: x._poly_simplify()
+                    if isinstance(x, NumberOrderedForm)
+                    else x
+                )
+
+                if (
+                    scalar_input
+                    and isinstance(result, sympy.MatrixBase)
+                    and result.shape == (1, 1)
+                ):
+                    return result[0, 0]
+                return result
+
+            return BlockSeries(
+                eval=postprocessing_eval,
+                shape=block_series.shape,
+                n_infinite=block_series.n_infinite,
+                dimension_names=block_series.dimension_names,
+                name=block_series.name,
+            )
+
+        return tuple(
+            create_postprocessing_eval(outputs[name]) for name in ["H_tilde", "U", "U†"]
+        )
+
     return outputs["H_tilde"], outputs["U"], outputs["U†"]
 
 
@@ -578,6 +652,15 @@ def operator_to_BlockSeries(
             zeroth_order, (np.ndarray, sympy.MatrixBase)
         ):
             subspace_indices = np.zeros(zeroth_order.shape[0], dtype=int)
+        elif isinstance(zeroth_order, sympy.Expr):
+            # Symbolic operator, we assume it is a single block.
+            return BlockSeries(
+                eval=lambda *index: operator[index[2:]],
+                shape=(1, 1),
+                n_infinite=operator.n_infinite,
+                dimension_names=symbols,
+                name=name or operator.name,
+            )
 
     # Define subspace_eigenvectors
     if subspace_indices is not None:
@@ -586,7 +669,10 @@ def operator_to_BlockSeries(
         subspace_eigenvectors = _subspaces_from_indices(
             subspace_indices, symbolic=symbolic
         )
-    subspace_eigenvectors = tuple(subspace_eigenvectors)
+
+    if subspace_eigenvectors is not None:
+        subspace_eigenvectors = tuple(subspace_eigenvectors)
+
     if implicit:
         # Define subspace_eigenvectors for implicit
         subspace_eigenvectors = (
@@ -606,6 +692,10 @@ def operator_to_BlockSeries(
             return zero
         if implicit and left == right == n_blocks - 1:
             original = aslinearoperator(original)
+        if subspace_eigenvectors is None:
+            # No subspace_eigenvectors provided, return the original operator
+            return original
+
         return _convert_if_zero(
             Dagger(subspace_eigenvectors[left]) @ original @ subspace_eigenvectors[right],
             atol=atol,
@@ -1068,7 +1158,7 @@ def _to_scalar_BlockSeries(
     """
     if isinstance(operator, BlockSeries):
         return operator
-    if isinstance(operator, sympy.MatrixBase):
+    if isinstance(operator, (sympy.Expr, sympy.MatrixBase)):
         return _sympy_to_BlockSeries(operator, symbols)
     if isinstance(operator, list):
         operator = _list_to_dict(operator)
@@ -1159,7 +1249,7 @@ def _extract_diagonal(
     implicit :
         Whether the last block is defined as a linear operator.
     operators :
-        List of bosonic operators used in the Hamiltonian.
+        List of second-quantized operators used in the Hamiltonian.
     """
     # If using implicit mode, skip the last block.
     diag_indices = np.arange(operator.shape[0] - implicit)

@@ -1,4 +1,4 @@
-"""Second quantization tools for bosonic and fermionic operators.
+"""Second quantization tools.
 
 See number_ordered_form_plan.md for the plan to implement NumberOrderedForm as an
 Operator subclass for better representation of number-ordered expressions.
@@ -10,28 +10,30 @@ import numpy as np
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 
-from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
+from pymablock.number_ordered_form import (
+    LadderOp,
+    NumberOperator,
+    NumberOrderedForm,
+    _number_operator_to_placeholder,
+)
 from pymablock.series import zero
 
 __all__ = [
     "apply_mask_to_operator",
-    "solve_sylvester_bosonic",
+    "solve_sylvester_2nd_quant",
 ]
 
 
-def solve_monomial(
+def solve_scalar(
     Y: sympy.Expr,
     H_ii: sympy.Expr,
     H_jj: sympy.Expr,
-    boson_operators: list[BosonOp],
+    diagonal: bool = False,
 ) -> NumberOrderedForm:
-    """Solve a Sylvester equation for bosonic monomial.
-
-    Given `Y`, `H_ii`, and `H_jj`, return `-(E_i_shifted - E_j_shifted) * Y_monomial`, per
-    monomial of creation and annihilation operators in Y.
+    """Solve a scalar Sylvester equation with 2nd quantized operators.
 
     `H_ii` and `H_jj` are scalar expressions containing number operators of
-    possibly several bosons.
+    possibly several bosons, fermions, and spin operators.
 
     See more details of how this works in the :doc:`second quantization
     documentation <../second_quantization>`.
@@ -39,18 +41,20 @@ def solve_monomial(
     Parameters
     ----------
     Y :
-        Expression with raising and lowering bosonic operators.
+        Expression with raising and lowering bosonic, fermionic, and spin operators.
     H_ii :
         Sectors of the unperturbed Hamiltonian.
     H_jj :
         Sectors of the unperturbed Hamiltonian.
-    boson_operators :
-        List with all possible bosonic operators in the inputs.
+    diagonal : bool
+        If True, we're evaluating the diagonal entry of the matrix operator,
+        which means that `Y` is Hermitian and `H_ii` and `H_jj` are equal. This
+        is used to speed up the computation.
 
     Returns
     -------
     NumberOrderedForm
-        Result of the Sylvester equation for bosonic operators.
+        Result of the Sylvester equation for 2nd quantized operators.
 
     Notes
     -----
@@ -61,46 +65,77 @@ def solve_monomial(
         return sympy.S.Zero
 
     Y = NumberOrderedForm.from_expr(Y)
+    operators = Y.operators
 
     shifts = Y.terms
     new_shifts = {}
     for shift, coeff in shifts.items():
+        # Ensure that the energy denominator always has the same sign to simplify the
+        # expression. We do this by multiplying the denominator by -1 if the shift is
+        # lexicographically negative.
+        sign = -sympy.S.One if tuple(shift) < (0,) * len(shift) else sympy.S.One
+        if diagonal and sign is sympy.S.One:
+            continue
         # Commute H_ii and H_jj through creation and annihilation operators
         # respectively.
-        shifted_H_jj = H_jj.subs(
+        #
+        # Here we use a private function to get access to the placeholders
+        shifted_H_jj = H_jj.xreplace(
             {
-                NumberOperator(op): NumberOperator(op) + delta
-                for delta, op in zip(shift, boson_operators)
+                _number_operator_to_placeholder(NumberOperator(op)): (
+                    _number_operator_to_placeholder(NumberOperator(op)) + delta
+                    if isinstance(op, (BosonOp, LadderOp))
+                    else sympy.S.One
+                )
+                for delta, op in zip(shift, operators)
                 if delta > 0
             }
         )
-        shifted_H_ii = H_ii.subs(
+        shifted_H_ii = H_ii.xreplace(
             {
-                NumberOperator(op): NumberOperator(op) - delta
-                for delta, op in zip(shift, boson_operators)
+                _number_operator_to_placeholder(NumberOperator(op)): (
+                    _number_operator_to_placeholder(NumberOperator(op)) - delta
+                    if isinstance(op, (BosonOp, LadderOp))
+                    else sympy.S.One
+                )
+                for delta, op in zip(shift, operators)
                 if delta < 0
             }
         )
-        new_shifts[shift] = (shifted_H_ii - shifted_H_jj) ** -1 * coeff
+        if sign is sympy.S.One:
+            denominator = shifted_H_ii - shifted_H_jj
+        else:
+            denominator = shifted_H_jj - shifted_H_ii
+        # Denominators often simplify because linear powers of bosonic operators cancel.
+        denominator = sympy.collect_const(
+            next(iter((denominator.terms.values()))).simplify()
+        ).doit()  # Not sure why doit is needed here, but it is.
+        new_shifts[shift] = sign * (denominator) ** -sympy.S.One * coeff
 
-    return NumberOrderedForm(
-        operators=Y.args[0],
-        terms=new_shifts,
+    result = (
+        NumberOrderedForm(
+            operators=Y.args[0],
+            terms=new_shifts,
+        )
+        ._cancel_binary_operator_numbers()
+        ._linearize_binary_operators()
     )
 
+    if diagonal:
+        result -= result.adjoint()
 
-def solve_sylvester_bosonic(
+    return result
+
+
+def solve_sylvester_2nd_quant(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
-    boson_operators: list[BosonOp],
 ) -> Callable:
-    """Solve a Sylvester equation for bosonic diagonal Hamiltonians.
+    """Solve a Sylvester equation for 2nd quantized diagonal Hamiltonians.
 
     Parameters
     ----------
     eigs :
         Tuple of lists of expressions representing the diagonal Hamiltonian blocks.
-    boson_operators :
-        List with all possible bosonic operators in the Hamiltonian.
 
     Returns
     -------
@@ -117,7 +152,6 @@ def solve_sylvester_bosonic(
         raise ValueError(
             "The diagonal Hamiltonian blocks must contain only number-conserving expressions."
         )
-    eigs = tuple(tuple(eig.as_expr() for eig in eig_block) for eig_block in eigs)
 
     def solve_sylvester(
         Y: sympy.MatrixBase,
@@ -131,15 +165,24 @@ def solve_sylvester_bosonic(
             eigs_A = eigs[index[0]] = [sympy.S.Zero] * Y.shape[0]
         if not eigs_B:
             eigs_B = eigs[index[1]] = [sympy.S.Zero] * Y.shape[1]
-        return sympy.Matrix(
-            [
-                [
-                    solve_monomial(Y[i, j], eigs_A[i], eigs_B[j], boson_operators)
-                    for j in range(Y.cols)
-                ]
-                for i in range(Y.rows)
-            ]
-        )
+        result = sympy.zeros(*Y.shape)
+        for i in range(Y.rows):
+            for j in range(Y.cols):
+                # Only compute upper triangle of diagonal blocks
+                if index[0] != index[1] or i >= j:
+                    result[i, j] = solve_scalar(
+                        Y[i, j],
+                        eigs_A[i],
+                        eigs_B[j],
+                        diagonal=(i == j and index[0] == index[1]),
+                    )
+        for i in range(Y.rows):
+            for j in range(Y.cols):
+                # Fill the lower triangle with minus conjugate transpose
+                if index[0] == index[1] and i < j:
+                    result[i, j] = -result[j, i].adjoint()
+
+        return result
 
     return solve_sylvester
 
@@ -214,8 +257,9 @@ def apply_mask_to_operator(
                 if not keep:
                     result[i, j] = value
                 continue
+            value = NumberOrderedForm.from_expr(value)
             value, mask[i, j] = value._combine_operators(mask[i, j])
             assert isinstance(value, NumberOrderedForm)
-            result[i, j] = value.filter_terms(list(mask[i, j].terms), keep)
+            result[i, j] = value.filter_terms(tuple(mask[i, j].terms), keep)
 
     return result

@@ -58,6 +58,7 @@ myst_enable_extensions = [
     "substitution",
     "colon_fence",
 ]
+myst_heading_anchors = 3
 nb_execution_timeout = 480
 nb_execution_raise_on_error = True
 autodoc_typehints = "description"
@@ -68,14 +69,15 @@ intersphinx_mapping = {
     "kwant": ("https://kwant-project.org/doc/1", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
-    "sympy": ("https://docs.sympy.org/latest/", None),
+    # TODO: Switch to latest when sympy 1.15 is released.
+    "sympy": ("https://docs.sympy.org/dev/", None),
 }
 
 default_role = "autolink"
-# TODO: disable when https://github.com/sympy/sympy/issues/27553 is fixed.
+
+# This is an undocumented base class.
 nitpick_ignore = [
-    ("py:class", "sympy.physics.quantum.boson.BosonOp"),
-    ("py:class", "sympy.physics.quantum.fermion.FermionOp"),
+    ("py:class", "sympy.physics.quantum.pauli.SigmaOpBase"),
 ]
 
 # Add any paths that contain templates here, relative to this directory.

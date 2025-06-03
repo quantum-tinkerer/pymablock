@@ -1,7 +1,8 @@
 # Second Quantization Tools
 
 This document explains the conceptual foundations of the second quantization tools in Pymablock.
-Specifically, it covers the implementation of number-ordered forms and the solution of Sylvester equations for quantum operators in second quantization, which are the basis for Pymablock's approach to quantum mechanical calculations.
+Specifically, it covers the implementation of number-ordered forms and the solution of Sylvester equations, which are the basis for Pymablock's approach to second quantization.
+We illustrate how our approach works with all common types of second-quantized operators.
 
 ## Number-Ordered Forms
 
@@ -9,7 +10,7 @@ Specifically, it covers the implementation of number-ordered forms and the solut
 
 #### From Normal Ordering to Number-Ordered Forms
 
-In many-body physics, normal ordering is a fundamental concept where creation operators are placed to the left of annihilation operators in an expression: $a^\dagger a a^\dagger$ becomes $a^\dagger a^\dagger a + a^\dagger$ when normal-ordered.
+In many-body physics, normal ordering is a fundamental concept where creation operators are placed to the left of annihilation operators in an expression: $a^\dagger a a^\dagger$, with a bosonic annihilation operator $a$, becomes $a^\dagger a^\dagger a + a^\dagger$ when normal-ordered.
 Normal ordering provides a reference for calculating expectation values and is essential for perturbation theory.
 
 However, simplifying complex expressions with normal ordering is challenging, because the non-commutative nature of operators leads to an explosion of number of terms as expressions grow.
@@ -94,6 +95,8 @@ For more details about the implementation, see {autolink}`~pymablock.number_orde
 The real power of number-ordered forms becomes apparent when we multiply quantum operators.
 The multiplication of of quantum operators follows from the commutation relations of individual operators.
 
+#### Bosons
+
 For example, the bosonic commutation relation forms the foundation of all manipulations with bosons:
 
 $$[a, a^\dagger] = aa^\dagger - a^\dagger a = 1 \quad \Rightarrow \quad aa^\dagger = 1 + a^\dagger a = 1 + N_a.$$
@@ -125,6 +128,35 @@ The algebraic framework is completed with two additional operations.
 First, addition simply merges coefficients of terms with identical operator powers.
 Second, taking the adjoint negates all the powers, which turns creation operators into annihilation operators and vice versa, and conjugates the coefficients.
 Together, these operations provide all the necessary tools to manipulate quantum expressions in number-ordered form in Pymablock.
+
+#### Fermions and Spins
+
+Fermions and spins work in a similar way, except for the different commutation relations.
+Firstly, the creation and annihilation operators are nilpotent: if $a$ is a fermion or spin $1/2$ operator, then $(a^\dagger)^2 = 0$ and $a^2 = 0$.
+This also means that the number operator is idempotent: $N_a^2 = N_a$, which also allows to linearize any function of the number operator because $f(N_a) = f(1) N_a + f(0) (1 - N_a)$.
+These rules, as well as the commutation relations, combine into the multiplication table for fermions and spins:
+
+| Left × Term | $a^\dagger$ | $N_a$ | $a$ |
+|-------------|-------------|-------|-----|
+| $a^\dagger$ | $0$ | $0$ | $N_a$ |
+| $N_a$ | $a^\dagger$ | $N_a$ | $0$ |
+| $a$ | $1-N_a$ | $a$ | $0$ |
+
+### Ladder Operators
+
+Pymablock also considers ladder operators on a lattice ({autolink}`~pymablock.number_ordered_form.LadderOp`), which appear in Floquet systems—time-dependent systems with periodic drive.
+These operators are similar to bosons, except creation and annihilation operators commute with each other.
+In other words, the ladder operators $a$ and $a^\dagger$, and the number operator $N_a$, satisfy the following relations:
+
+$$[a, a^\dagger] = 0, \quad [N_a, a] = -a, \quad [N_a, a^\dagger] = a^\dagger.$$
+
+The multiplication table for ladder operators is similar to the one for bosons, but simpler:
+
+| Left × Term | $(a^\dagger)^n \cdot f(N_a)$ | $g(N_a)$ | $h(N_a) \cdot a^m$ |
+|-------------|------------------------------|----------|-------------------|
+| $a^\dagger$ | $(a^\dagger)^{n+1} \cdot f(N_a)$ | $a^\dagger \cdot g(N_a)$ | $h(N_a+1) \cdot a^{m-1}$ |
+| $j(N_a)$ | $(a^\dagger)^n \cdot j(N_a+n) \cdot f(N_a)$ | $j(N_a) \cdot g(N_a)$ | $j(N_a) \cdot h(N_a) \cdot a^m$ |
+| $a$ | $(a^\dagger)^{n-1} \cdot f(N_a)$ | $g(N_a-1) \cdot a$ | $h(N_a-1) \cdot a^{m+1}$ |
 
 ### Use within Pymablock
 
@@ -164,6 +196,8 @@ Because $H_i$ and $H_j$ commute with $f_X(N)$, the solution is:
 $$X = (a^\dagger)^n \cdot \frac{f_Y(N)}{H_i(N-n) - H_j(N+m)} \cdot a^m$$
 
 The generalization to multiple modes follows the same pattern: for each mode, apply the appropriate shifts to the Hamiltonian based on the creation and annihilation operators in the perturbation term and find the solution with the same powers of creation and annihilation operators as the right hand side.
+
+The solution for fermions and spins is similar and follows from the multiplication table.
 
 In Pymablock, the {autolink}`~pymablock.second_quantization.solve_sylvester_bosonic` function implements this approach.
 
@@ -212,9 +246,9 @@ When using {autolink}`~pymablock.block_diagonalize` with second quantized operat
 
 ```python
 H_tilde, *_ = block_diagonalize(
-    sympy.Matrix([[H_0 + H_p]]),
+    [H_0, H_p],
     fully_diagonalize=elimination_rules,
-    symbols=[g]
+    symbols=[g],
 )
 ```
 

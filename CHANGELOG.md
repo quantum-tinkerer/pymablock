@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added a reference implementation of arbitrary order Schrieffer-Wolff transformation to the documentation and a comparison of its convergence radius with Pymablock algorithm.
-- Added support for bosonic second-quantized Hamiltonians in the operator formalism.
+- Added support for bosonic, fermionic, spin, and ladder (Floquet) second-quantized Hamiltonians in the operator formalism.
+- Added a tutorial on the [Rabi model with a periodic drive](tutorial/spin_rwa_floquet.md).
 
 ### Changed
 

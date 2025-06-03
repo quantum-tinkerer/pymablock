@@ -5,13 +5,13 @@ which represents operators with creation operators on the left, annihilation ope
 and number operators in the middle.
 """
 
-import uuid
 from collections import defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 import sympy
 from packaging.specifiers import SpecifierSet
-from sympy.physics.quantum import Dagger, HermitianOperator, Operator
+from sympy.core.logic import fuzzy_and
+from sympy.physics.quantum import Dagger, HermitianOperator, Operator, pauli
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.fermion import FermionOp
@@ -23,9 +23,15 @@ __all__ = [
     "find_operators",
 ]
 
+# To avoid back-and-forth conversion between sympy and pure Python types, this module
+# tries to use sympy types as much as possible. The resulting code is unfortunately more
+# verbose.
+Zero = sympy.S.Zero
+One = sympy.S.One
+Tuple = sympy.Tuple
 
 # Monkey patch sympy to propagate adjoint to matrix elements.
-if sympy.__version__ in SpecifierSet("<1.14"):
+if sympy.__version__ in SpecifierSet("<1.14"):  # pragma: no cover
 
     def _eval_adjoint(self):
         return self.transpose().applyfunc(lambda x: x.adjoint())
@@ -42,7 +48,7 @@ if sympy.__version__ in SpecifierSet("<1.14"):
         return None
 
     sympy.MatrixBase.adjoint = _eval_adjoint
-    sympy.Expr._eval_transpose = _eval_transpose
+    sympy.Expr._eval_transpose = _eval_transpose  # type: ignore
     del _eval_adjoint
     del _eval_transpose
 
@@ -59,26 +65,93 @@ if sympy.__version__ in SpecifierSet("<1.14"):
 def _sum(self, items):  # noqa ARG001
     """Slower, but overridable version of sympy.Add."""
     if not items:
-        return sympy.S.Zero
+        return Zero
     result = items[0]
     for item in items[1:]:
         result += item
     return result
 
 
-sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum
+sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum  # type: ignore
 del _sum
+
+if sympy.__version__ in SpecifierSet("<1.15"):
+    # Define is_annihilation on spins for API uniformity
+    pauli.SigmaPlus.is_annihilation = False  # type: ignore
+    pauli.SigmaMinus.is_annihilation = True  # type: ignore
+
+
+class LadderOp(Operator):
+    """Ladder operator on a lattice.
+
+    Notes
+    -----
+    Like a `~sympy.physics.quantum.boson.BosonOp`, but creation and annihilation
+    operators commute. This is useful for simulating Floquet systems. The operator
+    implementation is minimal, and is meant to be used in combination with the
+    `~pymablock.number_ordered_form.NumberOperator` class.
+
+    Implementation mostly copied from `~sympy.physics.quantum.boson.BosonOp`.
+
+    """
+
+    is_commutative = False
+    is_hermitian = False
+    is_antihermitian = False
+
+    @property
+    def name(self):
+        return self.args[0]
+
+    @property
+    def is_annihilation(self):
+        return bool(self.args[1])
+
+    def __new__(cls, *args, **hints):  # noqa: ARG004
+        if len(args) not in [1, 2]:
+            raise ValueError("1 or 2 parameters expected, got %s" % args)
+
+        if len(args) == 1:
+            args = (args[0], One)
+
+        if len(args) == 2:
+            args = (args[0], sympy.Integer(args[1]))
+
+        return Operator.__new__(cls, *args)
+
+    def _eval_adjoint(self):
+        return type(self)(self.name, not self.is_annihilation)
+
+    def _print_contents_latex(self, printer, *args):  # noqa: ARG002
+        if self.is_annihilation:
+            return r"{%s}" % str(self.name)
+        return r"{{%s}^\dagger}" % str(self.name)
+
+    def _print_contents(self, printer, *args):  # noqa: ARG002
+        if self.is_annihilation:
+            return r"%s" % str(self.name)
+        return r"Dagger(%s)" % str(self.name)
+
+    def _print_contents_pretty(self, printer, *args):
+        from sympy.printing.pretty.stringpict import prettyForm
+
+        pform = printer._print(self.args[0], *args)
+        if self.is_annihilation:
+            return pform
+        return pform ** prettyForm("\N{DAGGER}")
 
 
 # Type aliases
-operator_types = BosonOp, FermionOp
-OperatorType = BosonOp | FermionOp
-PowerKey = tuple[int, ...]
-TermDict = dict[PowerKey, sympy.Expr]
+operator_types = BosonOp, LadderOp, pauli.SigmaOpBase, FermionOp
+OperatorType = BosonOp | LadderOp | pauli.SigmaOpBase | FermionOp
+generator_types = (BosonOp, LadderOp, pauli.SigmaMinus, FermionOp)
+operator_type_by_name = {sympy.Symbol(op.__name__): op for op in operator_types}
+PowerKey = tuple[int | sympy.Integer, ...]
+TermDict = dict[PowerKey, sympy.Expr] | tuple[tuple[PowerKey, sympy.Expr], ...] | Tuple
 
 
 class NumberOperator(HermitianOperator):
-    """Number operator for bosonic and fermionic operators.
+    """Number operator for bosonic, fermionic, and spin operators.
 
     Notes
     -----
@@ -88,12 +161,12 @@ class NumberOperator(HermitianOperator):
     """
 
     @property
-    def name(self):
+    def name(self) -> sympy.Symbol:
         """Return the name of the operator."""
-        return self.args[0]
+        return self.args[0]  # type: ignore
 
     def __new__(cls, *args, **hints):
-        """Construct a number operator for bosonic modes.
+        """Construct a number operator for bosonic, ladder, fermionic, or spin mode.
 
         Parameters
         ----------
@@ -109,12 +182,12 @@ class NumberOperator(HermitianOperator):
             (operator,) = args
             if not isinstance(operator, operator_types):
                 raise TypeError(
-                    "NumberOperator requires a bosonic or fermionic operator."
+                    "NumberOperator requires a bosonic, ladder, fermionic, or spin operator."
                 )
-            if not operator.is_annihilation:
-                raise ValueError("Operator must be an annihilation operator.")
             name = operator.name
-            operator_type = "boson" if isinstance(operator, BosonOp) else "fermion"
+            operator_type = next(
+                op.__name__ for op in operator_types if isinstance(operator, op)
+            )
         except ValueError:
             name, operator_type = args
 
@@ -143,32 +216,82 @@ class NumberOperator(HermitianOperator):
             The evaluated operator.
 
         """
-        op = (BosonOp if self.args[1].name == "boson" else FermionOp)(self.args[0])
+        if self.args[1].name == "SigmaOpBase":
+            return (pauli.SigmaZ(self.args[0]) + sympy.S.One) / sympy.S(2)
+        if self.args[1].name == "LadderOp":
+            return self  # No alternative form of ladder number operators.
+        op = operator_type_by_name[self.args[1]](self.args[0])
         return Dagger(op) * op
+
+    def _eval_power(self, exp):
+        """Evaluate the power of the operator.
+
+        Parameters
+        ----------
+        exp :
+            The exponent to raise the operator to.
+
+        Returns
+        -------
+        result : `~sympy.core.expr.Expr`
+            The evaluated operator raised to the given power.
+
+        """
+        if (
+            exp.is_integer
+            and exp != 0
+            and self.args[1].name not in ("BosonOp", "LadderOp")
+        ):
+            return self  # Fermionic and spin number operators are idempotent.
+        return super()._eval_power(exp)
 
     def _eval_commutator_NumberOperator(self, other):  # noqa: ARG002
         """Evaluate the commutator with another NumberOperator."""
-        return sympy.S.Zero
+        return Zero
 
     def _eval_commutator_BosonOp(self, other, **hints):
-        """Evaluate the commutator with a Boson operator."""
-        if self.args[1].name == "fermion":
-            return sympy.S.Zero
+        """Evaluate the commutator with a boson operator."""
+        if self.args[1].name != "BosonOp":
+            return Zero
         if other.name != self.name and hints.get("independent"):
-            return sympy.S.Zero
+            return Zero
         return normal_ordered_form(
             Commutator(self.doit(), other, **hints).doit(), **hints
         )
 
     def _eval_commutator_FermionOp(self, other, **hints):
-        """Evaluate the commutator with a Fermion operator."""
-        if self.args[1].name == "boson":
-            return sympy.S.Zero
+        """Evaluate the commutator with a fermion operator."""
+        if self.args[1].name != "FermionOp":
+            return Zero
         if other.name != self.name and hints.get("independent"):
-            return sympy.S.Zero
+            return Zero
         return normal_ordered_form(
             Commutator(self.doit(), other, **hints).doit(), **hints
         )
+
+    def _eval_commutator_SigmaX(self, other, **hints):
+        """Evaluate the commutator with a SigmaX operator."""
+        if self.args[1].name != "SigmaOpBase":
+            return Zero
+        if other.name != self.name and hints.get("independent"):
+            return Zero
+        return normal_ordered_form(
+            Commutator(self.doit(), other, **hints).doit(), **hints
+        )
+
+    def _eval_commutator_SigmaY(self, other, **hints):
+        """Evaluate the commutator with a SigmaY operator."""
+        if self.args[1].name != "SigmaOpBase":
+            return Zero
+        if other.name != self.name and hints.get("independent"):
+            return Zero
+        return normal_ordered_form(
+            Commutator(self.doit(), other, **hints).doit(), **hints
+        )
+
+    def _eval_commutator_SigmaZ(self, other, **hints):  # noqa: ARG002
+        """Evaluate the commutator with a SigmaZ operator."""
+        return Zero
 
     def _print_contents_latex(self, printer, *args):  # noqa: ARG002
         return r"{N_{%s}}" % str(self.name)
@@ -191,20 +314,37 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
     Returns
     -------
     operators : `list[OperatorType]`
-        A list of unique quantum operators found in the expression. Boson operators are
-        listed before fermion operators and both are sorted by their names.
+        A list of unique quantum operators found in the expression. Boson and spin
+        operators are listed before fermion operators and both are sorted by their
+        names.
 
     """
-    # replace n -> a† * a.
-    expanded = expr.subs({n: n.doit() for n in expr.atoms(NumberOperator)})
-    return [
-        op
-        for particle in operator_types
-        for op in sorted(
-            {particle(atom.name) for atom in expanded.atoms(particle)},
-            key=lambda op: str(op.name),
-        )
-    ]
+    # replace n -> a† * a and convert number ordered forms to expressions.
+    # Number operator of ladder operators need to be included separately.
+    expr = expr.doit()
+    return sorted(
+        set().union(
+            (
+                op
+                for particle, generator in zip(operator_types, generator_types)
+                for op in (generator(atom.name) for atom in expr.atoms(particle))
+            ),
+            (
+                LadderOp(atom.name)
+                for atom in expr.atoms(NumberOperator)
+                if atom.args[1].name == "LadderOp"
+            ),
+        ),
+        key=lambda op: (generator_types.index(type(op)), str(op.name)),
+    )
+
+
+def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
+    """Convert a NumberOperator to its placeholder symbol."""
+    return sympy.Symbol(
+        f"number_operator_placeholder_{op.args[0]}_{op.args[1]}",
+        integer=True,
+    )
 
 
 class NumberOrderedForm(Operator):
@@ -239,9 +379,27 @@ class NumberOrderedForm(Operator):
     _op_priority = 10.01
     _class_priority = 4
 
+    # Number ordered forms may represent commutative expressions.
+    is_commutative = None
+
+    # Attribute types
+    _n_bosons: int
+    _n_ladders: int
+    # Number of infinite order operators (bosons + ladders)
+    _n_inf_order: int
+    _n_spins: int
+    _n_fermions: int
+    # List of placeholder symbols for NumberOperator instances, ordered like operators
+    _number_operator_placeholders: list[sympy.Symbol]
+    # Mapping from placeholder symbols to NumberOperator instances for reverse lookup
+    _placeholder_to_number_operator: dict[sympy.Symbol, NumberOperator]
+    # Inverse mapping
+    _number_operator_to_placeholder: dict[NumberOperator, sympy.Symbol]
+    args: tuple[tuple[tuple[sympy.Integer, ...], sympy.Expr], ...]
+
     def __new__(
         cls,
-        operators: list[OperatorType],
+        operators: Sequence[OperatorType],
         terms: TermDict,
         *,
         validate: bool = True,
@@ -268,29 +426,59 @@ class NumberOrderedForm(Operator):
             A new NumberOrderedForm instance.
 
         """
-        if validate:
-            # Validate inputs before creating the object
-            cls._validate_operators(operators)
-            cls._validate_terms(terms, operators)
+        if not isinstance(operators, Tuple):
+            operators = Tuple(*operators)
 
-        if not isinstance(operators, sympy.core.containers.Tuple):
-            operators = sympy.core.containers.Tuple(*operators)
+        if validate:
+            cls._validate_operators(operators)
+
         # Convert terms dict to a tuple of (power_tuple, coefficient) tuples
         if isinstance(terms, dict):
-            terms = sympy.core.containers.Tuple(
-                *(sympy.core.containers.Tuple(k, v) for k, v in terms.items())
-            )
-        elif not isinstance(terms, sympy.core.containers.Tuple):
+            terms = Tuple(*(Tuple(k, v) for k, v in terms.items()))
+
+        elif not isinstance(terms, Tuple):
             terms_items = list(terms)
-            terms = sympy.core.containers.Tuple(
-                *(sympy.core.containers.Tuple(k, v) for k, v in terms_items)
-            )
+            terms = Tuple(*(Tuple(k, v) for k, v in terms_items))
+
+        # Create placeholders for NumberOperators corresponding to each operator
+        number_operators = [NumberOperator(op) for op in operators]
+        number_operator_placeholders = [
+            _number_operator_to_placeholder(op) for op in number_operators
+        ]
+        _placeholder_to_number_operator = {
+            placeholder: n_op
+            for placeholder, n_op in zip(number_operator_placeholders, number_operators)
+        }
+        replacements = {
+            n_op: placeholder
+            for placeholder, n_op in zip(number_operator_placeholders, number_operators)
+        }
+
+        if validate:
+            # Replace NumberOperators with placeholders in terms
+            new_terms = []
+            for powers, coeff in terms:
+                new_terms.append(Tuple(powers, coeff.xreplace(replacements)))
+            terms = Tuple(*new_terms)
+
+            # Validate only after conversion
+            cls._validate_terms(terms, operators)
+
         result = sympy.Expr.__new__(cls, operators, terms, **hints)
+
+        result._n_bosons = sum(isinstance(op, BosonOp) for op in operators)
+        result._n_ladders = sum(isinstance(op, LadderOp) for op in operators)
+        result._n_inf_order = result._n_bosons + result._n_ladders
+        result._n_spins = sum(isinstance(op, pauli.SigmaMinus) for op in operators)
         result._n_fermions = sum(isinstance(op, FermionOp) for op in operators)
+        result._placeholder_to_number_operator = _placeholder_to_number_operator
+        result._number_operator_to_placeholder = replacements
+        result._number_operator_placeholders = number_operator_placeholders
+
         return result
 
     @staticmethod
-    def _validate_operators(operators: list[OperatorType]) -> None:
+    def _validate_operators(operators: Sequence[OperatorType]) -> None:
         """Validate the operators list.
 
         Parameters
@@ -308,29 +496,28 @@ class NumberOrderedForm(Operator):
             If an operator is not an annihilation operator.
 
         """
-        for op in operators:
-            if not isinstance(op, OperatorType):
-                raise TypeError(f"Expected BosonOp or FermionOp, got {type(op)}")
-            if not op.is_annihilation:
-                raise ValueError(f"Operator must be an annihilation operator: {op}")
+        if not all(isinstance(op, generator_types) for op in operators):
+            raise TypeError(
+                "Operators must be BosonOp, LadderOp, SigmaMinus, or FermionOp."
+            )
+        if not all(op.is_annihilation for op in operators):
+            raise ValueError("Operators must be annihilation operators.")
 
-        # Check that bosons come before fermions
-        seen_fermion = False
-        for op in operators:
-            if isinstance(op, FermionOp):
-                seen_fermion = True
-            elif seen_fermion and isinstance(op, BosonOp):
-                raise ValueError("Bosonic operators must come before fermionic operators")
+        # Confirm operator sort order
+        if list(operators) != sorted(
+            operators, key=lambda op: (generator_types.index(type(op)), str(op.name))
+        ):
+            raise ValueError("Operators must be sorted by type and name.")
 
     @staticmethod
-    def _validate_terms(terms: TermDict, operators: list[OperatorType]) -> None:
+    def _validate_terms(terms: TermDict, operators: Sequence[OperatorType]) -> None:
         """Validate the terms dictionary.
 
         Parameters
         ----------
-        terms : dict[tuple[int, ...], sympy.Expr]
+        terms :
             Dictionary mapping operator power tuples to coefficient expressions.
-        operators : list[OperatorType]
+        operators :
             List of quantum operators to validate against.
 
         Raises
@@ -345,9 +532,6 @@ class NumberOrderedForm(Operator):
             If a coefficient contains creation or annihilation operators.
 
         """
-        if isinstance(terms, dict):
-            terms = terms.items()
-
         for powers, coeff in terms:
             # Check that powers tuple has the right length
             if len(powers) != len(operators):
@@ -357,24 +541,19 @@ class NumberOrderedForm(Operator):
                 )
 
             for power in powers:
-                if not isinstance(power, int) and not isinstance(power, sympy.Integer):
-                    raise TypeError(f"Power must be an integer, got {type(power)}")
-
-            # Check that the coefficient is a valid sympy expression
-            if not isinstance(coeff, sympy.Expr):
-                raise TypeError(
-                    f"Coefficient must be a sympy expression, got {type(coeff)}"
-                )
+                if not power.is_integer:
+                    raise TypeError(f"Power must be an integer, got {power}")
 
             # Check for unwanted creation or annihilation operators in the coefficient
-            if coeff.has(*operator_types):
+            if not coeff.is_commutative:
                 raise ValueError(
-                    f"Coefficient contains creation or annihilation operators: {coeff}"
+                    f"Coefficient {coeff} must be a commutative expression. Use "
+                    "validate=True to convert NumberOperators to placeholders."
                 )
 
     @classmethod
     def from_expr(
-        cls, expr: sympy.Expr, operators: list[OperatorType] | None = None
+        cls, expr: sympy.Expr, operators: Sequence[OperatorType] | None = None
     ) -> "NumberOrderedForm":
         """Create a NumberOrderedForm instance from a sympy expression.
 
@@ -425,7 +604,10 @@ class NumberOrderedForm(Operator):
         # For scalar expressions (no operators)
         if not expr.has(*operator_types, NumberOperator):
             # Return a NumberOrderedForm with no operators and a single term
-            return cls([], {(): expr}, validate=False)
+            operators = operators or []
+            return cls(
+                operators, Tuple(Tuple((Zero,) * len(operators), expr)), validate=False
+            )
 
         if not operators:
             operators = find_operators(expr)
@@ -436,7 +618,7 @@ class NumberOrderedForm(Operator):
                 NumberOrderedForm.from_expr(term, operators=operators)
                 for term in expr.args
             ]
-            return sum(terms, start=NumberOrderedForm([], {}, validate=False))
+            return sum(terms, start=NumberOrderedForm(operators, Tuple(), validate=False))
 
         # Handle Mul expressions by converting each factor and multiplying
         if isinstance(expr, sympy.Mul):
@@ -456,14 +638,20 @@ class NumberOrderedForm(Operator):
             exp = expr.exp
 
             # Handle exponentiation of single operators directly.
-            if isinstance(base, OperatorType) and exp.is_integer and exp.is_positive:
+            if (
+                isinstance(base, (*generator_types, pauli.SigmaPlus))
+                and exp.is_integer
+                and exp.is_positive
+            ):
                 # Find the operator index in the operators list
-                op = base if base.is_annihilation else type(base)(base.name)
+                op = base if base.is_annihilation else base.adjoint()
                 powers = tuple(
-                    exp * (1 if base.is_annihilation else -1) if op == operator else 0
+                    exp * (One if base.is_annihilation else -One)
+                    if op == operator
+                    else Zero
                     for operator in operators
                 )
-                return cls(operators, {powers: sympy.S.One}, validate=False)
+                return cls(operators, Tuple(Tuple(powers, One)), validate=False)
 
             # Convert base to NumberOrderedForm
             base_nof = NumberOrderedForm.from_expr(base, operators=operators)
@@ -488,18 +676,18 @@ class NumberOrderedForm(Operator):
 
             # Now we can safely convert the arguments to expressions
             # Extract the coefficients from the zero keys for each argument
-            zero_key = tuple(0 for _ in operators)
-            arg_exprs = [
-                next(iter(arg_nof.terms.values()), sympy.S.Zero) for arg_nof in arg_nofs
-            ]
+            zero_key = (Zero,) * len(operators)
+            arg_exprs = [next(iter(arg_nof.terms.values()), Zero) for arg_nof in arg_nofs]
 
             # Return a new NumberOrderedForm with the function applied to the coefficients
-            return cls(operators, {zero_key: expr.func(*arg_exprs)}, validate=False)
+            return cls(
+                operators, Tuple(Tuple(zero_key, expr.func(*arg_exprs))), validate=False
+            )
 
-        # Handle BosonOp or FermionOp (both creation and annihilation operators)
-        if isinstance(expr, OperatorType):
+        # Handle creation/annihilation operators themselves
+        if isinstance(expr, (*generator_types, pauli.SigmaPlus)):
             # Find the corresponding annihilation operator in our operators list
-            annihilation_op = expr if expr.is_annihilation else type(expr)(expr.name)
+            annihilation_op = expr if expr.is_annihilation else expr.adjoint()
 
             if annihilation_op not in operators:
                 raise ValueError(
@@ -509,20 +697,72 @@ class NumberOrderedForm(Operator):
             op_index = operators.index(annihilation_op)
 
             # Determine the power (1 for annihilation, -1 for creation)
-            power = 1 if expr.is_annihilation else -1
+            power = One if expr.is_annihilation else -One
 
             # Create a term with the appropriate power
-            powers = tuple(0 if i != op_index else power for i in range(len(operators)))
-            return cls(operators, {powers: sympy.S.One}, validate=False)
+            powers = tuple(
+                Zero if i != op_index else power for i in range(len(operators))
+            )
+            return cls(operators, Tuple(Tuple(powers, One)), validate=False)
 
-        # Handle NumberOperator
+        # Manually handle Pauli x, y, z operators
+        if isinstance(expr, pauli.SigmaZ):
+            return cls(
+                operators,
+                Tuple(
+                    Tuple(
+                        (Zero,) * len(operators),
+                        sympy.S(2) * _number_operator_to_placeholder(NumberOperator(expr))
+                        - One,
+                    )
+                ),
+                validate=False,
+            )
+        if isinstance(expr, pauli.SigmaX):
+            op_index = operators.index(pauli.SigmaMinus(expr.name))
+            return cls(
+                operators,
+                Tuple(
+                    Tuple(
+                        tuple(
+                            Zero if i != op_index else One for i in range(len(operators))
+                        ),
+                        One,
+                    ),
+                    Tuple(
+                        tuple(
+                            Zero if i != op_index else -One for i in range(len(operators))
+                        ),
+                        One,
+                    ),
+                ),
+            )
+        if isinstance(expr, pauli.SigmaY):
+            op_index = operators.index(pauli.SigmaMinus(expr.name))
+            return cls(
+                operators,
+                Tuple(
+                    Tuple(
+                        tuple(
+                            Zero if i != op_index else One for i in range(len(operators))
+                        ),
+                        sympy.I,
+                    ),
+                    Tuple(
+                        tuple(
+                            Zero if i != op_index else -One for i in range(len(operators))
+                        ),
+                        -sympy.I,
+                    ),
+                ),
+            )
+
         if isinstance(expr, NumberOperator):
-            # Number operator N_a should be represented as a scalar term
-            # with no explicit creation or annihilation operators
-            powers = tuple(0 for _ in range(len(operators)))
-            coeff = expr  # Keep the NumberOperator as the coefficient
-
-            return cls(operators, {powers: coeff}, validate=False)
+            return cls(
+                operators,
+                {(0,) * len(operators): _number_operator_to_placeholder(expr)},
+                validate=False,
+            )
 
         # If we've reached this point, we don't know how to handle this expression type
         raise ValueError(
@@ -562,21 +802,23 @@ class NumberOrderedForm(Operator):
         """
         if not self.operators:
             # If there are no operators, just return the constant term
-            return next(iter(self.terms.values())) if self.terms else sympy.S.Zero
+            return next(iter(self.terms.values())) if self.terms else Zero
 
-        result = sympy.S.Zero
+        result = Zero
         reversed_operators = list(reversed(self.operators))
 
         for powers, coeff in self.args[1]:
+            # Replace any placeholders with NumberOperator instances
+            coeff = coeff.xreplace(self._placeholder_to_number_operator)
             term = coeff
             for op, power in zip(reversed_operators, reversed(powers)):
-                if not power > 0:
+                if not power > Zero:
                     continue
                 # Annihilation operator (positive power)
                 term = term * op**power
 
             for op, power in zip(reversed_operators, reversed(powers)):
-                if not power < 0:
+                if not power < Zero:
                     continue
                 # Creation operator (negative power)
                 term = op.adjoint() ** (-power) * term
@@ -673,7 +915,7 @@ class NumberOrderedForm(Operator):
         """
         return printer._print(self.as_expr())
 
-    def _multiply_op(self, op_index: int, op_power: int):
+    def _multiply_op(self, op_index: sympy.Integer, op_power: sympy.Integer):
         """Multiply this NumberOrderedForm by an operator power.
 
         This implements multiplication by self.operators[op_index]^op_power,
@@ -699,44 +941,96 @@ class NumberOrderedForm(Operator):
             If the op_index is out of range.
 
         """
-        if op_index < 0 or op_index >= len(self.operators):
-            raise ValueError(
-                f"Operator index {op_index} out of range [0, {len(self.operators)})"
-            )
-
+        assert 0 <= op_index < len(self.operators), "op_index out of range"
         assert op_power != 0, "op_power must be non-zero"
 
         operator = self.operators[op_index]
-        if isinstance(operator, FermionOp):
-            raise NotImplementedError
-        n_operator = NumberOperator(operator)
+        n_operator = self._number_operator_placeholders[op_index]
 
         # Create a new terms dictionary for the result
         new_terms = {}
 
-        for powers, coeff in self.args[1]:
-            orig_power = powers[op_index]  # Power of the operator at op_index
-            new_power = orig_power + op_power
-            new_powers = tuple(
-                new_power if i == op_index else p for i, p in enumerate(powers)
-            )
-            if op_power > 0:  # Multiplying by an annihilation operator
-                # Compute how many new number operators appear
-                to_pair = min(op_power, max(-orig_power, 0))
-                coeff = coeff.subs(n_operator, n_operator - to_pair)
-                coeff = sympy.Mul(coeff, *(n_operator - i for i in range(to_pair)))
-            else:
-                to_pair = min(-op_power, max(orig_power, 0))
-                # Create the new number operators from all pairs
-                new_numbers = sympy.Mul(*[n_operator + i for i in range(1, to_pair + 1)])
-                coeff = coeff * new_numbers
-                if new_power > 0:
-                    # Bring all unmatched annihilation operators to the right
-                    coeff = coeff.subs(n_operator, n_operator + new_power)
+        if op_index < self._n_inf_order:  # Bosons and ladders
+            for powers, coeff in self.args[1]:
+                orig_power = powers[op_index]  # Power of the operator at op_index
+                new_power = orig_power + op_power
+                new_powers = tuple(
+                    new_power if i == op_index else p for i, p in enumerate(powers)
+                )
+                if op_power > 0:  # Multiplying by an annihilation operator
+                    # Compute how many new number operators appear
+                    to_pair = min(op_power, max(-orig_power, 0))
+                    coeff = coeff.xreplace({n_operator: n_operator - to_pair})
+                    if op_index < self._n_bosons:  # Bosons
+                        coeff = sympy.Mul(
+                            coeff, *(n_operator - i for i in range(to_pair))
+                        )
                 else:
-                    # Bring all unmatched creation operators to the left
-                    coeff = coeff.subs(n_operator, n_operator + (-op_power - to_pair))
-            new_terms[new_powers] = coeff
+                    to_pair = min(-op_power, max(orig_power, 0))
+                    # Create the new number operators from all pairs
+                    if op_index < self._n_bosons:  # Bosons
+                        new_numbers = sympy.Mul(
+                            *[n_operator + sympy.S(i) for i in range(1, to_pair + 1)]
+                        )
+                        coeff = coeff * new_numbers
+                    if new_power > 0:
+                        # Bring all unmatched annihilation operators to the right
+                        coeff = coeff.xreplace({n_operator: n_operator + new_power})
+                    else:
+                        # Bring all unmatched creation operators to the left
+                        coeff = coeff.xreplace(
+                            {n_operator: n_operator + sympy.S(-op_power - to_pair)}
+                        )
+                new_terms[new_powers] = coeff
+        else:  # Fermions and spins
+            if abs(op_power) > One:
+                # Fermionic and spin operators are nilpotent
+                return type(self)(self.operators, Tuple(), validate=False)
+            for powers, coeff in self.args[1]:
+                orig_power = powers[op_index]
+                new_power = orig_power + op_power
+                if abs(new_power) > One:
+                    # Fermionic and spin operators are nilpotent
+                    continue
+                new_powers = tuple(
+                    new_power if i == op_index else p for i, p in enumerate(powers)
+                )
+                if op_power is One:
+                    # Annihilation operator, n_c * c = 0
+                    coeff = coeff.xreplace({n_operator: Zero})
+                    if orig_power:
+                        # c† * c = n_c
+                        coeff = n_operator * coeff
+                else:
+                    # Creation operator, n_c * c† = c†
+                    coeff = coeff.xreplace({n_operator: One})
+                    if orig_power:
+                        # c * c† = 1 - n_c
+                        coeff = (One - n_operator) * coeff
+
+                # Handle fermionic anticommutation
+                if isinstance(operator, FermionOp):
+                    # Count the fermions with which we need to commute the new operator.
+                    if orig_power == 1 or new_power == 1:
+                        # Either multiplying annihilation by creation or nothing by
+                        # annihilation => count all annihilation operators that are earlier
+                        # than the current one.
+                        preceding_fermions = sum(
+                            int(pow == 1) for pow in powers[-self._n_fermions : op_index]
+                        )
+                    else:
+                        # Multiplying creation by annihilation or nothing by creation =>
+                        # count all annihilation operators and all creation operators that
+                        # are later than the current one.
+                        preceding_fermions = sum(
+                            int(pow == One) for pow in powers[-self._n_fermions :]
+                        ) + sum(int(pow == -One) for pow in powers[op_index + 1 :])
+
+                    if preceding_fermions % 2:
+                        # Fermionic sign change
+                        coeff = -coeff
+
+                new_terms[new_powers] = coeff
 
         # Create the new NumberOrderedForm with the same operators but new terms
         return type(self)(self.operators, new_terms, validate=False)
@@ -769,18 +1063,61 @@ class NumberOrderedForm(Operator):
 
         new_terms = {}
         for powers, coeff in self.args[1]:
-            multiplier = expr
+            replacements = {}
             for i, power in enumerate(powers):
-                if power < 0:
+                if power == 0:
                     continue
-                n_i = NumberOperator(self.operators[i])
-                multiplier = multiplier.subs(n_i, n_i + power)
-            new_terms[powers] = coeff * multiplier
+                n_i = self._number_operator_placeholders[i]
+                if i < self._n_inf_order:  # Bosons or ladders
+                    if power > 0:
+                        # a * n_a = n_a + 1
+                        replacements[n_i] = n_i + power
+                else:  # Fermion or spin
+                    if power < 0:
+                        # c† * n_c = 0
+                        replacements[n_i] = Zero
+                    else:
+                        # c * n_c = c.
+                        replacements[n_i] = One
+
+            new_terms[powers] = coeff * expr.xreplace(replacements)
 
         # Return a new NumberOrderedForm instance with the updated terms
         return type(self)(self.operators, new_terms, validate=False)
 
-    def _expand_operators(self, new_operators: list[OperatorType]) -> "NumberOrderedForm":
+    def _cancel_binary_operator_numbers(self):
+        """Cancel fermionic and spin number operators.
+
+        If the coefficient has `n_f`, while the term has either `f` or `f†`,
+        `n_f` may be safely replaced with `0` because of the fermionic nilpotence.
+
+        Returns
+        -------
+        NumberOrderedForm
+            A new NumberOrderedForm with the fermionic and spin number operators canceled.
+
+        """
+        if not (binary_ops := self.operators[self._n_inf_order :]):
+            # No binary operators, nothing to do
+            return self
+
+        new_terms = {}
+        for powers, coeff in self.args[1]:
+            replacements = {}
+            for p, op in zip(powers[self._n_inf_order :], binary_ops):
+                if not p:
+                    continue
+                replacements[_number_operator_to_placeholder(NumberOperator(op))] = Zero
+            coeff = coeff.xreplace(replacements)
+            if coeff == 0:
+                continue
+            new_terms[powers] = coeff
+
+        return type(self)(self.operators, new_terms, validate=False)
+
+    def _expand_operators(
+        self, new_operators: Sequence[OperatorType]
+    ) -> "NumberOrderedForm":
         """Expand the operators in this NumberOrderedForm.
 
         This method creates a new NumberOrderedForm with the same terms but expanded
@@ -788,7 +1125,7 @@ class NumberOrderedForm(Operator):
 
         Parameters
         ----------
-        new_operators : list[OperatorType]
+        new_operators :
             List of new quantum operators to use. Has to contain at least all the
             original operators, and must be correctly ordered.
 
@@ -837,19 +1174,21 @@ class NumberOrderedForm(Operator):
 
         self_expanded, other_expanded = self._combine_operators(other)
 
-        new_terms = defaultdict(lambda: sympy.S.Zero)
+        new_terms = defaultdict(lambda: Zero)
         for powers, coeff in self_expanded.args[1]:
             new_terms[powers] += coeff
         for powers, coeff in other_expanded.args[1]:
             new_terms[powers] += coeff
         return type(self)(self_expanded.operators, new_terms, validate=False)
 
-    def _combine_operators(self, other):
+    def _combine_operators(
+        self, other
+    ) -> tuple["NumberOrderedForm", "NumberOrderedForm"]:
         """Convert this NumberOrderedForm and another to have the same operator list."""
         if other.operators != self.operators:
             new_operators = sorted(
                 set(self.operators).union(other.operators),
-                key=lambda op: (isinstance(op, BosonOp), str(op.name)),
+                key=lambda op: (generator_types.index(type(op)), str(op.name)),
             )
             self_expanded = self._expand_operators(new_operators)
             other_expanded = other._expand_operators(new_operators)
@@ -908,8 +1247,11 @@ class NumberOrderedForm(Operator):
             The negated NumberOrderedForm.
 
         """
-        new_terms = {powers: -coeff for powers, coeff in self.args[1]}
-        return type(self)(self.operators, new_terms, validate=False)
+        return type(self)(
+            self.operators,
+            tuple((powers, -coeff) for powers, coeff in self.args[1]),
+            validate=False,
+        )
 
     def __mul__(self, other) -> "NumberOrderedForm":
         """Multiply this NumberOrderedForm with another object.
@@ -953,7 +1295,7 @@ class NumberOrderedForm(Operator):
                     continue
                 partial = partial._multiply_op(i, power)
             # Add the result to the new terms
-            result = result + partial
+            result = result + partial._linearize_binary_operators()
 
         return result
 
@@ -997,7 +1339,7 @@ class NumberOrderedForm(Operator):
 
         """
         # Take the adjoint of each term and negate the powers
-        new_terms = (
+        new_terms = tuple(
             (tuple(-power for power in powers), coeff.adjoint())
             for powers, coeff in self.args[1]
         )
@@ -1024,10 +1366,9 @@ class NumberOrderedForm(Operator):
                 other = NumberOrderedForm.from_expr(sympy.sympify(other))
             except Exception:
                 return None  # Let SymPy handle the comparison
-        return (
-            all(op1 == op2 for op1, op2 in zip(self.operators, other.operators))
-            and self.terms == other.terms
-        )
+        if self.operators != other.operators:
+            self, other = self._combine_operators(other)
+        return self.terms == other.terms
 
     def __hash__(self):
         """Compute the hash of this NumberOrderedForm."""
@@ -1044,9 +1385,7 @@ class NumberOrderedForm(Operator):
             True if zero, False if non-zero, None if undetermined.
 
         """
-        if not self.args[1]:
-            return True
-        return None  # Let SymPy try other approaches
+        return fuzzy_and(coeff.is_zero for _, coeff in self.args[1])
 
     def __bool__(self):
         """Check if the NumberOrderedForm is non-zero.
@@ -1065,8 +1404,11 @@ class NumberOrderedForm(Operator):
     def applyfunc(self, func: Callable, *args, **kwargs):
         """Apply a SymPy function to the terms of this NumberOrderedForm.
 
-        This method temporarily replaces NumberOperators with unique symbols,
-        applies the function, then substitutes back the NumberOperators.
+        Notes
+        -----
+        `NumberOrderedForm` stores its coefficients with number operators replaced with
+        integer placeholder symbols. This method does applies the function to those
+        coefficients, but does not change the operators themselves.
 
         Parameters
         ----------
@@ -1083,24 +1425,38 @@ class NumberOrderedForm(Operator):
             A new NumberOrderedForm with the function applied to its terms
 
         """
-        # Create number operators for all the operators in this NumberOrderedForm
-        substitutions = {
-            NumberOperator(op): sympy.Symbol(f"dummy_{uuid.uuid4().hex}", real=True)
-            for op in self.operators
-        }
-        reverse = {v: k for k, v in substitutions.items()}
-
         # Create a new terms dictionary for the result
         new_terms = {}
 
         # Process each term in the terms dictionary
         for powers, coeff in self.args[1]:
-            dummy_expr = coeff.subs(substitutions)
-            result_expr = func(dummy_expr, *args, **kwargs)
-            result_with_n_ops = result_expr.subs(reverse)
-            new_terms[powers] = result_with_n_ops
+            result_expr = func(coeff, *args, **kwargs)
+            new_terms[powers] = result_expr
 
-        # Create a new NumberOrderedForm with the same operators but new terms
+        return type(self)(self.operators, new_terms, validate=False)
+
+    def _linearize_binary_operators(self):
+        """Convert coefficients with binary number operators to linear form.
+
+        This method applies `f(n_a) = (1 - n_a ) * f(0) + n_a * f(1)` to all binary
+        number operators (fermions and spins) in the terms of this NumberOrderedForm.
+        """
+        if not (
+            binary_numbers := [
+                _number_operator_to_placeholder(NumberOperator(op))
+                for op in self.operators[self._n_inf_order :]
+            ]
+        ):
+            # No binary operators, nothing to do
+            return self
+
+        new_terms = {}
+        for powers, coeff in self.args[1]:
+            for number in binary_numbers:
+                coeff = (One - number) * coeff.xreplace(
+                    {number: Zero}
+                ) + number * coeff.xreplace({number: One})
+            new_terms[powers] = coeff
         return type(self)(self.operators, new_terms, validate=False)
 
     def _eval_simplify(self, **kwargs):
@@ -1120,7 +1476,7 @@ class NumberOrderedForm(Operator):
             A simplified NumberOrderedForm
 
         """
-        return self.applyfunc(sympy.simplify, **kwargs)
+        return self._linearize_binary_operators().applyfunc(sympy.simplify, **kwargs)
 
     def __pow__(self, exp: sympy.Expr) -> "NumberOrderedForm":
         """Raise this NumberOrderedForm to a power.
@@ -1148,7 +1504,11 @@ class NumberOrderedForm(Operator):
             return NotImplemented
 
         if exp == 0:
-            return type(self)(self.operators, {(): sympy.S.One})
+            return type(self)(
+                self.operators,
+                Tuple(Tuple((Zero,) * len(self.operators), One)),
+                validate=False,
+            )
 
         # For integer exponents, convert to repeated multiplication
         if (isinstance(exp, int) or exp.is_Integer) and exp > 0:
@@ -1166,15 +1526,24 @@ class NumberOrderedForm(Operator):
                     f"operators to non-integer power: {self}**{exp}"
                 )
 
-            # One term, may exponentiate if the coefficient is commutative.
             powers, coeff = next(iter(self.terms.items()))
-            if not coeff.is_commutative or exp.is_negative:
+
+            if any(powers[self._n_inf_order :]) and exp > 1:
+                return type(self)(self.operators, {}, validate=False)
+
+            # One term, may exponentiate to a positive power if the coefficient is
+            # commutative
+            if coeff.has(*self._number_operator_placeholders):
+                raise ValueError(
+                    "Cannot raise expression with creation/annihilation and number "
+                    f"operators to a non-integer power: {self}**{exp}"
+                )
+            if exp.is_negative:
                 raise ValueError(
                     f"Cannot raise expression with unmatched creation or annihilation "
-                    f"operators to non-integer power: {self}**{exp}"
+                    f"operators to non-positive power: {self}**{exp}"
                 )
 
-            # Note: does not take care of fermion nilpotency.
             return type(self)(
                 self.operators,
                 {tuple(i * exp for i in powers): coeff**exp},
@@ -1197,7 +1566,7 @@ class NumberOrderedForm(Operator):
             except Exception:
                 return NotImplemented
 
-        return self * (other**-1)
+        return self * (other**-One)
 
     def is_particle_conserving(self) -> bool:
         """Check if this expression conserves particle numbers.
@@ -1214,9 +1583,15 @@ class NumberOrderedForm(Operator):
     def _eval_subs(self, old, new):
         if old in self.operators or new in self.operators:
             raise ValueError("Cannot substitute operators in NumberOrderedForm.")
+
+        old = old.xreplace(self._number_operator_to_placeholder)
+        new = new.xreplace(self._number_operator_to_placeholder)
+
         return type(self)(
             self.operators,
-            {tuple(powers): coeff.subs(old, new) for powers, coeff in self.args[1]},
+            Tuple(
+                *(Tuple(powers, coeff.subs(old, new)) for powers, coeff in self.args[1])
+            ),
             validate=False,
         )
 
@@ -1241,8 +1616,8 @@ class NumberOrderedForm(Operator):
             conditions.
 
         """
-        new_terms = {
-            powers: coeff
+        new_terms = tuple(
+            Tuple(powers, coeff)
             for powers, coeff in self.args[1]
             if not bool(keep)
             != any(
@@ -1255,5 +1630,56 @@ class NumberOrderedForm(Operator):
                 )
                 for condition in conditions
             )
-        }
+        )
+        return type(self)(self.operators, new_terms, validate=False)
+
+    def _poly_simplify(self) -> "NumberOrderedForm":
+        """Simplify a NumberOrderedForm by converting it to polynomials and back.
+
+        This uses as generators all possible expressions sympy finds, except for the
+        number operators.
+        """
+        if not self.operators:
+            # No operators, nothing to simplify
+            return self
+
+        new_terms = {}
+        for powers, coeff in self.args[1]:
+            if not coeff.free_symbols:
+                # If the coefficient is a constant, just keep it as is
+                new_terms[powers] = coeff
+                continue
+
+            # Convert the coefficient to a polynomial and extract the generators
+            poly = sympy.poly(coeff)
+            number_gens = tuple(
+                gen for gen in poly.gens if gen in self._number_operator_placeholders
+            )
+            non_number_gens = tuple(
+                gen for gen in poly.gens if gen not in self._number_operator_placeholders
+            )
+            if len(number_gens) == len(poly.gens):
+                # If there are no non-number operator generators, keep the coefficient as is
+                new_terms[powers] = coeff
+                continue
+
+            new_terms[powers] = sympy.Poly.from_dict(
+                {
+                    # Here we simplify the polynomial of number operators (coeff).
+                    # This may be improved in the future with better heuristics.
+                    term: sympy.collect_const(sympy.simplify(coeff)).doit()
+                    for term, coeff in sympy.poly(
+                        # EXRAW domain does not expand its terms. This is important to
+                        # not automatically expand expressions like (n + 1) ** 5
+                        coeff,
+                        gens=non_number_gens,
+                        domain=sympy.EXRAW,
+                    )
+                    .as_dict()
+                    .items()
+                },
+                gens=non_number_gens,
+                domain=sympy.EXRAW,
+            ).as_expr()
+
         return type(self)(self.operators, new_terms, validate=False)

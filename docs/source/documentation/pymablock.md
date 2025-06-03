@@ -39,6 +39,13 @@
 ## Number ordered form
 
 ```{eval-rst}
+.. autoclass:: pymablock.number_ordered_form.LadderOp
+   :members:
+   :show-inheritance:
+   :class-doc-from: class
+```
+
+```{eval-rst}
 .. autoclass:: pymablock.number_ordered_form.NumberOperator
    :members:
    :show-inheritance:
@@ -59,7 +66,7 @@
 
 ```{eval-rst}
 .. automodule:: pymablock.second_quantization
-   :members: solve_sylvester_bosonic, apply_mask_to_operator
+   :members: solve_sylvester_2nd_quant, apply_mask_to_operator
    :show-inheritance:
 ```
 
