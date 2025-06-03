@@ -14,7 +14,7 @@ kernelspec:
 # Rabi model of a spin under periodic driving
 
 In this tutorial, we demonstrate how to apply the rotating wave approximation (RWA) to a spin under periodic driving.
-Pymablock's approach to periodic time-dependent Hamiltonians is to introduce an artificial dimension and work in the Fourier space, known as the Floquet formalism.
+Pymablock's approach to periodic time-dependent Hamiltonians is to introduce an artificial dimension and work in the Fourier space, thus applying Floquet perturbation theory.
 
 As a minimal demonstration, we focus on obtaining the corrections to the quasi-energy levels of the system.
 This system is similar to both the [Jaynes-Cummings model](jaynes_cummings.md) and the [dispersive shift computation](dispersive_shift.md).
