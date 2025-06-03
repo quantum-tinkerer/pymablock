@@ -80,7 +80,7 @@ def block_diagonalize(
     For large numerical calculations with a sparse Hamiltonian and a low
     dimensional relevant subspace, the algorithm uses an implicit representation
     of the spectrum and does not require full diagonalization. This is enabled
-    if ``subspace_vectors`` do not span the full space of the unperturbed
+    if ``subspace_eigenvectors`` do not span the full space of the unperturbed
     Hamiltonian.
 
     Parameters
@@ -137,7 +137,7 @@ def block_diagonalize(
     direct_solver :
         Whether to use the direct solver that relies on MUMPS (default).
         Otherwise, the KPM solver is used. Only applicable if the implicit
-        method is used (i.e. `subspace_vectors` is incomplete)
+        method is used (i.e. `subspace_eigenvectors` is incomplete)
     symbols :
         Symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
