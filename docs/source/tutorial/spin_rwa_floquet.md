@@ -13,8 +13,8 @@ kernelspec:
 
 # Rabi model of a spin under periodic driving
 
-In this tutorial, we demonstrate how to apply the rotating wave approximation (RWA) to a spin system under periodic driving.
-Pymablock's approach to periodic time-dependent Hamiltonians is to introduce an artificial dimension and work in the Fourier space.
+In this tutorial, we demonstrate how to apply the rotating wave approximation (RWA) to a spin under periodic driving.
+Pymablock's approach to periodic time-dependent Hamiltonians is to introduce an artificial dimension and work in the Fourier space, known as the Floquet formalism.
 
 As a minimal demonstration, we focus on obtaining the corrections to the quasi-energy levels of the system.
 This system is similar to both the [Jaynes-Cummings model](jaynes_cummings.md) and the [dispersive shift computation](dispersive_shift.md).
@@ -24,6 +24,8 @@ This system is similar to both the [Jaynes-Cummings model](jaynes_cummings.md) a
 We start with a time-dependent Hamiltonian for a spin-1/2 system under periodic driving:
 
 $$H(t) = \frac{\omega_0}{2}\sigma_z + g \sigma_x \cos(\Omega t)$$
+
+where $\omega_0$ is the frequency of the spin, $g$ is the coupling strength, and $\Omega$ is the driving frequency.
 
 Decomposing the cosine term into exponentials:
 
@@ -35,9 +37,9 @@ $$H(t) = \frac{\omega_0}{2}\sigma_z + \frac{g}{2} \sigma_x (e^{i\Omega t} + e^{-
 
 ## Floquet Hamiltonian with Ladder Operators
 
-To tackle this problem, we represent the exponential terms using ladder operators. These follow the commutation relations described in the [Second Quantization Tools](../second_quantization.md#ladder-operators) section.
+To tackle this problem, we represent the exponential terms using ladder operators, which allows us to work with a second-quantized form of the Hamiltonian.
 
-Applying the discrete Fourier transform to the time-dependent Schrödinger equation yields an infinite size block Hamiltonian:
+To do this, we first apply the discrete Fourier transform to the time-dependent Schrödinger equation, which yields an infinite size block Hamiltonian:
 
 $$H_{Floquet} = \begin{pmatrix}
 \ddots & \vdots & \vdots & \vdots & \vdots & \vdots & \vdots \\
@@ -50,8 +52,11 @@ $$H_{Floquet} = \begin{pmatrix}
 \end{pmatrix},$$
 
 with $H_0$ and $V_\pm$ $2 \times 2$ matrices.
-Here each block corresponds to a different Fourier component of the spin wave function, and the off-diagonal blocks couple these components by $V_\pm$.
-By introducing the ladder operator $a$ and its number operator $N_a$ that satisfy:
+Here each block corresponds to a different component of the discrete Fourier transform of the time-dependent spin wave function $\psi(t) = \psi(t+T)$.
+The off-diagonal blocks of the Hamiltonian couple these components by $V_\pm$.
+
+
+Second, we introduce the ladder operator $a$ and its number operator $N_a$ that satisfy:
 
 $$
 a = \begin{pmatrix}
@@ -71,13 +76,17 @@ N_a = \begin{pmatrix}
 \cdots & 0 & 0 & 0 & 1 & 0 & \cdots \\
 \cdots & 0 & 0 & 0 & 0 & 2 & \cdots \\
 & \vdots & \vdots & \vdots & \vdots & \vdots & \ddots
-\end{pmatrix},
+\end{pmatrix}.
 $$
 
-we arrive at the second-quantized form of the Floquet Hamiltonian:
+These follow the commutation relations described in the [Second Quantization Tools](../second_quantization.md#ladder-operators) section.
+
+Third, we arrive to the second-quantized form of the Floquet Hamiltonian:
 
 $$
-H_{Floquet} = \frac{\omega_0}{2} \sigma_z + \Omega N_a + \frac{g}{2} \sigma_x (a + a^\dagger).$$
+H_{Floquet} = \frac{\omega_0}{2} \sigma_z + \Omega N_a + \frac{g}{2} \sigma_x (a + a^\dagger),$$
+
+where we have two second-quantized operators: the ladder operator $a$ for the drive and the spin operators $\sigma_i$.
 
 Let us now implement this in Pymablock using {autolink}`~pymablock.number_ordered_form.LadderOp` and {autolink}`~pymablock.number_ordered_form.NumberOperator`.
 
@@ -115,7 +124,7 @@ display_eq('H_{Floquet}', H_0 + H_p)
 
 ## Full Perturbation Theory
 
-First, let's apply full perturbative diagonalization:
+We start by demonstrating a full perturbative diagonalization of the Hamiltonian, where the goal is to eliminate any off-diagonal terms in the Hamiltonian:
 
 ```{code-cell} ipython3
 H_full, U_full, U_adjoint_full = block_diagonalize(
@@ -141,14 +150,14 @@ display_eq('H_{eff}^{(2)}', simplify(H_full[0, 0, 2]).doit().expand())
 
 ## Applying the Rotating Wave Approximation
 
-To obtain a simpler effective Hamiltonian, we may want to treat the co- and counter-rotating terms on a different footing.
+Alternatively, if we want to obtain an effective Hamiltonian that only eliminates the counter-rotating terms instead of all the off-diagonal terms, we need to specify this in the block diagonalization routine.
 Pymablock offers two ways to do so: either by separating the perturbation into different terms and computing the result to different orders in each perturbation, or by directly specifying which terms should be eliminated from the final Hamiltonian.
 
 The first approach is more straightforward, so we recommend starting with it and only considering the second one if you need more control over the final result.
 
 ### Separating perturbation terms
 
-Instead of treating the entire interaction $H_p = \frac{g}{2} \sigma_x (a + a^\dagger)$ as a single perturbation, we separate it into co-rotating and counter-rotating terms.
+Instead of treating the entire interaction $H_p = \frac{g}{2} \sigma_x (a + a^\dagger)$ as a single perturbation, we separate it into two perturbations: one with co-rotating terms and another with counter-rotating terms.
 The co-rotating terms are those that create or annihilate pairs of excitations: $\sigma_+ a^\dagger + \sigma_- a$, while the counter-rotating terms preserve the excitation number: $\sigma_+ a + \sigma_- a^\dagger$.
 Let us define these terms explicitly.
 
@@ -168,7 +177,7 @@ display_eq('H_{co}', H_co)
 display_eq('H_{counter}', H_counter)
 ```
 
-Now we perform block diagonalization with two separate perturbative parameters.
+Now we perform block diagonalization with the two separate perturbative parameters.
 The order specification $(i, j)$ corresponds to $g_{co}^i \cdot g_{counter}^j$:
 
 ```{code-cell} ipython3
