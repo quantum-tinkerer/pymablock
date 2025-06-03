@@ -42,6 +42,7 @@
 .. autoclass:: pymablock.number_ordered_form.LadderOp
    :members:
    :show-inheritance:
+   :class-doc-from: class
 ```
 
 ```{eval-rst}
