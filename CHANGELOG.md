@@ -12,11 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a reference implementation of arbitrary order Schrieffer-Wolff transformation to the documentation and a comparison of its convergence radius with Pymablock algorithm.
 - Added support for bosonic, fermionic, spin, and ladder (Floquet) second-quantized Hamiltonians in the operator formalism.
 - Added a tutorial on the [Rabi model with a periodic drive](tutorial/spin_rwa_floquet.md).
+- Added [documentation](second_quantization.md) for the second quantization formalism.
+- Added a [comparison](radius.md) with Schrieffer-Wolff and a demonstration of the convergence radius.
 
 ### Changed
 
-- If the Hamiltonian contains only one block, `fully_diagonalize` can be provided as an array directly.
-- Included the second quantization documentation.
+- If the Hamiltonian contains only one block, `fully_diagonalize` can be provided as `value` instead of `{0: value}`.
 - Updated the [dispersive shift tutorial](tutorial/dispersive_shift.md) to include the second quantization approach.
 - Updated the [Jaynes-Cummings tutorial](tutorial/jaynes_cummings.md) to the new second quantization API.
 
