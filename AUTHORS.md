@@ -14,6 +14,7 @@
 - Kostas Vilkelis
 - Antonio Manesco
 - Hugo Kerstens
+- Bas Nijholt
 
 ## Funding
 
