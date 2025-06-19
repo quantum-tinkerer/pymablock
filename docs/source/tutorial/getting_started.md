@@ -110,7 +110,7 @@ where `(0, 1)` is the $AB$ block, and `3` is the third order correction.
 Just like `H_tilde`, `U` and `U_adjoint` are {autolink}`~pymablock.series.BlockSeries` objects too.
 In most situations these are not necessary, but they can be useful to transform any other observable to the basis of the `H_tilde`.
 
-To get more than one perturbative correction at a time, we can query `H_tilde` using `numpy`'s [indexing](https://numpy.org/devdocs/user/basics.indexing.html) convention.
+To get more than one perturbative correction at a time, we can query `H_tilde` using `numpy`'s [indexing](https://numpy.org/doc/stable/user/basics.indexing.html) convention.
 For example, we query the corrected Hamiltonian of the first subspace up to second order using
 
 ```{code-cell} ipython3
