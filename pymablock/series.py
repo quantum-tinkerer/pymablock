@@ -32,7 +32,11 @@ del Pending
 
 
 class One:
-    """Sentinel value representing the identity operator."""
+    """A sentinel value representing the identity operator.
+
+    Used for the zeroth order of a unitary transformation.
+    Does not support any methods, and should be handled by other code.
+    """
 
     def __repr__(self) -> str:
         return "one"
@@ -43,7 +47,11 @@ del One
 
 
 class Zero:
-    """A sentinel value for missing terms in series."""
+    """A sentinel value for missing terms in series.
+
+    Supports multiplication or addition by any other object (and returns itself).
+    Any other usage should be handled by other code.
+    """
 
     def __mul__(self, other: Any = None) -> Self:
         return self
@@ -53,6 +61,9 @@ class Zero:
 
     def __sub__(self, other: Any) -> Any:
         return -other
+
+    def __repr__(self):
+        return "zero"
 
     adjoint = __neg__ = __mul__
 
