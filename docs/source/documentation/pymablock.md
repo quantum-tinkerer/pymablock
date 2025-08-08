@@ -20,12 +20,14 @@
 
 ```{eval-rst}
 .. autoclass:: pymablock.series.BlockSeries
-```
 
-```{eval-rst}
 .. automodule:: pymablock.series
    :members: cauchy_dot_product
    :show-inheritance:
+
+.. autodata:: pymablock.series.zero
+
+.. autodata:: pymablock.series.one
 ```
 
 ## Linear algebra

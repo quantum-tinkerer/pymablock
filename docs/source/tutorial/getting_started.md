@@ -105,6 +105,17 @@ Let us also check that the off-diagonal blocks of the Hamiltonian are $0$ to any
 H_tilde[0, 1, 3]
 ```
 
+:::{admonition} What does `zero` mean?
+:class: dropdown tip
+
+Some terms in series are completely missing.
+Because Pymablock supports very different types of operators, it is impossible to have a single one-size-fits-all value for a zero element.
+Therefore Pymablock implements its own [sentinel values](https://en.wikipedia.org/wiki/Sentinel_value) to represent {autolink}`~pymablock.series.zero` and {autolink}`~pymablock.series.one`.
+These special values also help the library's performance by allowing for to skip unnecessary computations.
+Typically, they should not appear in user code, however you may encounter them in rare cases.
+You can then use expressions like `if result is pymablock.series.zero` to check for their occurrence and handle them.
+:::
+
 where `(0, 1)` is the $AB$ block, and `3` is the third order correction.
 
 Just like `H_tilde`, `U` and `U_adjoint` are {autolink}`~pymablock.series.BlockSeries` objects too.
