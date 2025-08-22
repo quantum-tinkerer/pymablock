@@ -7,7 +7,6 @@ from warnings import warn
 
 import numpy as np
 import sympy
-from mumps import Context as MUMPSContext
 from scipy import sparse
 from scipy.sparse import identity, spmatrix
 from scipy.sparse.linalg import LinearOperator
@@ -42,6 +41,8 @@ def direct_greens_function(
         Function that solves :math:`(E - H) sol = vec`.
 
     """
+    from mumps import Context as MUMPSContext
+    
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     is_complex = np.iscomplexobj(mat.data)
     ctx = MUMPSContext()
