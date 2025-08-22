@@ -41,7 +41,12 @@ def direct_greens_function(
         Function that solves :math:`(E - H) sol = vec`.
 
     """
-    from mumps import Context as MUMPSContext
+    try:
+        from mumps import Context as MUMPSContext
+    except ImportError as e:
+        raise ImportError(
+            "MUMPS is not installed. Please install MUMPS for sparse diagonalisation."
+        ) from e
     
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     is_complex = np.iscomplexobj(mat.data)
