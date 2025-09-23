@@ -199,7 +199,7 @@ The generalization to multiple modes follows the same pattern: for each mode, ap
 
 The solution for fermions and spins is similar and follows from the multiplication table.
 
-In Pymablock, the {autolink}`~pymablock.second_quantization.solve_sylvester_bosonic` function implements this approach.
+In Pymablock, the {autolink}`~pymablock.second_quantization.solve_sylvester_2nd_quant` function implements this approach.
 
 ## Filtering terms of number ordered forms
 
