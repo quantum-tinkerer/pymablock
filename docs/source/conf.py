@@ -14,6 +14,8 @@ import os
 import sys
 
 import sphinx_tippy
+import requests
+from importlib.metadata import version as check_version
 
 import pymablock
 
@@ -214,6 +216,19 @@ def fetch_doi_tips(app: Sphinx, data: dict[str, TippyPageData]) -> dict[str, str
     return doi_cache
 """
 exec(sphinx_tippy_patch, sphinx_tippy.__dict__)
+
+# TODO: rely on the default implementation once
+# https://github.com/sphinx-extensions2/sphinx-tippy/pull/30 is merged and released.
+session = requests.Session()
+
+session.headers.update(
+    {
+        "User-Agent": f"Sphinx/{check_version('sphinx')} (https://www.sphinx-doc.org/) "
+        f"sphinx-tippy/{check_version('sphinx-tippy')} "
+        "(https://sphinx-tippy.readthedocs.io/en/latest/) ",
+    }
+)
+sphinx_tippy.requests.get = session.get
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
