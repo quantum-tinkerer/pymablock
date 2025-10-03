@@ -44,7 +44,7 @@ developer.md
 ::::{admonition} **✨ NEW! Second Quantization Support ✨**
 :class: tip
 
-Pymablock now works with second-quantized operators: fermions, bosons, spins, and ladder (Floquet)!
+Pymablock now fully supports operator formalism and works with second-quantized operators: fermions, bosons, spins, and ladder (Floquet)!
 Check out our [dispersive shift tutorial](tutorial/dispersive_shift.md) and [Jaynes-Cummings model tutorial](tutorial/jaynes_cummings.md) to see second quantization in action, and see the theoretical background in [second quantization notes](second_quantization.md).
 ::::
 
@@ -115,7 +115,7 @@ See its [algorithms](algorithms.md) to learn about the underlying ideas, or read
 
 ## What does Pymablock not do yet?
 
-* Pymablock is not able to treat time-dependent perturbations yet
+* Pymablock only supports periodic time-dependent perturbations, general time-dependent perturbations are [in progress](https://gitlab.kwant-project.org/qt/pymablock/-/merge_requests/101).
 
 ## Installation
 
