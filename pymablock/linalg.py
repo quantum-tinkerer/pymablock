@@ -45,7 +45,9 @@ def direct_greens_function(
         from mumps import Context as MUMPSContext
     except ImportError as e:
         raise ImportError(
-            "MUMPS is not installed. Please install MUMPS for sparse diagonalisation."
+            "python-mumps is an optional dependency and is not installed."
+            "The implicit method of block diagonalization requires it."
+            "To install it see https://gitlab.kwant-project.org/kwant/python-mumps"
         ) from e
 
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
