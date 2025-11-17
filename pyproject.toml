@@ -137,9 +137,10 @@ platforms = ["linux-64"]
 [tool.pixi.environments]
 default = { solve-group = "default" }
 docs = { features = ["docs"], solve-group = "mid" }
-minimal = { features = ["minimal", "test"], solve-group = "minimal" }
-mid = { features = ["mid", "test"], solve-group = "mid" }
-latest = { features = ["latest", "test"], solve-group = "default" }
+minimal = { features = ["minimal", "test", "mumps"], solve-group = "minimal" }
+mid = { features = ["mid", "test", "mumps"], solve-group = "mid" }
+latest = { features = ["latest", "test", "mumps"], solve-group = "default" }
+latest-no-mumps = { features = ["latest", "test"], solve-group = "default" }
 precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["publish"], no-default-feature = true }
 
@@ -159,7 +160,6 @@ python = ">=3.11"
 numpy = ">=1.25"
 scipy = ">=1.11"
 sympy = ">=1.13"
-python-mumps = ">=0.0.1,<0.1"
 packaging = ">=22.0" # For version parsing
 
 [tool.pixi.pypi-dependencies]
@@ -169,7 +169,8 @@ pymablock = { path = ".", editable = true }
 tests-minimal = "pixi run -e minimal tests"
 tests-mid = "pixi run -e mid tests"
 tests-latest = "pixi run -e latest tests"
-tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest"] }
+tests-latest-no-mumps = "pixi run -e latest-no-mumps tests"
+tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest-no-mumps", "tests-latest"] }
 
 # Features
 
@@ -190,6 +191,9 @@ python = "~=3.13.0"
 numpy = ">=2.2.0"
 scipy = ">=1.15.0"
 sympy = ">=1.14.0"
+
+[tool.pixi.feature.mumps.dependencies]
+python-mumps = ">=0.0.1,<0.1"
 
 [tool.pixi.feature.docs.dependencies]
 kwant = "*"

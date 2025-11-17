@@ -47,7 +47,7 @@ def direct_greens_function(
         raise ImportError(
             "MUMPS is not installed. Please install MUMPS for sparse diagonalisation."
         ) from e
-    
+
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     is_complex = np.iscomplexobj(mat.data)
     ctx = MUMPSContext()
