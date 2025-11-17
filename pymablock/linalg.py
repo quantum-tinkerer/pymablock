@@ -7,7 +7,6 @@ from warnings import warn
 
 import numpy as np
 import sympy
-from mumps import Context as MUMPSContext
 from scipy import sparse
 from scipy.sparse import identity, spmatrix
 from scipy.sparse.linalg import LinearOperator
@@ -42,6 +41,15 @@ def direct_greens_function(
         Function that solves :math:`(E - H) sol = vec`.
 
     """
+    try:
+        from mumps import Context as MUMPSContext
+    except ImportError as e:
+        raise ImportError(
+            "python-mumps is an optional dependency and is not installed."
+            "The implicit method of block diagonalization requires it."
+            "To install it see https://gitlab.kwant-project.org/kwant/python-mumps"
+        ) from e
+
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     is_complex = np.iscomplexobj(mat.data)
     ctx = MUMPSContext()

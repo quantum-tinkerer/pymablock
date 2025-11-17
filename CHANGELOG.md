@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+- Made python-mumps an optional dependency, only required for the implicit solver.
+
+### Removed
+
 ## [2.2.0] - 2025-06-05
 
 ### Added

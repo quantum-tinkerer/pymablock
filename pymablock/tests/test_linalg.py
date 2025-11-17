@@ -2,6 +2,7 @@
 import builtins
 
 import numpy as np
+import pytest
 import sympy
 from numpy.testing import assert_allclose
 from pytest import mark, raises
@@ -11,6 +12,11 @@ from scipy.sparse.linalg import aslinearoperator
 from pymablock import linalg
 
 
+@pytest.fixture()
+def require_mumps() -> None:
+    pytest.importorskip("mumps", reason="python-mumps is not installed")
+
+
 def test_linear_operator_rmatmul_patched():
     """Test that LinearOperator implement right multiplication"""
     array = np.random.randn(3, 3) + 1j * np.random.randn(3, 3)
@@ -18,6 +24,7 @@ def test_linear_operator_rmatmul_patched():
     assert_allclose(array @ operator, array @ array)
 
 
+@mark.usefixtures("require_mumps")
 @mark.parametrize("dtype", [np.float32, np.float64, np.complex64, np.complex128])
 def test_direct_greens_function(dtype):
     atol = 1e4 * np.finfo(dtype).eps
@@ -38,6 +45,7 @@ def test_direct_greens_function(dtype):
     assert_allclose(h @ sol - E[n0] * sol, -vec, atol=atol)
 
 
+@mark.usefixtures("require_mumps")
 def test_direct_greens_function_dtype():
     """Test that type promotion works as expected."""
     n = 10
