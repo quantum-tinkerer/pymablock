@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - If the Hamiltonian contains only one block, `fully_diagonalize` can be provided as `value` instead of `{0: value}`.
 - Updated the [dispersive shift tutorial](tutorial/dispersive_shift.md) to include the second quantization approach.
 - Updated the [Jaynes-Cummings tutorial](tutorial/jaynes_cummings.md) to the new second quantization API.
+- Made python-mumps an optional dependency, only required for the implicit solver.
 
 ### Removed
 
