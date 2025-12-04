@@ -130,7 +130,7 @@ ignore_missing_imports = true
 skip = "*.cls,*.bst,*.bib,*.lock"
 ignore-words-list = "nwo,groth,ket,braket"
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = ["conda-forge"]
 platforms = ["linux-64"]
 
@@ -152,15 +152,13 @@ OMP_NUM_THREADS = "1"
 MKL_NUM_THREADS = "1"
 MKL_DYNAMIC = "FALSE"
 
-[tool.pixi.host-dependencies]
-git = "*"
-
 [tool.pixi.dependencies]
 python = ">=3.12"
 numpy = ">=2.0"
 scipy = ">=1.13"
 sympy = ">=1.13"
 packaging = ">=22.0" # For version parsing
+git = "*"
 
 [tool.pixi.pypi-dependencies]
 pymablock = { path = ".", editable = true }
