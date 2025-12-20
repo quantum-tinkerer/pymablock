@@ -3372,8 +3372,8 @@ packages:
   timestamp: 1736243563082
 - pypi: ./
   name: pymablock
-  version: 2.2.1.dev15+gabce6ef06.d20251204
-  sha256: 6920b6f41f4e3cb024f8ccc03400a742b846c27558a1f54399de272e3d757d6d
+  version: 2.2.1.dev18+g79f0e4aa8
+  sha256: 1a2db0dc363a90fa9f5d664e4e31258a4bf1ec200e64fdf4f29d453458399413
   requires_dist:
   - numpy>=2.0
   - packaging>=22.0
@@ -3387,7 +3387,6 @@ packages:
   - pytest-randomly ; extra == 'test'
   - pytest-regressions ; extra == 'test'
   requires_python: '>=3.11'
-  editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/pyparsing-3.2.3-pyhd8ed1ab_1.conda
   sha256: b92afb79b52fcf395fd220b29e0dd3297610f2059afac45298d44e00fcbf23b6
   md5: 513d3c262ee49b54a8fec85c5bc99764

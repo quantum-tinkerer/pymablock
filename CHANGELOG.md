@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Made python-mumps an optional dependency, only required for the implicit solver.
+- When SymPy cannot determine whether an off-diagonal zeroth-order block is zero, emit a warning and proceed instead of erroring.
 
 ### Removed
 

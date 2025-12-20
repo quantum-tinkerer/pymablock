@@ -252,7 +252,17 @@ def block_diagonalize(
 
     for j in range(1, H.shape[0]):
         for i in range(j):
-            if H[(i, j, *zero_order)] is not zero:
+            block = H[(i, j, *zero_order)]
+            if block is not zero:
+                if isinstance(block, (sympy.MatrixBase, sympy.Expr)):
+                    # This may happen if the expression wasn't simplified enough.
+                    warn(
+                        "Cannot confirm that the unperturbed Hamiltonian is "
+                        "block-diagonal. The algorithm will assume that "
+                        f"block ({i}, {j}) is zero.",
+                        UserWarning,
+                    )
+                    continue
                 raise ValueError(
                     "The off-diagonal elements of the unperturbed Hamiltonian must be zero."
                 )
