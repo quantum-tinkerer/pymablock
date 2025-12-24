@@ -1,5 +1,6 @@
 import operator
 import tracemalloc
+import warnings
 from collections import Counter
 from collections.abc import Callable
 from itertools import chain, permutations, product
@@ -1161,6 +1162,48 @@ def test_single_symbol_input():
     assert H_tilde.name == "H_tilde"
     # Check that execution doesn't raise
     H_tilde[:, :, 3]
+
+
+def test_sympy_offdiagonal_zero_false_negative_warning():
+    epsilon, kx, ky = sympy.symbols("epsilon k_x k_y", real=True)
+    J = sympy.exp(sympy.I * sympy.pi / 3) * sympy.Matrix(
+        [
+            [0, 2 * sympy.cos(kx), 0],
+            [0, 0, 2 * sympy.cos(kx / 2 - sympy.sqrt(3) * ky / 2)],
+            [2 * sympy.cos(kx / 2 + sympy.sqrt(3) * ky / 2), 0, 0],
+        ]
+    )
+    H = (J + J.H).subs(
+        {
+            kx: epsilon * kx + 2 * sympy.pi / 3,
+            ky: epsilon * ky,
+        }
+    )
+    H = H.expand(complex=True)
+    H_0 = sympy.simplify(H.subs({epsilon: 0}))
+
+    eigenvectors, _ = H_0.diagonalize(normalize=True)
+    v0, v1, v2 = sympy.Matrix.orthogonalize(
+        *[eigenvectors.col(i) for i in range(eigenvectors.cols)], normalize=True
+    )
+    aux_subspace = v0.expand(complex=True)
+    primary_subspace = sympy.Matrix([v1.T, v2.T]).expand(complex=True).T
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Cannot confirm that the unperturbed Hamiltonian is diagonal",
+            category=UserWarning,
+        )
+        with pytest.warns(
+            UserWarning,
+            match=r"Cannot confirm that the unperturbed Hamiltonian is block-diagonal",
+        ):
+            block_diagonalize(
+                H,
+                symbols=[epsilon],
+                subspace_eigenvectors=[primary_subspace, aux_subspace],
+            )
 
 
 def test_warning_non_diagonal_input():
