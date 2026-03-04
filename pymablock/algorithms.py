@@ -36,9 +36,9 @@ def main():
         start = 0
         hermitian
         if diagonal:
-            "U'† @ U'" / -2
+            "U_inv' @ U'" / -2
         if offdiagonal:
-            zero if two_block_optimized else "U'† @ U'" / -2
+            zero if two_block_optimized else "U_inv' @ U'" / -2
 
     # We can choose to query either lower or upper block of Y since it is
     # Hermitian. The choice for lower block is optimal for querying H_AA and
@@ -58,16 +58,16 @@ def main():
         start = 0
         "W" + "V"
 
+    with "U_inv'":
+        "W" - "V"
+
     with "U":
         start = 1
         "U'"
 
-    with "U'†":
-        "W" - "V"
-
     with "U†":
         start = 1
-        "U'†"
+        "U_inv'"
 
     with "X":
         start = 0
@@ -76,12 +76,17 @@ def main():
     with "B":
         start = 0
         if diagonal:
-            ("U'† @ B" - "U'† @ B".adj + "H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / -2
+            (
+                "U_inv' @ B"
+                - "U_inv' @ B".adj
+                + "H'_offdiag @ U'"
+                + "H'_offdiag @ U'".adj
+            ) / -2
         if diagonal:
             zero if commuting_blocks[index[0]] else "V @ H'_diag" + "V @ H'_diag".adj
 
         if offdiagonal:
-            -"U'† @ B"
+            -"U_inv' @ B"
 
     with "H_tilde":
         start = "H_0"
@@ -89,11 +94,11 @@ def main():
             (
                 "H'_diag"
                 + ("H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / 2
-                + ("U'† @ B" + "U'† @ B".adj) / -2
+                + ("U_inv' @ B" + "U_inv' @ B".adj) / -2
                 - "Yadj"
             )
 
-    with "U'† @ U'":
+    with "U_inv' @ U'":
         hermitian
 
     with "H'_diag @ U'":
@@ -102,10 +107,74 @@ def main():
     with "H'_offdiag @ U'":
         pass
 
-    with "U'† @ B":
+    with "U_inv' @ B":
         pass
 
     with "V @ H'_diag":
+        pass
+
+    return "H_tilde", "U", "U†"
+
+
+def nonhermitian():
+    with "H'_diag":
+        start = 0
+        if diagonal:
+            "H"
+
+    with "H'_offdiag":
+        start = 0
+        if offdiagonal:
+            "H"
+
+    with "U'":
+        start = 0
+        if diagonal:
+            "U_inv' @ U'" / -2
+        if offdiagonal:
+            solve_sylvester("X" - "H'_diag @ U'" + "U' @ H'_diag")
+
+    with "U_inv'":
+        start = 0
+        -"U'" - "U_inv' @ U'"
+
+    with "U":
+        start = 1
+        "U'"
+
+    with "U†":
+        start = 1
+        "U_inv'"
+
+    with "X":
+        start = 0
+        if offdiagonal:
+            -("H'_offdiag" + "H'_offdiag @ U'" + "U_inv' @ B")
+        if diagonal:
+            "H'_diag @ U'" - "U' @ H'_diag"
+
+    with "B":
+        start = 0
+        "X" + "H'_offdiag" + "H'_offdiag @ U'"
+
+    with "H_tilde":
+        start = "H_0"
+        if diagonal:
+            "H'_diag" + "B" + "U_inv' @ B"
+
+    with "U_inv' @ U'":
+        pass
+
+    with "H'_diag @ U'":
+        pass
+
+    with "U' @ H'_diag":
+        pass
+
+    with "H'_offdiag @ U'":
+        pass
+
+    with "U_inv' @ B":
         pass
 
     return "H_tilde", "U", "U†"
