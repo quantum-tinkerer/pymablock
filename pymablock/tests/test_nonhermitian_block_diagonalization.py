@@ -3,6 +3,7 @@ import pytest
 
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main, nonhermitian
+from pymablock.block_diagonalization import block_diagonalize
 from pymablock.series import BlockSeries, cauchy_dot_product, zero
 
 from .test_block_diagonalization import compare_series, identity_like
@@ -203,3 +204,29 @@ def test_nonhermitian_arbitrary_asymmetric_mask():
         )
 
     assert opposite_direction_nonzero
+
+
+def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask():
+    n = 6
+    max_order = 3
+    rng = np.random.default_rng(4321)
+
+    h_0 = np.diag(np.linspace(-3.0, 3.0, n)).astype(complex)
+    h_1 = rng.normal(size=(n, n)) + 1j * rng.normal(size=(n, n))
+
+    to_eliminate = rng.random((n, n)) > 0.8
+    np.fill_diagonal(to_eliminate, False)
+    to_eliminate[0, 1] = True
+    to_eliminate[1, 0] = False
+    assert not np.array_equal(to_eliminate, to_eliminate.T)
+
+    H_tilde, *_ = block_diagonalize(
+        [h_0, h_1],
+        subspace_indices=np.zeros(n, dtype=int),
+        hermitian=False,
+        fully_diagonalize=to_eliminate,
+    )
+
+    for order in range(1, max_order + 1):
+        block = H_tilde[(0, 0, order)]
+        np.testing.assert_allclose(block[to_eliminate], 0, atol=1e-10, rtol=0)

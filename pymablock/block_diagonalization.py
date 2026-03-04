@@ -15,7 +15,7 @@ from sympy.physics.quantum import Dagger, Operator
 
 from pymablock import second_quantization
 from pymablock.algorithm_parsing import series_computation
-from pymablock.algorithms import main
+from pymablock.algorithms import main, nonhermitian
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
     ComplementProjector,
@@ -57,6 +57,7 @@ def block_diagonalize(
         | sympy.Matrix
         | sympy.Expr
     ) = (),
+    hermitian: bool = True,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -152,24 +153,30 @@ def block_diagonalize(
         dictionary with the indices of the diagonal blocks as keys and as values
         appropriately shaped numpy boolean arrays marking which matrix elements should
         be eliminated by the diagonalization. If there is only one block, the boolean
-        array may be provided directly without a dictionary. Must be symmetric, and may
-        not have any True values corresponding to matrix elements coupling degenerate
-        eigenvalues. If the Hamiltonian has second-quantized operators, the array may be
-        a sympy matrix instead, and its entries must correspond to sums of all possible
-        operator powers to eliminate, e.g. ``a + Dagger(a)`` or ``a ** k + Dagger(a) ** k``.
+        array may be provided directly without a dictionary. For Hermitian problems this
+        mask must be symmetric, and may not have any True values corresponding to matrix
+        elements coupling degenerate eigenvalues. If the Hamiltonian has second-quantized
+        operators, the array may be a sympy matrix instead, and its entries must
+        correspond to sums of all possible operator powers to eliminate, e.g.
+        ``a + Dagger(a)`` or ``a ** k + Dagger(a) ** k``.
+    hermitian :
+        Whether to use the Hermitian algorithm (default). If set to False, use the
+        non-Hermitian similarity-transform algorithm.
 
     Returns
     -------
     H_tilde : `~pymablock.series.BlockSeries`
         Block diagonalized Hamiltonian.
     U : `~pymablock.series.BlockSeries`
-        Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
+        Transformation that block diagonalizes H.
     U_adjoint : `~pymablock.series.BlockSeries`
-        Adjoint of U.
+        Adjoint of U for Hermitian problems, inverse of U otherwise.
 
     """
     if isinstance(symbols, sympy.Symbol):
         symbols = [symbols]
+
+    algorithm = main if hermitian else nonhermitian
 
     if solve_sylvester is not None and fully_diagonalize:
         raise NotImplementedError(
@@ -225,7 +232,7 @@ def block_diagonalize(
         implicit=use_implicit,
         symbols=symbols,
         atol=atol,
-        hermitian=True,
+        hermitian=hermitian,
     )
 
     if H.shape[0] == 1:
@@ -250,8 +257,10 @@ def block_diagonalize(
 
     zero_order = (0,) * H.n_infinite
 
-    for j in range(1, H.shape[0]):
-        for i in range(j):
+    for i in range(H.shape[0]):
+        for j in range(H.shape[1]):
+            if i == j or (hermitian and i > j):
+                continue
             block = H[(i, j, *zero_order)]
             if block is not zero:
                 if isinstance(block, (sympy.MatrixBase, sympy.Expr)):
@@ -385,7 +394,7 @@ def block_diagonalize(
                     raise ValueError(
                         "The values of fully_diagonalize dictionary must be numpy arrays."
                     )
-                if not (to_eliminate == to_eliminate.T).all():
+                if hermitian and not (to_eliminate == to_eliminate.T).all():
                     raise ValueError(
                         "The values of fully_diagonalize dictionary must be symmetric."
                     )
@@ -506,7 +515,7 @@ def block_diagonalize(
 
     outputs, _ = series_computation(
         {"H": H},
-        algorithm=main,
+        algorithm=algorithm,
         scope=scope,
         operator=operator,
     )
