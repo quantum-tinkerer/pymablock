@@ -39,7 +39,7 @@ class _Product:
     """Product properties."""
 
     terms: list[str] = dataclasses.field(default_factory=list)
-    hermitian: bool | ast.AST = False
+    hermitian: list = False
 
     @property
     def name(self) -> str:
@@ -102,29 +102,9 @@ class _EvalTransformer(ast.NodeTransformer):
             # Delete start = ... statements
             return [None]
         if isinstance(node, ast.If):
-            eval_type = (
-                _EvalType.from_condition(node.test.id)
-                if isinstance(node.test, ast.Name)
-                else None
-            )
+            eval_type = _EvalType.from_condition(node.test.id)
             if eval_type is None:
-                return [
-                    ast.If(
-                        test=node.test,
-                        body=[
-                            line
-                            for expr in node.body
-                            for line in self._visit_Line(expr)
-                            if line is not None
-                        ],
-                        orelse=[
-                            line
-                            for expr in node.orelse
-                            for line in self._visit_Line(expr)
-                            if line is not None
-                        ],
-                    )
-                ]
+                return node
             node.test = eval_type.test
             # The diagonal blocks are wrapped inside `diag`
             if eval_type == _EvalType.diagonal:
@@ -214,21 +194,6 @@ class _HermitianTransformer(ast.NodeTransformer):
     def __init__(self, term):
         self.term = term
 
-    def _hermitian_if(self, term: ast.AST, condition: ast.AST | None = None) -> ast.If:
-        if condition is None:
-            value = term
-        else:
-            value = ast.IfExp(
-                test=condition,
-                body=term,
-                orelse=ast.Name(id="zero", ctx=ast.Load()),
-            )
-        return ast.If(
-            test=ast.Name(id="lower", ctx=ast.Load()),
-            body=[ast.Expr(value=value)],
-            orelse=[],
-        )
-
     def visit_Expr(self, node: ast.Expr) -> ast.AST:
         """Insert a conditional evaluation for hermitian and antihermitian attributes.
 
@@ -251,32 +216,11 @@ class _HermitianTransformer(ast.NodeTransformer):
             case _:
                 return self.generic_visit(node)
 
-        return self._hermitian_if(term)
-
-    def visit_Assign(self, node: ast.Assign) -> ast.AST:
-        """Support conditional hermitian and antihermitian attributes.
-
-        This enables DSL statements such as ``hermitian = hermitian_problem``
-        and ``antihermitian = some_flag``.
-        """
-        if len(node.targets) != 1:
-            return self.generic_visit(node)
-        target = node.targets[0]
-        if not isinstance(target, ast.Name):
-            return self.generic_visit(node)
-
-        term = ast.Attribute(
-            value=ast.Constant(value=self.term), attr="adj", ctx=ast.Load()
+        return ast.If(
+            test=ast.Name(id="lower", ctx=ast.Load()),
+            body=[ast.Expr(value=term)],
+            orelse=[],
         )
-        match target.id:
-            case "hermitian":
-                pass
-            case "antihermitian":
-                term = ast.UnaryOp(op=ast.USub(), operand=term)
-            case _:
-                return self.generic_visit(node)
-
-        return self._hermitian_if(term, condition=node.value)
 
 
 class _UseCounter(ast.NodeVisitor):
@@ -556,16 +500,12 @@ def _read_product(definition: ast.With) -> _Product:
     name = definition.items[0].context_expr.value
     product.terms = name.split(" @ ")
     for node in definition.body:
-        if isinstance(node, ast.Expr):
-            if isinstance(node.value, ast.Name) and node.value.id == "hermitian":
-                product.hermitian = True
+        if not isinstance(node, ast.Expr):
             continue
-        if isinstance(node, ast.Assign):
-            if len(node.targets) != 1:
-                continue
-            target = node.targets[0]
-            if isinstance(target, ast.Name) and target.id == "hermitian":
-                product.hermitian = node.value
+        if not isinstance(node.value, ast.Name):
+            continue
+        if node.value.id == "hermitian":
+            product.hermitian = True
     return product
 
 
@@ -605,34 +545,6 @@ def _preprocess_series(definition: ast.With) -> _Series:
     series.name = definition.items[0].context_expr.value
     series.definition = _HermitianTransformer(series.name).visit(definition)
 
-    def iter_eval_expressions(
-        statements: list[ast.stmt],
-    ) -> list[tuple[_EvalType, ast.AST]]:
-        result = []
-        for statement in statements:
-            if isinstance(statement, ast.Expr):
-                if isinstance(statement.value, ast.Name):
-                    continue
-                result.append((_EvalType.default, statement.value))
-                continue
-            if not isinstance(statement, ast.If):
-                continue
-            eval_type = (
-                _EvalType.from_condition(statement.test.id)
-                if isinstance(statement.test, ast.Name)
-                else None
-            )
-            if eval_type is None:
-                # Generic scope-based branch (for example `if hermitian_problem:`).
-                # We follow the body branch for deletion analysis, matching the
-                # default Hermitian path used in the current algorithm.
-                result.extend(iter_eval_expressions(statement.body))
-                continue
-            if not statement.body or not isinstance(statement.body[0], ast.Expr):
-                continue
-            result.append((eval_type, statement.body[0].value))
-        return result
-
     for node in definition.body:
         # Read and remove start = ... statements.
         if isinstance(node, ast.Assign):
@@ -640,10 +552,23 @@ def _preprocess_series(definition: ast.With) -> _Series:
                 series.start = _parse_start(node.value.value)
             continue
 
-        for eval_type, expression in iter_eval_expressions([node]):
-            # Count uses of terms in the expression to later determine candidates for deletion.
-            (counter := _UseCounter()).visit(expression)
-            series.uses += [(*use, eval_type) for use in counter.uses]
+        # Extract the expression and eval type.
+        if isinstance(node, ast.Expr):
+            if isinstance(node.value, ast.Name):
+                continue
+            eval_type = _EvalType.default
+            expression = node.value
+        elif isinstance(node, ast.If):
+            eval_type = _EvalType.from_condition(node.test.id)
+            if eval_type is None:
+                continue
+            expression = node.body[0].value
+        else:
+            continue
+
+        # Count uses of terms in the expression to later determine candidates for deletion.
+        (counter := _UseCounter()).visit(expression)
+        series.uses += [(*use, eval_type) for use in counter.uses]
 
     return series
 
@@ -787,8 +712,6 @@ def series_computation(
     - ``hermitian`` or ``antihermitian`` to optionally mark the lower triangular blocks
       of a series to be evaluated using a conjugate transpose of the upper triangular
       blocks.
-    - ``hermitian = <expression>`` or ``antihermitian = <expression>`` for conditional
-      lower-triangular constraints based on variables available in ``scope``.
     - One or more expressions that define how to evaluate the series. If there are
       multiple expressions, they are summed together. The expression can contain the
       following:
@@ -808,18 +731,13 @@ def series_computation(
       - ``offdiagonal``: indices *not* on the main diagonal.
       - ``lower``: indices in the lower triangle.
 
-      Other Python conditions are also supported for branching on values from
-      ``scope`` (for example ``if hermitian_problem:``).
-
     If a name contains an "@" symbol, it defines a Cauchy product of the terms in it.
     For example ``"A @ B @ C"`` is a Cauchy product of the series ``A``, ``B``, and
     ``C``.
 
-    A product definition may contain:
+    A product definition must contain one of the two following statements:
 
     - ``hermitian`` to mark the product as hermitian.
-    - ``hermitian = <expression>`` to conditionally mark the product as
-      hermitian, based on variables available in ``scope``.
     - ``pass`` otherwise.
 
     The final return statement in the function body defines a tuple of series that are
@@ -914,7 +832,6 @@ def series_computation(
         "linear_operator_series": linear_operator_series,
         "del_": del_,
         "use_linear_operator": np.zeros(shape, dtype=bool),
-        "hermitian_problem": True,
         "offdiag": None,
         "diag": lambda x, index: x[index] if isinstance(x, BlockSeries) else x,
         # Globals
@@ -943,23 +860,11 @@ def series_computation(
         linear_operator_series[term.name] = linear_operator_wrapped(series[term.name])
 
     for product in products:
-        hermitian = product.hermitian
-        if isinstance(hermitian, ast.AST):
-            hermitian = bool(
-                eval(
-                    compile(
-                        ast.Expression(body=hermitian),
-                        filename="<string>",
-                        mode="eval",
-                    ),
-                    eval_scope,
-                )
-            )
         for which in series, linear_operator_series:
             which[product.name] = cauchy_dot_product(
                 *(which[term] for term in product.terms),
                 operator=operator,
-                hermitian=hermitian,
+                hermitian=product.hermitian,
             )
 
     return series, linear_operator_series
