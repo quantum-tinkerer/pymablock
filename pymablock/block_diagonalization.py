@@ -15,7 +15,7 @@ from sympy.physics.quantum import Dagger, Operator
 
 from pymablock import second_quantization
 from pymablock.algorithm_parsing import series_computation
-from pymablock.algorithms import main
+from pymablock.algorithms import main, nonhermitian
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
     ComplementProjector,
@@ -57,6 +57,7 @@ def block_diagonalize(
         | sympy.Matrix
         | sympy.Expr
     ) = (),
+    hermitian: bool = True,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
     """Find the block diagonalization of a Hamiltonian order by order.
 
@@ -156,24 +157,30 @@ def block_diagonalize(
         dictionary with the indices of the diagonal blocks as keys and as values
         appropriately shaped numpy boolean arrays marking which matrix elements should
         be eliminated by the diagonalization. If there is only one block, the boolean
-        array may be provided directly without a dictionary. Must be symmetric, and may
-        not have any True values corresponding to matrix elements coupling degenerate
-        eigenvalues. If the Hamiltonian has second-quantized operators, the array may be
-        a sympy matrix instead, and its entries must correspond to sums of all possible
-        operator powers to eliminate, e.g. ``a + Dagger(a)`` or ``a ** k + Dagger(a) ** k``.
+        array may be provided directly without a dictionary. For Hermitian problems this
+        mask must be symmetric, and may not have any True values corresponding to matrix
+        elements coupling degenerate eigenvalues. If the Hamiltonian has second-quantized
+        operators, the array may be a sympy matrix instead, and its entries must
+        correspond to sums of all possible operator powers to eliminate, e.g.
+        ``a + Dagger(a)`` or ``a ** k + Dagger(a) ** k``.
+    hermitian :
+        Whether to use the Hermitian algorithm (default). If set to False, use the
+        non-Hermitian similarity-transform algorithm.
 
     Returns
     -------
     H_tilde : `~pymablock.series.BlockSeries`
         Block diagonalized Hamiltonian.
     U : `~pymablock.series.BlockSeries`
-        Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
+        Transformation that block diagonalizes H.
     U_adjoint : `~pymablock.series.BlockSeries`
-        Adjoint of U.
+        Adjoint of U for Hermitian problems, inverse of U otherwise.
 
     """
     if isinstance(symbols, sympy.Symbol):
         symbols = [symbols]
+
+    algorithm = main if hermitian else nonhermitian
 
     if solve_sylvester is not None and fully_diagonalize:
         raise NotImplementedError(
@@ -185,7 +192,15 @@ def block_diagonalize(
     #
     # Because both functions below are idempotent, this does not lead to inconsistencies
     # with operator_to_BlockSeries in the code below.
-    hamiltonian = _unpack_blocks(_to_scalar_BlockSeries(hamiltonian, symbols, atol), atol)
+    hamiltonian = _unpack_blocks(
+        _to_scalar_BlockSeries(
+            hamiltonian,
+            symbols,
+            atol,
+            check_hermitian=hermitian,
+        ),
+        atol,
+    )
     solver_options = {} if solver_options is None else dict(solver_options)
 
     use_implicit = False
@@ -240,7 +255,7 @@ def block_diagonalize(
         implicit=use_implicit,
         symbols=symbols,
         atol=atol,
-        hermitian=True,
+        hermitian=hermitian,
     )
 
     if H.shape[0] == 1:
@@ -265,8 +280,10 @@ def block_diagonalize(
 
     zero_order = (0,) * H.n_infinite
 
-    for j in range(1, H.shape[0]):
-        for i in range(j):
+    for i in range(H.shape[0]):
+        for j in range(H.shape[1]):
+            if i == j or (hermitian and i > j):
+                continue
             block = H[(i, j, *zero_order)]
             if block is not zero:
                 if isinstance(block, (sympy.MatrixBase, sympy.Expr)):
@@ -400,7 +417,7 @@ def block_diagonalize(
                     raise ValueError(
                         "The values of fully_diagonalize dictionary must be numpy arrays."
                     )
-                if not (to_eliminate == to_eliminate.T).all():
+                if hermitian and not (to_eliminate == to_eliminate.T).all():
                     raise ValueError(
                         "The values of fully_diagonalize dictionary must be symmetric."
                     )
@@ -521,7 +538,7 @@ def block_diagonalize(
 
     outputs, _ = series_computation(
         {"H": H},
-        algorithm=main,
+        algorithm=algorithm,
         scope=scope,
         operator=operator,
     )
@@ -655,7 +672,15 @@ def operator_to_BlockSeries(
         )
     to_split = subspace_eigenvectors is not None or subspace_indices is not None
 
-    operator = _unpack_blocks(_to_scalar_BlockSeries(operator, symbols, atol), atol)
+    operator = _unpack_blocks(
+        _to_scalar_BlockSeries(
+            operator,
+            symbols,
+            atol,
+            check_hermitian=hermitian,
+        ),
+        atol,
+    )
     operator.name = name or operator.name
 
     if operator.shape:
@@ -743,8 +768,11 @@ def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
     """Wrap the solve_sylvester_callable to handle index and zero values."""
 
     def wrapped(Y: Any, index: tuple[int, ...]) -> Any:
-        if index[:2] != (0, 1):
-            raise ValueError("Sylvester equation is only defined for (0, 1) blocks.")
+        if index[:2] not in {(0, 1), (1, 0)}:
+            raise ValueError(
+                "Legacy one-argument Sylvester solvers are only defined for "
+                "two-block off-diagonal terms."
+            )
 
         if isinstance(Y, BlockSeries):
             Y = Y[index]
@@ -802,9 +830,13 @@ def solve_sylvester_diagonal(
             index_checked.add(index[:2])
 
         if vecs_implicit is not None and index[1] == len(eigs) - 1:
-            # Needed for implicit mode with KPM
+            # Needed for implicit mode with KPM/direct right-implicit solves.
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
             return ((Y @ vecs_implicit) * energy_denominators) @ Dagger(vecs_implicit)
+        if vecs_implicit is not None and index[0] == len(eigs) - 1:
+            # Symmetric companion of the right-implicit case above.
+            energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
+            return vecs_implicit @ ((Dagger(vecs_implicit) @ Y) * energy_denominators)
         if isinstance(Y, np.ndarray):
             energy_differences = eigs_A.reshape(-1, 1) - eigs_B
             with np.errstate(divide="ignore", invalid="ignore"):
@@ -886,13 +918,15 @@ def solve_sylvester_KPM(
         h_0, eps=solver_options.get("eps", 0.01), lower_bounds=bounds_eigs
     )
     eigs_rescaled = [(eig - b) / a for eig in eigs[:-1]]
-    # We need to solve a transposed problem
+    # We need both orientations in the non-Hermitian path.
     h_rescaled_T = h_rescaled.T
     # CSR format has a faster matrix-vector product
+    if sparse.issparse(h_rescaled):
+        h_rescaled = h_rescaled.tocsr()
     if sparse.issparse(h_rescaled_T):
         h_rescaled_T = h_rescaled_T.tocsr()
 
-    def solve_sylvester_kpm(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
+    def solve_sylvester_kpm_right(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
         Y_KPM = Y @ kpm_projector / a  # Keep track of Hamiltonian rescaling
         return np.vstack(
             [
@@ -907,6 +941,21 @@ def solve_sylvester_KPM(
             ]
         )
 
+    def solve_sylvester_kpm_left(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
+        Y_KPM = kpm_projector @ Y / a  # Keep track of Hamiltonian rescaling
+        return np.column_stack(
+            [
+                -greens_function(
+                    h_rescaled,
+                    energy,
+                    vector,
+                    solver_options.get("atol", 1e-5),
+                    solver_options.get("max_moments", 1e6),
+                )
+                for energy, vector in zip(eigs_rescaled[index[1]], Y_KPM.T)
+            ]
+        )
+
     vecs_implicit = subspace_eigenvectors[-1]
     solve_sylvester_explicit = solve_sylvester_diagonal(
         eigs, vecs_implicit, atol=solver_options.get("atol")
@@ -916,7 +965,11 @@ def solve_sylvester_KPM(
         if Y is zero:
             return zero
         if index[1] == len(eigs) - 1:
-            return solve_sylvester_kpm(Y, index) + solve_sylvester_explicit(Y, index)
+            return solve_sylvester_kpm_right(Y, index) + solve_sylvester_explicit(
+                Y, index
+            )
+        if index[0] == len(eigs) - 1:
+            return solve_sylvester_kpm_left(Y, index) + solve_sylvester_explicit(Y, index)
         return solve_sylvester_explicit(Y, index)
 
     return solve_sylvester
@@ -984,32 +1037,50 @@ def solve_sylvester_direct(
     if eigenvalue_atol is None:
         eigenvalue_atol = 1e-12
 
-    # Compute the Green's function of the transposed Hamiltonian because we are
-    # solving the equation from the right.
-    greens_functions = []
-    for subspace_eigenvalues, subspace_vectors in zip(eigenvalues, eigenvectors):
-        grouped_greens_functions = [None] * len(subspace_eigenvalues)
-        for group in _group_close_energies(subspace_eigenvalues, eigenvalue_atol):
-            greens_function = direct_greens_function(
-                h_0.T,
-                subspace_eigenvalues[group[0]],
-                kernel_vectors=subspace_vectors[:, group].conj(),
-                **factorization_options,
-            )
-            for i in group:
-                grouped_greens_functions[i] = greens_function
-        greens_functions.append(grouped_greens_functions)
+    def grouped_greens_functions(
+        operator: sparse.spmatrix, conjugate_kernel: bool
+    ) -> list[list[Callable[[np.ndarray], np.ndarray] | None]]:
+        greens_functions = []
+        for subspace_eigenvalues, subspace_vectors in zip(eigenvalues, eigenvectors):
+            grouped = [None] * len(subspace_eigenvalues)
+            for group in _group_close_energies(subspace_eigenvalues, eigenvalue_atol):
+                kernel_vectors = subspace_vectors[:, group]
+                if conjugate_kernel:
+                    kernel_vectors = kernel_vectors.conj()
+                greens_function = direct_greens_function(
+                    operator,
+                    subspace_eigenvalues[group[0]],
+                    kernel_vectors=kernel_vectors,
+                    **factorization_options,
+                )
+                for i in group:
+                    grouped[i] = greens_function
+            greens_functions.append(grouped)
+        return greens_functions
+
+    # The non-Hermitian path needs both right- and left-implicit solves.
+    greens_functions_right = grouped_greens_functions(h_0.T, conjugate_kernel=True)
+    greens_functions_left = grouped_greens_functions(h_0, conjugate_kernel=False)
 
     explicit_part = solve_sylvester_diagonal(eigenvalues, atol=eigenvalue_atol)
 
     def solve_sylvester(Y: np.ndarray, index: tuple[int, ...]) -> np.ndarray:
         if Y is zero:
             return zero
-        if index[1] < len(eigenvalues):
+        if index[0] < len(eigenvalues) and index[1] < len(eigenvalues):
             return explicit_part(Y, index)
 
+        if index[0] == len(eigenvalues):
+            Y = projector @ Y
+            result = np.column_stack(
+                [-gf(vec) for gf, vec in zip(greens_functions_left[index[1]], Y.T)]
+            )
+            return projector @ result
+
         Y = Y @ projector
-        result = np.vstack([gf(vec) for gf, vec in zip(greens_functions[index[0]], Y)])
+        result = np.vstack(
+            [gf(vec) for gf, vec in zip(greens_functions_right[index[0]], Y)]
+        )
         return result @ projector
 
     return solve_sylvester
@@ -1198,7 +1269,7 @@ def _sympy_to_BlockSeries(
         if check_hermitian and expr.is_hermitian is False and not expr.atoms(Operator):
             raise ValueError("Operator must be Hermitian.")
 
-        expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
+        expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)], 1)
         return _convert_if_zero(expr)
 
     op = BlockSeries(
@@ -1214,6 +1285,7 @@ def _to_scalar_BlockSeries(
     operator: list | dict | BlockSeries | sympy.Matrix,
     symbols: Sequence[sympy.Symbol] = (),
     atol: float = 1e-12,
+    check_hermitian: bool = True,
 ) -> BlockSeries:
     """Normalize input to BlockSeries without transforming values.
 
@@ -1223,7 +1295,11 @@ def _to_scalar_BlockSeries(
     if isinstance(operator, BlockSeries):
         return operator
     if isinstance(operator, (sympy.Expr, sympy.MatrixBase)):
-        return _sympy_to_BlockSeries(operator, symbols)
+        return _sympy_to_BlockSeries(
+            operator,
+            symbols,
+            check_hermitian=check_hermitian,
+        )
     if isinstance(operator, list):
         operator = _list_to_dict(operator)
     if isinstance(operator, dict):

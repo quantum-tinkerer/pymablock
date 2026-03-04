@@ -838,7 +838,8 @@ def test_solve_sylvester_diagonal():
     np.testing.assert_allclose(A @ X - X @ B, Y, atol=1e-13)
 
 
-def test_solve_sylvester_direct_vs_diagonal() -> None:
+@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
+def test_solve_sylvester_direct_vs_diagonal(index) -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
     solve_sylvester_diagonal.
@@ -855,18 +856,25 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
     direct = solve_sylvester_direct(h, [eigvecs])
 
-    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
-        size=(a_dim, n - a_dim)
-    )
-    y = y @ Dagger(eigvecs_rest)
+    if index == (0, 1):
+        y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+            size=(a_dim, n - a_dim)
+        )
+        y = y @ Dagger(eigvecs_rest)
+    else:
+        y = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
+            size=(n - a_dim, a_dim)
+        )
+        y = eigvecs_rest @ y
 
-    y_default = diagonal(y, (0, 1))
-    y_direct = direct(y, (0, 1))
+    y_default = diagonal(y, index)
+    y_direct = direct(y, index)
 
     np.testing.assert_allclose(y_default, y_direct)
 
 
-def test_solve_sylvester_direct_vs_diagonal_degenerate() -> None:
+@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
+def test_solve_sylvester_direct_vs_diagonal_degenerate(index) -> None:
     """The direct solver must handle degenerate explicit eigenvalues."""
     n = 40
     a_dim = 3
@@ -884,18 +892,25 @@ def test_solve_sylvester_direct_vs_diagonal_degenerate() -> None:
     diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
     direct = solve_sylvester_direct(h, [eigvecs])
 
-    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
-        size=(a_dim, n - a_dim)
-    )
-    y = y @ Dagger(eigvecs_rest)
+    if index == (0, 1):
+        y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+            size=(a_dim, n - a_dim)
+        )
+        y = y @ Dagger(eigvecs_rest)
+    else:
+        y = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
+            size=(n - a_dim, a_dim)
+        )
+        y = eigvecs_rest @ y
 
-    y_default = diagonal(y, (0, 1))
-    y_direct = direct(y, (0, 1))
+    y_default = diagonal(y, index)
+    y_direct = direct(y, index)
 
     np.testing.assert_allclose(y_default, y_direct, atol=1e-10)
 
 
-def test_solve_sylvester_kpm_vs_diagonal() -> None:
+@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
+def test_solve_sylvester_kpm_vs_diagonal(index) -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
     solve_sylvester_diagonal.
@@ -927,14 +942,20 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
         h, [eigvecs], solver_options={"atol": 1e-3, "aux_vectors": eigvecs_partial}
     )
 
-    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
-        size=(a_dim, n - a_dim)
-    )
-    y = y @ Dagger(eigvecs_rest)
+    if index == (0, 1):
+        y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+            size=(a_dim, n - a_dim)
+        )
+        y = y @ Dagger(eigvecs_rest)
+    else:
+        y = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
+            size=(n - a_dim, a_dim)
+        )
+        y = eigvecs_rest @ y
 
-    y_default = diagonal(y, (0, 1))
-    y_kpm = kpm(y, (0, 1))
-    y_hybrid = hybrid(y, (0, 1))
+    y_default = diagonal(y, index)
+    y_kpm = kpm(y, index)
+    y_hybrid = hybrid(y, index)
 
     # Use a lower tolerance until KPM estimates error bounds.
     np.testing.assert_allclose(y_default, y_kpm, atol=1e-3)
