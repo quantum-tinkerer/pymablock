@@ -25,6 +25,7 @@ tutorial/jaynes_cummings.md
 Dispersive shift of a resonator <tutorial/dispersive_shift.md>
 Rabi model <tutorial/spin_rwa_floquet.md>
 tutorial/andreev_supercurrent.md
+Lindblad adiabatic elimination <tutorial/lindblad_adiabatic_elimination.md>
 ```
 
 ```{toctree}
