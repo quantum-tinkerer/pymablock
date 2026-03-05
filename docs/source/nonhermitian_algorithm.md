@@ -13,8 +13,14 @@ kernelspec:
 
 # Non-Hermitian Algorithm
 
-This page summarizes a non-Hermitian generalization of perturbative block-diagonalization, where
+This page summarizes the non-Hermitian perturbative block-diagonalization used
+in Pymablock: the Hermitian relation
 $\mathcal{U}^{\dagger}$ is replaced by $\mathcal{U}^{-1}$.
+The presentation follows three layers:
+
+1. derivation of a closed recursion,
+2. optimized form used in implementation,
+3. structure-preserving and Liouvillian-specific consequences.
 
 ## Setup
 
@@ -36,7 +42,8 @@ with
 \mathcal{H}=H_0+\mathcal{H}'_S+\mathcal{H}'_R,
 :::
 
-where $S$ and $R$ denote selected and remaining parts, and $H_0$ is purely selected.
+where $S$ denotes the selected part, $R$ the remainder to eliminate, and $H_0$
+is entirely selected.
 
 ## Sum-Difference Parameterization
 
@@ -67,14 +74,14 @@ Since $\mathcal{U}_0=\mathcal{U}^{-1}_0=1$, write
 \mathcal{M}_0=\mathcal{P}'_0=0.
 :::
 
-To fix the gauge we impose
+To fix the gauge, impose
 
 :::{math}
 :label: nh:min_diff
 \mathcal{M}_S=0
 :::
 
-(order by order).
+at each perturbative order.
 
 ### Constraint From $\mathcal{U}^{-1}\mathcal{U}=1$
 
@@ -99,7 +106,8 @@ With $\mathcal{P}=2+\mathcal{P}'$,
 \mathcal{P}'=-\frac{1}{4}\Big(\mathcal{P}'^2-\mathcal{M}^2+[\mathcal{P}',\mathcal{M}]\Big).
 :::
 
-Because $\mathcal{P}'_0=\mathcal{M}_0=0$, the right-hand side at order $\mathbf{n}$ uses only lower orders.
+Because $\mathcal{P}'_0=\mathcal{M}_0=0$, the right-hand side at order
+$\mathbf{n}$ depends only on lower orders.
 
 ### Constraint From $\tilde{\mathcal{H}}_R=0$
 
@@ -141,11 +149,12 @@ Isolating the linear Sylvester part gives
 \Big)_R.
 :::
 
-This is recursive because every product on the right contains at least one primed series with zero order absent.
+This is recursive because each product on the right contains at least one
+primed series with vanishing zero order.
 
 ### Hermitian Limit (Consistency Check)
 
-Introduce auxiliary series in the same style as the Hermitian derivation:
+Introduce
 
 :::{math}
 :label: nh:UG_from_PM
@@ -191,10 +200,10 @@ $\mathcal{V}=(\mathcal{U}'-\mathcal{U}'^{\dagger})/2$, we recover
 :::
 
 Also $\mathcal{M}=\mathcal{U}'-\mathcal{G}=2\mathcal{V}$, so $\mathcal{M}_S=0$ is exactly $\mathcal{V}_S=0$.
-Thus the non-Hermitian setup reduces to the Hermitian one.
+So the non-Hermitian setup reduces to the Hermitian gauge choice.
 
-To close consistency, the Sylvester/Lyapunov step must also return an anti-Hermitian
-generator in this limit. Write
+Consistency also requires the Sylvester/Lyapunov solve to return an
+anti-Hermitian generator in this limit. Write
 
 :::{math}
 :label: nh:herm_lyap
@@ -204,7 +213,7 @@ generator in this limit. Write
 :::
 
 where Eq. {eq}`nh:M_rec` defines $\mathcal{R}_R$.
-Using induction over perturbation order:
+Then by induction over perturbation order:
 
 1. Assume lower-order terms satisfy
    $\mathcal{P}'^{\dagger}=\mathcal{P}'$ and
@@ -223,7 +232,7 @@ Using induction over perturbation order:
 so $\mathcal{M}^{\dagger}=-\mathcal{M}$ and therefore
 $\mathcal{V}^{\dagger}=-\mathcal{V}$.
 
-Hence the Lyapunov/Sylvester solve is consistent with the anti-Hermitian
+Hence the Sylvester/Lyapunov step is consistent with the anti-Hermitian
 generator required by the Hermitian algorithm.
 
 ## Toward an Optimized Algorithm
@@ -246,12 +255,14 @@ with auxiliaries
 \mathcal{B}\equiv\mathcal{X}+\mathcal{H}'_R+\mathcal{A}.
 :::
 
-This follows from
-$\mathcal{U}=1+\mathcal{U}'$, $\mathcal{U}^{-1}=1+\mathcal{G}$ and
+Using $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{U}^{-1}=1+\mathcal{G}$:
 
-a) $\mathcal{U}^{-1}\mathcal{H}_S\mathcal{U}=\mathcal{H}_S+\mathcal{U}^{-1}[\mathcal{H}_S,\mathcal{U}']$,
+1. $\mathcal{U}^{-1}\mathcal{H}_S\mathcal{U}
+   =\mathcal{H}_S+\mathcal{U}^{-1}[\mathcal{H}_S,\mathcal{U}']$,
 
-b) $\mathcal{U}^{-1}\mathcal{H}'_R\mathcal{U}=\mathcal{H}'_R+\mathcal{H}'_R\mathcal{U}'+\mathcal{G}(\mathcal{X}+\mathcal{H}'_R+\mathcal{A})$.
+2. $\mathcal{U}^{-1}\mathcal{H}'_R\mathcal{U}
+   =\mathcal{H}'_R+\mathcal{H}'_R\mathcal{U}'
+   +\mathcal{G}(\mathcal{X}+\mathcal{H}'_R+\mathcal{A})$.
 
 From $\tilde{\mathcal{H}}_R=0$:
 
@@ -298,9 +309,11 @@ At order $\mathbf{n}$:
 6. Compute $\mathcal{G}_{\mathbf{n}}$ from Eq. {eq}`nh:G_and_gauge` and then $\mathcal{B}_{\mathbf{n}}$ from Eq. {eq}`nh:XAB_defs`.
 7. Evaluate $\tilde{\mathcal{H}}_{\mathbf{n},S}$ from Eq. {eq}`nh:Htilde_B`.
 
-This has the same key structural property as the optimized Hermitian algorithm: $H_0$ appears only in the Sylvester solve and not in Cauchy-product building blocks.
+All right-hand sides are closed in lower orders except the single Sylvester
+solve in step 5. As in the Hermitian algorithm, $H_0$ appears only in that
+solve and not in reusable Cauchy-product terms.
 
-## Closed Recursive System
+## Closed Recursion (Implementation Summary)
 
 ### Definitions
 
@@ -340,8 +353,19 @@ $\tilde{\mathcal{H}}_{\mathbf{n},S}$.
 
 ## Structure-Preserving Constraints (Trace and Hermiticity)
 
-For Lindbladians (or general Liouville-space generators), we often want the
-transformed generator to keep:
+An important application of the non-Hermitian algorithm is adiabatic elimination
+for open quantum systems. There, the object being block-diagonalized is a
+Liouvillian superoperator
+
+:::{math}
+\mathcal{L}(\rho)=-i[H,\rho]+\sum_k\Big(J_k\rho J_k^\dagger
+-\tfrac12\{J_k^\dagger J_k,\rho\}\Big),
+:::
+
+or a perturbative generalization of it. After similarity transformation,
+$\tilde{\mathcal{L}}=\mathcal{U}^{-1}\mathcal{L}\mathcal{U}$, we want the reduced
+generator to remain physically interpretable. The two structural properties we
+typically want to preserve are:
 
 - trace preservation, and
 - Hermiticity preservation.
@@ -363,8 +387,8 @@ Let $\tau$ be the trace row functional:
 \mathrm{tr}(\rho)=\tau\,\mathrm{vec}(\rho).
 :::
 
-Let $K$ be the permutation implementing $\mathrm{vec}(\rho^\dagger)=K\,\mathrm{vec}(\rho)^*$.
-Define the involution
+Let $K$ be the permutation implementing
+$\mathrm{vec}(\rho^\dagger)=K\,\mathrm{vec}(\rho)^*$. Define
 
 :::{math}
 X^\sharp \equiv K X^* K.
@@ -425,7 +449,7 @@ Induction step at order $\mathbf{n}>0$:
   =-\tau\mathcal{U}'_{\mathbf{n}}
    -\tau(\mathcal{G}\mathcal{U}')_{\mathbf{n}}.
   :::
-  The product term uses only lower orders, so by induction it vanishes:
+The product term is lower order only, so by induction it vanishes:
   $\tau(\mathcal{G}\mathcal{U}')_{\mathbf{n}}=0$.
   Therefore $\tau\mathcal{G}_{\mathbf{n}}=-\tau\mathcal{U}'_{\mathbf{n}}$.
 
@@ -460,7 +484,7 @@ Under assumptions 1, 3, 4, and 5:
 
 **Proof (order by order).**
 
-Base order: $\mathcal{U}'_0=\mathcal{G}_0=0$, so trivially sharp-invariant.
+Base order: $\mathcal{U}'_0=\mathcal{G}_0=0$, so sharp-invariance is trivial.
 
 Induction step:
 
@@ -510,4 +534,127 @@ These are exactly the structural constraints used in the non-Hermitian tests.
 :::{note}
 These constraints preserve trace and Hermiticity, not complete positivity.
 Outside perturbative convergence, positivity can still fail.
+:::
+
+## Series Decomposition of a Liouvillian Into $H$ and Jump Structure
+
+Suppose the transformed Liouvillian is a perturbative series
+
+:::{math}
+\tilde{\mathcal{L}}(\lambda)=\sum_{n\ge 0}\lambda^n\tilde{\mathcal{L}}_n.
+:::
+
+We want matching series for Hamiltonian and dissipative data.
+
+### Linear Stage: Extract $H_n$ and $C_n$ Order by Order
+
+Fix an operator basis $\{F_a\}_{a=1}^{d^2-1}$ on the traceless subspace
+(orthonormal in Hilbert-Schmidt inner product), and define superoperator basis
+elements
+
+:::{math}
+\mathcal{K}_a(\rho)\equiv -i[F_a,\rho],\qquad
+\mathcal{D}_{ab}(\rho)\equiv F_a\rho F_b^\dagger
+-\frac12\{F_b^\dagger F_a,\rho\}.
+:::
+
+Then each order can be expanded as
+
+:::{math}
+\tilde{\mathcal{L}}_n
+=\sum_a h_{a,n}\mathcal{K}_a
++\sum_{a,b}(C_n)_{ab}\mathcal{D}_{ab}.
+:::
+
+This is linear in unknown coefficients $(h_{a,n},(C_n)_{ab})$.
+With vectorization, precompute
+
+:::{math}
+A\equiv
+\big[\mathrm{vec}(\mathcal{K}_1)\;\cdots\;\mathrm{vec}(\mathcal{K}_{d^2-1})\;
+\mathrm{vec}(\mathcal{D}_{11})\;\cdots\;\mathrm{vec}(\mathcal{D}_{d^2-1,d^2-1})\big].
+:::
+
+For each perturbative order:
+
+:::{math}
+x_n \equiv
+\begin{bmatrix}
+h_n\\
+\mathrm{vec}(C_n)
+\end{bmatrix}
+=A^+\,\mathrm{vec}(\tilde{\mathcal{L}}_n),
+:::
+
+where $A^+$ is a pseudoinverse (or an inverse if the basis is chosen
+accordingly).
+Hence the map $\tilde{\mathcal{L}}_n\mapsto(H_n,C_n)$ is order-local and linear:
+
+:::{math}
+H_n=\sum_a h_{a,n}F_a.
+:::
+
+If $\tilde{\mathcal{L}}_n$ is trace and Hermiticity preserving, then
+$H_n=H_n^\dagger$ and $C_n=C_n^\dagger$ (not necessarily positive semidefinite).
+
+### Recursive Factorization to Jump-Operator Series
+
+For the physical branch anchored at $\lambda=0$, use a positive factorization
+
+:::{math}
+C(\lambda)=B(\lambda)B(\lambda)^\dagger.
+:::
+
+Write
+
+:::{math}
+B(\lambda)=\sum_{n\ge0}\lambda^n B_n,
+\qquad
+C(\lambda)=\sum_{n\ge0}\lambda^n C_n.
+:::
+
+Then order $\mathbf{n}$ satisfies
+
+:::{math}
+C_n
+=B_0 B_n^\dagger + B_n B_0^\dagger
++\sum_{k=1}^{n-1} B_k B_{n-k}^\dagger.
+:::
+
+The rightmost sum is known from lower orders, so this equation is linear in
+$B_n$ once a gauge is fixed (for example, triangular gauge or an orthogonality
+condition on $B_0^\dagger B_n$).
+
+To end at jump operators, write columns of $B$ as
+
+:::{math}
+B(\lambda)=\big[b_1(\lambda)\;\cdots\;b_r(\lambda)\big],\qquad
+b_\mu(\lambda)=\sum_{n\ge0}\lambda^n b_{\mu,n},
+:::
+
+and define
+
+:::{math}
+J_\mu(\lambda)\equiv \sum_a b_{a\mu}(\lambda)\,F_a
+=\sum_{n\ge0}\lambda^n J_{\mu,n}.
+:::
+
+Then
+
+:::{math}
+\tilde{\mathcal{L}}(\rho)= -i[H,\rho]
++\sum_{\mu=1}^r \Big(
+J_\mu\rho J_\mu^\dagger
+-\frac12\{J_\mu^\dagger J_\mu,\rho\}
+\Big),
+:::
+
+Each $J_{\mu,n}$ is obtained linearly from $b_{\mu,n}$.
+
+:::{note}
+This branch enforces $C(\lambda)\succeq 0$ wherever the series converges.
+If the target Liouvillian is non-CP, this positive branch must break down at a
+finite $\lambda$ (typically at an eigenvalue crossing of $C$). A signed
+generalization uses $C=B\Sigma B^\dagger$ with
+$\Sigma=\mathrm{diag}(\pm1,0)$.
 :::
