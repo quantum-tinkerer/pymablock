@@ -28,6 +28,33 @@ def _make_nonhermitian_h(
     ), energies
 
 
+def _make_nonhermitian_h_multivariate(
+    n_blocks: int, wanted_orders: tuple[int, ...], seed: int = 31
+) -> tuple[BlockSeries, list[float]]:
+    energies = list(np.linspace(-2.0, 2.0, n_blocks))
+    rng = np.random.default_rng(seed)
+
+    n_infinite = len(wanted_orders)
+    zero_order = (0,) * n_infinite
+    data = {
+        (i, i, *zero_order): np.array([[energies[i]]], dtype=complex)
+        for i in range(n_blocks)
+    }
+
+    for order in np.ndindex(tuple(order + 1 for order in wanted_orders)):
+        if order == zero_order:
+            continue
+        for i in range(n_blocks):
+            for j in range(n_blocks):
+                data[(i, j, *order)] = rng.normal(size=(1, 1)) + 1j * rng.normal(
+                    size=(1, 1)
+                )
+
+    return BlockSeries(
+        data=data, shape=(n_blocks, n_blocks), n_infinite=n_infinite, name="H"
+    ), energies
+
+
 def _solve_sylvester(energies: list[float]):
     def solve(rhs, index):
         if rhs is zero:
@@ -112,6 +139,7 @@ def test_nonhermitian_inverse_higher_order_and_multiblock(n_blocks, max_order):
     compare_series(cauchy_dot_product(U_inv, U), identity_like(U), (max_order,))
     compare_series(cauchy_dot_product(U, U_inv), identity_like(U), (max_order,))
     compare_series(cauchy_dot_product(U_inv, H, U), H_tilde, (max_order,))
+    compare_series(cauchy_dot_product(U, H_tilde, U_inv), H, (max_order,))
 
     for order in range(1, max_order + 1):
         for i in range(n_blocks):
@@ -120,6 +148,34 @@ def test_nonhermitian_inverse_higher_order_and_multiblock(n_blocks, max_order):
                     continue
                 np.testing.assert_allclose(
                     _as_array(H_tilde[(i, j, order)]), 0, atol=1e-10, rtol=0
+                )
+
+
+@pytest.mark.parametrize(("n_blocks", "wanted_orders"), [(2, (2, 1)), (3, (1, 1))])
+def test_nonhermitian_multivariate_backtransform(n_blocks, wanted_orders):
+    H, energies = _make_nonhermitian_h_multivariate(
+        n_blocks=n_blocks, wanted_orders=wanted_orders
+    )
+    series = _run_nonhermitian(H, energies)
+    H_tilde = series["H_tilde"]
+    U = series["U"]
+    U_inv = series["U†"]
+
+    compare_series(cauchy_dot_product(U_inv, U), identity_like(U), wanted_orders)
+    compare_series(cauchy_dot_product(U, U_inv), identity_like(U), wanted_orders)
+    compare_series(cauchy_dot_product(U_inv, H, U), H_tilde, wanted_orders)
+    compare_series(cauchy_dot_product(U, H_tilde, U_inv), H, wanted_orders)
+
+    zero_order = (0,) * len(wanted_orders)
+    for order in np.ndindex(tuple(order + 1 for order in wanted_orders)):
+        if order == zero_order:
+            continue
+        for i in range(n_blocks):
+            for j in range(n_blocks):
+                if i == j:
+                    continue
+                np.testing.assert_allclose(
+                    _as_array(H_tilde[(i, j, *order)]), 0, atol=1e-10, rtol=0
                 )
 
 
