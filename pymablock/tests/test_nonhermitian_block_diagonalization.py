@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
+from scipy import sparse
 
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main, nonhermitian
 from pymablock.block_diagonalization import block_diagonalize
-from pymablock.series import BlockSeries, cauchy_dot_product, zero
+from pymablock.series import BlockSeries, cauchy_dot_product, one, zero
 
 from .test_block_diagonalization import compare_series, identity_like
 
@@ -286,3 +287,171 @@ def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask():
     for order in range(1, max_order + 1):
         block = H_tilde[(0, 0, order)]
         np.testing.assert_allclose(block[to_eliminate], 0, atol=1e-10, rtol=0)
+
+
+def test_nonhermitian_selective_mask_preserves_trace_and_hermiticity():
+    # Column-major vectorization convention: vec(A X B) = (B^T \kron A) vec(X).
+    def coherent_superoperator(H):
+        dim = H.shape[0]
+        eye = np.eye(dim, dtype=complex)
+        return -1j * (np.kron(eye, H) - np.kron(H.T, eye))
+
+    def dissipator_superoperator(J):
+        dim = J.shape[0]
+        eye = np.eye(dim, dtype=complex)
+        JdagJ = J.conj().T @ J
+        return np.kron(J.conj(), J) - 0.5 * (np.kron(eye, JdagJ) + np.kron(JdagJ.T, eye))
+
+    def random_hermitian(rng, dim):
+        A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
+        return (A + A.conj().T) / 2
+
+    def dagger_index(idx, dim):
+        i = idx % dim
+        j = idx // dim
+        return j + dim * i
+
+    def to_dense(value, dim):
+        if value is zero:
+            return np.zeros((dim, dim), dtype=complex)
+        if value is one:
+            return np.eye(dim, dtype=complex)
+        if sparse.issparse(value):
+            return value.toarray()
+        return np.asarray(value)
+
+    dim_hilbert = 3
+    dim_liouville = dim_hilbert**2
+    trace_idx = np.array([i + dim_hilbert * i for i in range(dim_hilbert)])
+
+    for seed in range(8):
+        rng = np.random.default_rng(seed)
+
+        # Keep L0 diagonal so the default Sylvester solver is exact and cheap.
+        energies = np.sort(rng.uniform(-2.5, 2.5, size=dim_hilbert))
+        h_0 = np.diag(energies)
+        h_1 = random_hermitian(rng, dim_hilbert)
+
+        jumps_0 = []
+        for _ in range(2):
+            vals = 0.2 * (
+                rng.normal(size=dim_hilbert) + 1j * rng.normal(size=dim_hilbert)
+            )
+            jumps_0.append(np.diag(vals))
+
+        jumps_1 = []
+        for _ in range(2):
+            jumps_1.append(
+                0.15
+                * (
+                    rng.normal(size=(dim_hilbert, dim_hilbert))
+                    + 1j * rng.normal(size=(dim_hilbert, dim_hilbert))
+                )
+            )
+
+        L_0 = coherent_superoperator(h_0) + sum(
+            dissipator_superoperator(J) for J in jumps_0
+        )
+        L_1 = coherent_superoperator(h_1) + sum(
+            dissipator_superoperator(J) for J in jumps_1
+        )
+        np.testing.assert_allclose(L_0, np.diag(np.diag(L_0)), atol=1e-12, rtol=0)
+
+        # Structure-preserving selective mask:
+        # - asymmetric random elimination pattern,
+        # - never eliminate diagonal matrix elements,
+        # - preserve trace equations by keeping all rows carrying trace support,
+        # - preserve hermiticity by pairing each eliminated entry with its dagger partner,
+        # - avoid eliminating degenerate-denominator pairs.
+        to_eliminate = rng.random((dim_liouville, dim_liouville)) < 0.35
+        np.fill_diagonal(to_eliminate, False)
+        to_eliminate[trace_idx, :] = False
+        for i in range(dim_liouville):
+            i_dag = dagger_index(i, dim_hilbert)
+            for j in range(dim_liouville):
+                j_dag = dagger_index(j, dim_hilbert)
+                eliminate = to_eliminate[i, j] or to_eliminate[i_dag, j_dag]
+                to_eliminate[i, j] = eliminate
+                to_eliminate[i_dag, j_dag] = eliminate
+
+        diagonal = np.diag(L_0)
+        equal_eigs = np.abs(diagonal.reshape(-1, 1) - diagonal) < 1e-12
+        to_eliminate[equal_eigs] = False
+
+        if not to_eliminate.any():
+            candidates = np.argwhere(~equal_eigs)
+            candidates = np.array(
+                [ij for ij in candidates if ij[0] not in trace_idx and ij[0] != ij[1]]
+            )
+            i, j = candidates[0]
+            to_eliminate[i, j] = True
+            to_eliminate[dagger_index(i, dim_hilbert), dagger_index(j, dim_hilbert)] = (
+                True
+            )
+
+        L_tilde, U, U_inv = block_diagonalize(
+            [L_0, L_1],
+            subspace_indices=np.zeros(dim_liouville, dtype=int),
+            hermitian=False,
+            fully_diagonalize=to_eliminate,
+        )
+
+        trace_row = np.zeros(dim_liouville, dtype=complex)
+        trace_row[trace_idx] = 1.0
+        trace_series = BlockSeries(
+            data={(0, 0, 0): trace_row.reshape(1, -1)},
+            shape=(1, 1),
+            n_infinite=1,
+            name="tr",
+        )
+        zero_series = BlockSeries(
+            data={},
+            shape=(1, 1),
+            n_infinite=1,
+            name="zero_trace",
+        )
+
+        max_order = 3
+        compare_series(
+            cauchy_dot_product(trace_series, U),
+            trace_series,
+            (max_order,),
+            atol=1e-10,
+            rtol=0,
+        )
+        compare_series(
+            cauchy_dot_product(trace_series, U_inv),
+            trace_series,
+            (max_order,),
+            atol=1e-10,
+            rtol=0,
+        )
+        compare_series(
+            cauchy_dot_product(trace_series, L_tilde),
+            zero_series,
+            (max_order,),
+            atol=1e-10,
+            rtol=0,
+        )
+
+        hermiticity_conjugation = np.zeros((dim_liouville, dim_liouville), dtype=complex)
+        for idx in range(dim_liouville):
+            hermiticity_conjugation[dagger_index(idx, dim_hilbert), idx] = 1.0
+
+        # Input perturbative terms must already preserve Hermiticity.
+        for L_order in (L_0, L_1):
+            np.testing.assert_allclose(
+                hermiticity_conjugation @ L_order.conj(),
+                L_order @ hermiticity_conjugation,
+                atol=1e-10,
+                rtol=0,
+            )
+
+        for order in range(max_order + 1):
+            L_order = to_dense(L_tilde[(0, 0, order)], dim_liouville)
+            np.testing.assert_allclose(
+                hermiticity_conjugation @ L_order.conj(),
+                L_order @ hermiticity_conjugation,
+                atol=1e-10,
+                rtol=0,
+            )
