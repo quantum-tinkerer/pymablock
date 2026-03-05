@@ -544,20 +544,54 @@ def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask(block_sizes):
     _assert_mask_eliminated(H_tilde, masks, max_order=max_order)
 
 
+def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask_multiblock():
+    n0, n1 = 3, 2
+    n = n0 + n1
+    max_order = 3
+    rng = np.random.default_rng(2468)
+
+    h_0 = np.diag(np.array([-3.2, -1.1, 0.7, 2.3, 4.4], dtype=float)).astype(complex)
+    h_1 = rng.normal(size=(n, n)) + 1j * rng.normal(size=(n, n))
+    subspace_indices = np.array([0] * n0 + [1] * n1, dtype=int)
+
+    to_eliminate_0 = rng.random((n0, n0)) > 0.75
+    np.fill_diagonal(to_eliminate_0, False)
+    to_eliminate_0[0, 1] = True
+    to_eliminate_0[1, 0] = False
+    assert not np.array_equal(to_eliminate_0, to_eliminate_0.T)
+
+    to_eliminate_1 = rng.random((n1, n1)) > 0.75
+    np.fill_diagonal(to_eliminate_1, False)
+    to_eliminate_1[0, 1] = True
+    to_eliminate_1[1, 0] = False
+    assert not np.array_equal(to_eliminate_1, to_eliminate_1.T)
+
+    H_tilde, *_ = block_diagonalize(
+        [h_0, h_1],
+        subspace_indices=subspace_indices,
+        hermitian=False,
+        fully_diagonalize={0: to_eliminate_0, 1: to_eliminate_1},
+    )
+
+    for order in range(1, max_order + 1):
+        block_0 = H_tilde[(0, 0, order)]
+        block_1 = H_tilde[(1, 1, order)]
+        np.testing.assert_allclose(block_0[to_eliminate_0], 0, atol=1e-10, rtol=0)
+        np.testing.assert_allclose(block_1[to_eliminate_1], 0, atol=1e-10, rtol=0)
+
+
 def test_nonhermitian_selective_mask_preserves_trace_and_hermiticity():
-    # Column-major vectorization convention: vec(A X B) = (B^T \kron A) vec(X).
+    # Row-major vectorization convention: vec(A X B) = (A \kron B^T) vec(X).
     def coherent_superoperator(H):
         dim = H.shape[0]
         eye = np.eye(dim, dtype=complex)
-        return -1j * (np.kron(eye, H) - np.kron(H.T, eye))
+        return -1j * (np.kron(H, eye) - np.kron(eye, H.T))
 
     def dissipator_superoperator(J):
         dim = J.shape[0]
         eye = np.eye(dim, dtype=complex)
         JdagJ = J.conj().T @ J
-        return np.kron(J.conj(), J) - 0.5 * (
-            np.kron(eye, JdagJ) + np.kron(JdagJ.T, eye)
-        )
+        return np.kron(J, J.conj()) - 0.5 * (np.kron(JdagJ, eye) + np.kron(eye, JdagJ.T))
 
     def random_hermitian(rng, dim):
         A = rng.normal(size=(dim, dim)) + 1j * rng.normal(size=(dim, dim))
