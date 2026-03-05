@@ -13,8 +13,14 @@ kernelspec:
 
 # Non-Hermitian Algorithm
 
-This page summarizes a non-Hermitian generalization of perturbative block-diagonalization, where
+This page summarizes the non-Hermitian perturbative block-diagonalization used
+in Pymablock: the Hermitian relation
 $\mathcal{U}^{\dagger}$ is replaced by $\mathcal{U}^{-1}$.
+The presentation follows three layers:
+
+1. derivation of a closed recursion,
+2. optimized form used in implementation,
+3. implementation-oriented summary of the final recursion.
 
 ## Setup
 
@@ -36,7 +42,8 @@ with
 \mathcal{H}=H_0+\mathcal{H}'_S+\mathcal{H}'_R,
 :::
 
-where $S$ and $R$ denote selected and remaining parts, and $H_0$ is purely selected.
+where $S$ denotes the selected part, $R$ the remainder to eliminate, and $H_0$
+is entirely selected.
 
 ## Sum-Difference Parameterization
 
@@ -67,14 +74,14 @@ Since $\mathcal{U}_0=\mathcal{U}^{-1}_0=1$, write
 \mathcal{M}_0=\mathcal{P}'_0=0.
 :::
 
-To fix the gauge we impose
+To fix the gauge, impose
 
 :::{math}
 :label: nh:min_diff
 \mathcal{M}_S=0
 :::
 
-(order by order).
+at each perturbative order.
 
 ### Constraint From $\mathcal{U}^{-1}\mathcal{U}=1$
 
@@ -99,7 +106,8 @@ With $\mathcal{P}=2+\mathcal{P}'$,
 \mathcal{P}'=-\frac{1}{4}\Big(\mathcal{P}'^2-\mathcal{M}^2+[\mathcal{P}',\mathcal{M}]\Big).
 :::
 
-Because $\mathcal{P}'_0=\mathcal{M}_0=0$, the right-hand side at order $\mathbf{n}$ uses only lower orders.
+Because $\mathcal{P}'_0=\mathcal{M}_0=0$, the right-hand side at order
+$\mathbf{n}$ depends only on lower orders.
 
 ### Constraint From $\tilde{\mathcal{H}}_R=0$
 
@@ -141,11 +149,12 @@ Isolating the linear Sylvester part gives
 \Big)_R.
 :::
 
-This is recursive because every product on the right contains at least one primed series with zero order absent.
+This is recursive because each product on the right contains at least one
+primed series with vanishing zero order.
 
 ### Hermitian Limit (Consistency Check)
 
-Introduce auxiliary series in the same style as the Hermitian derivation:
+Introduce
 
 :::{math}
 :label: nh:UG_from_PM
@@ -191,10 +200,10 @@ $\mathcal{V}=(\mathcal{U}'-\mathcal{U}'^{\dagger})/2$, we recover
 :::
 
 Also $\mathcal{M}=\mathcal{U}'-\mathcal{G}=2\mathcal{V}$, so $\mathcal{M}_S=0$ is exactly $\mathcal{V}_S=0$.
-Thus the non-Hermitian setup reduces to the Hermitian one.
+So the non-Hermitian setup reduces to the Hermitian gauge choice.
 
-To close consistency, the Sylvester/Lyapunov step must also return an anti-Hermitian
-generator in this limit. Write
+Consistency also requires the Sylvester/Lyapunov solve to return an
+anti-Hermitian generator in this limit. Write
 
 :::{math}
 :label: nh:herm_lyap
@@ -204,7 +213,7 @@ generator in this limit. Write
 :::
 
 where Eq. {eq}`nh:M_rec` defines $\mathcal{R}_R$.
-Using induction over perturbation order:
+Then by induction over perturbation order:
 
 1. Assume lower-order terms satisfy
    $\mathcal{P}'^{\dagger}=\mathcal{P}'$ and
@@ -223,7 +232,7 @@ Using induction over perturbation order:
 so $\mathcal{M}^{\dagger}=-\mathcal{M}$ and therefore
 $\mathcal{V}^{\dagger}=-\mathcal{V}$.
 
-Hence the Lyapunov/Sylvester solve is consistent with the anti-Hermitian
+Hence the Sylvester/Lyapunov step is consistent with the anti-Hermitian
 generator required by the Hermitian algorithm.
 
 ## Toward an Optimized Algorithm
@@ -246,12 +255,14 @@ with auxiliaries
 \mathcal{B}\equiv\mathcal{X}+\mathcal{H}'_R+\mathcal{A}.
 :::
 
-This follows from
-$\mathcal{U}=1+\mathcal{U}'$, $\mathcal{U}^{-1}=1+\mathcal{G}$ and
+Using $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{U}^{-1}=1+\mathcal{G}$:
 
-a) $\mathcal{U}^{-1}\mathcal{H}_S\mathcal{U}=\mathcal{H}_S+\mathcal{U}^{-1}[\mathcal{H}_S,\mathcal{U}']$,
+1. $\mathcal{U}^{-1}\mathcal{H}_S\mathcal{U}
+   =\mathcal{H}_S+\mathcal{U}^{-1}[\mathcal{H}_S,\mathcal{U}']$,
 
-b) $\mathcal{U}^{-1}\mathcal{H}'_R\mathcal{U}=\mathcal{H}'_R+\mathcal{H}'_R\mathcal{U}'+\mathcal{G}(\mathcal{X}+\mathcal{H}'_R+\mathcal{A})$.
+2. $\mathcal{U}^{-1}\mathcal{H}'_R\mathcal{U}
+   =\mathcal{H}'_R+\mathcal{H}'_R\mathcal{U}'
+   +\mathcal{G}(\mathcal{X}+\mathcal{H}'_R+\mathcal{A})$.
 
 From $\tilde{\mathcal{H}}_R=0$:
 
@@ -298,9 +309,11 @@ At order $\mathbf{n}$:
 6. Compute $\mathcal{G}_{\mathbf{n}}$ from Eq. {eq}`nh:G_and_gauge` and then $\mathcal{B}_{\mathbf{n}}$ from Eq. {eq}`nh:XAB_defs`.
 7. Evaluate $\tilde{\mathcal{H}}_{\mathbf{n},S}$ from Eq. {eq}`nh:Htilde_B`.
 
-This has the same key structural property as the optimized Hermitian algorithm: $H_0$ appears only in the Sylvester solve and not in Cauchy-product building blocks.
+All right-hand sides are closed in lower orders except the single Sylvester
+solve in step 5. As in the Hermitian algorithm, $H_0$ appears only in that
+solve and not in reusable Cauchy-product terms.
 
-## Closed Recursive System
+## Closed Recursion (Implementation Summary)
 
 ### Definitions
 
