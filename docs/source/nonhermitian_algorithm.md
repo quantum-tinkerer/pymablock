@@ -337,3 +337,177 @@ At each perturbative order, Eq. {eq}`nh:closed_recs` is closed in
 $\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}$
 and uses one Sylvester solve (last line); Eq. {eq}`nh:closed_defs` then yields
 $\tilde{\mathcal{H}}_{\mathbf{n},S}$.
+
+## Structure-Preserving Constraints (Trace and Hermiticity)
+
+For Lindbladians (or general Liouville-space generators), we often want the
+transformed generator to keep:
+
+- trace preservation, and
+- Hermiticity preservation.
+
+This is not automatic for an arbitrary selective split; it follows from extra
+constraints on $S/R$ and the Sylvester solver.
+
+### Liouville-Space Conventions
+
+Use column-major vectorization:
+
+:::{math}
+A\rho B \;\mapsto\; (A\otimes B^T)\,\mathrm{vec}(\rho).
+:::
+
+Let $\tau$ be the trace row functional:
+
+:::{math}
+\mathrm{tr}(\rho)=\tau\,\mathrm{vec}(\rho).
+:::
+
+Let $K$ be the permutation implementing $\mathrm{vec}(\rho^\dagger)=K\,\mathrm{vec}(\rho)^*$.
+Define the involution
+
+:::{math}
+X^\sharp \equiv K X^* K.
+:::
+
+A superoperator preserves Hermiticity iff $X^\sharp=X$.
+
+### Additional Assumptions
+
+In addition to Eq. {eq}`nh:closed_recs`, assume:
+
+1. $S$ and $R$ are complementary projectors:
+   $S+R=I$, $S^2=S$, $R^2=R$, $SR=RS=0$.
+2. Trace-compatible split:
+   :::{math}
+   \tau R(X)=0 \;\;\forall X
+   \quad\Longleftrightarrow\quad
+   \tau S(X)=\tau X.
+   :::
+3. Hermiticity-compatible split:
+   :::{math}
+   S(X^\sharp)=S(X)^\sharp,\qquad R(X^\sharp)=R(X)^\sharp.
+   :::
+4. Sylvester solver compatibility on $R$:
+   if $Y=R(Y)$, then
+   :::{math}
+   S(\mathrm{Sylv}(Y))=0,\quad
+   \tau\,\mathrm{Sylv}(Y)=0,\quad
+   \mathrm{Sylv}(Y^\sharp)=\mathrm{Sylv}(Y)^\sharp.
+   :::
+5. Input coefficients are trace/Hermiticity preserving:
+   :::{math}
+   \tau \mathcal{H}_{\mathbf{n}}=0,\qquad
+   \mathcal{H}_{\mathbf{n}}^\sharp=\mathcal{H}_{\mathbf{n}}
+   \quad\text{for all orders }\mathbf{n}.
+   :::
+
+### Proposition 1: Trace Preservation
+
+Under assumptions 1, 2, 4, and 5:
+
+:::{math}
+\tau\mathcal{U}=\tau,\qquad
+\tau\mathcal{U}^{-1}=\tau,\qquad
+\tau\tilde{\mathcal{H}}=0.
+:::
+
+**Proof (order by order).**
+
+Base order: $\mathcal{U}'_0=\mathcal{G}_0=0$, hence
+$\tau\mathcal{U}_0=\tau\mathcal{U}^{-1}_0=\tau$.
+
+Induction step at order $\mathbf{n}>0$:
+
+- From $\mathcal{G}=-\mathcal{U}'-\mathcal{G}\mathcal{U}'$,
+  :::{math}
+  \tau\mathcal{G}_{\mathbf{n}}
+  =-\tau\mathcal{U}'_{\mathbf{n}}
+   -\tau(\mathcal{G}\mathcal{U}')_{\mathbf{n}}.
+  :::
+  The product term uses only lower orders, so by induction it vanishes:
+  $\tau(\mathcal{G}\mathcal{U}')_{\mathbf{n}}=0$.
+  Therefore $\tau\mathcal{G}_{\mathbf{n}}=-\tau\mathcal{U}'_{\mathbf{n}}$.
+
+- Gauge condition $(\mathcal{U}'-\mathcal{G})_S=0$ implies
+  $\tau(\mathcal{U}'-\mathcal{G})_{\mathbf{n}}=0$ because $\tau R=0$.
+  Hence $\tau\mathcal{U}'_{\mathbf{n}}=\tau\mathcal{G}_{\mathbf{n}}$.
+
+Combining both equalities gives
+$\tau\mathcal{U}'_{\mathbf{n}}=\tau\mathcal{G}_{\mathbf{n}}=0$.
+Thus $\tau\mathcal{U}=\tau$ and $\tau\mathcal{U}^{-1}=\tau$ at all orders.
+
+Finally,
+
+:::{math}
+\tau\tilde{\mathcal{H}}
+=\tau\,\mathcal{U}^{-1}\mathcal{H}\mathcal{U}
+=\tau\,\mathcal{H}\mathcal{U}
+=0,
+:::
+
+since $\tau\mathcal{H}=0$ order by order. $\square$
+
+### Proposition 2: Hermiticity Preservation
+
+Under assumptions 1, 3, 4, and 5:
+
+:::{math}
+\mathcal{U}^\sharp=\mathcal{U},\qquad
+(\mathcal{U}^{-1})^\sharp=\mathcal{U}^{-1},\qquad
+\tilde{\mathcal{H}}^\sharp=\tilde{\mathcal{H}}.
+:::
+
+**Proof (order by order).**
+
+Base order: $\mathcal{U}'_0=\mathcal{G}_0=0$, so trivially sharp-invariant.
+
+Induction step:
+
+- If lower orders are sharp-invariant, then products and commutators built from
+  them are also sharp-invariant because
+  $(AB)^\sharp=A^\sharp B^\sharp$ and
+  $[A,B]^\sharp=[A^\sharp,B^\sharp]$.
+- Since $\mathcal{H}_{\mathbf{n}}^\sharp=\mathcal{H}_{\mathbf{n}}$ and $S,R$
+  commute with $\sharp$, all projected terms
+  ($\mathcal{H}'_S,\mathcal{H}'_R,\mathcal{A},\mathcal{B},\mathcal{X}_{S/R}$)
+  at order $\mathbf{n}$ are sharp-invariant.
+- The Sylvester right-hand side for $\mathcal{U}'_R$ is therefore
+  sharp-invariant; by solver equivariance,
+  $\mathcal{U}'_{R,\mathbf{n}}$ is sharp-invariant.
+- $\mathcal{G}_{\mathbf{n}}$ from
+  $\mathcal{G}=-\mathcal{U}'-\mathcal{G}\mathcal{U}'$
+  is then sharp-invariant, and the gauge relation fixes
+  $\mathcal{U}'_{S,\mathbf{n}}$ accordingly.
+
+Hence $\mathcal{U}'_{\mathbf{n}}$ and $\mathcal{G}_{\mathbf{n}}$ are
+sharp-invariant for all $\mathbf{n}$.
+Therefore $\mathcal{U}$ and $\mathcal{U}^{-1}$ are sharp-invariant.
+
+Now
+
+:::{math}
+\tilde{\mathcal{H}}^\sharp
+=(\mathcal{U}^{-1}\mathcal{H}\mathcal{U})^\sharp
+=(\mathcal{U}^{-1})^\sharp \mathcal{H}^\sharp \mathcal{U}^\sharp
+=\mathcal{U}^{-1}\mathcal{H}\mathcal{U}
+=\tilde{\mathcal{H}}.
+:::
+
+So $\tilde{\mathcal{H}}$ preserves Hermiticity. $\square$
+
+### Practical Mask Rules (One-Block Selective Case)
+
+For a boolean elimination mask in a single Liouville block, assumptions 2 and 3
+translate to:
+
+- do not eliminate entries in trace-support rows ($\tau$-support),
+- close the mask under the dagger index map $(i,j)\leftrightarrow(j,i)$
+  (in Liouville indexing).
+
+These are exactly the structural constraints used in the non-Hermitian tests.
+
+:::{note}
+These constraints preserve trace and Hermiticity, not complete positivity.
+Outside perturbative convergence, positivity can still fail.
+:::
