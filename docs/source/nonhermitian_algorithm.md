@@ -351,7 +351,7 @@ constraints on $S/R$ and the Sylvester solver.
 
 ### Liouville-Space Conventions
 
-Use column-major vectorization:
+Use row-major vectorization:
 
 :::{math}
 A\rho B \;\mapsto\; (A\otimes B^T)\,\mathrm{vec}(\rho).
