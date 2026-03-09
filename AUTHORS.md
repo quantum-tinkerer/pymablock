@@ -15,6 +15,8 @@
 - Antonio Manesco
 - Hugo Kerstens
 - Bas Nijholt
+- Adam Chaou
+- Jörg Behrmann
 
 ## Funding
 
