@@ -128,7 +128,7 @@ publish to test pypi:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+.*\+test$/' # vX.Y.Z.post1+test
   script:
     - pixi run build
-    - pixi run publish -a $PYPI_TEST_TOKEN -r test
+    - pixi run publish-test -a $PYPI_TEST_TOKEN
   cache:
     key: "$CI_JOB_NAME"
     paths:
