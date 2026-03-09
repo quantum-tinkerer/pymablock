@@ -40,7 +40,7 @@ mumps = ["python-mumps>=0.0.1,<0.1"]
 
 [tool.hatch.version]
 source = "vcs"
-raw-options = { tag_regex = "^(?:v)?(?P<version>\\d+\\.\\d+\\.\\d+(?:\\.post\\d+)?)(?:\\+test)?$" }
+raw-options = { tag_regex = "^(?:v)?(?P<version>\\d+\\.\\d+\\.\\d+(?:\\.post\\d+)?)(?:\\+test)?$", local_scheme = "no-local-version" }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "pymablock/_version.py"
