@@ -1,8 +1,9 @@
-image: ghcr.io/prefix-dev/pixi:0.46.0
+image: ghcr.io/prefix-dev/pixi:0.63.2
 
 variables:
   FF_USE_FASTZIP: "true"
   CACHE_COMPRESSION_LEVEL: "fastest"
+  PIXI_FROZEN: "true"
 
 default:
   before_script:
