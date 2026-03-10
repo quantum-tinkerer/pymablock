@@ -1,8 +1,9 @@
-image: ghcr.io/prefix-dev/pixi:0.46.0
+image: ghcr.io/prefix-dev/pixi:0.63.2
 
 variables:
   FF_USE_FASTZIP: "true"
   CACHE_COMPRESSION_LEVEL: "fastest"
+  PIXI_FROZEN: "true"
 
 default:
   before_script:
@@ -124,9 +125,13 @@ publish to test pypi:
     - run tests
     - run coverage
     - run docs
+  variables:
+    GIT_DEPTH: 0
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+.*\+test$/' # vX.Y.Z.post1+test
   script:
+    - git fetch --force --tags
+    - test "$(git describe --tags --exact-match)" = "$CI_COMMIT_TAG"
     - pixi run build
     - pixi run publish -a $PYPI_TEST_TOKEN -r test
   cache:
@@ -139,9 +144,13 @@ publish to pypi:
     - run tests
     - run coverage
     - run docs
+  variables:
+    GIT_DEPTH: 0
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+[^+]*$/' # No +test
   script:
+    - git fetch --force --tags
+    - test "$(git describe --tags --exact-match)" = "$CI_COMMIT_TAG"
     - pixi run build
     - pixi run publish -a $PYPI_TOKEN
   cache:
