@@ -124,9 +124,19 @@ publish to test pypi:
     - run tests
     - run coverage
     - run docs
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: "0"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+.*\+test$/' # vX.Y.Z.post1+test
+  before_script:
+    # hatch-vcs needs the exact tag history to derive the release version.
+    - pixi global install git
+    - git fetch --force --tags origin
+    - git checkout --detach "$CI_COMMIT_TAG"
   script:
+    - test "$(git describe --tags --exact-match)" = "$CI_COMMIT_TAG"
+    - test "$(pixi run hatch version)" = "${CI_COMMIT_TAG#v}"
     - pixi run build
     - pixi run publish -a $PYPI_TEST_TOKEN -r test
   cache:
@@ -139,9 +149,19 @@ publish to pypi:
     - run tests
     - run coverage
     - run docs
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: "0"
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+[^+]*$/' # No +test
+  before_script:
+    # hatch-vcs needs the exact tag history to derive the release version.
+    - pixi global install git
+    - git fetch --force --tags origin
+    - git checkout --detach "$CI_COMMIT_TAG"
   script:
+    - test "$(git describe --tags --exact-match)" = "$CI_COMMIT_TAG"
+    - test "$(pixi run hatch version)" = "${CI_COMMIT_TAG#v}"
     - pixi run build
     - pixi run publish -a $PYPI_TOKEN
   cache:
