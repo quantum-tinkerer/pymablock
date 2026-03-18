@@ -5,6 +5,7 @@ Operator subclass for better representation of number-ordered expressions.
 """
 
 from collections.abc import Callable
+from functools import lru_cache
 
 import numpy as np
 import sympy
@@ -68,12 +69,18 @@ def _make_compact_denominator(
 
 
 def _expand_compact_denominator(expr: _CompactDenominator) -> sympy.Expr:
-    token = int(expr.args[0])
+    return _expand_registered_compact_denominator(int(expr.args[0]), expr.args[1:])
+
+
+@lru_cache(maxsize=8192)
+def _expand_registered_compact_denominator(
+    token: int,
+    values: tuple[sympy.Expr, ...],
+) -> sympy.Expr:
     placeholders, template = _COMPACT_DENOMINATOR_REGISTRY[token]
     if not placeholders:
-        return template
-    values = expr.args[1:]
-    return template.xreplace(dict(zip(placeholders, values, strict=True)))
+        return sympy.expand(template)
+    return sympy.expand(template.xreplace(dict(zip(placeholders, values, strict=True))))
 
 
 def expand_compact_denominators(expr: sympy.Expr) -> sympy.Expr:
@@ -148,11 +155,11 @@ def _shift_number_operator_placeholders(
     return coeff.xreplace(replacements)
 
 
-def _make_sylvester_denominator_getter(
+def _sylvester_denominator_getter(
     H_ii: NumberOrderedForm | sympy.Expr,
     H_jj: NumberOrderedForm | sympy.Expr,
     *,
-    compact_denominators: bool = False,
+    compact: bool,
 ) -> Callable[[tuple, tuple[int, ...]], sympy.Expr]:
     """Build a cached denominator getter for one pair of diagonal energies."""
     coeff_ii = _extract_particle_conserving_coefficient(H_ii)
@@ -200,7 +207,7 @@ def _make_sylvester_denominator_getter(
                 denominator = shifted_H_ii - shifted_H_jj
 
         result = sympy.collect_const(denominator).doit()
-        if compact_denominators:
+        if compact:
             result = _make_compact_denominator(
                 result,
                 tuple(
@@ -217,11 +224,28 @@ def _make_sylvester_denominator_getter(
     return get_denominator
 
 
-def _solve_scalar_with_denominator(
+def _make_sylvester_denominator_getter(
+    H_ii: NumberOrderedForm | sympy.Expr,
+    H_jj: NumberOrderedForm | sympy.Expr,
+) -> Callable[[tuple, tuple[int, ...]], sympy.Expr]:
+    """Build a cached denominator getter for the public expanded solver."""
+    return _sylvester_denominator_getter(H_ii, H_jj, compact=False)
+
+
+def _make_internal_sylvester_denominator_getter(
+    H_ii: NumberOrderedForm | sympy.Expr,
+    H_jj: NumberOrderedForm | sympy.Expr,
+) -> Callable[[tuple, tuple[int, ...]], sympy.Expr]:
+    """Build a cached denominator getter for the compact internal solver."""
+    return _sylvester_denominator_getter(H_ii, H_jj, compact=True)
+
+
+def _solve_scalar_with_denominator_impl(
     Y: sympy.Expr,
     denominator_getter: Callable[[tuple, tuple[int, ...]], sympy.Expr],
     diagonal: bool = False,
-    return_internal: bool = False,
+    *,
+    expand_result: bool,
 ) -> NumberOrderedForm:
     """Solve a scalar Sylvester equation with a precomputed denominator getter."""
     if Y == 0:
@@ -254,9 +278,37 @@ def _solve_scalar_with_denominator(
     if diagonal:
         result -= result.adjoint()
 
-    if return_internal:
+    if not expand_result:
         return result
     return result.applyfunc(expand_compact_denominators)
+
+
+def _solve_scalar_with_denominator(
+    Y: sympy.Expr,
+    denominator_getter: Callable[[tuple, tuple[int, ...]], sympy.Expr],
+    diagonal: bool = False,
+) -> NumberOrderedForm:
+    """Solve a scalar Sylvester equation and return the public expanded result."""
+    return _solve_scalar_with_denominator_impl(
+        Y,
+        denominator_getter,
+        diagonal,
+        expand_result=True,
+    )
+
+
+def _solve_scalar_with_internal_denominator(
+    Y: sympy.Expr,
+    denominator_getter: Callable[[tuple, tuple[int, ...]], sympy.Expr],
+    diagonal: bool = False,
+) -> NumberOrderedForm:
+    """Solve a scalar Sylvester equation and keep compact internal denominators."""
+    return _solve_scalar_with_denominator_impl(
+        Y,
+        denominator_getter,
+        diagonal,
+        expand_result=False,
+    )
 
 
 def solve_scalar(
@@ -298,43 +350,23 @@ def solve_scalar(
     """
     return _solve_scalar_with_denominator(
         Y,
-        _make_sylvester_denominator_getter(
-            H_ii,
-            H_jj,
-            compact_denominators=False,
-        ),
+        _make_sylvester_denominator_getter(H_ii, H_jj),
         diagonal=diagonal,
-        return_internal=False,
     )
 
 
-def solve_sylvester_2nd_quant(
+def _solve_sylvester_2nd_quant_impl(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
-    *,
-    compact_denominators: bool = False,
-    return_internal: bool = False,
+    denominator_getter_factory: Callable[
+        [NumberOrderedForm | sympy.Expr, NumberOrderedForm | sympy.Expr],
+        Callable[[tuple, tuple[int, ...]], sympy.Expr],
+    ],
+    scalar_solver: Callable[
+        [sympy.Expr, Callable[[tuple, tuple[int, ...]], sympy.Expr], bool],
+        NumberOrderedForm,
+    ],
 ) -> Callable:
-    """Solve a Sylvester equation for 2nd quantized diagonal Hamiltonians.
-
-    Parameters
-    ----------
-    eigs :
-        Tuple of lists of expressions representing the diagonal Hamiltonian blocks.
-    compact_denominators :
-        Whether to keep Sylvester denominators in a compact internal form until
-        postprocessing.
-    return_internal :
-        Whether to return the internal denominator representation instead of
-        expanding it before returning.
-
-    Returns
-    -------
-    Callable
-        A function that takes a matrix of operators and a tuple of indices, and
-        computes the element-wise solution to the Sylvester equation for those
-        diagonal Hamiltonian blocks.
-
-    """
+    """Implement the second-quantized Sylvester solver."""
     eigs = tuple(
         [NumberOrderedForm.from_expr(eig) for eig in eig_block] for eig_block in eigs
     )
@@ -364,16 +396,13 @@ def solve_sylvester_2nd_quant(
                 if index[0] != index[1] or i >= j:
                     key = (index[0], index[1], i, j)
                     if key not in denominator_getters:
-                        denominator_getters[key] = _make_sylvester_denominator_getter(
-                            eigs_A[i],
-                            eigs_B[j],
-                            compact_denominators=compact_denominators,
+                        denominator_getters[key] = denominator_getter_factory(
+                            eigs_A[i], eigs_B[j]
                         )
-                    result[i, j] = _solve_scalar_with_denominator(
+                    result[i, j] = scalar_solver(
                         Y[i, j],
                         denominator_getters[key],
-                        diagonal=(i == j and index[0] == index[1]),
-                        return_internal=return_internal,
+                        i == j and index[0] == index[1],
                     )
         for i in range(Y.rows):
             for j in range(Y.cols):
@@ -384,6 +413,42 @@ def solve_sylvester_2nd_quant(
         return result
 
     return solve_sylvester
+
+
+def _solve_sylvester_2nd_quant_internal(
+    eigs: tuple[tuple[sympy.Expr, ...], ...],
+) -> Callable:
+    """Compact internal Sylvester solver used by block diagonalization."""
+    return _solve_sylvester_2nd_quant_impl(
+        eigs,
+        _make_internal_sylvester_denominator_getter,
+        _solve_scalar_with_internal_denominator,
+    )
+
+
+def solve_sylvester_2nd_quant(
+    eigs: tuple[tuple[sympy.Expr, ...], ...],
+) -> Callable:
+    """Solve a Sylvester equation for 2nd quantized diagonal Hamiltonians.
+
+    Parameters
+    ----------
+    eigs :
+        Tuple of lists of expressions representing the diagonal Hamiltonian blocks.
+
+    Returns
+    -------
+    Callable
+        A function that takes a matrix of operators and a tuple of indices, and
+        computes the element-wise solution to the Sylvester equation for those
+        diagonal Hamiltonian blocks.
+
+    """
+    return _solve_sylvester_2nd_quant_impl(
+        eigs,
+        _make_sylvester_denominator_getter,
+        _solve_scalar_with_denominator,
+    )
 
 
 def apply_mask_to_operator(

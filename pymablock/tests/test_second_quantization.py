@@ -6,7 +6,9 @@ from sympy.physics.quantum.fermion import FermionOp
 from pymablock import block_diagonalize, operator_to_BlockSeries
 from pymablock.number_ordered_form import LadderOp, NumberOperator, NumberOrderedForm
 from pymablock.second_quantization import (
+    _make_compact_denominator,
     apply_mask_to_operator,
+    expand_compact_denominators,
     solve_sylvester_2nd_quant,
 )
 from pymablock.series import cauchy_dot_product
@@ -105,6 +107,17 @@ def test_solve_sylvester_2nd_quant():
             assert result.simplify().is_zero, (
                 f"Failed for Y[{i}, {j}]: {result.simplify()}"
             )
+
+
+def test_expand_compact_denominators_linearizes_shifted_polynomials():
+    n = sympy.Symbol("n", integer=True, positive=True)
+    compact = _make_compact_denominator(103 * n**2 - 103 * (n - 1) ** 2 - 10073, (n,))
+
+    expanded = expand_compact_denominators(compact)
+    shifted = expand_compact_denominators(compact.xreplace({n: n + 1}))
+
+    assert expanded == 206 * n - 10176
+    assert shifted == 206 * n - 9970
 
 
 def test_hermitian_block_diagonalization():
