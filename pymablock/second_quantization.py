@@ -12,16 +12,251 @@ from sympy.physics.quantum.boson import BosonOp
 
 from pymablock.number_ordered_form import (
     LadderOp,
-    NumberOperator,
     NumberOrderedForm,
-    _number_operator_to_placeholder,
 )
 from pymablock.series import zero
 
 __all__ = [
     "apply_mask_to_operator",
+    "expand_compact_denominators",
     "solve_sylvester_2nd_quant",
 ]
+
+_COMPACT_DENOMINATOR_REGISTRY: dict[int, tuple[tuple[sympy.Symbol, ...], sympy.Expr]] = {}
+_COMPACT_DENOMINATOR_REVERSE_REGISTRY: dict[
+    tuple[tuple[sympy.Symbol, ...], sympy.Expr], int
+] = {}
+_NEXT_COMPACT_DENOMINATOR_ID = 0
+
+
+class _CompactDenominator(sympy.Function):
+    """Compact placeholder for a shifted Sylvester denominator."""
+
+    is_commutative = True
+    is_finite = True
+    is_nonzero = True
+    is_zero = False
+
+    def _eval_conjugate(self):
+        return self
+
+
+def _register_compact_denominator(
+    placeholders: tuple[sympy.Symbol, ...],
+    expr: sympy.Expr,
+) -> sympy.Integer:
+    global _NEXT_COMPACT_DENOMINATOR_ID
+    key = (placeholders, expr)
+    if key not in _COMPACT_DENOMINATOR_REVERSE_REGISTRY:
+        token = _NEXT_COMPACT_DENOMINATOR_ID
+        _NEXT_COMPACT_DENOMINATOR_ID += 1
+        _COMPACT_DENOMINATOR_REVERSE_REGISTRY[key] = token
+        _COMPACT_DENOMINATOR_REGISTRY[token] = key
+    return sympy.Integer(_COMPACT_DENOMINATOR_REVERSE_REGISTRY[key])
+
+
+def _make_compact_denominator(
+    expr: sympy.Expr,
+    placeholders: tuple[sympy.Symbol, ...],
+) -> sympy.Expr:
+    """Create a compact denominator atom that still shifts with placeholders."""
+    used_placeholders = tuple(
+        placeholder for placeholder in placeholders if expr.has(placeholder)
+    )
+    token = _register_compact_denominator(used_placeholders, expr)
+    return _CompactDenominator(token, *used_placeholders)
+
+
+def _expand_compact_denominator(expr: _CompactDenominator) -> sympy.Expr:
+    token = int(expr.args[0])
+    placeholders, template = _COMPACT_DENOMINATOR_REGISTRY[token]
+    if not placeholders:
+        return template
+    values = expr.args[1:]
+    return template.xreplace(dict(zip(placeholders, values, strict=True)))
+
+
+def expand_compact_denominators(expr: sympy.Expr) -> sympy.Expr:
+    """Expand compact Sylvester denominator atoms in an expression."""
+    return expr.replace(
+        lambda item: isinstance(item, _CompactDenominator),
+        _expand_compact_denominator,
+    )
+
+
+def _is_infinite_order_only_operators(operators: tuple) -> bool:
+    return bool(operators) and all(
+        isinstance(op, (BosonOp, LadderOp)) for op in operators
+    )
+
+
+def _to_number_ordered_form(expr) -> NumberOrderedForm:
+    if isinstance(expr, NumberOrderedForm):
+        return expr
+    return NumberOrderedForm.from_expr(expr)
+
+
+def _extract_particle_conserving_coefficient(
+    expr: NumberOrderedForm | sympy.Expr,
+) -> sympy.Expr:
+    """Extract the scalar coefficient from a particle-conserving expression."""
+    if not isinstance(expr, NumberOrderedForm):
+        return sympy.sympify(expr)
+
+    if len(expr.args[1]) != 1:
+        raise ValueError(
+            "Diagonal second-quantized Hamiltonians must have a single scalar term."
+        )
+
+    powers, coeff = expr.args[1][0]
+    if any(powers):
+        raise ValueError(
+            "Diagonal second-quantized Hamiltonians must contain only number operators."
+        )
+    return coeff
+
+
+def _shift_number_operator_placeholders(
+    coeff: sympy.Expr,
+    operators: tuple,
+    placeholders: tuple[sympy.Symbol, ...],
+    operator_shifts: dict,
+    *,
+    positive: bool,
+) -> sympy.Expr:
+    """Shift bosonic/lattice number operators in a scalar coefficient."""
+    replacements = {}
+    for op, placeholder in zip(operators, placeholders):
+        delta = operator_shifts.get(op, 0)
+        if positive:
+            if delta <= 0:
+                continue
+            shift_value = delta
+        else:
+            if delta >= 0:
+                continue
+            shift_value = -delta
+
+        replacements[placeholder] = (
+            placeholder + shift_value
+            if isinstance(op, (BosonOp, LadderOp))
+            else sympy.S.One
+        )
+
+    if not replacements:
+        return coeff
+    return coeff.xreplace(replacements)
+
+
+def _make_sylvester_denominator_getter(
+    H_ii: NumberOrderedForm | sympy.Expr,
+    H_jj: NumberOrderedForm | sympy.Expr,
+    *,
+    compact_denominators: bool = False,
+) -> Callable[[tuple, tuple[int, ...]], sympy.Expr]:
+    """Build a cached denominator getter for one pair of diagonal energies."""
+    coeff_ii = _extract_particle_conserving_coefficient(H_ii)
+    coeff_jj = _extract_particle_conserving_coefficient(H_jj)
+    ops_ii = tuple(H_ii.operators) if isinstance(H_ii, NumberOrderedForm) else ()
+    ops_jj = tuple(H_jj.operators) if isinstance(H_jj, NumberOrderedForm) else ()
+    placeholders_ii = (
+        tuple(H_ii._number_operator_placeholders)
+        if isinstance(H_ii, NumberOrderedForm)
+        else ()
+    )
+    placeholders_jj = (
+        tuple(H_jj._number_operator_placeholders)
+        if isinstance(H_jj, NumberOrderedForm)
+        else ()
+    )
+    cache: dict[tuple[tuple, tuple[int, ...]], sympy.Expr] = {}
+
+    def get_denominator(operators: tuple, shift: tuple[int, ...]) -> sympy.Expr:
+        key = (operators, shift)
+        if key in cache:
+            return cache[key]
+
+        if not any(shift):
+            denominator = coeff_ii - coeff_jj
+        else:
+            operator_shifts = dict(zip(operators, shift, strict=True))
+            shifted_H_jj = _shift_number_operator_placeholders(
+                coeff_jj,
+                ops_jj,
+                placeholders_jj,
+                operator_shifts,
+                positive=True,
+            )
+            shifted_H_ii = _shift_number_operator_placeholders(
+                coeff_ii,
+                ops_ii,
+                placeholders_ii,
+                operator_shifts,
+                positive=False,
+            )
+            if shift < (0,) * len(shift):
+                denominator = shifted_H_jj - shifted_H_ii
+            else:
+                denominator = shifted_H_ii - shifted_H_jj
+
+        result = sympy.collect_const(denominator).doit()
+        if compact_denominators:
+            result = _make_compact_denominator(
+                result,
+                tuple(
+                    placeholder
+                    for placeholder in (*placeholders_ii, *placeholders_jj)
+                    if result.has(placeholder)
+                ),
+            )
+        else:
+            result = sympy.simplify(result)
+        cache[key] = result
+        return result
+
+    return get_denominator
+
+
+def _solve_scalar_with_denominator(
+    Y: sympy.Expr,
+    denominator_getter: Callable[[tuple, tuple[int, ...]], sympy.Expr],
+    diagonal: bool = False,
+    return_internal: bool = False,
+) -> NumberOrderedForm:
+    """Solve a scalar Sylvester equation with a precomputed denominator getter."""
+    if Y == 0:
+        return sympy.S.Zero
+
+    Y = NumberOrderedForm.from_expr(Y)
+    operators = tuple(Y.operators)
+
+    shifts = Y.terms
+    new_shifts = {}
+    for shift, coeff in shifts.items():
+        # Ensure that the energy denominator always has the same sign to simplify the
+        # expression. We do this by multiplying the denominator by -1 if the shift is
+        # lexicographically negative.
+        sign = -sympy.S.One if tuple(shift) < (0,) * len(shift) else sympy.S.One
+        if diagonal and sign is sympy.S.One:
+            continue
+        denominator = denominator_getter(operators, tuple(shift))
+        new_shifts[shift] = sign * denominator**-sympy.S.One * coeff
+
+    result = (
+        NumberOrderedForm(
+            operators=Y.args[0],
+            terms=new_shifts,
+        )
+        ._cancel_binary_operator_numbers()
+        ._linearize_binary_operators()
+    )
+
+    if diagonal:
+        result -= result.adjoint()
+
+    if return_internal:
+        return result
+    return result.applyfunc(expand_compact_denominators)
 
 
 def solve_scalar(
@@ -61,74 +296,23 @@ def solve_scalar(
     See the second quantization documentation for the derivation.
 
     """
-    if Y == 0:
-        return sympy.S.Zero
-
-    Y = NumberOrderedForm.from_expr(Y)
-    operators = Y.operators
-
-    shifts = Y.terms
-    new_shifts = {}
-    for shift, coeff in shifts.items():
-        # Ensure that the energy denominator always has the same sign to simplify the
-        # expression. We do this by multiplying the denominator by -1 if the shift is
-        # lexicographically negative.
-        sign = -sympy.S.One if tuple(shift) < (0,) * len(shift) else sympy.S.One
-        if diagonal and sign is sympy.S.One:
-            continue
-        # Commute H_ii and H_jj through creation and annihilation operators
-        # respectively.
-        #
-        # Here we use a private function to get access to the placeholders
-        shifted_H_jj = H_jj.xreplace(
-            {
-                _number_operator_to_placeholder(NumberOperator(op)): (
-                    _number_operator_to_placeholder(NumberOperator(op)) + delta
-                    if isinstance(op, (BosonOp, LadderOp))
-                    else sympy.S.One
-                )
-                for delta, op in zip(shift, operators)
-                if delta > 0
-            }
-        )
-        shifted_H_ii = H_ii.xreplace(
-            {
-                _number_operator_to_placeholder(NumberOperator(op)): (
-                    _number_operator_to_placeholder(NumberOperator(op)) - delta
-                    if isinstance(op, (BosonOp, LadderOp))
-                    else sympy.S.One
-                )
-                for delta, op in zip(shift, operators)
-                if delta < 0
-            }
-        )
-        if sign is sympy.S.One:
-            denominator = shifted_H_ii - shifted_H_jj
-        else:
-            denominator = shifted_H_jj - shifted_H_ii
-        # Denominators often simplify because linear powers of bosonic operators cancel.
-        denominator = sympy.collect_const(
-            next(iter((denominator.terms.values()))).simplify()
-        ).doit()  # Not sure why doit is needed here, but it is.
-        new_shifts[shift] = sign * (denominator) ** -sympy.S.One * coeff
-
-    result = (
-        NumberOrderedForm(
-            operators=Y.args[0],
-            terms=new_shifts,
-        )
-        ._cancel_binary_operator_numbers()
-        ._linearize_binary_operators()
+    return _solve_scalar_with_denominator(
+        Y,
+        _make_sylvester_denominator_getter(
+            H_ii,
+            H_jj,
+            compact_denominators=False,
+        ),
+        diagonal=diagonal,
+        return_internal=False,
     )
-
-    if diagonal:
-        result -= result.adjoint()
-
-    return result
 
 
 def solve_sylvester_2nd_quant(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
+    *,
+    compact_denominators: bool = False,
+    return_internal: bool = False,
 ) -> Callable:
     """Solve a Sylvester equation for 2nd quantized diagonal Hamiltonians.
 
@@ -136,6 +320,12 @@ def solve_sylvester_2nd_quant(
     ----------
     eigs :
         Tuple of lists of expressions representing the diagonal Hamiltonian blocks.
+    compact_denominators :
+        Whether to keep Sylvester denominators in a compact internal form until
+        postprocessing.
+    return_internal :
+        Whether to return the internal denominator representation instead of
+        expanding it before returning.
 
     Returns
     -------
@@ -152,6 +342,8 @@ def solve_sylvester_2nd_quant(
         raise ValueError(
             "The diagonal Hamiltonian blocks must contain only number-conserving expressions."
         )
+
+    denominator_getters: dict[tuple[int, int, int, int], Callable] = {}
 
     def solve_sylvester(
         Y: sympy.MatrixBase,
@@ -170,11 +362,18 @@ def solve_sylvester_2nd_quant(
             for j in range(Y.cols):
                 # Only compute upper triangle of diagonal blocks
                 if index[0] != index[1] or i >= j:
-                    result[i, j] = solve_scalar(
+                    key = (index[0], index[1], i, j)
+                    if key not in denominator_getters:
+                        denominator_getters[key] = _make_sylvester_denominator_getter(
+                            eigs_A[i],
+                            eigs_B[j],
+                            compact_denominators=compact_denominators,
+                        )
+                    result[i, j] = _solve_scalar_with_denominator(
                         Y[i, j],
-                        eigs_A[i],
-                        eigs_B[j],
+                        denominator_getters[key],
                         diagonal=(i == j and index[0] == index[1]),
+                        return_internal=return_internal,
                     )
         for i in range(Y.rows):
             for j in range(Y.cols):
@@ -257,7 +456,7 @@ def apply_mask_to_operator(
                 if not keep:
                     result[i, j] = value
                 continue
-            value = NumberOrderedForm.from_expr(value)
+            value = _to_number_ordered_form(value)
             value, mask[i, j] = value._combine_operators(mask[i, j])
             assert isinstance(value, NumberOrderedForm)
             result[i, j] = value.filter_terms(tuple(mask[i, j].terms), keep)
