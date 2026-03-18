@@ -43,6 +43,25 @@ DirectSubspaceBasis = np.ndarray | tuple[np.ndarray, np.ndarray]
 Eigenvectors = tuple[SubspaceBasis, ...]
 
 
+def _second_quantized_matrix_mul(left, right):
+    """Matrix multiply without DomainMatrix's zero*inverse corner cases."""
+    if not isinstance(left, sympy.MatrixBase) or not isinstance(right, sympy.MatrixBase):
+        return left * right
+
+    result = sympy.MutableDenseMatrix.zeros(left.rows, right.cols)
+    for i in range(left.rows):
+        for k in range(left.cols):
+            left_entry = left[i, k]
+            if left_entry is sympy.S.Zero:
+                continue
+            for j in range(right.cols):
+                right_entry = right[k, j]
+                if right_entry is sympy.S.Zero:
+                    continue
+                result[i, j] += left_entry * right_entry
+    return result
+
+
 ### The main function for end-users.
 def block_diagonalize(
     hamiltonian: list | dict | BlockSeries | sympy.Matrix | sympy.Expr,
@@ -383,6 +402,8 @@ def block_diagonalize(
     # NumberOrderedForm.
     if operators:
         H_orig = H
+        if not scalar_input:
+            operator = _second_quantized_matrix_mul
 
         def H_eval(*index):
             result = H_orig[index]
@@ -394,7 +415,7 @@ def block_diagonalize(
 
             if isinstance(result, sympy.Matrix):
                 return result.applyfunc(
-                    lambda x: NumberOrderedForm.from_expr(x, operators)
+                    lambda x: NumberOrderedForm.from_expr(x, operators=operators)
                 )
 
         H = BlockSeries(
@@ -413,7 +434,11 @@ def block_diagonalize(
         if not operators:
             solve_sylvester = solve_sylvester_diagonal(diagonal, atol=atol)
         else:
-            solve_sylvester = second_quantization.solve_sylvester_2nd_quant(diagonal)
+            solve_sylvester = second_quantization.solve_sylvester_2nd_quant(
+                diagonal,
+                compact_denominators=symbols is None,
+                return_internal=True,
+            )
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
@@ -617,6 +642,24 @@ def block_diagonalize(
 
                 result = result.applyfunc(
                     lambda x: x._poly_simplify()
+                    if isinstance(x, NumberOrderedForm)
+                    else x
+                )
+                result = result.applyfunc(
+                    lambda x: x.applyfunc(second_quantization.expand_compact_denominators)
+                    if isinstance(x, NumberOrderedForm)
+                    else second_quantization.expand_compact_denominators(x)
+                )
+                result = result.applyfunc(
+                    lambda x: NumberOrderedForm(
+                        x.operators,
+                        {
+                            powers: coeff
+                            for powers, coeff in x.args[1]
+                            if coeff != sympy.S.Zero
+                        },
+                        validate=False,
+                    )
                     if isinstance(x, NumberOrderedForm)
                     else x
                 )

@@ -7,6 +7,7 @@ and number operators in the middle.
 
 from collections import defaultdict
 from collections.abc import Callable, Sequence
+from functools import lru_cache
 
 import sympy
 from packaging.specifiers import SpecifierSet
@@ -29,6 +30,28 @@ __all__ = [
 Zero = sympy.S.Zero
 One = sympy.S.One
 Tuple = sympy.Tuple
+
+
+@lru_cache(maxsize=8192)
+def _cached_shift_number_placeholders(
+    expr: sympy.Expr,
+    placeholders: tuple[sympy.Symbol, ...],
+    shifts: tuple[sympy.Expr, ...],
+) -> sympy.Expr:
+    replacements = {
+        placeholder: placeholder + shift
+        for placeholder, shift in zip(placeholders, shifts)
+        if shift
+    }
+    if not replacements:
+        return expr
+    return expr.xreplace(replacements)
+
+
+@lru_cache(maxsize=8192)
+def _cached_conjugate(expr: sympy.Expr) -> sympy.Expr:
+    return sympy.conjugate(expr)
+
 
 # Monkey patch sympy to propagate adjoint to matrix elements.
 if sympy.__version__ in SpecifierSet("<1.14"):  # pragma: no cover
@@ -960,7 +983,8 @@ class NumberOrderedForm(Operator):
                 if op_power > 0:  # Multiplying by an annihilation operator
                     # Compute how many new number operators appear
                     to_pair = min(op_power, max(-orig_power, 0))
-                    coeff = coeff.xreplace({n_operator: n_operator - to_pair})
+                    if to_pair:
+                        coeff = coeff.xreplace({n_operator: n_operator - to_pair})
                     if op_index < self._n_bosons:  # Bosons
                         coeff = sympy.Mul(
                             coeff, *(n_operator - i for i in range(to_pair))
@@ -975,12 +999,13 @@ class NumberOrderedForm(Operator):
                         coeff = coeff * new_numbers
                     if new_power > 0:
                         # Bring all unmatched annihilation operators to the right
-                        coeff = coeff.xreplace({n_operator: n_operator + new_power})
+                        if new_power:
+                            coeff = coeff.xreplace({n_operator: n_operator + new_power})
                     else:
                         # Bring all unmatched creation operators to the left
-                        coeff = coeff.xreplace(
-                            {n_operator: n_operator + sympy.S(-op_power - to_pair)}
-                        )
+                        shift = sympy.S(-op_power - to_pair)
+                        if shift:
+                            coeff = coeff.xreplace({n_operator: n_operator + shift})
                 new_terms[new_powers] = coeff
         else:  # Fermions and spins
             if abs(op_power) > One:
@@ -1062,25 +1087,31 @@ class NumberOrderedForm(Operator):
             )
 
         new_terms = {}
+        shifted_exprs: dict[PowerKey, sympy.Expr] = {}
         for powers, coeff in self.args[1]:
-            replacements = {}
-            for i, power in enumerate(powers):
-                if power == 0:
-                    continue
-                n_i = self._number_operator_placeholders[i]
-                if i < self._n_inf_order:  # Bosons or ladders
-                    if power > 0:
-                        # a * n_a = n_a + 1
-                        replacements[n_i] = n_i + power
-                else:  # Fermion or spin
-                    if power < 0:
-                        # c† * n_c = 0
-                        replacements[n_i] = Zero
-                    else:
-                        # c * n_c = c.
-                        replacements[n_i] = One
+            shifted_expr = shifted_exprs.get(powers)
+            if shifted_expr is None:
+                replacements = {}
+                for i, power in enumerate(powers):
+                    if power == 0:
+                        continue
+                    n_i = self._number_operator_placeholders[i]
+                    if i < self._n_inf_order:  # Bosons or ladders
+                        if power > 0:
+                            # a * n_a = n_a + 1
+                            replacements[n_i] = n_i + power
+                    else:  # Fermion or spin
+                        if power < 0:
+                            # c† * n_c = 0
+                            replacements[n_i] = Zero
+                        else:
+                            # c * n_c = c.
+                            replacements[n_i] = One
 
-            new_terms[powers] = coeff * expr.xreplace(replacements)
+                shifted_expr = expr if not replacements else expr.xreplace(replacements)
+                shifted_exprs[powers] = shifted_expr
+
+            new_terms[powers] = coeff * shifted_expr
 
         # Return a new NumberOrderedForm instance with the updated terms
         return type(self)(self.operators, new_terms, validate=False)
@@ -1197,6 +1228,94 @@ class NumberOrderedForm(Operator):
             other_expanded = other
         return self_expanded, other_expanded
 
+    @staticmethod
+    def _shift_number_placeholders(
+        expr: sympy.Expr,
+        placeholders: Sequence[sympy.Symbol],
+        shifts: Sequence[sympy.Expr],
+    ) -> sympy.Expr:
+        """Shift number-operator placeholders in a commutative expression."""
+        return _cached_shift_number_placeholders(
+            expr,
+            tuple(placeholders),
+            tuple(shifts),
+        )
+
+    def _mul_only_infinite_order(self, other: "NumberOrderedForm") -> "NumberOrderedForm":
+        """Multiply bosonic/lattice NumberOrderedForms with one shift per term product."""
+        placeholders = tuple(self._number_operator_placeholders)
+        result_terms = defaultdict(lambda: Zero)
+
+        for left_powers, left_coeff in self.args[1]:
+            for right_powers, right_coeff in other.args[1]:
+                current_powers = list(left_powers)
+                total_shift = [Zero] * len(placeholders)
+                pre_shift_multiplier = One
+                post_shift_multiplier = One
+
+                # Commute right-hand creation operators through the left term.
+                for i, power in enumerate(right_powers):
+                    if not power < 0:
+                        continue
+                    creation_power = -power
+                    orig_power = current_powers[i]
+                    to_pair = min(creation_power, max(orig_power, 0))
+                    if i < self._n_bosons and to_pair:
+                        number = placeholders[i]
+                        pre_shift_multiplier *= sympy.Mul(
+                            *(
+                                number + sympy.S(step)
+                                for step in range(1, int(to_pair) + 1)
+                            )
+                        )
+                    new_power = orig_power + power
+                    total_shift[i] += (
+                        new_power if new_power > 0 else creation_power - to_pair
+                    )
+                    current_powers[i] = new_power
+
+                right_coeff_shift = tuple(
+                    (power if power > 0 else Zero) - shift
+                    for power, shift in zip(current_powers, total_shift)
+                )
+
+                # Commute right-hand annihilation operators through the combined term.
+                for i, power in enumerate(right_powers):
+                    if not power > 0:
+                        continue
+                    orig_power = current_powers[i]
+                    to_pair = min(power, max(-orig_power, 0))
+                    total_shift[i] -= to_pair
+                    if i < self._n_bosons and to_pair:
+                        number = placeholders[i]
+                        post_shift_multiplier *= sympy.Mul(
+                            *(number - sympy.S(step) for step in range(int(to_pair)))
+                        )
+                    current_powers[i] = orig_power + power
+
+                coeff = (
+                    left_coeff
+                    if pre_shift_multiplier is One
+                    else left_coeff * pre_shift_multiplier
+                )
+                coeff = self._shift_number_placeholders(coeff, placeholders, total_shift)
+                if post_shift_multiplier is not One:
+                    coeff *= post_shift_multiplier
+                if right_coeff != One:
+                    coeff *= self._shift_number_placeholders(
+                        right_coeff,
+                        placeholders,
+                        tuple(
+                            shift + base_shift
+                            for shift, base_shift in zip(right_coeff_shift, total_shift)
+                        ),
+                    )
+                if coeff == 0:
+                    continue
+                result_terms[tuple(current_powers)] += coeff
+
+        return type(self)(self.operators, result_terms, validate=False)
+
     def __radd__(self, other) -> "NumberOrderedForm":
         """Add another object with this NumberOrderedForm.
 
@@ -1277,27 +1396,35 @@ class NumberOrderedForm(Operator):
 
         self_expanded, other_expanded = self._combine_operators(other)
 
-        result = type(self)(self_expanded.operators, {}, validate=False)
+        if self_expanded._n_inf_order == len(self_expanded.operators):
+            return self_expanded._mul_only_infinite_order(other_expanded)
+
+        if not self_expanded.args[1] or not other_expanded.args[1]:
+            return type(self)(self_expanded.operators, Tuple(), validate=False)
+
+        result_terms = defaultdict(lambda: Zero)
+        has_binary_operators = self_expanded._n_inf_order != len(self_expanded.operators)
         for powers, coeff in other_expanded.args[1]:
             # First multiply by creation operators, those are with negative powers
-            partial = NumberOrderedForm(
-                self_expanded.operators, self_expanded.args[1], validate=False
-            )
+            partial = self_expanded
             for i, power in enumerate(powers):
                 if not power < 0:
                     continue
                 partial = partial._multiply_op(i, power)
             # Now multiply by the number part
-            partial = partial._multiply_expr(coeff)
+            if coeff != One:
+                partial = partial._multiply_expr(coeff)
             # Finally, multiply by annihilation operators
             for i, power in enumerate(powers):
                 if not power > 0:
                     continue
                 partial = partial._multiply_op(i, power)
-            # Add the result to the new terms
-            result = result + partial._linearize_binary_operators()
+            if has_binary_operators:
+                partial = partial._linearize_binary_operators()
+            for partial_powers, partial_coeff in partial.args[1]:
+                result_terms[partial_powers] += partial_coeff
 
-        return result
+        return type(self)(self_expanded.operators, result_terms, validate=False)
 
     def __rmul__(self, other) -> "NumberOrderedForm":
         """Right multiply this NumberOrderedForm with another object.
@@ -1340,7 +1467,7 @@ class NumberOrderedForm(Operator):
         """
         # Take the adjoint of each term and negate the powers
         new_terms = tuple(
-            (tuple(-power for power in powers), coeff.adjoint())
+            (tuple(-power for power in powers), _cached_conjugate(coeff))
             for powers, coeff in self.args[1]
         )
         return type(self)(self.operators, new_terms, validate=False)
@@ -1587,6 +1714,19 @@ class NumberOrderedForm(Operator):
         old = old.xreplace(self._number_operator_to_placeholder)
         new = new.xreplace(self._number_operator_to_placeholder)
 
+        if old.is_Atom:
+            replacements = {old: new}
+            return type(self)(
+                self.operators,
+                Tuple(
+                    *(
+                        Tuple(powers, coeff.xreplace(replacements))
+                        for powers, coeff in self.args[1]
+                    )
+                ),
+                validate=False,
+            )
+
         return type(self)(
             self.operators,
             Tuple(
@@ -1639,10 +1779,15 @@ class NumberOrderedForm(Operator):
             # No operators, nothing to simplify
             return self
 
+        number_placeholders = frozenset(self._number_operator_placeholders)
         new_terms = {}
         for powers, coeff in self.args[1]:
             if not coeff.free_symbols:
                 # If the coefficient is a constant, just keep it as is
+                new_terms[powers] = coeff
+                continue
+            if coeff.free_symbols <= number_placeholders:
+                # There are no non-number symbols to factor out.
                 new_terms[powers] = coeff
                 continue
             new_terms[powers] = sympy.factor_terms(coeff)
