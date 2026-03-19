@@ -36,6 +36,7 @@ class _CompactDenominator(sympy.Function):
     is_commutative = True
     is_finite = True
     is_nonzero = True
+    is_real = True
     is_zero = False
 
     def _eval_conjugate(self):
