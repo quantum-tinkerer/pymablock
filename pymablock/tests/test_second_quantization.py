@@ -111,13 +111,14 @@ def test_solve_sylvester_2nd_quant():
 
 def test_expand_compact_denominators_linearizes_shifted_polynomials():
     n = sympy.Symbol("n", integer=True, positive=True)
-    compact = _make_compact_denominator(103 * n**2 - 103 * (n - 1) ** 2 - 10073, (n,))
+    alpha, beta = sympy.symbols("alpha beta")
+    compact = _make_compact_denominator(alpha * n**2 - alpha * (n - 1) ** 2 - beta, (n,))
 
     expanded = expand_compact_denominators(compact)
     shifted = expand_compact_denominators(compact.xreplace({n: n + 1}))
 
-    assert expanded == 206 * n - 10176
-    assert shifted == 206 * n - 9970
+    assert expanded == 2 * alpha * n - alpha - beta
+    assert shifted == 2 * alpha * n + alpha - beta
 
 
 def test_hermitian_block_diagonalization():
