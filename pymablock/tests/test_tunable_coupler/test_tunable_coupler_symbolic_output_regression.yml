@@ -1,26 +1,26 @@
 effective:
-  coeff_ops: 60494
-  coeff_str_len: 1168419
+  coeff_ops: 81736
+  coeff_str_len: 1280576
   terms: 1
 max_perturbation_order: 4
 order_0:
-  coeff_ops: 17
-  coeff_str_len: 414
+  coeff_ops: 20
+  coeff_str_len: 417
   terms: 1
 order_1:
   coeff_ops: 0
   coeff_str_len: 1
   terms: 0
 order_2:
-  coeff_ops: 112
-  coeff_str_len: 2296
+  coeff_ops: 146
+  coeff_str_len: 2482
   terms: 1
 order_3:
-  coeff_ops: 1445
-  coeff_str_len: 28508
+  coeff_ops: 1710
+  coeff_str_len: 30326
   terms: 1
 order_4:
-  coeff_ops: 58917
-  coeff_str_len: 1137195
+  coeff_ops: 79857
+  coeff_str_len: 1247344
   terms: 1
-wc: 5200
+parameterization: symbolic

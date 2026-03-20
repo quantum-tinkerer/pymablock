@@ -121,6 +121,58 @@ def test_expand_compact_denominators_linearizes_shifted_polynomials():
     assert shifted == 2 * alpha * n + alpha - beta
 
 
+def test_dispersive_shift_readout_is_finalized_automatically():
+    omega_t, omega_r, alpha, g = sympy.symbols(
+        r"\omega_{t} \omega_{r} \alpha g",
+        real=True,
+        positive=True,
+    )
+    a_t, a_r = BosonOp("a_t"), BosonOp("a_r")
+    n_t, n_r = NumberOperator(a_t), NumberOperator(a_r)
+
+    h_0 = (
+        -omega_t * Dagger(a_t) * a_t
+        + omega_r * Dagger(a_r) * a_r
+        + alpha * Dagger(a_t) ** 2 * a_t**2 / 2
+    )
+    h_p = -g * (Dagger(a_t) - a_t) * (Dagger(a_r) - a_r)
+
+    h_tilde, u, *_ = block_diagonalize(h_0 + h_p, symbols=[g])
+    e_eff = h_tilde[0, 0, 2]
+
+    chi = (
+        e_eff.subs({n_t: 1, n_r: 1})
+        - e_eff.subs({n_t: 1, n_r: 0})
+        - e_eff.subs({n_t: 0, n_r: 1})
+        + e_eff.subs({n_t: 0, n_r: 0})
+    )
+    assert chi.as_expr() == (
+        g**2
+        * (
+            -2 / (alpha - omega_r - omega_t)
+            + 2 / (-alpha - omega_r + omega_t)
+            - 2 / (-omega_r + omega_t)
+            + 2 / (-omega_r - omega_t)
+        )
+    )
+
+    collected = NumberOrderedForm.from_expr(
+        n_t * g * a_t / (-omega_r + omega_t) + n_t * g * a_t / (-omega_r - omega_t)
+    ).subs({n_t: 1})
+    assert (
+        collected.as_expr()
+        == g * (1 / (-omega_r + omega_t) + 1 / (-omega_r - omega_t)) * a_t
+    )
+
+    u_sub = u[0, 0, 1].subs({n_t: 0, n_r: 0})
+    assert u_sub.as_expr() == (
+        -g * Dagger(a_r) * Dagger(a_t) / (-omega_r + omega_t)
+        + g * a_t * a_r / (-omega_r + omega_t)
+        + g * Dagger(a_r) * a_t / (-omega_r - omega_t)
+        - g * Dagger(a_t) * a_r / (-omega_r - omega_t)
+    )
+
+
 def test_hermitian_block_diagonalization():
     """Test that checks Hermiticity of the block-diagonalized Hamiltonian."""
 

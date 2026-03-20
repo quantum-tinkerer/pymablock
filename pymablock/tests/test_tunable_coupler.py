@@ -6,17 +6,12 @@ from sympy.physics.quantum.boson import BosonOp
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 
-# Synthetic off-resonant parameters. The regression only needs a stable,
-# non-degenerate three-mode example with non-RWA couplings.
-E_1 = -200
-E_2 = -180
-E_C = -220
-G_1C = 40
-G_2C = 44
-G_12 = 6
-W_1 = 5000
-W_2 = 4700
-W_C = 5200
+# Keep the coupler parameters symbolic so the regression tracks the general
+# expression growth of the operator pipeline rather than one concrete point.
+E_1, E_2, E_C, G_1C, G_2C, G_12, W_1, W_2, W_C = sympy.symbols(
+    "E_1 E_2 E_C G_1C G_2C G_12 W_1 W_2 W_C",
+    real=True,
+)
 MAX_PERTURBATION_ORDER = 4
 
 
@@ -70,7 +65,7 @@ def test_tunable_coupler_symbolic_output_regression(data_regression):
 
     data_regression.check(
         {
-            "wc": W_C,
+            "parameterization": "symbolic",
             "max_perturbation_order": MAX_PERTURBATION_ORDER,
             **{
                 f"order_{order}": _number_ordered_form_metrics(expr)
