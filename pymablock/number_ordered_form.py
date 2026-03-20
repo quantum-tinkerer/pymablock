@@ -5,7 +5,7 @@ which represents operators with creation operators on the left, annihilation ope
 and number operators in the middle.
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
 from functools import lru_cache
 
@@ -30,6 +30,7 @@ __all__ = [
 Zero = sympy.S.Zero
 One = sympy.S.One
 Tuple = sympy.Tuple
+_FINALIZE_SMALL_COEFF_MAX_OPS = 200
 
 
 @lru_cache(maxsize=8192)
@@ -51,6 +52,43 @@ def _cached_shift_number_placeholders(
 @lru_cache(maxsize=8192)
 def _cached_conjugate(expr: sympy.Expr) -> sympy.Expr:
     return sympy.conjugate(expr)
+
+
+def _finalize_small_coefficient(expr: sympy.Expr) -> sympy.Expr:
+    """Regroup repeated commutative factors in a small coefficient.
+
+    This is intended for small post-substitution/readout expressions, not the hot
+    symbolic path. It looks for multiplicative commutative factors that recur across
+    several top-level additive terms and collects over them sequentially.
+    """
+    if not expr.is_Add or int(sympy.count_ops(expr)) > _FINALIZE_SMALL_COEFF_MAX_OPS:
+        return expr
+
+    factor_counts: Counter[sympy.Expr] = Counter()
+    for term in sympy.Add.make_args(expr):
+        term_factors = {
+            factor
+            for factor in sympy.Mul.make_args(term)
+            if not factor.is_number and factor.is_commutative and not factor.is_Add
+        }
+        factor_counts.update(term_factors)
+
+    candidates = [factor for factor, count in factor_counts.items() if count >= 2]
+    if not candidates:
+        return expr
+
+    candidates.sort(
+        key=lambda factor: (
+            -factor_counts[factor],
+            sympy.count_ops(factor),
+            len(str(factor)),
+        )
+    )
+
+    result = expr
+    for factor in candidates:
+        result = sympy.collect(result, factor)
+    return result
 
 
 # Monkey patch sympy to propagate adjoint to matrix elements.
@@ -1210,6 +1248,11 @@ class NumberOrderedForm(Operator):
             new_terms[powers] += coeff
         for powers, coeff in other_expanded.args[1]:
             new_terms[powers] += coeff
+        zero_powers = (Zero,) * len(self_expanded.operators)
+        if len(new_terms) == 1 and zero_powers in new_terms:
+            coeff = new_terms[zero_powers]
+            if coeff.free_symbols.isdisjoint(self_expanded._number_operator_placeholders):
+                new_terms[zero_powers] = _finalize_small_coefficient(coeff)
         return type(self)(self_expanded.operators, new_terms, validate=False)
 
     def _combine_operators(
@@ -1720,7 +1763,10 @@ class NumberOrderedForm(Operator):
                 self.operators,
                 Tuple(
                     *(
-                        Tuple(powers, coeff.xreplace(replacements))
+                        Tuple(
+                            powers,
+                            _finalize_small_coefficient(coeff.xreplace(replacements)),
+                        )
                         for powers, coeff in self.args[1]
                     )
                 ),
@@ -1730,7 +1776,10 @@ class NumberOrderedForm(Operator):
         return type(self)(
             self.operators,
             Tuple(
-                *(Tuple(powers, coeff.subs(old, new)) for powers, coeff in self.args[1])
+                *(
+                    Tuple(powers, _finalize_small_coefficient(coeff.subs(old, new)))
+                    for powers, coeff in self.args[1]
+                )
             ),
             validate=False,
         )
