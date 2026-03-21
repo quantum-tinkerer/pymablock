@@ -354,10 +354,8 @@ def block_diagonalize(
         if not operators:
             solve_sylvester = solve_sylvester_diagonal(diagonal, atol=atol)
         else:
-            solve_sylvester = (
-                second_quantization._solve_sylvester_2nd_quant_internal(diagonal)
-                if symbols is None
-                else second_quantization.solve_sylvester_2nd_quant(diagonal)
+            solve_sylvester = second_quantization._solve_sylvester_2nd_quant_compact(
+                diagonal
             )
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
