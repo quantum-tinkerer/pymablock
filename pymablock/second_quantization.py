@@ -156,13 +156,11 @@ def _shift_number_operator_placeholders(
     return coeff.xreplace(replacements)
 
 
-def _sylvester_denominator_getter(
+def _make_sylvester_denominator_getter(
     H_ii: NumberOrderedForm | sympy.Expr,
     H_jj: NumberOrderedForm | sympy.Expr,
-    *,
-    compact: bool,
 ) -> Callable[[tuple, tuple[int, ...]], sympy.Expr]:
-    """Build a cached denominator getter for one pair of diagonal energies."""
+    """Build a cached compact denominator getter for one pair of diagonal energies."""
     coeff_ii = _extract_particle_conserving_coefficient(H_ii)
     coeff_jj = _extract_particle_conserving_coefficient(H_jj)
     ops_ii = tuple(H_ii.operators) if isinstance(H_ii, NumberOrderedForm) else ()
@@ -208,37 +206,18 @@ def _sylvester_denominator_getter(
                 denominator = shifted_H_ii - shifted_H_jj
 
         result = sympy.collect_const(denominator).doit()
-        if compact:
-            result = _make_compact_denominator(
-                result,
-                tuple(
-                    placeholder
-                    for placeholder in (*placeholders_ii, *placeholders_jj)
-                    if result.has(placeholder)
-                ),
-            )
-        else:
-            result = sympy.simplify(result)
+        result = _make_compact_denominator(
+            result,
+            tuple(
+                placeholder
+                for placeholder in (*placeholders_ii, *placeholders_jj)
+                if result.has(placeholder)
+            ),
+        )
         cache[key] = result
         return result
 
     return get_denominator
-
-
-def _make_sylvester_denominator_getter(
-    H_ii: NumberOrderedForm | sympy.Expr,
-    H_jj: NumberOrderedForm | sympy.Expr,
-) -> Callable[[tuple, tuple[int, ...]], sympy.Expr]:
-    """Build a cached denominator getter for the public expanded solver."""
-    return _sylvester_denominator_getter(H_ii, H_jj, compact=False)
-
-
-def _make_internal_sylvester_denominator_getter(
-    H_ii: NumberOrderedForm | sympy.Expr,
-    H_jj: NumberOrderedForm | sympy.Expr,
-) -> Callable[[tuple, tuple[int, ...]], sympy.Expr]:
-    """Build a cached denominator getter for the compact internal solver."""
-    return _sylvester_denominator_getter(H_ii, H_jj, compact=True)
 
 
 def _solve_scalar_with_denominator_impl(
@@ -298,7 +277,7 @@ def _solve_scalar_with_denominator(
     )
 
 
-def _solve_scalar_with_internal_denominator(
+def _solve_scalar_with_compact_denominator(
     Y: sympy.Expr,
     denominator_getter: Callable[[tuple, tuple[int, ...]], sympy.Expr],
     diagonal: bool = False,
@@ -358,10 +337,6 @@ def solve_scalar(
 
 def _solve_sylvester_2nd_quant_impl(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
-    denominator_getter_factory: Callable[
-        [NumberOrderedForm | sympy.Expr, NumberOrderedForm | sympy.Expr],
-        Callable[[tuple, tuple[int, ...]], sympy.Expr],
-    ],
     scalar_solver: Callable[
         [sympy.Expr, Callable[[tuple, tuple[int, ...]], sympy.Expr], bool],
         NumberOrderedForm,
@@ -397,7 +372,7 @@ def _solve_sylvester_2nd_quant_impl(
                 if index[0] != index[1] or i >= j:
                     key = (index[0], index[1], i, j)
                     if key not in denominator_getters:
-                        denominator_getters[key] = denominator_getter_factory(
+                        denominator_getters[key] = _make_sylvester_denominator_getter(
                             eigs_A[i], eigs_B[j]
                         )
                     result[i, j] = scalar_solver(
@@ -416,14 +391,13 @@ def _solve_sylvester_2nd_quant_impl(
     return solve_sylvester
 
 
-def _solve_sylvester_2nd_quant_internal(
+def _solve_sylvester_2nd_quant_compact(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
 ) -> Callable:
     """Compact internal Sylvester solver used by block diagonalization."""
     return _solve_sylvester_2nd_quant_impl(
         eigs,
-        _make_internal_sylvester_denominator_getter,
-        _solve_scalar_with_internal_denominator,
+        _solve_scalar_with_compact_denominator,
     )
 
 
@@ -447,7 +421,6 @@ def solve_sylvester_2nd_quant(
     """
     return _solve_sylvester_2nd_quant_impl(
         eigs,
-        _make_sylvester_denominator_getter,
         _solve_scalar_with_denominator,
     )
 
