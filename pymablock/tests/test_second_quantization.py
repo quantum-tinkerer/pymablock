@@ -109,7 +109,13 @@ def test_solve_sylvester_2nd_quant():
             )
 
 
-def test_expand_compact_denominators_linearizes_shifted_polynomials():
+def test_compact_denominator_expansion_is_linearized():
+    """Expand compact denominators back to the cleaned linearized polynomial form.
+
+    The compact solver keeps shifted denominator templates as atoms internally.
+    This regression checks that expanding those atoms later still simplifies a
+    shifted quadratic difference into the expected linear expression.
+    """
     n = sympy.Symbol("n", integer=True, positive=True)
     alpha, beta = sympy.symbols("alpha beta")
     compact = _make_compact_denominator(alpha * n**2 - alpha * (n - 1) ** 2 - beta, (n,))
@@ -121,7 +127,12 @@ def test_expand_compact_denominators_linearizes_shifted_polynomials():
     assert shifted == 2 * alpha * n + alpha - beta
 
 
-def test_dispersive_shift_readout_is_finalized_automatically():
+def test_small_readout_expressions_are_grouped_on_conversion():
+    """Keep low-order substituted readout expressions in a compact grouped form.
+
+    This covers the dispersive-shift tutorial regression where `factor_terms`
+    alone left small placeholder-free results unnecessarily fragmented.
+    """
     omega_t, omega_r, alpha, g = sympy.symbols(
         r"\omega_{t} \omega_{r} \alpha g",
         real=True,
@@ -170,6 +181,75 @@ def test_dispersive_shift_readout_is_finalized_automatically():
         + g * a_t * a_r / (-omega_r + omega_t)
         + g * Dagger(a_r) * a_t / (-omega_r - omega_t)
         - g * Dagger(a_t) * a_r / (-omega_r - omega_t)
+    )
+
+
+E_A, E_B, G_REGRESSION, W_A, W_B = sympy.symbols(
+    "E_A E_B G_REGRESSION W_A W_B",
+    real=True,
+)
+MAX_H_TILDE_REGRESSION_ORDER = 4
+MAX_U_REGRESSION_ORDER = 3
+
+
+def _symbolic_simplification_regression_orders():
+    a, b = BosonOp("a"), BosonOp("b")
+    n_a, n_b = (NumberOperator(op) for op in (a, b))
+
+    h_0 = W_A * n_a + W_B * n_b + E_A * n_a * (n_a - 1) / 2 + E_B * n_b * (n_b - 1) / 2
+    h_1 = G_REGRESSION * (a * Dagger(b) + Dagger(a) * b - a * b - Dagger(a) * Dagger(b))
+
+    h_tilde, u, *_ = block_diagonalize([h_0, h_1])
+    return {
+        "H_tilde": [
+            h_tilde[0, 0, order] for order in range(MAX_H_TILDE_REGRESSION_ORDER + 1)
+        ],
+        "U": [u[0, 0, order] for order in range(MAX_U_REGRESSION_ORDER + 1)],
+    }
+
+
+def _regression_metrics(expr) -> dict[str, int]:
+    if not isinstance(expr, NumberOrderedForm):
+        if not isinstance(expr, sympy.Expr):
+            return {
+                "terms": 0 if expr == sympy.S.Zero else 1,
+                "coeff_ops": 0,
+                "coeff_str_len": len(str(expr)),
+            }
+        return {
+            "terms": 0 if expr == sympy.S.Zero else 1,
+            "coeff_ops": int(sympy.count_ops(expr)),
+            "coeff_str_len": len(str(expr)),
+        }
+
+    coeffs = [coeff for _, coeff in expr.args[1]]
+    return {
+        "terms": len(coeffs),
+        "coeff_ops": int(sum(sympy.count_ops(coeff) for coeff in coeffs)),
+        "coeff_str_len": sum(len(str(coeff)) for coeff in coeffs),
+    }
+
+
+def test_symbolic_expression_simplification_regression(data_regression):
+    """Snapshot simplification metrics for a small symbolic bosonic workload.
+
+    The problem is intentionally lightweight enough for the default test suite,
+    but still large enough to exercise expression shaping in both the effective
+    Hamiltonian (`H_tilde` order 4) and the unitary (`U` order 3).
+    """
+    outputs = _symbolic_simplification_regression_orders()
+
+    data_regression.check(
+        {
+            "hamiltonian": "two_mode_non_rwa_bosons",
+            "max_h_tilde_order": MAX_H_TILDE_REGRESSION_ORDER,
+            "max_u_order": MAX_U_REGRESSION_ORDER,
+            **{
+                f"{series_name}_order_{order}": _regression_metrics(expr)
+                for series_name, orders in outputs.items()
+                for order, expr in enumerate(orders)
+            },
+        }
     )
 
 

@@ -1,0 +1,39 @@
+H_tilde_order_0:
+  coeff_ops: 13
+  coeff_str_len: 265
+  terms: 1
+H_tilde_order_1:
+  coeff_ops: 0
+  coeff_str_len: 1
+  terms: 0
+H_tilde_order_2:
+  coeff_ops: 42
+  coeff_str_len: 780
+  terms: 1
+H_tilde_order_3:
+  coeff_ops: 0
+  coeff_str_len: 1
+  terms: 0
+H_tilde_order_4:
+  coeff_ops: 5081
+  coeff_str_len: 79172
+  terms: 1
+U_order_0:
+  coeff_ops: 0
+  coeff_str_len: 3
+  terms: 1
+U_order_1:
+  coeff_ops: 28
+  coeff_str_len: 454
+  terms: 4
+U_order_2:
+  coeff_ops: 543
+  coeff_str_len: 7920
+  terms: 9
+U_order_3:
+  coeff_ops: 10070
+  coeff_str_len: 146458
+  terms: 16
+hamiltonian: two_mode_non_rwa_bosons
+max_h_tilde_order: 4
+max_u_order: 3

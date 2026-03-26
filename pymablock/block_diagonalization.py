@@ -351,12 +351,15 @@ def block_diagonalize(
         diagonal = _extract_diagonal(H, atol, use_implicit, operators)
 
     if solve_sylvester is None:
+        compact_denominator_registry = None
         if not operators:
             solve_sylvester = solve_sylvester_diagonal(diagonal, atol=atol)
         else:
-            solve_sylvester = second_quantization._solve_sylvester_2nd_quant_compact(
-                diagonal
+            solve_sylvester, compact_denominator_registry = (
+                second_quantization._solve_sylvester_2nd_quant_compact(diagonal)
             )
+    else:
+        compact_denominator_registry = None
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
@@ -552,9 +555,17 @@ def block_diagonalize(
                     else x
                 )
                 result = result.applyfunc(
-                    lambda x: x.applyfunc(second_quantization.expand_compact_denominators)
+                    lambda x: x.applyfunc(
+                        lambda coeff: second_quantization.expand_compact_denominators(
+                            coeff,
+                            compact_denominator_registry,
+                        )
+                    )
                     if isinstance(x, NumberOrderedForm)
-                    else second_quantization.expand_compact_denominators(x)
+                    else second_quantization.expand_compact_denominators(
+                        x,
+                        compact_denominator_registry,
+                    )
                 )
                 result = result.applyfunc(
                     lambda x: NumberOrderedForm(
