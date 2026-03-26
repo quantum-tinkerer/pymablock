@@ -867,8 +867,11 @@ class NumberOrderedForm(Operator):
 
         result = Zero
         reversed_operators = list(reversed(self.operators))
+        placeholders = frozenset(self._number_operator_placeholders)
 
         for powers, coeff in self.args[1]:
+            if coeff.free_symbols.isdisjoint(placeholders):
+                coeff = _finalize_small_coefficient(coeff)
             # Replace any placeholders with NumberOperator instances
             coeff = coeff.xreplace(self._placeholder_to_number_operator)
             term = coeff
@@ -1248,11 +1251,6 @@ class NumberOrderedForm(Operator):
             new_terms[powers] += coeff
         for powers, coeff in other_expanded.args[1]:
             new_terms[powers] += coeff
-        zero_powers = (Zero,) * len(self_expanded.operators)
-        if len(new_terms) == 1 and zero_powers in new_terms:
-            coeff = new_terms[zero_powers]
-            if coeff.free_symbols.isdisjoint(self_expanded._number_operator_placeholders):
-                new_terms[zero_powers] = _finalize_small_coefficient(coeff)
         return type(self)(self_expanded.operators, new_terms, validate=False)
 
     def _combine_operators(
@@ -1763,10 +1761,7 @@ class NumberOrderedForm(Operator):
                 self.operators,
                 Tuple(
                     *(
-                        Tuple(
-                            powers,
-                            _finalize_small_coefficient(coeff.xreplace(replacements)),
-                        )
+                        Tuple(powers, coeff.xreplace(replacements))
                         for powers, coeff in self.args[1]
                     )
                 ),
@@ -1776,10 +1771,7 @@ class NumberOrderedForm(Operator):
         return type(self)(
             self.operators,
             Tuple(
-                *(
-                    Tuple(powers, _finalize_small_coefficient(coeff.subs(old, new)))
-                    for powers, coeff in self.args[1]
-                )
+                *(Tuple(powers, coeff.subs(old, new)) for powers, coeff in self.args[1])
             ),
             validate=False,
         )

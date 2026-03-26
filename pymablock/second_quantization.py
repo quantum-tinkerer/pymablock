@@ -23,12 +23,6 @@ __all__ = [
     "solve_sylvester_2nd_quant",
 ]
 
-_COMPACT_DENOMINATOR_REGISTRY: dict[int, tuple[tuple[sympy.Symbol, ...], sympy.Expr]] = {}
-_COMPACT_DENOMINATOR_REVERSE_REGISTRY: dict[
-    tuple[tuple[sympy.Symbol, ...], sympy.Expr], int
-] = {}
-_NEXT_COMPACT_DENOMINATOR_ID = 0
-
 
 class _CompactDenominator(sympy.Function):
     """Compact placeholder for a shifted Sylvester denominator."""
@@ -43,53 +37,102 @@ class _CompactDenominator(sympy.Function):
         return self
 
 
+class _CompactDenominatorRegistry:
+    """Registry for compact denominator templates used in one solver context."""
+
+    def __init__(self):
+        self._registry: dict[int, tuple[tuple[sympy.Symbol, ...], sympy.Expr]] = {}
+        self._reverse_registry: dict[
+            tuple[tuple[sympy.Symbol, ...], sympy.Expr], int
+        ] = {}
+        self._next_id = 0
+
+    def register(
+        self,
+        placeholders: tuple[sympy.Symbol, ...],
+        expr: sympy.Expr,
+    ) -> sympy.Integer:
+        key = (placeholders, expr)
+        if key not in self._reverse_registry:
+            token = self._next_id
+            self._next_id += 1
+            self._reverse_registry[key] = token
+            self._registry[token] = key
+        return sympy.Integer(self._reverse_registry[key])
+
+    def make_compact_denominator(
+        self,
+        expr: sympy.Expr,
+        placeholders: tuple[sympy.Symbol, ...],
+    ) -> sympy.Expr:
+        """Create a compact denominator atom that still shifts with placeholders."""
+        used_placeholders = tuple(
+            placeholder for placeholder in placeholders if expr.has(placeholder)
+        )
+        token = self.register(used_placeholders, expr)
+        return _CompactDenominator(token, *used_placeholders)
+
+    @lru_cache(maxsize=8192)
+    def _expand_registered(
+        self,
+        token: int,
+        values: tuple[sympy.Expr, ...],
+    ) -> sympy.Expr:
+        placeholders, template = self._registry[token]
+        if not placeholders:
+            return sympy.expand(template)
+        return sympy.expand(
+            template.xreplace(dict(zip(placeholders, values, strict=True)))
+        )
+
+    def expand_atom(self, expr: _CompactDenominator) -> sympy.Expr:
+        return self._expand_registered(int(expr.args[0]), expr.args[1:])
+
+    def expand_expr(self, expr: sympy.Expr) -> sympy.Expr:
+        return expr.replace(
+            lambda item: isinstance(item, _CompactDenominator),
+            self.expand_atom,
+        )
+
+
+_DEFAULT_COMPACT_DENOMINATOR_REGISTRY = _CompactDenominatorRegistry()
+
+
 def _register_compact_denominator(
     placeholders: tuple[sympy.Symbol, ...],
     expr: sympy.Expr,
+    *,
+    registry: _CompactDenominatorRegistry = _DEFAULT_COMPACT_DENOMINATOR_REGISTRY,
 ) -> sympy.Integer:
-    global _NEXT_COMPACT_DENOMINATOR_ID
-    key = (placeholders, expr)
-    if key not in _COMPACT_DENOMINATOR_REVERSE_REGISTRY:
-        token = _NEXT_COMPACT_DENOMINATOR_ID
-        _NEXT_COMPACT_DENOMINATOR_ID += 1
-        _COMPACT_DENOMINATOR_REVERSE_REGISTRY[key] = token
-        _COMPACT_DENOMINATOR_REGISTRY[token] = key
-    return sympy.Integer(_COMPACT_DENOMINATOR_REVERSE_REGISTRY[key])
+    return registry.register(placeholders, expr)
 
 
 def _make_compact_denominator(
     expr: sympy.Expr,
     placeholders: tuple[sympy.Symbol, ...],
+    *,
+    registry: _CompactDenominatorRegistry = _DEFAULT_COMPACT_DENOMINATOR_REGISTRY,
 ) -> sympy.Expr:
-    """Create a compact denominator atom that still shifts with placeholders."""
-    used_placeholders = tuple(
-        placeholder for placeholder in placeholders if expr.has(placeholder)
-    )
-    token = _register_compact_denominator(used_placeholders, expr)
-    return _CompactDenominator(token, *used_placeholders)
+    return registry.make_compact_denominator(expr, placeholders)
 
 
-def _expand_compact_denominator(expr: _CompactDenominator) -> sympy.Expr:
-    return _expand_registered_compact_denominator(int(expr.args[0]), expr.args[1:])
-
-
-@lru_cache(maxsize=8192)
-def _expand_registered_compact_denominator(
-    token: int,
-    values: tuple[sympy.Expr, ...],
+def _expand_compact_denominator(
+    expr: _CompactDenominator,
+    registry: _CompactDenominatorRegistry | None = _DEFAULT_COMPACT_DENOMINATOR_REGISTRY,
 ) -> sympy.Expr:
-    placeholders, template = _COMPACT_DENOMINATOR_REGISTRY[token]
-    if not placeholders:
-        return sympy.expand(template)
-    return sympy.expand(template.xreplace(dict(zip(placeholders, values, strict=True))))
+    if registry is None:
+        registry = _DEFAULT_COMPACT_DENOMINATOR_REGISTRY
+    return registry.expand_atom(expr)
 
 
-def expand_compact_denominators(expr: sympy.Expr) -> sympy.Expr:
+def expand_compact_denominators(
+    expr: sympy.Expr,
+    registry: _CompactDenominatorRegistry | None = _DEFAULT_COMPACT_DENOMINATOR_REGISTRY,
+) -> sympy.Expr:
     """Expand compact Sylvester denominator atoms in an expression."""
-    return expr.replace(
-        lambda item: isinstance(item, _CompactDenominator),
-        _expand_compact_denominator,
-    )
+    if registry is None:
+        registry = _DEFAULT_COMPACT_DENOMINATOR_REGISTRY
+    return registry.expand_expr(expr)
 
 
 def _is_infinite_order_only_operators(operators: tuple) -> bool:
@@ -159,6 +202,7 @@ def _shift_number_operator_placeholders(
 def _make_sylvester_denominator_getter(
     H_ii: NumberOrderedForm | sympy.Expr,
     H_jj: NumberOrderedForm | sympy.Expr,
+    registry: _CompactDenominatorRegistry,
 ) -> Callable[[tuple, tuple[int, ...]], sympy.Expr]:
     """Build a cached compact denominator getter for one pair of diagonal energies."""
     coeff_ii = _extract_particle_conserving_coefficient(H_ii)
@@ -213,6 +257,7 @@ def _make_sylvester_denominator_getter(
                 for placeholder in (*placeholders_ii, *placeholders_jj)
                 if result.has(placeholder)
             ),
+            registry=registry,
         )
         cache[key] = result
         return result
@@ -226,6 +271,7 @@ def _solve_scalar_with_denominator_impl(
     diagonal: bool = False,
     *,
     expand_result: bool,
+    registry: _CompactDenominatorRegistry | None = None,
 ) -> NumberOrderedForm:
     """Solve a scalar Sylvester equation with a precomputed denominator getter."""
     if Y == 0:
@@ -260,12 +306,15 @@ def _solve_scalar_with_denominator_impl(
 
     if not expand_result:
         return result
-    return result.applyfunc(expand_compact_denominators)
+    if registry is None:
+        raise ValueError("registry must be provided when expanding compact denominators")
+    return result.applyfunc(lambda expr: expand_compact_denominators(expr, registry))
 
 
 def _solve_scalar_with_denominator(
     Y: sympy.Expr,
     denominator_getter: Callable[[tuple, tuple[int, ...]], sympy.Expr],
+    registry: _CompactDenominatorRegistry,
     diagonal: bool = False,
 ) -> NumberOrderedForm:
     """Solve a scalar Sylvester equation and return the public expanded result."""
@@ -274,6 +323,7 @@ def _solve_scalar_with_denominator(
         denominator_getter,
         diagonal,
         expand_result=True,
+        registry=registry,
     )
 
 
@@ -328,9 +378,11 @@ def solve_scalar(
     See the second quantization documentation for the derivation.
 
     """
+    registry = _CompactDenominatorRegistry()
     return _solve_scalar_with_denominator(
         Y,
-        _make_sylvester_denominator_getter(H_ii, H_jj),
+        _make_sylvester_denominator_getter(H_ii, H_jj, registry),
+        registry,
         diagonal=diagonal,
     )
 
@@ -341,6 +393,7 @@ def _solve_sylvester_2nd_quant_impl(
         [sympy.Expr, Callable[[tuple, tuple[int, ...]], sympy.Expr], bool],
         NumberOrderedForm,
     ],
+    registry: _CompactDenominatorRegistry,
 ) -> Callable:
     """Implement the second-quantized Sylvester solver."""
     eigs = tuple(
@@ -373,7 +426,7 @@ def _solve_sylvester_2nd_quant_impl(
                     key = (index[0], index[1], i, j)
                     if key not in denominator_getters:
                         denominator_getters[key] = _make_sylvester_denominator_getter(
-                            eigs_A[i], eigs_B[j]
+                            eigs_A[i], eigs_B[j], registry
                         )
                     result[i, j] = scalar_solver(
                         Y[i, j],
@@ -393,12 +446,14 @@ def _solve_sylvester_2nd_quant_impl(
 
 def _solve_sylvester_2nd_quant_compact(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
-) -> Callable:
+) -> tuple[Callable, _CompactDenominatorRegistry]:
     """Compact internal Sylvester solver used by block diagonalization."""
+    registry = _CompactDenominatorRegistry()
     return _solve_sylvester_2nd_quant_impl(
         eigs,
         _solve_scalar_with_compact_denominator,
-    )
+        registry,
+    ), registry
 
 
 def solve_sylvester_2nd_quant(
@@ -419,9 +474,16 @@ def solve_sylvester_2nd_quant(
         diagonal Hamiltonian blocks.
 
     """
+    registry = _CompactDenominatorRegistry()
     return _solve_sylvester_2nd_quant_impl(
         eigs,
-        _solve_scalar_with_denominator,
+        lambda Y, denominator_getter, diagonal: _solve_scalar_with_denominator(
+            Y,
+            denominator_getter,
+            registry,
+            diagonal,
+        ),
+        registry,
     )
 
 
