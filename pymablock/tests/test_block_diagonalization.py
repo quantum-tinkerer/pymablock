@@ -854,15 +854,21 @@ def test_solve_sylvester_direct_vs_diagonal(index) -> None:
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
     diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
-    direct = solve_sylvester_direct(h, [eigvecs])
+    direct = solve_sylvester_direct(h, [eigvecs], nonhermitian=index == (1, 0))
 
-    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
-        size=(a_dim, n - a_dim)
-    )
-    y = y @ Dagger(eigvecs_rest)
+    if index == (0, 1):
+        y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+            size=(a_dim, n - a_dim)
+        )
+        y = y @ Dagger(eigvecs_rest)
+    else:
+        y = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
+            size=(n - a_dim, a_dim)
+        )
+        y = eigvecs_rest @ y
 
-    y_default = diagonal(y, (0, 1))
-    y_direct = direct(y, (0, 1))
+    y_default = diagonal(y, index)
+    y_direct = direct(y, index)
 
     np.testing.assert_allclose(y_default, y_direct)
 
@@ -884,7 +890,7 @@ def test_solve_sylvester_direct_vs_diagonal_degenerate(index) -> None:
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
     diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
-    direct = solve_sylvester_direct(h, [eigvecs])
+    direct = solve_sylvester_direct(h, [eigvecs], nonhermitian=index == (1, 0))
 
     if index == (0, 1):
         y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
@@ -903,8 +909,7 @@ def test_solve_sylvester_direct_vs_diagonal_degenerate(index) -> None:
     np.testing.assert_allclose(y_default, y_direct, atol=1e-10)
 
 
-@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
-def test_solve_sylvester_kpm_vs_diagonal(index) -> None:
+def test_solve_sylvester_kpm_vs_diagonal() -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
     solve_sylvester_diagonal.
@@ -1844,7 +1849,7 @@ def test_block_diagonalize_filters_direct_solver_options(monkeypatch):
         },
     )
 
-    assert captured_options == {"eigenvalue_atol": 1e-6}
+    assert captured_options == {"eigenvalue_atol": 1e-6, "nonhermitian": False}
 
 
 def test_block_diagonalize_uses_atol_for_direct_solver_groups(monkeypatch):
@@ -1865,7 +1870,7 @@ def test_block_diagonalize_uses_atol_for_direct_solver_groups(monkeypatch):
         atol=1e-8,
     )
 
-    assert captured_options == {"eigenvalue_atol": 1e-8}
+    assert captured_options == {"eigenvalue_atol": 1e-8, "nonhermitian": False}
 
 
 def test_block_diagonalize_direct_solver_deprecated_options_warn():

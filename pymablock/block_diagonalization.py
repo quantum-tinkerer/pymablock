@@ -244,7 +244,10 @@ def block_diagonalize(
                 ):
                     direct_solver_options["eigenvalue_atol"] = atol
                 solve_sylvester = solve_sylvester_direct(
-                    h_0, subspace_eigenvectors, **direct_solver_options
+                    h_0,
+                    subspace_eigenvectors,
+                    nonhermitian=not hermitian,
+                    **direct_solver_options,
                 )
             else:
                 solve_sylvester = solve_sylvester_KPM(
@@ -840,6 +843,10 @@ def solve_sylvester_diagonal(
             # Needed when the implicit block is returned in the original basis.
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
             return ((Y @ vecs_implicit) * energy_denominators) @ Dagger(vecs_implicit)
+        if vecs_implicit is not None and index[0] == len(eigs) - 1:
+            # Symmetric companion of the right-implicit case above.
+            energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
+            return vecs_implicit @ ((Dagger(vecs_implicit) @ Y) * energy_denominators)
         if isinstance(Y, np.ndarray):
             energy_differences = eigs_A.reshape(-1, 1) - eigs_B
             with np.errstate(divide="ignore", invalid="ignore"):
@@ -969,6 +976,8 @@ def _group_close_energies(energies: np.ndarray, atol: float) -> list[np.ndarray]
 def solve_sylvester_direct(
     h_0: sparse.spmatrix,
     eigenvectors: list[np.ndarray],
+    *,
+    nonhermitian: bool = False,
     **solver_options: dict,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Solve Sylvester equation using a direct sparse solver.
@@ -982,6 +991,10 @@ def solve_sylvester_direct(
         Unperturbed Hamiltonian of the system.
     eigenvectors :
         Eigenvectors of the effective subspaces of the unperturbed Hamiltonian.
+    nonhermitian :
+        Whether to also prepare the left-implicit Green's functions needed by
+        the non-Hermitian algorithm. This is more expensive and unnecessary for
+        the Hermitian path.
     **solver_options :
         Keyword arguments for the direct solver. ``eigenvalue_atol`` controls
         how explicit eigenvalues are grouped into degenerate subspaces before
@@ -1041,7 +1054,9 @@ def solve_sylvester_direct(
 
     # The non-Hermitian path needs both right- and left-implicit solves.
     greens_functions_right = grouped_greens_functions(h_0.T, conjugate_kernel=True)
-    greens_functions_left = grouped_greens_functions(h_0, conjugate_kernel=False)
+    greens_functions_left = (
+        grouped_greens_functions(h_0, conjugate_kernel=False) if nonhermitian else None
+    )
 
     explicit_part = solve_sylvester_diagonal(eigenvalues, atol=eigenvalue_atol)
 
@@ -1052,6 +1067,11 @@ def solve_sylvester_direct(
             return explicit_part(Y, index)
 
         if index[0] == len(eigenvalues):
+            if greens_functions_left is None:
+                raise NotImplementedError(
+                    "Left-implicit direct solves require solve_sylvester_direct("
+                    "..., nonhermitian=True)."
+                )
             Y = projector @ Y
             result = np.column_stack(
                 [-gf(vec) for gf, vec in zip(greens_functions_left[index[1]], Y.T)]

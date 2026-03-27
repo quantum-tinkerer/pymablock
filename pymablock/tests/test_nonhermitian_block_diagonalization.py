@@ -383,7 +383,7 @@ def test_nonhermitian_direct_solver_supports_both_offdiagonal_orientations(
     h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h_0.toarray())
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
-    direct = solve_sylvester_direct(h_0, [eigvecs])
+    direct = solve_sylvester_direct(h_0, [eigvecs], nonhermitian=True)
 
     if index == (0, 1):
         rhs = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
@@ -404,6 +404,54 @@ def test_nonhermitian_direct_solver_supports_both_offdiagonal_orientations(
         )
 
     np.testing.assert_allclose(expected, direct(rhs, index))
+
+
+def test_nonhermitian_direct_solver_requires_flag_for_left_implicit_solve() -> None:
+    pytest.importorskip("mumps", reason="python-mumps is not installed")
+
+    n = 40
+    a_dim = 4
+    rng = np.random.default_rng(86420)
+    energies = rng.standard_normal(n)
+    hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
+    h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
+    eigvals, eigvecs = np.linalg.eigh(h_0.toarray())
+    eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
+    direct = solve_sylvester_direct(h_0, [eigvecs])
+
+    rhs = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
+        size=(n - a_dim, a_dim)
+    )
+    rhs = eigvecs_rest @ rhs
+
+    with pytest.raises(NotImplementedError, match="nonhermitian=True"):
+        direct(rhs, (1, 0))
+
+
+def test_block_diagonalize_nonhermitian_implicit_direct_solver() -> None:
+    pytest.importorskip("mumps", reason="python-mumps is not installed")
+
+    n = 40
+    a_dim = 4
+    rng = np.random.default_rng(11223)
+    energies = rng.standard_normal(n)
+    hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
+    h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
+    h_1 = rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
+    eigvecs = np.linalg.eigh(h_0.toarray())[1]
+
+    H_tilde_implicit, *_ = block_diagonalize(
+        [h_0, h_1],
+        subspace_eigenvectors=[eigvecs[:, :a_dim]],
+        hermitian=False,
+    )
+    H_tilde_explicit, *_ = block_diagonalize(
+        [h_0.toarray(), h_1],
+        subspace_eigenvectors=[eigvecs[:, :a_dim], eigvecs[:, a_dim:]],
+        hermitian=False,
+    )
+
+    compare_series(H_tilde_implicit[0, 0], H_tilde_explicit[0, 0], (2,), atol=1e-8)
 
 
 def test_block_diagonalize_nonhermitian_rejects_implicit_kpm():
