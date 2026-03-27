@@ -23,10 +23,10 @@ reuses the same general setup:
 - avoid unnecessary products by $H_0$,
 - reduce each perturbative order to one Sylvester solve.
 
-We therefore do not repeat the general motivation and notation from
+It uses the same notation and general motivation as
 [the main algorithm page](algorithms.md).
-This page focuses only on what changes once the inverse transformation has to
-be treated explicitly.
+The discussion below introduces the additional ingredients needed when the
+inverse transformation has to be tracked explicitly.
 
 In the API, this is the path selected by
 
@@ -223,27 +223,15 @@ This yields the Sylvester equation
 So, just as in the Hermitian algorithm, the nontrivial linear solve appears
 only once per perturbative order.
 
-## Order-by-order evaluation
+## Implementation summary
 
-At perturbative order $\mathbf{n}$, the implementation proceeds as follows:
-
-1. Compute $\mathcal{U}'_{\mathbf{n},S}$ from Eq. {eq}`nh:Uprime_S`.
-2. Compute $\mathcal{A}_{\mathbf{n}}=(\mathcal{H}'_R\mathcal{U}')_{\mathbf{n}}$.
-3. Compute $\mathcal{X}_{\mathbf{n},R}$ from Eq. {eq}`nh:XR_rec`.
-4. Compute $\mathcal{X}_{\mathbf{n},S}$ from Eq. {eq}`nh:XS_def`.
-5. Solve Eq. {eq}`nh:Sylvester_Uprime` for $\mathcal{U}'_{\mathbf{n},R}$.
-6. Compute $\mathcal{G}_{\mathbf{n}}$ from Eq. {eq}`nh:G_rec`, then
-   $\mathcal{B}_{\mathbf{n}}$ from Eq. {eq}`nh:XAB_defs`.
-7. Evaluate $\tilde{\mathcal{H}}_{\mathbf{n},S}$ from Eq. {eq}`nh:Htilde_B`.
-
-All right-hand sides are closed in lower orders except the single Sylvester
-solve in step 5.
-So each order consists of one linear solve plus a fixed amount of Cauchy-product
-work, just as in the Hermitian path.
-
-## Compact reference
-
-Collecting the implementation formulas in one place:
+The implementation forms a closed tail-recursive system.
+At order $\mathbf{n}$, the equations below determine
+$\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}_{\mathbf{n}}$
+from lower orders, except for the single Sylvester solve for
+$\mathcal{U}'_{\mathbf{n},R}$.
+Once that solve is done, the remaining quantities at the same order are fixed by
+the same relations.
 
 :::{math}
 :label: nh:closed_defs
