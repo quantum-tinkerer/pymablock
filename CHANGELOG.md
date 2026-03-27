@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
 
+### Added
+
+- Added a non-Hermitian similarity-transform algorithm via `block_diagonalize(..., hermitian=False)`, including support for asymmetric selective masks, symbolic inputs, and implicit direct/KPM Sylvester solvers.
+
 ## [2.2.1] - 2026-03-09
 
 ### Added
