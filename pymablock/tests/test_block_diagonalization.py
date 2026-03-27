@@ -856,19 +856,13 @@ def test_solve_sylvester_direct_vs_diagonal(index) -> None:
     diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
     direct = solve_sylvester_direct(h, [eigvecs])
 
-    if index == (0, 1):
-        y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
-            size=(a_dim, n - a_dim)
-        )
-        y = y @ Dagger(eigvecs_rest)
-    else:
-        y = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
-            size=(n - a_dim, a_dim)
-        )
-        y = eigvecs_rest @ y
+    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+        size=(a_dim, n - a_dim)
+    )
+    y = y @ Dagger(eigvecs_rest)
 
-    y_default = diagonal(y, index)
-    y_direct = direct(y, index)
+    y_default = diagonal(y, (0, 1))
+    y_direct = direct(y, (0, 1))
 
     np.testing.assert_allclose(y_default, y_direct)
 
@@ -942,20 +936,14 @@ def test_solve_sylvester_kpm_vs_diagonal(index) -> None:
         h, [eigvecs], solver_options={"atol": 1e-3, "aux_vectors": eigvecs_partial}
     )
 
-    if index == (0, 1):
-        y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
-            size=(a_dim, n - a_dim)
-        )
-        y = y @ Dagger(eigvecs_rest)
-    else:
-        y = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
-            size=(n - a_dim, a_dim)
-        )
-        y = eigvecs_rest @ y
+    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+        size=(a_dim, n - a_dim)
+    )
+    y = y @ Dagger(eigvecs_rest)
 
-    y_default = diagonal(y, index)
-    y_kpm = kpm(y, index)
-    y_hybrid = hybrid(y, index)
+    y_default = diagonal(y, (0, 1))
+    y_kpm = kpm(y, (0, 1))
+    y_hybrid = hybrid(y, (0, 1))
 
     # Use a lower tolerance until KPM estimates error bounds.
     np.testing.assert_allclose(y_default, y_kpm, atol=1e-3)
@@ -1634,11 +1622,11 @@ def test_delete_intermediate_terms():
 
     # Manual result of terms to delete
     to_delete = {
-        "U_inv' @ U'": [(0, 0), (1, 1)],
+        "U'† @ U'": [(0, 0), (1, 1)],
         "X": [(0, 1)],
         "H'_diag @ U'": [(0, 1), (1, 0)],
         "H'_offdiag @ U'": [(0, 1)],
-        "U_inv' @ B": [(0, 1), (1, 0)],
+        "U'† @ B": [(0, 1), (1, 0)],
     }
 
     for term, indices in to_delete.items():

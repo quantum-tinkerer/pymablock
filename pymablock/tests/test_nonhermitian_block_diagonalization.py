@@ -1,10 +1,17 @@
 import numpy as np
 import pytest
 import sympy
+from scipy import sparse
+from sympy.physics.quantum import Dagger
 
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main, nonhermitian
-from pymablock.block_diagonalization import block_diagonalize
+from pymablock.block_diagonalization import (
+    block_diagonalize,
+    solve_sylvester_diagonal,
+    solve_sylvester_direct,
+    solve_sylvester_KPM,
+)
 from pymablock.series import BlockSeries, cauchy_dot_product, zero
 
 from .test_block_diagonalization import compare_series, identity_like
@@ -362,3 +369,74 @@ def test_block_diagonalize_nonhermitian_accepts_bare_sympy_matrix():
 
     assert H_tilde[(0, 1, 1)] is zero
     assert H_tilde[(1, 0, 1)] is zero
+
+
+@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
+def test_nonhermitian_direct_solver_supports_both_offdiagonal_orientations(
+    index,
+) -> None:
+    pytest.importorskip("mumps", reason="python-mumps is not installed")
+
+    n = 300
+    a_dim = 5
+    rng = np.random.default_rng(13579)
+    energies = rng.standard_normal(n)
+    hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
+    h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
+    eigvals, eigvecs = np.linalg.eigh(h_0.toarray())
+    eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
+
+    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
+    direct = solve_sylvester_direct(h_0, [eigvecs])
+
+    if index == (0, 1):
+        rhs = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+            size=(a_dim, n - a_dim)
+        )
+        rhs = rhs @ Dagger(eigvecs_rest)
+    else:
+        rhs = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
+            size=(n - a_dim, a_dim)
+        )
+        rhs = eigvecs_rest @ rhs
+
+    np.testing.assert_allclose(diagonal(rhs, index), direct(rhs, index))
+
+
+@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
+def test_nonhermitian_kpm_solver_supports_both_offdiagonal_orientations(index) -> None:
+    n = 30
+    a_dim = 5
+    rng = np.random.default_rng(24680)
+    energies = rng.standard_normal(n) - 10 * (np.arange(n) < a_dim)
+    hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
+    h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
+    eigvals, eigvecs = np.linalg.eigh(h_0.toarray())
+    eigvecs, eigvecs_partial, eigvecs_rest = (
+        eigvecs[:, :a_dim],
+        eigvecs[:, a_dim : 3 * a_dim],
+        eigvecs[:, a_dim:],
+    )
+
+    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
+    kpm = solve_sylvester_KPM(h_0, [eigvecs], solver_options={"atol": 1e-3})
+    hybrid = solve_sylvester_KPM(
+        h_0,
+        [eigvecs],
+        solver_options={"atol": 1e-3, "aux_vectors": eigvecs_partial},
+    )
+
+    if index == (0, 1):
+        rhs = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+            size=(a_dim, n - a_dim)
+        )
+        rhs = rhs @ Dagger(eigvecs_rest)
+    else:
+        rhs = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
+            size=(n - a_dim, a_dim)
+        )
+        rhs = eigvecs_rest @ rhs
+
+    expected = diagonal(rhs, index)
+    np.testing.assert_allclose(expected, kpm(rhs, index), atol=1e-3)
+    np.testing.assert_allclose(expected, hybrid(rhs, index), atol=1e-3)

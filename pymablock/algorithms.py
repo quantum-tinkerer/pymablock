@@ -36,9 +36,9 @@ def main():
         start = 0
         hermitian
         if diagonal:
-            "U_inv' @ U'" / -2
+            "U'† @ U'" / -2
         if offdiagonal:
-            zero if two_block_optimized else "U_inv' @ U'" / -2
+            zero if two_block_optimized else "U'† @ U'" / -2
 
     # We can choose to query either lower or upper block of Y since it is
     # Hermitian. The choice for lower block is optimal for querying H_AA and
@@ -58,16 +58,16 @@ def main():
         start = 0
         "W" + "V"
 
-    with "U_inv'":
-        "W" - "V"
-
     with "U":
         start = 1
         "U'"
 
+    with "U'†":
+        "W" - "V"
+
     with "U†":
         start = 1
-        "U_inv'"
+        "U'†"
 
     with "X":
         start = 0
@@ -76,17 +76,12 @@ def main():
     with "B":
         start = 0
         if diagonal:
-            (
-                "U_inv' @ B"
-                - "U_inv' @ B".adj
-                + "H'_offdiag @ U'"
-                + "H'_offdiag @ U'".adj
-            ) / -2
+            ("U'† @ B" - "U'† @ B".adj + "H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / -2
         if diagonal:
             zero if commuting_blocks[index[0]] else "V @ H'_diag" + "V @ H'_diag".adj
 
         if offdiagonal:
-            -"U_inv' @ B"
+            -"U'† @ B"
 
     with "H_tilde":
         start = "H_0"
@@ -94,11 +89,11 @@ def main():
             (
                 "H'_diag"
                 + ("H'_offdiag @ U'" + "H'_offdiag @ U'".adj) / 2
-                + ("U_inv' @ B" + "U_inv' @ B".adj) / -2
+                + ("U'† @ B" + "U'† @ B".adj) / -2
                 - "Yadj"
             )
 
-    with "U_inv' @ U'":
+    with "U'† @ U'":
         hermitian
 
     with "H'_diag @ U'":
@@ -107,7 +102,7 @@ def main():
     with "H'_offdiag @ U'":
         pass
 
-    with "U_inv' @ B":
+    with "U'† @ B":
         pass
 
     with "V @ H'_diag":
