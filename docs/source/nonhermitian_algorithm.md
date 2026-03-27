@@ -13,18 +13,43 @@ kernelspec:
 
 # Non-Hermitian Algorithm
 
-This page summarizes the non-Hermitian perturbative block-diagonalization used
-in Pymablock: the Hermitian relation
-$\mathcal{U}^{\dagger}$ is replaced by $\mathcal{U}^{-1}$.
-The presentation follows three layers:
+This page describes the variant used by
+`block_diagonalize(..., hermitian=False)`.
+It is the non-Hermitian analogue of the [main algorithm](algorithms.md), and it
+reuses the same basic setup:
 
-1. derivation of a closed recursion,
-2. optimized form used in implementation,
-3. implementation-oriented summary of the final recursion.
+- split the Hamiltonian into selected and remaining parts,
+- organize perturbation theory through multivariate Cauchy products,
+- avoid reusable products by $H_0$,
+- reduce each perturbative order to one Sylvester solve.
 
-## Setup
+We therefore do not repeat the general motivation and notation from
+[the main algorithm page](algorithms.md).
+This page only explains what changes once the Hermitian relation
+$\mathcal{U}^{\dagger} = \mathcal{U}^{-1}$ is no longer available.
 
-We consider the perturbative similarity transform
+In the API, this is the path selected by
+
+```python
+H_tilde, U, U_inv = block_diagonalize(..., hermitian=False)
+```
+
+where the third returned series is the perturbative inverse of $U$.
+
+:::{admonition} What is different from the Hermitian algorithm?
+:class: note
+
+The Hermitian algorithm can work with a single correction series because the
+inverse transformation is obtained for free as the adjoint.
+In the non-Hermitian case, the inverse must be propagated explicitly.
+The main task of this page is therefore to show how to keep the recursion
+closed while still preserving the same computational structure as in
+[the main algorithm](algorithms.md).
+:::
+
+## Problem statement
+
+We seek a perturbative similarity transform
 
 :::{math}
 :label: nh:setup
@@ -44,19 +69,24 @@ with
 
 where $S$ denotes the selected part, $R$ the remainder to eliminate, and $H_0$
 is entirely selected.
+The selected/remaining split is exactly the one introduced on
+[the main algorithm page](algorithms.md).
 
-## Sum-Difference Parameterization
+## A parameterization that closes the recursion
 
-Define
+A direct treatment of $\mathcal{U}$ alone is inconvenient because
+$\mathcal{U}^{-1}$ is an independent series.
+To recover a closed recurrence, we introduce sum and difference combinations of
+$\mathcal{U}$ and $\mathcal{U}^{-1}$:
 
 :::{math}
 :label: nh:PM_def
 \mathcal{P}\equiv \mathcal{U}+\mathcal{U}^{-1},
 \qquad
-\mathcal{M}\equiv \mathcal{U}-\mathcal{U}^{-1},
+\mathcal{M}\equiv \mathcal{U}-\mathcal{U}^{-1}.
 :::
 
-so that
+Then
 
 :::{math}
 :label: nh:U_from_PM
@@ -65,7 +95,7 @@ so that
 \mathcal{U}^{-1}=\frac{\mathcal{P}-\mathcal{M}}{2}.
 :::
 
-Since $\mathcal{U}_0=\mathcal{U}^{-1}_0=1$, write
+Since $\mathcal{U}_0=\mathcal{U}^{-1}_0=1$, it is convenient to write
 
 :::{math}
 :label: nh:Pprime_def
@@ -74,7 +104,7 @@ Since $\mathcal{U}_0=\mathcal{U}^{-1}_0=1$, write
 \mathcal{M}_0=\mathcal{P}'_0=0.
 :::
 
-To fix the gauge, impose
+To fix the gauge, we impose
 
 :::{math}
 :label: nh:min_diff
@@ -82,24 +112,26 @@ To fix the gauge, impose
 :::
 
 at each perturbative order.
+This is the non-Hermitian counterpart of the minimal-generator gauge used in
+the Hermitian derivation.
 
-### Constraint From $\mathcal{U}^{-1}\mathcal{U}=1$
+### Inverse constraint
 
-Using
+The condition $\mathcal{U}^{-1}\mathcal{U}=1$ becomes
 
 :::{math}
 :label: nh:inv_constraint_1
 (\mathcal{P}-\mathcal{M})(\mathcal{P}+\mathcal{M})=4,
 :::
 
-we get
+that is,
 
 :::{math}
 :label: nh:inv_constraint_2
 \mathcal{P}^2-\mathcal{M}^2+[\mathcal{P},\mathcal{M}]=4.
 :::
 
-With $\mathcal{P}=2+\mathcal{P}'$,
+With $\mathcal{P}=2+\mathcal{P}'$, this gives
 
 :::{math}
 :label: nh:Pprime_rec
@@ -108,35 +140,13 @@ With $\mathcal{P}=2+\mathcal{P}'$,
 
 Because $\mathcal{P}'_0=\mathcal{M}_0=0$, the right-hand side at order
 $\mathbf{n}$ depends only on lower orders.
+So the inverse constraint already gives a closed recursion for $\mathcal{P}'$
+once $\mathcal{M}$ is known.
 
-### Constraint From $\tilde{\mathcal{H}}_R=0$
+### Elimination condition
 
-Expand
-
-:::{math}
-:label: nh:Htilde_expanded
-\tilde{\mathcal{H}}=
-\frac{1}{4}(\mathcal{P}-\mathcal{M})\mathcal{H}(\mathcal{P}+\mathcal{M})
-=\mathcal{H}
-+\frac{1}{2}\{\mathcal{P}',\mathcal{H}\}
-+\frac{1}{2}[\mathcal{H},\mathcal{M}]
-+\frac{1}{4}(\mathcal{P}'-\mathcal{M})\mathcal{H}(\mathcal{P}'+\mathcal{M}).
-:::
-
-Hence
-
-:::{math}
-:label: nh:Htilde_R_zero
-0=\tilde{\mathcal{H}}_R=
-\Big(
-\mathcal{H}'_R
-+\frac{1}{2}\{\mathcal{P}',\mathcal{H}\}
-+\frac{1}{2}[\mathcal{H},\mathcal{M}]
-+\frac{1}{4}(\mathcal{P}'-\mathcal{M})\mathcal{H}(\mathcal{P}'+\mathcal{M})
-\Big)_R.
-:::
-
-Isolating the linear Sylvester part gives
+Projecting the condition $\tilde{\mathcal{H}}_R=0$ onto the remaining sector and
+isolating the terms linear in $\mathcal{M}$ gives
 
 :::{math}
 :label: nh:M_rec
@@ -149,10 +159,16 @@ Isolating the linear Sylvester part gives
 \Big)_R.
 :::
 
-This is recursive because each product on the right contains at least one
-primed series with vanishing zero order.
+This is the non-Hermitian analogue of the Sylvester/Lyapunov step in the
+Hermitian derivation.
+Again, the right-hand side is recursive because every product contains at least
+one primed series with vanishing zero order.
 
-### Hermitian Limit (Consistency Check)
+## Relation to the Hermitian algorithm
+
+The construction above is designed so that it reduces back to the Hermitian
+algorithm when $\mathcal{H}$ is Hermitian and
+$\mathcal{U}^{-1}=\mathcal{U}^{\dagger}$.
 
 Introduce
 
@@ -174,7 +190,8 @@ Then $\mathcal{U}^{-1}\mathcal{U}=1$ gives
 \mathcal{G}+\mathcal{U}'+\mathcal{G}\mathcal{U}'=0.
 :::
 
-If $\mathcal{H}=\mathcal{H}^{\dagger}$ and we impose unitarity,
+If $\mathcal{H}=\mathcal{H}^{\dagger}$ and the similarity transform is
+unitary, then
 
 :::{math}
 :label: nh:herm_limit_assumption
@@ -183,68 +200,71 @@ If $\mathcal{H}=\mathcal{H}^{\dagger}$ and we impose unitarity,
 \mathcal{G}=\mathcal{U}'^{\dagger}.
 :::
 
-Substituting into Eq. {eq}`nh:UG_inverse_rec`:
+Substituting this into Eq. {eq}`nh:UG_inverse_rec` yields
 
 :::{math}
 :label: nh:herm_limit_unitarity
 \mathcal{U}'^{\dagger}+\mathcal{U}'+\mathcal{U}'^{\dagger}\mathcal{U}'=0,
 :::
 
-which is the Hermitian unitarity recursion. Defining
-$\mathcal{W}=(\mathcal{U}'+\mathcal{U}'^{\dagger})/2$ and
-$\mathcal{V}=(\mathcal{U}'-\mathcal{U}'^{\dagger})/2$, we recover
+which is exactly the Hermitian unitarity recursion.
+Moreover,
 
 :::{math}
 :label: nh:herm_limit_W
-\mathcal{W}=-\frac{1}{2}\mathcal{U}'^{\dagger}\mathcal{U}'.
+\mathcal{W}=-\frac{1}{2}\mathcal{U}'^{\dagger}\mathcal{U}'
 :::
 
-Also $\mathcal{M}=\mathcal{U}'-\mathcal{G}=2\mathcal{V}$, so $\mathcal{M}_S=0$ is exactly $\mathcal{V}_S=0$.
-So the non-Hermitian setup reduces to the Hermitian gauge choice.
+recovers the Hermitian $W$ recursion from [the main algorithm](algorithms.md),
+while $\mathcal{M}=\mathcal{U}'-\mathcal{G}=2\mathcal{V}$ turns the gauge
+condition $\mathcal{M}_S=0$ into the familiar $\mathcal{V}_S=0$.
 
-Consistency also requires the Sylvester/Lyapunov solve to return an
-anti-Hermitian generator in this limit. Write
+The Sylvester step also reduces correctly.
+If the right-hand side of Eq. {eq}`nh:M_rec` is Hermitian, then in the
+eigenbasis of $H_0$
 
 :::{math}
 :label: nh:herm_lyap
-[H_0,\mathcal{M}]_R=\mathcal{R}_R,
-\qquad
-\mathcal{M}=2\mathcal{V},
-:::
-
-where Eq. {eq}`nh:M_rec` defines $\mathcal{R}_R$.
-Then by induction over perturbation order:
-
-1. Assume lower-order terms satisfy
-   $\mathcal{P}'^{\dagger}=\mathcal{P}'$ and
-   $\mathcal{M}^{\dagger}=-\mathcal{M}$.
-2. Then the right-hand side of Eq. {eq}`nh:M_rec` at the new order is Hermitian,
-   so $\mathcal{R}_R^{\dagger}=\mathcal{R}_R$.
-3. In the eigenbasis of $H_0$ (for $i,j$ in different eigensubspaces),
-
-:::{math}
 \mathcal{M}_{ij}=\frac{(\mathcal{R}_R)_{ij}}{E_i-E_j},
 \qquad
-\mathcal{M}_{ji}=\frac{(\mathcal{R}_R)_{ji}}{E_j-E_i}
+\mathcal{M}_{ji}=
+\frac{(\mathcal{R}_R)_{ji}}{E_j-E_i}
 =-\mathcal{M}_{ij}^{*},
 :::
 
-so $\mathcal{M}^{\dagger}=-\mathcal{M}$ and therefore
-$\mathcal{V}^{\dagger}=-\mathcal{V}$.
+so $\mathcal{M}$ is anti-Hermitian and $\mathcal{V}=\mathcal{M}/2$ is the same
+anti-Hermitian generator as in the Hermitian path.
 
-Hence the Sylvester/Lyapunov step is consistent with the anti-Hermitian
-generator required by the Hermitian algorithm.
+## Optimized form used in the implementation
 
-## Toward an Optimized Algorithm
+The derivation above is useful conceptually, but the code is cleaner when
+written in terms of the correction series $\mathcal{U}'$ and the inverse
+correction $\mathcal{G}$.
+As in [the main algorithm](algorithms.md), the goal is to arrange the formulas
+so that $H_0$ appears only inside the Sylvester solve and not in reusable
+Cauchy-product terms.
 
-To avoid multiplications by $H_0$ in reusable Cauchy products, use
+We therefore work with
 
 :::{math}
-:label: nh:Htilde_B
-\tilde{\mathcal{H}}=\mathcal{H}_S+\mathcal{B}+\mathcal{G}\mathcal{B},
+\mathcal{U}=1+\mathcal{U}',
+\qquad
+\mathcal{U}^{-1}=1+\mathcal{G},
 :::
 
-with auxiliaries
+for which Eq. {eq}`nh:UG_inverse_rec` becomes
+
+:::{math}
+:label: nh:G_and_gauge
+\mathcal{G}=-\mathcal{U}'-\mathcal{G}\mathcal{U}',
+\qquad
+(\mathcal{U}'-\mathcal{G})_S=0.
+:::
+
+The second relation is simply the gauge condition $\mathcal{M}_S=0$ rewritten
+in terms of $\mathcal{U}'$ and $\mathcal{G}$.
+
+Next define three auxiliaries
 
 :::{math}
 :label: nh:XAB_defs
@@ -255,32 +275,34 @@ with auxiliaries
 \mathcal{B}\equiv\mathcal{X}+\mathcal{H}'_R+\mathcal{A}.
 :::
 
-Using $\mathcal{U}=1+\mathcal{U}'$ and $\mathcal{U}^{-1}=1+\mathcal{G}$:
+With these definitions the transformed Hamiltonian takes the compact form
 
-1. $\mathcal{U}^{-1}\mathcal{H}_S\mathcal{U}
-   =\mathcal{H}_S+\mathcal{U}^{-1}[\mathcal{H}_S,\mathcal{U}']$,
+:::{math}
+:label: nh:Htilde_B
+\tilde{\mathcal{H}}=\mathcal{H}_S+\mathcal{B}+\mathcal{G}\mathcal{B}.
+:::
 
-2. $\mathcal{U}^{-1}\mathcal{H}'_R\mathcal{U}
-   =\mathcal{H}'_R+\mathcal{H}'_R\mathcal{U}'
-   +\mathcal{G}(\mathcal{X}+\mathcal{H}'_R+\mathcal{A})$.
+This is the non-Hermitian analogue of the optimized Hermitian formula:
+once $\mathcal{X}$, $\mathcal{A}$, and $\mathcal{B}$ are known, the effective
+Hamiltonian can be assembled without extra reusable products by $H_0$.
 
-From $\tilde{\mathcal{H}}_R=0$:
+The remaining-part condition $\tilde{\mathcal{H}}_R=0$ then gives
 
 :::{math}
 :label: nh:XR_rec
-\mathcal{B}_R=-(\mathcal{G}\mathcal{B})_R
-\quad\Longleftrightarrow\quad
-\mathcal{X}_R=-(\mathcal{H}'_R+\mathcal{A}+\mathcal{G}\mathcal{B})_R.
+\mathcal{X}_R=-(\mathcal{H}'_R+\mathcal{A}+\mathcal{G}\mathcal{B})_R,
 :::
 
-The selected part is
+while the selected part of $\mathcal{X}$ is fixed directly by the commutator
+definition
 
 :::{math}
 :label: nh:XS_def
 \mathcal{X}_S=[\mathcal{H}'_S,\mathcal{U}']_S.
 :::
 
-The Sylvester step is
+Finally, the off-selected part of $\mathcal{U}'$ is obtained from a Sylvester
+equation
 
 :::{math}
 :label: nh:Sylvester_Uprime
@@ -288,34 +310,27 @@ The Sylvester step is
 =\mathcal{X}_R-[\mathcal{H}'_S,\mathcal{U}']_R.
 :::
 
-Inverse recursion and gauge:
+## Order-by-order evaluation
 
-:::{math}
-:label: nh:G_and_gauge
-\mathcal{G}=-\mathcal{U}'-\mathcal{G}\mathcal{U}',
-\qquad
-(\mathcal{U}'-\mathcal{G})_S=0.
-:::
-
-### Order-by-order Evaluation
-
-At order $\mathbf{n}$:
+At perturbative order $\mathbf{n}$, the implementation proceeds as follows:
 
 1. Use Eq. {eq}`nh:G_and_gauge` to obtain $\mathcal{U}'_{\mathbf{n},S}$.
 2. Compute $\mathcal{A}_{\mathbf{n}}=(\mathcal{H}'_R\mathcal{U}')_{\mathbf{n}}$.
 3. Compute $\mathcal{X}_{\mathbf{n},R}$ from Eq. {eq}`nh:XR_rec`.
 4. Compute $\mathcal{X}_{\mathbf{n},S}$ from Eq. {eq}`nh:XS_def`.
 5. Solve Eq. {eq}`nh:Sylvester_Uprime` for $\mathcal{U}'_{\mathbf{n},R}$.
-6. Compute $\mathcal{G}_{\mathbf{n}}$ from Eq. {eq}`nh:G_and_gauge` and then $\mathcal{B}_{\mathbf{n}}$ from Eq. {eq}`nh:XAB_defs`.
+6. Compute $\mathcal{G}_{\mathbf{n}}$ from Eq. {eq}`nh:G_and_gauge` and then
+   $\mathcal{B}_{\mathbf{n}}$ from Eq. {eq}`nh:XAB_defs`.
 7. Evaluate $\tilde{\mathcal{H}}_{\mathbf{n},S}$ from Eq. {eq}`nh:Htilde_B`.
 
 All right-hand sides are closed in lower orders except the single Sylvester
-solve in step 5. As in the Hermitian algorithm, $H_0$ appears only in that
-solve and not in reusable Cauchy-product terms.
+solve in step 5.
+So, just as in the Hermitian algorithm, each order consists of one linear solve
+plus a fixed amount of Cauchy-product work.
 
-## Closed Recursion (Implementation Summary)
+## Compact reference
 
-### Definitions
+Collecting the implementation formulas in one place:
 
 :::{math}
 :label: nh:closed_defs
@@ -330,8 +345,6 @@ solve and not in reusable Cauchy-product terms.
 \tilde{\mathcal{H}}_R \equiv 0.
 \end{aligned}
 :::
-
-### Recursive Relations
 
 :::{math}
 :label: nh:closed_recs
