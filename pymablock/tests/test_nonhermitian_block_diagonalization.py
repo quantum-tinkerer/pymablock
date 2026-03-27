@@ -8,9 +8,7 @@ from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main, nonhermitian
 from pymablock.block_diagonalization import (
     block_diagonalize,
-    solve_sylvester_diagonal,
     solve_sylvester_direct,
-    solve_sylvester_KPM,
 )
 from pymablock.series import BlockSeries, cauchy_dot_product, zero
 
@@ -385,8 +383,6 @@ def test_nonhermitian_direct_solver_supports_both_offdiagonal_orientations(
     h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h_0.toarray())
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
-
-    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
     direct = solve_sylvester_direct(h_0, [eigvecs])
 
     if index == (0, 1):
@@ -394,49 +390,32 @@ def test_nonhermitian_direct_solver_supports_both_offdiagonal_orientations(
             size=(a_dim, n - a_dim)
         )
         rhs = rhs @ Dagger(eigvecs_rest)
+        expected = (
+            (rhs @ eigvecs_rest) / (eigvals[:a_dim].reshape(-1, 1) - eigvals[a_dim:])
+        ) @ Dagger(eigvecs_rest)
     else:
         rhs = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
             size=(n - a_dim, a_dim)
         )
         rhs = eigvecs_rest @ rhs
+        expected = eigvecs_rest @ (
+            (Dagger(eigvecs_rest) @ rhs)
+            / (eigvals[a_dim:].reshape(-1, 1) - eigvals[:a_dim])
+        )
 
-    np.testing.assert_allclose(diagonal(rhs, index), direct(rhs, index))
+    np.testing.assert_allclose(expected, direct(rhs, index))
 
 
-@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
-def test_nonhermitian_kpm_solver_supports_both_offdiagonal_orientations(index) -> None:
-    n = 30
-    a_dim = 5
+def test_block_diagonalize_nonhermitian_rejects_implicit_kpm():
     rng = np.random.default_rng(24680)
-    energies = rng.standard_normal(n) - 10 * (np.arange(n) < a_dim)
-    hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
-    h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
-    eigvals, eigvecs = np.linalg.eigh(h_0.toarray())
-    eigvecs, eigvecs_partial, eigvecs_rest = (
-        eigvecs[:, :a_dim],
-        eigvecs[:, a_dim : 3 * a_dim],
-        eigvecs[:, a_dim:],
-    )
+    h_0 = sparse.diags(np.linspace(-3.0, 3.0, 8)).astype(complex)
+    h_1 = rng.normal(size=(8, 8)) + 1j * rng.normal(size=(8, 8))
+    subspace_eigenvectors = [np.eye(8, dtype=complex)[:, :2]]
 
-    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
-    kpm = solve_sylvester_KPM(h_0, [eigvecs], solver_options={"atol": 1e-3})
-    hybrid = solve_sylvester_KPM(
-        h_0,
-        [eigvecs],
-        solver_options={"atol": 1e-3, "aux_vectors": eigvecs_partial},
-    )
-
-    if index == (0, 1):
-        rhs = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
-            size=(a_dim, n - a_dim)
+    with pytest.raises(NotImplementedError, match="does not support the KPM solver"):
+        block_diagonalize(
+            [h_0, h_1],
+            subspace_eigenvectors=subspace_eigenvectors,
+            hermitian=False,
+            direct_solver=False,
         )
-        rhs = rhs @ Dagger(eigvecs_rest)
-    else:
-        rhs = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
-            size=(n - a_dim, a_dim)
-        )
-        rhs = eigvecs_rest @ rhs
-
-    expected = diagonal(rhs, index)
-    np.testing.assert_allclose(expected, kpm(rhs, index), atol=1e-3)
-    np.testing.assert_allclose(expected, hybrid(rhs, index), atol=1e-3)

@@ -142,7 +142,9 @@ def block_diagonalize(
         Whether to use the direct sparse solver (default). It prefers MUMPS
         when available and otherwise falls back to SciPy's sparse LU.
         Otherwise, the KPM solver is used. Only applicable if the implicit
-        method is used (i.e. `subspace_eigenvectors` is incomplete)
+        method is used (i.e. `subspace_eigenvectors` is incomplete).
+        Non-Hermitian implicit mode currently requires the direct solver unless
+        a custom ``solve_sylvester`` is provided.
     symbols :
         Symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
@@ -217,6 +219,11 @@ def block_diagonalize(
         if isinstance(h_0, sympy.MatrixBase):
             raise ValueError("Implicit mode is not supported with symbolic Hamiltonian.")
         assert subspace_eigenvectors is not None  # for mypy
+        if not hermitian and solve_sylvester is None and not direct_solver:
+            raise NotImplementedError(
+                "Non-Hermitian implicit mode does not support the KPM solver. "
+                "Use direct_solver=True or provide solve_sylvester."
+            )
         # Build solve_sylvester
         if h_0.shape[0] != subspace_eigenvectors[0].shape[0]:
             raise ValueError("`subspace_eigenvectors` does not match the shape of `h_0`.")
@@ -830,13 +837,9 @@ def solve_sylvester_diagonal(
             index_checked.add(index[:2])
 
         if vecs_implicit is not None and index[1] == len(eigs) - 1:
-            # Needed for implicit mode with KPM/direct right-implicit solves.
+            # Needed when the implicit block is returned in the original basis.
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
             return ((Y @ vecs_implicit) * energy_denominators) @ Dagger(vecs_implicit)
-        if vecs_implicit is not None and index[0] == len(eigs) - 1:
-            # Symmetric companion of the right-implicit case above.
-            energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
-            return vecs_implicit @ ((Dagger(vecs_implicit) @ Y) * energy_denominators)
         if isinstance(Y, np.ndarray):
             energy_differences = eigs_A.reshape(-1, 1) - eigs_B
             with np.errstate(divide="ignore", invalid="ignore"):
@@ -918,11 +921,8 @@ def solve_sylvester_KPM(
         h_0, eps=solver_options.get("eps", 0.01), lower_bounds=bounds_eigs
     )
     eigs_rescaled = [(eig - b) / a for eig in eigs[:-1]]
-    # We need both orientations in the non-Hermitian path.
     h_rescaled_T = h_rescaled.T
     # CSR format has a faster matrix-vector product
-    if sparse.issparse(h_rescaled):
-        h_rescaled = h_rescaled.tocsr()
     if sparse.issparse(h_rescaled_T):
         h_rescaled_T = h_rescaled_T.tocsr()
 
@@ -941,21 +941,6 @@ def solve_sylvester_KPM(
             ]
         )
 
-    def solve_sylvester_kpm_left(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
-        Y_KPM = kpm_projector @ Y / a  # Keep track of Hamiltonian rescaling
-        return np.column_stack(
-            [
-                -greens_function(
-                    h_rescaled,
-                    energy,
-                    vector,
-                    solver_options.get("atol", 1e-5),
-                    solver_options.get("max_moments", 1e6),
-                )
-                for energy, vector in zip(eigs_rescaled[index[1]], Y_KPM.T)
-            ]
-        )
-
     vecs_implicit = subspace_eigenvectors[-1]
     solve_sylvester_explicit = solve_sylvester_diagonal(
         eigs, vecs_implicit, atol=solver_options.get("atol")
@@ -968,8 +953,6 @@ def solve_sylvester_KPM(
             return solve_sylvester_kpm_right(Y, index) + solve_sylvester_explicit(
                 Y, index
             )
-        if index[0] == len(eigs) - 1:
-            return solve_sylvester_kpm_left(Y, index) + solve_sylvester_explicit(Y, index)
         return solve_sylvester_explicit(Y, index)
 
     return solve_sylvester
