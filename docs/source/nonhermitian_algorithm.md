@@ -20,7 +20,7 @@ reuses the same general setup:
 
 - split the Hamiltonian into selected and remaining parts,
 - organize perturbation theory through multivariate Cauchy products,
-- avoid reusable products by $H_0$,
+- avoid unnecessary products by $H_0$,
 - reduce each perturbative order to one Sylvester solve.
 
 We therefore do not repeat the general motivation and notation from
@@ -35,19 +35,6 @@ H_tilde, U, U_inv = block_diagonalize(..., hermitian=False)
 ```
 
 where the third returned series is the perturbative inverse of $U$.
-
-:::{admonition} Why this page no longer starts from sum/difference variables
-:class: note
-
-An equivalent derivation can be written using
-$\mathcal{P}=\mathcal{U}+\mathcal{U}^{-1}$ and
-$\mathcal{M}=\mathcal{U}-\mathcal{U}^{-1}$.
-That viewpoint is mathematically fine, but the implementation works directly
-with the correction series $\mathcal{U}'$ and inverse correction
-$\mathcal{G}$.
-This page therefore follows the implementation rather than introducing an extra
-layer of notation.
-:::
 
 ## Problem statement
 
@@ -172,7 +159,7 @@ selected-part recursion as in the Hermitian path.
 
 ## Optimized transformed Hamiltonian
 
-The code is organized to avoid reusable products by $H_0$.
+The code is organized to avoid unnecessary products by $H_0$.
 As in [the main algorithm](algorithms.md), the useful object is not the raw
 expansion of $\tilde{\mathcal{H}}$, but a rearranged version in which $H_0$
 appears only inside the Sylvester solve.
@@ -202,7 +189,7 @@ This gives the compact expression
 
 This is the non-Hermitian analogue of the optimized Hermitian formula:
 once $\mathcal{X}$, $\mathcal{A}$, and $\mathcal{B}$ are known, the effective
-Hamiltonian can be assembled without extra reusable products by $H_0$.
+Hamiltonian can be assembled without extra products by $H_0$.
 
 ## Elimination condition and Sylvester solve
 
