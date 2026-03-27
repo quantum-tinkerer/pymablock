@@ -288,6 +288,7 @@ def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask():
         block = H_tilde[(0, 0, order)]
         np.testing.assert_allclose(block[to_eliminate], 0, atol=1e-10, rtol=0)
 
+
 def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask_multiblock():
     n0, n1 = 3, 2
     n = n0 + n1
@@ -322,6 +323,8 @@ def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask_multiblock():
         block_1 = H_tilde[(1, 1, order)]
         np.testing.assert_allclose(block_0[to_eliminate_0], 0, atol=1e-10, rtol=0)
         np.testing.assert_allclose(block_1[to_eliminate_1], 0, atol=1e-10, rtol=0)
+
+
 def test_block_diagonalize_nonhermitian_accepts_legacy_two_block_solver():
     rng = np.random.default_rng(97531)
     h_0 = np.diag(np.array([-3.0, 0.7, 1.4, 2.6], dtype=float)).astype(complex)
