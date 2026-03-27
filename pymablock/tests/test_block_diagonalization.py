@@ -157,6 +157,11 @@ def is_unitary(
     compare_series(transformed, identity, wanted_orders, atol=atol, rtol=0)
 
 
+def random_hermitian_matrix(n: int) -> np.ndarray:
+    matrix = np.random.randn(n, n) + 1.0j * np.random.randn(n, n)
+    return matrix + matrix.T.conj()
+
+
 # Fixtures
 @pytest.fixture(scope="module", params=[(5,), (4, 2)])
 def wanted_orders(request):
@@ -211,9 +216,10 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
         generator of random matrices
         """
         while True:
-            H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
             if hermitian:
-                H += H.conj().T
+                H = random_hermitian_matrix(N_i)
+            else:
+                H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
             yield H
 
     hams = []
@@ -1645,13 +1651,8 @@ def test_delete_intermediate_terms():
 def H_list(wanted_orders, N):
     """Random Hamiltonian of a given size."""
 
-    def random_hermitian():
-        H_p = np.random.randn(N, N) + 1.0j * np.random.randn(N, N)
-        H_p += H_p.T.conj()
-        return H_p
-
     H_0 = np.diag(np.random.randn(N) + 8 * np.arange(N))
-    H_ps = [random_hermitian() for _ in wanted_orders]
+    H_ps = [random_hermitian_matrix(N) for _ in wanted_orders]
 
     return H_0, H_ps
 

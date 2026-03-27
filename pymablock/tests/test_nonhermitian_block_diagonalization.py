@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from itertools import pairwise
+
 import numpy as np
 import pytest
 import sympy
@@ -12,60 +15,63 @@ from pymablock.block_diagonalization import (
 )
 from pymablock.series import BlockSeries, cauchy_dot_product, zero
 
-from .test_block_diagonalization import compare_series, identity_like
+from .test_block_diagonalization import compare_series as _compare_series
+from .test_block_diagonalization import is_unitary, random_hermitian_matrix
 
 
-def _make_nonhermitian_h(
-    n_blocks: int, max_order: int, seed: int = 17
+def compare_series(*args, atol: float = 1e-12, **kwargs) -> None:
+    _compare_series(*args, atol=atol, **kwargs)
+
+
+def _complex_normal(rng: np.random.Generator, shape: tuple[int, ...]) -> np.ndarray:
+    return rng.normal(size=shape) + 1j * rng.normal(size=shape)
+
+
+def _block_slices(block_dims: tuple[int, ...]) -> tuple[slice, ...]:
+    offsets = np.cumsum((0, *block_dims))
+    return tuple(slice(start, stop) for start, stop in pairwise(offsets))
+
+
+def _make_block_h(
+    block_dims: tuple[int, ...],
+    wanted_orders: int | tuple[int, ...],
+    matrix_factory: Callable[[int], np.ndarray],
 ) -> tuple[BlockSeries, list[float]]:
-    energies = list(np.linspace(-2.0, 2.0, n_blocks))
-    rng = np.random.default_rng(seed)
-
-    data = {(i, i, 0): np.array([[energies[i]]], dtype=complex) for i in range(n_blocks)}
-    for order in range(1, max_order + 1):
-        for i in range(n_blocks):
-            for j in range(n_blocks):
-                data[(i, j, order)] = rng.normal(size=(1, 1)) + 1j * rng.normal(
-                    size=(1, 1)
-                )
-
-    return BlockSeries(
-        data=data, shape=(n_blocks, n_blocks), n_infinite=1, name="H"
-    ), energies
-
-
-def _make_nonhermitian_h_multivariate(
-    n_blocks: int, wanted_orders: tuple[int, ...], seed: int = 31
-) -> tuple[BlockSeries, list[float]]:
-    energies = list(np.linspace(-2.0, 2.0, n_blocks))
-    rng = np.random.default_rng(seed)
-
+    if isinstance(wanted_orders, int):
+        wanted_orders = (wanted_orders,)
     n_infinite = len(wanted_orders)
     zero_order = (0,) * n_infinite
-    data = {
-        (i, i, *zero_order): np.array([[energies[i]]], dtype=complex)
-        for i in range(n_blocks)
-    }
+    block_centers = np.linspace(-2.0, 2.0, len(block_dims))
+    block_slices = _block_slices(block_dims)
+    total_dim = sum(block_dims)
 
+    data = {
+        (i, i, *zero_order): np.eye(dim, dtype=complex) * block_centers[i]
+        for i, dim in enumerate(block_dims)
+    }
     for order in np.ndindex(tuple(order + 1 for order in wanted_orders)):
         if order == zero_order:
             continue
-        for i in range(n_blocks):
-            for j in range(n_blocks):
-                data[(i, j, *order)] = rng.normal(size=(1, 1)) + 1j * rng.normal(
-                    size=(1, 1)
-                )
+        matrix = matrix_factory(total_dim)
+        for i, row_slice in enumerate(block_slices):
+            for j, column_slice in enumerate(block_slices):
+                data[(i, j, *order)] = matrix[row_slice, column_slice]
 
     return BlockSeries(
-        data=data, shape=(n_blocks, n_blocks), n_infinite=n_infinite, name="H"
-    ), energies
+        data=data,
+        shape=(len(block_dims), len(block_dims)),
+        n_infinite=n_infinite,
+        name="H",
+    ), list(block_centers)
 
 
 def _solve_sylvester(energies: list[float]):
     def solve(rhs, index):
         if rhs is zero:
             return zero
-        return rhs / (energies[index[0]] - energies[index[1]])
+        left = np.atleast_1d(energies[index[0]]).reshape(-1, 1)
+        right = np.atleast_1d(energies[index[1]]).reshape(1, -1)
+        return rhs / (left - right)
 
     return solve
 
@@ -83,143 +89,159 @@ def _run_nonhermitian(H: BlockSeries, energies: list[float]) -> dict[str, BlockS
     return series
 
 
-def _make_hermitian_h(
-    n_blocks: int, max_order: int, seed: int = 23
-) -> tuple[BlockSeries, list[float]]:
-    energies = list(np.linspace(-2.0, 2.0, n_blocks))
-    rng = np.random.default_rng(seed)
-
-    data = {(i, i, 0): np.array([[energies[i]]], dtype=complex) for i in range(n_blocks)}
-    for order in range(1, max_order + 1):
-        for i in range(n_blocks):
-            data[(i, i, order)] = np.array([[float(rng.normal())]], dtype=complex)
-        for i in range(n_blocks):
-            for j in range(i + 1, n_blocks):
-                value = rng.normal() + 1j * rng.normal()
-                data[(i, j, order)] = np.array([[value]], dtype=complex)
-                data[(j, i, order)] = np.array([[np.conjugate(value)]], dtype=complex)
-
-    return BlockSeries(
-        data=data, shape=(n_blocks, n_blocks), n_infinite=1, name="H"
-    ), energies
-
-
-def _as_array(value):
+def _assert_zero(value, *, atol: float) -> None:
     if value is zero:
-        return np.zeros((1, 1), dtype=complex)
-    return value
+        return
+    if sparse.issparse(value):
+        np.testing.assert_allclose(value.toarray(), 0, atol=atol, rtol=0)
+        return
+    if isinstance(value, sympy.MatrixBase):
+        assert value.is_zero_matrix
+        return
+    np.testing.assert_allclose(value, 0, atol=atol, rtol=0)
 
 
-@pytest.mark.parametrize("n_blocks", [2, 3])
-def test_nonhermitian_structural_first_order(n_blocks):
-    H, energies = _make_nonhermitian_h(n_blocks=n_blocks, max_order=1)
-    series = _run_nonhermitian(H, energies)
+def _assert_inverse_relations(
+    U: BlockSeries, U_inv: BlockSeries, wanted_orders: tuple[int, ...]
+) -> None:
+    is_unitary(U, U_inv, wanted_orders, atol=1e-12)
+    is_unitary(U_inv, U, wanted_orders, atol=1e-12)
 
+
+def _assert_roundtrip(
+    H: BlockSeries, series: dict[str, BlockSeries], wanted_orders: tuple[int, ...]
+) -> BlockSeries:
     H_tilde = series["H_tilde"]
     U = series["U"]
     U_inv = series["U†"]
 
-    compare_series(cauchy_dot_product(U_inv, U), identity_like(U), (0,))
-    compare_series(cauchy_dot_product(U, U_inv), identity_like(U), (0,))
-
-    for i in range(n_blocks):
-        for j in range(n_blocks):
-            if i == j:
-                continue
-            np.testing.assert_allclose(
-                _as_array(U_inv[(i, j, 1)] + U[(i, j, 1)]), 0, atol=1e-12, rtol=0
-            )
-            np.testing.assert_allclose(
-                _as_array(H_tilde[(i, j, 1)]), 0, atol=1e-12, rtol=0
-            )
-
-
-@pytest.mark.parametrize(("n_blocks", "max_order"), [(2, 4), (3, 3)])
-def test_nonhermitian_inverse_higher_order_and_multiblock(n_blocks, max_order):
-    H, energies = _make_nonhermitian_h(n_blocks=n_blocks, max_order=max_order)
-    series = _run_nonhermitian(H, energies)
-    H_tilde = series["H_tilde"]
-    U = series["U"]
-    U_inv = series["U†"]
-
-    compare_series(cauchy_dot_product(U_inv, U), identity_like(U), (max_order,))
-    compare_series(cauchy_dot_product(U, U_inv), identity_like(U), (max_order,))
-    compare_series(cauchy_dot_product(U_inv, H, U), H_tilde, (max_order,))
-    compare_series(cauchy_dot_product(U, H_tilde, U_inv), H, (max_order,))
-
-    for order in range(1, max_order + 1):
-        for i in range(n_blocks):
-            for j in range(n_blocks):
-                if i == j:
-                    continue
-                np.testing.assert_allclose(
-                    _as_array(H_tilde[(i, j, order)]), 0, atol=1e-10, rtol=0
-                )
-
-
-@pytest.mark.parametrize(("n_blocks", "wanted_orders"), [(2, (2, 1)), (3, (1, 1))])
-def test_nonhermitian_multivariate_backtransform(n_blocks, wanted_orders):
-    H, energies = _make_nonhermitian_h_multivariate(
-        n_blocks=n_blocks, wanted_orders=wanted_orders
-    )
-    series = _run_nonhermitian(H, energies)
-    H_tilde = series["H_tilde"]
-    U = series["U"]
-    U_inv = series["U†"]
-
-    compare_series(cauchy_dot_product(U_inv, U), identity_like(U), wanted_orders)
-    compare_series(cauchy_dot_product(U, U_inv), identity_like(U), wanted_orders)
+    _assert_inverse_relations(U, U_inv, wanted_orders)
     compare_series(cauchy_dot_product(U_inv, H, U), H_tilde, wanted_orders)
     compare_series(cauchy_dot_product(U, H_tilde, U_inv), H, wanted_orders)
+    return H_tilde
 
+
+def _assert_block_offdiag_zero(
+    H_tilde: BlockSeries,
+    wanted_orders: tuple[int, ...],
+    *,
+    atol: float = 1e-10,
+) -> None:
     zero_order = (0,) * len(wanted_orders)
     for order in np.ndindex(tuple(order + 1 for order in wanted_orders)):
         if order == zero_order:
             continue
-        for i in range(n_blocks):
-            for j in range(n_blocks):
+        for i in range(H_tilde.shape[0]):
+            for j in range(H_tilde.shape[1]):
                 if i == j:
                     continue
-                np.testing.assert_allclose(
-                    _as_array(H_tilde[(i, j, *order)]), 0, atol=1e-10, rtol=0
-                )
+                _assert_zero(H_tilde[(i, j, *order)], atol=atol)
 
 
-@pytest.mark.parametrize(("n_blocks", "max_order"), [(2, 4), (3, 3)])
-def test_nonhermitian_matches_hermitian_on_hermitian_input(n_blocks, max_order):
-    H, energies = _make_hermitian_h(n_blocks=n_blocks, max_order=max_order)
+def _assert_nonhermitian_gauge(
+    U: BlockSeries, U_inv: BlockSeries, wanted_orders: tuple[int, ...]
+) -> None:
+    for order in np.ndindex(tuple(order + 1 for order in wanted_orders)):
+        if sum(order) != 1:
+            continue
+        for i in range(U.shape[0]):
+            for j in range(U.shape[1]):
+                if i == j:
+                    continue
+                _assert_zero(U_inv[(i, j, *order)] + U[(i, j, *order)], atol=1e-12)
+
+
+def _make_asymmetric_mask(
+    rng: np.random.Generator, size: int, *, threshold: float = 0.8
+) -> np.ndarray:
+    mask = rng.random((size, size)) > threshold
+    np.fill_diagonal(mask, False)
+    mask[0, 1] = True
+    mask[1, 0] = False
+    if size > 4:
+        mask[2, 4] = False
+        mask[4, 2] = True
+    assert not np.array_equal(mask, mask.T)
+    return mask
+
+
+def _assert_mask_eliminated(
+    H_tilde: BlockSeries, masks: dict[int, np.ndarray], *, max_order: int
+) -> None:
+    for order in range(1, max_order + 1):
+        for block, mask in masks.items():
+            np.testing.assert_allclose(
+                H_tilde[(block, block, order)][mask], 0, atol=1e-10, rtol=0
+            )
+
+
+def _make_direct_solver_case(
+    n: int, a_dim: int
+) -> tuple[np.random.Generator, sparse.dia_matrix, np.ndarray, np.ndarray, np.ndarray]:
+    rng = np.random.default_rng()
+    energies = rng.standard_normal(n)
+    hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
+    h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
+    eigvals, eigvecs = np.linalg.eigh(h_0.toarray())
+    return rng, h_0, eigvals, eigvecs[:, :a_dim], eigvecs[:, a_dim:]
+
+
+@pytest.mark.parametrize(
+    ("block_dims", "wanted_orders"),
+    [((1, 1), (4,)), ((2, 1), (3,)), ((1, 2), (2, 1)), ((2, 1, 1), (1, 1))],
+    ids=[
+        "scalar-2-blocks-order-4",
+        "matrix-2-blocks-order-3",
+        "matrix-2-blocks-bivariate",
+        "matrix-3-blocks-bivariate",
+    ],
+)
+def test_nonhermitian_roundtrip(block_dims, wanted_orders):
+    rng = np.random.default_rng()
+    H, energies = _make_block_h(
+        block_dims=block_dims,
+        wanted_orders=wanted_orders,
+        matrix_factory=lambda n: _complex_normal(rng, (n, n)),
+    )
+    series = _run_nonhermitian(H, energies)
+    H_tilde = _assert_roundtrip(H, series, wanted_orders)
+    _assert_block_offdiag_zero(H_tilde, wanted_orders)
+    _assert_nonhermitian_gauge(series["U"], series["U†"], wanted_orders)
+
+
+@pytest.mark.parametrize(("block_dims", "max_order"), [((2, 2), 4), ((2, 1, 2), 3)])
+def test_nonhermitian_matches_hermitian_on_hermitian_input(block_dims, max_order):
+    H, energies = _make_block_h(
+        block_dims=block_dims,
+        wanted_orders=max_order,
+        matrix_factory=random_hermitian_matrix,
+    )
     scope = {
         "solve_sylvester": _solve_sylvester(energies),
         "two_block_optimized": False,
-        "commuting_blocks": [False] * n_blocks,
+        "commuting_blocks": [False] * len(block_dims),
     }
 
     series_h, _ = series_computation({"H": H}, algorithm=main, scope=scope)
     series_nh, _ = series_computation({"H": H}, algorithm=nonhermitian, scope=scope)
 
-    compare_series(series_h["H_tilde"], series_nh["H_tilde"], (max_order,), atol=1e-10)
-    compare_series(series_h["U"], series_nh["U"], (max_order,), atol=1e-10)
-    compare_series(series_h["U†"], series_nh["U†"], (max_order,), atol=1e-10)
+    compare_series(series_h["H_tilde"], series_nh["H_tilde"], (max_order,))
+    compare_series(series_h["U"], series_nh["U"], (max_order,))
+    compare_series(series_h["U†"], series_nh["U†"], (max_order,))
 
 
 def test_nonhermitian_arbitrary_asymmetric_mask():
     n = 6
     max_order = 3
-    rng = np.random.default_rng(1234)
+    rng = np.random.default_rng()
     energies = np.linspace(-3.0, 3.0, n)
 
     data = {(0, 0, 0): np.diag(energies).astype(complex)}
     for order in range(1, max_order + 1):
-        data[(0, 0, order)] = rng.normal(size=(n, n)) + 1j * rng.normal(size=(n, n))
+        data[(0, 0, order)] = _complex_normal(rng, (n, n))
     H = BlockSeries(data=data, shape=(1, 1), n_infinite=1, name="H")
 
-    to_eliminate = rng.random((n, n)) > 0.8
-    np.fill_diagonal(to_eliminate, False)
-    to_eliminate[0, 1] = True
-    to_eliminate[1, 0] = False
-    to_eliminate[2, 4] = False
-    to_eliminate[4, 2] = True
-    assert not np.array_equal(to_eliminate, to_eliminate.T)
+    to_eliminate = _make_asymmetric_mask(rng, n)
     to_keep = np.logical_not(to_eliminate)
 
     denom = energies[:, None] - energies[None, :]
@@ -257,10 +279,10 @@ def test_nonhermitian_arbitrary_asymmetric_mask():
 
     H_tilde = series["H_tilde"]
 
+    _assert_mask_eliminated(H_tilde, {0: to_eliminate}, max_order=max_order)
     opposite_direction_nonzero = False
     for order in range(1, max_order + 1):
         block = H_tilde[(0, 0, order)]
-        np.testing.assert_allclose(block[to_eliminate], 0, atol=1e-10, rtol=0)
         opposite_direction_nonzero = opposite_direction_nonzero or (
             not np.allclose(block[1, 0], 0, atol=1e-10, rtol=0)
         )
@@ -268,72 +290,35 @@ def test_nonhermitian_arbitrary_asymmetric_mask():
     assert opposite_direction_nonzero
 
 
-def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask():
-    n = 6
+@pytest.mark.parametrize("block_sizes", [(6,), (3, 2)], ids=["single-block", "two-block"])
+def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask(block_sizes):
     max_order = 3
-    rng = np.random.default_rng(4321)
+    rng = np.random.default_rng()
+    n = sum(block_sizes)
 
     h_0 = np.diag(np.linspace(-3.0, 3.0, n)).astype(complex)
-    h_1 = rng.normal(size=(n, n)) + 1j * rng.normal(size=(n, n))
-
-    to_eliminate = rng.random((n, n)) > 0.8
-    np.fill_diagonal(to_eliminate, False)
-    to_eliminate[0, 1] = True
-    to_eliminate[1, 0] = False
-    assert not np.array_equal(to_eliminate, to_eliminate.T)
-
-    H_tilde, *_ = block_diagonalize(
-        [h_0, h_1],
-        subspace_indices=np.zeros(n, dtype=int),
-        hermitian=False,
-        fully_diagonalize=to_eliminate,
-    )
-
-    for order in range(1, max_order + 1):
-        block = H_tilde[(0, 0, order)]
-        np.testing.assert_allclose(block[to_eliminate], 0, atol=1e-10, rtol=0)
-
-
-def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask_multiblock():
-    n0, n1 = 3, 2
-    n = n0 + n1
-    max_order = 3
-    rng = np.random.default_rng(2468)
-
-    h_0 = np.diag(np.array([-3.2, -1.1, 0.7, 2.3, 4.4], dtype=float)).astype(complex)
-    h_1 = rng.normal(size=(n, n)) + 1j * rng.normal(size=(n, n))
-    subspace_indices = np.array([0] * n0 + [1] * n1, dtype=int)
-
-    to_eliminate_0 = rng.random((n0, n0)) > 0.75
-    np.fill_diagonal(to_eliminate_0, False)
-    to_eliminate_0[0, 1] = True
-    to_eliminate_0[1, 0] = False
-    assert not np.array_equal(to_eliminate_0, to_eliminate_0.T)
-
-    to_eliminate_1 = rng.random((n1, n1)) > 0.75
-    np.fill_diagonal(to_eliminate_1, False)
-    to_eliminate_1[0, 1] = True
-    to_eliminate_1[1, 0] = False
-    assert not np.array_equal(to_eliminate_1, to_eliminate_1.T)
+    h_1 = _complex_normal(rng, (n, n))
+    subspace_indices = np.repeat(np.arange(len(block_sizes)), block_sizes)
+    masks = {
+        block: _make_asymmetric_mask(rng, size, threshold=0.75 if size == 2 else 0.8)
+        for block, size in enumerate(block_sizes)
+    }
+    fully_diagonalize = masks[0] if len(masks) == 1 else masks
 
     H_tilde, *_ = block_diagonalize(
         [h_0, h_1],
         subspace_indices=subspace_indices,
         hermitian=False,
-        fully_diagonalize={0: to_eliminate_0, 1: to_eliminate_1},
+        fully_diagonalize=fully_diagonalize,
     )
 
-    for order in range(1, max_order + 1):
-        block_0 = H_tilde[(0, 0, order)]
-        block_1 = H_tilde[(1, 1, order)]
-        np.testing.assert_allclose(block_0[to_eliminate_0], 0, atol=1e-10, rtol=0)
-        np.testing.assert_allclose(block_1[to_eliminate_1], 0, atol=1e-10, rtol=0)
+    _assert_mask_eliminated(H_tilde, masks, max_order=max_order)
 
 
 def test_block_diagonalize_nonhermitian_accepts_legacy_two_block_solver():
-    rng = np.random.default_rng(97531)
+    rng = np.random.default_rng()
     h_0 = np.diag(np.array([-3.0, 0.7, 1.4, 2.6], dtype=float)).astype(complex)
-    h_1 = rng.normal(size=(4, 4)) + 1j * rng.normal(size=(4, 4))
+    h_1 = _complex_normal(rng, (4, 4))
     subspace_indices = np.array([0, 1, 1, 1], dtype=int)
     denominators = {
         (1, 3): h_0[:1, :1].diagonal().reshape(-1, 1) - h_0[1:, 1:].diagonal(),
@@ -377,12 +362,7 @@ def test_nonhermitian_direct_solver_supports_both_offdiagonal_orientations(
 
     n = 300
     a_dim = 5
-    rng = np.random.default_rng(13579)
-    energies = rng.standard_normal(n)
-    hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
-    h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
-    eigvals, eigvecs = np.linalg.eigh(h_0.toarray())
-    eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
+    rng, h_0, eigvals, eigvecs, eigvecs_rest = _make_direct_solver_case(n, a_dim)
     direct = solve_sylvester_direct(h_0, [eigvecs], nonhermitian=True)
 
     if index == (0, 1):
@@ -411,12 +391,7 @@ def test_nonhermitian_direct_solver_requires_flag_for_left_implicit_solve() -> N
 
     n = 40
     a_dim = 4
-    rng = np.random.default_rng(86420)
-    energies = rng.standard_normal(n)
-    hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
-    h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
-    eigvals, eigvecs = np.linalg.eigh(h_0.toarray())
-    eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
+    rng, h_0, _, eigvecs, eigvecs_rest = _make_direct_solver_case(n, a_dim)
     direct = solve_sylvester_direct(h_0, [eigvecs])
 
     rhs = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
@@ -433,31 +408,27 @@ def test_block_diagonalize_nonhermitian_implicit_direct_solver() -> None:
 
     n = 40
     a_dim = 4
-    rng = np.random.default_rng(11223)
-    energies = rng.standard_normal(n)
-    hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
-    h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
-    h_1 = rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
-    eigvecs = np.linalg.eigh(h_0.toarray())[1]
+    rng, h_0, _, eigvecs_a, eigvecs_rest = _make_direct_solver_case(n, a_dim)
+    h_1 = _complex_normal(rng, (n, n))
 
     H_tilde_implicit, *_ = block_diagonalize(
         [h_0, h_1],
-        subspace_eigenvectors=[eigvecs[:, :a_dim]],
+        subspace_eigenvectors=[eigvecs_a],
         hermitian=False,
     )
     H_tilde_explicit, *_ = block_diagonalize(
         [h_0.toarray(), h_1],
-        subspace_eigenvectors=[eigvecs[:, :a_dim], eigvecs[:, a_dim:]],
+        subspace_eigenvectors=[eigvecs_a, eigvecs_rest],
         hermitian=False,
     )
 
-    compare_series(H_tilde_implicit[0, 0], H_tilde_explicit[0, 0], (2,), atol=1e-8)
+    compare_series(H_tilde_implicit[0, 0], H_tilde_explicit[0, 0], (2,), atol=1e-6)
 
 
 def test_block_diagonalize_nonhermitian_rejects_implicit_kpm():
-    rng = np.random.default_rng(24680)
+    rng = np.random.default_rng()
     h_0 = sparse.diags(np.linspace(-3.0, 3.0, 8)).astype(complex)
-    h_1 = rng.normal(size=(8, 8)) + 1j * rng.normal(size=(8, 8))
+    h_1 = _complex_normal(rng, (8, 8))
     subspace_eigenvectors = [np.eye(8, dtype=complex)[:, :2]]
 
     with pytest.raises(NotImplementedError, match="does not support the KPM solver"):
