@@ -926,7 +926,7 @@ def solve_sylvester_KPM(
     if sparse.issparse(h_rescaled_T):
         h_rescaled_T = h_rescaled_T.tocsr()
 
-    def solve_sylvester_kpm_right(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
+    def solve_sylvester_kpm(Y: np.ndarray, index: tuple[int]) -> np.ndarray:
         Y_KPM = Y @ kpm_projector / a  # Keep track of Hamiltonian rescaling
         return np.vstack(
             [
@@ -950,9 +950,7 @@ def solve_sylvester_KPM(
         if Y is zero:
             return zero
         if index[1] == len(eigs) - 1:
-            return solve_sylvester_kpm_right(Y, index) + solve_sylvester_explicit(
-                Y, index
-            )
+            return solve_sylvester_kpm(Y, index) + solve_sylvester_explicit(Y, index)
         return solve_sylvester_explicit(Y, index)
 
     return solve_sylvester
