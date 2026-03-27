@@ -173,8 +173,8 @@ def block_diagonalize(
         Block diagonalized Hamiltonian.
     U : `~pymablock.series.BlockSeries`
         Transformation that block diagonalizes H.
-    U_adjoint : `~pymablock.series.BlockSeries`
-        Adjoint of U for Hermitian problems, inverse of U otherwise.
+    U_inv : `~pymablock.series.BlockSeries`
+        Inverse of U. For Hermitian problems this coincides with the adjoint.
 
     """
     if isinstance(symbols, sympy.Symbol):
