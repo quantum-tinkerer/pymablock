@@ -162,27 +162,46 @@ class ComplementProjector(LinearOperator):
     span of the vectors $A$ in the implicit method.
     """
 
-    def __init__(self: LinearOperator, vecs: np.ndarray) -> LinearOperator:
+    def __init__(
+        self: LinearOperator,
+        vecs: np.ndarray,
+        left_vecs: np.ndarray | None = None,
+    ) -> LinearOperator:
         """Projector on the complement of the span of vecs."""
         self.shape = (vecs.shape[0], vecs.shape[0])
         self._vecs = vecs
+        self._left_vecs = vecs if left_vecs is None else left_vecs
         self.dtype = vecs.dtype
 
     __array_ufunc__ = None
 
     def _matvec(self: LinearOperator, v: np.ndarray) -> np.ndarray:
-        return v - self._vecs @ (self._vecs.conj().T @ v)
+        return v - self._vecs @ (self._left_vecs.conj().T @ v)
 
-    _matmat = _rmatvec = _rmatmat = _matvec
+    def _matmat(self: LinearOperator, v: np.ndarray) -> np.ndarray:
+        return v - self._vecs @ (self._left_vecs.conj().T @ v)
+
+    def _rmatvec(self: LinearOperator, v: np.ndarray) -> np.ndarray:
+        return v - self._left_vecs.conj() @ (self._vecs.T @ v)
+
+    def _rmatmat(self: LinearOperator, v: np.ndarray) -> np.ndarray:
+        return v - self._left_vecs.conj() @ (self._vecs.T @ v)
 
     def _adjoint(self: LinearOperator) -> LinearOperator:
-        return self
+        return self.__class__(vecs=self._left_vecs, left_vecs=self._vecs)
 
     def conjugate(self: LinearOperator) -> LinearOperator:
         """Conjugate operator."""
-        return self.__class__(vecs=self._vecs.conj())
+        return self.__class__(
+            vecs=self._vecs.conj(),
+            left_vecs=self._left_vecs.conj(),
+        )
 
-    _transpose = conjugate
+    def _transpose(self: LinearOperator) -> LinearOperator:
+        return self.__class__(
+            vecs=self._left_vecs.conj(),
+            left_vecs=self._vecs.conj(),
+        )
 
 
 def aslinearoperator(A: Any) -> Any:

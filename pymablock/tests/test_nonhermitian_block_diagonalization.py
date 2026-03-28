@@ -186,6 +186,35 @@ def _make_direct_solver_case(
     return rng, h_0, eigvals, eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
 
+def _make_biorthogonal_direct_solver_case(
+    n: int, a_dim: int
+) -> tuple[
+    np.random.Generator,
+    sparse.csr_array,
+    np.ndarray,
+    tuple[np.ndarray, np.ndarray],
+    tuple[np.ndarray, np.ndarray],
+    tuple[np.ndarray, np.ndarray],
+]:
+    rng = np.random.default_rng()
+    eigvals = np.linspace(-3.0, 3.0, n) + 0.2j * rng.standard_normal(n)
+    while True:
+        transform = np.eye(n, dtype=complex) + 0.2 * _complex_normal(rng, (n, n))
+        if np.linalg.cond(transform) < 20:
+            break
+    inverse_transform = np.linalg.inv(transform)
+    left = inverse_transform.conj().T
+    h_0 = sparse.csr_array(transform @ np.diag(eigvals) @ inverse_transform)
+    return (
+        rng,
+        h_0,
+        eigvals,
+        (transform[:, :a_dim], left[:, :a_dim]),
+        (transform[:, a_dim:], left[:, a_dim:]),
+        (transform, left),
+    )
+
+
 @pytest.mark.parametrize(
     ("block_dims", "wanted_orders"),
     [((1, 1), (4,)), ((2, 1), (3,)), ((1, 2), (2, 1)), ((2, 1, 1), (1, 1))],
@@ -403,22 +432,101 @@ def test_nonhermitian_direct_solver_requires_flag_for_left_implicit_solve() -> N
         direct(rhs, (1, 0))
 
 
-def test_block_diagonalize_nonhermitian_implicit_direct_solver() -> None:
+@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
+def test_nonhermitian_direct_solver_supports_biorthogonal_subspaces(index) -> None:
     pytest.importorskip("mumps", reason="python-mumps is not installed")
 
     n = 40
     a_dim = 4
-    rng, h_0, _, eigvecs_a, eigvecs_rest = _make_direct_solver_case(n, a_dim)
+    rng, h_0, eigvals, explicit, implicit, _ = _make_biorthogonal_direct_solver_case(
+        n, a_dim
+    )
+    right_a, left_a = explicit
+    right_rest, left_rest = implicit
+    direct = solve_sylvester_direct(h_0, [(right_a, left_a)], nonhermitian=True)
+
+    if index == (0, 1):
+        rhs = _complex_normal(rng, (a_dim, n - a_dim)) @ Dagger(left_rest)
+        expected = (
+            (rhs @ right_rest) / (eigvals[:a_dim].reshape(-1, 1) - eigvals[a_dim:])
+        ) @ Dagger(left_rest)
+    else:
+        rhs = right_rest @ _complex_normal(rng, (n - a_dim, a_dim))
+        expected = right_rest @ (
+            (Dagger(left_rest) @ rhs) / (eigvals[a_dim:].reshape(-1, 1) - eigvals[:a_dim])
+        )
+
+    np.testing.assert_allclose(expected, direct(rhs, index))
+
+
+def test_block_diagonalize_nonhermitian_accepts_complete_subspace_eigenvectors() -> None:
+    n = 40
+    a_dim = 4
+    rng, h_0, eigvals, eigvecs_a, eigvecs_rest = _make_direct_solver_case(n, a_dim)
+    eigvecs = np.hstack((eigvecs_a, eigvecs_rest))
+    subspace_indices = np.array([0] * a_dim + [1] * (n - a_dim))
+    h_1 = _complex_normal(rng, (n, n)).astype(complex)
+
+    H_tilde_subspaces, *_ = block_diagonalize(
+        [h_0.toarray(), h_1],
+        subspace_eigenvectors=[eigvecs_a, eigvecs_rest],
+        hermitian=False,
+    )
+    H_tilde_indices, *_ = block_diagonalize(
+        [np.diag(eigvals), Dagger(eigvecs) @ h_1 @ eigvecs],
+        subspace_indices=subspace_indices,
+        hermitian=False,
+    )
+
+    compare_series(H_tilde_subspaces, H_tilde_indices, (2,), atol=1e-10)
+
+
+def test_block_diagonalize_nonhermitian_accepts_biorthogonal_subspace_eigenvectors():
+    n = 10
+    a_dim = 3
+    rng, h_0, eigvals, explicit, implicit, full_basis = (
+        _make_biorthogonal_direct_solver_case(n, a_dim)
+    )
+    right_a, left_a = explicit
+    right_rest, left_rest = implicit
+    right_full, left_full = full_basis
+    subspace_indices = np.array([0] * a_dim + [1] * (n - a_dim))
+    h_1 = _complex_normal(rng, (n, n))
+
+    H_tilde_pairs, *_ = block_diagonalize(
+        [h_0.toarray(), h_1],
+        subspace_eigenvectors=[(right_a, left_a), (right_rest, left_rest)],
+        hermitian=False,
+    )
+    H_tilde_indices, *_ = block_diagonalize(
+        [np.diag(eigvals), Dagger(left_full) @ h_1 @ right_full],
+        subspace_indices=subspace_indices,
+        hermitian=False,
+    )
+
+    compare_series(H_tilde_pairs, H_tilde_indices, (2,), atol=1e-10)
+
+
+def test_block_diagonalize_nonhermitian_implicit_direct_solver_supports_biorthogonal_pairs() -> (
+    None
+):
+    pytest.importorskip("mumps", reason="python-mumps is not installed")
+
+    n = 24
+    a_dim = 4
+    rng, h_0, _, explicit, implicit, _ = _make_biorthogonal_direct_solver_case(n, a_dim)
+    right_a, left_a = explicit
+    right_rest, left_rest = implicit
     h_1 = _complex_normal(rng, (n, n))
 
     H_tilde_implicit, *_ = block_diagonalize(
         [h_0, h_1],
-        subspace_eigenvectors=[eigvecs_a],
+        subspace_eigenvectors=[(right_a, left_a)],
         hermitian=False,
     )
     H_tilde_explicit, *_ = block_diagonalize(
         [h_0.toarray(), h_1],
-        subspace_eigenvectors=[eigvecs_a, eigvecs_rest],
+        subspace_eigenvectors=[(right_a, left_a), (right_rest, left_rest)],
         hermitian=False,
     )
 
