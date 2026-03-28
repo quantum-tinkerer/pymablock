@@ -170,10 +170,12 @@ class ComplementProjector(LinearOperator):
         """Projector on the complement of the span of vecs."""
         self.shape = (vecs.shape[0], vecs.shape[0])
         self._vecs = vecs
-        self._left_vecs = vecs if left_vecs is None else left_vecs
-        self._orthogonal = self._left_vecs is self._vecs
+        self._hermitian = (
+            left_vecs is None or left_vecs is vecs or np.array_equal(left_vecs, vecs)
+        )
+        self._left_vecs = vecs if self._hermitian else left_vecs
         self.dtype = np.result_type(self._vecs.dtype, self._left_vecs.dtype)
-        self._adjoint_operator = self if self._orthogonal else None
+        self._adjoint_operator = self if self._hermitian else None
         self._conjugate_operator = None
         self._transpose_operator = None
 
@@ -202,13 +204,13 @@ class ComplementProjector(LinearOperator):
         """Conjugate operator."""
         if self._conjugate_operator is None:
             vecs = self._vecs.conj()
-            left_vecs = vecs if self._orthogonal else self._left_vecs.conj()
+            left_vecs = vecs if self._hermitian else self._left_vecs.conj()
             self._conjugate_operator = self.__class__(
                 vecs=vecs,
                 left_vecs=left_vecs,
             )
             self._conjugate_operator._conjugate_operator = self
-            if self._orthogonal:
+            if self._hermitian:
                 self._transpose_operator = self._conjugate_operator
                 self._conjugate_operator._transpose_operator = self
         return self._conjugate_operator
@@ -216,7 +218,7 @@ class ComplementProjector(LinearOperator):
     def _transpose(self: LinearOperator) -> LinearOperator:
         if self._transpose_operator is None:
             self._transpose_operator = (
-                self.conjugate() if self._orthogonal else self.conjugate()._adjoint()
+                self.conjugate() if self._hermitian else self.conjugate()._adjoint()
             )
             self._transpose_operator._transpose_operator = self
         return self._transpose_operator

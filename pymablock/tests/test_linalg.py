@@ -114,9 +114,11 @@ def test_complement_projector_cached_transforms():
     for projector in (
         linalg.ComplementProjector(vecs),
         linalg.ComplementProjector(vecs, vecs),
+        linalg.ComplementProjector(vecs, vecs.copy()),
     ):
         assert projector.H is projector
         assert projector.H.H is projector
+        assert projector.conjugate() is projector.T
         assert projector.T is projector.T
         assert projector.T.T is projector
         assert_allclose(projector.T @ np.eye(10), explicit.T)
