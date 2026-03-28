@@ -108,6 +108,32 @@ def test_complement_projector_biorthogonal():
     assert_allclose(np.eye(10) @ projector, explicit)
 
 
+def test_complement_projector_cached_transforms():
+    vecs = np.random.randn(10, 3) + 1j * np.random.randn(10, 3)
+    explicit = np.eye(10) - vecs @ vecs.conj().T
+    for projector in (
+        linalg.ComplementProjector(vecs),
+        linalg.ComplementProjector(vecs, vecs),
+    ):
+        assert projector.H is projector
+        assert projector.H.H is projector
+        assert projector.T is projector.T
+        assert projector.T.T is projector
+        assert_allclose(projector.T @ np.eye(10), explicit.T)
+
+    vec_right = np.random.randn(10, 3) + 1j * np.random.randn(10, 3)
+    vec_left = vec_right @ np.linalg.inv(vec_right.conj().T @ vec_right)
+    projector = linalg.ComplementProjector(vec_right, vec_left)
+    explicit = np.eye(10) - vec_right @ vec_left.conj().T
+
+    assert projector.H is projector.H
+    assert projector.H.H is projector
+    assert projector.T is projector.T
+    assert projector.T.T is projector
+    assert_allclose(projector.H @ np.eye(10), explicit.conj().T)
+    assert_allclose(projector.T @ np.eye(10), explicit.T)
+
+
 def test_is_diagonal():
     array = np.random.randint(0, 4, size=(3, 3))
     assert not linalg.is_diagonal(array)

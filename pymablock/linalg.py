@@ -171,37 +171,55 @@ class ComplementProjector(LinearOperator):
         self.shape = (vecs.shape[0], vecs.shape[0])
         self._vecs = vecs
         self._left_vecs = vecs if left_vecs is None else left_vecs
-        self.dtype = vecs.dtype
+        self._orthogonal = self._left_vecs is self._vecs
+        self.dtype = np.result_type(self._vecs.dtype, self._left_vecs.dtype)
+        self._adjoint_operator = self if self._orthogonal else None
+        self._conjugate_operator = None
+        self._transpose_operator = None
 
     __array_ufunc__ = None
 
-    def _matvec(self: LinearOperator, v: np.ndarray) -> np.ndarray:
+    def _apply(self: LinearOperator, v: np.ndarray) -> np.ndarray:
         return v - self._vecs @ (self._left_vecs.conj().T @ v)
 
-    def _matmat(self: LinearOperator, v: np.ndarray) -> np.ndarray:
-        return v - self._vecs @ (self._left_vecs.conj().T @ v)
+    _matvec = _matmat = _apply
 
-    def _rmatvec(self: LinearOperator, v: np.ndarray) -> np.ndarray:
+    def _apply_left(self: LinearOperator, v: np.ndarray) -> np.ndarray:
         return v - self._left_vecs.conj() @ (self._vecs.T @ v)
 
-    def _rmatmat(self: LinearOperator, v: np.ndarray) -> np.ndarray:
-        return v - self._left_vecs.conj() @ (self._vecs.T @ v)
+    _rmatvec = _rmatmat = _apply_left
 
     def _adjoint(self: LinearOperator) -> LinearOperator:
-        return self.__class__(vecs=self._left_vecs, left_vecs=self._vecs)
+        if self._adjoint_operator is None:
+            self._adjoint_operator = self.__class__(
+                vecs=self._left_vecs,
+                left_vecs=self._vecs,
+            )
+            self._adjoint_operator._adjoint_operator = self
+        return self._adjoint_operator
 
     def conjugate(self: LinearOperator) -> LinearOperator:
         """Conjugate operator."""
-        return self.__class__(
-            vecs=self._vecs.conj(),
-            left_vecs=self._left_vecs.conj(),
-        )
+        if self._conjugate_operator is None:
+            vecs = self._vecs.conj()
+            left_vecs = vecs if self._orthogonal else self._left_vecs.conj()
+            self._conjugate_operator = self.__class__(
+                vecs=vecs,
+                left_vecs=left_vecs,
+            )
+            self._conjugate_operator._conjugate_operator = self
+            if self._orthogonal:
+                self._transpose_operator = self._conjugate_operator
+                self._conjugate_operator._transpose_operator = self
+        return self._conjugate_operator
 
     def _transpose(self: LinearOperator) -> LinearOperator:
-        return self.__class__(
-            vecs=self._left_vecs.conj(),
-            left_vecs=self._vecs.conj(),
-        )
+        if self._transpose_operator is None:
+            self._transpose_operator = (
+                self.conjugate() if self._orthogonal else self.conjugate()._adjoint()
+            )
+            self._transpose_operator._transpose_operator = self
+        return self._transpose_operator
 
 
 def aslinearoperator(A: Any) -> Any:
