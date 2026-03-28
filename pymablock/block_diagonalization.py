@@ -36,13 +36,9 @@ from pymablock.series import (
 __all__ = ["block_diagonalize", "operator_to_BlockSeries"]
 
 # Common types
-SubspaceBasis = (
-    np.ndarray
-    | sympy.Matrix
-    | sparse.spmatrix
-    | sparse.sparray
-    | tuple[np.ndarray | sympy.Matrix, np.ndarray | sympy.Matrix]
-)
+SingleSubspaceBasis = np.ndarray | sympy.MatrixBase | sparse.spmatrix | sparse.sparray
+SubspaceBasis = SingleSubspaceBasis | tuple[SingleSubspaceBasis, SingleSubspaceBasis]
+DirectSubspaceBasis = np.ndarray | tuple[np.ndarray, np.ndarray]
 Eigenvectors = tuple[SubspaceBasis, ...]
 
 
@@ -1041,8 +1037,8 @@ def _group_close_energies(energies: np.ndarray, atol: float) -> list[np.ndarray]
 
 
 def solve_sylvester_direct(
-    h_0: sparse.spmatrix,
-    eigenvectors: list[SubspaceBasis],
+    h_0: sparse.spmatrix | sparse.sparray,
+    eigenvectors: list[DirectSubspaceBasis],
     *,
     nonhermitian: bool = False,
     **solver_options: dict,
@@ -1059,7 +1055,8 @@ def solve_sylvester_direct(
     eigenvectors :
         Bases of the explicit subspaces of the unperturbed Hamiltonian. Each
         entry may be either a right basis ``V`` or a pair ``(R, L)`` of right
-        and left basis vectors, with ``V`` understood as ``(V, V)``.
+        and left basis vectors, with ``V`` understood as ``(V, V)``. The direct
+        solver requires these bases to be given as NumPy arrays.
     nonhermitian :
         Whether to also prepare the left-implicit Green's functions needed by
         the non-Hermitian algorithm. This is more expensive and unnecessary for
