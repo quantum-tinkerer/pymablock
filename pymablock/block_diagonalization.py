@@ -131,7 +131,8 @@ def block_diagonalize(
         ``V`` or a pair ``(R, L)`` of right and left basis vectors. A single
         basis is shorthand for ``(V, V)``, i.e. identical left and right
         subspaces. The combined explicit subspaces must satisfy
-        ``L^\dagger R = I``. If None, the unperturbed Hamiltonian must be block
+        ``L^\dagger R = I``. The pair format ``(R, L)`` is only supported when
+        ``hermitian=False``. If None, the unperturbed Hamiltonian must be block
         diagonal. If some vectors are missing, the implicit method is used.
         Mutually exclusive with ``subspace_indices``. If neither
         ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
@@ -180,7 +181,8 @@ def block_diagonalize(
         ``a + Dagger(a)`` or ``a ** k + Dagger(a) ** k``.
     hermitian :
         Whether to use the Hermitian algorithm (default). If set to False, use the
-        non-Hermitian similarity-transform algorithm.
+        non-Hermitian similarity-transform algorithm. The tuple-pair form of
+        ``subspace_eigenvectors`` requires ``hermitian=False``.
 
     Returns
     -------
@@ -222,6 +224,13 @@ def block_diagonalize(
     right_subspaces = left_subspaces = None
     if subspace_eigenvectors is not None:
         subspace_eigenvectors = tuple(subspace_eigenvectors)
+        if hermitian and any(
+            isinstance(subspace, tuple) for subspace in subspace_eigenvectors
+        ):
+            raise ValueError(
+                "Hermitian problems do not accept `(right, left)` subspace pairs. "
+                "Pass a single basis per subspace instead."
+            )
         right_subspaces, left_subspaces = _normalize_subspace_eigenvectors(
             subspace_eigenvectors
         )
@@ -676,7 +685,8 @@ def operator_to_BlockSeries(
         A tuple describing the subspaces onto which the operator is projected
         and separated into blocks. Each entry may be either a single basis
         ``V`` or a pair ``(R, L)`` of right and left basis vectors, with the
-        single-basis form understood as ``(V, V)``. If some vectors are
+        single-basis form understood as ``(V, V)``. The pair format ``(R, L)``
+        is only supported when ``hermitian=False``. If some vectors are
         missing, the last block is defined implicitly. Mutually exclusive with
         ``subspace_indices``. If neither ``subspace_eigenvectors`` nor
         ``subspace_indices`` are provided, the BlockSeries is defined with a
@@ -700,6 +710,8 @@ def operator_to_BlockSeries(
         that the unperturbed operator is block-diagonal.
     hermitian :
         Whether the operator may be assumed to be Hermitian (for performance).
+        The tuple-pair form of ``subspace_eigenvectors`` requires
+        ``hermitian=False``.
 
     Returns
     -------
@@ -763,6 +775,13 @@ def operator_to_BlockSeries(
 
     if subspace_eigenvectors is not None:
         subspace_eigenvectors = tuple(subspace_eigenvectors)
+        if hermitian and any(
+            isinstance(subspace, tuple) for subspace in subspace_eigenvectors
+        ):
+            raise ValueError(
+                "Hermitian problems do not accept `(right, left)` subspace pairs. "
+                "Pass a single basis per subspace instead."
+            )
         right_subspaces, left_subspaces = _normalize_subspace_eigenvectors(
             subspace_eigenvectors
         )

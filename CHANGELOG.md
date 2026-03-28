@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added a non-Hermitian similarity-transform algorithm via `block_diagonalize(..., hermitian=False)`, including support for asymmetric selective masks, symbolic inputs, and the implicit direct Sylvester solver.
+- Added a non-Hermitian similarity-transform algorithm via `block_diagonalize(..., hermitian=False)`, including support for asymmetric selective masks, symbolic inputs, and biorthogonal `subspace_eigenvectors=[(right, left), ...]` in the explicit and implicit direct paths. The implicit KPM solver remains unsupported in the non-Hermitian path.
 
 ## [2.2.1] - 2026-03-09
 

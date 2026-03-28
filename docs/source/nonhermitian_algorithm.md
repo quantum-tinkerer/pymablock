@@ -266,3 +266,72 @@ At each perturbative order, Eq. {eq}`nh:closed_recs` is closed in
 $\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}$
 and uses one Sylvester solve (last line); Eq. {eq}`nh:closed_defs` then yields
 $\tilde{\mathcal{H}}_{\mathbf{n},S}$.
+
+## Implicit mode
+
+The Hermitian implicit construction from [the main algorithm page](algorithms.md)
+assumes that the explicit subspace is described by one orthonormal basis
+$\Psi_E$, so the missing block is represented by the orthogonal complement
+
+:::{math}
+:label: nh:implicit_herm_projector
+Q = 1 - \Psi_E \Psi_E^\dagger.
+:::
+
+For a genuinely non-Hermitian $H_0$, that is no longer the natural object.
+The correct input is a biorthogonal pair of explicit subspaces:
+
+:::{math}
+:label: nh:implicit_biorth_basis
+R_E,\;L_E,
+\qquad
+L_E^\dagger R_E = 1,
+:::
+
+where the columns of $R_E$ span the explicit right subspace and the columns of
+$L_E$ span the dual left subspace.
+Then the explicit projector and its complement become
+
+:::{math}
+:label: nh:implicit_oblique_projector
+P_E = R_E L_E^\dagger,
+\qquad
+Q = 1 - R_E L_E^\dagger.
+:::
+
+This is an oblique projector in general, not an orthogonal one, so it is not
+self-adjoint in general.
+The block projections are correspondingly
+
+:::{math}
+:label: nh:implicit_block_projections
+H_{ij} = L_i^\dagger H R_j,
+\qquad
+H_{iQ} = L_i^\dagger H Q,
+\qquad
+H_{Qi} = Q H R_i,
+\qquad
+H_{QQ} = Q H Q.
+:::
+
+The Sylvester equations keep the same structure as in the Hermitian implicit
+derivation, but with this oblique $Q$ and with the explicit energies extracted
+from
+
+:::{math}
+:label: nh:implicit_biorth_energies
+L_i^\dagger H_0 R_i.
+:::
+
+So the direct implicit solver needs the same two ingredients as the explicit
+non-Hermitian projection:
+
+- right subspace bases to define the retained states,
+- left dual bases to define the projection and the complementary block.
+
+This is why the API accepts `subspace_eigenvectors=[(right, left), ...]` when
+`hermitian=False`.
+A single basis `V` is still shorthand for `(V, V)`, which is the Hermitian or
+orthonormal special case.
+
+The implicit KPM variant is not implemented for the non-Hermitian path.

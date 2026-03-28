@@ -1144,6 +1144,29 @@ def test_block_diagonalize_hamiltonian_symbolic(
         block_diagonalize(hamiltonian, subspace_eigenvectors=faulted_eigenvectors)
 
 
+def test_hermitian_rejects_subspace_pairs():
+    h_0 = np.diag([0.0, 1.0, 2.0, 3.0])
+    h_1 = random_hermitian_matrix(4)
+    subspace_pairs = [
+        (np.eye(4, dtype=complex)[:, :2], np.eye(4, dtype=complex)[:, :2]),
+        (np.eye(4, dtype=complex)[:, 2:], np.eye(4, dtype=complex)[:, 2:]),
+    ]
+
+    with pytest.raises(ValueError, match="do not accept"):
+        block_diagonalize(
+            [h_0, h_1],
+            subspace_eigenvectors=subspace_pairs,
+            hermitian=True,
+        )
+
+    with pytest.raises(ValueError, match="do not accept"):
+        operator_to_BlockSeries(
+            [h_0, h_1],
+            subspace_eigenvectors=subspace_pairs,
+            hermitian=True,
+        )
+
+
 def test_algebra_element_data_type():
     """
     Test that the algorithm works with a class implementing algebra.
