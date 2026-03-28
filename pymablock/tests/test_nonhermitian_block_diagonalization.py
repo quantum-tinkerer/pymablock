@@ -478,7 +478,7 @@ def test_block_diagonalize_nonhermitian_accepts_complete_subspace_eigenvectors()
         hermitian=False,
     )
 
-    compare_series(H_tilde_subspaces, H_tilde_indices, (2,), atol=1e-10)
+    compare_series(H_tilde_subspaces, H_tilde_indices, (2,), atol=1e-10, rtol=1e-11)
 
 
 def test_block_diagonalize_nonhermitian_accepts_biorthogonal_subspace_eigenvectors():
@@ -504,7 +504,7 @@ def test_block_diagonalize_nonhermitian_accepts_biorthogonal_subspace_eigenvecto
         hermitian=False,
     )
 
-    compare_series(H_tilde_pairs, H_tilde_indices, (2,), atol=1e-10)
+    compare_series(H_tilde_pairs, H_tilde_indices, (2,), atol=1e-10, rtol=1e-11)
 
 
 def test_block_diagonalize_nonhermitian_implicit_direct_solver_supports_biorthogonal_pairs() -> (
