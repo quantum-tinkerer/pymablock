@@ -401,7 +401,7 @@ $$
 Solving Sylvester's equation and computing the matrix products are the most expensive steps of the algorithms for large Hamiltonians.
 Pymablock can efficiently construct an effective Hamiltonian of a small subspace even when the full Hamiltonian is a sparse matrix that is too costly to diagonalize.
 It does so by avoiding forming a matrix representation of operators in the implicit subspace—the one without known eigenvectors, and by utilizing the sparsity of the Hamiltonian to compute the Green's function.
-To do so, Pymablock uses either the [MUMPS sparse solver](https://mumps-solver.org/) via the [python-mumps](https://gitlab.kwant-project.org/kwant/python-mumps/) wrapper or the [KPM method](https://doi.org/10.1103/RevModPhys.78.275).
+To do so, Pymablock uses either a direct sparse solver for the Green's function or the [KPM method](https://doi.org/10.1103/RevModPhys.78.275). The direct solver prefers [MUMPS](https://mumps-solver.org/) via the [python-mumps](https://gitlab.kwant-project.org/kwant/python-mumps/) wrapper when available and otherwise falls back to SciPy's SuperLU implementation; in our experience, MUMPS is typically more performant.
 
 This approach was originally introduced in [this work](https://doi.org/10.48550/arXiv.1909.09649).
 

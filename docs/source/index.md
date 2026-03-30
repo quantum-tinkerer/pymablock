@@ -132,8 +132,8 @@ pip install pymablock
 ```
 
 ```{important}
-Be aware that the using `pymablock` on large Hamiltonians requires [MUMPS](https://mumps-solver.org/index.php) support via ``python-mumps`` package.
-It is only pip-installable on Linux, use conda on other platforms.
+Be aware that using `pymablock` on large Hamiltonians benefits from a direct sparse solver. Pymablock prefers [MUMPS](https://mumps-solver.org/index.php) via the ``python-mumps`` package when available, but it can also use SciPy's SuperLU through `scipy.sparse.linalg`.
+In our experience, the MUMPS backend is typically more performant than SuperLU. `python-mumps` is only pip-installable on Linux, so use conda on other platforms if you want the MUMPS backend.
 ```
 
 ## Citing
