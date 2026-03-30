@@ -3,14 +3,13 @@
 
 from collections.abc import Callable
 from typing import Any
-from warnings import warn
 
 import numpy as np
 import sympy
 from scipy import sparse
 from scipy.linalg import qr
 from scipy.sparse import identity, spmatrix
-from scipy.sparse.linalg import LinearOperator
+from scipy.sparse.linalg import LinearOperator, splu
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 
 from pymablock.series import one, zero
@@ -47,7 +46,7 @@ def direct_greens_function(
     atol: float = 1e-7,
     eps: float = 0,
 ) -> Callable[[np.ndarray], np.ndarray]:
-    """Compute the Green's function of a Hamiltonian using MUMPS solver.
+    """Compute the Green's function of a Hamiltonian using a sparse direct solver.
 
     Parameters
     ----------
@@ -61,10 +60,9 @@ def direct_greens_function(
         ``x[pivot] = 0`` constraints and projects the kernel away before and
         after the sparse solve. If omitted, an empty kernel basis is used.
     atol :
-        Accepted precision of the desired result in infinity-norm.
+        Retained for backwards compatibility and currently ignored.
     eps :
-        Tolerance for the MUMPS solver to identify null pivots. Passed through
-        to MUMPS CNTL(3), see MUMPS user guide.
+        Retained for backwards compatibility and currently ignored.
 
     Returns
     -------
@@ -72,33 +70,31 @@ def direct_greens_function(
         Function that solves :math:`(E - H) sol = vec`.
 
     """
-    try:
-        from mumps import Context as MUMPSContext
-    except ImportError as e:
-        raise ImportError(
-            "python-mumps is an optional dependency and is not installed."
-            "The implicit method of block diagonalization requires it."
-            "To install it see https://gitlab.kwant-project.org/kwant/python-mumps"
-        ) from e
-
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     if kernel_vectors is None:
         kernel_vectors = np.zeros((h.shape[0], 0), dtype=h.dtype)
+    del atol, eps
     pivot_rows = _kernel_pivot_rows(kernel_vectors)
     kernel_projector = ComplementProjector(kernel_vectors)
     mat = _constrain_matrix(mat, pivot_rows)
 
     is_complex = np.iscomplexobj(mat.data)
-    ctx = MUMPSContext()
-    # MUMPS does not support Hermitian matrices, so we use the symmetric only with real.
-    ctx.set_matrix(mat, symmetric=not is_complex and not pivot_rows.size)
-    # Enable null pivot detection
-    ctx.mumps_instance.icntl[24] = 1
-    # Set tolerance for null pivot detection
-    ctx.mumps_instance.cntl[3] = eps
-    # Enable computation of the residual
-    ctx.mumps_instance.icntl[11] = 2
-    ctx.factor()
+    try:
+        from mumps import Context as MUMPSContext
+    except ImportError:
+        lu = splu(sparse.csc_matrix(mat))
+
+        def solve(v: np.ndarray) -> np.ndarray:
+            return lu.solve(v)
+
+    else:
+        ctx = MUMPSContext()
+        # MUMPS does not support Hermitian matrices, so we use the symmetric only with real.
+        ctx.set_matrix(mat, symmetric=not is_complex and not pivot_rows.size)
+        ctx.factor()
+
+        def solve(v: np.ndarray) -> np.ndarray:
+            return ctx.solve(v, overwrite_b=True)
 
     def greens_function(vec: np.ndarray) -> np.ndarray:
         """Apply the Green's function to a vector.
@@ -124,21 +120,9 @@ def direct_greens_function(
         else:
             vec = (vec,)
 
-        residual = 0
         sol = []
         for v in vec:
-            sol.append(ctx.solve(v))
-            residual += (
-                ctx.mumps_instance.rinfog[6]  # Scaled residual
-                * ctx.mumps_instance.rinfog[4]  # ||A||_inf
-                * ctx.mumps_instance.rinfog[5]  # ||x||_inf
-            )
-        if residual > atol:
-            warn(
-                f"Solution only achieved precision {residual} > {atol}."
-                " adjust eps or atol.",
-                RuntimeWarning,
-            )
+            sol.append(solve(v))
         result = sol[0] if len(sol) == 1 else sol[0] + 1j * sol[1]
         return kernel_projector @ result
 

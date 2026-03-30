@@ -136,7 +136,8 @@ def block_diagonalize(
         See docstrings of `~pymablock.block_diagonalization.solve_sylvester_KPM`
         and `~pymablock.block_diagonalization.solve_sylvester_direct` for details.
     direct_solver :
-        Whether to use the direct solver that relies on MUMPS (default).
+        Whether to use the direct sparse solver (default). It prefers MUMPS
+        when available and otherwise falls back to SciPy's sparse LU.
         Otherwise, the KPM solver is used. Only applicable if the implicit
         method is used (i.e. `subspace_eigenvectors` is incomplete)
     symbols :
@@ -931,8 +932,8 @@ def solve_sylvester_direct(
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Solve Sylvester equation using a direct sparse solver.
 
-    This function uses MUMPS, which is a parallel direct solver for sparse
-    matrices. This solver is very efficient for large sparse matrices.
+    This function prefers MUMPS, which is a parallel direct solver for sparse
+    matrices, and falls back to SciPy's sparse LU when MUMPS is unavailable.
 
     Parameters
     ----------

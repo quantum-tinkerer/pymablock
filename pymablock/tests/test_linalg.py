@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import sympy
 from numpy.testing import assert_allclose
-from pytest import mark, raises
+from pytest import mark
 from scipy import sparse
 from scipy.sparse.linalg import aslinearoperator
 
@@ -108,10 +108,22 @@ def test_is_diagonal():
 
 
 def test_no_mumps(monkeypatch):
-    def __import__(*args, **kwargs):  # noqa ARG001
-        raise ImportError
+    original_import = builtins.__import__
+
+    def import_without_mumps(name, *args, **kwargs):
+        if name == "mumps":
+            raise ImportError
+        return original_import(name, *args, **kwargs)
 
     with monkeypatch.context() as monkeypatch:
-        monkeypatch.setattr(builtins, "__import__", __import__)
-        with raises(ImportError):
-            linalg.direct_greens_function(sparse.diags([1, 2, 3]))
+        monkeypatch.setattr(builtins, "__import__", import_without_mumps)
+        h = sparse.diags([1.0, 1.0, 2.0])
+        kernel_vectors = np.eye(3)[:, :2]
+        projector = linalg.ComplementProjector(kernel_vectors)
+        vec = projector @ np.array([1.0, -1.0, 2.0])
+
+        gf = linalg.direct_greens_function(h, 1.0, kernel_vectors=kernel_vectors)
+        sol = gf(vec)
+
+    assert_allclose(h @ sol - sol, -vec)
+    assert_allclose(kernel_vectors.conj().T @ sol, 0)
