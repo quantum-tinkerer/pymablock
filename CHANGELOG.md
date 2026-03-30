@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
+
 ## [2.2.1] - 2026-03-09
 
 ### Added
