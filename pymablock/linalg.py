@@ -90,7 +90,11 @@ def direct_greens_function(
     else:
         ctx = MUMPSContext()
         # MUMPS does not support Hermitian matrices, so we use the symmetric only with real.
-        ctx.set_matrix(mat, symmetric=not is_complex and not pivot_rows.size)
+        ctx.set_matrix(
+            sparse.coo_array(mat),
+            overwrite_a=True,
+            symmetric=not is_complex and not pivot_rows.size,
+        )
         ctx.factor()
 
         def solve(v: np.ndarray) -> np.ndarray:
