@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from copy import copy
 from functools import reduce
 from inspect import signature
+from itertools import pairwise
 from operator import matmul, mul
 from typing import Any
 from warnings import warn
@@ -907,6 +908,22 @@ def solve_sylvester_KPM(
     return solve_sylvester
 
 
+def _group_close_energies(energies: np.ndarray, atol: float) -> list[np.ndarray]:
+    """Group eigenvalue indices that are equal up to ``atol``."""
+    if not len(energies):
+        return []
+
+    order = np.argsort(energies)
+    groups = [[int(order[0])]]
+    for previous, current in pairwise(order):
+        if np.abs(energies[current] - energies[previous]) <= atol:
+            groups[-1].append(int(current))
+        else:
+            groups.append([int(current)])
+
+    return [np.array(group, dtype=int) for group in groups]
+
+
 def solve_sylvester_direct(
     h_0: sparse.spmatrix,
     eigenvectors: list[np.ndarray],
@@ -925,7 +942,9 @@ def solve_sylvester_direct(
         Eigenvectors of the effective subspaces of the unperturbed Hamiltonian.
     **solver_options :
         Keyword arguments to pass to the solver ``eps`` and ``atol``, see
-        `pymablock.linalg.direct_greens_function`.
+        `pymablock.linalg.direct_greens_function`. ``eigenvalue_atol`` controls
+        how eigenvalues are grouped into degenerate subspaces and defaults to
+        ``atol``.
 
     Returns
     -------
@@ -937,16 +956,29 @@ def solve_sylvester_direct(
     eigenvalues = [
         np.diag(Dagger(subspace) @ h_0 @ subspace) for subspace in eigenvectors
     ]
+    eigenvalue_atol = solver_options.get(
+        "eigenvalue_atol", solver_options.get("atol", 1e-12)
+    )
+    factorization_options = dict(solver_options)
+    factorization_options.pop("eigenvalue_atol", None)
+
     # Compute the Green's function of the transposed Hamiltonian because we are
     # solving the equation from the right.
-    greens_functions = [
-        [direct_greens_function(h_0.T, E, **solver_options) for E in subspace_eigenvalues]
-        for subspace_eigenvalues in eigenvalues
-    ]
+    greens_functions = []
+    for subspace_eigenvalues, subspace_vectors in zip(eigenvalues, eigenvectors):
+        grouped_greens_functions = [None] * len(subspace_eigenvalues)
+        for group in _group_close_energies(subspace_eigenvalues, eigenvalue_atol):
+            greens_function = direct_greens_function(
+                h_0.T,
+                subspace_eigenvalues[group[0]],
+                kernel_vectors=subspace_vectors[:, group].conj(),
+                **factorization_options,
+            )
+            for i in group:
+                grouped_greens_functions[i] = greens_function
+        greens_functions.append(grouped_greens_functions)
 
-    explicit_part = solve_sylvester_diagonal(
-        eigenvalues, atol=solver_options.get("atol", 1e-12)
-    )
+    explicit_part = solve_sylvester_diagonal(eigenvalues, atol=eigenvalue_atol)
 
     def solve_sylvester(Y: np.ndarray, index: tuple[int, ...]) -> np.ndarray:
         if Y is zero:

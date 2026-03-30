@@ -55,6 +55,35 @@ def test_direct_greens_function_dtype():
     assert gf(1j * E).dtype == np.complex64
 
 
+@mark.usefixtures("require_mumps")
+def test_direct_greens_function_degenerate_kernel():
+    rng = np.random.default_rng(0)
+    n = 24
+    multiplicity = 3
+    spectrum = np.linspace(-2, 2, n)
+    spectrum[:multiplicity] = 0.5
+
+    basis, _ = np.linalg.qr(
+        rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
+    )
+    h_dense = basis @ np.diag(spectrum) @ basis.conj().T
+    h = sparse.csr_array(h_dense)
+    kernel_vectors = basis[:, :multiplicity]
+
+    projector = linalg.ComplementProjector(kernel_vectors)
+    vec = rng.standard_normal(n) + 1j * rng.standard_normal(n)
+    vec = projector @ vec
+
+    gf = linalg.direct_greens_function(h, spectrum[0], kernel_vectors=kernel_vectors)
+    sol = gf(vec)
+
+    expected = basis[:, multiplicity:] @ (
+        (basis[:, multiplicity:].conj().T @ vec) / (spectrum[0] - spectrum[multiplicity:])
+    )
+    assert_allclose(sol, expected, atol=1e-10)
+    assert_allclose(kernel_vectors.conj().T @ sol, 0, atol=1e-10)
+
+
 def test_complement_projector():
     """Test ComplementProjector against explicit implementation"""
     vec_A = np.random.randn(10, 3) + 1j * np.random.randn(10, 3)

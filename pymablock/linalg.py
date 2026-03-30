@@ -8,6 +8,7 @@ from warnings import warn
 import numpy as np
 import sympy
 from scipy import sparse
+from scipy.linalg import qr
 from scipy.sparse import identity, spmatrix
 from scipy.sparse.linalg import LinearOperator
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
@@ -15,9 +16,34 @@ from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 from pymablock.series import one, zero
 
 
+def _kernel_pivot_rows(kernel_vectors: np.ndarray) -> np.ndarray:
+    """Choose pivot rows that fix a gauge for a degenerate kernel."""
+    if kernel_vectors.shape[1] == 0:
+        return np.array([], dtype=int)
+
+    _, _, pivots = qr(kernel_vectors.T, mode="economic", pivoting=True)
+    return np.sort(np.asarray(pivots[: kernel_vectors.shape[1]], dtype=int))
+
+
+def _constrain_matrix(
+    mat: sparse.sparray | spmatrix,
+    pivot_rows: np.ndarray,
+) -> sparse.csr_array:
+    """Replace selected equations with x[row] = 0 constraints."""
+    if pivot_rows.size == 0:
+        return sparse.csr_array(mat)
+
+    constrained = sparse.lil_array(mat, copy=True)
+    constrained[pivot_rows, :] = 0
+    for row in pivot_rows:
+        constrained[row, row] = 1
+    return constrained.tocsr()
+
+
 def direct_greens_function(
     h: spmatrix,
     E: float,
+    kernel_vectors: np.ndarray | None = None,
     atol: float = 1e-7,
     eps: float = 0,
 ) -> Callable[[np.ndarray], np.ndarray]:
@@ -29,6 +55,11 @@ def direct_greens_function(
         Hamiltonian matrix.
     E :
         Energy at which to compute the Green's function.
+    kernel_vectors :
+        Orthonormal basis of the kernel of ``E - H``. When provided, the solver
+        fixes the gauge by replacing pivot equations selected with pivoted QR by
+        ``x[pivot] = 0`` constraints and projects the kernel away before and
+        after the sparse solve. If omitted, an empty kernel basis is used.
     atol :
         Accepted precision of the desired result in infinity-norm.
     eps :
@@ -51,10 +82,16 @@ def direct_greens_function(
         ) from e
 
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
+    if kernel_vectors is None:
+        kernel_vectors = np.zeros((h.shape[0], 0), dtype=h.dtype)
+    pivot_rows = _kernel_pivot_rows(kernel_vectors)
+    kernel_projector = ComplementProjector(kernel_vectors)
+    mat = _constrain_matrix(mat, pivot_rows)
+
     is_complex = np.iscomplexobj(mat.data)
     ctx = MUMPSContext()
     # MUMPS does not support Hermitian matrices, so we use the symmetric only with real.
-    ctx.set_matrix(mat, symmetric=not is_complex)
+    ctx.set_matrix(mat, symmetric=not is_complex and not pivot_rows.size)
     # Enable null pivot detection
     ctx.mumps_instance.icntl[24] = 1
     # Set tolerance for null pivot detection
@@ -79,6 +116,9 @@ def direct_greens_function(
             Solution of :math:`(E - H) sol = vec`.
 
         """
+        vec = np.array(kernel_projector @ vec, copy=True)
+        vec[pivot_rows] = 0
+
         if np.iscomplexobj(vec) and not is_complex:
             vec = (vec.real, vec.imag)
         else:
@@ -99,7 +139,8 @@ def direct_greens_function(
                 " adjust eps or atol.",
                 RuntimeWarning,
             )
-        return sol[0] if len(sol) == 1 else sol[0] + 1j * sol[1]
+        result = sol[0] if len(sol) == 1 else sol[0] + 1j * sol[1]
+        return kernel_projector @ result
 
     return greens_function
 

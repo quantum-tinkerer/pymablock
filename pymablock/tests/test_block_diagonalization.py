@@ -874,6 +874,36 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     np.testing.assert_allclose(y_default, y_direct)
 
 
+@pytest.mark.usefixtures("require_mumps")
+def test_solve_sylvester_direct_vs_diagonal_degenerate() -> None:
+    """The direct solver must handle degenerate explicit eigenvalues."""
+    n = 40
+    a_dim = 3
+    rng = np.random.default_rng(0)
+    spectrum = np.linspace(-4, 4, n)
+    spectrum[:a_dim] = -0.25
+
+    basis, _ = np.linalg.qr(
+        rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
+    )
+    h = sparse.csr_array(basis @ np.diag(spectrum) @ basis.conj().T)
+    eigvals, eigvecs = np.linalg.eigh(h.toarray())
+    eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
+
+    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
+    direct = solve_sylvester_direct(h, [eigvecs])
+
+    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+        size=(a_dim, n - a_dim)
+    )
+    y = y @ Dagger(eigvecs_rest)
+
+    y_default = diagonal(y, (0, 1))
+    y_direct = direct(y, (0, 1))
+
+    np.testing.assert_allclose(y_default, y_direct, atol=1e-10)
+
+
 def test_solve_sylvester_kpm_vs_diagonal() -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
