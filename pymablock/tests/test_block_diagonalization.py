@@ -26,11 +26,6 @@ from pymablock.block_diagonalization import (
 from pymablock.series import AlgebraElement, BlockSeries, cauchy_dot_product, one, zero
 
 
-@pytest.fixture()
-def require_mumps() -> None:
-    pytest.importorskip("mumps", reason="python-mumps is not installed")
-
-
 # Auxiliary comparison functions
 def compare_series(
     series1: BlockSeries,
@@ -731,7 +726,6 @@ def test_one_sized_subspace():
                     assert output[(*block, 3)].shape == shape
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_equivalence_explicit_implicit() -> None:
     """
     Test that the explicit and implicit algorithms give the same results.
@@ -797,7 +791,6 @@ def test_equivalence_explicit_implicit() -> None:
     compare_series(implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-8)
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_dtype_mismatch_error_implicit():
     """Test that the implicit mode allows mixing real H_0 with complex H'."""
     rng = np.random.default_rng()
@@ -845,7 +838,6 @@ def test_solve_sylvester_diagonal():
     np.testing.assert_allclose(A @ X - X @ B, Y, atol=1e-13)
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_solve_sylvester_direct_vs_diagonal() -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
@@ -874,7 +866,6 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     np.testing.assert_allclose(y_default, y_direct)
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_solve_sylvester_direct_vs_diagonal_degenerate() -> None:
     """The direct solver must handle degenerate explicit eigenvalues."""
     n = 40
@@ -950,7 +941,6 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     np.testing.assert_allclose(y_default, y_hybrid, atol=1e-3)
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_input_hamiltonian_implicit(implicit_problem):
     """
     Test that KPM Hamiltonians are interpreted correctly.
@@ -1268,7 +1258,6 @@ def test_warning_non_diagonal_input():
         block_diagonalize([h_0, h_p], subspace_eigenvectors=[P[:, :4], P[:, 4:]])[0]
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_memory_usage_implicit():
     """
     Test that the implicit algorithm does not use more memory than expected.
@@ -1777,7 +1766,6 @@ def test_one_block_vs_multiblock(wanted_orders):
     compare_series(H_tilde, H_tilde_split, wanted_orders, atol=1e-10)
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_mixed_full_partial(wanted_orders):
     N = 6
     H_0, H_ps = H_list(wanted_orders, N)
