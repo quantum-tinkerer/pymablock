@@ -57,6 +57,7 @@ def direct_greens_function(
     h: spmatrix,
     E: float,
     kernel_vectors: np.ndarray | None = None,
+    left_kernel_vectors: np.ndarray | None = None,
     atol: float | None = None,
     eps: float | None = None,
 ) -> Callable[[np.ndarray], np.ndarray]:
@@ -69,10 +70,13 @@ def direct_greens_function(
     E :
         Energy at which to compute the Green's function.
     kernel_vectors :
-        Orthonormal basis of the kernel of ``E - H``. When provided, the solver
-        fixes the gauge by replacing pivot equations selected with pivoted QR by
+        Basis of the right kernel of ``E - H``. When provided, the solver fixes
+        the gauge by replacing pivot equations selected with pivoted QR by
         ``x[pivot] = 0`` constraints and projects the kernel away before and
         after the sparse solve. If omitted, an empty kernel basis is used.
+    left_kernel_vectors :
+        Basis dual to ``kernel_vectors`` used to construct the kernel
+        projector. If omitted, ``kernel_vectors`` is used on both sides.
     atol :
         Deprecated. Ignored and will be removed in version 2.4.0.
     eps :
@@ -87,6 +91,8 @@ def direct_greens_function(
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     if kernel_vectors is None:
         kernel_vectors = np.zeros((h.shape[0], 0), dtype=h.dtype)
+    if left_kernel_vectors is None:
+        left_kernel_vectors = kernel_vectors
     deprecated_arguments = [
         name for name, value in (("atol", atol), ("eps", eps)) if value is not None
     ]
@@ -101,7 +107,7 @@ def direct_greens_function(
         )
 
     pivot_rows = _kernel_pivot_rows(kernel_vectors)
-    kernel_projector = ComplementProjector(kernel_vectors)
+    kernel_projector = ComplementProjector(kernel_vectors, left_kernel_vectors)
     mat = _constrain_matrix(mat, pivot_rows)
 
     is_complex = np.iscomplexobj(mat.data)

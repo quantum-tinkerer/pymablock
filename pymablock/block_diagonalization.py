@@ -1110,22 +1110,29 @@ def solve_sylvester_direct(
 
     def grouped_greens_functions(
         operator: sparse.spmatrix,
-        kernel_subspaces: tuple[np.ndarray | sympy.Matrix, ...],
+        right_kernel_subspaces: tuple[np.ndarray | sympy.MatrixBase, ...],
+        left_kernel_subspaces: tuple[np.ndarray | sympy.MatrixBase, ...],
         conjugate_kernel: bool,
     ) -> list[list[Callable[[np.ndarray], np.ndarray] | None]]:
         greens_functions = []
-        for subspace_eigenvalues, kernel_subspace in zip(
-            eigenvalues, kernel_subspaces, strict=True
+        for subspace_eigenvalues, right_kernel_subspace, left_kernel_subspace in zip(
+            eigenvalues,
+            right_kernel_subspaces,
+            left_kernel_subspaces,
+            strict=True,
         ):
             grouped = [None] * len(subspace_eigenvalues)
             for group in _group_close_energies(subspace_eigenvalues, eigenvalue_atol):
-                kernel_vectors = kernel_subspace[:, group]
+                kernel_vectors = right_kernel_subspace[:, group]
+                left_kernel_vectors = left_kernel_subspace[:, group]
                 if conjugate_kernel:
                     kernel_vectors = kernel_vectors.conj()
+                    left_kernel_vectors = left_kernel_vectors.conj()
                 greens_function = direct_greens_function(
                     operator,
                     subspace_eigenvalues[group[0]],
                     kernel_vectors=kernel_vectors,
+                    left_kernel_vectors=left_kernel_vectors,
                     **factorization_options,
                 )
                 for i in group:
@@ -1135,10 +1142,18 @@ def solve_sylvester_direct(
 
     # The non-Hermitian path needs both right- and left-implicit solves.
     greens_functions_right = grouped_greens_functions(
-        h_0.T, left_eigenvectors, conjugate_kernel=True
+        h_0.T,
+        left_eigenvectors,
+        right_eigenvectors,
+        conjugate_kernel=True,
     )
     greens_functions_left = (
-        grouped_greens_functions(h_0, right_eigenvectors, conjugate_kernel=False)
+        grouped_greens_functions(
+            h_0,
+            right_eigenvectors,
+            left_eigenvectors,
+            conjugate_kernel=False,
+        )
         if nonhermitian
         else None
     )
