@@ -11,30 +11,28 @@ kernelspec:
   name: python3
 ---
 
-# Non-Hermitian Algorithm
+# Non-Hermitian algorithm
 
-This page describes the variant used by
-`block_diagonalize(..., hermitian=False)`.
-It is the non-Hermitian analogue of the [main algorithm](algorithms.md), and it
-reuses the same general setup:
+This page describes the non-Hermitian variant of the algorithm.
+It extends the [main algorithm](algorithms.md) to non-Hermitian problems.
+The overall structure is the same:
 
 - split the Hamiltonian into selected and remaining parts,
 - organize perturbation theory through multivariate Cauchy products,
 - avoid unnecessary products by $H_0$,
 - reduce each perturbative order to one Sylvester solve.
 
-It uses the same notation and general motivation as
-[the main algorithm page](algorithms.md).
-The discussion below introduces the additional ingredients needed when the
-inverse transformation has to be tracked explicitly.
+We use the notation from [the main algorithm page](algorithms.md).
+The main difference is that the inverse transformation must be tracked
+explicitly.
 
-In the API, this is the path selected by
+In the API, this path is selected by
 
 ```python
 H_tilde, U, U_inv = block_diagonalize(..., hermitian=False)
 ```
 
-where the third returned series is the perturbative inverse of $U$.
+The third returned series is the perturbative inverse of $U$.
 
 ## Problem statement
 
@@ -63,8 +61,8 @@ as in [the main algorithm](algorithms.md).
 
 ## Working variables
 
-Since both $\mathcal{U}$ and $\mathcal{U}^{-1}$ have identity zeroth order, we
-write
+Both $\mathcal{U}$ and $\mathcal{U}^{-1}$ start with identity zeroth order, so
+we write
 
 :::{math}
 :label: nh:UG_def
@@ -75,17 +73,17 @@ write
 \mathcal{U}'_0=\mathcal{G}_0=0.
 :::
 
-The inverse constraint becomes
+The inverse constraint then becomes
 
 :::{math}
 :label: nh:G_rec
 \mathcal{G}=-\mathcal{U}'-\mathcal{G}\mathcal{U}'.
 :::
 
-Because both $\mathcal{U}'$ and $\mathcal{G}$ start at first order, this is a
+Since both $\mathcal{U}'$ and $\mathcal{G}$ start at first order, this is a
 closed recurrence for $\mathcal{G}$ once $\mathcal{U}'$ is known.
 
-To fix the gauge, we require the selected part of
+We fix the gauge by requiring the selected part of
 $\mathcal{U}-\mathcal{U}^{-1}$ to vanish:
 
 :::{math}
@@ -93,41 +91,41 @@ $\mathcal{U}-\mathcal{U}^{-1}$ to vanish:
 (\mathcal{U}'-\mathcal{G})_S=0.
 :::
 
-Combining Eqs. {eq}`nh:G_rec` and {eq}`nh:gauge` gives the selected part of the
-correction directly:
+After combining Eqs. {eq}`nh:G_rec` and {eq}`nh:gauge`, the selected part of the
+correction is
 
 :::{math}
 :label: nh:Uprime_S
 \mathcal{U}'_S=-\frac{1}{2}(\mathcal{G}\mathcal{U}')_S.
 :::
 
-This is the non-Hermitian counterpart of the Hermitian recurrence for the
-selected/Hermitian part of the transformation.
+This matches the role played by the selected Hermitian part of the
+transformation in the Hermitian algorithm.
 
 ## Relation to the Hermitian algorithm
 
-The construction above is designed so that it reduces back to the Hermitian
-algorithm when $\mathcal{H}$ is Hermitian and
-$\mathcal{U}^{-1}=\mathcal{U}^{\dagger}$.
+If $\mathcal{H}$ is Hermitian and
+$\mathcal{U}^{-1}=\mathcal{U}^{\dagger}$, the construction reduces to the
+Hermitian algorithm.
 
-If we set
+In that case we set
 
 :::{math}
 :label: nh:herm_limit_assumption
 \mathcal{G}=\mathcal{U}'^{\dagger},
 :::
 
-then Eq. {eq}`nh:G_rec` becomes
+Equation {eq}`nh:G_rec` then becomes
 
 :::{math}
 :label: nh:herm_limit_unitarity
 \mathcal{U}'^{\dagger}+\mathcal{U}'+\mathcal{U}'^{\dagger}\mathcal{U}'=0,
 :::
 
-which is exactly the Hermitian unitarity recursion from
+This is exactly the Hermitian unitarity recursion from
 [the main algorithm page](algorithms.md).
 
-If we further decompose
+We now decompose
 
 :::{math}
 :label: nh:WV_def
@@ -138,14 +136,14 @@ If we further decompose
 \mathcal{V}^{\dagger}=-\mathcal{V},
 :::
 
-then Eq. {eq}`nh:herm_limit_unitarity` gives
+Equation {eq}`nh:herm_limit_unitarity` then gives
 
 :::{math}
 :label: nh:herm_limit_W
 \mathcal{W}=-\frac{1}{2}\mathcal{U}'^{\dagger}\mathcal{U}',
 :::
 
-while the gauge condition becomes
+The gauge condition becomes
 
 :::{math}
 :label: nh:herm_limit_V
@@ -154,17 +152,16 @@ while the gauge condition becomes
 \mathcal{V}_S=0.
 :::
 
-So the non-Hermitian construction reduces to the same gauge choice and the same
-selected-part recursion as in the Hermitian path.
+So, in the Hermitian limit, the non-Hermitian construction gives the same gauge
+choice and recurrence for the selected part.
 
 ## Optimized transformed Hamiltonian
 
-The code is organized to avoid unnecessary products by $H_0$.
-As in [the main algorithm](algorithms.md), the useful object is not the raw
-expansion of $\tilde{\mathcal{H}}$, but a rearranged version in which $H_0$
-appears only inside the Sylvester solve.
+The implementation avoids unnecessary products by $H_0$.
+As in [the main algorithm](algorithms.md), it works with a rearranged form of
+$\tilde{\mathcal{H}}$ in which $H_0$ appears only inside the Sylvester solve.
 
-Define
+We define
 
 :::{math}
 :label: nh:XAB_defs
@@ -177,31 +174,30 @@ Define
 
 Starting from
 $\tilde{\mathcal{H}}=(1+\mathcal{G})(\mathcal{H}_S+\mathcal{H}'_R)(1+\mathcal{U}')$,
-use
-$\mathcal{H}_S\mathcal{U}'=\mathcal{U}'\mathcal{H}_S+\mathcal{X}$ and
+we substitute
+$\mathcal{H}_S\mathcal{U}'=\mathcal{U}'\mathcal{H}_S+\mathcal{X}$ and use
 Eq. {eq}`nh:G_rec` to cancel the terms multiplied by $\mathcal{H}_S$.
-This gives the compact expression
+This gives
 
 :::{math}
 :label: nh:Htilde_B
 \tilde{\mathcal{H}}=\mathcal{H}_S+\mathcal{B}+\mathcal{G}\mathcal{B}.
 :::
 
-This is the non-Hermitian analogue of the optimized Hermitian formula:
-once $\mathcal{X}$, $\mathcal{A}$, and $\mathcal{B}$ are known, the effective
+Once $\mathcal{X}$, $\mathcal{A}$, and $\mathcal{B}$ are known, the effective
 Hamiltonian can be assembled without extra products by $H_0$.
 
 ## Elimination condition and Sylvester solve
 
-The remaining-part condition $\tilde{\mathcal{H}}_R=0$ implies
+The condition $\tilde{\mathcal{H}}_R=0$ implies
 
 :::{math}
 :label: nh:XR_rec
 \mathcal{X}_R=-(\mathcal{H}'_R+\mathcal{A}+\mathcal{G}\mathcal{B})_R.
 :::
 
-The selected part of $\mathcal{X}$ is fixed directly by its definition.
-Because $H_0$ is selected and diagonal in the unperturbed basis,
+The selected part of $\mathcal{X}$ follows directly from its definition.
+Since $H_0$ is selected and diagonal in the unperturbed basis,
 $[H_0,\mathcal{U}']$ has no selected part, so
 
 :::{math}
@@ -209,10 +205,10 @@ $[H_0,\mathcal{U}']$ has no selected part, so
 \mathcal{X}_S=[\mathcal{H}'_S,\mathcal{U}']_S.
 :::
 
-For the remaining part, split the commutator
+For the remaining part, we split the commutator
 $\mathcal{X}=[\mathcal{H}_S,\mathcal{U}']=
 [H_0,\mathcal{U}']+[\mathcal{H}'_S,\mathcal{U}']$.
-This yields the Sylvester equation
+This gives the Sylvester equation
 
 :::{math}
 :label: nh:Sylvester_Uprime
@@ -220,18 +216,17 @@ This yields the Sylvester equation
 =\mathcal{X}_R-[\mathcal{H}'_S,\mathcal{U}']_R.
 :::
 
-So, just as in the Hermitian algorithm, the nontrivial linear solve appears
-only once per perturbative order.
+So the nontrivial linear solve still appears only once per perturbative order.
 
 ## Implementation summary
 
-The implementation forms a closed tail-recursive system.
+These relations form a closed recursive system.
 At order $\mathbf{n}$, the equations below determine
 $\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}_{\mathbf{n}}$
 from lower orders, except for the single Sylvester solve for
 $\mathcal{U}'_{\mathbf{n},R}$.
-Once that solve is done, the remaining quantities at the same order are fixed by
-the same relations.
+After that solve, the remaining quantities at the same order follow from the
+same equations.
 
 :::{math}
 :label: nh:closed_defs
@@ -264,22 +259,24 @@ the same relations.
 
 At each perturbative order, Eq. {eq}`nh:closed_recs` is closed in
 $\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}$
-and uses one Sylvester solve (last line); Eq. {eq}`nh:closed_defs` then yields
+and uses one Sylvester solve in the last line.
+Equation {eq}`nh:closed_defs` then yields
 $\tilde{\mathcal{H}}_{\mathbf{n},S}$.
 
 ## Implicit mode
 
-The Hermitian implicit construction from [the main algorithm page](algorithms.md)
-assumes that the explicit subspace is described by one orthonormal basis
-$\Psi_E$, so the missing block is represented by the orthogonal complement
+The Hermitian implicit construction from
+[the main algorithm page](algorithms.md) assumes that the explicit subspace is
+described by one orthonormal basis $\Psi_E$.
+The missing block is then represented by the orthogonal complement
 
 :::{math}
 :label: nh:implicit_herm_projector
 Q = 1 - \Psi_E \Psi_E^\dagger.
 :::
 
-For a genuinely non-Hermitian $H_0$, that is no longer the natural object.
-The correct input is a biorthogonal pair of explicit subspaces:
+For a genuinely non-Hermitian $H_0$, we instead use biorthogonal right and left
+bases:
 
 :::{math}
 :label: nh:implicit_biorth_basis
@@ -288,9 +285,9 @@ R_E,\;L_E,
 L_E^\dagger R_E = 1,
 :::
 
-where the columns of $R_E$ span the explicit right subspace and the columns of
-$L_E$ span the dual left subspace.
-Then the explicit projector and its complement become
+The columns of $R_E$ span the explicit subspace, and the columns of $L_E$ span
+its dual.
+The projector onto this subspace and its complement are
 
 :::{math}
 :label: nh:implicit_oblique_projector
@@ -299,9 +296,9 @@ P_E = R_E L_E^\dagger,
 Q = 1 - R_E L_E^\dagger.
 :::
 
-This is an oblique projector in general, not an orthogonal one, so it is not
-self-adjoint in general.
-The block projections are correspondingly
+In general this projector is oblique rather than orthogonal, so it is not
+self-adjoint.
+The block projections become
 
 :::{math}
 :label: nh:implicit_block_projections
@@ -315,23 +312,21 @@ H_{QQ} = Q H Q.
 :::
 
 The Sylvester equations keep the same structure as in the Hermitian implicit
-derivation, but with this oblique $Q$ and with the explicit energies extracted
-from
+derivation, but they use this oblique $Q$ and the explicit energies
 
 :::{math}
 :label: nh:implicit_biorth_energies
 L_i^\dagger H_0 R_i.
 :::
 
-So the direct implicit solver needs the same two ingredients as the explicit
-non-Hermitian projection:
+So the direct implicit solver needs the same two ingredients:
 
 - right subspace bases to define the retained states,
 - left dual bases to define the projection and the complementary block.
 
 This is why the API accepts `subspace_eigenvectors=[(right, left), ...]` when
 `hermitian=False`.
-A single basis `V` is still shorthand for `(V, V)`, which is the Hermitian or
+A single basis `V` still means `(V, V)`, which covers the Hermitian or
 orthonormal special case.
 
 The implicit KPM variant is not implemented for the non-Hermitian path.
