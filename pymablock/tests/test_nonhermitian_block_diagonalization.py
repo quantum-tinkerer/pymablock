@@ -1,5 +1,7 @@
+import operator
+from collections import Counter
 from collections.abc import Callable
-from itertools import pairwise
+from itertools import pairwise, product
 
 import numpy as np
 import pytest
@@ -13,7 +15,7 @@ from pymablock.block_diagonalization import (
     block_diagonalize,
     solve_sylvester_direct,
 )
-from pymablock.series import BlockSeries, cauchy_dot_product, zero
+from pymablock.series import AlgebraElement, BlockSeries, cauchy_dot_product, zero
 
 from .test_block_diagonalization import (
     compare_series,
@@ -210,6 +212,207 @@ def _make_biorthogonal_direct_solver_case(
         (transform[:, a_dim:], left[:, a_dim:]),
         (transform, left),
     )
+
+
+def test_number_products_nonhermitian_two_block(data_regression):
+    """Regression test for the number of products in the two-block NH algorithm."""
+    op = AlgebraElement("A")
+
+    def solve_sylvester(Y, index=None):  # noqa: ARG001
+        return zero if Y is zero else op
+
+    def eval_dense_first_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[2] > 1 or any(index[3:]):
+            return zero
+        return op
+
+    def eval_dense_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        return op
+
+    def eval_offdiagonal_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[0] == index[1] and sum(index[2:]) != 0:
+            return zero
+        return op
+
+    def eval_randomly_sparse(*index):
+        np.random.seed(index[2])
+        p = np.random.random(3)
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
+            return zero
+        if index[0] == index[1] == 1 and sum(index[2:]) == 0:
+            return op
+        if index[0] == index[1] and p[1] > 0.4:
+            return zero
+        if index[0] != index[1] and p[2] > 0.4:
+            return zero
+        return op
+
+    evals = {
+        "dense_first_order": eval_dense_first_order,
+        "dense_every_order": eval_dense_every_order,
+        "offdiagonal_every_order": eval_offdiagonal_every_order,
+        "random_every_order": eval_randomly_sparse,
+    }
+
+    blocks = {
+        "aa": [(0, 0)],
+        "bb": [(1, 1)],
+        "both": [(0, 0), (1, 1)],
+    }
+
+    orders = {
+        "all": lambda order: tuple(range(order + 1)),
+        "highest": lambda order: (order,),
+    }
+
+    mul_counts = {}
+    for (structure, eval_), (order, query), (block, indices), highest_order in product(
+        evals.items(), orders.items(), blocks.items(), range(10)
+    ):
+        key = f"{structure=}, {order=}, {block=}, {highest_order=}"
+        AlgebraElement.log = []
+        H = BlockSeries(eval=eval_, shape=(2, 2), n_infinite=1)
+
+        H_tilde, *_ = block_diagonalize(
+            H,
+            solve_sylvester=solve_sylvester,
+            hermitian=False,
+        )
+        for index in indices:
+            for _order in query(highest_order):
+                H_tilde[(*index, _order)]
+
+        mul_counts[key] = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
+
+    data_regression.check(mul_counts)
+
+
+def test_number_products_nonhermitian_one_block(data_regression):
+    """Regression test for the number of products in one-block NH mode."""
+    op = AlgebraElement("A")
+
+    def func(A, index=None):  # noqa: ARG001
+        return zero if A is zero else op
+
+    def eval_all(*index):  # noqa: ARG001
+        return op
+
+    def eval_first(*index):
+        return op if index[2] < 2 else zero
+
+    evals = {
+        "all": eval_all,
+        "first": eval_first,
+    }
+
+    mul_counts = {}
+    for structure, order in product(evals.keys(), range(2, 6)):
+        key = f"{structure=}, {order=}"
+        AlgebraElement.log = []
+        series_computation(
+            {"H": BlockSeries(eval=evals[structure], shape=(1, 1), n_infinite=1)},
+            algorithm=nonhermitian,
+            scope={
+                "solve_sylvester": func,
+                "offdiag": func,
+                "diag": func,
+            },
+            operator=operator.mul,
+        )[0]["H_tilde"][0, 0, order]
+
+        mul_counts[key] = sum(call[1] == "__mul__" for call in AlgebraElement.log)
+
+    data_regression.check(mul_counts)
+
+
+def test_number_products_nonhermitian_three_block(data_regression):
+    """Regression test for the number of products in the three-block NH algorithm."""
+    op = AlgebraElement("A")
+
+    def solve_sylvester(Y, index=None):  # noqa: ARG001
+        return zero if Y is zero else op
+
+    def eval_dense_first_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[2] > 1 or any(index[3:]):
+            return zero
+        return op
+
+    def eval_dense_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        return op
+
+    def eval_offdiagonal_every_order(*index):
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[0] == index[1] and sum(index[2:]) != 0:
+            return zero
+        return op
+
+    def eval_randomly_sparse(*index):
+        np.random.seed(index[2])
+        p = np.random.random(3)
+        if index[0] != index[1] and sum(index[2:]) == 0:
+            return zero
+        if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
+            return zero
+        if index[0] == index[1] == 1 and sum(index[2:]) == 0:
+            return op
+        if index[0] == index[1] and p[1] > 0.4:
+            return zero
+        if index[0] != index[1] and p[2] > 0.4:
+            return zero
+        return op
+
+    evals = {
+        "dense_first_order": eval_dense_first_order,
+        "dense_every_order": eval_dense_every_order,
+        "offdiagonal_every_order": eval_offdiagonal_every_order,
+        "random_every_order": eval_randomly_sparse,
+    }
+
+    blocks = {
+        "aa": [(0, 0)],
+        "bb": [(1, 1)],
+        "cc": [(2, 2)],
+        "all": [(0, 0), (1, 1), (2, 2)],
+    }
+
+    orders = {
+        "all": lambda order: tuple(range(2, order + 1)),
+        "highest": lambda order: (order,),
+    }
+
+    mul_counts = {}
+    for (structure, eval_), (order, query), (block, indices), highest_order in product(
+        evals.items(), orders.items(), blocks.items(), range(2, 5)
+    ):
+        key = f"{structure=}, {order=}, {block=}, {highest_order=}"
+        AlgebraElement.log = []
+        H = BlockSeries(eval=eval_, shape=(3, 3), n_infinite=1)
+
+        H_tilde, *_ = block_diagonalize(
+            H,
+            solve_sylvester=solve_sylvester,
+            hermitian=False,
+        )
+        for index in indices:
+            for _order in query(highest_order):
+                H_tilde[(*index, _order)]
+
+        mul_counts[key] = Counter(call[1] for call in AlgebraElement.log)["__mul__"]
+
+    data_regression.check(mul_counts)
 
 
 @pytest.mark.parametrize(

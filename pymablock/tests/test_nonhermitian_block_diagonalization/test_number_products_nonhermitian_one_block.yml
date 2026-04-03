@@ -1,0 +1,8 @@
+structure='all', order=2: 5
+structure='all', order=3: 17
+structure='all', order=4: 36
+structure='all', order=5: 62
+structure='first', order=2: 5
+structure='first', order=3: 17
+structure='first', order=4: 36
+structure='first', order=5: 62
