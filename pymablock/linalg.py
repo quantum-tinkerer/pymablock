@@ -21,7 +21,7 @@ def _kernel_pivot_rows(kernel_vectors: np.ndarray) -> np.ndarray:
         return np.array([], dtype=int)
 
     _, _, pivots = qr(kernel_vectors.T, mode="economic", pivoting=True)
-    return np.sort(np.asarray(pivots[: kernel_vectors.shape[1]], dtype=int))
+    return np.sort(pivots[: kernel_vectors.shape[1]])
 
 
 def _constrain_matrix(
