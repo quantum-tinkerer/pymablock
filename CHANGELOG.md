@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecated
+
+- Deprecated the ignored `atol` and `eps` arguments of `direct_greens_function`. They will be removed in version 2.4.0.
+- Deprecated `solver_options["atol"]` and `solver_options["eps"]` for the implicit direct solver. They will be removed in version 2.4.0.
+- Deprecated the legacy one-argument custom Sylvester callback form `solve_sylvester(Y)`. Use `solve_sylvester(Y, index)` instead. The legacy form will be removed in version 2.4.0.
+
 ### Changed
 
 - Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
