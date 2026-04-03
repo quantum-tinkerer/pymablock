@@ -58,6 +58,8 @@ with
 
 Here $S$ denotes the selected part and $R$ the remainder to eliminate, exactly
 as in [the main algorithm](algorithms.md).
+Since $\mathcal{U}^{-1}\neq \mathcal{U}^{\dagger}$ in general, the left and
+right eigenvectors need not coincide.
 
 ## Working variables
 
@@ -102,8 +104,8 @@ correction is
 This matches the role played by the selected Hermitian part of the
 transformation in the Hermitian algorithm.
 
-## Relation to the Hermitian algorithm
-
+::::{admonition} Equivalence to the Hermitian algorithm
+:class: dropdown info
 If $\mathcal{H}$ is Hermitian and
 $\mathcal{U}^{-1}=\mathcal{U}^{\dagger}$, the construction reduces to the
 Hermitian algorithm.
@@ -154,12 +156,14 @@ The gauge condition becomes
 
 So, in the Hermitian limit, the non-Hermitian construction gives the same gauge
 choice and recurrence for the selected part.
+::::
 
 ## Optimized transformed Hamiltonian
 
-The implementation avoids unnecessary products by $H_0$.
-As in [the main algorithm](algorithms.md), it works with a rearranged form of
-$\tilde{\mathcal{H}}$ in which $H_0$ appears only inside the Sylvester solve.
+As in [the main algorithm](algorithms.md), the implementation avoids
+unnecessary products by $H_0$.
+Here we skip the intermediate steps from the Hermitian derivation and derive
+the optimized form directly.
 
 We define
 
@@ -220,13 +224,14 @@ So the nontrivial linear solve still appears only once per perturbative order.
 
 ## Implementation summary
 
-These relations form a closed recursive system.
-At order $\mathbf{n}$, the equations below determine
-$\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}_{\mathbf{n}}$
-from lower orders, except for the single Sylvester solve for
-$\mathcal{U}'_{\mathbf{n},R}$.
-After that solve, the remaining quantities at the same order follow from the
-same equations.
+At order $\mathbf{n}$, this part of the implementation is easiest to read in
+three steps:
+
+1. Introduce the composite quantities that appear repeatedly.
+2. Evaluate the recurrence from top to bottom.
+3. Use the result to obtain $\tilde{\mathcal{H}}_{\mathbf{n},S}$.
+
+The first block defines the composite quantities.
 
 :::{math}
 :label: nh:closed_defs
@@ -244,6 +249,8 @@ same equations.
 \end{aligned}
 :::
 
+With this notation, the order-by-order recurrence is
+
 :::{math}
 :label: nh:closed_recs
 \begin{aligned}
@@ -257,16 +264,16 @@ same equations.
 \end{aligned}
 :::
 
+The last line is the only Sylvester solve.
 At each perturbative order, Eq. {eq}`nh:closed_recs` is closed in
 $\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}$
-and uses one Sylvester solve in the last line.
+and determines these quantities from lower orders.
 Equation {eq}`nh:closed_defs` then yields
 $\tilde{\mathcal{H}}_{\mathbf{n},S}$.
 
 ## Implicit mode
 
-The Hermitian implicit construction from
-[the main algorithm page](algorithms.md) assumes that the explicit subspace is
+The [Hermitian implicit construction](algorithms.md) assumes that the explicit subspace is
 described by one orthonormal basis $\Psi_E$.
 The missing block is then represented by the orthogonal complement
 
@@ -323,10 +330,3 @@ So the direct implicit solver needs the same two ingredients:
 
 - right subspace bases to define the retained states,
 - left dual bases to define the projection and the complementary block.
-
-This is why the API accepts `subspace_eigenvectors=[(right, left), ...]` when
-`hermitian=False`.
-A single basis `V` still means `(V, V)`, which covers the Hermitian or
-orthonormal special case.
-
-The implicit KPM variant is not implemented for the non-Hermitian path.
