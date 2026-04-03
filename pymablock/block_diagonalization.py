@@ -4,7 +4,6 @@ from collections.abc import Callable, Sequence
 from copy import copy
 from functools import reduce
 from inspect import signature
-from itertools import pairwise
 from operator import matmul, mul
 from typing import Any
 from warnings import warn
@@ -929,14 +928,8 @@ def _group_close_energies(energies: np.ndarray, atol: float) -> list[np.ndarray]
         return []
 
     order = np.argsort(energies)
-    groups = [[int(order[0])]]
-    for previous, current in pairwise(order):
-        if np.abs(energies[current] - energies[previous]) <= atol:
-            groups[-1].append(int(current))
-        else:
-            groups.append([int(current)])
-
-    return [np.array(group, dtype=int) for group in groups]
+    split_points = np.nonzero(np.diff(energies[order]) > atol)[0] + 1
+    return np.split(order, split_points)
 
 
 def solve_sylvester_direct(
