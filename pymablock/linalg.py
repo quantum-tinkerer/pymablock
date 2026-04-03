@@ -29,14 +29,27 @@ def _constrain_matrix(
     pivot_rows: np.ndarray,
 ) -> sparse.csr_array:
     """Replace selected equations with x[row] = 0 constraints."""
+    constrained = sparse.csr_array(mat)
     if pivot_rows.size == 0:
-        return sparse.csr_array(mat)
+        return constrained
 
-    constrained = sparse.lil_array(mat, copy=True)
-    constrained[pivot_rows, :] = 0
-    for row in pivot_rows:
-        constrained[row, row] = 1
-    return constrained.tocsr()
+    pivot_mask = np.zeros(constrained.shape[0], dtype=bool)
+    pivot_mask[pivot_rows] = True
+
+    # Drop all entries on constrained rows, then add back the diagonal ones
+    # that enforce x[row] = 0 on those rows.
+    constrained_coo = constrained.tocoo(copy=False)
+    keep = ~pivot_mask[constrained_coo.row]
+    rows = np.concatenate((constrained_coo.row[keep], pivot_rows))
+    cols = np.concatenate((constrained_coo.col[keep], pivot_rows))
+    data = np.concatenate(
+        (
+            constrained_coo.data[keep],
+            np.ones(len(pivot_rows), dtype=constrained.dtype),
+        )
+    )
+
+    return sparse.csr_array((data, (rows, cols)), shape=constrained.shape)
 
 
 def direct_greens_function(
