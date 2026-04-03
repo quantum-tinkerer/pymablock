@@ -424,6 +424,11 @@ def block_diagonalize(
 
     # Catch the solve_sylvester that uses the old signature without index.
     if len(signature(solve_sylvester).parameters) == 1:
+        if not hermitian:
+            raise NotImplementedError(
+                "Non-Hermitian problems require `solve_sylvester(Y, index)`. "
+                "Legacy one-argument Sylvester solvers are not supported."
+            )
         solve_sylvester = _preprocess_sylvester(solve_sylvester)
 
     if not isinstance(fully_diagonalize, dict):

@@ -544,7 +544,7 @@ def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask(block_sizes):
     _assert_mask_eliminated(H_tilde, masks, max_order=max_order)
 
 
-def test_block_diagonalize_nonhermitian_accepts_legacy_two_block_solver():
+def test_block_diagonalize_nonhermitian_rejects_legacy_two_block_solver():
     rng = np.random.default_rng()
     h_0 = np.diag(np.array([-3.0, 0.7, 1.4, 2.6], dtype=float)).astype(complex)
     h_1 = _complex_normal(rng, (4, 4))
@@ -559,15 +559,16 @@ def test_block_diagonalize_nonhermitian_accepts_legacy_two_block_solver():
             return zero
         return rhs / denominators[rhs.shape]
 
-    H_tilde, *_ = block_diagonalize(
-        [h_0, h_1],
-        subspace_indices=subspace_indices,
-        hermitian=False,
-        solve_sylvester=solve_sylvester,
-    )
-
-    assert H_tilde[(0, 1, 1)] is zero
-    assert H_tilde[(1, 0, 1)] is zero
+    with pytest.raises(
+        NotImplementedError,
+        match="require `solve_sylvester\\(Y, index\\)`",
+    ):
+        block_diagonalize(
+            [h_0, h_1],
+            subspace_indices=subspace_indices,
+            hermitian=False,
+            solve_sylvester=solve_sylvester,
+        )
 
 
 def test_block_diagonalize_nonhermitian_accepts_bare_sympy_matrix():
