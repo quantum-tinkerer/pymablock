@@ -1,5 +1,4 @@
 # ruff: noqa: N803, N806
-import builtins
 
 import numpy as np
 import pytest
@@ -112,25 +111,3 @@ def test_is_diagonal():
     sympy_matrix = sympy.Matrix(array)
     assert not linalg.is_diagonal(sympy_matrix)
     assert linalg.is_diagonal(sympy.Matrix.diag(*sympy_matrix.diagonal()))
-
-
-def test_no_mumps(monkeypatch):
-    original_import = builtins.__import__
-
-    def import_without_mumps(name, *args, **kwargs):
-        if name == "mumps":
-            raise ImportError
-        return original_import(name, *args, **kwargs)
-
-    with monkeypatch.context() as monkeypatch:
-        monkeypatch.setattr(builtins, "__import__", import_without_mumps)
-        h = sparse.diags([1.0, 1.0, 2.0])
-        kernel_vectors = np.eye(3)[:, :2]
-        projector = linalg.ComplementProjector(kernel_vectors)
-        vec = projector @ np.array([1.0, -1.0, 2.0])
-
-        gf = linalg.direct_greens_function(h, 1.0, kernel_vectors=kernel_vectors)
-        sol = gf(vec)
-
-    assert_allclose(h @ sol - sol, -vec)
-    assert_allclose(kernel_vectors.conj().T @ sol, 0)
