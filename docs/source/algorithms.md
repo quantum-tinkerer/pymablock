@@ -401,7 +401,7 @@ $$
 Solving Sylvester's equation and computing the matrix products are the most expensive steps of the algorithms for large Hamiltonians.
 Pymablock can efficiently construct an effective Hamiltonian of a small subspace even when the full Hamiltonian is a sparse matrix that is too costly to diagonalize.
 It does so by avoiding forming a matrix representation of operators in the implicit subspace—the one without known eigenvectors, and by utilizing the sparsity of the Hamiltonian to compute the Green's function.
-To do so, Pymablock uses either the [MUMPS sparse solver](https://mumps-solver.org/) via the [python-mumps](https://gitlab.kwant-project.org/kwant/python-mumps/) wrapper or the [KPM method](https://doi.org/10.1103/RevModPhys.78.275).
+To do so, Pymablock uses either a direct sparse solver for the Green's function or the [KPM method](https://doi.org/10.1103/RevModPhys.78.275). The direct solver prefers [MUMPS](https://mumps-solver.org/) via the [python-mumps](https://gitlab.kwant-project.org/kwant/python-mumps/) wrapper when available and otherwise falls back to SciPy's SuperLU implementation; in our experience, MUMPS is typically more performant.
 
 This approach was originally introduced in [this work](https://doi.org/10.48550/arXiv.1909.09649).
 
@@ -428,5 +428,24 @@ To solve the Sylvester's equation for the modified Hamiltonian, we write it for 
 V_{\mathbf{n}, ij}^{EI} (E_i - H_0) = Y_{\mathbf{n}, j}
 :::
 
-This equation is well-defined despite $E_i - H_0$ is not invertible because $Y_{\mathbf{n}}$ has no components in the explicit subspace.
+This equation is well defined even though $E_i - H_0$ is not invertible, since $Y_{\mathbf{n}}$ has no components in the explicit subspace.
+
+Pymablock implements the corresponding pseudoinverse by projecting out the known kernel and constraining variables where the explicit eigenvectors have large weight.
+When several known explicit eigenvectors share the same energy $E_i$, we collect them in the columns of $\Phi_i$.
+We define $A_i = E_i - H_0$ and $y = Y_{\mathbf{n}, j}$.
+The corresponding projector is:
+
+:::{math}
+P_i = 1 - \Phi_i \Phi_i^\dagger.
+:::
+
+The pivot rows $p_i$ come from a pivoted QR factorization of $\Phi_i^\dagger$, which selects variables where these eigenvectors are largest.
+We replace the corresponding rows of $A_i^\dagger$ by unit rows and solve:
+
+:::{math}
+\tilde A_i^\dagger z = P_i y^\dagger, \qquad z_p = 0 \text{ for } p \in p_i,
+\qquad V_{\mathbf{n}, ij}^{EI} = (P_i z)^\dagger.
+:::
+
+Here $\tilde A_i^\dagger$ is the constrained matrix.
 ::::

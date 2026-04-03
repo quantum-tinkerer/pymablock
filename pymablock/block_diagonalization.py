@@ -132,10 +132,14 @@ def block_diagonalize(
         the BlockSeries is defined with a single block.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
-        See docstrings of `~pymablock.block_diagonalization.solve_sylvester_KPM`
-        and `~pymablock.block_diagonalization.solve_sylvester_direct` for details.
+        In the KPM path, see
+        `~pymablock.block_diagonalization.solve_sylvester_KPM` for details.
+        In the direct path, ``eigenvalue_atol`` sets the tolerance used to
+        group explicit eigenvalues into degenerate energy subspaces before
+        constructing the constrained sparse solves.
     direct_solver :
-        Whether to use the direct solver that relies on MUMPS (default).
+        Whether to use the direct sparse solver (default). It prefers MUMPS
+        when available and otherwise falls back to SciPy's sparse LU.
         Otherwise, the KPM solver is used. Only applicable if the implicit
         method is used (i.e. `subspace_eigenvectors` is incomplete)
     symbols :
@@ -182,6 +186,7 @@ def block_diagonalize(
     # Because both functions below are idempotent, this does not lead to inconsistencies
     # with operator_to_BlockSeries in the code below.
     hamiltonian = _unpack_blocks(_to_scalar_BlockSeries(hamiltonian, symbols, atol), atol)
+    solver_options = {} if solver_options is None else dict(solver_options)
 
     use_implicit = False
     if subspace_eigenvectors is not None:
@@ -198,8 +203,6 @@ def block_diagonalize(
             raise ValueError("Implicit mode is not supported with symbolic Hamiltonian.")
         assert subspace_eigenvectors is not None  # for mypy
         # Build solve_sylvester
-        if hamiltonian.shape:
-            raise ValueError("Implicit mode requires an input not separated into blocks")
         if h_0.shape[0] != subspace_eigenvectors[0].shape[0]:
             raise ValueError("`subspace_eigenvectors` does not match the shape of `h_0`.")
         if solve_sylvester is None:
@@ -208,7 +211,19 @@ def block_diagonalize(
                     "Implicit problem requires numpy arrays for eigenvectors."
                 )
             if direct_solver:
-                solve_sylvester = solve_sylvester_direct(h_0, subspace_eigenvectors)
+                direct_solver_options = {
+                    key: value
+                    for key, value in solver_options.items()
+                    if key in {"eigenvalue_atol", "atol", "eps"}
+                }
+                if (
+                    "eigenvalue_atol" not in direct_solver_options
+                    and "atol" not in direct_solver_options
+                ):
+                    direct_solver_options["eigenvalue_atol"] = atol
+                solve_sylvester = solve_sylvester_direct(
+                    h_0, subspace_eigenvectors, **direct_solver_options
+                )
             else:
                 solve_sylvester = solve_sylvester_KPM(
                     h_0,
@@ -907,6 +922,16 @@ def solve_sylvester_KPM(
     return solve_sylvester
 
 
+def _group_close_energies(energies: np.ndarray, atol: float) -> list[np.ndarray]:
+    """Group eigenvalue indices that are equal up to ``atol``."""
+    if not len(energies):
+        return []
+
+    order = np.argsort(energies)
+    split_points = np.nonzero(np.diff(energies[order]) > atol)[0] + 1
+    return np.split(order, split_points)
+
+
 def solve_sylvester_direct(
     h_0: sparse.spmatrix,
     eigenvectors: list[np.ndarray],
@@ -914,8 +939,8 @@ def solve_sylvester_direct(
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Solve Sylvester equation using a direct sparse solver.
 
-    This function uses MUMPS, which is a parallel direct solver for sparse
-    matrices. This solver is very efficient for large sparse matrices.
+    This function prefers MUMPS, which is a parallel direct solver for sparse
+    matrices, and falls back to SciPy's sparse LU when MUMPS is unavailable.
 
     Parameters
     ----------
@@ -924,8 +949,9 @@ def solve_sylvester_direct(
     eigenvectors :
         Eigenvectors of the effective subspaces of the unperturbed Hamiltonian.
     **solver_options :
-        Keyword arguments to pass to the solver ``eps`` and ``atol``, see
-        `pymablock.linalg.direct_greens_function`.
+        Keyword arguments for the direct solver. ``eigenvalue_atol`` controls
+        how explicit eigenvalues are grouped into degenerate subspaces before
+        constructing the constrained sparse solves. It defaults to ``1e-12``.
 
     Returns
     -------
@@ -937,16 +963,44 @@ def solve_sylvester_direct(
     eigenvalues = [
         np.diag(Dagger(subspace) @ h_0 @ subspace) for subspace in eigenvectors
     ]
+    factorization_options = dict(solver_options)
+    deprecated_atol = factorization_options.pop("atol", None)
+    deprecated_eps = factorization_options.pop("eps", None)
+    eigenvalue_atol = factorization_options.pop("eigenvalue_atol", deprecated_atol)
+    if deprecated_atol is not None:
+        warn(
+            "`atol` in `solve_sylvester_direct` is deprecated; use "
+            "`eigenvalue_atol` instead. It will be removed in version 2.4.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    if deprecated_eps is not None:
+        warn(
+            "`eps` is ignored by `solve_sylvester_direct` and will be removed "
+            "in version 2.4.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    if eigenvalue_atol is None:
+        eigenvalue_atol = 1e-12
+
     # Compute the Green's function of the transposed Hamiltonian because we are
     # solving the equation from the right.
-    greens_functions = [
-        [direct_greens_function(h_0.T, E, **solver_options) for E in subspace_eigenvalues]
-        for subspace_eigenvalues in eigenvalues
-    ]
+    greens_functions = []
+    for subspace_eigenvalues, subspace_vectors in zip(eigenvalues, eigenvectors):
+        grouped_greens_functions = [None] * len(subspace_eigenvalues)
+        for group in _group_close_energies(subspace_eigenvalues, eigenvalue_atol):
+            greens_function = direct_greens_function(
+                h_0.T,
+                subspace_eigenvalues[group[0]],
+                kernel_vectors=subspace_vectors[:, group].conj(),
+                **factorization_options,
+            )
+            for i in group:
+                grouped_greens_functions[i] = greens_function
+        greens_functions.append(grouped_greens_functions)
 
-    explicit_part = solve_sylvester_diagonal(
-        eigenvalues, atol=solver_options.get("atol", 1e-12)
-    )
+    explicit_part = solve_sylvester_diagonal(eigenvalues, atol=eigenvalue_atol)
 
     def solve_sylvester(Y: np.ndarray, index: tuple[int, ...]) -> np.ndarray:
         if Y is zero:

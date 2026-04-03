@@ -26,11 +26,6 @@ from pymablock.block_diagonalization import (
 from pymablock.series import AlgebraElement, BlockSeries, cauchy_dot_product, one, zero
 
 
-@pytest.fixture()
-def require_mumps() -> None:
-    pytest.importorskip("mumps", reason="python-mumps is not installed")
-
-
 # Auxiliary comparison functions
 def compare_series(
     series1: BlockSeries,
@@ -731,7 +726,6 @@ def test_one_sized_subspace():
                     assert output[(*block, 3)].shape == shape
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_equivalence_explicit_implicit() -> None:
     """
     Test that the explicit and implicit algorithms give the same results.
@@ -797,7 +791,6 @@ def test_equivalence_explicit_implicit() -> None:
     compare_series(implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-8)
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_dtype_mismatch_error_implicit():
     """Test that the implicit mode allows mixing real H_0 with complex H'."""
     rng = np.random.default_rng()
@@ -845,7 +838,6 @@ def test_solve_sylvester_diagonal():
     np.testing.assert_allclose(A @ X - X @ B, Y, atol=1e-13)
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_solve_sylvester_direct_vs_diagonal() -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
@@ -872,6 +864,35 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     y_direct = direct(y, (0, 1))
 
     np.testing.assert_allclose(y_default, y_direct)
+
+
+def test_solve_sylvester_direct_vs_diagonal_degenerate() -> None:
+    """The direct solver must handle degenerate explicit eigenvalues."""
+    n = 40
+    a_dim = 3
+    rng = np.random.default_rng(0)
+    spectrum = np.linspace(-4, 4, n)
+    spectrum[:a_dim] = -0.25
+
+    basis, _ = np.linalg.qr(
+        rng.standard_normal((n, n)) + 1j * rng.standard_normal((n, n))
+    )
+    h = sparse.csr_array(basis @ np.diag(spectrum) @ basis.conj().T)
+    eigvals, eigvecs = np.linalg.eigh(h.toarray())
+    eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
+
+    diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
+    direct = solve_sylvester_direct(h, [eigvecs])
+
+    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+        size=(a_dim, n - a_dim)
+    )
+    y = y @ Dagger(eigvecs_rest)
+
+    y_default = diagonal(y, (0, 1))
+    y_direct = direct(y, (0, 1))
+
+    np.testing.assert_allclose(y_default, y_direct, atol=1e-10)
 
 
 def test_solve_sylvester_kpm_vs_diagonal() -> None:
@@ -920,7 +941,6 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     np.testing.assert_allclose(y_default, y_hybrid, atol=1e-3)
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_input_hamiltonian_implicit(implicit_problem):
     """
     Test that KPM Hamiltonians are interpreted correctly.
@@ -1238,7 +1258,6 @@ def test_warning_non_diagonal_input():
         block_diagonalize([h_0, h_p], subspace_eigenvectors=[P[:, :4], P[:, 4:]])[0]
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_memory_usage_implicit():
     """
     Test that the implicit algorithm does not use more memory than expected.
@@ -1747,7 +1766,6 @@ def test_one_block_vs_multiblock(wanted_orders):
     compare_series(H_tilde, H_tilde_split, wanted_orders, atol=1e-10)
 
 
-@pytest.mark.usefixtures("require_mumps")
 def test_mixed_full_partial(wanted_orders):
     N = 6
     H_0, H_ps = H_list(wanted_orders, N)
@@ -1794,6 +1812,72 @@ def test_multiblock_kpm_auxiliary(wanted_orders):
     H_tilde_full, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(6) // 2)
     compare_series(H_tilde_implicit[0, 0], H_tilde_full[0, 0], wanted_orders, atol=1e-3)
     compare_series(H_tilde_implicit[1, 1], H_tilde_full[1, 1], wanted_orders, atol=1e-3)
+
+
+def test_block_diagonalize_filters_direct_solver_options(monkeypatch):
+    h_0 = np.diag([0.0, 0.0, 1.0, 2.0])
+    explicit_vectors = np.eye(4)[:, :2]
+    captured_options = {}
+    original = solve_sylvester_direct
+
+    def wrapped(h_0, eigenvectors, **solver_options):
+        captured_options.update(solver_options)
+        return original(h_0, eigenvectors, **solver_options)
+
+    monkeypatch.setattr("pymablock.block_diagonalization.solve_sylvester_direct", wrapped)
+
+    block_diagonalize(
+        [h_0],
+        subspace_eigenvectors=[explicit_vectors],
+        solver_options={
+            "eigenvalue_atol": 1e-6,
+            "aux_vectors": np.eye(4)[:, 2:],
+        },
+    )
+
+    assert captured_options == {"eigenvalue_atol": 1e-6}
+
+
+def test_block_diagonalize_uses_atol_for_direct_solver_groups(monkeypatch):
+    h_0 = np.diag([0.0, 0.0, 1.0, 2.0])
+    explicit_vectors = np.eye(4)[:, :2]
+    captured_options = {}
+    original = solve_sylvester_direct
+
+    def wrapped(h_0, eigenvectors, **solver_options):
+        captured_options.update(solver_options)
+        return original(h_0, eigenvectors, **solver_options)
+
+    monkeypatch.setattr("pymablock.block_diagonalization.solve_sylvester_direct", wrapped)
+
+    block_diagonalize(
+        [h_0],
+        subspace_eigenvectors=[explicit_vectors],
+        atol=1e-8,
+    )
+
+    assert captured_options == {"eigenvalue_atol": 1e-8}
+
+
+def test_block_diagonalize_direct_solver_deprecated_options_warn():
+    h_0 = np.diag([0.0, 0.0, 1.0, 2.0])
+    explicit_vectors = np.eye(4)[:, :2]
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        block_diagonalize(
+            [h_0],
+            subspace_eigenvectors=[explicit_vectors],
+            solver_options={"atol": 1e-6, "eps": 0.1},
+        )
+
+    messages = {str(warning.message) for warning in recorded}
+    assert messages == {
+        "`atol` in `solve_sylvester_direct` is deprecated; use `eigenvalue_atol` "
+        "instead. It will be removed in version 2.4.0.",
+        "`eps` is ignored by `solve_sylvester_direct` and will be removed in "
+        "version 2.4.0.",
+    }
 
 
 def test_selective_diagonalization(wanted_orders):
