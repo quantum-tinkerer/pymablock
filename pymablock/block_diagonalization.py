@@ -120,7 +120,10 @@ def block_diagonalize(
         - A single `~sympy.core.expr.Expr` containing the second-quantized Hamiltonian.
     solve_sylvester :
         A function that solves the Sylvester equation. If not provided,
-        it is selected automatically based on the inputs.
+        it is selected automatically based on the inputs. Custom solvers should
+        accept ``solve_sylvester(Y, index)``. The legacy one-argument form
+        ``solve_sylvester(Y)`` is deprecated and will be removed in version
+        2.4.0.
     subspace_eigenvectors :
         A tuple describing the subspaces onto which the Hamiltonian is projected
         and separated into blocks. Each entry may be either a single basis
@@ -429,6 +432,13 @@ def block_diagonalize(
                 "Non-Hermitian problems require `solve_sylvester(Y, index)`. "
                 "Legacy one-argument Sylvester solvers are not supported."
             )
+        warn(
+            "One-argument `solve_sylvester(Y)` is deprecated; use "
+            "`solve_sylvester(Y, index)` instead. It will be removed in "
+            "version 2.4.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         solve_sylvester = _preprocess_sylvester(solve_sylvester)
 
     if not isinstance(fully_diagonalize, dict):

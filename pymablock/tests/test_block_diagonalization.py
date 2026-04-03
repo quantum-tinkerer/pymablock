@@ -9,10 +9,12 @@ from typing import Any
 import numpy as np
 import pytest
 import sympy
+from packaging.version import Version
 from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
+from pymablock import __version__
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main
 from pymablock.block_diagonalization import (
@@ -1181,7 +1183,7 @@ def test_algebra_element_data_type():
             [AlgebraElement("e"), AlgebraElement("f")],
         ],
     ]
-    H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x: x)
+    H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x, _: x)
     H_tilde[:, :, :3]
     # Shouldn't work without the solve_sylvester function
     with pytest.raises(NotImplementedError):
@@ -1916,6 +1918,31 @@ def test_block_diagonalize_direct_solver_deprecated_options_warn():
         "`eps` is ignored by `solve_sylvester_direct` and will be removed in "
         "version 2.4.0.",
     }
+
+
+def test_block_diagonalize_legacy_sylvester_signature_warns():
+    h_0 = np.diag([0.0, 1.0])
+    h_1 = np.array([[0.0, 1.0], [1.0, 0.0]])
+
+    def solve_sylvester(Y):
+        return Y
+
+    if Version(__version__) >= Version("2.4.0"):
+        pytest.fail("Legacy one-argument `solve_sylvester` should be removed in 2.4.0")
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        block_diagonalize(
+            [h_0, h_1],
+            subspace_indices=[0, 1],
+            solve_sylvester=solve_sylvester,
+        )
+
+    messages = [str(warning.message) for warning in recorded]
+    assert messages == [
+        "One-argument `solve_sylvester(Y)` is deprecated; use "
+        "`solve_sylvester(Y, index)` instead. It will be removed in version 2.4.0."
+    ]
 
 
 def test_selective_diagonalization(wanted_orders):
