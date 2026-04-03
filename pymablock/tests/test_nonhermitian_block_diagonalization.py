@@ -197,10 +197,8 @@ def _make_biorthogonal_direct_solver_case(
 ]:
     rng = np.random.default_rng()
     eigvals = np.linspace(-3.0, 3.0, n) + 0.2j * rng.standard_normal(n)
-    while True:
-        transform = np.eye(n, dtype=complex) + 0.2 * _complex_normal(rng, (n, n))
-        if np.linalg.cond(transform) < 20:
-            break
+    transform = np.diag(5.0 + rng.random(n)).astype(complex)
+    transform += 0.2 * _complex_normal(rng, (n, n))
     inverse_transform = np.linalg.inv(transform)
     left = inverse_transform.conj().T
     h_0 = sparse.csr_array(transform @ np.diag(eigvals) @ inverse_transform)
