@@ -133,8 +133,11 @@ def block_diagonalize(
         the BlockSeries is defined with a single block.
     solver_options :
         Dictionary containing the options to pass to the Sylvester solver.
-        See docstrings of `~pymablock.block_diagonalization.solve_sylvester_KPM`
-        and `~pymablock.block_diagonalization.solve_sylvester_direct` for details.
+        In the KPM path, see
+        `~pymablock.block_diagonalization.solve_sylvester_KPM` for details.
+        In the direct path, ``eigenvalue_atol`` sets the tolerance used to
+        group explicit eigenvalues into degenerate energy subspaces before
+        constructing the constrained sparse solves.
     direct_solver :
         Whether to use the direct sparse solver (default). It prefers MUMPS
         when available and otherwise falls back to SciPy's sparse LU.
@@ -184,6 +187,7 @@ def block_diagonalize(
     # Because both functions below are idempotent, this does not lead to inconsistencies
     # with operator_to_BlockSeries in the code below.
     hamiltonian = _unpack_blocks(_to_scalar_BlockSeries(hamiltonian, symbols, atol), atol)
+    solver_options = {} if solver_options is None else dict(solver_options)
 
     use_implicit = False
     if subspace_eigenvectors is not None:
@@ -200,8 +204,6 @@ def block_diagonalize(
             raise ValueError("Implicit mode is not supported with symbolic Hamiltonian.")
         assert subspace_eigenvectors is not None  # for mypy
         # Build solve_sylvester
-        if hamiltonian.shape:
-            raise ValueError("Implicit mode requires an input not separated into blocks")
         if h_0.shape[0] != subspace_eigenvectors[0].shape[0]:
             raise ValueError("`subspace_eigenvectors` does not match the shape of `h_0`.")
         if solve_sylvester is None:
@@ -210,7 +212,19 @@ def block_diagonalize(
                     "Implicit problem requires numpy arrays for eigenvectors."
                 )
             if direct_solver:
-                solve_sylvester = solve_sylvester_direct(h_0, subspace_eigenvectors)
+                direct_solver_options = {
+                    key: value
+                    for key, value in solver_options.items()
+                    if key in {"eigenvalue_atol", "atol", "eps"}
+                }
+                if (
+                    "eigenvalue_atol" not in direct_solver_options
+                    and "atol" not in direct_solver_options
+                ):
+                    direct_solver_options["eigenvalue_atol"] = atol
+                solve_sylvester = solve_sylvester_direct(
+                    h_0, subspace_eigenvectors, **direct_solver_options
+                )
             else:
                 solve_sylvester = solve_sylvester_KPM(
                     h_0,
@@ -943,10 +957,8 @@ def solve_sylvester_direct(
         Eigenvectors of the effective subspaces of the unperturbed Hamiltonian.
     **solver_options :
         Keyword arguments for the direct solver. ``eigenvalue_atol`` controls
-        how eigenvalues are grouped into degenerate subspaces and defaults to
-        ``atol``. Deprecated ``atol`` and ``eps`` values are accepted for
-        backwards compatibility but ignored by
-        `pymablock.linalg.direct_greens_function`.
+        how explicit eigenvalues are grouped into degenerate subspaces before
+        constructing the constrained sparse solves. It defaults to ``1e-12``.
 
     Returns
     -------
@@ -958,11 +970,26 @@ def solve_sylvester_direct(
     eigenvalues = [
         np.diag(Dagger(subspace) @ h_0 @ subspace) for subspace in eigenvectors
     ]
-    eigenvalue_atol = solver_options.get(
-        "eigenvalue_atol", solver_options.get("atol", 1e-12)
-    )
     factorization_options = dict(solver_options)
-    factorization_options.pop("eigenvalue_atol", None)
+    deprecated_atol = factorization_options.pop("atol", None)
+    deprecated_eps = factorization_options.pop("eps", None)
+    eigenvalue_atol = factorization_options.pop("eigenvalue_atol", deprecated_atol)
+    if deprecated_atol is not None:
+        warn(
+            "`atol` in `solve_sylvester_direct` is deprecated; use "
+            "`eigenvalue_atol` instead. It will be removed in version 2.4.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    if deprecated_eps is not None:
+        warn(
+            "`eps` is ignored by `solve_sylvester_direct` and will be removed "
+            "in version 2.4.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    if eigenvalue_atol is None:
+        eigenvalue_atol = 1e-12
 
     # Compute the Green's function of the transposed Hamiltonian because we are
     # solving the equation from the right.

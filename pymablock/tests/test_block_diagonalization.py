@@ -1814,6 +1814,72 @@ def test_multiblock_kpm_auxiliary(wanted_orders):
     compare_series(H_tilde_implicit[1, 1], H_tilde_full[1, 1], wanted_orders, atol=1e-3)
 
 
+def test_block_diagonalize_filters_direct_solver_options(monkeypatch):
+    h_0 = np.diag([0.0, 0.0, 1.0, 2.0])
+    explicit_vectors = np.eye(4)[:, :2]
+    captured_options = {}
+    original = solve_sylvester_direct
+
+    def wrapped(h_0, eigenvectors, **solver_options):
+        captured_options.update(solver_options)
+        return original(h_0, eigenvectors, **solver_options)
+
+    monkeypatch.setattr("pymablock.block_diagonalization.solve_sylvester_direct", wrapped)
+
+    block_diagonalize(
+        [h_0],
+        subspace_eigenvectors=[explicit_vectors],
+        solver_options={
+            "eigenvalue_atol": 1e-6,
+            "aux_vectors": np.eye(4)[:, 2:],
+        },
+    )
+
+    assert captured_options == {"eigenvalue_atol": 1e-6}
+
+
+def test_block_diagonalize_uses_atol_for_direct_solver_groups(monkeypatch):
+    h_0 = np.diag([0.0, 0.0, 1.0, 2.0])
+    explicit_vectors = np.eye(4)[:, :2]
+    captured_options = {}
+    original = solve_sylvester_direct
+
+    def wrapped(h_0, eigenvectors, **solver_options):
+        captured_options.update(solver_options)
+        return original(h_0, eigenvectors, **solver_options)
+
+    monkeypatch.setattr("pymablock.block_diagonalization.solve_sylvester_direct", wrapped)
+
+    block_diagonalize(
+        [h_0],
+        subspace_eigenvectors=[explicit_vectors],
+        atol=1e-8,
+    )
+
+    assert captured_options == {"eigenvalue_atol": 1e-8}
+
+
+def test_block_diagonalize_direct_solver_deprecated_options_warn():
+    h_0 = np.diag([0.0, 0.0, 1.0, 2.0])
+    explicit_vectors = np.eye(4)[:, :2]
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        block_diagonalize(
+            [h_0],
+            subspace_eigenvectors=[explicit_vectors],
+            solver_options={"atol": 1e-6, "eps": 0.1},
+        )
+
+    messages = {str(warning.message) for warning in recorded}
+    assert messages == {
+        "`atol` in `solve_sylvester_direct` is deprecated; use `eigenvalue_atol` "
+        "instead. It will be removed in version 2.4.0.",
+        "`eps` is ignored by `solve_sylvester_direct` and will be removed in "
+        "version 2.4.0.",
+    }
+
+
 def test_selective_diagonalization(wanted_orders):
     N = 20
     H_0, H_ps = H_list(wanted_orders, N)
