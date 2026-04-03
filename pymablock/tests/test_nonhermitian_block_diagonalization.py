@@ -15,12 +15,11 @@ from pymablock.block_diagonalization import (
 )
 from pymablock.series import BlockSeries, cauchy_dot_product, zero
 
-from .test_block_diagonalization import compare_series as _compare_series
-from .test_block_diagonalization import is_unitary, random_hermitian_matrix
-
-
-def compare_series(*args, atol: float = 1e-12, **kwargs) -> None:
-    _compare_series(*args, atol=atol, **kwargs)
+from .test_block_diagonalization import (
+    compare_series,
+    is_unitary,
+    random_hermitian_matrix,
+)
 
 
 def _complex_normal(rng: np.random.Generator, shape: tuple[int, ...]) -> np.ndarray:
@@ -254,9 +253,9 @@ def test_nonhermitian_matches_hermitian_on_hermitian_input(block_dims, max_order
     series_h, _ = series_computation({"H": H}, algorithm=main, scope=scope)
     series_nh, _ = series_computation({"H": H}, algorithm=nonhermitian, scope=scope)
 
-    compare_series(series_h["H_tilde"], series_nh["H_tilde"], (max_order,))
-    compare_series(series_h["U"], series_nh["U"], (max_order,))
-    compare_series(series_h["U†"], series_nh["U†"], (max_order,))
+    compare_series(series_h["H_tilde"], series_nh["H_tilde"], (max_order,), atol=1e-14)
+    compare_series(series_h["U"], series_nh["U"], (max_order,), atol=1e-14)
+    compare_series(series_h["U†"], series_nh["U†"], (max_order,), atol=1e-14)
 
 
 def test_nonhermitian_arbitrary_asymmetric_mask():
