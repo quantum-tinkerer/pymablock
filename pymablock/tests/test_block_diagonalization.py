@@ -19,6 +19,7 @@ from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main
 from pymablock.block_diagonalization import (
     _dict_to_BlockSeries,
+    _group_close_energies,
     block_diagonalize,
     operator_to_BlockSeries,
     solve_sylvester_diagonal,
@@ -1943,6 +1944,22 @@ def test_block_diagonalize_legacy_sylvester_signature_warns():
         "One-argument `solve_sylvester(Y)` is deprecated; use "
         "`solve_sylvester(Y, index)` instead. It will be removed in version 2.4.0."
     ]
+
+
+def test_group_close_energies_complex():
+    energies = np.array([1.0 + 0.0j, 1.0 + 1e-3j, 2.0 + 0.0j, 2.0 + 5e-13j])
+
+    groups = _group_close_energies(energies, 1e-12)
+
+    assert [group.tolist() for group in groups] == [[0], [1], [2, 3]]
+
+
+def test_group_close_energies_real():
+    energies = np.array([2.0, 1.0, 1.0 + 5e-13, 3.0])
+
+    groups = _group_close_energies(energies, 1e-12)
+
+    assert [group.tolist() for group in groups] == [[1, 2], [0], [3]]
 
 
 def test_selective_diagonalization(wanted_orders):

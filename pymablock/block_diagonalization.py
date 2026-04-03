@@ -11,6 +11,7 @@ from warnings import warn
 import numpy as np
 import sympy
 from scipy import sparse
+from scipy.spatial import KDTree
 from sympy.physics.quantum import Dagger, Operator
 
 from pymablock import second_quantization
@@ -1049,9 +1050,24 @@ def _group_close_energies(energies: np.ndarray, atol: float) -> list[np.ndarray]
     if not len(energies):
         return []
 
-    order = np.argsort(energies)
-    split_points = np.nonzero(np.diff(energies[order]) > atol)[0] + 1
-    return np.split(order, split_points)
+    if np.isrealobj(energies):
+        order = np.argsort(energies)
+        split_points = np.nonzero(np.diff(energies[order]) > atol)[0] + 1
+        return np.split(order, split_points)
+
+    points = np.column_stack((energies.real, energies.imag))
+    pairs = np.array(list(KDTree(points).query_pairs(r=atol)), dtype=int)
+    if len(pairs):
+        rows = np.concatenate((pairs[:, 0], pairs[:, 1]))
+        cols = np.concatenate((pairs[:, 1], pairs[:, 0]))
+        graph = sparse.coo_array(
+            (np.ones(len(rows), dtype=bool), (rows, cols)),
+            shape=(len(energies), len(energies)),
+        )
+    else:
+        graph = sparse.coo_array((len(energies), len(energies)), dtype=bool)
+    n_components, labels = sparse.csgraph.connected_components(graph, directed=False)
+    return [np.flatnonzero(labels == label) for label in range(n_components)]
 
 
 def solve_sylvester_direct(
