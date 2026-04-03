@@ -1365,7 +1365,9 @@ def test_number_products_two_block(data_regression):
     """
     op = AlgebraElement("A")
 
-    def solve_sylvester(Y):  # noqa: ARG001
+    def solve_sylvester(Y, index):  # noqa: ARG001
+        if Y is zero:
+            return zero
         return op
 
     def eval_dense_first_order(*index):

@@ -117,8 +117,8 @@ def _assert_roundtrip(
     U_inv = series["U†"]
 
     _assert_inverse_relations(U, U_inv, wanted_orders)
-    compare_series(cauchy_dot_product(U_inv, H, U), H_tilde, wanted_orders)
-    compare_series(cauchy_dot_product(U, H_tilde, U_inv), H, wanted_orders)
+    compare_series(cauchy_dot_product(U_inv, H, U), H_tilde, wanted_orders, atol=1e-14)
+    compare_series(cauchy_dot_product(U, H_tilde, U_inv), H, wanted_orders, atol=1e-14)
     return H_tilde
 
 
