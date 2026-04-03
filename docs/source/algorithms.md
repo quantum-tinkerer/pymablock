@@ -428,5 +428,24 @@ To solve the Sylvester's equation for the modified Hamiltonian, we write it for 
 V_{\mathbf{n}, ij}^{EI} (E_i - H_0) = Y_{\mathbf{n}, j}
 :::
 
-This equation is well-defined despite $E_i - H_0$ is not invertible because $Y_{\mathbf{n}}$ has no components in the explicit subspace.
+This equation is well defined even though $E_i - H_0$ is not invertible, since $Y_{\mathbf{n}}$ has no components in the explicit subspace.
+
+Pymablock implements the corresponding pseudoinverse by projecting out the known kernel and constraining variables where the explicit eigenvectors have large weight.
+When several known explicit eigenvectors share the same energy $E_i$, we collect them in the columns of $\Phi_i$.
+We define $A_i = E_i - H_0$ and $y = Y_{\mathbf{n}, j}$.
+The corresponding projector is:
+
+:::{math}
+P_i = 1 - \Phi_i \Phi_i^\dagger.
+:::
+
+The pivot rows $p_i$ come from a pivoted QR factorization of $\Phi_i^\dagger$, which selects variables where these eigenvectors are largest.
+We replace the corresponding rows of $A_i^\dagger$ by unit rows and solve:
+
+:::{math}
+\tilde A_i^\dagger z = P_i y^\dagger, \qquad z_p = 0 \text{ for } p \in p_i,
+\qquad V_{\mathbf{n}, ij}^{EI} = (P_i z)^\dagger.
+:::
+
+Here $\tilde A_i^\dagger$ is the constrained matrix.
 ::::
