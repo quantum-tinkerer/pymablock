@@ -1,6 +1,7 @@
 # ruff: noqa: N803, N806
 """Linear algebra utilities."""
 
+import warnings
 from collections.abc import Callable
 from typing import Any
 
@@ -56,8 +57,8 @@ def direct_greens_function(
     h: spmatrix,
     E: float,
     kernel_vectors: np.ndarray | None = None,
-    atol: float = 1e-7,
-    eps: float = 0,
+    atol: float | None = None,
+    eps: float | None = None,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Compute the Green's function of a Hamiltonian using a sparse direct solver.
 
@@ -73,9 +74,9 @@ def direct_greens_function(
         ``x[pivot] = 0`` constraints and projects the kernel away before and
         after the sparse solve. If omitted, an empty kernel basis is used.
     atol :
-        Retained for backwards compatibility and currently ignored.
+        Deprecated. Ignored and will be removed in version 2.4.0.
     eps :
-        Retained for backwards compatibility and currently ignored.
+        Deprecated. Ignored and will be removed in version 2.4.0.
 
     Returns
     -------
@@ -86,7 +87,19 @@ def direct_greens_function(
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     if kernel_vectors is None:
         kernel_vectors = np.zeros((h.shape[0], 0), dtype=h.dtype)
-    del atol, eps
+    deprecated_arguments = [
+        name for name, value in (("atol", atol), ("eps", eps)) if value is not None
+    ]
+    if deprecated_arguments:
+        argument_names = ", ".join(f"`{name}`" for name in deprecated_arguments)
+        verb = "are" if len(deprecated_arguments) > 1 else "is"
+        warnings.warn(
+            f"{argument_names} {verb} ignored by `direct_greens_function` and "
+            "will be removed in version 2.4.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
     pivot_rows = _kernel_pivot_rows(kernel_vectors)
     kernel_projector = ComplementProjector(kernel_vectors)
     mat = _constrain_matrix(mat, pivot_rows)

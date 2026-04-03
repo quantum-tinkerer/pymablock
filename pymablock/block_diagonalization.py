@@ -942,10 +942,11 @@ def solve_sylvester_direct(
     eigenvectors :
         Eigenvectors of the effective subspaces of the unperturbed Hamiltonian.
     **solver_options :
-        Keyword arguments to pass to the solver ``eps`` and ``atol``, see
-        `pymablock.linalg.direct_greens_function`. ``eigenvalue_atol`` controls
+        Keyword arguments for the direct solver. ``eigenvalue_atol`` controls
         how eigenvalues are grouped into degenerate subspaces and defaults to
-        ``atol``.
+        ``atol``. Deprecated ``atol`` and ``eps`` values are accepted for
+        backwards compatibility but ignored by
+        `pymablock.linalg.direct_greens_function`.
 
     Returns
     -------

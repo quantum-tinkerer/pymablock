@@ -2,13 +2,15 @@
 import builtins
 
 import numpy as np
+import pytest
 import sympy
 from numpy.testing import assert_allclose
+from packaging.version import Version
 from pytest import mark
 from scipy import sparse
 from scipy.sparse.linalg import aslinearoperator
 
-from pymablock import linalg
+from pymablock import __version__, linalg
 
 
 def test_linear_operator_rmatmul_patched():
@@ -29,7 +31,7 @@ def test_direct_greens_function(dtype):
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
     n0 = n // 3
-    G = linalg.direct_greens_function(h, E[n0], atol=atol)
+    G = linalg.direct_greens_function(h, E[n0])
     vec = np.random.randn(n).astype(dtype)
     if np.iscomplexobj(vec):
         vec += 1j * np.random.randn(n)
@@ -42,9 +44,23 @@ def test_direct_greens_function_dtype():
     """Test that type promotion works as expected."""
     n = 10
     E = np.random.randn(n).astype(np.float32)
-    gf = linalg.direct_greens_function(sparse.diags(E), 0, atol=1e-3)
+    gf = linalg.direct_greens_function(sparse.diags(E), 0)
     assert gf(E).dtype == np.float32
     assert gf(1j * E).dtype == np.complex64
+
+
+def test_direct_greens_function_ignored_arguments_warn():
+    h = sparse.diags([1.0, 2.0, 3.0])
+    if Version(__version__) >= Version("2.4.0"):
+        pytest.fail(
+            "`atol` and `eps` should be removed from direct_greens_function in 2.4.0"
+        )
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="ignored by `direct_greens_function` and will be removed in version 2.4.0",
+    ):
+        linalg.direct_greens_function(h, 0.0, atol=1e-3, eps=0.1)
 
 
 def test_direct_greens_function_degenerate_kernel():
