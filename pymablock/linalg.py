@@ -9,7 +9,7 @@ import sympy
 from scipy import sparse
 from scipy.linalg import qr
 from scipy.sparse import identity, spmatrix
-from scipy.sparse.linalg import LinearOperator, splu
+from scipy.sparse.linalg import LinearOperator, factorized
 from scipy.sparse.linalg import aslinearoperator as scipy_aslinearoperator
 
 from pymablock.series import one, zero
@@ -95,11 +95,7 @@ def direct_greens_function(
     try:
         from mumps import Context as MUMPSContext
     except ImportError:
-        lu = splu(sparse.csc_matrix(mat))
-
-        def solve(v: np.ndarray) -> np.ndarray:
-            return lu.solve(v)
-
+        solve = factorized(sparse.csc_matrix(mat))
     else:
         ctx = MUMPSContext()
         # MUMPS does not support Hermitian matrices, so we use the symmetric only with real.
@@ -129,7 +125,7 @@ def direct_greens_function(
             Solution of :math:`(E - H) sol = vec`.
 
         """
-        vec = np.array(kernel_projector @ vec, copy=True)
+        vec = kernel_projector @ vec
         vec[pivot_rows] = 0
 
         if np.iscomplexobj(vec) and not is_complex:
