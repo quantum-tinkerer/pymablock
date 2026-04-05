@@ -9,14 +9,17 @@ from typing import Any
 import numpy as np
 import pytest
 import sympy
+from packaging.version import Version
 from scipy import sparse
 from scipy.sparse.linalg import LinearOperator
 from sympy.physics.quantum import Dagger
 
+from pymablock import __version__
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main
 from pymablock.block_diagonalization import (
     _dict_to_BlockSeries,
+    _group_close_energies,
     block_diagonalize,
     operator_to_BlockSeries,
     solve_sylvester_diagonal,
@@ -157,6 +160,11 @@ def is_unitary(
     compare_series(transformed, identity, wanted_orders, atol=atol, rtol=0)
 
 
+def random_hermitian_matrix(n: int) -> np.ndarray:
+    matrix = np.random.randn(n, n) + 1.0j * np.random.randn(n, n)
+    return matrix + matrix.T.conj()
+
+
 # Fixtures
 @pytest.fixture(scope="module", params=[(5,), (4, 2)])
 def wanted_orders(request):
@@ -211,9 +219,10 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
         generator of random matrices
         """
         while True:
-            H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
             if hermitian:
-                H += H.conj().T
+                H = random_hermitian_matrix(N_i)
+            else:
+                H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
             yield H
 
     hams = []
@@ -838,7 +847,8 @@ def test_solve_sylvester_diagonal():
     np.testing.assert_allclose(A @ X - X @ B, Y, atol=1e-13)
 
 
-def test_solve_sylvester_direct_vs_diagonal() -> None:
+@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
+def test_solve_sylvester_direct_vs_diagonal(index) -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
     solve_sylvester_diagonal.
@@ -853,20 +863,27 @@ def test_solve_sylvester_direct_vs_diagonal() -> None:
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
     diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
-    direct = solve_sylvester_direct(h, [eigvecs])
+    direct = solve_sylvester_direct(h, [eigvecs], nonhermitian=index == (1, 0))
 
-    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
-        size=(a_dim, n - a_dim)
-    )
-    y = y @ Dagger(eigvecs_rest)
+    if index == (0, 1):
+        y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+            size=(a_dim, n - a_dim)
+        )
+        y = y @ Dagger(eigvecs_rest)
+    else:
+        y = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
+            size=(n - a_dim, a_dim)
+        )
+        y = eigvecs_rest @ y
 
-    y_default = diagonal(y, (0, 1))
-    y_direct = direct(y, (0, 1))
+    y_default = diagonal(y, index)
+    y_direct = direct(y, index)
 
     np.testing.assert_allclose(y_default, y_direct)
 
 
-def test_solve_sylvester_direct_vs_diagonal_degenerate() -> None:
+@pytest.mark.parametrize("index", [(0, 1), (1, 0)])
+def test_solve_sylvester_direct_vs_diagonal_degenerate(index) -> None:
     """The direct solver must handle degenerate explicit eigenvalues."""
     n = 40
     a_dim = 3
@@ -882,15 +899,21 @@ def test_solve_sylvester_direct_vs_diagonal_degenerate() -> None:
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
 
     diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
-    direct = solve_sylvester_direct(h, [eigvecs])
+    direct = solve_sylvester_direct(h, [eigvecs], nonhermitian=index == (1, 0))
 
-    y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
-        size=(a_dim, n - a_dim)
-    )
-    y = y @ Dagger(eigvecs_rest)
+    if index == (0, 1):
+        y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
+            size=(a_dim, n - a_dim)
+        )
+        y = y @ Dagger(eigvecs_rest)
+    else:
+        y = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
+            size=(n - a_dim, a_dim)
+        )
+        y = eigvecs_rest @ y
 
-    y_default = diagonal(y, (0, 1))
-    y_direct = direct(y, (0, 1))
+    y_default = diagonal(y, index)
+    y_direct = direct(y, index)
 
     np.testing.assert_allclose(y_default, y_direct, atol=1e-10)
 
@@ -1124,6 +1147,29 @@ def test_block_diagonalize_hamiltonian_symbolic(
         block_diagonalize(hamiltonian, subspace_eigenvectors=faulted_eigenvectors)
 
 
+def test_hermitian_rejects_subspace_pairs():
+    h_0 = np.diag([0.0, 1.0, 2.0, 3.0])
+    h_1 = random_hermitian_matrix(4)
+    subspace_pairs = [
+        (np.eye(4, dtype=complex)[:, :2], np.eye(4, dtype=complex)[:, :2]),
+        (np.eye(4, dtype=complex)[:, 2:], np.eye(4, dtype=complex)[:, 2:]),
+    ]
+
+    with pytest.raises(ValueError, match="do not accept"):
+        block_diagonalize(
+            [h_0, h_1],
+            subspace_eigenvectors=subspace_pairs,
+            hermitian=True,
+        )
+
+    with pytest.raises(ValueError, match="do not accept"):
+        operator_to_BlockSeries(
+            [h_0, h_1],
+            subspace_eigenvectors=subspace_pairs,
+            hermitian=True,
+        )
+
+
 def test_algebra_element_data_type():
     """
     Test that the algorithm works with a class implementing algebra.
@@ -1138,7 +1184,7 @@ def test_algebra_element_data_type():
             [AlgebraElement("e"), AlgebraElement("f")],
         ],
     ]
-    H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x: x)
+    H_tilde, *_ = block_diagonalize(H, solve_sylvester=lambda x, _: x)
     H_tilde[:, :, :3]
     # Shouldn't work without the solve_sylvester function
     with pytest.raises(NotImplementedError):
@@ -1319,7 +1365,9 @@ def test_number_products_two_block(data_regression):
     """
     op = AlgebraElement("A")
 
-    def solve_sylvester(Y):  # noqa: ARG001
+    def solve_sylvester(Y, index):  # noqa: ARG001
+        if Y is zero:
+            return zero
         return op
 
     def eval_dense_first_order(*index):
@@ -1631,13 +1679,8 @@ def test_delete_intermediate_terms():
 def H_list(wanted_orders, N):
     """Random Hamiltonian of a given size."""
 
-    def random_hermitian():
-        H_p = np.random.randn(N, N) + 1.0j * np.random.randn(N, N)
-        H_p += H_p.T.conj()
-        return H_p
-
     H_0 = np.diag(np.random.randn(N) + 8 * np.arange(N))
-    H_ps = [random_hermitian() for _ in wanted_orders]
+    H_ps = [random_hermitian_matrix(N) for _ in wanted_orders]
 
     return H_0, H_ps
 
@@ -1835,7 +1878,7 @@ def test_block_diagonalize_filters_direct_solver_options(monkeypatch):
         },
     )
 
-    assert captured_options == {"eigenvalue_atol": 1e-6}
+    assert captured_options == {"eigenvalue_atol": 1e-6, "nonhermitian": False}
 
 
 def test_block_diagonalize_uses_atol_for_direct_solver_groups(monkeypatch):
@@ -1856,7 +1899,7 @@ def test_block_diagonalize_uses_atol_for_direct_solver_groups(monkeypatch):
         atol=1e-8,
     )
 
-    assert captured_options == {"eigenvalue_atol": 1e-8}
+    assert captured_options == {"eigenvalue_atol": 1e-8, "nonhermitian": False}
 
 
 def test_block_diagonalize_direct_solver_deprecated_options_warn():
@@ -1878,6 +1921,47 @@ def test_block_diagonalize_direct_solver_deprecated_options_warn():
         "`eps` is ignored by `solve_sylvester_direct` and will be removed in "
         "version 2.4.0.",
     }
+
+
+def test_block_diagonalize_legacy_sylvester_signature_warns():
+    h_0 = np.diag([0.0, 1.0])
+    h_1 = np.array([[0.0, 1.0], [1.0, 0.0]])
+
+    def solve_sylvester(Y):
+        return Y
+
+    if Version(__version__) >= Version("2.4.0"):
+        pytest.fail("Legacy one-argument `solve_sylvester` should be removed in 2.4.0")
+
+    with warnings.catch_warnings(record=True) as recorded:
+        warnings.simplefilter("always")
+        block_diagonalize(
+            [h_0, h_1],
+            subspace_indices=[0, 1],
+            solve_sylvester=solve_sylvester,
+        )
+
+    messages = [str(warning.message) for warning in recorded]
+    assert messages == [
+        "One-argument `solve_sylvester(Y)` is deprecated; use "
+        "`solve_sylvester(Y, index)` instead. It will be removed in version 2.4.0."
+    ]
+
+
+def test_group_close_energies_complex():
+    energies = np.array([1.0 + 0.0j, 1.0 + 1e-3j, 2.0 + 0.0j, 2.0 + 5e-13j])
+
+    groups = _group_close_energies(energies, 1e-12)
+
+    assert [group.tolist() for group in groups] == [[0], [1], [2, 3]]
+
+
+def test_group_close_energies_real():
+    energies = np.array([2.0, 1.0, 1.0 + 5e-13, 3.0])
+
+    groups = _group_close_energies(energies, 1e-12)
+
+    assert [group.tolist() for group in groups] == [[1, 2], [0], [3]]
 
 
 def test_selective_diagonalization(wanted_orders):

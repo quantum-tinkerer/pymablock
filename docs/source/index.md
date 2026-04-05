@@ -33,6 +33,7 @@ tutorial/andreev_supercurrent.md
 :caption: Documentation
 
 algorithms.md
+nonhermitian_algorithm.md
 Comparison to Schrieffer-Wolff <radius.md>
 second_quantization.md
 documentation/pymablock.md

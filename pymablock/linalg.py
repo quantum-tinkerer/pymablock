@@ -57,6 +57,7 @@ def direct_greens_function(
     h: spmatrix,
     E: float,
     kernel_vectors: np.ndarray | None = None,
+    left_kernel_vectors: np.ndarray | None = None,
     atol: float | None = None,
     eps: float | None = None,
 ) -> Callable[[np.ndarray], np.ndarray]:
@@ -69,10 +70,13 @@ def direct_greens_function(
     E :
         Energy at which to compute the Green's function.
     kernel_vectors :
-        Orthonormal basis of the kernel of ``E - H``. When provided, the solver
-        fixes the gauge by replacing pivot equations selected with pivoted QR by
+        Basis of the right kernel of ``E - H``. When provided, the solver fixes
+        the gauge by replacing pivot equations selected with pivoted QR by
         ``x[pivot] = 0`` constraints and projects the kernel away before and
         after the sparse solve. If omitted, an empty kernel basis is used.
+    left_kernel_vectors :
+        Basis dual to ``kernel_vectors`` used to construct the kernel
+        projector. If omitted, ``kernel_vectors`` is used on both sides.
     atol :
         Deprecated. Ignored and will be removed in version 2.4.0.
     eps :
@@ -87,6 +91,8 @@ def direct_greens_function(
     mat = E * sparse.csr_array(identity(h.shape[0], dtype=h.dtype, format="csr")) - h
     if kernel_vectors is None:
         kernel_vectors = np.zeros((h.shape[0], 0), dtype=h.dtype)
+    if left_kernel_vectors is None:
+        left_kernel_vectors = kernel_vectors
     deprecated_arguments = [
         name for name, value in (("atol", atol), ("eps", eps)) if value is not None
     ]
@@ -101,7 +107,7 @@ def direct_greens_function(
         )
 
     pivot_rows = _kernel_pivot_rows(kernel_vectors)
-    kernel_projector = ComplementProjector(kernel_vectors)
+    kernel_projector = ComplementProjector(kernel_vectors, left_kernel_vectors)
     mat = _constrain_matrix(mat, pivot_rows)
 
     is_complex = np.iscomplexobj(mat.data)
@@ -162,27 +168,66 @@ class ComplementProjector(LinearOperator):
     span of the vectors $A$ in the implicit method.
     """
 
-    def __init__(self: LinearOperator, vecs: np.ndarray) -> LinearOperator:
+    def __init__(
+        self: LinearOperator,
+        vecs: np.ndarray,
+        left_vecs: np.ndarray | None = None,
+    ) -> LinearOperator:
         """Projector on the complement of the span of vecs."""
         self.shape = (vecs.shape[0], vecs.shape[0])
         self._vecs = vecs
-        self.dtype = vecs.dtype
+        self._hermitian = (
+            left_vecs is None or left_vecs is vecs or np.array_equal(left_vecs, vecs)
+        )
+        self._left_vecs = vecs if self._hermitian else left_vecs
+        self.dtype = np.result_type(self._vecs.dtype, self._left_vecs.dtype)
+        self._adjoint_operator = self if self._hermitian else None
+        self._conjugate_operator = None
+        self._transpose_operator = None
 
     __array_ufunc__ = None
 
-    def _matvec(self: LinearOperator, v: np.ndarray) -> np.ndarray:
-        return v - self._vecs @ (self._vecs.conj().T @ v)
+    def _apply(self: LinearOperator, v: np.ndarray) -> np.ndarray:
+        return v - self._vecs @ (self._left_vecs.conj().T @ v)
 
-    _matmat = _rmatvec = _rmatmat = _matvec
+    _matvec = _matmat = _apply
+
+    def _apply_left(self: LinearOperator, v: np.ndarray) -> np.ndarray:
+        return v - self._left_vecs.conj() @ (self._vecs.T @ v)
+
+    _rmatvec = _rmatmat = _apply_left
 
     def _adjoint(self: LinearOperator) -> LinearOperator:
-        return self
+        if self._adjoint_operator is None:
+            self._adjoint_operator = self.__class__(
+                vecs=self._left_vecs,
+                left_vecs=self._vecs,
+            )
+            self._adjoint_operator._adjoint_operator = self
+        return self._adjoint_operator
 
     def conjugate(self: LinearOperator) -> LinearOperator:
         """Conjugate operator."""
-        return self.__class__(vecs=self._vecs.conj())
+        if self._conjugate_operator is None:
+            vecs = self._vecs.conj()
+            left_vecs = vecs if self._hermitian else self._left_vecs.conj()
+            self._conjugate_operator = self.__class__(
+                vecs=vecs,
+                left_vecs=left_vecs,
+            )
+            self._conjugate_operator._conjugate_operator = self
+            if self._hermitian:
+                self._transpose_operator = self._conjugate_operator
+                self._conjugate_operator._transpose_operator = self
+        return self._conjugate_operator
 
-    _transpose = conjugate
+    def _transpose(self: LinearOperator) -> LinearOperator:
+        if self._transpose_operator is None:
+            self._transpose_operator = (
+                self.conjugate() if self._hermitian else self.conjugate()._adjoint()
+            )
+            self._transpose_operator._transpose_operator = self
+        return self._transpose_operator
 
 
 def aslinearoperator(A: Any) -> Any:

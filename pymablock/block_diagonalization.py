@@ -11,11 +11,12 @@ from warnings import warn
 import numpy as np
 import sympy
 from scipy import sparse
+from scipy.spatial import KDTree
 from sympy.physics.quantum import Dagger, Operator
 
 from pymablock import second_quantization
 from pymablock.algorithm_parsing import series_computation
-from pymablock.algorithms import main
+from pymablock.algorithms import main, nonhermitian
 from pymablock.kpm import greens_function, rescale
 from pymablock.linalg import (
     ComplementProjector,
@@ -36,7 +37,10 @@ from pymablock.series import (
 __all__ = ["block_diagonalize", "operator_to_BlockSeries"]
 
 # Common types
-Eigenvectors = tuple[np.ndarray | sympy.Matrix, ...]
+SingleSubspaceBasis = np.ndarray | sympy.MatrixBase | sparse.spmatrix | sparse.sparray
+SubspaceBasis = SingleSubspaceBasis | tuple[SingleSubspaceBasis, SingleSubspaceBasis]
+DirectSubspaceBasis = np.ndarray | tuple[np.ndarray, np.ndarray]
+Eigenvectors = tuple[SubspaceBasis, ...]
 
 
 ### The main function for end-users.
@@ -57,8 +61,9 @@ def block_diagonalize(
         | sympy.Matrix
         | sympy.Expr
     ) = (),
+    hermitian: bool = True,
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """Find the block diagonalization of a Hamiltonian order by order.
+    r"""Find the block diagonalization of a Hamiltonian order by order.
 
     This uses a generalization of quasi-degenerate perturbation theory known as
     Lowdin perturbation theory, Schrieffer-Wolff transformation, or van Vleck
@@ -81,7 +86,9 @@ def block_diagonalize(
     dimensional relevant subspace, the algorithm uses an implicit representation
     of the spectrum and does not require full diagonalization. This is enabled
     if ``subspace_eigenvectors`` do not span the full space of the unperturbed
-    Hamiltonian.
+    Hamiltonian. In the non-Hermitian case, the implicit method uses the same
+    direct-solver machinery but may require distinct left and right subspace
+    vectors.
 
     Parameters
     ----------
@@ -114,12 +121,21 @@ def block_diagonalize(
         - A single `~sympy.core.expr.Expr` containing the second-quantized Hamiltonian.
     solve_sylvester :
         A function that solves the Sylvester equation. If not provided,
-        it is selected automatically based on the inputs.
+        it is selected automatically based on the inputs. Custom solvers should
+        accept ``solve_sylvester(Y, index)``. The legacy one-argument form
+        ``solve_sylvester(Y)`` is deprecated and will be removed in version
+        2.4.0.
     subspace_eigenvectors :
-        A tuple with sets of orthonormal eigenvectors to project the Hamiltonian onto
-        and separate it into blocks. If None, the unperturbed Hamiltonian must be block
-        diagonal. If some vectors are missing, the implicit method is used. Mutually
-        exclusive with ``subspace_indices``. If neither
+        A tuple describing the subspaces onto which the Hamiltonian is projected
+        and separated into blocks. Each entry may be either a single basis
+        ``V`` or, for non-Hermitian problems, a pair ``(R, L)`` of right and
+        left basis vectors. A single basis is shorthand for ``(V, V)``, i.e.
+        identical left and right subspaces. The combined explicit subspaces
+        must satisfy ``L^\dagger R = I``. The non-Hermitian pair format
+        ``(R, L)`` is only supported when ``hermitian=False``. If None, the
+        unperturbed Hamiltonian must be block diagonal. If some vectors are
+        missing, the implicit method is used. Mutually exclusive with
+        ``subspace_indices``. If neither
         ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
         BlockSeries is defined with a single block.
     subspace_indices :
@@ -141,7 +157,9 @@ def block_diagonalize(
         Whether to use the direct sparse solver (default). It prefers MUMPS
         when available and otherwise falls back to SciPy's sparse LU.
         Otherwise, the KPM solver is used. Only applicable if the implicit
-        method is used (i.e. `subspace_eigenvectors` is incomplete)
+        method is used (i.e. `subspace_eigenvectors` is incomplete).
+        Non-Hermitian implicit mode currently requires the direct solver unless
+        a custom ``solve_sylvester`` is provided.
     symbols :
         Symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
@@ -156,24 +174,32 @@ def block_diagonalize(
         dictionary with the indices of the diagonal blocks as keys and as values
         appropriately shaped numpy boolean arrays marking which matrix elements should
         be eliminated by the diagonalization. If there is only one block, the boolean
-        array may be provided directly without a dictionary. Must be symmetric, and may
-        not have any True values corresponding to matrix elements coupling degenerate
-        eigenvalues. If the Hamiltonian has second-quantized operators, the array may be
-        a sympy matrix instead, and its entries must correspond to sums of all possible
-        operator powers to eliminate, e.g. ``a + Dagger(a)`` or ``a ** k + Dagger(a) ** k``.
+        array may be provided directly without a dictionary. For Hermitian problems this
+        mask must be symmetric, and may not have any True values corresponding to matrix
+        elements coupling degenerate eigenvalues. If the Hamiltonian has second-quantized
+        operators, the array may be a sympy matrix instead, and its entries must
+        correspond to sums of all possible operator powers to eliminate, e.g.
+        ``a + Dagger(a)`` or ``a ** k + Dagger(a) ** k``.
+    hermitian :
+        Whether to use the Hermitian algorithm (default). If set to False, use the
+        non-Hermitian similarity-transform algorithm. The non-Hermitian
+        left/right pair form of ``subspace_eigenvectors`` requires
+        ``hermitian=False``.
 
     Returns
     -------
     H_tilde : `~pymablock.series.BlockSeries`
         Block diagonalized Hamiltonian.
     U : `~pymablock.series.BlockSeries`
-        Unitary matrix that block diagonalizes H such that U * H * U^H = H_tilde.
-    U_adjoint : `~pymablock.series.BlockSeries`
-        Adjoint of U.
+        Transformation that block diagonalizes H.
+    U_inv : `~pymablock.series.BlockSeries`
+        Inverse of U. For Hermitian problems this coincides with the adjoint.
 
     """
     if isinstance(symbols, sympy.Symbol):
         symbols = [symbols]
+
+    algorithm = main if hermitian else nonhermitian
 
     if solve_sylvester is not None and fully_diagonalize:
         raise NotImplementedError(
@@ -185,14 +211,34 @@ def block_diagonalize(
     #
     # Because both functions below are idempotent, this does not lead to inconsistencies
     # with operator_to_BlockSeries in the code below.
-    hamiltonian = _unpack_blocks(_to_scalar_BlockSeries(hamiltonian, symbols, atol), atol)
+    hamiltonian = _unpack_blocks(
+        _to_scalar_BlockSeries(
+            hamiltonian,
+            symbols,
+            atol,
+            check_hermitian=hermitian,
+        ),
+        atol,
+    )
     solver_options = {} if solver_options is None else dict(solver_options)
 
     use_implicit = False
+    right_subspaces = left_subspaces = None
     if subspace_eigenvectors is not None:
-        _check_orthonormality(subspace_eigenvectors, atol=atol)
-        num_vectors = sum(vecs.shape[1] for vecs in subspace_eigenvectors)
-        dim = subspace_eigenvectors[0].shape[0]
+        subspace_eigenvectors = tuple(subspace_eigenvectors)
+        if hermitian and any(
+            isinstance(subspace, tuple) for subspace in subspace_eigenvectors
+        ):
+            raise ValueError(
+                "Hermitian problems do not accept `(right, left)` subspace pairs. "
+                "Pass a single basis per subspace instead."
+            )
+        right_subspaces, left_subspaces = _normalize_subspace_eigenvectors(
+            subspace_eigenvectors
+        )
+        _check_biorthonormality(right_subspaces, left_subspaces, atol=atol)
+        num_vectors = sum(vecs.shape[1] for vecs in right_subspaces)
+        dim = right_subspaces[0].shape[0]
         use_implicit = num_vectors < dim
 
     if use_implicit:
@@ -202,13 +248,22 @@ def block_diagonalize(
         if isinstance(h_0, sympy.MatrixBase):
             raise ValueError("Implicit mode is not supported with symbolic Hamiltonian.")
         assert subspace_eigenvectors is not None  # for mypy
+        assert right_subspaces is not None and left_subspaces is not None  # for mypy
+        if not hermitian and solve_sylvester is None and not direct_solver:
+            raise NotImplementedError(
+                "Non-Hermitian implicit mode does not support the KPM solver. "
+                "Use direct_solver=True or provide solve_sylvester."
+            )
         # Build solve_sylvester
-        if h_0.shape[0] != subspace_eigenvectors[0].shape[0]:
+        if h_0.shape[0] != right_subspaces[0].shape[0]:
             raise ValueError("`subspace_eigenvectors` does not match the shape of `h_0`.")
         if solve_sylvester is None:
-            if not all(isinstance(vecs, np.ndarray) for vecs in subspace_eigenvectors):
+            if not all(
+                isinstance(vecs, np.ndarray)
+                for vecs in (*right_subspaces, *left_subspaces)
+            ):
                 raise TypeError(
-                    "Implicit problem requires numpy arrays for eigenvectors."
+                    "Implicit problem requires numpy arrays for subspace vectors."
                 )
             if direct_solver:
                 direct_solver_options = {
@@ -222,12 +277,20 @@ def block_diagonalize(
                 ):
                     direct_solver_options["eigenvalue_atol"] = atol
                 solve_sylvester = solve_sylvester_direct(
-                    h_0, subspace_eigenvectors, **direct_solver_options
+                    h_0,
+                    list(subspace_eigenvectors),
+                    nonhermitian=not hermitian,
+                    **direct_solver_options,
                 )
             else:
+                if any(isinstance(subspace, tuple) for subspace in subspace_eigenvectors):
+                    raise NotImplementedError(
+                        "The implicit KPM solver does not support distinct left and right "
+                        "subspace vectors."
+                    )
                 solve_sylvester = solve_sylvester_KPM(
                     h_0,
-                    subspace_eigenvectors,
+                    right_subspaces,
                     solver_options=solver_options,
                 )
 
@@ -240,7 +303,7 @@ def block_diagonalize(
         implicit=use_implicit,
         symbols=symbols,
         atol=atol,
-        hermitian=True,
+        hermitian=hermitian,
     )
 
     if H.shape[0] == 1:
@@ -265,8 +328,10 @@ def block_diagonalize(
 
     zero_order = (0,) * H.n_infinite
 
-    for j in range(1, H.shape[0]):
-        for i in range(j):
+    for i in range(H.shape[0]):
+        for j in range(H.shape[1]):
+            if i == j or (hermitian and i > j):
+                continue
             block = H[(i, j, *zero_order)]
             if block is not zero:
                 if isinstance(block, (sympy.MatrixBase, sympy.Expr)):
@@ -363,6 +428,18 @@ def block_diagonalize(
 
     # Catch the solve_sylvester that uses the old signature without index.
     if len(signature(solve_sylvester).parameters) == 1:
+        if not hermitian:
+            raise NotImplementedError(
+                "Non-Hermitian problems require `solve_sylvester(Y, index)`. "
+                "Legacy one-argument Sylvester solvers are not supported."
+            )
+        warn(
+            "One-argument `solve_sylvester(Y)` is deprecated; use "
+            "`solve_sylvester(Y, index)` instead. It will be removed in "
+            "version 2.4.0.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         solve_sylvester = _preprocess_sylvester(solve_sylvester)
 
     if not isinstance(fully_diagonalize, dict):
@@ -400,7 +477,7 @@ def block_diagonalize(
                     raise ValueError(
                         "The values of fully_diagonalize dictionary must be numpy arrays."
                     )
-                if not (to_eliminate == to_eliminate.T).all():
+                if hermitian and not (to_eliminate == to_eliminate.T).all():
                     raise ValueError(
                         "The values of fully_diagonalize dictionary must be symmetric."
                     )
@@ -521,7 +598,7 @@ def block_diagonalize(
 
     outputs, _ = series_computation(
         {"H": H},
-        algorithm=main,
+        algorithm=algorithm,
         scope=scope,
         operator=operator,
     )
@@ -619,11 +696,16 @@ def operator_to_BlockSeries(
     name:
         Name of the operator.
     subspace_eigenvectors :
-        A tuple with sets of orthonormal eigenvectors to project the operator onto and
-        separate it into blocks. If some vectors are missing, the last block is defined
-        implicitly. Mutually exclusive with ``subspace_indices``. If neither
-        ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
-        BlockSeries is defined with a single block.
+        A tuple describing the subspaces onto which the operator is projected
+        and separated into blocks. Each entry may be either a single basis
+        ``V`` or, for non-Hermitian problems, a pair ``(R, L)`` of right and
+        left basis vectors, with the single-basis form understood as
+        ``(V, V)``. The non-Hermitian pair format ``(R, L)`` is only supported
+        when ``hermitian=False``. If some vectors are missing, the last block
+        is defined implicitly. Mutually exclusive with ``subspace_indices``.
+        If neither ``subspace_eigenvectors`` nor
+        ``subspace_indices`` are provided, the BlockSeries is defined with a
+        single block.
     subspace_indices :
         An array indicating which state belongs to which subspace. If there are two
         blocks, the labels are 0 for the A (effective) subspace and 1 for the B
@@ -631,7 +713,8 @@ def operator_to_BlockSeries(
         If neither ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
         BlockSeries is defined with a single block.
     implicit :
-        Whether to wrap the operator of the last subspace into a linear operator.
+        Whether to wrap the operator of the last subspace into a linear
+        operator.
     symbols :
         Symbols that label the perturbative parameters of a symbolic operator. The order
         of the symbols is mapped to the indices of the operator, see
@@ -642,6 +725,8 @@ def operator_to_BlockSeries(
         that the unperturbed operator is block-diagonal.
     hermitian :
         Whether the operator may be assumed to be Hermitian (for performance).
+        The non-Hermitian left/right pair form of ``subspace_eigenvectors``
+        requires ``hermitian=False``.
 
     Returns
     -------
@@ -655,7 +740,15 @@ def operator_to_BlockSeries(
         )
     to_split = subspace_eigenvectors is not None or subspace_indices is not None
 
-    operator = _unpack_blocks(_to_scalar_BlockSeries(operator, symbols, atol), atol)
+    operator = _unpack_blocks(
+        _to_scalar_BlockSeries(
+            operator,
+            symbols,
+            atol,
+            check_hermitian=hermitian,
+        ),
+        atol,
+    )
     operator.name = name or operator.name
 
     if operator.shape:
@@ -697,16 +790,40 @@ def operator_to_BlockSeries(
 
     if subspace_eigenvectors is not None:
         subspace_eigenvectors = tuple(subspace_eigenvectors)
+        if hermitian and any(
+            isinstance(subspace, tuple) for subspace in subspace_eigenvectors
+        ):
+            raise ValueError(
+                "Hermitian problems do not accept `(right, left)` subspace pairs. "
+                "Pass a single basis per subspace instead."
+            )
+        right_subspaces, left_subspaces = _normalize_subspace_eigenvectors(
+            subspace_eigenvectors
+        )
+    else:
+        right_subspaces = left_subspaces = None
 
     if implicit:
-        # Define subspace_eigenvectors for implicit
-        subspace_eigenvectors = (
-            *subspace_eigenvectors,
-            ComplementProjector(np.hstack(subspace_eigenvectors)),
+        assert right_subspaces is not None and left_subspaces is not None  # for mypy
+        implicit_projector = ComplementProjector(
+            np.hstack(right_subspaces),
+            np.hstack(left_subspaces),
+        )
+        right_projectors = (*right_subspaces, implicit_projector)
+        left_projectors = (
+            *(Dagger(left) for left in left_subspaces),
+            implicit_projector,
+        )
+    else:
+        right_projectors = right_subspaces
+        left_projectors = (
+            tuple(Dagger(left) for left in left_subspaces)
+            if left_subspaces is not None
+            else None
         )
 
     # Separation into subspace_eigenvectors
-    n_blocks = len(subspace_eigenvectors)
+    n_blocks = len(right_projectors)
 
     def op_eval(*index):
         left, right = index[:2]
@@ -717,12 +834,12 @@ def operator_to_BlockSeries(
             return zero
         if implicit and left == right == n_blocks - 1:
             original = aslinearoperator(original)
-        if subspace_eigenvectors is None:
+        if right_projectors is None or left_projectors is None:
             # No subspace_eigenvectors provided, return the original operator
             return original
 
         return _convert_if_zero(
-            Dagger(subspace_eigenvectors[left]) @ original @ subspace_eigenvectors[right],
+            left_projectors[left] @ original @ right_projectors[right],
             atol=atol,
         )
 
@@ -743,8 +860,11 @@ def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
     """Wrap the solve_sylvester_callable to handle index and zero values."""
 
     def wrapped(Y: Any, index: tuple[int, ...]) -> Any:
-        if index[:2] != (0, 1):
-            raise ValueError("Sylvester equation is only defined for (0, 1) blocks.")
+        if index[:2] not in {(0, 1), (1, 0)}:
+            raise ValueError(
+                "Legacy one-argument Sylvester solvers are only defined for "
+                "two-block off-diagonal terms."
+            )
 
         if isinstance(Y, BlockSeries):
             Y = Y[index]
@@ -802,9 +922,13 @@ def solve_sylvester_diagonal(
             index_checked.add(index[:2])
 
         if vecs_implicit is not None and index[1] == len(eigs) - 1:
-            # Needed for implicit mode with KPM
+            # Needed when the implicit block is returned in the original basis.
             energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
             return ((Y @ vecs_implicit) * energy_denominators) @ Dagger(vecs_implicit)
+        if vecs_implicit is not None and index[0] == len(eigs) - 1:
+            # Symmetric companion of the right-implicit case above.
+            energy_denominators = 1 / (eigs_A.reshape(-1, 1) - eigs_B)
+            return vecs_implicit @ ((Dagger(vecs_implicit) @ Y) * energy_denominators)
         if isinstance(Y, np.ndarray):
             energy_differences = eigs_A.reshape(-1, 1) - eigs_B
             with np.errstate(divide="ignore", invalid="ignore"):
@@ -886,7 +1010,6 @@ def solve_sylvester_KPM(
         h_0, eps=solver_options.get("eps", 0.01), lower_bounds=bounds_eigs
     )
     eigs_rescaled = [(eig - b) / a for eig in eigs[:-1]]
-    # We need to solve a transposed problem
     h_rescaled_T = h_rescaled.T
     # CSR format has a faster matrix-vector product
     if sparse.issparse(h_rescaled_T):
@@ -927,14 +1050,31 @@ def _group_close_energies(energies: np.ndarray, atol: float) -> list[np.ndarray]
     if not len(energies):
         return []
 
-    order = np.argsort(energies)
-    split_points = np.nonzero(np.diff(energies[order]) > atol)[0] + 1
-    return np.split(order, split_points)
+    if np.isrealobj(energies):
+        order = np.argsort(energies)
+        split_points = np.nonzero(np.diff(energies[order]) > atol)[0] + 1
+        return np.split(order, split_points)
+
+    points = np.column_stack((energies.real, energies.imag))
+    pairs = np.array(list(KDTree(points).query_pairs(r=atol)), dtype=int)
+    if len(pairs):
+        rows = np.concatenate((pairs[:, 0], pairs[:, 1]))
+        cols = np.concatenate((pairs[:, 1], pairs[:, 0]))
+        graph = sparse.coo_array(
+            (np.ones(len(rows), dtype=bool), (rows, cols)),
+            shape=(len(energies), len(energies)),
+        )
+    else:
+        graph = sparse.coo_array((len(energies), len(energies)), dtype=bool)
+    n_components, labels = sparse.csgraph.connected_components(graph, directed=False)
+    return [np.flatnonzero(labels == label) for label in range(n_components)]
 
 
 def solve_sylvester_direct(
-    h_0: sparse.spmatrix,
-    eigenvectors: list[np.ndarray],
+    h_0: sparse.spmatrix | sparse.sparray,
+    eigenvectors: list[DirectSubspaceBasis],
+    *,
+    nonhermitian: bool = False,
     **solver_options: dict,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Solve Sylvester equation using a direct sparse solver.
@@ -947,7 +1087,15 @@ def solve_sylvester_direct(
     h_0 :
         Unperturbed Hamiltonian of the system.
     eigenvectors :
-        Eigenvectors of the effective subspaces of the unperturbed Hamiltonian.
+        Bases of the explicit subspaces of the unperturbed Hamiltonian. Each
+        entry may be either a right basis ``V`` or, for non-Hermitian problems,
+        a pair ``(R, L)`` of right and left basis vectors, with ``V``
+        understood as ``(V, V)``. The direct solver requires these bases to be
+        given as NumPy arrays.
+    nonhermitian :
+        Whether to also prepare the left-implicit Green's functions needed by
+        the non-Hermitian algorithm. This is more expensive and unnecessary for
+        the Hermitian path.
     **solver_options :
         Keyword arguments for the direct solver. ``eigenvalue_atol`` controls
         how explicit eigenvalues are grouped into degenerate subspaces before
@@ -959,9 +1107,16 @@ def solve_sylvester_direct(
         Function that solves the corresponding Sylvester equation.
 
     """
-    projector = ComplementProjector(np.hstack(eigenvectors))
+    right_eigenvectors, left_eigenvectors = _normalize_subspace_eigenvectors(
+        tuple(eigenvectors)
+    )
+    projector = ComplementProjector(
+        np.hstack(right_eigenvectors),
+        np.hstack(left_eigenvectors),
+    )
     eigenvalues = [
-        np.diag(Dagger(subspace) @ h_0 @ subspace) for subspace in eigenvectors
+        np.diag(Dagger(left) @ h_0 @ right)
+        for right, left in zip(right_eigenvectors, left_eigenvectors, strict=True)
     ]
     factorization_options = dict(solver_options)
     deprecated_atol = factorization_options.pop("atol", None)
@@ -984,32 +1139,80 @@ def solve_sylvester_direct(
     if eigenvalue_atol is None:
         eigenvalue_atol = 1e-12
 
-    # Compute the Green's function of the transposed Hamiltonian because we are
-    # solving the equation from the right.
-    greens_functions = []
-    for subspace_eigenvalues, subspace_vectors in zip(eigenvalues, eigenvectors):
-        grouped_greens_functions = [None] * len(subspace_eigenvalues)
-        for group in _group_close_energies(subspace_eigenvalues, eigenvalue_atol):
-            greens_function = direct_greens_function(
-                h_0.T,
-                subspace_eigenvalues[group[0]],
-                kernel_vectors=subspace_vectors[:, group].conj(),
-                **factorization_options,
-            )
-            for i in group:
-                grouped_greens_functions[i] = greens_function
-        greens_functions.append(grouped_greens_functions)
+    def grouped_greens_functions(
+        operator: sparse.spmatrix,
+        right_kernel_subspaces: tuple[np.ndarray | sympy.MatrixBase, ...],
+        left_kernel_subspaces: tuple[np.ndarray | sympy.MatrixBase, ...],
+        conjugate_kernel: bool,
+    ) -> list[list[Callable[[np.ndarray], np.ndarray] | None]]:
+        greens_functions = []
+        for subspace_eigenvalues, right_kernel_subspace, left_kernel_subspace in zip(
+            eigenvalues,
+            right_kernel_subspaces,
+            left_kernel_subspaces,
+            strict=True,
+        ):
+            grouped = [None] * len(subspace_eigenvalues)
+            for group in _group_close_energies(subspace_eigenvalues, eigenvalue_atol):
+                kernel_vectors = right_kernel_subspace[:, group]
+                left_kernel_vectors = left_kernel_subspace[:, group]
+                if conjugate_kernel:
+                    kernel_vectors = kernel_vectors.conj()
+                    left_kernel_vectors = left_kernel_vectors.conj()
+                greens_function = direct_greens_function(
+                    operator,
+                    subspace_eigenvalues[group[0]],
+                    kernel_vectors=kernel_vectors,
+                    left_kernel_vectors=left_kernel_vectors,
+                    **factorization_options,
+                )
+                for i in group:
+                    grouped[i] = greens_function
+            greens_functions.append(grouped)
+        return greens_functions
+
+    # The non-Hermitian path needs both right- and left-implicit solves.
+    greens_functions_right = grouped_greens_functions(
+        h_0.T,
+        left_eigenvectors,
+        right_eigenvectors,
+        conjugate_kernel=True,
+    )
+    greens_functions_left = (
+        grouped_greens_functions(
+            h_0,
+            right_eigenvectors,
+            left_eigenvectors,
+            conjugate_kernel=False,
+        )
+        if nonhermitian
+        else None
+    )
 
     explicit_part = solve_sylvester_diagonal(eigenvalues, atol=eigenvalue_atol)
 
     def solve_sylvester(Y: np.ndarray, index: tuple[int, ...]) -> np.ndarray:
         if Y is zero:
             return zero
-        if index[1] < len(eigenvalues):
+        if index[0] < len(eigenvalues) and index[1] < len(eigenvalues):
             return explicit_part(Y, index)
 
+        if index[0] == len(eigenvalues):
+            if greens_functions_left is None:
+                raise NotImplementedError(
+                    "Left-implicit direct solves require solve_sylvester_direct("
+                    "..., nonhermitian=True)."
+                )
+            Y = projector @ Y
+            result = np.column_stack(
+                [-gf(vec) for gf, vec in zip(greens_functions_left[index[1]], Y.T)]
+            )
+            return projector @ result
+
         Y = Y @ projector
-        result = np.vstack([gf(vec) for gf, vec in zip(greens_functions[index[0]], Y)])
+        result = np.vstack(
+            [gf(vec) for gf, vec in zip(greens_functions_right[index[0]], Y)]
+        )
         return result @ projector
 
     return solve_sylvester
@@ -1198,7 +1401,7 @@ def _sympy_to_BlockSeries(
         if check_hermitian and expr.is_hermitian is False and not expr.atoms(Operator):
             raise ValueError("Operator must be Hermitian.")
 
-        expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)])
+        expr = expr * reduce(mul, [n**i for n, i in zip(symbols, index)], 1)
         return _convert_if_zero(expr)
 
     op = BlockSeries(
@@ -1214,6 +1417,7 @@ def _to_scalar_BlockSeries(
     operator: list | dict | BlockSeries | sympy.Matrix,
     symbols: Sequence[sympy.Symbol] = (),
     atol: float = 1e-12,
+    check_hermitian: bool = True,
 ) -> BlockSeries:
     """Normalize input to BlockSeries without transforming values.
 
@@ -1223,7 +1427,11 @@ def _to_scalar_BlockSeries(
     if isinstance(operator, BlockSeries):
         return operator
     if isinstance(operator, (sympy.Expr, sympy.MatrixBase)):
-        return _sympy_to_BlockSeries(operator, symbols)
+        return _sympy_to_BlockSeries(
+            operator,
+            symbols,
+            check_hermitian=check_hermitian,
+        )
     if isinstance(operator, list):
         operator = _list_to_dict(operator)
     if isinstance(operator, dict):
@@ -1296,6 +1504,36 @@ def _subspaces_from_indices(
         # Convert to dense arrays, otherwise they cannot multiply sympy matrices.
         return tuple(subspace.toarray() for subspace in subspace_eigenvectors)
     return subspace_eigenvectors
+
+
+def _normalize_subspace_eigenvectors(
+    subspace_eigenvectors: Eigenvectors,
+) -> tuple[tuple[Any, ...], tuple[Any, ...]]:
+    """Convert subspace input to explicit right/left basis tuples."""
+    right_subspaces = []
+    left_subspaces = []
+    for subspace in subspace_eigenvectors:
+        if isinstance(subspace, tuple):
+            if len(subspace) != 2:
+                raise ValueError(
+                    "Each entry of `subspace_eigenvectors` must be a basis or a "
+                    "`(right, left)` pair."
+                )
+            right, left = subspace
+        else:
+            right = left = subspace
+
+        if right.shape[0] != left.shape[0]:
+            raise ValueError(
+                "Left and right subspace vectors must have the same ambient dimension."
+            )
+        if right.shape[1] != left.shape[1]:
+            raise ValueError(
+                "Left and right subspace vectors must have the same number of vectors."
+            )
+        right_subspaces.append(right)
+        left_subspaces.append(left)
+    return tuple(right_subspaces), tuple(left_subspaces)
 
 
 def _extract_diagonal(
@@ -1372,16 +1610,28 @@ def _convert_if_zero(value: Any, atol: float = 1e-12):
     return value
 
 
-def _check_orthonormality(subspace_eigenvectors, atol=1e-12):
-    """Check that the eigenvectors are orthonormal."""
-    if isinstance(subspace_eigenvectors[0], np.ndarray):
-        all_vecs = np.hstack(subspace_eigenvectors)
-        overlap = Dagger(all_vecs) @ all_vecs
-        if not np.allclose(overlap, np.eye(all_vecs.shape[1]), atol=atol):
-            raise ValueError("Eigenvectors must be orthonormal.")
-    elif isinstance(subspace_eigenvectors[0], sympy.MatrixBase):
-        all_vecs = sympy.Matrix.hstack(*subspace_eigenvectors)
-        overlap = Dagger(all_vecs) @ all_vecs
+def _check_biorthonormality(right_subspaces, left_subspaces, atol=1e-12):
+    r"""Check that the explicit left/right subspaces satisfy L^\dagger R = I."""
+    if isinstance(right_subspaces[0], (np.ndarray, sparse.spmatrix, sparse.sparray)):
+        all_right = np.hstack(
+            [
+                subspace.toarray() if sparse.issparse(subspace) else subspace
+                for subspace in right_subspaces
+            ]
+        )
+        all_left = np.hstack(
+            [
+                subspace.toarray() if sparse.issparse(subspace) else subspace
+                for subspace in left_subspaces
+            ]
+        )
+        overlap = Dagger(all_left) @ all_right
+        if not np.allclose(overlap, np.eye(all_right.shape[1]), atol=atol):
+            raise ValueError("Subspace vectors must satisfy L^† R = I.")
+    elif isinstance(right_subspaces[0], sympy.MatrixBase):
+        all_right = sympy.Matrix.hstack(*right_subspaces)
+        all_left = sympy.Matrix.hstack(*left_subspaces)
+        overlap = Dagger(all_left) @ all_right
         # Use sympy three-valued logic
-        if sympy.Eq(overlap, sympy.eye(all_vecs.shape[1])) == False:  # noqa: E712
-            raise ValueError("Eigenvectors must be orthonormal.")
+        if sympy.Eq(overlap, sympy.eye(all_right.shape[1])) == False:  # noqa: E712
+            raise ValueError("Subspace vectors must satisfy L^† R = I.")

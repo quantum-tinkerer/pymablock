@@ -109,3 +109,67 @@ def main():
         pass
 
     return "H_tilde", "U", "U†"
+
+
+def nonhermitian():
+    with "H'_diag":
+        start = 0
+        if diagonal:
+            "H"
+
+    with "H'_offdiag":
+        start = 0
+        if offdiagonal:
+            "H"
+
+    with "U'":
+        start = 0
+        if diagonal:
+            "U_inv' @ U'" / -2
+        if offdiagonal:
+            solve_sylvester("X" - "H'_diag @ U'" + "U' @ H'_diag")
+
+    with "U_inv'":
+        start = 0
+        -"U'" - "U_inv' @ U'"
+
+    with "U":
+        start = 1
+        "U'"
+
+    with "U†":
+        start = 1
+        "U_inv'"
+
+    with "X":
+        start = 0
+        if offdiagonal:
+            -("H'_offdiag" + "H'_offdiag @ U'" + "U_inv' @ B")
+        if diagonal:
+            "H'_diag @ U'" - "U' @ H'_diag"
+
+    with "B":
+        start = 0
+        "X" + "H'_offdiag" + "H'_offdiag @ U'"
+
+    with "H_tilde":
+        start = "H_0"
+        if diagonal:
+            "H'_diag" + "B" + "U_inv' @ B"
+
+    with "U_inv' @ U'":
+        pass
+
+    with "H'_diag @ U'":
+        pass
+
+    with "U' @ H'_diag":
+        pass
+
+    with "H'_offdiag @ U'":
+        pass
+
+    with "U_inv' @ B":
+        pass
+
+    return "H_tilde", "U", "U†"
