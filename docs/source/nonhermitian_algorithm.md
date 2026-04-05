@@ -14,7 +14,14 @@ kernelspec:
 # Non-Hermitian algorithm
 
 This page describes the non-Hermitian extension of Pymablock's [main algorithm](algorithms.md).
-Unlike in Hermitian block-diagonalization, the inverse transformation is not the adjoint of the forward transformation, and therefore we track it explicitly.
+Using it requires an extra flag:
+
+```python
+H_tilde, U, U_inv = block_diagonalize(..., hermitian=False)
+```
+
+Here the third returned series is the perturbative inverse of $U$.
+This is because unlike in Hermitian block-diagonalization, the inverse transformation is not the adjoint of the forward transformation and we track it explicitly.
 
 The overall structure is the same:
 
@@ -25,13 +32,6 @@ The overall structure is the same:
 
 Throughout this page, we use the notation from [the main algorithm page](algorithms.md).
 
-In the API, this path is selected by
-
-```python
-H_tilde, U, U_inv = block_diagonalize(..., hermitian=False)
-```
-
-The third returned series is the perturbative inverse of $U$.
 
 ## Problem statement
 
