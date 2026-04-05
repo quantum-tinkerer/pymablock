@@ -573,8 +573,8 @@ def test_block_diagonalize_nonhermitian_rejects_legacy_two_block_solver():
 
 def test_block_diagonalize_nonhermitian_accepts_bare_sympy_matrix():
     x = sympy.Symbol("x")
-    H_tilde, *_ = block_diagonalize(
-        sympy.Matrix([[1, x], [0, 2]]),
+    H_tilde, U, U_inv = block_diagonalize(
+        sympy.Matrix([[1 + x, x], [0, 2]]),
         symbols=(x,),
         subspace_indices=[0, 1],
         hermitian=False,
@@ -582,6 +582,13 @@ def test_block_diagonalize_nonhermitian_accepts_bare_sympy_matrix():
 
     assert H_tilde[(0, 1, 1)] is zero
     assert H_tilde[(1, 0, 1)] is zero
+    assert H_tilde[(0, 1, 2)] is zero
+    assert H_tilde[(1, 0, 2)] is zero
+
+    assert U[(0, 1, 1)] == sympy.Matrix([[x]])
+    assert U[(0, 1, 2)] == sympy.Matrix([[x**2]])
+    assert U_inv[(0, 1, 1)] == sympy.Matrix([[-x]])
+    assert U_inv[(0, 1, 2)] == sympy.Matrix([[-(x**2)]])
 
 
 @pytest.mark.parametrize("index", [(0, 1), (1, 0)])
