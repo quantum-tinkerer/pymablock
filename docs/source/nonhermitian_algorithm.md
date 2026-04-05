@@ -55,10 +55,8 @@ with
 \mathcal{H}_S \equiv H_0+\mathcal{H}'_S.
 :::
 
-Here $S$ denotes the selected part and $R$ the remainder to eliminate, exactly
-as in [the main algorithm](algorithms.md).
-Since $\mathcal{U}^{-1}\neq \mathcal{U}^{\dagger}$ in general, the left and
-right eigenvectors need not coincide.
+Here $S$ denotes the selected part and $R$ the remainder to eliminate, exactly as in [the main algorithm](algorithms.md).
+Since $\mathcal{U}^{-1}\neq \mathcal{U}^{\dagger}$ in general, the left and right eigenvectors need not coincide.
 
 ## Working variables
 
@@ -118,8 +116,7 @@ Equation {eq}`nh:G_rec` then becomes
 \mathcal{U}'^{\dagger}+\mathcal{U}'+\mathcal{U}'^{\dagger}\mathcal{U}'=0,
 :::
 
-This is exactly the Hermitian unitarity recursion from
-[the main algorithm page](algorithms.md).
+This is exactly the Hermitian unitarity recursion from [the main algorithm page](algorithms.md).
 
 We now decompose
 
@@ -148,16 +145,13 @@ The gauge condition becomes
 \mathcal{V}_S=0.
 :::
 
-So, in the Hermitian limit, the non-Hermitian construction gives the same gauge
-choice and recurrence for the selected part.
+So, in the Hermitian limit, the non-Hermitian construction gives the same gauge choice and recurrence for the selected part.
 ::::
 
 ## Optimized transformed Hamiltonian
 
-As in [the main algorithm](algorithms.md), the implementation avoids
-unnecessary products by $H_0$.
-Here we skip the intermediate steps from the Hermitian derivation and derive
-the optimized form directly.
+As in [the main algorithm](algorithms.md), the implementation avoids unnecessary products by $H_0$.
+Here we skip the intermediate steps from the Hermitian derivation and derive the optimized form directly.
 
 We define
 
@@ -170,11 +164,7 @@ We define
 \mathcal{B}\equiv\mathcal{X}+\mathcal{H}'_R+\mathcal{A}.
 :::
 
-Starting from
-$\tilde{\mathcal{H}}=(1+\mathcal{G})(\mathcal{H}_S+\mathcal{H}'_R)(1+\mathcal{U}')$,
-we substitute
-$\mathcal{H}_S\mathcal{U}'=\mathcal{U}'\mathcal{H}_S+\mathcal{X}$ and use
-Eq. {eq}`nh:G_rec` to cancel the terms multiplied by $\mathcal{H}_S$.
+Starting from $\tilde{\mathcal{H}}=(1+\mathcal{G})(\mathcal{H}_S+\mathcal{H}'_R)(1+\mathcal{U}')$, we substitute $\mathcal{H}_S\mathcal{U}'=\mathcal{U}'\mathcal{H}_S+\mathcal{X}$ and use Eq. {eq}`nh:G_rec` to cancel the terms multiplied by $\mathcal{H}_S$.
 This gives
 
 :::{math}
@@ -182,8 +172,7 @@ This gives
 \tilde{\mathcal{H}}=\mathcal{H}_S+\mathcal{B}+\mathcal{G}\mathcal{B}.
 :::
 
-Once $\mathcal{X}$, $\mathcal{A}$, and $\mathcal{B}$ are known, the effective
-Hamiltonian can be assembled without extra products by $H_0$.
+Once $\mathcal{X}$, $\mathcal{A}$, and $\mathcal{B}$ are known, the effective Hamiltonian can be assembled without extra products by $H_0$.
 
 ## Elimination condition and Sylvester solve
 
@@ -195,17 +184,14 @@ The condition $\tilde{\mathcal{H}}_R=0$ implies that
 :::
 
 The selected part of $\mathcal{X}$ follows directly from its definition.
-Since $H_0$ is selected and diagonal in the unperturbed basis,
-$[H_0,\mathcal{U}']$ has no selected part, so
+Since $H_0$ is selected and diagonal in the unperturbed basis, $[H_0,\mathcal{U}']$ has no selected part, so
 
 :::{math}
 :label: nh:XS_def
 \mathcal{X}_S=[\mathcal{H}'_S,\mathcal{U}']_S.
 :::
 
-For the remaining part, we split the commutator
-$\mathcal{X}=[\mathcal{H}_S,\mathcal{U}']=
-[H_0,\mathcal{U}']+[\mathcal{H}'_S,\mathcal{U}']$.
+For the remaining part, we split the commutator $\mathcal{X}=[\mathcal{H}_S,\mathcal{U}']=[H_0,\mathcal{U}']+[\mathcal{H}'_S,\mathcal{U}']$.
 This gives the Sylvester equation
 
 :::{math}
@@ -218,8 +204,7 @@ So the nontrivial linear solve still appears only once per perturbative order.
 
 ## Implementation summary
 
-At order $\mathbf{n}$, this part of the implementation is easiest to read in
-three steps:
+At order $\mathbf{n}$, this part of the implementation is easiest to read in three steps:
 
 1. Introduce the series that appear repeatedly.
 2. Evaluate the recurrence from top to bottom using Cauchy products.
@@ -259,16 +244,12 @@ With this notation, the order-by-order recurrence is
 :::
 
 The last line is the only Sylvester solve.
-At each perturbative order, Eq. {eq}`nh:closed_recs` is closed in
-$\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}$
-and determines these quantities from lower orders.
-Equation {eq}`nh:closed_defs` then yields
-$\tilde{\mathcal{H}}_{\mathbf{n},S}$.
+At each perturbative order, Eq. {eq}`nh:closed_recs` is closed in $\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}$ and determines these quantities from lower orders.
+Equation {eq}`nh:closed_defs` then yields $\tilde{\mathcal{H}}_{\mathbf{n},S}$.
 
 ## Implicit mode
 
-The [Hermitian implicit construction](algorithms.md) assumes that the explicit subspace is
-described by one orthonormal basis $\Psi_E$.
+The [Hermitian implicit construction](algorithms.md) assumes that the explicit subspace is described by one orthonormal basis $\Psi_E$.
 The missing block is then represented by the orthogonal complement
 
 :::{math}
@@ -276,8 +257,7 @@ The missing block is then represented by the orthogonal complement
 Q = 1 - \Psi_E \Psi_E^\dagger.
 :::
 
-For a genuinely non-Hermitian $H_0$, we instead use biorthogonal right and left
-bases:
+For a genuinely non-Hermitian $H_0$, we instead use biorthogonal right and left bases:
 
 :::{math}
 :label: nh:implicit_biorth_basis
@@ -286,8 +266,7 @@ R_E,\;L_E,
 L_E^\dagger R_E = 1,
 :::
 
-The columns of $R_E$ span the explicit subspace, and the columns of $L_E$ span
-its dual.
+The columns of $R_E$ span the explicit subspace, and the columns of $L_E$ span its dual.
 The projector onto this subspace and its complement are
 
 :::{math}
@@ -297,8 +276,7 @@ P_E = R_E L_E^\dagger,
 Q = 1 - R_E L_E^\dagger.
 :::
 
-In general this projector is oblique rather than orthogonal, so it is not
-self-adjoint.
+In general this projector is oblique rather than orthogonal, so it is not self-adjoint.
 The block projections become
 
 :::{math}
@@ -312,8 +290,7 @@ H_{Qi} = Q H R_i,
 H_{QQ} = Q H Q.
 :::
 
-The Sylvester equations keep the same structure as in the Hermitian implicit
-derivation, but they use this oblique $Q$ and the explicit energies
+The Sylvester equations keep the same structure as in the Hermitian implicit derivation, but they use this oblique $Q$ and the explicit energies
 
 :::{math}
 :label: nh:implicit_biorth_energies
