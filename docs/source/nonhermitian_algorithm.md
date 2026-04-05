@@ -13,8 +13,8 @@ kernelspec:
 
 # Non-Hermitian algorithm
 
-This page describes the non-Hermitian variant of Pymablock's [main algorithm](algorithms.md).
-Differently than in Hermitian block-diagonalization, the inverse transformation is not the adjoint of the forward transformation, and therefore we must track it explicitly.
+This page describes the non-Hermitian extension of Pymablock's [main algorithm](algorithms.md).
+Unlike in Hermitian block-diagonalization, the inverse transformation is not the adjoint of the forward transformation, and therefore we track it explicitly.
 
 The overall structure is the same:
 
@@ -62,8 +62,8 @@ right eigenvectors need not coincide.
 
 ## Working variables
 
-Like in the Hermitian case, we separate the transformation into a zeroth order identity and a correction to write each series as a Cauchy product of other series.
-We do this by introducing $\mathcal{U}'$ as the correction to the transformation $\mathcal{U}$ and $\mathcal{G}$ as the correction to its inverse $\mathcal{U}^{-1}$:
+Like in the Hermitian case, we separate the transformation into identity at zeroth ordwer and a correction, which allows us to define recursive relation expressing all series as a Cauchy product of other series.
+Specifically, we introduce $\mathcal{U}'$ as the correction of the transformation $\mathcal{U}$ and $\mathcal{G}$ as the correction of its inverse $\mathcal{U}^{-1}$:
 
 :::{math}
 :label: nh:UG_def
@@ -81,33 +81,28 @@ The inverse constraint then becomes
 \mathcal{G}=-\mathcal{U}'-\mathcal{G}\mathcal{U}'.
 :::
 
-Since both $\mathcal{U}'$ and $\mathcal{G}$ are series that start at first order, this is a
-closed recurrence for $\mathcal{G}$ once $\mathcal{U}'$ is known.
+Since both series $\mathcal{U}'$ and $\mathcal{G}$ start at first order, this is a closed recurrence for $\mathcal{G}$ once $\mathcal{U}'$ is known.
 
-Additionally, we fix the gauge by requiring the selected part of
-$\mathcal{U}-\mathcal{U}^{-1}$ to vanish:
+Similar to the Hermitian case, the block-diagonalizing transformation is not unique.
+We fix the gauge by requiring that the selected part of $\mathcal{U}-\mathcal{U}^{-1}$ vanishes:
 
 :::{math}
 :label: nh:gauge
 (\mathcal{U}'-\mathcal{G})_S=0.
 :::
 
-After combining Eqs. {eq}`nh:G_rec` and {eq}`nh:gauge`, the selected part of the
-correction is
+Equations {eq}`nh:G_rec` and {eq}`nh:gauge` together fix the selected part of the correction:
 
 :::{math}
 :label: nh:Uprime_S
 \mathcal{U}'_S=-\frac{1}{2}(\mathcal{G}\mathcal{U}')_S.
 :::
 
-This matches the role played by the selected Hermitian part of the
-transformation in the Hermitian algorithm.
+This matches the role played by the selected Hermitian part of the transformation in the Hermitian algorithm.
 
 ::::{admonition} Equivalence to the Hermitian algorithm
 :class: dropdown info
-If $\mathcal{H}$ is Hermitian and
-$\mathcal{U}^{-1}=\mathcal{U}^{\dagger}$, the construction reduces to the
-Hermitian algorithm.
+If $\mathcal{H}$ is Hermitian and $\mathcal{U}^{-1}=\mathcal{U}^{\dagger}$, the construction reduces to the Hermitian algorithm.
 
 In that case we set
 
@@ -192,7 +187,7 @@ Hamiltonian can be assembled without extra products by $H_0$.
 
 ## Elimination condition and Sylvester solve
 
-The condition $\tilde{\mathcal{H}}_R=0$ implies:
+The condition $\tilde{\mathcal{H}}_R=0$ implies that
 
 :::{math}
 :label: nh:XR_rec
