@@ -13,8 +13,9 @@ kernelspec:
 
 # Non-Hermitian algorithm
 
-This page describes the non-Hermitian variant of the algorithm.
-It extends the [main algorithm](algorithms.md) to non-Hermitian problems.
+This page describes the non-Hermitian variant of Pymablock's [main algorithm](algorithms.md).
+Differently than in Hermitian block-diagonalization, the inverse transformation is not the adjoint of the forward transformation, and therefore we must track it explicitly.
+
 The overall structure is the same:
 
 - split the Hamiltonian into selected and remaining parts,
@@ -22,9 +23,7 @@ The overall structure is the same:
 - avoid unnecessary products by $H_0$,
 - reduce each perturbative order to one Sylvester solve.
 
-We use the notation from [the main algorithm page](algorithms.md).
-The main difference is that the inverse transformation must be tracked
-explicitly.
+Throughout this page, we use the notation from [the main algorithm page](algorithms.md).
 
 In the API, this path is selected by
 
@@ -63,8 +62,8 @@ right eigenvectors need not coincide.
 
 ## Working variables
 
-Both $\mathcal{U}$ and $\mathcal{U}^{-1}$ start with identity zeroth order, so
-we write
+Like in the Hermitian case, we separate the transformation into a zeroth order identity and a correction to write each series as a Cauchy product of other series.
+We do this by introducing $\mathcal{U}'$ as the correction to the transformation $\mathcal{U}$ and $\mathcal{G}$ as the correction to its inverse $\mathcal{U}^{-1}$:
 
 :::{math}
 :label: nh:UG_def
@@ -82,10 +81,10 @@ The inverse constraint then becomes
 \mathcal{G}=-\mathcal{U}'-\mathcal{G}\mathcal{U}'.
 :::
 
-Since both $\mathcal{U}'$ and $\mathcal{G}$ start at first order, this is a
+Since both $\mathcal{U}'$ and $\mathcal{G}$ are series that start at first order, this is a
 closed recurrence for $\mathcal{G}$ once $\mathcal{U}'$ is known.
 
-We fix the gauge by requiring the selected part of
+Additionally, we fix the gauge by requiring the selected part of
 $\mathcal{U}-\mathcal{U}^{-1}$ to vanish:
 
 :::{math}
@@ -193,7 +192,7 @@ Hamiltonian can be assembled without extra products by $H_0$.
 
 ## Elimination condition and Sylvester solve
 
-The condition $\tilde{\mathcal{H}}_R=0$ implies
+The condition $\tilde{\mathcal{H}}_R=0$ implies:
 
 :::{math}
 :label: nh:XR_rec
@@ -227,8 +226,8 @@ So the nontrivial linear solve still appears only once per perturbative order.
 At order $\mathbf{n}$, this part of the implementation is easiest to read in
 three steps:
 
-1. Introduce the composite quantities that appear repeatedly.
-2. Evaluate the recurrence from top to bottom.
+1. Introduce the series that appear repeatedly.
+2. Evaluate the recurrence from top to bottom using Cauchy products.
 3. Use the result to obtain $\tilde{\mathcal{H}}_{\mathbf{n},S}$.
 
 The first block defines the composite quantities.
