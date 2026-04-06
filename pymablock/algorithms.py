@@ -162,13 +162,9 @@ def nonhermitian():
         if diagonal:
             "V @ H'_diag" - "H'_diag @ V" + "Z" - "A"
 
-    with "X":
-        start = 0
-        "B" + "H'_offdiag" + "A"
-
     with "Y":
         start = 0
-        "X" - "Z"
+        "B" + "H'_offdiag" + "A" - "Z"
 
     with "B_plus":
         start = 0
