@@ -122,16 +122,22 @@ def nonhermitian():
         if offdiagonal:
             "H"
 
+    with "V":
+        start = 0
+        if offdiagonal:
+            -solve_sylvester(("Y" - "V @ H'_diag" + "H'_diag @ V"))
+
+    with "W":
+        start = 0
+        "U_inv' @ U'" / -2
+
     with "U'":
         start = 0
-        if diagonal:
-            "U_inv' @ U'" / -2
-        if offdiagonal:
-            solve_sylvester("X" - "H'_diag @ U'" + "U' @ H'_diag")
+        "W" + "V"
 
     with "U_inv'":
         start = 0
-        -"U'" - "U_inv' @ U'"
+        "W" - "V"
 
     with "U":
         start = 1
@@ -141,35 +147,57 @@ def nonhermitian():
         start = 1
         "U_inv'"
 
-    with "X":
+    with "A":
         start = 0
-        if offdiagonal:
-            -("H'_offdiag" + "H'_offdiag @ U'" + "U_inv' @ B")
-        if diagonal:
-            "H'_diag @ U'" - "U' @ H'_diag"
+        "H'_offdiag @ U'"
+
+    with "Z":
+        start = 0
+        ("A" - "U_inv' @ H'_offdiag" - "U_inv' @ B" - "B_plus @ U_inv'") / 2
 
     with "B":
         start = 0
-        "X" + "H'_offdiag" + "H'_offdiag @ U'"
+        if offdiagonal:
+            -"U_inv' @ B"
+        if diagonal:
+            "V @ H'_diag" - "H'_diag @ V" + "Z" - "A"
+
+    with "X":
+        start = 0
+        "B" + "H'_offdiag" + "A"
+
+    with "Y":
+        start = 0
+        "X" - "Z"
+
+    with "B_plus":
+        start = 0
+        "B" + "U_inv' @ B"
 
     with "H_tilde":
         start = "H_0"
         if diagonal:
-            "H'_diag" + "B" + "U_inv' @ B"
+            "H'_diag" - "B_plus"
 
     with "U_inv' @ U'":
         pass
 
-    with "H'_diag @ U'":
+    with "H'_diag @ V":
         pass
 
-    with "U' @ H'_diag":
+    with "V @ H'_diag":
         pass
 
     with "H'_offdiag @ U'":
         pass
 
     with "U_inv' @ B":
+        pass
+
+    with "B_plus @ U_inv'":
+        pass
+
+    with "U_inv' @ H'_offdiag":
         pass
 
     return "H_tilde", "U", "U†"

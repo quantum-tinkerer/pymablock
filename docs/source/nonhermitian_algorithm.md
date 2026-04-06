@@ -60,8 +60,8 @@ Since $\mathcal{U}^{-1}\neq \mathcal{U}^{\dagger}$ in general, the left and righ
 
 ## Working variables
 
-Like in the Hermitian case, we separate the transformation into identity at zeroth ordwer and a correction, which allows us to define recursive relation expressing all series as a Cauchy product of other series.
-Specifically, we introduce $\mathcal{U}'$ as the correction of the transformation $\mathcal{U}$ and $\mathcal{G}$ as the correction of its inverse $\mathcal{U}^{-1}$:
+Like in the Hermitian case, we separate the transformation into identity at zeroth order and a correction, which allows us to define recurrence relations through Cauchy products.
+We first introduce $\mathcal{U}'$ as the correction of the transformation $\mathcal{U}$ and $\mathcal{G}$ as the correction of its inverse $\mathcal{U}^{-1}$:
 
 :::{math}
 :label: nh:UG_def
@@ -89,14 +89,42 @@ We fix the gauge by requiring that the selected part of $\mathcal{U}-\mathcal{U}
 (\mathcal{U}'-\mathcal{G})_S=0.
 :::
 
-Equations {eq}`nh:G_rec` and {eq}`nh:gauge` together fix the selected part of the correction:
+To harmonize the notation with the Hermitian algorithm, we now define
 
 :::{math}
-:label: nh:Uprime_S
-\mathcal{U}'_S=-\frac{1}{2}(\mathcal{G}\mathcal{U}')_S.
+:label: nh:WV_general
+\mathcal{V}\equiv\frac{\mathcal{U}'-\mathcal{G}}{2},
+\qquad
+\mathcal{W}\equiv\frac{\mathcal{U}'+\mathcal{G}}{2}.
 :::
 
-This matches the role played by the selected Hermitian part of the transformation in the Hermitian algorithm.
+Using Eq. {eq}`nh:G_rec`, the second variable can also be written as
+
+:::{math}
+:label: nh:W_rec
+\mathcal{W}=-\frac{1}{2}\mathcal{G}\mathcal{U}'.
+:::
+
+So the forward and inverse corrections are decomposed exactly as in the Hermitian page:
+
+:::{math}
+:label: nh:UG_from_WV
+\mathcal{U}'=\mathcal{W}+\mathcal{V},
+\qquad
+\mathcal{G}=\mathcal{W}-\mathcal{V}.
+:::
+
+Unlike in the Hermitian case, $\mathcal{W}$ need not be Hermitian and
+$\mathcal{V}$ need not be anti-Hermitian.
+What survives is the gauge condition:
+
+:::{math}
+:label: nh:Vgauge
+\mathcal{V}_S=0.
+:::
+
+Equations {eq}`nh:W_rec` and {eq}`nh:Vgauge` are the non-Hermitian analogues of the
+Hermitian recurrences for $\mathcal{W}$ and $\mathcal{V}$.
 
 ::::{admonition} Equivalence to the Hermitian algorithm
 :class: dropdown info
@@ -118,7 +146,7 @@ Equation {eq}`nh:G_rec` then becomes
 
 This is exactly the Hermitian unitarity recursion from [the main algorithm page](algorithms.md).
 
-We now decompose
+Equations {eq}`nh:WV_general` and {eq}`nh:UG_from_WV` reduce to the Hermitian split
 
 :::{math}
 :label: nh:WV_def
@@ -129,7 +157,7 @@ We now decompose
 \mathcal{V}^{\dagger}=-\mathcal{V},
 :::
 
-Equation {eq}`nh:herm_limit_unitarity` then gives
+and Eq. {eq}`nh:W_rec` becomes
 
 :::{math}
 :label: nh:herm_limit_W
@@ -145,7 +173,8 @@ The gauge condition becomes
 \mathcal{V}_S=0.
 :::
 
-So, in the Hermitian limit, the non-Hermitian construction gives the same gauge choice and recurrence for the selected part.
+So, in the Hermitian limit, the non-Hermitian construction gives the same variables,
+gauge choice, and recurrence for the selected part as the Hermitian algorithm.
 ::::
 
 ## Optimized transformed Hamiltonian
@@ -157,19 +186,19 @@ We define
 
 :::{math}
 :label: nh:XAB_defs
-\mathcal{X}\equiv[\mathcal{H}_S,\mathcal{U}'],
+\mathcal{X}\equiv[\mathcal{U}',\mathcal{H}_S],
 \qquad
 \mathcal{A}\equiv\mathcal{H}'_R\mathcal{U}',
 \qquad
-\mathcal{B}\equiv\mathcal{X}+\mathcal{H}'_R+\mathcal{A}.
+\mathcal{B}\equiv\mathcal{X}-\mathcal{H}'_R-\mathcal{A}.
 :::
 
-Starting from $\tilde{\mathcal{H}}=(1+\mathcal{G})(\mathcal{H}_S+\mathcal{H}'_R)(1+\mathcal{U}')$, we substitute $\mathcal{H}_S\mathcal{U}'=\mathcal{U}'\mathcal{H}_S+\mathcal{X}$ and use Eq. {eq}`nh:G_rec` to cancel the terms multiplied by $\mathcal{H}_S$.
+Starting from $\tilde{\mathcal{H}}=(1+\mathcal{G})(\mathcal{H}_S+\mathcal{H}'_R)(1+\mathcal{U}')$, we substitute $\mathcal{H}_S\mathcal{U}'=\mathcal{U}'\mathcal{H}_S-\mathcal{X}$ and use Eq. {eq}`nh:G_rec` to cancel the terms multiplied by $\mathcal{H}_S$.
 This gives
 
 :::{math}
 :label: nh:Htilde_B
-\tilde{\mathcal{H}}=\mathcal{H}_S+\mathcal{B}+\mathcal{G}\mathcal{B}.
+\tilde{\mathcal{H}}=\mathcal{H}_S-\mathcal{B}-\mathcal{G}\mathcal{B}.
 :::
 
 Once $\mathcal{X}$, $\mathcal{A}$, and $\mathcal{B}$ are known, the effective Hamiltonian can be assembled without extra products by $H_0$.
@@ -179,28 +208,77 @@ Once $\mathcal{X}$, $\mathcal{A}$, and $\mathcal{B}$ are known, the effective Ha
 The condition $\tilde{\mathcal{H}}_R=0$ implies that
 
 :::{math}
-:label: nh:XR_rec
-\mathcal{X}_R=-(\mathcal{H}'_R+\mathcal{A}+\mathcal{G}\mathcal{B})_R.
+:label: nh:BR_rec
+\mathcal{B}_R=-(\mathcal{G}\mathcal{B})_R.
 :::
 
-The selected part of $\mathcal{X}$ follows directly from its definition.
-Since $H_0$ is selected and diagonal in the unperturbed basis, $[H_0,\mathcal{U}']$ has no selected part, so
+To harmonize the derivation with the Hermitian algorithm, we split
 
 :::{math}
-:label: nh:XS_def
-\mathcal{X}_S=[\mathcal{H}'_S,\mathcal{U}']_S.
+:label: nh:YZ_def
+\mathcal{X}\equiv[\mathcal{U}',\mathcal{H}_S]=\mathcal{Y}+\mathcal{Z},
+\qquad
+\mathcal{Y}\equiv[\mathcal{V},\mathcal{H}_S],
+\qquad
+\mathcal{Z}\equiv[\mathcal{W},\mathcal{H}_S].
 :::
 
-For the remaining part, we split the commutator $\mathcal{X}=[\mathcal{H}_S,\mathcal{U}']=[H_0,\mathcal{U}']+[\mathcal{H}'_S,\mathcal{U}']$.
-This gives the Sylvester equation
+Using Eq. {eq}`nh:W_rec`, the $\mathcal{W}$ commutator can be written entirely in
+terms of reusable Cauchy products. It is convenient to define
 
 :::{math}
-:label: nh:Sylvester_Uprime
-[H_0,\mathcal{U}']_R
-=\mathcal{X}_R-[\mathcal{H}'_S,\mathcal{U}']_R.
+:label: nh:Bplus_def
+\mathcal{B}_+ \equiv \mathcal{B}+\mathcal{G}\mathcal{B}.
 :::
 
-So the nontrivial linear solve still appears only once per perturbative order.
+Then
+
+:::{math}
+:label: nh:Z_rec
+\mathcal{Z}
+= \frac{1}{2}\left(
+- \mathcal{G}\mathcal{H}'_R
++ \mathcal{A}
+- \mathcal{G}\mathcal{B}
+- \mathcal{B}_+\mathcal{G}
+\right).
+:::
+
+Since $\mathcal{B}=\mathcal{X}-\mathcal{H}'_R-\mathcal{A}$, the remaining part
+$\mathcal{Y}=[\mathcal{V},\mathcal{H}_S]$ is
+
+:::{math}
+:label: nh:Y_rec
+\mathcal{Y}=\mathcal{B}+\mathcal{H}'_R+\mathcal{A}-\mathcal{Z}.
+:::
+
+The gauge condition {eq}`nh:Vgauge` implies $[\mathcal{V},H_0]_S=0$.
+Therefore the selected part is fixed exactly as in the Hermitian algorithm:
+
+:::{math}
+:label: nh:Y_S
+\mathcal{Y}_S=[\mathcal{V},\mathcal{H}'_S]_S.
+:::
+
+Equivalently, since $\mathcal{B}=\mathcal{Y}+\mathcal{Z}-\mathcal{H}'_R-\mathcal{A}$,
+
+:::{math}
+:label: nh:BS_rec
+\mathcal{B}_S=\left([\mathcal{V},\mathcal{H}'_S] + \mathcal{Z} - \mathcal{A}\right)_S.
+:::
+
+For the remaining part we use
+
+:::{math}
+:label: nh:Sylvester_V
+[\mathcal{V},H_0]_R
+= \mathcal{Y}_R-[\mathcal{V},\mathcal{H}'_S]_R
+= \left(\mathcal{B}+\mathcal{H}'_R+\mathcal{A}-\mathcal{Z}-[\mathcal{V},\mathcal{H}'_S]\right)_R.
+:::
+
+Equation {eq}`nh:Sylvester_V` is the only Sylvester solve.
+All other terms are Cauchy products between series that start at first order, so the
+algorithm still avoids extra products by $H_0$ outside the Sylvester step itself.
 
 ## Implementation summary
 
@@ -219,10 +297,18 @@ The first block defines the composite quantities.
 \mathcal{H}_S \equiv H_0 + \mathcal{H}'_S, \\
 \mathcal{U} &\equiv 1+\mathcal{U}', \\
 \mathcal{U}^{-1} &\equiv 1+\mathcal{G}, \\
-\mathcal{X} &\equiv [\mathcal{H}_S,\mathcal{U}'], \\
+\mathcal{V} &\equiv \frac{\mathcal{U}'-\mathcal{G}}{2}, \\
+\mathcal{W} &\equiv \frac{\mathcal{U}'+\mathcal{G}}{2}
+= -\frac{1}{2}\mathcal{G}\mathcal{U}', \\
+\mathcal{X} &\equiv [\mathcal{U}',\mathcal{H}_S]
+= \mathcal{Y} + \mathcal{Z}, \\
 \mathcal{A} &\equiv \mathcal{H}'_R\mathcal{U}', \\
-\mathcal{B} &\equiv \mathcal{X}+\mathcal{H}'_R+\mathcal{A}, \\
-\tilde{\mathcal{H}}_S &\equiv \mathcal{H}_S + (\mathcal{B}+\mathcal{G}\mathcal{B})_S,
+\mathcal{Y} &\equiv [\mathcal{V},\mathcal{H}_S], \\
+\mathcal{Z} &\equiv [\mathcal{W},\mathcal{H}_S], \\
+\mathcal{B} &\equiv \mathcal{U}\mathcal{H}_S - \mathcal{H}\mathcal{U}
+= \mathcal{X} - \mathcal{H}'_R - \mathcal{A}, \\
+\mathcal{B}_+ &\equiv \mathcal{B}+\mathcal{G}\mathcal{B}, \\
+\tilde{\mathcal{H}}_S &\equiv \mathcal{H}_S - \mathcal{B}_+,
 \qquad
 \tilde{\mathcal{H}}_R \equiv 0.
 \end{aligned}
@@ -233,18 +319,33 @@ With this notation, the order-by-order recurrence is
 :::{math}
 :label: nh:closed_recs
 \begin{aligned}
-\mathcal{U}'_0 &= 0,\qquad \mathcal{G}_0 = 0,\qquad \mathcal{X}_0=0, \\
-\mathcal{U}'_S &= -\frac{1}{2}(\mathcal{G}\mathcal{U}')_S, \\
-\mathcal{G} &= -\mathcal{U}'-\mathcal{G}\mathcal{U}', \\
+\mathcal{U}'_0 &= 0,\qquad \mathcal{G}_0 = 0,\qquad \mathcal{V}_0 = 0,\qquad
+\mathcal{B}_0 = 0, \\
+\mathcal{W} &= -\frac{1}{2}\mathcal{G}\mathcal{U}', \\
+\mathcal{U}' &= \mathcal{W}+\mathcal{V}, \\
+\mathcal{G} &= \mathcal{W}-\mathcal{V}, \\
 \mathcal{A} &= \mathcal{H}'_R\mathcal{U}', \\
-\mathcal{X}_R &= -(\mathcal{H}'_R+\mathcal{A}+\mathcal{G}\mathcal{B})_R, \\
-\mathcal{X}_S &= [\mathcal{H}'_S,\mathcal{U}']_S, \\
-[H_0,\mathcal{U}']_R &= \mathcal{X}_R-[\mathcal{H}'_S,\mathcal{U}']_R.
+\mathcal{B}_R &= -(\mathcal{G}\mathcal{B})_R, \\
+\mathcal{B}_+ &= \mathcal{B}+\mathcal{G}\mathcal{B}, \\
+\mathcal{Z} &=
+\frac{1}{2}
+\left(
++ \mathcal{A}
+- \mathcal{G}\mathcal{H}'_R
+- \mathcal{G}\mathcal{B}
+- \mathcal{B}_+\mathcal{G}
+\right), \\
+\mathcal{X} &= \mathcal{B}+\mathcal{H}'_R+\mathcal{A}, \\
+\mathcal{Y} &= \mathcal{X}-\mathcal{Z}, \\
+\mathcal{B}_S &= \left([\mathcal{V},\mathcal{H}'_S] + \mathcal{Z} - \mathcal{A}\right)_S, \\
+[\mathcal{V},H_0]_R &= \left(\mathcal{Y} - [\mathcal{V},\mathcal{H}'_S]\right)_R.
 \end{aligned}
 :::
 
 The last line is the only Sylvester solve.
-At each perturbative order, Eq. {eq}`nh:closed_recs` is closed in $\{\mathcal{U}',\mathcal{G},\mathcal{A},\mathcal{B},\mathcal{X}\}$ and determines these quantities from lower orders.
+At each perturbative order, Eq. {eq}`nh:closed_recs` is closed in
+$\{\mathcal{U}',\mathcal{G},\mathcal{V},\mathcal{W},\mathcal{X},\mathcal{A},\mathcal{Y},\mathcal{Z},\mathcal{B},\mathcal{B}_+\}$
+and determines these quantities from lower orders.
 Equation {eq}`nh:closed_defs` then yields $\tilde{\mathcal{H}}_{\mathbf{n},S}$.
 
 ## Implicit mode
