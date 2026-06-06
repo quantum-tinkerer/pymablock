@@ -13,20 +13,27 @@ kernelspec:
 
 # Non-Hermitian algorithm
 
-This page describes the non-Hermitian extension of Pymablock's [main algorithm](algorithms.md). Enable it with
+This page describes the non-Hermitian extension of Pymablock's [main algorithm](algorithms.md).
+Using it requires an extra flag:
 
 ```python
 H_tilde, U, U_inv = block_diagonalize(..., hermitian=False)
 ```
 
-The third returned series is the perturbative inverse of $U$. In the non-Hermitian case, this inverse is not the adjoint of the forward transformation, so it must be computed explicitly.
+Here the third returned series is the perturbative inverse of $U$.
+This is because unlike in Hermitian block-diagonalization, the inverse transformation is not the adjoint of the forward transformation and we track it explicitly.
 
-The overall structure is the same as in the Hermitian algorithm. We split the Hamiltonian into selected and remaining parts, organize perturbation theory through Cauchy products, avoid unnecessary products by $H_0$, and reduce each perturbative order to one Sylvester solve.
+The overall structure is the same:
 
-Throughout, we use the notation from [the main algorithm page](algorithms.md).
+- split the Hamiltonian into selected and remaining parts,
+- organize perturbation theory through multivariate Cauchy products,
+- avoid unnecessary products by $H_0$,
+- reduce each perturbative order to one Sylvester solve.
+
+Throughout this page, we use the notation from [the main algorithm page](algorithms.md).
 
 
-## Setup
+## Problem statement
 
 We seek a perturbative similarity transform
 
@@ -48,12 +55,13 @@ with
 \mathcal{H}_S \equiv H_0+\mathcal{H}'_S.
 :::
 
-Here $S$ denotes the selected part and $R$ the remainder to eliminate, as in [the main algorithm](algorithms.md).
+Here $S$ denotes the selected part and $R$ the remainder to eliminate, exactly as in [the main algorithm](algorithms.md).
 Since $\mathcal{U}^{-1}\neq \mathcal{U}^{\dagger}$ in general, the left and right eigenvectors need not coincide.
 
 ## Variables and gauge
 
-We write the forward and inverse transformations as identity plus first-order corrections:
+Like in the Hermitian case, we separate the transformation into identity at zeroth order and a correction, which allows us to define recurrence relations through Cauchy products.
+We first introduce $\mathcal{U}'$ as the correction of the transformation $\mathcal{U}$ and $\mathcal{G}$ as the correction of its inverse $\mathcal{U}^{-1}$:
 
 :::{math}
 :label: nh:UG_def
@@ -64,7 +72,7 @@ We write the forward and inverse transformations as identity plus first-order co
 \mathcal{U}'_0=\mathcal{G}_0=0.
 :::
 
-As in the Hermitian algorithm, it is convenient to separate the terms that enter $\mathcal{U}$ and $\mathcal{U}^{-1}$ with the same sign from those that enter with opposite signs:
+We once again separate the terms that enter $\mathcal{U}$ and $\mathcal{U}^{-1}$ with the same sign from those that enter with opposite signs:
 
 :::{math}
 :label: nh:UG_from_WV
@@ -280,14 +288,15 @@ The last line is the only Sylvester solve. All earlier lines are Cauchy products
 
 ## Implicit mode
 
-In the [Hermitian implicit construction](algorithms.md), one orthonormal basis $\Psi_E$ describes the explicit subspace. The complementary block is then represented by the orthogonal projector
+The [Hermitian implicit construction](algorithms.md) assumes that the explicit subspace is described by one orthonormal basis $\Psi_E$.
+The missing block is then represented by the orthogonal complement
 
 :::{math}
 :label: nh:implicit_herm_projector
 Q = 1 - \Psi_E \Psi_E^\dagger.
 :::
 
-For non-Hermitian $H_0$, we instead use biorthogonal right and left bases:
+For a genuinely non-Hermitian $H_0$, we instead use biorthogonal right and left bases:
 
 :::{math}
 :label: nh:implicit_biorth_basis
@@ -296,7 +305,8 @@ R_E,\;L_E,
 L_E^\dagger R_E = 1,
 :::
 
-The columns of $R_E$ span the explicit subspace, and the columns of $L_E$ span its dual. The corresponding projector and its complement are
+The columns of $R_E$ span the explicit subspace, and the columns of $L_E$ span its dual.
+The projector onto this subspace and its complement are
 
 :::{math}
 :label: nh:implicit_oblique_projector
@@ -305,7 +315,8 @@ P_E = R_E L_E^\dagger,
 Q = 1 - R_E L_E^\dagger.
 :::
 
-This projector is generally oblique rather than orthogonal, so it is not self-adjoint. The block projections are
+In general this projector is oblique rather than orthogonal, so it is not self-adjoint.
+The block projections become
 
 :::{math}
 :label: nh:implicit_block_projections
@@ -318,11 +329,14 @@ H_{Qi} = Q H R_i,
 H_{QQ} = Q H Q.
 :::
 
-The Sylvester equations keep the same structure as in the Hermitian implicit derivation, but they use this oblique projector $Q$ and the explicit energies
+The Sylvester equations keep the same structure as in the Hermitian implicit derivation, but they use this oblique $Q$ and the explicit energies
 
 :::{math}
 :label: nh:implicit_biorth_energies
 L_i^\dagger H_0 R_i.
 :::
 
-The direct implicit solver therefore needs the same two ingredients: right subspace bases for the retained states, and left dual bases for the projection and complementary block.
+So the direct implicit solver needs the same two ingredients:
+
+- right subspace bases to define the retained states,
+- left dual bases to define the projection and the complementary block.
