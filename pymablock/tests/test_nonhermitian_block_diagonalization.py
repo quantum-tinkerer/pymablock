@@ -166,6 +166,12 @@ def _make_asymmetric_mask(
     return mask
 
 
+def _make_random_boolean_mask(size: int, *, p_true: float = 0.28) -> np.ndarray:
+    mask = np.random.choice([False, True], size=(size, size), p=[1 - p_true, p_true])
+    np.fill_diagonal(mask, False)
+    return mask
+
+
 def _assert_mask_eliminated(
     H_tilde: BlockSeries, masks: dict[int, np.ndarray], *, max_order: int
 ) -> None:
@@ -506,7 +512,7 @@ def test_nonhermitian_arbitrary_asymmetric_mask():
         },
     )
 
-    H_tilde = series["H_tilde"]
+    H_tilde = _assert_roundtrip(H, series, (max_order,))
 
     _assert_mask_eliminated(H_tilde, {0: to_eliminate}, max_order=max_order)
     opposite_direction_nonzero = False
@@ -517,6 +523,63 @@ def test_nonhermitian_arbitrary_asymmetric_mask():
         )
 
     assert opposite_direction_nonzero
+
+
+def test_nonhermitian_random_boolean_mask_roundtrip_regression():
+    n = 4
+    max_order = 3
+    energies = np.linspace(-3.0, 3.0, n)
+    # Rely on pytest-randomly to vary the global NumPy seed between runs.
+    # A few independent masks make the regression unlikely to miss on main.
+    for _ in range(5):
+        data = {(0, 0, 0): np.diag(energies).astype(complex)}
+        for order in range(1, max_order + 1):
+            data[(0, 0, order)] = _complex_normal(np.random, (n, n))
+        H = BlockSeries(data=data, shape=(1, 1), n_infinite=1, name="H")
+
+        for _ in range(10):
+            to_eliminate = _make_random_boolean_mask(n)
+            if to_eliminate.any() and not np.array_equal(to_eliminate, to_eliminate.T):
+                break
+        else:
+            raise AssertionError("failed to generate a nontrivial asymmetric random mask")
+
+        to_keep = np.logical_not(to_eliminate)
+        denom = energies[:, None] - energies[None, :]
+
+        def solve_sylvester(rhs, index):  # noqa: ARG001
+            if rhs is zero:
+                return zero
+            out = np.zeros_like(rhs, dtype=complex)
+            np.divide(rhs, denom, out=out, where=denom != 0)
+            return out
+
+        def diag(x, index):
+            x = x[index] if isinstance(x, BlockSeries) else x
+            if x is zero:
+                return zero
+            return x * to_keep
+
+        def offdiag(x, index):
+            x = x[index] if isinstance(x, BlockSeries) else x
+            if x is zero:
+                return zero
+            return x * to_eliminate
+
+        series, _ = series_computation(
+            {"H": H},
+            algorithm=nonhermitian,
+            scope={
+                "solve_sylvester": solve_sylvester,
+                "two_block_optimized": False,
+                "commuting_blocks": [False],
+                "diag": diag,
+                "offdiag": offdiag,
+            },
+        )
+
+        H_tilde = _assert_roundtrip(H, series, (max_order,))
+        _assert_mask_eliminated(H_tilde, {0: to_eliminate}, max_order=max_order)
 
 
 @pytest.mark.parametrize("block_sizes", [(6,), (3, 2)], ids=["single-block", "two-block"])
