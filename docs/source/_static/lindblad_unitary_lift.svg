@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="455" viewBox="0 0 980 455" role="img" aria-labelledby="title desc">
+  <title id="title">Adjoint-action mask lift for a 3 by 3 coherent problem</title>
+  <desc id="desc">Two 9 by 9 grids compare the larger adjoint-action support with the smaller commutator support for an eliminated H02 matrix element.</desc>
+  <defs>
+    <style>
+      .title { font: 600 18px sans-serif; fill: #25303b; }
+      .subtitle { font: 600 14px sans-serif; fill: #25303b; }
+      .label { font: 13px sans-serif; fill: #4f5d68; }
+      .axis { font: 10px monospace; fill: #4b5563; dominant-baseline: middle; text-anchor: middle; }
+      .cell { fill: #f8faf7; stroke: #c9d1c9; stroke-width: 0.9; }
+      .lift { fill: #e6b15d; opacity: 0.72; stroke: #9a611d; stroke-width: 1.4; }
+      .comm { fill: #86bca0; opacity: 0.85; stroke: #3f7d5a; stroke-width: 1.4; }
+      .ham { fill: #f6dec1; stroke: #9a611d; stroke-width: 1.4; }
+    </style>
+  </defs>
+
+  <text x="32" y="34" class="title">Example: eliminate H02 and H20 in a 3-level Hamiltonian</text>
+
+  <g transform="translate(40,68)">
+    <text x="70" y="-16" class="subtitle">Hamiltonian mask m</text>
+    <rect x="0" y="0" width="45" height="45" class="cell"/><rect x="45" y="0" width="45" height="45" class="cell"/><rect x="90" y="0" width="45" height="45" class="ham"/>
+    <rect x="0" y="45" width="45" height="45" class="cell"/><rect x="45" y="45" width="45" height="45" class="cell"/><rect x="90" y="45" width="45" height="45" class="cell"/>
+    <rect x="0" y="90" width="45" height="45" class="ham"/><rect x="45" y="90" width="45" height="45" class="cell"/><rect x="90" y="90" width="45" height="45" class="cell"/>
+    <text x="22.5" y="22.5" class="axis">00</text><text x="67.5" y="22.5" class="axis">01</text><text x="112.5" y="22.5" class="axis">02</text>
+    <text x="22.5" y="67.5" class="axis">10</text><text x="67.5" y="67.5" class="axis">11</text><text x="112.5" y="67.5" class="axis">12</text>
+    <text x="22.5" y="112.5" class="axis">20</text><text x="67.5" y="112.5" class="axis">21</text><text x="112.5" y="112.5" class="axis">22</text>
+    <text x="0" y="165" class="label">m02 = m20 = 1</text>
+  </g>
+
+  <g transform="translate(230,68)">
+    <text x="105" y="-16" class="subtitle">Ad_U support: m_ik or m_jl</text>
+    <g class="axis">
+      <text x="15" y="-8">00</text><text x="45" y="-8">01</text><text x="75" y="-8">02</text><text x="105" y="-8">10</text><text x="135" y="-8">11</text><text x="165" y="-8">12</text><text x="195" y="-8">20</text><text x="225" y="-8">21</text><text x="255" y="-8">22</text>
+      <text x="-14" y="15">00</text><text x="-14" y="45">01</text><text x="-14" y="75">02</text><text x="-14" y="105">10</text><text x="-14" y="135">11</text><text x="-14" y="165">12</text><text x="-14" y="195">20</text><text x="-14" y="225">21</text><text x="-14" y="255">22</text>
+    </g>
+    <g>
+      <rect x="0" y="0" width="270" height="270" class="cell"/>
+      <path d="M0 30H270M0 60H270M0 90H270M0 120H270M0 150H270M0 180H270M0 210H270M0 240H270M30 0V270M60 0V270M90 0V270M120 0V270M150 0V270M180 0V270M210 0V270M240 0V270" stroke="#c9d1c9" stroke-width="0.9"/>
+      <rect x="180" y="0" width="90" height="90" class="lift"/><rect x="0" y="180" width="90" height="90" class="lift"/>
+      <rect x="60" y="0" width="30" height="270" class="lift"/><rect x="0" y="60" width="270" height="30" class="lift"/>
+      <rect x="180" y="0" width="30" height="270" class="lift"/><rect x="0" y="180" width="270" height="30" class="lift"/>
+    </g>
+    <text x="4" y="304" class="label">larger support used for the gauge of U and U_inv</text>
+  </g>
+
+  <g transform="translate(620,68)">
+    <text x="70" y="-16" class="subtitle">commutator support only</text>
+    <g class="axis">
+      <text x="15" y="-8">00</text><text x="45" y="-8">01</text><text x="75" y="-8">02</text><text x="105" y="-8">10</text><text x="135" y="-8">11</text><text x="165" y="-8">12</text><text x="195" y="-8">20</text><text x="225" y="-8">21</text><text x="255" y="-8">22</text>
+      <text x="-14" y="15">00</text><text x="-14" y="45">01</text><text x="-14" y="75">02</text><text x="-14" y="105">10</text><text x="-14" y="135">11</text><text x="-14" y="165">12</text><text x="-14" y="195">20</text><text x="-14" y="225">21</text><text x="-14" y="255">22</text>
+    </g>
+    <g>
+      <rect x="0" y="0" width="270" height="270" class="cell"/>
+      <path d="M0 30H270M0 60H270M0 90H270M0 120H270M0 150H270M0 180H270M0 210H270M0 240H270M30 0V270M60 0V270M90 0V270M120 0V270M150 0V270M180 0V270M210 0V270M240 0V270" stroke="#c9d1c9" stroke-width="0.9"/>
+      <rect x="180" y="0" width="30" height="30" class="comm"/><rect x="210" y="30" width="30" height="30" class="comm"/><rect x="240" y="60" width="30" height="30" class="comm"/>
+      <rect x="0" y="180" width="30" height="30" class="comm"/><rect x="30" y="210" width="30" height="30" class="comm"/><rect x="60" y="240" width="30" height="30" class="comm"/>
+      <rect x="60" y="0" width="30" height="30" class="comm"/><rect x="60" y="90" width="30" height="30" class="comm"/><rect x="60" y="180" width="30" height="30" class="comm"/>
+      <rect x="180" y="60" width="30" height="30" class="comm"/><rect x="180" y="150" width="30" height="30" class="comm"/><rect x="180" y="240" width="30" height="30" class="comm"/>
+    </g>
+    <text x="4" y="304" class="label">smaller pattern visible in L_tilde = -i[H_tilde, .]</text>
+  </g>
+</svg>

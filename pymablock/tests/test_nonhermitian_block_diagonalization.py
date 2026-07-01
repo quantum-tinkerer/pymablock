@@ -182,6 +182,22 @@ def _assert_mask_eliminated(
             )
 
 
+def _coherent_superoperator(H: np.ndarray) -> np.ndarray:
+    dim = H.shape[0]
+    eye = np.eye(dim, dtype=complex)
+    return -1j * (np.kron(H, eye) - np.kron(eye, H.T))
+
+
+def _to_dense_matrix(value, dim: int) -> np.ndarray:
+    if value is zero:
+        return np.zeros((dim, dim), dtype=complex)
+    if value is one:
+        return np.eye(dim, dtype=complex)
+    if sparse.issparse(value):
+        return value.toarray()
+    return np.asarray(value)
+
+
 def _make_direct_solver_case(
     n: int, a_dim: int
 ) -> tuple[np.random.Generator, sparse.dia_matrix, np.ndarray, np.ndarray, np.ndarray]:
@@ -809,6 +825,61 @@ def test_nonhermitian_selective_mask_preserves_trace_and_hermiticity():
                 atol=1e-10,
                 rtol=0,
             )
+
+
+def test_nonhermitian_unitary_or_lift_matches_hermitian_nontransitive_mask():
+    rng = np.random.default_rng(0)
+    dim_hilbert = 4
+    dim_liouville = dim_hilbert**2
+
+    h_0 = np.diag(np.array([-2.5, -0.8, 1.1, 2.6], dtype=float)).astype(complex)
+    h_1 = _complex_normal(rng, (dim_hilbert, dim_hilbert))
+    h_1 = (h_1 + h_1.conj().T) / 2
+
+    operator_mask = np.array(
+        [
+            [False, False, True, False],
+            [False, False, False, False],
+            [True, False, False, True],
+            [False, False, True, False],
+        ],
+        dtype=bool,
+    )
+    assert np.array_equal(operator_mask, operator_mask.T)
+
+    liouville_mask = np.zeros((dim_liouville, dim_liouville), dtype=bool)
+    for j in range(dim_hilbert):
+        for i in range(dim_hilbert):
+            a = i + dim_hilbert * j
+            for ell in range(dim_hilbert):
+                for k in range(dim_hilbert):
+                    b = k + dim_hilbert * ell
+                    liouville_mask[a, b] = operator_mask[i, k] or operator_mask[j, ell]
+
+    L_0 = _coherent_superoperator(h_0)
+    diagonal = np.diag(L_0)
+    equal_eigs = np.abs(diagonal.reshape(-1, 1) - diagonal) < 1e-12
+    liouville_mask[equal_eigs] = False
+    np.fill_diagonal(liouville_mask, False)
+
+    H_tilde, *_ = block_diagonalize(
+        [h_0, h_1],
+        subspace_indices=np.zeros(dim_hilbert, dtype=int),
+        fully_diagonalize=operator_mask,
+    )
+    L_tilde, *_ = block_diagonalize(
+        [L_0, _coherent_superoperator(h_1)],
+        subspace_indices=np.zeros(dim_liouville, dtype=int),
+        hermitian=False,
+        fully_diagonalize=liouville_mask,
+    )
+
+    for order in range(4):
+        expected = _coherent_superoperator(
+            _to_dense_matrix(H_tilde[(0, 0, order)], dim_hilbert)
+        )
+        actual = _to_dense_matrix(L_tilde[(0, 0, order)], dim_liouville)
+        np.testing.assert_allclose(actual, expected, atol=1e-12, rtol=0)
 
 
 def test_block_diagonalize_nonhermitian_rejects_legacy_two_block_solver():

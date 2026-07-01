@@ -30,7 +30,7 @@ classifiers = [
 
 [project.optional-dependencies]
 test = ["pytest", "pytest-cov", "pytest-randomly", "pytest-regressions"]
-docs = ["sphinx-book-theme>=1.1.0", "sphinx-tippy"]
+docs = ["sphinx-autobuild", "sphinx-book-theme>=1.1.0", "sphinx-tippy"]
 mumps = ["python-mumps>=0.0.1,<0.1"]
 
 [project.urls]
@@ -198,6 +198,7 @@ kwant = "*"
 myst-nb = "*"
 matplotlib-base = "*"
 sphinx = ">=8.2.0"
+sphinx-autobuild = "*"
 sphinx-togglebutton = "*"
 sphinx-copybutton = "*"
 sphinx-book-theme = "*"
@@ -206,6 +207,9 @@ git = "*"
 
 [tool.pixi.feature.docs.tasks.docs-build]
 cmd = "python -c \"from matplotlib import pyplot\" && sphinx-build -b html -n -WT docs/source docs/build/html"
+
+[tool.pixi.feature.docs.tasks.docs-serve]
+cmd = "python -c \"from matplotlib import pyplot\" && sphinx-autobuild -b html -n -W --host 127.0.0.1 --port 51865 --watch docs/source --watch pymablock docs/source docs/build/html"
 
 [tool.pixi.feature.test.dependencies]
 pytest = "*"

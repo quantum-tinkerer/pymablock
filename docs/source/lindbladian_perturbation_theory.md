@@ -13,24 +13,19 @@ kernelspec:
 
 # Lindbladian perturbation theory
 
-This page collects the Liouvillian-specific material that sits on top of
-Pymablock's non-Hermitian block-diagonalization algorithm. It assumes the
-notation and recursion from
-[Non-Hermitian Algorithm](nonhermitian_algorithm.md).
+This page covers the Liouvillian-specific parts of Pymablock's
+non-Hermitian block-diagonalization algorithm. It assumes the notation and
+recursion from [Non-Hermitian algorithm](nonhermitian_algorithm.md).
 
-The goal is to answer two questions:
-
-1. When does selective elimination preserve trace and Hermiticity?
-2. How do we recover Hamiltonian and jump-operator series from an effective
-   Liouvillian?
-
-For a worked example, see
+We focus on two questions. First, when does selective elimination preserve the
+basic structure of a Liouvillian, namely trace preservation and hermiticity
+preservation? Second, once we have an effective Liouvillian, how do we recover
+its Hamiltonian and jump-operator series? For a worked example, see
 [Adiabatic elimination for a Lindblad equation](tutorial/lindblad_adiabatic_elimination.md).
 
-## Preserving trace and Hermiticity
+## Preserving trace and hermiticity
 
-For open quantum systems, the object being block-diagonalized is often a
-Liouvillian superoperator
+For an open quantum system, the generator often has Lindblad form
 
 :::{math}
 \mathcal{L}(\rho)= -i[H,\rho]
@@ -38,59 +33,77 @@ Liouvillian superoperator
 - \tfrac12\{J_k^\dagger J_k,\rho\}\Big),
 :::
 
-or a perturbative generalization of it. After the similarity transformation,
+or a perturbative generalization of it. Block diagonalization applies a
+similarity transform,
 
 :::{math}
 \tilde{\mathcal{L}}=\mathcal{U}^{-1}\mathcal{L}\mathcal{U},
 :::
 
-we usually want the reduced generator to keep two structural properties:
-
-- trace preservation,
-- Hermiticity preservation.
-
-This does not follow from an arbitrary selective split. It requires extra
-compatibility conditions on the selected and eliminated parts, and on the
-Sylvester solver used in the non-Hermitian recursion.
+and we usually want the transformed generator to preserve the same structural
+properties as the input.
 
 ### Liouville-space conventions
 
-We use row-major vectorization, meaning that we stack the rows of $\rho$ into
-$\mathrm{vec}(\rho)$. In that convention,
+We use row-major vectorization, so $\mathrm{vec}(\rho)$ stacks the rows of
+$\rho$. In this convention,
 
 :::{math}
 A\rho B \;\mapsto\; (A\otimes B^T)\,\mathrm{vec}(\rho).
 :::
 
+:::{figure} _static/lindblad_vectorization.svg
+:alt: Row-major vectorization of a 3 by 3 operator.
+:width: 760px
+
+Row-major vectorization stacks the rows of an operator. With this convention,
+left multiplication acts on the first index and right multiplication acts on
+the second index, giving the superoperator matrix $A\otimes B^T$.
+:::
+
+This identity says how ordinary left and right multiplication become one
+matrix acting on the vectorized density matrix. The factor $A$ acts on the row
+index of $\rho$. The factor $B$ acts on the column index, and the transpose
+appears because row-major vectorization stores the column index as the second
+index of the vectorized basis element. In components,
+
+:::{math}
+(A\rho B)_{ij}
+= \sum_{k,l} A_{ik}\rho_{kl}B_{lj}
+= \sum_{k,l} (A\otimes B^T)_{ij,kl}\rho_{kl}.
+:::
+
 This is the same convention used in the
 [Lindblad adiabatic elimination tutorial](tutorial/lindblad_adiabatic_elimination.md).
 
-Let $\tau$ denote the trace row functional:
+The trace functional becomes a row vector $\tau$,
 
 :::{math}
-\mathrm{tr}(\rho)=\tau\,\mathrm{vec}(\rho).
+\mathrm{tr}(\rho)=\tau\,\mathrm{vec}(\rho),
 :::
 
-Let $K$ be the permutation matrix that implements Hermitian conjugation in
-vectorized form,
+and hermitian conjugation becomes
 
 :::{math}
-\mathrm{vec}(\rho^\dagger)=K\,\mathrm{vec}(\rho)^*.
+\mathrm{vec}(\rho^\dagger)=K\,\mathrm{vec}(\rho)^*,
 :::
 
-We then define
+with a fixed permutation matrix $K$. For any superoperator $X$, define
 
 :::{math}
 X^\sharp \equiv K X^* K.
 :::
 
-A superoperator preserves Hermiticity exactly when $X^\sharp=X$.
+The identity $X^\sharp = X$ is exactly the condition that $X$ preserves
+hermiticity.
 
-### Assumptions
+### Sufficient conditions
 
-In addition to the non-Hermitian recursion, assume the following.
+The non-Hermitian recursion preserves trace and hermiticity if the split and
+the Sylvester solver respect the same structure as the input Liouvillian. The
+assumptions are:
 
-1. The selected and eliminated parts are complementary projectors:
+1. $S$ and $R$ are complementary projectors:
    $S+R=I$, $S^2=S$, $R^2=R$, and $SR=RS=0$.
 2. The split respects trace:
    :::{math}
@@ -98,79 +111,38 @@ In addition to the non-Hermitian recursion, assume the following.
    \quad\Longleftrightarrow\quad
    \tau S(X)=\tau X.
    :::
-3. The split respects Hermiticity:
+   Here $\tau X$ is the trace change generated by the superoperator $X$. The
+   condition says that the eliminated part $R(X)$ never carries trace change;
+   all trace-changing components, if present, remain in the selected part
+   $S(X)$. For a trace-preserving input, $\tau X=0$, this makes both pieces
+   separately trace preserving.
+3. The split respects the sharp involution:
    :::{math}
    S(X^\sharp)=S(X)^\sharp,\qquad R(X^\sharp)=R(X)^\sharp.
    :::
-4. The Sylvester solver respects the same structure on the eliminated part:
-   whenever $Y=R(Y)$,
+4. The Sylvester solver preserves the same structure on the eliminated part.
+   Whenever $Y=R(Y)$,
    :::{math}
    S(\mathrm{Sylv}(Y))=0,\quad
    \tau\,\mathrm{Sylv}(Y)=0,\quad
    \mathrm{Sylv}(Y^\sharp)=\mathrm{Sylv}(Y)^\sharp.
    :::
-5. The input perturbative coefficients already preserve trace and Hermiticity:
+5. Each perturbative input coefficient already preserves trace and
+   hermiticity:
    :::{math}
    \tau \mathcal{H}_{\mathbf{n}}=0,\qquad
-   \mathcal{H}_{\mathbf{n}}^\sharp=\mathcal{H}_{\mathbf{n}}
-   \quad\text{for all orders }\mathbf{n}.
+   \mathcal{H}_{\mathbf{n}}^\sharp=\mathcal{H}_{\mathbf{n}}.
    :::
 
-### Proposition 1: trace preservation
-
-Assume 1, 2, 4, and 5. Then
+Under these assumptions, the recursion returns
 
 :::{math}
 \tau\mathcal{U}=\tau,\qquad
 \tau\mathcal{U}^{-1}=\tau,\qquad
-\tau\tilde{\mathcal{L}}=0.
+\tau\tilde{\mathcal{L}}=0,
 :::
 
-**Proof.** At zeroth order, $\mathcal{U}'_0=\mathcal{G}_0=0$, so
-$\tau\mathcal{U}_0=\tau\mathcal{U}^{-1}_0=\tau$.
-
-Now fix a higher order $\mathbf{n}$. From
-$\mathcal{G}=-\mathcal{U}'-\mathcal{G}\mathcal{U}'$ we get
-
-:::{math}
-\tau\mathcal{G}_{\mathbf{n}}
-=-\tau\mathcal{U}'_{\mathbf{n}}
--\tau(\mathcal{G}\mathcal{U}')_{\mathbf{n}}.
-:::
-
-The product term depends only on lower orders, so the induction hypothesis
-gives $\tau(\mathcal{G}\mathcal{U}')_{\mathbf{n}}=0$. Hence
-$\tau\mathcal{G}_{\mathbf{n}}=-\tau\mathcal{U}'_{\mathbf{n}}$.
-
-The gauge condition $(\mathcal{U}'-\mathcal{G})_S=0$ and the trace-compatible
-split imply
-
-:::{math}
-\tau(\mathcal{U}'-\mathcal{G})_{\mathbf{n}}=0,
-:::
-
-so $\tau\mathcal{U}'_{\mathbf{n}}=\tau\mathcal{G}_{\mathbf{n}}$. Combining the
-two identities gives
-
-:::{math}
-\tau\mathcal{U}'_{\mathbf{n}}=\tau\mathcal{G}_{\mathbf{n}}=0.
-:::
-
-Therefore $\tau\mathcal{U}=\tau$ and $\tau\mathcal{U}^{-1}=\tau$ order by
-order. Finally,
-
-:::{math}
-\tau\tilde{\mathcal{L}}
-=\tau\,\mathcal{U}^{-1}\mathcal{L}\mathcal{U}
-=\tau\,\mathcal{L}\mathcal{U}
-=0,
-:::
-
-because $\tau\mathcal{L}=0$ at every perturbative order. $\square$
-
-### Proposition 2: Hermiticity preservation
-
-Assume 1, 3, 4, and 5. Then
+and also
 
 :::{math}
 \mathcal{U}^\sharp=\mathcal{U},\qquad
@@ -178,61 +150,183 @@ Assume 1, 3, 4, and 5. Then
 \tilde{\mathcal{L}}^\sharp=\tilde{\mathcal{L}}.
 :::
 
-**Proof.** At zeroth order the claim is immediate because
-$\mathcal{U}'_0=\mathcal{G}_0=0$.
-
-At order $\mathbf{n}$, every right-hand side in the non-Hermitian recursion is
-built from lower-order terms by products, commutators, and the projectors
-$S,R$. If the lower-order terms satisfy the sharp symmetry, then so do those
-products and commutators, and assumptions 3 and 4 preserve that symmetry under
-projection and Sylvester solving. Therefore $\mathcal{U}'_{\mathbf{n}}$ and
-$\mathcal{G}_{\mathbf{n}}$ also satisfy the sharp symmetry.
-
-By induction, $\mathcal{U}^\sharp=\mathcal{U}$ and
-$(\mathcal{U}^{-1})^\sharp=\mathcal{U}^{-1}$ at every order. It then follows
-that
+The proof is an induction over perturbative order. For trace preservation, the
+relation
 
 :::{math}
-\tilde{\mathcal{L}}^\sharp
-=(\mathcal{U}^{-1}\mathcal{L}\mathcal{U})^\sharp
-=(\mathcal{U}^{-1})^\sharp \mathcal{L}^\sharp \mathcal{U}^\sharp
-=\mathcal{U}^{-1}\mathcal{L}\mathcal{U}
-=\tilde{\mathcal{L}}.
+\mathcal{G}=-\mathcal{U}'-\mathcal{G}\mathcal{U}'
 :::
 
-So the transformed generator still preserves Hermiticity. $\square$
+shows that $\tau\mathcal{G}_{\mathbf{n}}=-\tau\mathcal{U}'_{\mathbf{n}}$ once
+the lower orders already satisfy $\tau\mathcal{U}=\tau$. The gauge condition
+$(\mathcal{U}'-\mathcal{G})_S=0$ and the trace-compatible split then force both
+traces to vanish at order $\mathbf{n}$. Hermiticity preservation is similar:
+products, commutators, and the projectors $S,R$ preserve the sharp symmetry,
+and the Sylvester solver does the same by assumption.
 
-### Practical mask rules
+### Boolean mask rules
 
-For a boolean elimination mask inside one Liouville block, the abstract
-conditions above become concrete:
+Pymablock applies boolean masks in the working basis of the non-Hermitian
+recursion. For Lindbladian perturbation theory this is usually an eigenbasis
+of $\mathcal{L}_0$, not the row-major matrix-unit basis. Let
+$R_\alpha$ be right eigenoperators,
 
-- do not eliminate entries in rows that carry trace support,
-- close the mask under the dagger-index map $(i,j)\leftrightarrow(j,i)$ in
-  Liouville indexing.
+:::{math}
+\mathcal{L}_0 R_\alpha = \lambda_\alpha R_\alpha.
+:::
 
-These are the structural conditions used in the non-Hermitian tests.
+Trace preservation is simple in this basis. The trace functional is a left
+zero-eigenvector. If the basis is normalized so this left eigenvector is the
+first coordinate row, then the eliminated projector $R$ must not include any
+entry in that row.
+
+Hermiticity preservation gives the analogous pairing rule. Since
+$\mathcal{L}_0$ preserves hermiticity,
+
+:::{math}
+\mathcal{L}_0 R_\alpha^\dagger
+= \lambda_\alpha^* R_\alpha^\dagger.
+:::
+
+We may therefore choose eigenoperators in conjugate pairs
+$R_{\bar\alpha}=R_\alpha^\dagger$, with
+$\lambda_{\bar\alpha}=\lambda_\alpha^*$. In that paired basis, a boolean mask
+preserves hermiticity only if it is closed under
+
+:::{math}
+(\alpha,\beta)\leftrightarrow(\bar\alpha,\bar\beta).
+:::
+
+:::{figure} _static/lindblad_mask_pairing.svg
+:alt: Trace and Hermiticity mask rules in a paired eigenbasis.
+:width: 760px
+
+In a paired eigenbasis, the trace left eigenvector protects one coordinate
+row, while hermiticity requires eliminated entries to come in conjugate pairs.
+:::
+
+These rules are enough to preserve trace and hermiticity. They do not, by
+themselves, guarantee that a purely Hamiltonian input stays purely Hamiltonian.
+That stronger question asks whether the mask projector preserves the coherent
+commutator subspace.
+
+The mask does not split an unperturbed subspace. Entries inside a subspace are
+not perturbatively removable; choosing those subspaces is the role of the block
+decomposition. The boolean mask only refines which allowed off-subspace
+couplings are eliminated.
+
+### Masks that preserve unitary evolution
+
+The coherent case becomes concrete in the same working basis. Suppose
+
+:::{math}
+\mathcal{L}_0 = -i[H_0,\cdot],
+\qquad
+H_0|a\rangle = E_a|a\rangle.
+:::
+
+Then the eigenoperators of $\mathcal{L}_0$ are the matrix units
+
+:::{math}
+R_{ab}=|a\rangle\langle b|,
+\qquad
+\mathcal{L}_0 R_{ab}=-i(E_a-E_b)R_{ab}.
+:::
+
+This basis remembers the Hilbert-space origin of the Liouvillian. If the
+Hamiltonian-space mask $m$ eliminates $H_{ac}$, then the Hermitian algorithm
+uses a generator element $S_{ac}$ to remove that matrix element
+perturbatively. The lifted unitary transformation acts with the same generator
+element on both indices of $R_{ab}$. Infinitesimally,
+
+:::{math}
+\mathrm{ad}_{|a\rangle\langle c|}(R_{kl})
+= |a\rangle\langle c|R_{kl}-R_{kl}|a\rangle\langle c|
+= \delta_{ck}R_{al}-\delta_{la}R_{kc}.
+:::
+
+Thus one Hamiltonian generator entry produces two Liouville stripes: it acts
+on the left index of every operator and on the right index of every operator.
+The corresponding Liouville mask is the adjoint-action lift
+
+:::{math}
+(\widehat R_m)_{ij,kl} = m_{ik} \,\vee\, m_{jl}.
+:::
+
+The same formula follows from the finite unitary transformation
+
+:::{math}
+\mathrm{Ad}_U(\rho)=U\rho U^\dagger,
+\qquad
+\mathrm{Ad}_U = U\otimes U^*,
+:::
+
+whose matrix elements are
+
+:::{math}
+(\mathrm{Ad}_U)_{ij,kl}=U_{ik}U^*_{jl}.
+:::
+
+The transformed Liouvillian itself has a smaller support than the
+transformation. On coherent generators,
+
+:::{math}
+\mathcal{C}(H)\equiv -i[H,\cdot],
+:::
+
+the entries selected by the Hamiltonian mask appear only in the stripe subset
+
+:::{math}
+(\delta_{jl}\,m_{ik}) \,\vee\, (\delta_{ik}\,m_{lj}).
+:::
+
+Pymablock uses the same mask for $\tilde{\mathcal{L}}$ and for the gauge of
+$\mathcal{U}$ and $\mathcal{U}^{-1}$. The gauge sees the larger
+adjoint-action support, so $\widehat R_m$ is the natural Liouville mask.
+
+:::{figure} _static/lindblad_unitary_lift.svg
+:alt: Comparison of the adjoint-action mask lift and commutator support.
+:width: 900px
+
+For a single eliminated Hamiltonian matrix element, the adjoint-action lift
+marks full left- and right-index stripes. The transformed coherent
+Liouvillian only shows the smaller commutator support, but the gauge equations
+use the larger pattern.
+:::
+
+If $m$ is an admissible Hamiltonian mask, then $\widehat R_m$ preserves
+unitary evolution of coherent inputs. This includes nontransitive Hamiltonian
+masks. The statement is cleanest after choosing a Hilbert-space eigenbasis of
+$H_0$; if $H_0$ has degeneracies, an arbitrary eigenbasis of
+$\mathcal{L}_0$ may obscure this Hilbert-space structure.
+
+This family is the stable closed family we currently recommend. Masks outside
+it can still work. The simplest examples are gauge-inert entries that the
+coherent lifted transform never populates. Those additions depend on the
+support of the particular unitary series, so we do not treat them as a general
+classification. In other words, $\widehat R_m$ is the robust core family, not
+the full set of harmless masks.
 
 :::{note}
-These conditions preserve trace and Hermiticity, not complete positivity.
-Outside the perturbative regime, positivity can still fail.
+Trace preservation and hermiticity preservation do not imply complete
+positivity. Outside the perturbative regime, positivity can still fail.
 :::
 
 ## Recovering Hamiltonian and jump operators
 
-Suppose the transformed Liouvillian has the perturbative expansion
+Suppose the transformed Liouvillian has the expansion
 
 :::{math}
 \tilde{\mathcal{L}}(\lambda)=\sum_{n\ge 0}\lambda^n\tilde{\mathcal{L}}_n.
 :::
 
-We want to rewrite each coefficient in Lindblad form, order by order.
+We now rewrite each coefficient in Lindblad form.
 
-### Step 1: recover the Hamiltonian part and Kossakowski matrix
+### Recovering the Hamiltonian part and Kossakowski matrix
 
-Choose an operator basis $\{F_a\}_{a=1}^{d^2-1}$ on the traceless subspace,
-orthonormal in the Hilbert-Schmidt inner product. Define the corresponding
-superoperator basis
+Choose an operator basis $\{F_a\}_{a=1}^{d^2-1}$ for the traceless operators,
+orthonormal in the Hilbert-Schmidt inner product. Define the superoperator
+basis
 
 :::{math}
 \mathcal{K}_a(\rho)\equiv -i[F_a,\rho],\qquad
@@ -240,17 +334,18 @@ superoperator basis
 -\frac12\{F_b^\dagger F_a,\rho\}.
 :::
 
-Then each perturbative coefficient can be written as
+Each perturbative coefficient has the decomposition
 
 :::{math}
 \tilde{\mathcal{L}}_n
 =\sum_a h_{a,n}\mathcal{K}_a
-+\sum_{a,b}(C_n)_{ab}\mathcal{D}_{ab}.
++\sum_{a,b}(C_n)_{ab}\mathcal{D}_{ab},
 :::
 
-This is a linear decomposition in the unknown coefficients
-$(h_{a,n},(C_n)_{ab})$. After vectorization, collect the basis operators into
-the matrix
+where $h_{a,n}$ are the Hamiltonian coefficients and $C_n$ is the
+Kossakowski matrix at order $n$.
+
+After vectorization, collect the basis superoperators into the matrix
 
 :::{math}
 A\equiv
@@ -258,7 +353,7 @@ A\equiv
 \mathrm{vec}(\mathcal{D}_{11})\;\cdots\;\mathrm{vec}(\mathcal{D}_{d^2-1,d^2-1})\big].
 :::
 
-For each order, solve
+Then each order reduces to a linear solve,
 
 :::{math}
 x_n \equiv
@@ -269,29 +364,31 @@ h_n\\
 =A^+\,\mathrm{vec}(\tilde{\mathcal{L}}_n),
 :::
 
-where $A^+$ is a pseudoinverse, or an inverse if the basis was chosen so that
-the map is square. This gives
+with $A^+$ a pseudoinverse, or an inverse if the chosen basis makes the map
+square. The Hamiltonian coefficient follows as
 
 :::{math}
 H_n=\sum_a h_{a,n}F_a.
 :::
 
-So the map $\tilde{\mathcal{L}}_n \mapsto (H_n,C_n)$ is linear and local in
-perturbation order.
+This reconstruction is local in perturbative order. If
+$\tilde{\mathcal{L}}_n$ preserves trace and hermiticity, then $H_n$ and $C_n$
+are hermitian. Positivity is separate: $C_n$ does not need to be positive
+semidefinite at each order.
 
-If $\tilde{\mathcal{L}}_n$ preserves trace and Hermiticity, then $H_n$ is
-Hermitian and $C_n$ is Hermitian. Positivity is a separate question: $C_n$ need
-not be positive semidefinite order by order.
+### Recovering jump-operator series
 
-### Step 2: recover jump-operator series
-
-To stay on the completely positive branch near $\lambda=0$, factorize
+The previous solve gives the Hamiltonian series and the Kossakowski series
+$C(\lambda)=\sum_n\lambda^n C_n$. Complete positivity is a property of this
+series as a whole, not of each coefficient $C_n$ separately. To recover jump
+operators on a completely positive branch, choose a zeroth-order factor
+$B_0$ and factorize the full series as
 
 :::{math}
 C(\lambda)=B(\lambda)B(\lambda)^\dagger.
 :::
 
-Expand both sides as
+Expand both series,
 
 :::{math}
 B(\lambda)=\sum_{n\ge0}\lambda^n B_n,
@@ -299,7 +396,7 @@ B(\lambda)=\sum_{n\ge0}\lambda^n B_n,
 C(\lambda)=\sum_{n\ge0}\lambda^n C_n.
 :::
 
-At order $\mathbf{n}$ this gives
+Matching order $n$ gives
 
 :::{math}
 C_n
@@ -307,25 +404,26 @@ C_n
 +\sum_{k=1}^{n-1} B_k B_{n-k}^\dagger.
 :::
 
-The sum on the right is already known from lower orders, so once a gauge is
-fixed, this equation is linear in $B_n$. A triangular gauge or an orthogonality
-condition on $B_0^\dagger B_n$ both work.
+The sum only involves lower orders, so after a gauge choice the equation is
+linear in $B_n$, provided the chosen branch has a regular zeroth-order factor
+$B_0$. A triangular gauge or an orthogonality condition on $B_0^\dagger B_n$
+are both standard choices.
 
-Now write the columns of $B$ as
+Write the columns of $B$ as
 
 :::{math}
 B(\lambda)=\big[b_1(\lambda)\;\cdots\;b_r(\lambda)\big],\qquad
 b_\mu(\lambda)=\sum_{n\ge0}\lambda^n b_{\mu,n},
 :::
 
-and define the jump operators by
+and define
 
 :::{math}
 J_\mu(\lambda)\equiv \sum_a b_{a\mu}(\lambda)\,F_a
 =\sum_{n\ge0}\lambda^n J_{\mu,n}.
 :::
 
-Then the transformed generator takes the form
+The transformed generator then takes the Lindblad form
 
 :::{math}
 \tilde{\mathcal{L}}(\rho)= -i[H,\rho]
@@ -335,13 +433,14 @@ J_\mu\rho J_\mu^\dagger
 \Big),
 :::
 
-and each coefficient $J_{\mu,n}$ is obtained linearly from $b_{\mu,n}$.
+and each $J_{\mu,n}$ follows linearly from the corresponding column
+$b_{\mu,n}$.
 
 :::{note}
-This construction stays on a positive branch, meaning
-$C(\lambda)\succeq 0$ wherever the series converges. If the target Liouvillian
-is not completely positive, that branch must fail at some finite $\lambda$,
-typically when an eigenvalue of $C$ crosses zero. A more general signed
-factorization uses $C=B\Sigma B^\dagger$ with
+This construction follows a positive branch, so it assumes a suitable $B_0$
+exists and $C(\lambda)\succeq 0$ within the region where the series converges.
+If the target Liouvillian is not completely positive, that branch must break
+down at some finite $\lambda$, usually when an eigenvalue of $C$ crosses zero.
+A more general signed factorization uses $C=B\Sigma B^\dagger$ with
 $\Sigma=\mathrm{diag}(\pm1,0)$.
 :::
