@@ -1,4 +1,4 @@
-image: ghcr.io/prefix-dev/pixi:0.63.2
+image: ghcr.io/prefix-dev/pixi:0.72.0
 
 variables:
   FF_USE_FASTZIP: "true"
@@ -49,7 +49,8 @@ run docs:
   cache:
     key: "$CI_JOB_NAME"
     paths:
-        - .pixi
+      - .intersphinx-cache
+      - .pixi
 
 run pre-commit:
   variables:

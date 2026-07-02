@@ -12,6 +12,7 @@
 #
 import os
 import sys
+from pathlib import Path
 
 import sphinx_tippy
 import requests
@@ -20,6 +21,12 @@ from importlib.metadata import version as check_version
 import pymablock
 
 package_path = os.path.abspath("../pymablock")
+intersphinx_inventory_dir = Path(
+    os.environ.get(
+        "PYMABLOCK_INTERSPHINX_DIR",
+        Path(__file__).resolve().parents[1] / "build/intersphinx",
+    )
+)
 # Suppress superfluous frozen modules warning.
 os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
 sys.path.insert(0, package_path)
@@ -67,12 +74,12 @@ autodoc_typehints = "description"
 autodoc_typehints_format = "short"
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3", None),
-    "kwant": ("https://kwant-project.org/doc/1", None),
-    "numpy": ("https://numpy.org/doc/stable/", None),
-    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
+    "python": ("https://docs.python.org/3", str(intersphinx_inventory_dir / "python.inv")),
+    "kwant": ("https://kwant-project.org/doc/1", str(intersphinx_inventory_dir / "kwant.inv")),
+    "numpy": ("https://numpy.org/doc/stable/", str(intersphinx_inventory_dir / "numpy.inv")),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", str(intersphinx_inventory_dir / "scipy.inv")),
     # TODO: Switch to latest when sympy 1.15 is released.
-    "sympy": ("https://docs.sympy.org/dev/", None),
+    "sympy": ("https://docs.sympy.org/dev/", str(intersphinx_inventory_dir / "sympy.inv")),
 }
 
 default_role = "autolink"

@@ -205,7 +205,7 @@ beautifulsoup4 = "*"
 git = "*"
 
 [tool.pixi.feature.docs.tasks.docs-build]
-cmd = "python -c \"from matplotlib import pyplot\" && sphinx-build -b html -n -WT docs/source docs/build/html"
+cmd = "python -c \"from matplotlib import pyplot\" && python docs/fetch_intersphinx.py && sphinx-build -b html -n -WT docs/source docs/build/html"
 
 [tool.pixi.feature.test.dependencies]
 pytest = "*"

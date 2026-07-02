@@ -56,6 +56,7 @@ Untitled.ipynb
 __pycache__/
 .ipynb_checkpoints
 *.ipynb
+.intersphinx-cache/
 
 # DATA files #
 *.dat
