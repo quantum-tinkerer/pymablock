@@ -36,6 +36,7 @@ Lindblad adiabatic elimination <tutorial/lindblad_adiabatic_elimination.md>
 algorithms.md
 nonhermitian_algorithm.md
 Lindbladian perturbation theory <lindbladian_perturbation_theory.md>
+Lindbladian PT literature <lindbladian_pt_literature.md>
 Comparison to Schrieffer-Wolff <radius.md>
 second_quantization.md
 documentation/pymablock.md

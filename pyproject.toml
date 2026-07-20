@@ -211,6 +211,12 @@ cmd = "python -c \"from matplotlib import pyplot\" && sphinx-build -b html -n -W
 [tool.pixi.feature.docs.tasks.docs-serve]
 cmd = "python -c \"from matplotlib import pyplot\" && sphinx-autobuild -b html -n -W --host 127.0.0.1 --port 51865 --watch docs/source --watch pymablock docs/source docs/build/html"
 
+[tool.pixi.feature.docs.tasks.docs-figures]
+cmd = "python docs/generate_lindbladian_figures.py"
+
+[tool.pixi.feature.docs.tasks.docs-reproduce-lindbladian]
+cmd = "python docs/reproduce_lindbladian_pt.py"
+
 [tool.pixi.feature.test.dependencies]
 pytest = "*"
 pytest-cov = "*"

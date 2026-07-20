@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lindbladian tooling inventory · Pymablock</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,550;8..60,700&display=swap");
+
+    :root {
+      --paper: #f3efe4;
+      --paper-deep: #e7e0d0;
+      --ink: #17201d;
+      --muted: #66706a;
+      --line: #b8b7aa;
+      --rust: #b84d2f;
+      --rust-soft: #e9c7b7;
+      --blue: #176d7a;
+      --blue-soft: #c8dfe0;
+      --olive: #6b7138;
+      --olive-soft: #dce0bd;
+      --near-black: #10211d;
+      --white: #fffdf7;
+      --mono: "DM Mono", "Courier New", monospace;
+      --serif: "Source Serif 4", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(90deg, transparent 0 49px, rgba(23, 32, 29, .055) 50px, transparent 51px) 0 0 / 52px 52px,
+        linear-gradient(transparent 0 49px, rgba(23, 32, 29, .04) 50px, transparent 51px) 0 0 / 52px 52px,
+        var(--paper);
+      font-family: var(--serif);
+      line-height: 1.55;
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      width: min(1460px, calc(100% - 40px));
+      margin: 20px auto 64px;
+      border: 1px solid var(--ink);
+      background: rgba(243, 239, 228, .94);
+      box-shadow: 8px 8px 0 var(--near-black);
+    }
+
+    .masthead {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 20px;
+      align-items: center;
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .masthead strong { color: var(--rust); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, .65fr);
+      min-height: 570px;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .hero-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(32px, 6vw, 86px);
+      border-right: 1px solid var(--ink);
+    }
+
+    .kicker,
+    .eyebrow {
+      margin: 0 0 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 900px;
+      margin: 0;
+      font-size: clamp(58px, 8vw, 126px);
+      font-weight: 550;
+      letter-spacing: -.065em;
+      line-height: .82;
+    }
+
+    h1 span {
+      display: block;
+      margin-left: .42em;
+      color: var(--rust);
+      font-style: italic;
+    }
+
+    .hero-summary {
+      max-width: 760px;
+      margin: 46px 0 0;
+      font-size: clamp(20px, 2.2vw, 31px);
+      line-height: 1.23;
+    }
+
+    .hero-side {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background: var(--near-black);
+      color: var(--white);
+    }
+
+    .status {
+      padding: 28px;
+      border-bottom: 1px solid rgba(255,255,255,.35);
+    }
+
+    .status strong {
+      display: block;
+      margin-top: 10px;
+      font-size: 32px;
+      font-weight: 550;
+      line-height: 1.08;
+    }
+
+    .equation-block {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 40px 28px;
+      background:
+        radial-gradient(circle at 76% 28%, rgba(23,109,122,.5), transparent 32%),
+        var(--near-black);
+    }
+
+    .equation {
+      font-family: var(--mono);
+      font-size: clamp(17px, 1.8vw, 25px);
+      line-height: 1.7;
+    }
+
+    .equation .accent { color: #78c7cf; }
+    .equation .warn { color: #ef9c76; }
+
+    .legend {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-top: 1px solid rgba(255,255,255,.35);
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .legend span { padding: 14px; border-right: 1px solid rgba(255,255,255,.35); }
+    .legend span:last-child { border-right: 0; }
+
+    .jump-nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      gap: 0;
+      overflow-x: auto;
+      border-bottom: 1px solid var(--ink);
+      background: var(--paper);
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .jump-nav a {
+      flex: 1 0 auto;
+      padding: 14px 20px;
+      border-right: 1px solid var(--ink);
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .jump-nav a:hover { background: var(--rust); color: var(--white); }
+
+    section { padding: clamp(44px, 6vw, 88px); border-bottom: 1px solid var(--ink); }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(280px, .6fr);
+      gap: 48px;
+      margin-bottom: 48px;
+      align-items: end;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(44px, 5.8vw, 84px);
+      font-weight: 550;
+      letter-spacing: -.05em;
+      line-height: .95;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--ink);
+    }
+
+    .pipeline-step {
+      position: relative;
+      min-height: 250px;
+      padding: 24px;
+      border-right: 1px solid var(--ink);
+      background: var(--white);
+    }
+
+    .pipeline-step:last-child { border-right: 0; }
+    .pipeline-step:nth-child(2) { background: var(--blue-soft); }
+    .pipeline-step:nth-child(3) { background: var(--olive-soft); }
+    .pipeline-step:nth-child(4) { background: var(--rust-soft); }
+
+    .step-no {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .12em;
+    }
+
+    .pipeline h3 {
+      margin: 56px 0 10px;
+      font-size: 28px;
+      line-height: 1.05;
+    }
+
+    .pipeline p { margin: 0; font-size: 15px; }
+
+    .pipeline code,
+    .tool-card code,
+    .application code {
+      font-family: var(--mono);
+      font-size: .82em;
+      background: rgba(255,255,255,.55);
+      padding: 2px 5px;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: -10px 0 28px;
+    }
+
+    .filter {
+      padding: 9px 14px;
+      border: 1px solid var(--ink);
+      border-radius: 0;
+      color: var(--ink);
+      background: transparent;
+      font-family: var(--mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .filter:hover,
+    .filter.active { color: var(--white); background: var(--near-black); }
+
+    .tool-groups { display: grid; gap: 36px; }
+
+    .tool-group {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr);
+      gap: 30px;
+    }
+
+    .group-label {
+      position: sticky;
+      top: 68px;
+      align-self: start;
+      padding-top: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .group-label b {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--rust);
+      font-family: var(--serif);
+      font-size: 25px;
+      text-transform: none;
+    }
+
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 1px solid var(--ink);
+      border-left: 1px solid var(--ink);
+    }
+
+    .tool-card {
+      min-height: 205px;
+      padding: 22px;
+      border-right: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      background: rgba(255,253,247,.72);
+      transition: opacity .2s ease, transform .2s ease, background .2s ease;
+    }
+
+    .tool-card:hover { background: var(--white); transform: translateY(-3px); }
+    .tool-card.hidden { display: none; }
+
+    .priority {
+      display: inline-block;
+      margin-bottom: 26px;
+      padding: 3px 7px;
+      border: 1px solid currentColor;
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .priority.essential { color: var(--rust); }
+    .priority.useful { color: var(--blue); }
+    .priority.advanced { color: var(--olive); }
+
+    .tool-card h3 { margin: 0 0 10px; font-size: 20px; line-height: 1.18; }
+    .tool-card p { margin: 0; color: var(--muted); font-size: 14px; }
+
+    .report-panel {
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      border: 1px solid var(--ink);
+      background: var(--near-black);
+      color: var(--white);
+    }
+
+    .report-code {
+      padding: 34px;
+      border-right: 1px solid rgba(255,255,255,.38);
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.9;
+      overflow-x: auto;
+    }
+
+    .report-code .key { color: #82c9cf; }
+    .report-code .value { color: #f1ae8f; }
+
+    .statuses { display: grid; grid-template-columns: repeat(2, 1fr); }
+
+    .status-card {
+      padding: 28px;
+      border-right: 1px solid rgba(255,255,255,.28);
+      border-bottom: 1px solid rgba(255,255,255,.28);
+    }
+
+    .status-card:nth-child(2n) { border-right: 0; }
+    .status-card:nth-last-child(-n+2) { border-bottom: 0; }
+    .status-card h3 { margin: 0 0 8px; font-family: var(--mono); font-size: 13px; color: #82c9cf; }
+    .status-card p { margin: 0; color: #d0d9d4; font-size: 14px; }
+
+    .applications {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+    }
+
+    .application {
+      position: relative;
+      min-height: 380px;
+      padding: 34px;
+      border: 1px solid var(--ink);
+      background: var(--white);
+      overflow: hidden;
+    }
+
+    .application::after {
+      content: attr(data-index);
+      position: absolute;
+      right: -8px;
+      bottom: -60px;
+      color: rgba(23,32,29,.06);
+      font-family: var(--mono);
+      font-size: 190px;
+      font-weight: 500;
+      line-height: 1;
+    }
+
+    .application:nth-child(2) { background: var(--blue-soft); }
+    .application:nth-child(3) { background: var(--olive-soft); }
+    .application:nth-child(4) { background: var(--rust-soft); }
+
+    .application .eyebrow { color: var(--rust); }
+    .application h3 { max-width: 500px; margin: 0 0 16px; font-size: 35px; line-height: 1.02; }
+    .application p { position: relative; z-index: 1; max-width: 590px; margin: 0 0 18px; }
+
+    .result {
+      position: relative;
+      z-index: 1;
+      display: inline-block;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 2px solid var(--ink);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .boundaries {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .boundary {
+      padding: 24px;
+      border-top: 4px solid var(--rust);
+      background: rgba(255,253,247,.62);
+    }
+
+    .boundary h3 { margin: 0 0 10px; font-size: 22px; }
+    .boundary p { margin: 0; color: var(--muted); }
+
+    .roadmap {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--ink);
+    }
+
+    .roadmap-intro {
+      padding: 38px;
+      border-right: 1px solid var(--ink);
+      background: var(--rust);
+      color: var(--white);
+    }
+
+    .roadmap-intro h3 { margin: 0 0 24px; font-size: 42px; line-height: 1; }
+    .roadmap-intro p { max-width: 510px; margin: 0; font-size: 19px; }
+
+    .roadmap-list { counter-reset: roadmap; background: var(--white); }
+    .roadmap-list div {
+      counter-increment: roadmap;
+      display: grid;
+      grid-template-columns: 54px 1fr;
+      gap: 12px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--ink);
+      align-items: baseline;
+    }
+    .roadmap-list div:last-child { border-bottom: 0; }
+    .roadmap-list div::before {
+      content: "0" counter(roadmap);
+      color: var(--rust);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+    .roadmap-list strong { font-size: 18px; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 22px;
+      background: var(--near-black);
+      color: var(--white);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .reveal { animation: reveal .65s both; animation-timeline: view(); animation-range: entry 0% cover 24%; }
+    @keyframes reveal {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+      .hero-copy { border-right: 0; border-bottom: 1px solid var(--ink); }
+      .hero-side { min-height: 420px; }
+      .section-head { grid-template-columns: 1fr; gap: 20px; }
+      .pipeline { grid-template-columns: repeat(2, 1fr); }
+      .pipeline-step:nth-child(2) { border-right: 0; }
+      .pipeline-step:nth-child(-n+2) { border-bottom: 1px solid var(--ink); }
+      .tool-group { grid-template-columns: 1fr; }
+      .group-label { position: static; }
+      .tool-grid { grid-template-columns: repeat(2, 1fr); }
+      .report-panel { grid-template-columns: 1fr; }
+      .report-code { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.38); }
+      .boundaries { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      .shell { width: calc(100% - 18px); margin-top: 9px; box-shadow: 4px 4px 0 var(--near-black); }
+      .masthead { grid-template-columns: 1fr; gap: 3px; }
+      .hero-copy, section { padding: 34px 22px; }
+      h1 { font-size: clamp(52px, 18vw, 84px); }
+      .hero-summary { font-size: 20px; }
+      .pipeline, .tool-grid, .applications, .statuses, .roadmap { grid-template-columns: 1fr; }
+      .pipeline-step { border-right: 0; border-bottom: 1px solid var(--ink); }
+      .pipeline-step:last-child { border-bottom: 0; }
+      .tool-card { min-height: 170px; }
+      .application { min-height: 350px; padding: 26px; }
+      .application h3 { font-size: 30px; }
+      .status-card { border-right: 0; }
+      .status-card:nth-last-child(2) { border-bottom: 1px solid rgba(255,255,255,.28); }
+      .roadmap-intro { border-right: 0; border-bottom: 1px solid var(--ink); }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="masthead">
+      <div><strong>Pymablock</strong> / engineering brief 01</div>
+      <div>Lindbladian perturbation theory · tooling inventory</div>
+    </header>
+
+    <div class="hero">
+      <div class="hero-copy">
+        <div>
+          <p class="kicker">The algorithm is already general enough</p>
+          <h1>Physical tools <span>around the core</span></h1>
+        </div>
+        <p class="hero-summary">
+          Pymablock already computes effective Lindbladian blocks and their embeddings.
+          A focused utility layer can turn those algebraic outputs into physical models,
+          diagnostics, jump operators, and response functions.
+        </p>
+      </div>
+      <aside class="hero-side">
+        <div class="status">
+          <span class="eyebrow">Current assessment</span>
+          <strong>No new recurrence required.</strong>
+        </div>
+        <div class="equation-block">
+          <div class="equation">
+            <span class="accent">𝓛 K = K 𝓛<sub>eff</sub></span><br>
+            𝓛<sub>eff</sub> → H, C<br>
+            C ⪰ 0 → { J<sub>k</sub> }<br>
+            <span class="warn">C ⊁ 0 → classify, do not hide</span>
+          </div>
+        </div>
+        <div class="legend">
+          <span>algebra</span><span>physics</span><span>interpretation</span>
+        </div>
+      </aside>
+    </div>
+
+    <nav class="jump-nav" aria-label="Page sections">
+      <a href="#workflow">Workflow</a>
+      <a href="#ule">Microscopic input</a>
+      <a href="#inventory">Inventory</a>
+      <a href="#report">Interpretation</a>
+      <a href="#applications">Applications</a>
+      <a href="#roadmap">Roadmap</a>
+    </nav>
+
+    <section id="workflow">
+      <div class="section-head reveal">
+        <div>
+          <p class="eyebrow">One coherent path</p>
+          <h2>From microscopic model to physical claim</h2>
+        </div>
+        <p>
+          The core algorithm owns block diagonalization. The utility layer owns physical
+          construction, reconstruction, and diagnostics. Keeping this boundary explicit
+          prevents convenience functions from silently making physical choices.
+        </p>
+      </div>
+      <div class="pipeline reveal">
+        <article class="pipeline-step">
+          <span class="step-no">01 / construct</span>
+          <h3>Physical input</h3>
+          <p>Build <code>𝓛(H, jumps)</code> and a biorthogonal slow subspace with a clear reduction map.</p>
+        </article>
+        <article class="pipeline-step">
+          <span class="step-no">02 / compute</span>
+          <h3>General core</h3>
+          <p>Call <code>block_diagonalize(..., hermitian=False)</code>. Keep the recurrence unchanged.</p>
+        </article>
+        <article class="pipeline-step">
+          <span class="step-no">03 / reconstruct</span>
+          <h3>Physical output</h3>
+          <p>Assemble the embedding, extract the Hamiltonian and Kossakowski matrix, then factor when feasible.</p>
+        </article>
+        <article class="pipeline-step">
+          <span class="step-no">04 / interpret</span>
+          <h3>Qualified result</h3>
+          <p>Report whether the model is autonomous GKSL, incomplete at this order, obstructed, or valid only when embedded.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="ule">
+      <div class="section-head reveal">
+        <div>
+          <p class="eyebrow">Nathan–Rudner universal Lindblad equation</p>
+          <h2>A physical front end, not a competing reducer</h2>
+        </div>
+        <p>
+          The universal Lindblad equation closes a microscopic system–bath model into
+          a full-system GKSL generator. Pymablock can then reduce that generator. The
+          two approximations act at different levels and carry separate error budgets.
+        </p>
+      </div>
+      <div class="report-panel reveal">
+        <div class="report-code" aria-label="Universal Lindblad jump construction">
+          <span class="key">bath model</span><br>
+          H<sub>S</sub>, X<sub>α</sub>, J<sub>αβ</sub>(ω)<br><br>
+          g(ω)² = 2π J(ω)<br><br>
+          L<sub>λ</sub>(t) = √γ Σ<sub>α</sub> ∫ds<br>
+          &nbsp;&nbsp;g<sub>λα</sub>(t−s) U(t,s) X<sub>α</sub> U†(t,s)<br><br>
+          <span class="value">Γτ ≪ 1</span> → 𝓛<sub>ULE</sub> is GKSL
+        </div>
+        <div class="statuses">
+          <article class="status-card"><h3>microscopic closure</h3><p>The bath spectrum and coupling operators determine explicit jumps and a Lamb shift without a rotating-wave condition on system level spacings.</p></article>
+          <article class="status-card"><h3>factor first</h3><p>For H = H₀ + λV, expand each jump through nested commutators or a Dyson series, then construct its dissipator.</p></article>
+          <article class="status-card"><h3>dressed state</h3><p>The derivation evolves a density matrix perturbatively close to the physical reduced state. That dressing belongs in the approximation metadata.</p></article>
+          <article class="status-card"><h3>secondary reduction</h3><p>𝓛<sub>ULE</sub> is a physical Pymablock input, but eliminating another fast sector can still produce a non-GKSL effective block.</p></article>
+        </div>
+      </div>
+      <p class="reveal" style="margin: 22px 0 0; color: var(--muted); max-width: 78ch;">
+        This is also a constructive version of the jump-series problem. Keeping the
+        truncated jump inside its full dissipator is pointwise completely positive but
+        retains terms beyond the requested order. Re-expanding and truncating the
+        dissipator returns to the finite-order Kossakowski test used below. See
+        <a href="https://arxiv.org/abs/2004.01469">Nathan and Rudner</a>.
+      </p>
+    </section>
+
+    <section id="inventory">
+      <div class="section-head reveal">
+        <div>
+          <p class="eyebrow">Proposed module · pymablock.lindblad</p>
+          <h2>The inventory</h2>
+        </div>
+        <p>
+          Filter by implementation priority. “Essential” completes the basic workflow;
+          “useful” makes it robust and discoverable; “advanced” addresses formal series,
+          rank changes, and multivariate positivity.
+        </p>
+      </div>
+
+      <div class="filters" role="group" aria-label="Filter tools by priority">
+        <button class="filter active" data-filter="all">All tools</button>
+        <button class="filter" data-filter="essential">Essential</button>
+        <button class="filter" data-filter="useful">Useful</button>
+        <button class="filter" data-filter="advanced">Advanced</button>
+      </div>
+
+      <div class="tool-groups">
+        <div class="tool-group reveal">
+          <div class="group-label"><b>Construct</b>Define the physical problem</div>
+          <div class="tool-grid">
+            <article class="tool-card" data-priority="essential"><span class="priority essential">Essential</span><h3><code>liouvillian(H, jumps)</code></h3><p>Construct the commutator and dissipators using Pymablock’s row-major vectorization convention.</p></article>
+            <article class="tool-card" data-priority="essential"><span class="priority essential">Essential</span><h3><code>product_slow_subspace</code></h3><p>Return the thermal embedding and partial-trace left basis for fast–slow product systems.</p></article>
+            <article class="tool-card" data-priority="essential"><span class="priority essential">Essential</span><h3><code>validate_subspace</code></h3><p>Check biorthogonality, invariance, trace compatibility, and Hermiticity closure before expansion.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>lift_hamiltonian_mask</code></h3><p>Lift a Hamiltonian elimination pattern to the corresponding unitary-preserving Liouville mask.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>pair_hermiticity_mask</code></h3><p>Close a mask under the dagger-induced pairing of Liouvillian eigenoperators.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>check_sylvester_gap</code></h3><p>Flag resonances, exceptional points, and poorly conditioned elimination before they become numerical failures.</p></article>
+          </div>
+        </div>
+
+        <div class="tool-group reveal">
+          <div class="group-label"><b>Extract</b>Turn series into objects</div>
+          <div class="tool-grid">
+            <article class="tool-card" data-priority="essential"><span class="priority essential">Essential</span><h3><code>embedding_series(U, R)</code></h3><p>Assemble the physical map from reduced operators to the full slow manifold without exposing implicit block details.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>reduction_series(U_inv, L)</code></h3><p>Construct the inverse perturbative reduction map and make the coordinate gauge explicit.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>transform_operator(A, U)</code></h3><p>Dress observables and system–bath couplings consistently with the effective model.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>coefficients(series, orders)</code></h3><p>Materialize selected coefficients while retaining masked structural zeros.</p></article>
+            <article class="tool-card" data-priority="essential"><span class="priority essential">Essential</span><h3><code>decompose_generator</code></h3><p>Extract the Hamiltonian and Kossakowski matrix in a fixed traceless orthonormal operator basis.</p></article>
+            <article class="tool-card" data-priority="essential"><span class="priority essential">Essential</span><h3><code>factor_kossakowski</code></h3><p>Return canonical jump operators at fixed parameters when the Kossakowski matrix is positive semidefinite.</p></article>
+          </div>
+        </div>
+
+        <div class="tool-group reveal">
+          <div class="group-label"><b>Diagnose</b>Say what the result means</div>
+          <div class="tool-grid">
+            <article class="tool-card" data-priority="essential"><span class="priority essential">Essential</span><h3>Trace + Hermiticity</h3><p>Measure the two linear structure residuals separately at every requested perturbative order.</p></article>
+            <article class="tool-card" data-priority="essential"><span class="priority essential">Essential</span><h3>Complete positivity</h3><p>Report Kossakowski eigenvalues and negative directions instead of returning a binary verdict only.</p></article>
+            <article class="tool-card" data-priority="essential"><span class="priority essential">Essential</span><h3>Intertwining residual</h3><p>Verify <code>𝓛K = K𝓛_eff</code> so spectral accuracy and embedded physical dynamics remain connected.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>classify_cp_defect</code></h3><p>Distinguish a missing higher-order square from negativity at the first nonzero order.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>kossakowski_witness</code></h3><p>Return a basis-independent vector that certifies formal infeasibility, as in the Tokieda model.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>check_unitary_generator</code></h3><p>Confirm that a Hamiltonian input remains free of effective dissipative terms.</p></article>
+          </div>
+        </div>
+
+        <div class="tool-group reveal">
+          <div class="group-label"><b>Extend</b>Optional application layers</div>
+          <div class="tool-grid">
+            <article class="tool-card" data-priority="advanced"><span class="priority advanced">Advanced</span><h3><code>factor_kossakowski_series</code></h3><p>Recover analytic jump series when the leading Gram factor has stable rank.</p></article>
+            <article class="tool-card" data-priority="advanced"><span class="priority advanced">Advanced</span><h3><code>gram_feasibility</code></h3><p>Use a finite-order SDP for multivariate or rank-changing Kossakowski series.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>lindblad_susceptibility</code></h3><p>Solve the shifted response problem, including a trace-fixed zero-frequency limit.</p></article>
+            <article class="tool-card" data-priority="useful"><span class="priority useful">Useful</span><h3><code>differentiate_lindbladian</code></h3><p>Assemble derivatives from Hamiltonians, rates, and jump operators without hiding secularization choices.</p></article>
+            <article class="tool-card" data-priority="advanced"><span class="priority advanced">Advanced</span><h3>Multipoint reduced basis</h3><p>Pool stationary embedding columns across expansion points for Melo-style variational recombination.</p></article>
+            <article class="tool-card" data-priority="advanced"><span class="priority advanced">Advanced</span><h3>Floquet / Sambe lift</h3><p>Move driven Liouvillians into an enlarged static space before applying the existing recurrence.</p></article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="report">
+      <div class="section-head reveal">
+        <div>
+          <p class="eyebrow">Interpretation is an output</p>
+          <h2>One report, four physical statuses</h2>
+        </div>
+        <p>
+          A non-GKSL coefficient is not a sufficient diagnosis. The report must say
+          whether the defect is physical at the retained order and whether the model
+          remains valid on the embedded slow manifold.
+        </p>
+      </div>
+      <div class="report-panel reveal">
+        <div class="report-code" aria-label="Example report API">
+          report = analyze_lindbladian(<br>
+          &nbsp;&nbsp;L_eff,<br>
+          &nbsp;&nbsp;embedding=K,<br>
+          &nbsp;&nbsp;order=4,<br>
+          )<br><br>
+          report.<span class="key">trace_preserving</span> = <span class="value">True</span><br>
+          report.<span class="key">hermiticity_preserving</span> = <span class="value">True</span><br>
+          report.<span class="key">cp_status</span> = <span class="value">"formal_obstruction"</span><br>
+          report.<span class="key">witness</span> = <span class="value">σ<sub>z</sub>/√2</span><br>
+          report.<span class="key">intertwining_residual</span> = <span class="value">8.7e−15</span>
+        </div>
+        <div class="statuses">
+          <article class="status-card"><h3>gksl</h3><p>The truncated generator is a valid autonomous Lindblad model at the requested parameters.</p></article>
+          <article class="status-card"><h3>indeterminate_at_order</h3><p>An apparent negative direction begins beyond the truncation and may be completed by omitted terms.</p></article>
+          <article class="status-card"><h3>formal_obstruction</h3><p>Negativity appears at its first nonzero order; higher orders cannot repair it near the expansion point.</p></article>
+          <article class="status-card"><h3>embedded_only</h3><p>The generator accurately evolves the physical slow manifold but is not a channel on every abstract reduced state.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="applications">
+      <div class="section-head reveal">
+        <div>
+          <p class="eyebrow">Concrete validation targets</p>
+          <h2>Applications that exercise different layers</h2>
+        </div>
+        <p>
+          These examples are not decoration. Together they test construction, odd and even
+          orders, embeddings, positivity diagnostics, reduced bases, and dressed response.
+        </p>
+      </div>
+      <div class="applications">
+        <article class="application reveal" data-index="1">
+          <p class="eyebrow">Thermal oscillator + qubit</p>
+          <h3>Tokieda: detect a genuine CP obstruction</h3>
+          <p>Eliminate a damped oscillator through fourth order, reconstruct the Kossakowski series, and find the negative dephasing direction inside <code>ker(C₂)</code>.</p>
+          <p>The embedding remains accurate even though the reduced generator cannot act as an autonomous channel on arbitrary qubit states.</p>
+          <span class="result">Observed: ⟨F<sub>z</sub>, C₄F<sub>z</sub>⟩ = −11.299 · residual 8.7×10⁻¹⁵</span>
+        </article>
+        <article class="application reveal" data-index="2">
+          <p class="eyebrow">Electron-mediated nuclear decay</p>
+          <h3>Kessler: recognize an incomplete square</h3>
+          <p>The second-order collective jump is dressed at third order by a polarization-dependent phase. The cross term alone is not manifestly GKSL.</p>
+          <p>Resumming the jump supplies a positive fourth-order square, so any apparent CP defect lies beyond third-order accuracy.</p>
+          <span class="result">Observed: third-order coefficient agreement 4.6×10⁻¹⁶</span>
+        </article>
+        <article class="application reveal" data-index="3">
+          <p class="eyebrow">Steady-state parameter sweeps</p>
+          <h3>Melo: export one embedding column as a reduced basis</h3>
+          <p>Convert Pymablock’s stationary embedding to the Moore–Penrose normalization gauge, orthonormalize its coefficients, and reuse their span with variational weights.</p>
+          <p>This adds a post-processing layer without changing block diagonalization.</p>
+          <span class="result">Observed: gauge-converted series agreement 2.4×10⁻¹⁶</span>
+        </article>
+        <article class="application reveal" data-index="4">
+          <p class="eyebrow">Minimal Kitaev junction readout</p>
+          <h3>Kuhn et al.: dress the qubit and its readout channels</h3>
+          <p>Use Hermitian Pymablock to eliminate high-energy junction sectors, then transform gate, current, and bath-coupling operators with the same series.</p>
+          <p>A small resolvent helper can evaluate Hamiltonian, Sisyphus, and Hermes susceptibility contributions without pretending linear response is block PT.</p>
+          <span class="result">Target: effective qubit + dressed jumps + finite-frequency susceptibility</span>
+        </article>
+        <article class="application reveal" data-index="5">
+          <p class="eyebrow">Two reservoirs + dense many-body spectrum</p>
+          <h3>Nathan–Rudner: construct before reducing</h3>
+          <p>Build the ULE for a Heisenberg chain coupled at opposite ends to Ohmic baths at different temperatures. The bath model produces a compact, nonsecular GKSL generator without resolving exponentially small level spacings.</p>
+          <p>A smaller chain can validate spectral-factor, Lamb-shift, and error-budget utilities. Pymablock becomes relevant only when a further low-energy or slow-mode reduction is requested.</p>
+          <span class="result">Target: microscopic bath → guaranteed-GKSL input → optional effective block</span>
+        </article>
+      </div>
+    </section>
+
+    <section id="boundaries">
+      <div class="section-head reveal">
+        <div>
+          <p class="eyebrow">Keep physical choices visible</p>
+          <h2>What the utility layer should not automate</h2>
+        </div>
+        <p>Several operations look mechanical but encode assumptions about timescales, environments, or reduced-state coordinates.</p>
+      </div>
+      <div class="boundaries reveal">
+        <article class="boundary"><h3>No automatic Markov closure</h3><p>Secularization, Bloch–Redfield, and the ULE are upstream physical approximations. Pymablock accepts their generators as input but does not select or construct them.</p></article>
+        <article class="boundary"><h3>No silent CP repair</h3><p>Projecting a Kossakowski matrix onto the positive cone changes the perturbative model and can erase a genuine obstruction.</p></article>
+        <article class="boundary"><h3>No automatic gauge choice</h3><p>Partial trace, Moore–Penrose normalization, and Pymablock’s similarity gauge describe different reduced coordinates.</p></article>
+        <article class="boundary"><h3>No universal mask</h3><p>Trace, Hermiticity, and unitary lifts constrain masks differently; resonant entries belong in the retained block.</p></article>
+        <article class="boundary"><h3>No jumps without feasibility</h3><p>A trace- and Hermiticity-preserving generator always yields a Hermitian Kossakowski matrix, but physical jumps require positivity.</p></article>
+        <article class="boundary"><h3>No hidden domain claim</h3><p>A non-GKSL effective model may remain accurate on the embedded manifold. The report must preserve that distinction.</p></article>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-head reveal">
+        <div>
+          <p class="eyebrow">Recommended first slice</p>
+          <h2>Six additions complete the basic workflow</h2>
+        </div>
+        <p>Everything after this slice can be developed independently as an optional advanced or application-specific layer.</p>
+      </div>
+      <div class="roadmap reveal">
+        <div class="roadmap-intro">
+          <h3>Start narrow.</h3>
+          <p>Build the smallest physical façade around the existing non-Hermitian machinery, validate it against the reproductions, and let concrete applications justify later abstractions.</p>
+        </div>
+        <div class="roadmap-list">
+          <div><strong>Liouvillian construction primitives</strong></div>
+          <div><strong>Product slow-subspace construction</strong></div>
+          <div><strong>Embedding and reduction extraction</strong></div>
+          <div><strong>Trace, Hermiticity, and intertwining diagnostics</strong></div>
+          <div><strong>Hamiltonian–Kossakowski decomposition</strong></div>
+          <div><strong>Fixed-parameter jump factorization and report</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <span>Pymablock · Lindbladian PT spike</span>
+      <span>Core recurrence unchanged · physical interpretation explicit</span>
+    </footer>
+  </main>
+
+  <script>
+    const filters = document.querySelectorAll(".filter");
+    const cards = document.querySelectorAll(".tool-card");
+
+    filters.forEach((button) => {
+      button.addEventListener("click", () => {
+        filters.forEach((candidate) => candidate.classList.remove("active"));
+        button.classList.add("active");
+        const selected = button.dataset.filter;
+        cards.forEach((card) => {
+          card.classList.toggle(
+            "hidden",
+            selected !== "all" && card.dataset.priority !== selected,
+          );
+        });
+      });
+    });
+  </script>
+</body>
+</html>
