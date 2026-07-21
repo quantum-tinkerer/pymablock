@@ -166,8 +166,10 @@ def _make_asymmetric_mask(
     return mask
 
 
-def _make_random_boolean_mask(size: int, *, p_true: float = 0.28) -> np.ndarray:
-    mask = np.random.choice([False, True], size=(size, size), p=[1 - p_true, p_true])
+def _make_random_boolean_mask(
+    rng: np.random.Generator, size: int, *, p_true: float = 0.28
+) -> np.ndarray:
+    mask = rng.choice([False, True], size=(size, size), p=[1 - p_true, p_true])
     np.fill_diagonal(mask, False)
     return mask
 
@@ -183,9 +185,8 @@ def _assert_mask_eliminated(
 
 
 def _make_direct_solver_case(
-    n: int, a_dim: int
+    n: int, a_dim: int, rng: np.random.Generator
 ) -> tuple[np.random.Generator, sparse.dia_matrix, np.ndarray, np.ndarray, np.ndarray]:
-    rng = np.random.default_rng()
     energies = rng.standard_normal(n)
     hoppings = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
     h_0 = sparse.diags([hoppings, energies, hoppings.conj()], [-1, 0, 1])
@@ -194,7 +195,7 @@ def _make_direct_solver_case(
 
 
 def _make_biorthogonal_direct_solver_case(
-    n: int, a_dim: int
+    n: int, a_dim: int, rng: np.random.Generator
 ) -> tuple[
     np.random.Generator,
     sparse.csr_array,
@@ -203,7 +204,6 @@ def _make_biorthogonal_direct_solver_case(
     tuple[np.ndarray, np.ndarray],
     tuple[np.ndarray, np.ndarray],
 ]:
-    rng = np.random.default_rng()
     eigvals = np.linspace(-3.0, 3.0, n) + 0.2j * rng.standard_normal(n)
     transform = np.diag(5.0 + rng.random(n)).astype(complex)
     transform += 0.2 * _complex_normal(rng, (n, n))
@@ -247,8 +247,7 @@ def test_number_products_nonhermitian_two_block(data_regression):
         return op
 
     def eval_randomly_sparse(*index):
-        np.random.seed(index[2])
-        p = np.random.random(3)
+        p = np.random.default_rng(index[2]).random(3)
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
         if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
@@ -366,8 +365,7 @@ def test_number_products_nonhermitian_three_block(data_regression):
         return op
 
     def eval_randomly_sparse(*index):
-        np.random.seed(index[2])
-        p = np.random.random(3)
+        p = np.random.default_rng(index[2]).random(3)
         if index[0] != index[1] and sum(index[2:]) == 0:
             return zero
         if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
@@ -431,8 +429,7 @@ def test_number_products_nonhermitian_three_block(data_regression):
         "matrix-3-blocks-bivariate",
     ],
 )
-def test_nonhermitian_roundtrip(block_dims, wanted_orders):
-    rng = np.random.default_rng()
+def test_nonhermitian_roundtrip(block_dims, wanted_orders, rng):
     H, energies = _make_block_h(
         block_dims=block_dims,
         wanted_orders=wanted_orders,
@@ -445,11 +442,11 @@ def test_nonhermitian_roundtrip(block_dims, wanted_orders):
 
 
 @pytest.mark.parametrize(("block_dims", "max_order"), [((2, 2), 4), ((2, 1, 2), 3)])
-def test_nonhermitian_matches_hermitian_on_hermitian_input(block_dims, max_order):
+def test_nonhermitian_matches_hermitian_on_hermitian_input(block_dims, max_order, rng):
     H, energies = _make_block_h(
         block_dims=block_dims,
         wanted_orders=max_order,
-        matrix_factory=random_hermitian_matrix,
+        matrix_factory=lambda n: random_hermitian_matrix(n, rng),
     )
     scope = {
         "solve_sylvester": _solve_sylvester(energies),
@@ -465,10 +462,9 @@ def test_nonhermitian_matches_hermitian_on_hermitian_input(block_dims, max_order
     compare_series(series_h["U†"], series_nh["U†"], (max_order,), atol=1e-14)
 
 
-def test_nonhermitian_arbitrary_asymmetric_mask():
+def test_nonhermitian_arbitrary_asymmetric_mask(rng):
     n = 6
     max_order = 3
-    rng = np.random.default_rng()
     energies = np.linspace(-3.0, 3.0, n)
 
     data = {(0, 0, 0): np.diag(energies).astype(complex)}
@@ -525,20 +521,19 @@ def test_nonhermitian_arbitrary_asymmetric_mask():
     assert opposite_direction_nonzero
 
 
-def test_nonhermitian_random_boolean_mask_roundtrip_regression():
+def test_nonhermitian_random_boolean_mask_roundtrip_regression(rng):
     n = 4
     max_order = 3
     energies = np.linspace(-3.0, 3.0, n)
-    # Rely on pytest-randomly to vary the global NumPy seed between runs.
     # A few independent masks make the regression unlikely to miss on main.
     for _ in range(5):
         data = {(0, 0, 0): np.diag(energies).astype(complex)}
         for order in range(1, max_order + 1):
-            data[(0, 0, order)] = _complex_normal(np.random, (n, n))
+            data[(0, 0, order)] = _complex_normal(rng, (n, n))
         H = BlockSeries(data=data, shape=(1, 1), n_infinite=1, name="H")
 
         for _ in range(10):
-            to_eliminate = _make_random_boolean_mask(n)
+            to_eliminate = _make_random_boolean_mask(rng, n)
             if to_eliminate.any() and not np.array_equal(to_eliminate, to_eliminate.T):
                 break
         else:
@@ -583,9 +578,8 @@ def test_nonhermitian_random_boolean_mask_roundtrip_regression():
 
 
 @pytest.mark.parametrize("block_sizes", [(6,), (3, 2)], ids=["single-block", "two-block"])
-def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask(block_sizes):
+def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask(block_sizes, rng):
     max_order = 3
-    rng = np.random.default_rng()
     n = sum(block_sizes)
 
     h_0 = np.diag(np.linspace(-3.0, 3.0, n)).astype(complex)
@@ -607,8 +601,7 @@ def test_block_diagonalize_nonhermitian_accepts_asymmetric_mask(block_sizes):
     _assert_mask_eliminated(H_tilde, masks, max_order=max_order)
 
 
-def test_block_diagonalize_nonhermitian_rejects_legacy_two_block_solver():
-    rng = np.random.default_rng()
+def test_block_diagonalize_nonhermitian_rejects_legacy_two_block_solver(rng):
     h_0 = np.diag(np.array([-3.0, 0.7, 1.4, 2.6], dtype=float)).astype(complex)
     h_1 = _complex_normal(rng, (4, 4))
     subspace_indices = np.array([0, 1, 1, 1], dtype=int)
@@ -656,13 +649,13 @@ def test_block_diagonalize_nonhermitian_accepts_bare_sympy_matrix():
 
 @pytest.mark.parametrize("index", [(0, 1), (1, 0)])
 def test_nonhermitian_direct_solver_supports_both_offdiagonal_orientations(
-    index,
+    index, rng
 ) -> None:
     pytest.importorskip("mumps", reason="python-mumps is not installed")
 
     n = 300
     a_dim = 5
-    rng, h_0, eigvals, eigvecs, eigvecs_rest = _make_direct_solver_case(n, a_dim)
+    rng, h_0, eigvals, eigvecs, eigvecs_rest = _make_direct_solver_case(n, a_dim, rng)
     direct = solve_sylvester_direct(h_0, [eigvecs], nonhermitian=True)
 
     if index == (0, 1):
@@ -686,12 +679,12 @@ def test_nonhermitian_direct_solver_supports_both_offdiagonal_orientations(
     np.testing.assert_allclose(expected, direct(rhs, index))
 
 
-def test_nonhermitian_direct_solver_requires_flag_for_left_implicit_solve() -> None:
+def test_nonhermitian_direct_solver_requires_flag_for_left_implicit_solve(rng) -> None:
     pytest.importorskip("mumps", reason="python-mumps is not installed")
 
     n = 40
     a_dim = 4
-    rng, h_0, _, eigvecs, eigvecs_rest = _make_direct_solver_case(n, a_dim)
+    rng, h_0, _, eigvecs, eigvecs_rest = _make_direct_solver_case(n, a_dim, rng)
     direct = solve_sylvester_direct(h_0, [eigvecs])
 
     rhs = rng.standard_normal(size=(n - a_dim, a_dim)) + 1j * rng.standard_normal(
@@ -704,13 +697,13 @@ def test_nonhermitian_direct_solver_requires_flag_for_left_implicit_solve() -> N
 
 
 @pytest.mark.parametrize("index", [(0, 1), (1, 0)])
-def test_nonhermitian_direct_solver_supports_biorthogonal_subspaces(index) -> None:
+def test_nonhermitian_direct_solver_supports_biorthogonal_subspaces(index, rng) -> None:
     pytest.importorskip("mumps", reason="python-mumps is not installed")
 
     n = 40
     a_dim = 4
     rng, h_0, eigvals, explicit, implicit, _ = _make_biorthogonal_direct_solver_case(
-        n, a_dim
+        n, a_dim, rng
     )
     right_a, left_a = explicit
     right_rest, left_rest = implicit
@@ -730,10 +723,12 @@ def test_nonhermitian_direct_solver_supports_biorthogonal_subspaces(index) -> No
     np.testing.assert_allclose(expected, direct(rhs, index))
 
 
-def test_block_diagonalize_nonhermitian_accepts_complete_subspace_eigenvectors() -> None:
+def test_block_diagonalize_nonhermitian_accepts_complete_subspace_eigenvectors(
+    rng,
+) -> None:
     n = 40
     a_dim = 4
-    rng, h_0, eigvals, eigvecs_a, eigvecs_rest = _make_direct_solver_case(n, a_dim)
+    rng, h_0, eigvals, eigvecs_a, eigvecs_rest = _make_direct_solver_case(n, a_dim, rng)
     eigvecs = np.hstack((eigvecs_a, eigvecs_rest))
     subspace_indices = np.array([0] * a_dim + [1] * (n - a_dim))
     h_1 = _complex_normal(rng, (n, n)).astype(complex)
@@ -752,11 +747,11 @@ def test_block_diagonalize_nonhermitian_accepts_complete_subspace_eigenvectors()
     compare_series(H_tilde_subspaces, H_tilde_indices, (2,), atol=1e-10, rtol=1e-11)
 
 
-def test_block_diagonalize_nonhermitian_accepts_biorthogonal_subspace_eigenvectors():
+def test_block_diagonalize_nonhermitian_accepts_biorthogonal_subspace_eigenvectors(rng):
     n = 10
     a_dim = 3
     rng, h_0, eigvals, explicit, implicit, full_basis = (
-        _make_biorthogonal_direct_solver_case(n, a_dim)
+        _make_biorthogonal_direct_solver_case(n, a_dim, rng)
     )
     right_a, left_a = explicit
     right_rest, left_rest = implicit
@@ -778,14 +773,16 @@ def test_block_diagonalize_nonhermitian_accepts_biorthogonal_subspace_eigenvecto
     compare_series(H_tilde_pairs, H_tilde_indices, (2,), atol=1e-10, rtol=1e-11)
 
 
-def test_block_diagonalize_nonhermitian_implicit_direct_solver_supports_biorthogonal_pairs() -> (
-    None
-):
+def test_block_diagonalize_nonhermitian_implicit_direct_solver_supports_biorthogonal_pairs(
+    rng,
+) -> None:
     pytest.importorskip("mumps", reason="python-mumps is not installed")
 
     n = 24
     a_dim = 4
-    rng, h_0, _, explicit, implicit, _ = _make_biorthogonal_direct_solver_case(n, a_dim)
+    rng, h_0, _, explicit, implicit, _ = _make_biorthogonal_direct_solver_case(
+        n, a_dim, rng
+    )
     right_a, left_a = explicit
     right_rest, left_rest = implicit
     h_1 = _complex_normal(rng, (n, n))
@@ -804,8 +801,7 @@ def test_block_diagonalize_nonhermitian_implicit_direct_solver_supports_biorthog
     compare_series(H_tilde_implicit[0, 0], H_tilde_explicit[0, 0], (2,), atol=1e-6)
 
 
-def test_block_diagonalize_nonhermitian_rejects_implicit_kpm():
-    rng = np.random.default_rng()
+def test_block_diagonalize_nonhermitian_rejects_implicit_kpm(rng):
     h_0 = sparse.diags(np.linspace(-3.0, 3.0, 8)).astype(complex)
     h_1 = _complex_normal(rng, (8, 8))
     subspace_eigenvectors = [np.eye(8, dtype=complex)[:, :2]]

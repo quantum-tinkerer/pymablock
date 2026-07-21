@@ -160,8 +160,8 @@ def is_unitary(
     compare_series(transformed, identity, wanted_orders, atol=atol, rtol=0)
 
 
-def random_hermitian_matrix(n: int) -> np.ndarray:
-    matrix = np.random.randn(n, n) + 1.0j * np.random.randn(n, n)
+def random_hermitian_matrix(n: int, rng: np.random.Generator) -> np.ndarray:
+    matrix = rng.standard_normal((n, n)) + 1.0j * rng.standard_normal((n, n))
     return matrix + matrix.T.conj()
 
 
@@ -175,16 +175,16 @@ def wanted_orders(request):
 
 
 @pytest.fixture(scope="module")
-def Ns():
+def Ns(module_rng):
     """
     Return a random number of states for each block (A, B).
     """
-    N_a = np.random.randint(1, 3)
+    N_a = module_rng.integers(1, 3)
     return N_a, N_a + 1
 
 
 @pytest.fixture(scope="module")
-def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
+def H(Ns: np.array, wanted_orders: list[tuple[int, ...]], module_rng) -> BlockSeries:
     """
     Produce random Hamiltonians to test.
 
@@ -201,8 +201,8 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
     """
     n_infinite = len(wanted_orders)
     orders = np.eye(n_infinite, dtype=int)
-    h_0_AA = np.diag(np.sort(np.random.rand(Ns[0])) - 1)
-    h_0_BB = np.diag(np.sort(np.random.rand(Ns[1])))
+    h_0_AA = np.diag(np.sort(module_rng.random(Ns[0])) - 1)
+    h_0_BB = np.diag(np.sort(module_rng.random(Ns[1])))
 
     def matrices_it(N_i, N_j, hermitian):
         """
@@ -220,9 +220,9 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
         """
         while True:
             if hermitian:
-                H = random_hermitian_matrix(N_i)
+                H = random_hermitian_matrix(N_i, module_rng)
             else:
-                H = np.random.rand(N_i, N_j) + 1j * np.random.rand(N_i, N_j)
+                H = module_rng.random((N_i, N_j)) + 1j * module_rng.random((N_i, N_j))
             yield H
 
     hams = []
@@ -249,7 +249,7 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]]) -> BlockSeries:
 
 @pytest.fixture(scope="module", params=[0, 1])
 def implicit_problem(
-    Ns: tuple[int, int], wanted_orders: tuple[int, ...], request: Any
+    Ns: tuple[int, int], wanted_orders: tuple[int, ...], request: Any, module_rng
 ) -> tuple[list, np.ndarray, np.ndarray]:
     """
     Generate random BlockSeries Hamiltonian in the format required by the implicit
@@ -277,10 +277,9 @@ def implicit_problem(
 
     hamiltonian_list = []
     hamiltonian_dict = {}
-    rng = np.random.default_rng()
-    h_0 = rng.standard_normal(size=(n_dim, n_dim)) + 1j * rng.standard_normal(
+    h_0 = module_rng.standard_normal(
         size=(n_dim, n_dim)
-    )
+    ) + 1j * module_rng.standard_normal(size=(n_dim, n_dim))
     h_0 += Dagger(h_0)
 
     eigs, vecs = np.linalg.eigh(h_0)
@@ -291,7 +290,7 @@ def implicit_problem(
     subspace_eigenvectors = (vecs[:, :a_dim], vecs[:, a_dim:])
 
     for i in range(n_infinite):
-        h_p = np.random.random((n_dim, n_dim)) + 1j * np.random.random((n_dim, n_dim))
+        h_p = module_rng.random((n_dim, n_dim)) + 1j * module_rng.random((n_dim, n_dim))
         h_p += Dagger(h_p)
         hamiltonian_list.append(h_p)
         order = tuple(np.eye(n_infinite, dtype=int)[i])
@@ -302,7 +301,7 @@ def implicit_problem(
 
 
 @pytest.fixture(scope="module", params=[0, 1, 2, 3])
-def diagonal_hamiltonian(wanted_orders, request):
+def diagonal_hamiltonian(wanted_orders, request, module_rng):
     """
 
     Parameters:
@@ -322,7 +321,9 @@ def diagonal_hamiltonian(wanted_orders, request):
     h_dict = {(0,) * n_infinite: np.diag(eigenvalues)}
     h_dict_all_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues)}
     for i in range(n_infinite):
-        sparse_perturbation = 0.1 * sparse.random(4, 4, density=0.2)
+        sparse_perturbation = 0.1 * sparse.random(
+            4, 4, density=0.2, random_state=module_rng
+        )
         sparse_perturbation += Dagger(sparse_perturbation)
         perturbation = sparse_perturbation.toarray()
 
@@ -437,14 +438,14 @@ def test_input_hamiltonian_diagonal_indices(diagonal_hamiltonian):
     np.testing.assert_equal((H_0 - H_0_explicit).data, 0)
 
 
-def test_input_hamiltonian_from_subspaces():
+def test_input_hamiltonian_from_subspaces(rng):
     """
     Test that the algorithm works with a Hamiltonian defined on `subspace_eigenvectors`.
     The test now does not test the perturbation.
     """
-    h_0 = np.random.random((4, 4))
+    h_0 = rng.random((4, 4))
     h_0 += Dagger(h_0)
-    perturbation = 0.1 * np.random.random((4, 4))
+    perturbation = 0.1 * rng.random((4, 4))
     perturbation += Dagger(perturbation)
 
     eigenvalues, eigvecs = np.linalg.eigh(h_0)
@@ -476,7 +477,7 @@ def test_input_hamiltonian_from_subspaces():
             assert H[index] is zero
 
 
-def test_input_hamiltonian_blocks():
+def test_input_hamiltonian_blocks(rng):
     """
     Test inputs that come separated by subspace.
 
@@ -484,8 +485,8 @@ def test_input_hamiltonian_blocks():
     - list of Hamiltonians where each Hamiltonian is a list of blocks.
     - dictionary of Hamiltonians where each Hamiltonian is a list of blocks.
     """
-    hermitian_block = np.random.random((2, 2))
-    block = np.random.random((2, 2))
+    hermitian_block = rng.random((2, 2))
+    block = rng.random((2, 2))
     block += Dagger(block)
     h_0 = [[np.diag([-1, -1]), np.zeros((2, 2))], [np.zeros((2, 2)), np.diag([1, 1])]]
     perturbation = [[-block, hermitian_block], [Dagger(hermitian_block), block]]
@@ -712,14 +713,14 @@ def test_doubled_orders(H: BlockSeries, wanted_orders: tuple[int, ...]) -> None:
     compare_series(U_doubled_directly, U_doubled, wanted_orders)
 
 
-def test_one_sized_subspace():
+def test_one_sized_subspace(rng):
     """
     Tests that BlockSeries have correct shapes when one of the subspaces has
     size 1, see issue #127.
     """
     N = 3
     H_0 = np.diag(np.arange(N))
-    H_1 = np.random.rand(N, N) + 1j * np.random.rand(N, N)
+    H_1 = rng.random((N, N)) + 1j * rng.random((N, N))
     H_1 = H_1 + H_1.T.conj()
 
     for N_A in (1, 2):
@@ -735,7 +736,7 @@ def test_one_sized_subspace():
                     assert output[(*block, 3)].shape == shape
 
 
-def test_equivalence_explicit_implicit() -> None:
+def test_equivalence_explicit_implicit(rng) -> None:
     """
     Test that the explicit and implicit algorithms give the same results.
 
@@ -755,7 +756,6 @@ def test_equivalence_explicit_implicit() -> None:
     a_dim = 2
 
     def random_H(*index):  # noqa: ARG001
-        rng = np.random.default_rng()
         h = rng.standard_normal(size=(n, n)) + 1j * rng.standard_normal(size=(n, n))
         return h + Dagger(h)
 
@@ -800,9 +800,8 @@ def test_equivalence_explicit_implicit() -> None:
     compare_series(implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-8)
 
 
-def test_dtype_mismatch_error_implicit():
+def test_dtype_mismatch_error_implicit(rng):
     """Test that the implicit mode allows mixing real H_0 with complex H'."""
-    rng = np.random.default_rng()
     h_0 = rng.standard_normal(size=(4, 4))
     # We add a diagonal part for numerical stability (MUMPS raises a warning sometimes).
     h_0 += Dagger(h_0) + 4 * np.diag(np.arange(4))
@@ -819,7 +818,7 @@ def test_dtype_mismatch_error_implicit():
     H_tilde[0, 0, 2]
 
 
-def test_solve_sylvester_diagonal():
+def test_solve_sylvester_diagonal(rng):
     """
     Test that solve_sylvester_diagonal correctly computes the solution to the Sylvester equation.
 
@@ -833,13 +832,13 @@ def test_solve_sylvester_diagonal():
     n_A = 5
     n_B = 4
     # Ensure gap between eigenvalues to avoid near-singular cases
-    eigs_A = -5 + 10 * np.sort(np.random.rand(n_A))
-    eigs_B = 5 + 10 * np.sort(np.random.rand(n_B))
+    eigs_A = -5 + 10 * np.sort(rng.random(n_A))
+    eigs_B = 5 + 10 * np.sort(rng.random(n_B))
 
     A = np.diag(eigs_A)
     B = np.diag(eigs_B)
 
-    Y = np.random.rand(n_A, n_B) + 1j * np.random.rand(n_A, n_B)
+    Y = rng.random((n_A, n_B)) + 1j * rng.random((n_A, n_B))
 
     X = solve_sylvester_diagonal((eigs_A, eigs_B))(Y, (0, 1))
 
@@ -848,16 +847,15 @@ def test_solve_sylvester_diagonal():
 
 
 @pytest.mark.parametrize("index", [(0, 1), (1, 0)])
-def test_solve_sylvester_direct_vs_diagonal(index) -> None:
+def test_solve_sylvester_direct_vs_diagonal(index, rng) -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
     solve_sylvester_diagonal.
     """
     n = 300
     a_dim = 5
-    rng = np.random.default_rng()
     E = rng.standard_normal(n)
-    t = np.random.rand(n - 1) * np.exp(2j * np.pi * np.random.rand(n - 1))
+    t = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
     eigvecs, eigvecs_rest = eigvecs[:, :a_dim], eigvecs[:, a_dim:]
@@ -883,11 +881,10 @@ def test_solve_sylvester_direct_vs_diagonal(index) -> None:
 
 
 @pytest.mark.parametrize("index", [(0, 1), (1, 0)])
-def test_solve_sylvester_direct_vs_diagonal_degenerate(index) -> None:
+def test_solve_sylvester_direct_vs_diagonal_degenerate(index, rng) -> None:
     """The direct solver must handle degenerate explicit eigenvalues."""
     n = 40
     a_dim = 3
-    rng = np.random.default_rng(0)
     spectrum = np.linspace(-4, 4, n)
     spectrum[:a_dim] = -0.25
 
@@ -918,7 +915,7 @@ def test_solve_sylvester_direct_vs_diagonal_degenerate(index) -> None:
     np.testing.assert_allclose(y_default, y_direct, atol=1e-10)
 
 
-def test_solve_sylvester_kpm_vs_diagonal() -> None:
+def test_solve_sylvester_kpm_vs_diagonal(rng) -> None:
     """
     Test whether the solve_sylvester_direct gives the result consistent with
     solve_sylvester_diagonal.
@@ -932,10 +929,9 @@ def test_solve_sylvester_kpm_vs_diagonal() -> None:
     """
     n = 30
     a_dim = 5
-    rng = np.random.default_rng()
     # Introduce a gap between the two subspaces
     E = rng.standard_normal(n) - 10 * (np.arange(n) < a_dim)
-    t = np.random.rand(n - 1) * np.exp(2j * np.pi * np.random.rand(n - 1))
+    t = rng.random(n - 1) * np.exp(2j * np.pi * rng.random(n - 1))
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
     eigvals, eigvecs = np.linalg.eigh(h.toarray())
     eigvecs, eigvecs_partial, eigvecs_rest = (
@@ -1147,9 +1143,9 @@ def test_block_diagonalize_hamiltonian_symbolic(
         block_diagonalize(hamiltonian, subspace_eigenvectors=faulted_eigenvectors)
 
 
-def test_hermitian_rejects_subspace_pairs():
+def test_hermitian_rejects_subspace_pairs(rng):
     h_0 = np.diag([0.0, 1.0, 2.0, 3.0])
-    h_1 = random_hermitian_matrix(4)
+    h_1 = random_hermitian_matrix(4, rng)
     subspace_pairs = [
         (np.eye(4, dtype=complex)[:, :2], np.eye(4, dtype=complex)[:, :2]),
         (np.eye(4, dtype=complex)[:, 2:], np.eye(4, dtype=complex)[:, 2:]),
@@ -1191,13 +1187,12 @@ def test_algebra_element_data_type():
         H_tilde, *_ = block_diagonalize(H)
 
 
-def test_zero_h_0():
+def test_zero_h_0(rng):
     """
     Test that the algorithm works if the first block is zero.
 
     This is a regression test for a bug that was present in the algorithm.
     """
-    rng = np.random.default_rng()
     h_0 = np.diag([0.0, 0.0, 1.0, 1.0])
     h_p = rng.standard_normal(size=(4, 4))
     h_p += h_p.T
@@ -1304,7 +1299,7 @@ def test_warning_non_diagonal_input():
         block_diagonalize([h_0, h_p], subspace_eigenvectors=[P[:, :4], P[:, 4:]])[0]
 
 
-def test_memory_usage_implicit():
+def test_memory_usage_implicit(rng):
     """
     Test that the implicit algorithm does not use more memory than expected.
     A failure of this test would indicate that the implicit algorithm is
@@ -1320,7 +1315,7 @@ def test_memory_usage_implicit():
 
     tracemalloc.start()
     h_0 = np.diag(np.linspace(0.1, 1, n_dim))
-    h_p = sparse.random(n_dim, n_dim, density=0.1)
+    h_p = sparse.random(n_dim, n_dim, density=0.1, random_state=rng)
     h_p += Dagger(h_p)
     snapshots = [tracemalloc.take_snapshot()]
 
@@ -1390,8 +1385,7 @@ def test_number_products_two_block(data_regression):
         return op
 
     def eval_randomly_sparse(*index):
-        np.random.seed(index[2])
-        p = np.random.random(3)
+        p = np.random.default_rng(index[2]).random(3)
         if index[0] != index[1] and sum(index[2:]) == 0:  # H_0 is diagonal
             return zero
         if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
@@ -1522,8 +1516,7 @@ def test_number_products_three_block(data_regression):
         return op
 
     def eval_randomly_sparse(*index):
-        np.random.seed(index[2])
-        p = np.random.random(3)
+        p = np.random.default_rng(index[2]).random(3)
         if index[0] != index[1] and sum(index[2:]) == 0:  # H_0 is diagonal
             return zero
         if index[0] == index[1] == 0 and sum(index[2:]) == 0 and p[0] > 0.4:
@@ -1676,18 +1669,18 @@ def test_delete_intermediate_terms():
                     assert (*index, order) not in which[term]._data
 
 
-def H_list(wanted_orders, N):
+def H_list(wanted_orders, N, rng):
     """Random Hamiltonian of a given size."""
 
-    H_0 = np.diag(np.random.randn(N) + 8 * np.arange(N))
-    H_ps = [random_hermitian_matrix(N) for _ in wanted_orders]
+    H_0 = np.diag(rng.standard_normal(N) + 8 * np.arange(N))
+    H_ps = [random_hermitian_matrix(N, rng) for _ in wanted_orders]
 
     return H_0, H_ps
 
 
-def test_three_blocks(wanted_orders):
+def test_three_blocks(wanted_orders, rng):
     N = 6
-    H_0, H_ps = H_list(wanted_orders, N)
+    H_0, H_ps = H_list(wanted_orders, N, rng)
     H = operator_to_BlockSeries(
         [H_0, *H_ps], subspace_indices=np.arange(N) // 2, hermitian=True
     )
@@ -1697,12 +1690,12 @@ def test_three_blocks(wanted_orders):
     compare_series(H, H_prime, wanted_orders, atol=1e-6)
 
 
-def test_hamiltonian_shared_decoupled_eigenvalues(wanted_orders):
+def test_hamiltonian_shared_decoupled_eigenvalues(wanted_orders, rng):
     """
     Test that blocks may overlap in the eigenvalues if their coupling is zero.
     """
     N = 4
-    H_0, H_ps = H_list(wanted_orders, N)
+    H_0, H_ps = H_list(wanted_orders, N, rng)
     H_0 = np.kron(np.eye(2), H_0)
     H_ps = [np.kron(np.eye(2), H_p) for H_p in H_ps]
     H = operator_to_BlockSeries(
@@ -1739,7 +1732,7 @@ def test_analytic_full_and_selective():
     assert H_tilde[0, 0, 3][0, 2].simplify() == 0
 
 
-def test_three_blocks_repeated(wanted_orders):
+def test_three_blocks_repeated(wanted_orders, rng):
     """
     Test block-diagonalization of a 3x3 Hamiltonian.
 
@@ -1751,7 +1744,7 @@ def test_three_blocks_repeated(wanted_orders):
     wanted_orders (list): Desired orders for the Hamiltonian.
     """
     N = 3
-    H_0, H_ps = H_list(wanted_orders, N=N)
+    H_0, H_ps = H_list(wanted_orders, N=N, rng=rng)
 
     H_tilde, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(N))
 
@@ -1791,9 +1784,9 @@ def test_three_blocks_repeated(wanted_orders):
     )
 
 
-def test_one_block_vs_multiblock(wanted_orders):
+def test_one_block_vs_multiblock(wanted_orders, rng):
     N = 6
-    H_0, H_ps = H_list(wanted_orders, N)
+    H_0, H_ps = H_list(wanted_orders, N, rng)
     # First, multiblock
     H_tilde, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(N))
 
@@ -1809,9 +1802,9 @@ def test_one_block_vs_multiblock(wanted_orders):
     compare_series(H_tilde, H_tilde_split, wanted_orders, atol=1e-10)
 
 
-def test_mixed_full_partial(wanted_orders):
+def test_mixed_full_partial(wanted_orders, rng):
     N = 6
-    H_0, H_ps = H_list(wanted_orders, N)
+    H_0, H_ps = H_list(wanted_orders, N, rng)
     with pytest.raises(ValueError):
         block_diagonalize(
             [H_0, *H_ps],
@@ -1839,10 +1832,10 @@ def test_mixed_full_partial(wanted_orders):
     )
 
 
-def test_multiblock_kpm_auxiliary(wanted_orders):
+def test_multiblock_kpm_auxiliary(wanted_orders, rng):
     """Test that the multiblock KPM solver correctly works with auxiliary vectors."""
     N = 6
-    H_0, H_ps = H_list(wanted_orders, N)
+    H_0, H_ps = H_list(wanted_orders, N, rng)
     # 3 blocks, last one missing
     H_tilde_implicit, *_ = block_diagonalize(
         [H_0, *H_ps],
@@ -1964,11 +1957,11 @@ def test_group_close_energies_real():
     assert [group.tolist() for group in groups] == [[1, 2], [0], [3]]
 
 
-def test_selective_diagonalization(wanted_orders):
+def test_selective_diagonalization(wanted_orders, rng):
     N = 20
-    H_0, H_ps = H_list(wanted_orders, N)
+    H_0, H_ps = H_list(wanted_orders, N, rng)
     H = operator_to_BlockSeries([H_0, *H_ps], hermitian=True)
-    to_eliminate = np.random.rand(N, N) > 0.8
+    to_eliminate = rng.random((N, N)) > 0.8
     to_eliminate = np.logical_or(to_eliminate, to_eliminate.T)
     np.fill_diagonal(to_eliminate, False)
     H_tilde, U, U_adjoint = block_diagonalize(H, fully_diagonalize=to_eliminate)
