@@ -1387,7 +1387,7 @@ def test_mixed_boson_fermion():
     assert result3.as_expr() == expected3.as_expr()
 
 
-def test_independent_operator_commutation():
+def test_independent_operator_commutation(rng):
     """Test that sign of the permutation is the parity of its fermionic part."""
     bosons = sympy.symbols("a:f", cls=boson.BosonOp)
     fermions = sympy.symbols("a:f", cls=fermion.FermionOp)
@@ -1398,7 +1398,7 @@ def test_independent_operator_commutation():
             operators,
             {
                 tuple(
-                    int(i) for i in np.random.randint(-1, 2, size=len(operators))
+                    int(i) for i in rng.integers(-1, 2, size=len(operators))
                 ): sympy.S.One
             },
         )

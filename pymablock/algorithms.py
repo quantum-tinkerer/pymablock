@@ -52,7 +52,7 @@ def main():
         if offdiagonal:
             "X".adj if two_block_optimized else ("X".adj + "X") / 2
         if diagonal:
-            zero if commuting_blocks[index[0]] else ("X".adj + "X") / 2
+            zero if commuting_blocks[index[0]] else "V @ H'_diag" + "V @ H'_diag".adj
 
     with "U'":
         start = 0
@@ -168,7 +168,10 @@ def nonhermitian():
 
     with "B_plus":
         start = 0
-        "B" + "U_inv' @ B"
+        if diagonal:
+            "B" + "U_inv' @ B"
+        if offdiagonal:
+            zero
 
     with "H_tilde":
         start = "H_0"

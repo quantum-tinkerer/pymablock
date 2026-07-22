@@ -112,10 +112,10 @@ def test_recursion_detection():
     assert recursive.name in str(excinfo.value.__cause__)
 
 
-def test_cauchy_dot_product():
+def test_cauchy_dot_product(rng):
     """Test that cauchy dot product reduces to a dot"""
     n = 5
-    test_value = np.random.randn(n, n)
+    test_value = rng.standard_normal((n, n))
     a = BlockSeries(
         data={(i, j, 2): x for (i, j), x in np.ndenumerate(test_value)},
         shape=(n, n),

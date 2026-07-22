@@ -325,6 +325,10 @@ We now have the complete algorithm:
 
 We further optimize the algorithm by reusing products that are needed in several places.
 
+For selective diagonalization, we evaluate $\mathcal{Y}_S$ directly from
+$[\mathcal{V}, \mathcal{H}'_S]_S$ and reuse the product
+$\mathcal{V}\mathcal{H}'_S$, avoiding its reconstruction from $\mathcal{X}$.
+
 Firstly, we rewrite the expressions for $\mathcal{Z}$ and $\tilde{\mathcal{H}}$ by utilizing the Hermitian conjugate of $\mathcal{U}'^\dagger \mathcal{X}$ without recomputing it:
 
 $$

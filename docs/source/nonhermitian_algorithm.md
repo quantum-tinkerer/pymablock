@@ -189,6 +189,10 @@ Equation {eq}`nh:W_rec` rewrites the $\mathcal{W}$ commutator in terms of Cauchy
 \mathcal{B}_+ \equiv \mathcal{B}+\mathcal{G}\mathcal{B}.
 :::
 
+Equations {eq}`nh:Htilde_B` and {eq}`nh:BR_rec` give
+$(\mathcal{B}_+)_R=0$. The implementation encodes this selected structure
+explicitly and skips the products that would cancel in the remaining part.
+
 This yields
 
 :::{math}
@@ -269,7 +273,8 @@ With this notation, the order-by-order recurrence is
 \mathcal{G} &= \mathcal{W}-\mathcal{V}, \\
 \mathcal{A} &= \mathcal{H}'_R\mathcal{U}', \\
 \mathcal{B}_R &= -(\mathcal{G}\mathcal{B})_R, \\
-\mathcal{B}_+ &= \mathcal{B}+\mathcal{G}\mathcal{B}, \\
+\mathcal{B}_+ &= (\mathcal{B}+\mathcal{G}\mathcal{B})_S,
+\qquad (\mathcal{B}_+)_R=0, \\
 \mathcal{Z} &=
 \frac{1}{2}
 \left(

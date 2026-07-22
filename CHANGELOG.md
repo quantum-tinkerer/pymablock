@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
 
+### Improved
+
+- Reduced the number of matrix products in selective Hermitian diagonalization by evaluating the selected auxiliary directly, and in non-Hermitian diagonalization by exploiting the selected structure of the transformed residual.
+
+### Fixed
+
+- Made randomized tests reproducible with pytest-randomly without using NumPy's legacy global random number generator.
+
 ### Added
 
 - Added a non-Hermitian similarity-transform algorithm via `block_diagonalize(..., hermitian=False)`, including support for asymmetric selective masks, symbolic inputs, and biorthogonal `subspace_eigenvectors=[(right, left), ...]` in the explicit and implicit direct paths. The implicit KPM solver remains unsupported in the non-Hermitian path.
