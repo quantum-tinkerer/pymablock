@@ -26,6 +26,7 @@ Dispersive shift of a resonator <tutorial/dispersive_shift.md>
 Rabi model <tutorial/spin_rwa_floquet.md>
 tutorial/andreev_supercurrent.md
 MPO perturbation theory with TeNPy <tutorial/tenpy_mpo.md>
+Analytical Ising-chain MPO benchmark <tutorial/tenpy_mpo_ising.md>
 ```
 
 ```{toctree}

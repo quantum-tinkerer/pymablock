@@ -5,28 +5,15 @@ Pymablock only needs an algebra for individual perturbative coefficients and a s
 
 ## When is MPO perturbation theory advantageous?
 
-The computational advantage of an MPO representation is conditional rather than automatic.
 For a chain of $L$ sites with local dimension $d$, a dense operator has dimension $D\times D$, with $D=d^L$, and therefore requires $\mathcal{O}(d^{2L})$ storage.
 An MPO with representative bond dimension $\chi$ instead requires $\mathcal{O}(L d^2\chi^2)$ storage.
-This replaces exponential scaling by polynomial scaling when the required $\chi$ remains bounded or grows polynomially with system size and perturbative order.
+The exponential saving is real only while the required $\chi$ grows moderately: the relevant quantity is the operator entanglement of the perturbative coefficients, not merely the locality of the starting Hamiltonian.
 
-The main conceptual advantage is that Pymablock constructs an operator for an entire block, rather than a single eigenstate.
-The resulting effective Hamiltonian can be used to study several states, and the same perturbative unitary can transform multiple observables consistently.
-This makes the up-front operator calculation especially useful when the reduced model will be diagonalized, simulated, or queried repeatedly.
+MPO perturbation theory is most useful when separated energy scales give a low-order, compressible effective Hamiltonian that will be reused for several states or observables.
+If only one ground state is needed, direct DMRG may be cheaper because it avoids constructing the full transformation in operator space.
 
-MPO perturbation theory is not necessarily the cheapest route to one low-energy state.
-If the only goal is a ground-state energy or one ground-state observable, applying DMRG directly to the original Hamiltonian may avoid constructing the full perturbative transformation in operator space.
-The MPO approach is most attractive when eliminating a well-separated sector produces a substantially simpler reusable Hamiltonian, or when state-independent effective operators are themselves the desired result.
-
-The decisive numerical quantity is operator entanglement, not merely the locality of the input Hamiltonian.
-MPO addition and multiplication increase bond dimensions before compression, and the inverse Sylvester map can turn a simple right-hand side into an operator with a much larger bond dimension.
-As the block spectra approach one another, the Sylvester problem also becomes ill-conditioned, so GMRES may require more iterations or fail to reach an accurate residual.
-Consequently, a local starting Hamiltonian does not by itself guarantee an efficient high-order calculation.
-
-The most favorable regime therefore combines separated energy scales, a perturbation accurately described at low order, and effective terms that remain compressible.
-A practical pilot should increase both system size and requested order while recording wall time, maximum bond dimension, truncation error, and Sylvester residual.
-There is a real advantage only if the target effective terms remain stable as the compression and solver tolerances are tightened, without rapid growth of bond dimension or iteration count.
-For small systems, near-resonant blocks, or orders at which $\chi$ grows exponentially, dense perturbation theory or a state-targeting tensor-network method is likely preferable.
+A practical pilot should increase system size and perturbative order while monitoring runtime, bond dimension, truncation error, and Sylvester residual.
+Rapid growth of $\chi$ or GMRES iterations means that the MPO advantage is disappearing.
 
 ## Backend-neutral operators
 
@@ -237,4 +224,5 @@ Custom Sylvester solvers cannot currently be combined with `fully_diagonalize`.
 The example also does not support infinite or extensive MPOs, charge-conserving tensor legs, or a guarantee that the required bond dimension stays bounded at high perturbative order.
 These restrictions are explicit so that later backends can extend them without changing Pymablock's core algebra interface.
 
-The [TeNPy MPO tutorial](tutorial/tenpy_mpo.md) implements the complete two-site calculation and compares the first- and second-order results with dense Pymablock.
+The [minimal TeNPy MPO tutorial](tutorial/tenpy_mpo.md) compares a complete two-site calculation with dense Pymablock.
+The [Ising-chain benchmark](tutorial/tenpy_mpo_ising.md) applies the method to a six-site MPO problem with an analytical effective Hamiltonian.

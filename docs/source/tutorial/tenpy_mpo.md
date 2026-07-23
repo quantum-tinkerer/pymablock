@@ -24,6 +24,7 @@ We first import the TeNPy backend defined alongside this executable tutorial.
 The example uses no conserved charges because the adapter deliberately keeps its first implementation focused on the MPO algebra and Sylvester solver.
 
 ```{code-cell} ipython3
+%%time
 import numpy as np
 from tenpy.networks.site import SpinHalfSite
 
@@ -51,6 +52,7 @@ $$
 The offset of $3$ makes the spectra of $A$ and $B$ disjoint.
 
 ```{code-cell} ipython3
+%%time
 sites = [SpinHalfSite(conserve=None) for _ in range(2)]
 identity = np.eye(2)
 x = np.array([[0.0, 1.0], [1.0, 0.0]])
@@ -81,6 +83,7 @@ We next wrap each native TeNPy MPO in {autolink}`~pymablock.mpo.BackendMPO`.
 The wrapper makes TeNPy's compressed arithmetic available to Pymablock without adding TeNPy as a core dependency.
 
 ```{code-cell} ipython3
+%%time
 wrapped_a = BackendMPO(A, backend)
 wrapped_b = BackendMPO(B, backend)
 wrapped_t = BackendMPO(T, backend)
@@ -104,6 +107,7 @@ Pymablock is lazy, so the MPO products and the Sylvester solve occur only when w
 The first-order off-diagonal transformation exercises the Sylvester solver, while the second-order effective Hamiltonian additionally exercises MPO multiplication.
 
 ```{code-cell} ipython3
+%%time
 U_AB_1 = U_mpo[0, 1, 1]
 H_AA_2 = H_tilde_mpo[0, 0, 2]
 
@@ -116,6 +120,7 @@ We finally contract these two-site MPOs to dense matrices only for validation.
 An independent dense Pymablock calculation provides the reference coefficients.
 
 ```{code-cell} ipython3
+%%time
 dense_a = mpo_to_dense(A)
 dense_b = mpo_to_dense(B)
 dense_t = mpo_to_dense(T)

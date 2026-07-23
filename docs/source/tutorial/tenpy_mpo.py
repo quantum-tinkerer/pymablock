@@ -21,6 +21,7 @@
 # This executable companion contains the code cells from `tenpy_mpo.md`.
 
 # %%
+# %%time
 
 import numpy as np
 from tenpy.networks.site import SpinHalfSite
@@ -33,6 +34,7 @@ from pymablock.mpo import BackendMPO, make_mpo_sylvester_solver
 # ## Construct the MPO blocks
 
 # %%
+# %%time
 
 sites = [SpinHalfSite(conserve=None) for _ in range(2)]
 identity = np.eye(2)
@@ -61,6 +63,7 @@ T = backend.add(x_1, backend.scale(x_2, 0.2))
 # ## Connect the backend to Pymablock
 
 # %%
+# %%time
 
 wrapped_a = BackendMPO(A, backend)
 wrapped_b = BackendMPO(B, backend)
@@ -85,6 +88,7 @@ H_AA_2 = H_tilde_mpo[0, 0, 2]
 # ## Verify the minimal calculation
 
 # %%
+# %%time
 
 dense_a = mpo_to_dense(A)
 dense_b = mpo_to_dense(B)
