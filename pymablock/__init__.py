@@ -6,7 +6,7 @@ except ImportError:
     __version__ = "unknown"
     __version_tuple__ = (0, 0, "unknown", "unknown")
 
-from . import series
+from . import mpo, series
 from .block_diagonalization import (
     block_diagonalize, operator_to_BlockSeries
 )
@@ -21,4 +21,5 @@ __all__ = [
     "__version_tuple__",
     "second_quantization",
     "number_ordered_form",
+    "mpo",
 ]
