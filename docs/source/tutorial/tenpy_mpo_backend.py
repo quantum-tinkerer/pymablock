@@ -69,6 +69,7 @@ def _from_cores(sites: list[Site], cores: list[np.ndarray]) -> MPO:
         tensor = npc.Array.from_ndarray(
             core,
             [site.leg, site.leg.conj(), left_leg, right_leg],
+            qtotal=chinfo.make_valid(None),
             labels=["p", "p*", "wL", "wR"],
         )
         tensors.append(tensor)
@@ -83,10 +84,22 @@ def _from_cores(sites: list[Site], cores: list[np.ndarray]) -> MPO:
     )
 
 
+def _zero_mpo(sites: list[Site]) -> MPO:
+    """Construct a minimal exact-zero MPO."""
+    cores = [np.eye(site.dim).reshape(site.dim, site.dim, 1, 1) for site in sites]
+    cores[0] = np.zeros_like(cores[0])
+    return _from_cores(sites, cores)
+
+
+def _mpo_norm_squared(mpo: MPO) -> float:
+    """Return the squared Frobenius norm of a finite MPO."""
+    return float(np.real(np.real_if_close(mpo.overlap(mpo))))
+
+
 def mpo_to_mps(mpo: MPO) -> MPS:
     """Vectorize a finite square MPO into an MPS using row-major order."""
     _validate_mpo(mpo)
-    norm_squared = float(np.real_if_close(mpo.overlap(mpo)))
+    norm_squared = _mpo_norm_squared(mpo)
     if norm_squared <= 0:
         raise ValueError("Cannot vectorize a zero MPO.")
 
@@ -237,6 +250,17 @@ class TenpyMPOBackend:
     def _compress(self, mpo: MPO, operation: str) -> MPO:
         _validate_mpo(mpo)
         input_chi = tuple(mpo.chi)
+        if _mpo_norm_squared(mpo) == 0:
+            result = _zero_mpo(mpo.sites)
+            self.compression_records.append(
+                CompressionRecord(
+                    operation,
+                    input_chi,
+                    tuple(result.chi),
+                    0.0,
+                )
+            )
+            return result
         vector = mpo_to_mps(mpo)
         error = _compress_mps(vector, self.truncation_parameters)
         result = mps_to_mpo(vector, mpo.sites)
@@ -411,6 +435,15 @@ class TenpyMPOBackend:
         """Solve ``left @ X - X @ right = rhs`` with compressed GMRES."""
         _validate_pair(left, right)
         _validate_pair(left, rhs)
+        if _mpo_norm_squared(rhs) == 0:
+            self.solver_records.append(SolverRecord(index, (0.0,), 0, True))
+            return SylvesterResult(
+                _zero_mpo(rhs.sites),
+                0.0,
+                True,
+                0,
+                "right-hand side is exactly zero",
+            )
         superoperator = self.sylvester_superoperator(left, right)
         source = mpo_to_mps(rhs)
         source_norm = _mps_norm(source)

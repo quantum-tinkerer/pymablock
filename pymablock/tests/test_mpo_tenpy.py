@@ -65,6 +65,28 @@ def test_tenpy_mpo_algebra_and_roundtrip(mpo_problem):
     assert max(roundtrip.chi) <= backend.chi_max
 
 
+def test_tenpy_mpo_exact_cancellation(mpo_problem):
+    sites, _, x, y, _ = mpo_problem
+    backend = TenpyMPOBackend()
+    operator = product_mpo(sites, [x, y])
+
+    result = backend.add(operator, backend.scale(operator, -1))
+
+    np.testing.assert_array_equal(mpo_to_dense(result), 0)
+    assert result.chi == [1, 1, 1]
+    assert backend.compression_records[-1].truncation_error == 0
+
+    solve_result = backend.solve_sylvester(
+        operator,
+        operator,
+        result,
+        (0, 1, 2),
+    )
+    assert solve_result.converged
+    assert solve_result.relative_residual == 0
+    np.testing.assert_array_equal(mpo_to_dense(solve_result.operator), 0)
+
+
 def _minimal_problem(mpo_problem):
     sites, identity, x, _, z = mpo_problem
     backend = TenpyMPOBackend(

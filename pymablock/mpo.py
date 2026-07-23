@@ -66,7 +66,7 @@ class BackendMPO(Generic[MPOType]):
 
     def __radd__(self, other: object) -> BackendMPO[MPOType]:
         """Support the scalar zero used to initialize sums."""
-        if other == 0:
+        if isinstance(other, Number) and other == 0:
             return self
         return NotImplemented
 
@@ -173,6 +173,8 @@ def make_mpo_sylvester_solver(
 
         residual = float(result.relative_residual)
         detail = f" at perturbative index {index}"
+        if result.iterations is not None:
+            detail += f" after {result.iterations} iterations"
         if result.message:
             detail += f": {result.message}"
         if not result.converged:

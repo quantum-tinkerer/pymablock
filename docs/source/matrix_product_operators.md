@@ -42,6 +42,7 @@ $$
 
 This product rule is exact before compression and fixes the order of operator multiplication.
 Because repeated perturbative products would otherwise multiply bond dimensions rapidly, the TeNPy backend converts every result to an MPS on the local operator space, performs an SVD compression, and converts it back to an MPO.
+Exact cancellations are returned as a bond-dimension-one zero MPO because a zero tensor cannot be put into normalized MPS canonical form.
 
 ## Solving Sylvester's equation
 
