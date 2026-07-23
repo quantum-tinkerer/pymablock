@@ -1,10 +1,16 @@
+from functools import reduce
+
 import numpy as np
 import pytest
 
 tenpy = pytest.importorskip("tenpy", minversion="1.1")
 
+from tenpy.networks.mps import MPS  # noqa: E402
 from tenpy.networks.site import SpinHalfSite  # noqa: E402
 
+from docs.source.tutorial.tenpy_implicit_backend import (  # noqa: E402
+    TenpyImplicitBackend,
+)
 from docs.source.tutorial.tenpy_mpo_backend import (  # noqa: E402
     TenpyMPOBackend,
     mpo_to_dense,
@@ -13,6 +19,7 @@ from docs.source.tutorial.tenpy_mpo_backend import (  # noqa: E402
     product_mpo,
 )
 from pymablock import block_diagonalize  # noqa: E402
+from pymablock.implicit import block_diagonalize_implicit  # noqa: E402
 from pymablock.mpo import (  # noqa: E402
     BackendMPO,
     make_mpo_sylvester_solver,
@@ -178,4 +185,85 @@ def test_tenpy_mpo_block_diagonalization_matches_dense(mpo_problem):
     assert (
         max(max(record.output_bond_dimensions) for record in backend.compression_records)
         <= backend.chi_max
+    )
+
+
+def test_tenpy_implicit_ising_perturbation_matches_analytical_and_dense():
+    length = 4
+    coupling = 0.7
+    longitudinal_field = 0.3
+    sites = [SpinHalfSite(conserve=None) for _ in range(length)]
+    identity = np.eye(2)
+    x = np.array([[0, 1], [1, 0]], dtype=float)
+    z = np.diag([1.0, -1.0])
+    backend = TenpyImplicitBackend(
+        chi_max=16,
+        svd_min=1e-12,
+        max_sweeps=10,
+        solver_tolerance=1e-9,
+    )
+
+    def term(operators):
+        return product_mpo(
+            sites,
+            [operators.get(site, identity) for site in range(length)],
+        )
+
+    def add_all(operators):
+        return reduce(backend.mpo_backend.add, operators)
+
+    h_0 = backend.mpo_backend.add(
+        backend.mpo_backend.scale(
+            add_all([term({site: z, site + 1: z}) for site in range(length - 1)]),
+            -coupling,
+        ),
+        backend.mpo_backend.scale(
+            add_all([term({site: z}) for site in range(length)]),
+            -longitudinal_field,
+        ),
+    )
+    perturbation = backend.mpo_backend.scale(
+        add_all([term({site: x}) for site in range(length)]),
+        -1,
+    )
+    reference = MPS.from_product_state(
+        sites,
+        ["up"] * length,
+        bc="finite",
+        unit_cell_width=length,
+    )
+
+    implicit_h_tilde, implicit_u, _ = block_diagonalize_implicit(
+        [h_0, perturbation],
+        [reference],
+        backend,
+        backend.solve_shifted,
+        max_relative_residual=1e-8,
+    )
+    second_order = implicit_h_tilde[0, 0, 2].dense[0, 0]
+    fourth_order = implicit_h_tilde[0, 0, 4].dense[0, 0]
+
+    gaps = [
+        2 * longitudinal_field + 2 * coupling * ((site > 0) + (site < length - 1))
+        for site in range(length)
+    ]
+    np.testing.assert_allclose(second_order, -sum(1 / gap for gap in gaps), atol=1e-10)
+
+    dense_h_0 = np.diag(np.diag(mpo_to_dense(h_0)))
+    dense_perturbation = mpo_to_dense(perturbation)
+    dense_h_tilde, _, _ = block_diagonalize(
+        [dense_h_0, dense_perturbation],
+        subspace_indices=np.array([0] + [1] * (2**length - 1)),
+    )
+    np.testing.assert_allclose(second_order, dense_h_tilde[0, 0, 2][0, 0], atol=1e-10)
+    np.testing.assert_allclose(fourth_order, dense_h_tilde[0, 0, 4][0, 0], atol=1e-9)
+
+    first_order_state = implicit_u[1, 0, 1].states[0]
+    assert max(first_order_state.chi) <= backend.chi_max
+    assert backend.solver_records
+    assert all(
+        record.relative_residuals[-1] < 1e-8
+        and record.orthogonality_errors[-1] < 1e-8
+        and max(record.maximum_bond_dimensions) <= backend.chi_max
+        for record in backend.solver_records
     )
