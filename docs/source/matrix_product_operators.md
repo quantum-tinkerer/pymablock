@@ -10,10 +10,10 @@ An MPO with representative bond dimension $\chi$ instead requires $\mathcal{O}(L
 The exponential saving is real only while the required $\chi$ grows moderately: the relevant quantity is the operator entanglement of the perturbative coefficients, not merely the locality of the starting Hamiltonian.
 
 MPO perturbation theory is most useful when separated energy scales give a low-order, compressible effective Hamiltonian that will be reused for several states or observables.
-If only one ground state is needed, direct DMRG may be cheaper because it avoids constructing the full transformation in operator space.
+If only a few states are needed, the implicit MPS formulation below avoids constructing the full transformation in operator space; direct DMRG may still be cheaper if no perturbative effective model is required.
 
 A practical pilot should increase system size and perturbative order while monitoring runtime, bond dimension, truncation error, and Sylvester residual.
-Rapid growth of $\chi$ or GMRES iterations means that the MPO advantage is disappearing.
+Rapid growth of $\chi$, GMRES iterations, or variational sweeps means that the tensor-network advantage is disappearing.
 
 ## Backend-neutral operators
 
@@ -56,136 +56,91 @@ This product rule is exact before compression and fixes the order of operator mu
 Because repeated perturbative products would otherwise multiply bond dimensions rapidly, the TeNPy backend converts every result to an MPS on the local operator space, performs an SVD compression, and converts it back to an MPO.
 Exact cancellations are returned as a bond-dimension-one zero MPO because a zero tensor cannot be put into normalized MPS canonical form.
 
-## Solving Sylvester's equation
+## Full MPO or implicit MPS?
 
-Pymablock computes the off-diagonal transformation at every new perturbative order by solving the linear operator equation
+There are two useful tensor-network formulations, and they produce different outputs.
 
-$$
-A X-X B=Y.
-$$
+| Formulation | Stored unknown | Local dimension | Use it when |
+| --- | --- | --- | --- |
+| Full MPO | the complete transformation coefficient $X$ | $d^2$ | the retained block is extensive or an effective MPO is required |
+| Implicit MPS | only the columns $QX|\phi_a\rangle$ | $d$ | the model space contains a few MPS eigenstates |
 
-Here, $A$ and $B$ are the unperturbed Hamiltonian blocks, $Y$ is known from lower perturbative orders, and $X$ is the unknown transformation coefficient.
-This is not an eigenvalue problem.
-It asks us to invert the linear map
+The implicit formulation is usually cheaper for ground-state or few-state calculations.
+It is not suitable for an exponentially large retained block because it needs one MPS column per retained state.
+The full-MPO formulation remains useful when the effective operator itself is the result.
 
-$$
-\mathcal{L}(X) = AX-XB
-$$
+## Full-MPO Sylvester solve
 
-on one particular right-hand side $Y$.
-
-### Turning operators into vectors
-
-GMRES is formulated for linear systems on vectors, so we regard an operator as a vector in operator space.
-With row-major vectorization,
+At each perturbative order Pymablock solves
 
 $$
-\operatorname{vec}(A X)
-  = (A\otimes I)\operatorname{vec}(X)
+AX-XB=Y.
 $$
 
-and
+With row-major vectorization this becomes
 
 $$
-\operatorname{vec}(X B)
-  = (I\otimes B^T)\operatorname{vec}(X).
+\left(A\otimes I-I\otimes B^T\right)\operatorname{vec}(X)
+=\operatorname{vec}(Y).
 $$
 
-Writing $x=\operatorname{vec}(X)$ and $b=\operatorname{vec}(Y)$ therefore turns the Sylvester equation into
+The transpose is fixed by the vectorization convention; it is not an adjoint.
+The TeNPy full-MPO example stores the vectorized operators as MPSs on local dimension $d^2$ and applies the Sylvester superoperator as an MPO.
+
+One restarted GMRES cycle starts from the true residual, repeatedly applies the superoperator, and orthogonalizes the resulting MPSs to build a short Krylov basis.
+It then solves only the small Hessenberg least-squares problem and adds the resulting Krylov correction to $X$.
+Restarting limits the number of stored MPSs.
+Because compression spoils the exact Arnoldi relation, the implementation recomputes $\|AX-XB-Y\|_F$ after every restart instead of trusting the Hessenberg estimate.
+
+GMRES was chosen for this path because it requires only MPO application, MPS addition, overlaps, and compression, and it also handles invertible indefinite or non-normal maps.
+Its drawback is that several operator-space MPSs must be stored and repeatedly combined.
+
+## Implicit MPS solve
+
+Let $\{|\phi_a\rangle\}_{a=1}^m$ be orthonormal eigenstates spanning the retained space $P$, and let $Q=1-P$.
+The implicit method never constructs a basis for $Q$ or the full operator $X$.
+It stores only complement-space columns and solves
 
 $$
-\mathsf{L}x=b,
+Q(H_0-E_a)Q|\eta_a\rangle=|S_a\rangle,
 \qquad
-\mathsf{L}=A\otimes I-I\otimes B^T.
+\langle\phi_b|\eta_a\rangle=0.
 $$
 
-The transpose in the right-action term is essential.
-It follows from the vectorization convention and is not a Hermitian adjoint.
+{autolink}`~pymablock.implicit.ImplicitBlock` represents $P$--$P$ blocks as small dense matrices, $Q$--$P$ blocks as MPS bundles, and $Q$--$Q$ blocks as lazy projected MPO applications.
+Products such as a row times a column become ordinary overlap matrices.
+Applying $Q$ only subtracts overlaps with the reference MPSs, so no projector MPO is built.
+Pymablock's perturbative recursion itself is unchanged.
 
-If the original Hilbert space has dimension $D$, then $\mathsf{L}$ is a $D^2\times D^2$ matrix.
-The point of the tensor-network solver is to apply this matrix without constructing it.
-The TeNPy example stores $x$, $b$, and all temporary operator-space vectors as MPSs with local dimension $d^2$, while it stores $\mathsf{L}$ as an MPO.
-These MPSs encode vectorized operators; they are not physical many-body wavefunctions.
-Their MPS overlap is the Frobenius inner product $\langle U,V\rangle=\operatorname{Tr}(U^\dagger V)$ of the corresponding operators.
-
-### What one GMRES cycle does
-
-Suppose that $x_0$ is the current approximation to the solution.
-The first cycle uses $x_0=0$, while later cycles start from the result of the preceding cycle.
-GMRES first computes the actual residual
+For a Hermitian, sign-definite shifted operator, the equation is the stationarity condition of the Hylleraas functional
 
 $$
-r_0=b-\mathsf{L}x_0,
-\qquad
-\beta=\lVert r_0\rVert,
-\qquad
-v_1=r_0/\beta.
+\mathcal{F}[\eta]
+=\frac12\langle\eta|(H_0-E_a)|\eta\rangle
+-\operatorname{Re}\langle\eta|S_a\rangle.
 $$
 
-It then looks for a correction in the Krylov space
+The TeNPy example optimizes two neighboring MPS tensors at a time.
+Contracting all other sites gives a local linear equation.
+Orthogonality is imposed in the same solve with Lagrange multipliers,
 
 $$
-\mathcal{K}_m(\mathsf{L},r_0)
-=\operatorname{span}\left\{
-r_0,\mathsf{L}r_0,\ldots,\mathsf{L}^{m-1}r_0
-\right\}.
+\begin{pmatrix}
+K_\mathrm{loc} & C^\dagger\\
+C & 0
+\end{pmatrix}
+\begin{pmatrix}\theta\\ \lambda\end{pmatrix}
+=
+\begin{pmatrix}s_\mathrm{loc}\\0\end{pmatrix}.
 $$
 
-This space contains correction directions obtained by repeatedly applying the Sylvester map to the current residual.
-GMRES does not store those raw powers because they quickly become nearly linearly dependent.
-Instead, the Arnoldi iteration constructs an orthonormal basis $v_1,\ldots,v_m$:
+After solving, an SVD moves the optimization center and truncates to `chi_max`.
+A left-to-right and right-to-left pass form one sweep.
+After every sweep the code projects again, applies the original MPO, and measures the true global residual and all reference-state overlaps.
 
-1. Apply the Sylvester superoperator to the newest basis vector, $w=\mathsf{L}v_j$.
-2. Remove every component already represented in the basis, using $h_{ij}=\langle v_i,w\rangle$ and $w\leftarrow w-h_{ij}v_i$.
-3. Normalize the remaining component to obtain $v_{j+1}$.
-
-The coefficients $h_{ij}$ form a small upper-Hessenberg matrix $\overline{H}_m$.
-In exact arithmetic, Arnoldi gives
-
-$$
-\mathsf{L}V_m=V_{m+1}\overline{H}_m,
-$$
-
-where the columns of $V_m$ are the Krylov basis vectors.
-The approximation after this cycle has the form
-
-$$
-x_m=x_0+V_m y.
-$$
-
-GMRES chooses the coefficients $y$ that minimize the residual norm.
-Using the Arnoldi relation and $r_0=\beta v_1$, the large minimization becomes the small dense least-squares problem
-
-$$
-y=\operatorname*{arg\,min}_z
-\left\lVert\beta e_1-\overline{H}_m z\right\rVert_2.
-$$
-
-Only this $(m+1)\times m$ problem is solved with dense linear algebra.
-The many-body dimension appears only in MPO--MPS applications, MPS overlaps, and compressed MPS sums.
-
-The correspondence with the TeNPy operations is:
-
-| GMRES object or operation | TeNPy representation |
-| --- | --- |
-| $x$, $b$, $r$, and each $v_j$ | an MPS on the local operator space |
-| $\mathsf{L}=A\otimes I-I\otimes B^T$ | an MPO |
-| $\mathsf{L}v_j$ | apply the MPO to the MPS, then compress |
-| $\langle v_i,w\rangle$ | an MPS overlap |
-| $w-h_{ij}v_i$ and $x_0+V_my$ | compressed finite-MPS additions |
-
-The example performs modified Gram--Schmidt twice in every Arnoldi step.
-The second pass repairs much of the loss of orthogonality caused by floating-point arithmetic and by compressing every MPO application and MPS sum.
-
-### Why GMRES is restarted
-
-Keeping more Krylov vectors improves the minimization but also increases memory use and exposes every vector to further tensor-network additions.
-The example therefore keeps at most `krylov_dimension` basis vectors, uses them to update $x_0$, discards the basis, recomputes $r_0=b-\mathsf{L}x_0$, and starts another cycle.
-This is restarted GMRES; the default Krylov dimension is eight.
-
-Compression means that the Arnoldi relation is only approximate, so the residual predicted by the small Hessenberg problem is not sufficient as a convergence test.
-After every restart, and once more before returning the result, the implementation reapplies the compressed superoperator and measures the actual residual.
-That independently recomputed residual is the quantity reported to Pymablock.
+The example deliberately does not square $H_0-E_a$, because that squares the condition number and increases the operator bond dimension.
+It also does not silently use a pseudoinverse, broadening, or penalty projector: a singular local constrained equation is reported as a failure.
+For general indefinite or non-Hermitian projected equations, a dedicated MINRES/GMRES-like local strategy is still required.
 
 ## Residual and truncation control
 
@@ -193,36 +148,46 @@ Approximate MPO algebra changes the meaning of an otherwise exact formal perturb
 Compression errors enter additions and products, while the iterative solver adds an independent error to every solution of Sylvester's equation.
 The resulting series coefficients therefore only approximate the coefficients that an exact operator algebra would produce.
 
-We require the backend solver to return a {autolink}`~pymablock.mpo.SylvesterResult`.
-The result contains a convergence flag and the relative residual measured after reconstructing the compressed solution,
+The full-MPO solver returns a {autolink}`~pymablock.mpo.SylvesterResult` with the compressed-operator residual
 
 $$
-r =
+r_\mathrm{MPO} =
 \frac{\lVert AX-XB-Y\rVert_F}{\lVert Y\rVert_F}.
 $$
 
-The adapter created by {autolink}`~pymablock.mpo.make_mpo_sylvester_solver` rejects an unconverged solve, a non-finite residual, or a residual above its acceptance threshold.
+The implicit solver returns a {autolink}`~pymablock.implicit.StateSolveResult` with
+
+$$
+r_\mathrm{MPS} =
+\frac{\lVert Q(H_0-E_a)Q|\eta_a\rangle-|S_a\rangle\rVert}
+{\lVert S_a\rVert}.
+$$
+
+Both adapters reject an unconverged solve, a non-finite residual, or a residual above their acceptance threshold.
 This check prevents a failed approximate solve from silently entering higher perturbative orders.
 
-Users should record three diagnostics for every requested order:
+Users should record the relevant diagnostics for every requested order:
 
 - the largest retained bond dimension,
 - the accumulated or maximum reported truncation error,
-- the true relative Sylvester residual.
+- the true relative Sylvester residual,
+- for implicit solves, the largest overlap with a retained reference state.
 
 Convergence requires repeating the calculation with a larger `chi_max`, a smaller `svd_min`, and a tighter solver tolerance.
 The effective Hamiltonian terms relevant to the physical conclusion must remain stable under these changes.
-A stable ground-state energy or a small internal Krylov residual alone does not establish convergence of every effective operator.
+A stable energy or a small local/Krylov residual alone does not establish convergence of every requested coefficient.
 
 ## Applicability and limitations
 
-The initial example targets finite open chains with square local spaces and `conserve=None`.
-It assumes that the spectra of the unperturbed blocks are separated, so the Sylvester operator is invertible on the requested off-diagonal block.
-It does not introduce a pseudoinverse cutoff, spectral broadening, preconditioner, or null-space projection.
+The TeNPy examples target finite open chains with square local spaces and `conserve=None`.
+The full-MPO path assumes separated block spectra.
+The implicit path assumes a small set of orthonormal MPS eigenstates and a Hermitian shifted problem on their complement; the demonstrated Hylleraas sweep is intended for sign-definite shifts.
+Neither path introduces spectral broadening or a pseudoinverse.
 
 Custom Sylvester solvers cannot currently be combined with `fully_diagonalize`.
-The example also does not support infinite or extensive MPOs, charge-conserving tensor legs, or a guarantee that the required bond dimension stays bounded at high perturbative order.
+The examples also do not support infinite tensor networks, charge-conserving tensor legs, or a guarantee that the required bond dimension stays bounded at high perturbative order.
 These restrictions are explicit so that later backends can extend them without changing Pymablock's core algebra interface.
 
 The [minimal TeNPy MPO tutorial](tutorial/tenpy_mpo.md) compares a complete two-site calculation with dense Pymablock.
 The [Ising-chain benchmark](tutorial/tenpy_mpo_ising.md) applies the method to a six-site MPO problem with an analytical effective Hamiltonian.
+The [implicit MPS tutorial](tutorial/tenpy_implicit_ising.md) treats the exactly solvable transverse-field Ising chain using two retained product-state MPSs.

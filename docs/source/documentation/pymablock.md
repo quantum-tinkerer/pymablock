@@ -24,6 +24,14 @@
    :show-inheritance:
 ```
 
+## Implicit state-space perturbation
+
+```{eval-rst}
+.. automodule:: pymablock.implicit
+   :members:
+   :show-inheritance:
+```
+
 ## Series
 
 ```{eval-rst}

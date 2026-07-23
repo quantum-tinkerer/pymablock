@@ -91,6 +91,14 @@ nitpick_ignore = [
 nitpick_ignore_regex = [
     ("py:class", r"(pymablock\.mpo\.)?MPOType"),
     ("py:obj", r"(pymablock\.mpo\.)?MPOType"),
+    (
+        "py:class",
+        r"(pymablock\.implicit\.)?(OperatorType|StateType|_ImplicitSpace)",
+    ),
+    (
+        "py:obj",
+        r"(pymablock\.implicit\.)?(OperatorType|StateType|_ImplicitSpace)",
+    ),
 ]
 
 # Add any paths that contain templates here, relative to this directory.
