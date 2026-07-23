@@ -137,6 +137,7 @@ $$
 After solving, an SVD moves the optimization center and truncates to `chi_max`.
 A left-to-right and right-to-left pass form one sweep.
 After every sweep the code projects again, applies the original MPO, and measures the true global residual and all reference-state overlaps.
+For clarity, this documentation backend rebuilds its left and right environments at every local update; a production backend should cache them to reduce the sweep cost from quadratic to linear in chain length.
 
 The example deliberately does not square $H_0-E_a$, because that squares the condition number and increases the operator bond dimension.
 It also does not silently use a pseudoinverse, broadening, or penalty projector: a singular local constrained equation is reported as a failure.
