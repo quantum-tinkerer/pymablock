@@ -88,6 +88,10 @@ default_role = "autolink"
 nitpick_ignore = [
     ("py:class", "sympy.physics.quantum.pauli.SigmaOpBase"),
 ]
+nitpick_ignore_regex = [
+    ("py:class", r"(pymablock\.mpo\.)?MPOType"),
+    ("py:obj", r"(pymablock\.mpo\.)?MPOType"),
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

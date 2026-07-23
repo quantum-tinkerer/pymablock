@@ -16,6 +16,14 @@
    :show-inheritance:
 ```
 
+## Matrix product operators
+
+```{eval-rst}
+.. automodule:: pymablock.mpo
+   :members:
+   :show-inheritance:
+```
+
 ## Series
 
 ```{eval-rst}

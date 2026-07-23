@@ -25,6 +25,7 @@ tutorial/jaynes_cummings.md
 Dispersive shift of a resonator <tutorial/dispersive_shift.md>
 Rabi model <tutorial/spin_rwa_floquet.md>
 tutorial/andreev_supercurrent.md
+MPO perturbation theory with TeNPy <tutorial/tenpy_mpo.md>
 ```
 
 ```{toctree}
@@ -36,6 +37,7 @@ algorithms.md
 nonhermitian_algorithm.md
 Comparison to Schrieffer-Wolff <radius.md>
 second_quantization.md
+matrix_product_operators.md
 documentation/pymablock.md
 CHANGELOG.md
 authors.md
