@@ -305,6 +305,8 @@ class TenpyImplicitBackend:
     def apply(self, operator: MPO, state: MPS) -> MPS:
         """Apply and immediately compress an MPO."""
         _validate_state(state, operator)
+        if state.norm == 0:
+            return state.copy()
         result = state.copy()
         operator.apply(
             result,
@@ -325,6 +327,20 @@ class TenpyImplicitBackend:
             return right.copy()
         if right.norm == 0:
             return left.copy()
+        result_norm_squared = np.real(
+            self.inner(left, left)
+            + self.inner(right, right)
+            + 2 * self.inner(left, right)
+        )
+        input_norm_squared = np.real(self.inner(left, left) + self.inner(right, right))
+        if result_norm_squared <= (
+            100
+            * np.finfo(float).eps
+            * max(float(input_norm_squared), np.finfo(float).tiny)
+        ):
+            result = left.copy()
+            result.norm = 0.0
+            return result
         return _add_mps(
             left,
             right,

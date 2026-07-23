@@ -454,8 +454,8 @@ def block_diagonalize_implicit(
 
     ``Q (H_0 - energy) Q state = rhs``
 
-    for one right-hand side.  It must enforce orthogonality to every reference
-    state and report the true projected relative residual.
+    for one right-hand side.  It must return the same state used to measure the
+    residual and enforce orthogonality to every reference state.
     """
     if not reference_states:
         raise ValueError("At least one reference state is required.")
@@ -467,6 +467,8 @@ def block_diagonalize_implicit(
     references = tuple(reference_states)
     space = _ImplicitSpace(backend, references)
     if isinstance(hamiltonian, Mapping):
+        if not hamiltonian:
+            raise ValueError("The Hamiltonian mapping may not be empty.")
         zero_order = (0,) * len(next(iter(hamiltonian)))
         try:
             h_0 = hamiltonian[zero_order]
@@ -546,7 +548,20 @@ def block_diagonalize_implicit(
                 index=index,
                 column=column,
             )
-            states.append(space.project(result.state))
+            orthogonality = max(
+                abs(space.inner(reference, result.state)) for reference in references
+            )
+            orthogonality_tolerance = max(
+                max_relative_residual,
+                100 * np.finfo(float).eps,
+            )
+            if orthogonality > orthogonality_tolerance:
+                raise RuntimeError(
+                    "The implicit state solver returned a state with reference "
+                    f"overlap {orthogonality:.3e} at perturbative index {index}, "
+                    f"column {column}."
+                )
+            states.append(result.state)
         solved = ImplicitBlock("column", tuple(states), space)
         return solved if return_kind == "column" else solved.adjoint()
 

@@ -126,3 +126,38 @@ def test_implicit_state_rejects_non_eigenstate_references():
             backend,
             dense_shifted_solver,
         )
+
+
+def test_implicit_state_rejects_solver_reference_overlap():
+    h_0 = np.diag([-1.0, 1.0])
+    reference = np.array([1.0, 0.0])
+    backend = DenseStateBackend([])
+
+    def invalid_solver(*_args):
+        return StateSolveResult(reference, 0.0, True)
+
+    h_tilde, _, _ = block_diagonalize_implicit(
+        [h_0, np.ones((2, 2))],
+        [reference],
+        backend,
+        invalid_solver,
+    )
+    with pytest.raises(RuntimeError) as caught:
+        _ = h_tilde[0, 0, 2]
+    causes = []
+    error = caught.value
+    while error is not None:
+        causes.append(str(error))
+        error = error.__cause__
+    assert any("reference overlap" in cause for cause in causes)
+
+
+def test_implicit_state_rejects_empty_hamiltonian_mapping():
+    backend = DenseStateBackend([])
+    with pytest.raises(ValueError, match="may not be empty"):
+        block_diagonalize_implicit(
+            {},
+            [np.array([1.0, 0.0])],
+            backend,
+            dense_shifted_solver,
+        )
