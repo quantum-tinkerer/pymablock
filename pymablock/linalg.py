@@ -250,6 +250,8 @@ def is_diagonal(A: Any, atol: float = 1e-12) -> bool:
     if isinstance(A, np.ndarray):
         # Create a view of the offdiagonal array elements
         offdiagonal = A.reshape(-1)[:-1].reshape(len(A) - 1, len(A) + 1)[:, 1:]
+        if A.dtype == object:
+            return all(value == 0 for value in offdiagonal.flat)
         return not np.any(np.round(offdiagonal, int(-np.log10(atol))))
     if sparse.issparse(A):
         A = sparse.dia_array(A)

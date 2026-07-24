@@ -967,7 +967,11 @@ def solve_sylvester_diagonal(
         eigs_A, eigs_B = eigs[index[0]], eigs[index[1]]
 
         if index[0] != index[1] and index[:2] not in index_checked:
-            compare = np.equal if isinstance(Y, sympy.MatrixBase) else np.isclose
+            symbolic = isinstance(Y, sympy.MatrixBase) or any(
+                getattr(getattr(eigenvalues, "dtype", None), "kind", None) == "O"
+                for eigenvalues in (eigs_A, eigs_B)
+            )
+            compare = np.equal if symbolic else np.isclose
 
             if np.any(compare(eigs_A.reshape(-1, 1), eigs_B.reshape(1, -1))):
                 raise ValueError("The subspaces must not share eigenvalues.")
@@ -1339,7 +1343,7 @@ def _dict_to_BlockSeries(
     h_0 = operator[zeroth_order]
 
     if isinstance(h_0, np.ndarray):
-        if is_diagonal(h_0, atol):
+        if h_0.dtype != object and is_diagonal(h_0, atol):
             operator[zeroth_order] = sparse.csr_array(operator[zeroth_order])
     elif sparse.issparse(h_0):  # Normalize sparse matrices for solve_sylvester
         operator[zeroth_order] = sparse.csr_array(operator[zeroth_order])
@@ -1649,7 +1653,11 @@ def _convert_if_zero(value: Any, atol: float = 1e-12):
 
     """
     if isinstance(value, np.ndarray):
-        if np.allclose(value, 0, atol=atol):
+        if (
+            all(item == 0 for item in value.flat)
+            if value.dtype == object
+            else np.allclose(value, 0, atol=atol)
+        ):
             return zero
     elif sparse.issparse(value):
         if value.count_nonzero() == 0:

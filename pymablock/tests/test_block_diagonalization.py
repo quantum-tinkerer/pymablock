@@ -800,6 +800,29 @@ def test_equivalence_explicit_implicit(rng) -> None:
     compare_series(implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-8)
 
 
+def test_symbolic_object_array_implicit() -> None:
+    """The implicit code path preserves exact symbolic coefficients."""
+    energy_a, energy_b, coupling = sympy.symbols("E_a E_b coupling", nonzero=True)
+    energies = np.array([energy_a, energy_b], dtype=object)
+    h_0 = np.diag(energies)
+    perturbation = np.array([[0, coupling], [coupling, 0]], dtype=object)
+    retained = np.array([[1], [0]])
+    virtual = np.array([[0], [1]])
+    solve_sylvester = solve_sylvester_diagonal(
+        (energies[:1], energies[1:]),
+        vecs_implicit=virtual,
+    )
+
+    H_tilde, *_ = block_diagonalize(
+        [h_0, perturbation],
+        subspace_eigenvectors=(retained,),
+        solve_sylvester=solve_sylvester,
+    )
+
+    assert H_tilde[0, 0, 0][0, 0] == energy_a
+    assert sympy.factor(H_tilde[0, 0, 2][0, 0] - coupling**2 / (energy_a - energy_b)) == 0
+
+
 def test_dtype_mismatch_error_implicit(rng):
     """Test that the implicit mode allows mixing real H_0 with complex H'."""
     h_0 = rng.standard_normal(size=(4, 4))

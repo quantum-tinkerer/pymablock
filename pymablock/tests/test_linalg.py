@@ -147,3 +147,9 @@ def test_is_diagonal(rng):
     sympy_matrix = sympy.Matrix(array)
     assert not linalg.is_diagonal(sympy_matrix)
     assert linalg.is_diagonal(sympy.Matrix.diag(*sympy_matrix.diagonal()))
+
+    x = sympy.Symbol("x")
+    symbolic_array = np.array([[x, 0], [0, x + 1]], dtype=object)
+    assert linalg.is_diagonal(symbolic_array)
+    symbolic_array[0, 1] = x
+    assert not linalg.is_diagonal(symbolic_array)
