@@ -72,6 +72,26 @@
    :show-inheritance:
 ```
 
+### Structured embeddings
+
+```{eval-rst}
+.. autoclass:: pymablock.operator_embedding.OccupationEmbedding(occupations)
+   :members:
+   :show-inheritance:
+   :class-doc-from: class
+
+.. autoclass:: pymablock.operator_embedding.FermionEmbedding(modes, *, number=None)
+   :members:
+   :show-inheritance:
+   :class-doc-from: class
+
+.. autofunction:: pymablock.operator_embedding.levels(names, size)
+
+.. autofunction:: pymablock.operator_embedding.occupation_embedding(occupations)
+
+.. autofunction:: pymablock.operator_embedding.fermion_embedding(modes, *, number=None)
+```
+
 ## Kernel polynomial method (KPM)
 
 ```{eval-rst}

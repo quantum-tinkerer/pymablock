@@ -84,9 +84,13 @@ intersphinx_mapping = {
 
 default_role = "autolink"
 
-# This is an undocumented base class.
+# These are implementation types without public documentation targets.  The
+# SymPy inventory does not expose FermionOp, while _CoordinateArithmetic is the
+# private base used to type occupation expressions.
 nitpick_ignore = [
     ("py:class", "sympy.physics.quantum.pauli.SigmaOpBase"),
+    ("py:class", "FermionOp"),
+    ("py:class", "_CoordinateArithmetic"),
 ]
 
 # Add any paths that contain templates here, relative to this directory.
