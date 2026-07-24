@@ -29,6 +29,7 @@ from pymablock.number_ordered_form import (
     find_operators,
     generator_types,
 )
+from pymablock.operator_embedding import OperatorEmbedding
 from pymablock.series import (
     BlockSeries,
     zero,
@@ -67,7 +68,7 @@ def block_diagonalize(
     hamiltonian: list | dict | BlockSeries | sympy.Matrix | sympy.Expr,
     *,
     solve_sylvester: Callable | None = None,
-    subspace_eigenvectors: Eigenvectors | None = None,
+    subspace_eigenvectors: Eigenvectors | OperatorEmbedding | None = None,
     subspace_indices: tuple[int, ...] | np.ndarray | None = None,
     direct_solver: bool = True,
     solver_options: dict | None = None,
@@ -154,7 +155,10 @@ def block_diagonalize(
         ``(R, L)`` is only supported when ``hermitian=False``. If None, the
         unperturbed Hamiltonian must be block diagonal. If some vectors are
         missing, the implicit method is used. Mutually exclusive with
-        ``subspace_indices``. If neither
+        ``subspace_indices``. A structured second-quantized embedding may be
+        supplied instead of explicit basis columns; it represents the same
+        target-to-source isometry algebraically and avoids source-space
+        enumeration. If neither
         ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
         BlockSeries is defined with a single block.
     subspace_indices :
@@ -240,6 +244,33 @@ def block_diagonalize(
         atol,
     )
     solver_options = {} if solver_options is None else dict(solver_options)
+
+    if isinstance(subspace_eigenvectors, OperatorEmbedding):
+        if subspace_indices is not None:
+            raise ValueError(
+                "subspace_eigenvectors and subspace_indices are mutually exclusive."
+            )
+        if not hermitian:
+            raise NotImplementedError(
+                "Structured embeddings currently support Hermitian problems only."
+            )
+        if solve_sylvester is not None:
+            raise NotImplementedError(
+                "Structured embeddings select their algebraic Sylvester solver."
+            )
+        if solver_options:
+            raise NotImplementedError(
+                "Structured embeddings do not accept solver_options."
+            )
+        if fully_diagonalize:
+            raise NotImplementedError(
+                "Structured embeddings do not support fully_diagonalize."
+            )
+        from pymablock._operator_embedding import (
+            block_diagonalize as block_diagonalize_embedding,
+        )
+
+        return block_diagonalize_embedding(hamiltonian, subspace_eigenvectors)
 
     use_implicit = False
     right_subspaces = left_subspaces = None

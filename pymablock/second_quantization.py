@@ -15,11 +15,23 @@ from pymablock.number_ordered_form import (
     LadderOp,
     NumberOrderedForm,
 )
+from pymablock.operator_embedding import (
+    FermionEmbedding,
+    OccupationEmbedding,
+    fermion_embedding,
+    levels,
+    occupation_embedding,
+)
 from pymablock.series import zero
 
 __all__ = [
+    "FermionEmbedding",
+    "OccupationEmbedding",
     "apply_mask_to_operator",
     "expand_compact_denominators",
+    "fermion_embedding",
+    "levels",
+    "occupation_embedding",
     "solve_sylvester_2nd_quant",
 ]
 
