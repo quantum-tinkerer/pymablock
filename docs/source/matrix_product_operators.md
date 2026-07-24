@@ -64,7 +64,7 @@ The full formulation stores the complete transformation coefficient $X$ as an MP
 
 | | Full MPO | Implicit MPS |
 | --- | --- | --- |
-| Unknown | the complete operator $X$ | the columns $QX|\phi_a\rangle$ |
+| Unknown | the complete operator $X$ | the columns $QX\lvert\phi_a\rangle$ |
 | Local dimension | $d^2$ | $d$ |
 | Linear solver in the examples | compressed GMRES | DMRG-style variational sweeps |
 | Result | an effective MPO | a small effective matrix and corrected states |
