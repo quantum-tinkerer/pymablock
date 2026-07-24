@@ -21,6 +21,10 @@
 # The transverse-field Ising chain is exactly solvable by a Jordan--Wigner
 # transformation. Here it provides a check of perturbation theory around its
 # two ferromagnetic product states without constructing the full unitary MPO.
+#
+# This is a natural implicit calculation because only a two-state effective
+# Hamiltonian is needed. The solver computes the two transformation columns
+# that act on the reference states instead of representing the full operator.
 
 # %% [markdown]
 # ## Model and analytical result

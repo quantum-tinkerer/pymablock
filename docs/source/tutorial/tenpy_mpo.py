@@ -19,6 +19,10 @@
 # # MPO perturbation theory with TeNPy
 #
 # This executable companion contains the code cells from `tenpy_mpo.md`.
+#
+# We use the full-MPO formulation because the requested results are complete
+# operator coefficients. Here “full” describes the represented unknown; the
+# Sylvester solver remains matrix-free.
 
 # %%
 # %%time

@@ -18,6 +18,10 @@ This tutorial implements finite-chain MPO perturbation theory by combining Pymab
 We use two spin-$\frac12$ sites so that the tensor-network calculation remains visible and can be checked independently with dense matrices.
 The MPO algorithm itself never uses the dense representation.
 
+We choose the full-MPO formulation because this tutorial computes complete coefficients of both the transformation and the effective Hamiltonian.
+This would be useful if those operators were later applied to many states or observables.
+“Full” refers to representing the unknown operator as an MPO: the Sylvester solver remains matrix-free and never assembles its exponentially large matrix.
+
 ## Construct the MPO blocks
 
 We first import the TeNPy backend defined alongside this executable tutorial.

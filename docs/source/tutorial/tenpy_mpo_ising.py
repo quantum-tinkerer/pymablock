@@ -21,6 +21,10 @@
 # The longitudinal-field Ising chain is coupled to a detuned two-level
 # sector. Since the Ising Hamiltonian commutes with the coupling operator,
 # the effective Hamiltonian is known analytically.
+#
+# We use the full-MPO formulation because the desired answer is the effective
+# operator itself, which can then be reused in another tensor-network
+# calculation.
 
 # %%
 # %%time

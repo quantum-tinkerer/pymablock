@@ -18,6 +18,9 @@ This tutorial applies MPO perturbation theory to the finite longitudinal-field I
 We couple the chain to a detuned two-level sector in a way that has an exact operator solution.
 The example therefore checks both the tensor-network calculation and the expected perturbative error without using dense Pymablock as a reference.
 
+We use the full-MPO formulation because the desired answer is the operator $-M_z^2/\Delta$, not its action on a few selected states.
+Once constructed, this effective interaction can be reused in a later tensor-network calculation.
+
 ## Model and analytical result
 
 For an open chain, define

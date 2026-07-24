@@ -56,18 +56,28 @@ This product rule is exact before compression and fixes the order of operator mu
 Because repeated perturbative products would otherwise multiply bond dimensions rapidly, the TeNPy backend converts every result to an MPS on the local operator space, performs an SVD compression, and converts it back to an MPO.
 Exact cancellations are returned as a bond-dimension-one zero MPO because a zero tensor cannot be put into normalized MPS canonical form.
 
-## Full MPO or implicit MPS?
+## Choosing between full MPO and implicit MPS
 
-There are two useful tensor-network formulations, and they produce different outputs.
+The two formulations differ in what they represent, not in whether they assemble a dense matrix.
+Both are matrix-free tensor-network calculations.
+The full formulation stores the complete transformation coefficient $X$ as an MPO, whereas the implicit formulation stores only its action on selected states.
 
-| Formulation | Stored unknown | Local dimension | Use it when |
-| --- | --- | --- | --- |
-| Full MPO | the complete transformation coefficient $X$ | $d^2$ | the retained block is extensive or an effective MPO is required |
-| Implicit MPS | only the columns $QX|\phi_a\rangle$ | $d$ | the model space contains a few MPS eigenstates |
+| | Full MPO | Implicit MPS |
+| --- | --- | --- |
+| Unknown | the complete operator $X$ | the columns $QX|\phi_a\rangle$ |
+| Local dimension | $d^2$ | $d$ |
+| Linear solver in the examples | compressed GMRES | DMRG-style variational sweeps |
+| Result | an effective MPO | a small effective matrix and corrected states |
 
-The implicit formulation is usually cheaper for ground-state or few-state calculations.
-It is not suitable for an exponentially large retained block because it needs one MPS column per retained state.
-The full-MPO formulation remains useful when the effective operator itself is the result.
+Choose the implicit formulation when the retained space contains a few known MPS eigenstates.
+Only the columns that act on those states can enter their effective Hamiltonian, so constructing the rest of $X$ would do unnecessary work.
+The cost is one corrected MPS per retained state, which makes this approach unattractive for an extensive retained space.
+
+Choose the full-MPO formulation when the operator itself is the result.
+This is appropriate when the retained space is extensive, or when the same effective Hamiltonian or transformation will be reused for many states, observables, dynamics, or later DMRG calculations.
+Its cost is instead controlled by the operator entanglement of the perturbative coefficients.
+
+As a practical rule: use implicit MPS for a few target states, full MPO for a reusable effective operator, and direct DMRG when only one ground state at one parameter value is needed.
 
 ## Full-MPO Sylvester solve
 
@@ -86,6 +96,7 @@ $$
 
 The transpose is fixed by the vectorization convention; it is not an adjoint.
 The TeNPy full-MPO example stores the vectorized operators as MPSs on local dimension $d^2$ and applies the Sylvester superoperator as an MPO.
+Thus, “full MPO” does not mean that the exponentially large superoperator matrix is constructed.
 
 One restarted GMRES cycle starts from the true residual, repeatedly applies the superoperator, and orthogonalizes the resulting MPSs to build a short Krylov basis.
 It then solves only the small Hessenberg least-squares problem and adds the resulting Krylov correction to $X$.
