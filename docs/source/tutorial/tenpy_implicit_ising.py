@@ -16,10 +16,11 @@
 # %% [markdown]
 # # Implicit MPS perturbation theory
 #
-# This tutorial demonstrates implicit perturbation theory when the low-energy space is spanned by a few MPSs.
-# We compute the $2\times2$ effective Hamiltonian of the two ferromagnetic ground states of the transverse-field Ising chain.
-# Pymablock stores only their response states as MPSs, rather than a transformation MPO acting on the full Hilbert space.
-# The analytical second-order coefficient and exact finite-chain energy provide independent checks.
+# Conceptually, this tutorial demonstrates implicit perturbation theory when the low-energy space is spanned by only a few MPSs.
+# Pymablock stores the response of those states rather than a transformation MPO acting on the full Hilbert space.
+# Physically, we compute the two lowest energies of the transverse-field Ising chain as functions of the field, separating their common perturbative shift from the much smaller tunneling splitting.
+#
+# The analytical second-order coefficient and exact finite-chain spectrum provide independent checks.
 #
 # ## Model and analytical result
 #
@@ -43,6 +44,9 @@
 # $\lvert\Downarrow\rangle=\lvert\downarrow\cdots\downarrow\rangle$
 # are degenerate ground states with energy $E_0=-J(L-1)$.
 # They span the low-energy model space $P$ whose effective Hamiltonian we seek.
+#
+# We will compute its $2\times2$ effective Hamiltonian and plot the two corresponding energies as functions of $g/J$.
+# Comparison with the exact Jordan--Wigner spectrum will distinguish the second-order energy shift from the higher-order splitting.
 #
 # At second order, the intermediate states contain one flipped spin.
 # An edge flip costs $2J$, while an interior flip costs $4J$, so

@@ -16,13 +16,12 @@
 # %% [markdown]
 # # Minimal full-MPO validation
 #
-# This minimal tutorial demonstrates the complete interface between Pymablock and a tensor-network backend.
-# TeNPy supplies MPO arithmetic and the Sylvester solver; Pymablock uses them to compute a first-order transformation coefficient and a second-order effective-Hamiltonian coefficient.
-# We use two spin-$\frac12$ sites and an auxiliary two-level sector so that both operator-valued results can be checked against dense Pymablock.
+# Conceptually, this tutorial demonstrates the complete interface between Pymablock and a tensor-network backend: TeNPy supplies MPO arithmetic and the Sylvester solver, while Pymablock organizes the perturbation series.
+# Physically, we compute how virtual transitions through a detuned manifold shift and split the four spin levels in the retained manifold $A$ as the coupling increases.
 #
-# The calculation uses the full-MPO formulation because it represents the coefficients as operators, not only their action on selected states.
-# The MPO calculation itself never uses a dense representation.
-# Our interesting subspace is sector $A$: we eliminate the detuned sector $B$ and find the effective Hamiltonian acting within $A$.
+# We use two spin-$\frac12$ sites so that the first-order transformation and second-order effective Hamiltonian can be checked against dense Pymablock.
+# Because we want the complete low-energy spectrum, we represent these coefficients as full MPOs rather than only applying them to selected states.
+# Dense matrices enter only as a small-system reference.
 #
 # ## Construct the MPO blocks
 #
@@ -77,6 +76,9 @@ from pymablock.mpo import BackendMPO, make_mpo_sylvester_solver
 # Here $X_i$ and $Z_i$ are Pauli operators on spin $i$, $I$ is the two-spin identity, and all coefficients use the same energy unit.
 # The two sectors have the same longitudinal field, but $B$ lies three energy units above $A$.
 # The perturbation changes sector while flipping spin 1 with amplitude $1$ or spin 2 with amplitude $0.2$.
+#
+# Our final physical quantity is the four-level spectrum within $A$ as a function of $\lambda$.
+# The second-order effective Hamiltonian produces this spectrum, while the first-order transformation describes the accompanying admixture of $B$.
 #
 # At first order, Pymablock obtains the off-diagonal transformation from
 #

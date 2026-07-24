@@ -14,9 +14,11 @@ kernelspec:
 
 # Large-chain effective interactions
 
-This tutorial demonstrates the main advantage of full-MPO perturbation theory: it constructs reusable effective operators when dense operator algebra is impossible.
-We eliminate a detuned auxiliary sector coupled to a 24-site Ising chain and compute second- and fourth-order corrections to the low-energy sector as MPOs.
-The Hilbert space has $2^{24}$ states, but the resulting operators have bond dimensions of only a few.
+Conceptually, this tutorial demonstrates the main advantage of full-MPO perturbation theory: it constructs reusable effective operators when dense operator algebra is impossible.
+Physically, we compute the energy shift induced by a detuned ancilla as a function of the Ising chain's total magnetization, including both second- and fourth-order corrections.
+
+We work with 24 spins and retain the ancilla ground sector.
+The spin Hilbert space has $2^{24}$ states, but the effective operators have bond dimensions of only a few.
 
 ## Model and analytical result
 
@@ -79,7 +81,9 @@ H_\mathrm{exact}^{AA}(g)
 +\mathcal{O}(g^6).
 $$
 
-We ask Pymablock to recover both displayed coefficients.
+We ask Pymablock to recover both displayed coefficients and evaluate them for every allowed magnetization $m$.
+The resulting curve $\delta E(m)$ is the physical output of the tutorial: it shows which spin sectors the virtual ancilla lowers most strongly and how fourth order corrects the second-order prediction.
+
 Already at second order,
 
 $$
