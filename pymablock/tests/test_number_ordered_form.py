@@ -819,6 +819,62 @@ def test_multiplication_with_ladder_operators():
     assert (nof_m * nof_n_m * nof_m.adjoint() - nof_n_m - sympy.S.One).is_zero
 
 
+@pytest.mark.parametrize(
+    "operators",
+    [
+        sympy.symbols("b0:3", cls=boson.BosonOp),
+        tuple(LadderOp(f"l{i}") for i in range(3)),
+        sympy.symbols("b0:2", cls=boson.BosonOp)
+        + tuple(LadderOp(f"l{i}") for i in range(2)),
+    ],
+    ids=("bosons", "ladders", "mixed"),
+)
+def test_infinite_only_multiplication_matches_generic_path(operators):
+    """The direct infinite-order kernel agrees with sequential multiplication."""
+    numbers = [NumberOperator(operator) for operator in operators]
+    x = sympy.Symbol("x")
+    patterns = (
+        (-3, 0, 2),
+        (2, -2, 0),
+        (0, 3, -1),
+        (1, 0, -3),
+        (-1, 2, 1),
+        (0, 0, 0),
+    )
+    powers = [
+        tuple(pattern[i % len(pattern)] for i in range(len(operators)))
+        for pattern in patterns
+    ]
+    left = NumberOrderedForm(
+        operators,
+        {
+            power: (term + 1) * x
+            + sum((i + 1) * number for i, number in enumerate(numbers))
+            for term, power in enumerate(powers)
+        },
+    )
+    right = NumberOrderedForm(
+        operators,
+        {power: term + 2 + sum(numbers) for term, power in enumerate(reversed(powers))},
+    )
+
+    direct = left * right
+
+    # A zero-power spin selects the generic sequential implementation and therefore
+    # provides an oracle for the infinite-order fast path.
+    dummy = pauli.SigmaMinus("dummy")
+    generic = left._expand_operators((*operators, dummy)) * right._expand_operators(
+        (*operators, dummy)
+    )
+    generic = NumberOrderedForm(
+        operators,
+        {tuple(power[:-1]): coeff for power, coeff in generic.terms.items()},
+        validate=False,
+    )
+
+    assert direct == generic
+
+
 def test_multiplication_with_missing_operators():
     """Test multiplication of NumberOrderedForm with a longer list of operators."""
     # Create a mix of different operator types
@@ -1368,9 +1424,9 @@ def test_mixed_boson_fermion():
     expr1 = f * a * Dagger(a) * Dagger(f)
     nof1 = NumberOrderedForm.from_expr(expr1)
 
-    # Should maintain bosons and fermions correctly ordered with proper signs
-    # Compare with the expression converted back to normal form
-    assert normal_ordered_form(nof1.as_expr().doit() - nof1.as_expr().doit()) == 0
+    # Bosons commute with fermions, while both local contractions contribute.
+    expected1 = NumberOrderedForm.from_expr((1 + n_a) * (1 - n_f), operators=(a, f))
+    assert nof1 == expected1
 
     # Test that bosonic and fermionic number operators commute
     expr2 = n_a * n_f - n_f * n_a
@@ -1385,6 +1441,81 @@ def test_mixed_boson_fermion():
     result3 = nof3.simplify()
     expected3 = NumberOrderedForm.from_expr(n_a)
     assert result3.as_expr() == expected3.as_expr()
+
+
+@pytest.mark.parametrize(
+    "operators",
+    [
+        sympy.symbols("f0:3", cls=fermion.FermionOp),
+        tuple(pauli.SigmaMinus(f"s{i}") for i in range(3)),
+        tuple(pauli.SigmaMinus(f"s{i}") for i in range(2))
+        + sympy.symbols("f0:2", cls=fermion.FermionOp),
+    ],
+    ids=("fermions", "spins", "mixed"),
+)
+def test_binary_only_multiplication_matches_generic_path(operators):
+    """The direct binary kernel agrees with sequential operator multiplication."""
+    numbers = [NumberOperator(operator) for operator in operators]
+    x = sympy.Symbol("x")
+    patterns = ((-1, 0, 1), (1, -1, 0), (0, 1, -1), (1, 0, -1), (0, 0, 0))
+    powers = [
+        tuple(pattern[i % len(pattern)] for i in range(len(operators)))
+        for pattern in patterns
+    ]
+    left = NumberOrderedForm(
+        operators,
+        {
+            power: (term + 1) * x
+            + sum((i + 1) * number for i, number in enumerate(numbers))
+            for term, power in enumerate(powers)
+        },
+    )
+    right = NumberOrderedForm(
+        operators,
+        {
+            power: term
+            + 2
+            + sum(
+                number * numbers[(i + 1) % len(numbers)]
+                for i, number in enumerate(numbers)
+            )
+            for term, power in enumerate(reversed(powers))
+        },
+    )
+
+    direct = left * right
+
+    # A zero-power boson selects the generic sequential implementation and therefore
+    # provides an oracle for the binary-only fast path.
+    dummy = boson.BosonOp("dummy")
+    generic = left._expand_operators((dummy, *operators)) * right._expand_operators(
+        (dummy, *operators)
+    )
+    generic = NumberOrderedForm(
+        operators,
+        {tuple(power[1:]): coeff for power, coeff in generic.terms.items()},
+        validate=False,
+    )
+
+    assert direct == generic
+
+
+def test_multimode_fermion_product_matches_symbolic_ordering():
+    """Right-hand annihilators retain their canonical fermionic order."""
+    operators = sympy.symbols("f0:4", cls=fermion.FermionOp)
+    amplitude = sympy.Symbol("t", real=True)
+    operator = NumberOrderedForm(
+        operators,
+        {(-1, 1, 1, -1): -(amplitude**2)},
+    )
+
+    product = Dagger(operator) * operator
+    reference = NumberOrderedForm.from_expr(
+        Dagger(operator.as_expr()) * operator.as_expr(),
+        operators=operators,
+    )
+
+    assert product == reference
 
 
 def test_independent_operator_commutation(rng):

@@ -154,12 +154,12 @@ def _extract_particle_conserving_coefficient(
     if not isinstance(expr, NumberOrderedForm):
         return sympy.sympify(expr)
 
-    if len(expr.args[1]) != 1:
+    if len(expr.terms) != 1:
         raise ValueError(
             "Diagonal second-quantized Hamiltonians must have a single scalar term."
         )
 
-    powers, coeff = expr.args[1][0]
+    powers, coeff = next(iter(expr.terms.items()))
     if any(powers):
         raise ValueError(
             "Diagonal second-quantized Hamiltonians must contain only number operators."
@@ -292,14 +292,10 @@ def _solve_scalar_with_denominator_impl(
         denominator = denominator_getter(operators, tuple(shift))
         new_shifts[shift] = sign * denominator**-sympy.S.One * coeff
 
-    result = (
-        NumberOrderedForm(
-            operators=Y.args[0],
-            terms=new_shifts,
-        )
-        ._cancel_binary_operator_numbers()
-        ._linearize_binary_operators()
-    )
+    result = NumberOrderedForm(
+        operators=Y.args[0],
+        terms=new_shifts,
+    )._cancel_binary_operator_numbers()
 
     if diagonal:
         result -= result.adjoint()

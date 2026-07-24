@@ -664,7 +664,7 @@ def block_diagonalize(
                         x.operators,
                         {
                             powers: coeff
-                            for powers, coeff in x.args[1]
+                            for powers, coeff in x.terms.items()
                             if coeff != sympy.S.Zero
                         },
                         validate=False,

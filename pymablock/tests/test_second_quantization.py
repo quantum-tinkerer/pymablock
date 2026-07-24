@@ -222,7 +222,7 @@ def _regression_metrics(expr) -> dict[str, int]:
             "coeff_str_len": len(str(expr)),
         }
 
-    coeffs = [coeff for _, coeff in expr.args[1]]
+    coeffs = list(expr.terms.values())
     return {
         "terms": len(coeffs),
         "coeff_ops": int(sum(sympy.count_ops(coeff) for coeff in coeffs)),
@@ -530,10 +530,13 @@ def test_solve_sylvester_2nd_quant_fermion_complex():
     n_f, n_g = NumberOperator(f), NumberOperator(g)
 
     # Create symbolic parameters
-    alpha, beta = sympy.symbols("alpha beta", real=True)
+    alpha, beta, gamma, delta = sympy.symbols("alpha beta gamma delta", real=True)
 
-    # Define eigenvalues with number operators and parameters
-    eigs = ((alpha * n_f, beta * (1 - n_f)), (alpha * n_g, beta * (2 - n_g)))
+    # Independent offsets keep every Boolean occupation sector invertible.
+    eigs = (
+        (alpha * n_f, beta * (1 - n_f)),
+        (gamma * (2 + n_g), delta * (4 - n_g)),
+    )
 
     # Get the solver function
     solve_sylvester = solve_sylvester_2nd_quant(eigs)
