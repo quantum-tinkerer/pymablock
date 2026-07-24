@@ -5,25 +5,24 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.16.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
 
-# Analytical Ising-chain benchmark
+# Large-chain effective interactions
 
-This tutorial applies MPO perturbation theory to the finite longitudinal-field Ising chain, a standard low-bond-dimension MPO.
-We couple the chain to a detuned two-level sector in a way that has an exact operator solution.
-The example therefore checks both the tensor-network calculation and the expected perturbative error without using dense Pymablock as a reference.
-
-We use the full-MPO formulation because the desired answer is the operator $-M_z^2/\Delta$, not its action on a few selected states.
-Once constructed, this effective interaction can be reused in a later tensor-network calculation.
+This tutorial demonstrates the main advantage of full-MPO perturbation theory: it constructs reusable effective operators when dense operator algebra is impossible.
+We eliminate a detuned auxiliary sector coupled to a 24-site Ising chain and compute second- and fourth-order corrections to the low-energy sector as MPOs.
+The Hilbert space has $2^{24}$ states, but the resulting operators have bond dimensions of only a few.
 
 ## Model and analytical result
 
-For an open chain, define
+Consider an open chain of $L$ spin-$\frac12$ sites.
+Here $Z_i$ is the Pauli matrix on site $i$, $J>0$ is the ferromagnetic nearest-neighbor coupling, and $h$ is a longitudinal field.
+The chain Hamiltonian and total magnetization are
 
 $$
 H_\mathrm{I}
@@ -33,18 +32,36 @@ H_\mathrm{I}
 M_z=\sum_{i=1}^{L}Z_i.
 $$
 
-We use these operators in the block Hamiltonian
+We couple the chain to two auxiliary sectors, $A$ and $B$.
+Sector $A$ contains $H_\mathrm{I}$ and is the subspace whose effective Hamiltonian we want.
+Sector $B$ has the same spin dynamics but costs an additional energy $\Delta>0$.
+The weak amplitude $g$ changes the auxiliary sector with a strength set by $M_z$:
 
 $$
-H(g)=
+H(g)=H_0+gV=
 \begin{pmatrix}
 H_\mathrm{I} & gM_z\\
 gM_z & H_\mathrm{I}+\Delta I
 \end{pmatrix}.
 $$
 
-Because $H_\mathrm{I}$ and $M_z$ commute, every Ising configuration reduces this Hamiltonian to an ordinary $2\times2$ matrix.
-For $\Delta>0$, the exact lower block after diagonalization is consequently
+Here $I$ is the identity on the spin chain.
+We treat $g$ perturbatively and eliminate $B$ to obtain corrections acting entirely within $A$.
+We choose $\Delta$ below to make the full spectra of the two unperturbed sectors disjoint.
+
+All terms in $H_\mathrm{I}$ and $M_z$ contain only $Z_i$, so the two operators commute.
+For a common eigenstate with Ising energy $E$ and magnetization $m$, only the auxiliary $2\times2$ problem remains:
+
+$$
+H_{E,m}=E I_2+
+\begin{pmatrix}
+0&gm\\
+gm&\Delta
+\end{pmatrix}.
+$$
+
+Its lower eigenvalue is $E+[\Delta-\sqrt{\Delta^2+4g^2m^2}]/2$.
+Replacing $E$ and $m$ by the commuting operators gives the exact block continuously connected to $A$:
 
 $$
 H_\mathrm{exact}^{AA}(g)
@@ -52,7 +69,7 @@ H_\mathrm{exact}^{AA}(g)
 +\frac{\Delta-\sqrt{\Delta^2+4g^2M_z^2}}{2}.
 $$
 
-Expanding the square root gives
+Its expansion is
 
 $$
 H_\mathrm{exact}^{AA}(g)
@@ -62,31 +79,39 @@ H_\mathrm{exact}^{AA}(g)
 +\mathcal{O}(g^6).
 $$
 
-We will ask Pymablock for the second-order coefficient and verify that it equals $-M_z^2/\Delta$.
+We ask Pymablock to recover both displayed coefficients.
+Already at second order,
 
-```{code-cell} ipython3
+$$
+M_z^2=LI+2\sum_{i<j}Z_iZ_j,
+$$
+
+so the effective Hamiltonian contains an all-to-all interaction.
+The fourth-order term also contains long-range four-spin interactions.
+Thus a local-looking virtual sector change lets every spin talk to every other spin in the effective theory.
+
+```{code-cell}
 %%time
 from functools import reduce
-from itertools import product
 
 import numpy as np
 from tenpy.networks.site import SpinHalfSite
+from tenpy_mpo_backend import TenpyMPOBackend, mpo_to_mps, product_mpo
 
-from tenpy_mpo_backend import TenpyMPOBackend, mpo_to_dense, product_mpo
 from pymablock import block_diagonalize
 from pymablock.mpo import BackendMPO, make_mpo_sylvester_solver
 ```
 
-## Build the Ising MPO
+## Build a problem beyond dense operator storage
 
-We use six sites, which is large enough to exercise repeated MPO addition and multiplication while keeping the analytical check quick.
-The helper `product_term` constructs one Pauli string, and `add_all` forms a compressed sum of such strings.
+For $L=24$, one complex dense operator would require $4$ pebibytes (PiB) of memory.
+The code below constructs the same Hamiltonian from compressed sums of Pauli strings.
 
-```{code-cell} ipython3
+```{code-cell}
 %%time
-L = 6
-J = 0.7
-h = 0.2
+L = 24
+J = 0.07
+h = 0.02
 Delta = 5.0
 
 sites = [SpinHalfSite(conserve=None) for _ in range(L)]
@@ -115,43 +140,57 @@ def add_all(operators):
     return reduce(backend.add, operators)
 
 
-magnetization = add_all(
-    [product_term({site: z}) for site in range(L)]
-)
-ising_bonds = add_all(
-    [product_term({site: z, site + 1: z}) for site in range(L - 1)]
-)
+magnetization = add_all([product_term({site: z}) for site in range(L)])
+ising_bonds = add_all([product_term({site: z, site + 1: z}) for site in range(L - 1)])
 ising = backend.add(
     backend.scale(ising_bonds, -J),
     backend.scale(magnetization, -h),
 )
 identity_mpo = product_term({})
-upper_block = backend.add(
+detuned_block = backend.add(
     ising,
     backend.scale(identity_mpo, Delta),
 )
+
+hilbert_dimension = 2**L
+dense_storage_pib = np.dtype(complex).itemsize * hilbert_dimension**2 / 2**50
+spectral_radius_bound = J * (L - 1) + h * L
+assert Delta > 2 * spectral_radius_bound
+
+{
+    "Hilbert-space dimension": hilbert_dimension,
+    "dense complex operator [PiB]": dense_storage_pib,
+    "upper bound on the Ising spectral width": 2 * spectral_radius_bound,
+    "sector detuning": Delta,
+    "Ising MPO bond dimension": max(ising.chi),
+    "magnetization MPO bond dimension": max(magnetization.chi),
+}
 ```
 
-## Compute the effective Hamiltonian
+The bound $\lVert H_\mathrm{I}\rVert\leq J(L-1)+hL$ places its spectrum in an interval of width at most $2[J(L-1)+hL]$.
+Our detuning is larger than this width, so the two unperturbed block spectra are disjoint.
+
+## Compute two perturbative orders
 
 Pymablock treats $g$ as the formal perturbative parameter, so the off-diagonal input is $M_z$ rather than $gM_z$.
-Requesting the second-order term triggers both the MPO Sylvester solve and the product that generates the effective interaction.
+Requesting the fourth-order term evaluates all lower orders lazily.
+The calculation uses only compressed MPO algebra and matrix-free Sylvester solves.
 
-```{code-cell} ipython3
+```{code-cell}
 %%time
 wrapped_ising = BackendMPO(ising, backend)
-wrapped_upper = BackendMPO(upper_block, backend)
+wrapped_detuned = BackendMPO(detuned_block, backend)
 wrapped_magnetization = BackendMPO(magnetization, backend)
 
 solve_sylvester = make_mpo_sylvester_solver(
-    [wrapped_ising, wrapped_upper],
+    [wrapped_ising, wrapped_detuned],
     backend.solve_sylvester,
     max_relative_residual=1e-8,
 )
 
 H_tilde, _, _ = block_diagonalize(
     [
-        [[wrapped_ising, 0], [0, wrapped_upper]],
+        [[wrapped_ising, 0], [0, wrapped_detuned]],
         [
             [0, wrapped_magnetization],
             [wrapped_magnetization, 0],
@@ -160,97 +199,76 @@ H_tilde, _, _ = block_diagonalize(
     solve_sylvester=solve_sylvester,
 )
 H_AA_2 = H_tilde[0, 0, 2]
+H_AA_4 = H_tilde[0, 0, 4]
 ```
 
-We next compare the computed coefficient with the analytical MPO $-M_z^2/\Delta$.
-Dense contraction is used only to measure the error of this small benchmark; neither Pymablock nor the Sylvester solver uses it.
+## Verify the operators without dense matrices
 
-```{code-cell} ipython3
+Vectorizing an MPO as an MPS preserves its Frobenius norm.
+We therefore measure each operator error from the MPS norm of the difference, without dense contraction.
+
+```{code-cell}
 %%time
+magnetization_squared = backend.matmul(magnetization, magnetization)
 expected_h_aa_2 = backend.scale(
-    backend.matmul(magnetization, magnetization),
+    magnetization_squared,
     -1 / Delta,
 )
-computed_dense = mpo_to_dense(H_AA_2.operator)
-expected_dense = mpo_to_dense(expected_h_aa_2)
-coefficient_relative_error = (
-    np.linalg.norm(computed_dense - expected_dense)
-    / np.linalg.norm(expected_dense)
+expected_h_aa_4 = backend.scale(
+    backend.matmul(magnetization_squared, magnetization_squared),
+    1 / Delta**3,
 )
-maximum_bond_dimension = max(
-    max(record.output_bond_dimensions)
-    for record in backend.compression_records
-)
-sylvester_residual = backend.solver_records[-1].relative_residuals[-1]
 
-assert coefficient_relative_error < 1e-8
-assert sylvester_residual < 1e-8
-assert maximum_bond_dimension <= backend.chi_max
+
+def relative_frobenius_error(computed, expected):
+    """Return ``||computed - expected||_F / ||expected||_F``."""
+    computed_vector = mpo_to_mps(computed)
+    expected_vector = mpo_to_mps(expected)
+    difference = computed_vector.add(
+        expected_vector,
+        alpha=1,
+        beta=-1,
+        cutoff=0,
+    )
+    difference_norm_squared = float(np.real(difference.overlap(difference)))
+    expected_norm_squared = float(np.real(expected_vector.overlap(expected_vector)))
+    return np.sqrt(max(difference_norm_squared, 0) / expected_norm_squared)
+
+
+second_order_error = relative_frobenius_error(
+    H_AA_2.operator,
+    expected_h_aa_2,
+)
+fourth_order_error = relative_frobenius_error(
+    H_AA_4.operator,
+    expected_h_aa_4,
+)
+maximum_sylvester_residual = max(
+    record.relative_residuals[-1] for record in backend.solver_records
+)
+
+assert second_order_error < 1e-8
+assert fourth_order_error < 1e-8
+assert maximum_sylvester_residual < 1e-8
 
 {
-    "coefficient relative error": coefficient_relative_error,
-    "maximum bond dimension": maximum_bond_dimension,
-    "Sylvester residual": sylvester_residual,
+    "second order": {
+        "relative Frobenius error": second_order_error,
+        "bond dimension": max(H_AA_2.operator.chi),
+    },
+    "fourth order": {
+        "relative Frobenius error": fourth_order_error,
+        "bond dimension": max(H_AA_4.operator.chi),
+    },
+    "Sylvester iterations": [record.iterations for record in backend.solver_records],
+    "maximum Sylvester residual": maximum_sylvester_residual,
 }
 ```
 
-## Check the perturbative error
+## Conclusion
 
-The analytical solution also tells us how the truncated effective Hamiltonian should fail.
-For every Ising configuration with energy $E$ and magnetization $m$, we compare
+For a Hilbert space of more than sixteen million states, Pymablock obtains the long-range operators $-M_z^2/\Delta$ and $M_z^4/\Delta^3$ with bond dimensions $3$ and $5$.
+These MPOs can be reused directly in later DMRG, dynamics, or observable calculations; no dense operator is formed.
 
-$$
-E+\frac{\Delta-\sqrt{\Delta^2+4g^2m^2}}{2}
-\quad\text{with}\quad
-E-\frac{g^2m^2}{\Delta}.
-$$
-
-Halving $g$ should reduce the leading fourth-order error by a factor approaching $2^4=16$.
-
-```{code-cell} ipython3
-%%time
-configurations = np.asarray(list(product((1.0, -1.0), repeat=L)))
-magnetizations = configurations.sum(axis=1)
-ising_energies = (
-    -J
-    * np.sum(
-        configurations[:, :-1] * configurations[:, 1:],
-        axis=1,
-    )
-    - h * magnetizations
-)
-
-
-def maximum_energy_error(coupling):
-    """Return the largest second-order energy error over all spin states."""
-    exact = ising_energies + (
-        Delta
-        - np.sqrt(
-            Delta**2
-            + 4 * coupling**2 * magnetizations**2
-        )
-    ) / 2
-    second_order = (
-        ising_energies
-        - coupling**2 * magnetizations**2 / Delta
-    )
-    return np.max(np.abs(exact - second_order))
-
-
-couplings = np.array([0.4, 0.2, 0.1, 0.05])
-energy_errors = np.array(
-    [maximum_energy_error(coupling) for coupling in couplings]
-)
-observed_orders = np.log2(energy_errors[:-1] / energy_errors[1:])
-
-assert observed_orders[-1] > 3.9
-
-{
-    "couplings": couplings,
-    "maximum energy errors": energy_errors,
-    "observed orders": observed_orders,
-}
-```
-
-The coefficient agreement verifies the MPO perturbation calculation, while the approach to fourth-order error verifies its physical interpretation.
-For larger chains the same calculation remains useful only while the measured bond dimensions and Sylvester iterations grow slowly enough to beat a dense or state-targeting calculation.
+The one-step GMRES convergence in this example follows from the commuting coupling and constant detuning.
+Generic models require more iterations, and the calculation remains useful only while the residuals and bond dimensions converge as the numerical tolerances are tightened.

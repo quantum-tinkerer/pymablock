@@ -5,48 +5,55 @@
 #     text_representation:
 #       extension: .py
 #       format_name: percent
-#       format_version: "1.3"
-#       jupytext_version: 1.17.2
+#       format_version: '1.3'
+#       jupytext_version: 1.16.3
 #   kernelspec:
 #     display_name: Python 3 (ipykernel)
 #     language: python
 #     name: python3
 # ---
 
-"""Executable implicit-MPS perturbation tutorial for the transverse-field Ising chain."""
-
 # %% [markdown]
 # # Implicit MPS perturbation theory
 #
-# The transverse-field Ising chain is exactly solvable by a Jordan--Wigner
-# transformation. Here it provides a check of perturbation theory around its
-# two ferromagnetic product states without constructing the full unitary MPO.
+# This tutorial demonstrates implicit perturbation theory when the low-energy space is spanned by a few MPSs.
+# We compute the $2\times2$ effective Hamiltonian of the two ferromagnetic ground states of the transverse-field Ising chain.
+# Pymablock stores only their response states as MPSs, rather than a transformation MPO acting on the full Hilbert space.
+# The analytical second-order coefficient and exact finite-chain energy provide independent checks.
 #
-# This is a natural implicit calculation because only a two-state effective
-# Hamiltonian is needed. The solver computes the two transformation columns
-# that act on the reference states instead of representing the full operator.
-
-# %% [markdown]
 # ## Model and analytical result
 #
-# For an open chain,
+# We consider $L$ spin-$\frac12$ sites with open boundaries,
 #
 # $$
-# H(g)=-J\sum_{i=1}^{L-1}Z_iZ_{i+1}-g\sum_{i=1}^{L}X_i.
+# H(g)=H_0+gV,
+# \qquad
+# H_0=-J\sum_{i=1}^{L-1}Z_iZ_{i+1},
+# \qquad
+# V=-\sum_{i=1}^{L}X_i.
 # $$
 #
-# At $g=0$, the all-up and all-down states span the degenerate ground space.
-# Flipping an edge spin costs $2J$, while flipping an interior spin costs
-# $4J$. Ordinary second-order perturbation theory therefore gives the same
-# diagonal correction to both ground states,
+# Here $X_i$ and $Z_i$ are Pauli operators on site $i$, $J>0$ is the ferromagnetic coupling, and the transverse field $g$ is the perturbative parameter.
+#
+# At $g=0$, the states
+# $\lvert\Uparrow\rangle=\lvert\uparrow\cdots\uparrow\rangle$ and
+# $\lvert\Downarrow\rangle=\lvert\downarrow\cdots\downarrow\rangle$
+# are degenerate ground states with energy $E_0=-J(L-1)$.
+# They span the low-energy model space $P$ whose effective Hamiltonian we seek.
+#
+# At second order, the intermediate states contain one flipped spin.
+# An edge flip costs $2J$, while an interior flip costs $4J$, so
 #
 # $$
-# E^{(2)}
-# =-\frac{2}{2J}-\frac{L-2}{4J}
-# =-\frac{L+2}{4J}.
+# H_\mathrm{eff}
+# =E_0 I_2+g^2H_\mathrm{eff}^{(2)}+\cdots,
+# \qquad
+# H_\mathrm{eff}^{(2)}
+# =-\left(\frac{2}{2J}+\frac{L-2}{4J}\right)I_2
+# =-\frac{L+2}{4J}I_2.
 # $$
 #
-# The off-diagonal coefficient vanishes at second order for $L>2$.
+# Connecting $\lvert\Uparrow\rangle$ to $\lvert\Downarrow\rangle$ requires flipping every spin, so tunneling first appears at order $g^L$.
 
 # %%
 # %%time
@@ -64,8 +71,9 @@ from pymablock.implicit import block_diagonalize_implicit
 # %% [markdown]
 # ## Build the MPO and model space
 #
-# Only the two retained states are stored explicitly. The complement is
-# represented through projected MPO applications.
+# We use $L=8$ and $J=0.7$.
+# In the code, `h_0` represents $H_0$, `perturbation` represents $V$, and `references` contains the two MPS basis states of $P$.
+# The complementary space $Q=1-P$ is handled through projected MPO applications, without constructing its basis.
 
 # %%
 # %%time
@@ -120,16 +128,22 @@ references = [
 # %% [markdown]
 # ## Compute the perturbative coefficient
 #
-# Pymablock constructs its usual lazy series, but complement-space columns are
-# MPSs. Whenever a new column is needed, the backend solves
+# Pymablock constructs the perturbative series lazily.
+# Because the retained states diagonalize $H_0$, applying the operator Sylvester equation to each one gives an independent response equation,
 #
 # $$
-# Q(H_0-E_0)Q|\eta\rangle=|S\rangle
+# Q(H_0-E_a)Q\lvert\eta_a\rangle=\lvert S_a\rangle,
+# \qquad
+# \langle\phi_b\vert\eta_a\rangle=0.
 # $$
 #
-# with constrained two-site sweeps. These sweeps resemble DMRG because they
-# vary neighboring MPS tensors, but each local update solves a linear-response
-# equation rather than a ground-state eigenproblem.
+# Here $\lvert\phi_a\rangle$ is either retained ferromagnetic state, $E_a=E_0$ is its unperturbed energy, $\lvert\eta_a\rangle$ is the unknown response MPS, and $\lvert S_a\rangle$ is the source assembled from lower perturbative orders.
+# At first order, $V$ makes each source a superposition of one-spin-flip states.
+#
+# The excitation gap makes $Q(H_0-E_0)Q$ positive definite.
+# The backend solves this response problem with two-site variational sweeps, enforcing orthogonality to both reference states and truncating the MPS after each update.
+# After every sweep, it recomputes the global residual.
+# The sweep pattern resembles DMRG, but its target is a linear response state rather than a ground state.
 
 # %%
 # %%time
@@ -159,19 +173,30 @@ maximum_residual = max(record.relative_residuals[-1] for record in backend.solve
 maximum_orthogonality_error = max(
     record.orthogonality_errors[-1] for record in backend.solver_records
 )
-maximum_bond_dimension = max(max(column.chi) for column in first_order_columns)
+first_order_maximum_bond_dimension = max(
+    max(column.chi) for column in first_order_columns
+)
 
 assert maximum_residual < 1e-8
 assert maximum_orthogonality_error < 1e-8
-assert maximum_bond_dimension <= backend.chi_max
+assert first_order_maximum_bond_dimension <= backend.chi_max
+
+{
+    "computed second-order coefficient": second_order,
+    "maximum global residual": maximum_residual,
+    "maximum reference overlap": maximum_orthogonality_error,
+    "first-order MPS bond dimension": first_order_maximum_bond_dimension,
+}
 
 # %% [markdown]
+# The reported bond dimension describes the first-order response MPSs.
+# Respecting `chi_max` verifies the cap, but convergence still requires repeating the calculation with tighter truncation parameters.
+#
 # ## Compare with the exact free-fermion energy
 #
-# For the open chain, the exact ground-state energy is minus the sum of the
-# singular values of the bidiagonal Jordan--Wigner matrix with diagonal $g$
-# and subdiagonal $J$. If the second-order coefficient is correct, the error
-# after adding $g^2E^{(2)}$ must decrease as $g^4$.
+# For the open chain, the exact ground-state energy is minus the sum of the singular values of the bidiagonal Jordan--Wigner matrix with diagonal $g$ and subdiagonal $J$.
+# For $L=8$, the leading omitted diagonal term is fourth order, while tunneling starts at eighth order.
+# The error of the second-order result should therefore scale as $g^4$: halving $g$ reduces it by approximately $2^4=16$, so `observed_orders` should approach $4$.
 
 # %%
 # %%time
@@ -186,7 +211,7 @@ def exact_ground_energy(field):
 
 fields = np.array([0.2, 0.1, 0.05, 0.025])
 unperturbed_energy = -J * (L - 1)
-second_order_energy = expected_second_order[0, 0]
+second_order_energy = second_order[0, 0]
 errors = np.array(
     [
         abs(
@@ -199,3 +224,18 @@ errors = np.array(
 observed_orders = np.log2(errors[:-1] / errors[1:])
 
 assert observed_orders[-1] > 3.99
+
+{
+    "fields": fields,
+    "absolute errors": errors,
+    "observed orders": observed_orders,
+}
+
+# %% [markdown]
+# ## Conclusion
+#
+# This calculation obtains the second-order $2\times2$ effective Hamiltonian while storing only two response MPSs instead of a full transformation MPO.
+# Its coefficient matches the result derived from the spin-flip gaps, and inserting the computed coefficient into the exact finite-chain energy leaves the expected fourth-order error.
+#
+# This example validates the implicit formulation; it is not a scaling benchmark.
+# For larger systems, increase `chi_max`, lower the SVD cutoff, and tighten the residual tolerance until the requested coefficient remains stable.

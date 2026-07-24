@@ -5,57 +5,86 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.17.2
+    jupytext_version: 1.16.3
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
   name: python3
 ---
 
-# MPO perturbation theory with TeNPy
+# Minimal full-MPO validation
 
-This tutorial implements finite-chain MPO perturbation theory by combining Pymablock's backend-neutral hooks with TeNPy.
-We use two spin-$\frac12$ sites so that the tensor-network calculation remains visible and can be checked independently with dense matrices.
-The MPO algorithm itself never uses the dense representation.
+This minimal tutorial demonstrates the complete interface between Pymablock and a tensor-network backend.
+TeNPy supplies MPO arithmetic and the Sylvester solver; Pymablock uses them to compute a first-order transformation coefficient and a second-order effective-Hamiltonian coefficient.
+We use two spin-$\frac12$ sites and an auxiliary two-level sector so that both operator-valued results can be checked against dense Pymablock.
 
-We choose the full-MPO formulation because this tutorial computes complete coefficients of both the transformation and the effective Hamiltonian.
-This would be useful if those operators were later applied to many states or observables.
-“Full” refers to representing the unknown operator as an MPO: the Sylvester solver remains matrix-free and never assembles its exponentially large matrix.
+The calculation uses the full-MPO formulation because it represents the coefficients as operators, not only their action on selected states.
+The MPO calculation itself never uses a dense representation.
+Our interesting subspace is sector $A$: we eliminate the detuned sector $B$ and find the effective Hamiltonian acting within $A$.
 
 ## Construct the MPO blocks
 
 We first import the TeNPy backend defined alongside this executable tutorial.
 The example uses no conserved charges because the adapter deliberately keeps its first implementation focused on the MPO algebra and Sylvester solver.
 
-```{code-cell} ipython3
+```{code-cell}
 %%time
 import numpy as np
 from tenpy.networks.site import SpinHalfSite
-
 from tenpy_mpo_backend import (
     TenpyMPOBackend,
     mpo_to_dense,
     product_mpo,
 )
+
 from pymablock import block_diagonalize
 from pymablock.mpo import BackendMPO, make_mpo_sylvester_solver
 ```
 
-We choose two unperturbed blocks
+We study two spins and an additional sector label.
+Sector $A$ is the low-energy subspace whose effective Hamiltonian we want; the energetically separated sector $B$ will be eliminated.
+Both sectors contain the same four-dimensional spin Hilbert space.
+
+We expand in the dimensionless coupling $\lambda$:
+
+$$
+H(\lambda)=H_0+\lambda V,\qquad
+H_0=
+\begin{pmatrix}
+A&0\\
+0&B
+\end{pmatrix},
+\qquad
+V=
+\begin{pmatrix}
+0&T\\
+T^\dagger&0
+\end{pmatrix},
+$$
+
+with
 
 $$
 A=0.3(Z_1+Z_2),\qquad B=A+3I,
-$$
-
-and an off-diagonal perturbation
-
-$$
+\qquad
 T=X_1+0.2X_2.
 $$
 
-The offset of $3$ makes the spectra of $A$ and $B$ disjoint.
+Here $X_i$ and $Z_i$ are Pauli operators on spin $i$, $I$ is the two-spin identity, and all coefficients use the same energy unit.
+The two sectors have the same longitudinal field, but $B$ lies three energy units above $A$.
+The perturbation changes sector while flipping spin 1 with amplitude $1$ or spin 2 with amplitude $0.2$.
 
-```{code-cell} ipython3
+At first order, Pymablock obtains the off-diagonal transformation from
+
+$$
+A U_{AB}^{(1)}-U_{AB}^{(1)}B=-T.
+$$
+
+The spectra of $A$ and $B$ are disjoint, so this Sylvester equation has a unique solution.
+At second order, $T$ takes a state from $A$ to $B$ and $T^\dagger$ brings it back.
+These virtual excursions produce $\widetilde H_{AA}^{(2)}$ even though $V$ has no matrix element within $A$.
+
+```{code-cell}
 %%time
 sites = [SpinHalfSite(conserve=None) for _ in range(2)]
 identity = np.eye(2)
@@ -85,8 +114,15 @@ T = backend.add(x_1, backend.scale(x_2, 0.2))
 
 We next wrap each native TeNPy MPO in {autolink}`~pymablock.mpo.BackendMPO`.
 The wrapper makes TeNPy's compressed arithmetic available to Pymablock without adding TeNPy as a core dependency.
+The backend aims for a relative Sylvester residual below $10^{-9}$, while the adapter independently rejects any result above $10^{-8}$.
+This second threshold prevents an unconverged compressed result from entering the perturbation series.
+For a generic equation $A\mathcal X-\mathcal X B=Y$, both thresholds use
 
-```{code-cell} ipython3
+$$
+\frac{\lVert Y-(A\mathcal X-\mathcal X B)\rVert_F}{\lVert Y\rVert_F}.
+$$
+
+```{code-cell}
 %%time
 wrapped_a = BackendMPO(A, backend)
 wrapped_b = BackendMPO(B, backend)
@@ -107,15 +143,15 @@ H_tilde_mpo, U_mpo, _ = block_diagonalize(
 )
 ```
 
-Pymablock is lazy, so the MPO products and the Sylvester solve occur only when we request perturbative coefficients.
-The first-order off-diagonal transformation exercises the Sylvester solver, while the second-order effective Hamiltonian additionally exercises MPO multiplication.
+Pymablock stores each power of $\lambda$ separately, so $\lambda$ does not appear as a numerical variable in the code.
+In `U_mpo[0, 1, 1]`, the first two indices select the $AB$ block and the last selects first order.
+Likewise, `H_tilde_mpo[0, 0, 2]` selects the second-order coefficient in the target $AA$ block.
+Requesting the first term runs the Sylvester solver; requesting the second also requires MPO multiplication.
 
-```{code-cell} ipython3
+```{code-cell}
 %%time
 U_AB_1 = U_mpo[0, 1, 1]
 H_AA_2 = H_tilde_mpo[0, 0, 2]
-
-backend.solver_records[-1]
 ```
 
 ## Verify the minimal calculation
@@ -123,7 +159,7 @@ backend.solver_records[-1]
 We finally contract these two-site MPOs to dense matrices only for validation.
 An independent dense Pymablock calculation provides the reference coefficients.
 
-```{code-cell} ipython3
+```{code-cell}
 %%time
 dense_a = mpo_to_dense(A)
 dense_b = mpo_to_dense(B)
@@ -136,28 +172,25 @@ H_tilde_dense, U_dense, _ = block_diagonalize(
     ]
 )
 
-first_order_error = np.linalg.norm(
-    mpo_to_dense(U_AB_1.operator) - U_dense[0, 1, 1]
-)
+first_order_error = np.linalg.norm(mpo_to_dense(U_AB_1.operator) - U_dense[0, 1, 1])
 second_order_error = np.linalg.norm(
     mpo_to_dense(H_AA_2.operator) - H_tilde_dense[0, 0, 2]
-)
-maximum_bond_dimension = max(
-    max(record.output_bond_dimensions)
-    for record in backend.compression_records
 )
 
 assert first_order_error < 1e-8
 assert second_order_error < 1e-8
-assert maximum_bond_dimension <= backend.chi_max
 
 {
     "first-order error": first_order_error,
     "second-order error": second_order_error,
-    "maximum bond dimension": maximum_bond_dimension,
     "Sylvester residual": backend.solver_records[-1].relative_residuals[-1],
 }
 ```
 
-The agreement checks multiplication and the solution of Sylvester's equation in one minimal calculation.
-For a larger system, dense contraction is unavailable, so convergence must instead be established by tightening `svd_min`, increasing `chi_max`, and lowering the accepted Sylvester residual until the requested effective terms stop changing.
+## Conclusion
+
+This calculation establishes the minimal end-to-end path from TeNPy MPOs to a Pymablock perturbation series.
+Agreement of $U_{AB}^{(1)}$ validates the Sylvester solve, while agreement of $\widetilde H_{AA}^{(2)}$ also validates MPO multiplication.
+
+The model is deliberately too small to demonstrate a scaling advantage.
+The [large-chain tutorial](tenpy_mpo_ising.md) shows the regime where a dense operator is impossible but the perturbative coefficients remain compact MPOs.

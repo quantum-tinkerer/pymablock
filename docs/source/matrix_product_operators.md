@@ -210,5 +210,5 @@ The examples also do not support infinite tensor networks, charge-conserving ten
 These restrictions are explicit so that later backends can extend them without changing Pymablock's core algebra interface.
 
 The [minimal TeNPy MPO tutorial](tutorial/tenpy_mpo.md) compares a complete two-site calculation with dense Pymablock.
-The [Ising-chain benchmark](tutorial/tenpy_mpo_ising.md) applies the method to a six-site MPO problem with an analytical effective Hamiltonian.
+The [large-chain tutorial](tutorial/tenpy_mpo_ising.md) obtains analytical second- and fourth-order effective interactions for a 24-site system that is far beyond dense operator storage.
 The [implicit MPS tutorial](tutorial/tenpy_implicit_ising.md) treats the exactly solvable transverse-field Ising chain using two retained product-state MPSs.

@@ -105,6 +105,9 @@ unfixable = []
   "RET504",
   "D",  # documentation in tests not necessary
 ]
+"docs/source/tutorial/tenpy_implicit_ising.py" = ["D100"]
+"docs/source/tutorial/tenpy_mpo.py" = ["D100"]
+"docs/source/tutorial/tenpy_mpo_ising.py" = ["D100"]
 
 [tool.coverage.run]
 include = [
