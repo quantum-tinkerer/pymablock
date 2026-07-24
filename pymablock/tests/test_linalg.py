@@ -28,15 +28,13 @@ def test_direct_greens_function(dtype, rng):
     if np.iscomplexobj(E):
         t *= np.exp(2j * np.pi * rng.random(n - 1))
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
-    eigvals, eigvecs = np.linalg.eigh(h.toarray())
-    n0 = n // 3
-    G = linalg.direct_greens_function(h, E[n0])
+    energy = np.linalg.eigvalsh(h.toarray())[0] - 1
+    G = linalg.direct_greens_function(h, energy)
     vec = rng.standard_normal(n).astype(dtype)
     if np.iscomplexobj(vec):
         vec += 1j * rng.standard_normal(n)
-    vec -= (eigvecs[:, n0].conj() @ vec) * eigvecs[:, n0]
     sol = G(vec)
-    assert_allclose(h @ sol - E[n0] * sol, -vec, atol=atol)
+    assert_allclose(h @ sol - energy * sol, -vec, atol=atol)
 
 
 def test_direct_greens_function_dtype(rng):
