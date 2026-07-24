@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Generic, Protocol, TypeVar
 
 import numpy as np
 
+from pymablock.series import zero
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
@@ -155,6 +157,8 @@ def make_mpo_sylvester_solver(
     ) -> BackendMPO[MPOType]:
         if len(index) < 2:
             raise ValueError("A Sylvester index must contain two block indices.")
+        if rhs is zero:
+            return zero
         left_index, right_index = index[:2]
         try:
             left = diagonal_blocks[left_index]

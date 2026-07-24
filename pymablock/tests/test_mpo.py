@@ -11,6 +11,7 @@ from pymablock.mpo import (
     SylvesterResult,
     make_mpo_sylvester_solver,
 )
+from pymablock.series import zero
 
 
 @dataclass
@@ -97,6 +98,18 @@ def test_sylvester_adapter_selects_blocks_and_checks_residual():
         blocks[0].operator @ result.operator - result.operator @ blocks[1].operator,
         rhs.operator,
     )
+
+
+def test_sylvester_adapter_preserves_zero():
+    backend = DenseBackend([])
+    blocks = [BackendMPO(np.eye(2) * i, backend) for i in (1, 2)]
+
+    def fail_if_called(*_args):
+        raise AssertionError("The backend must not solve an exact zero.")
+
+    adapted = make_mpo_sylvester_solver(blocks, fail_if_called)
+
+    assert adapted(zero, (0, 1, 2)) is zero
 
 
 @pytest.mark.parametrize(
