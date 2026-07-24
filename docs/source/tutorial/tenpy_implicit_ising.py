@@ -34,6 +34,9 @@
 # $$
 #
 # Here $X_i$ and $Z_i$ are Pauli operators on site $i$, $J>0$ is the ferromagnetic coupling, and the transverse field $g$ is the perturbative parameter.
+# The Ising term favors alignment along $z$, while $V$ flips individual spins and introduces quantum fluctuations.
+# For $g\ll J$, the low-energy physics is a nearly degenerate ferromagnetic doublet separated from spin-flip excitations by a finite gap.
+# Perturbation theory describes both the common energy shift of this doublet and the much weaker tunneling between its two states.
 #
 # At $g=0$, the states
 # $\lvert\Uparrow\rangle=\lvert\uparrow\cdots\uparrow\rangle$ and
@@ -60,6 +63,7 @@
 
 from functools import reduce
 
+import matplotlib.pyplot as plt
 import numpy as np
 from tenpy.networks.mps import MPS
 from tenpy.networks.site import SpinHalfSite
@@ -202,11 +206,13 @@ assert first_order_maximum_bond_dimension <= backend.chi_max
 # %%time
 
 
-def exact_ground_energy(field):
-    """Return the finite-chain free-fermion ground-state energy."""
+def exact_low_energy_levels(field):
+    """Return the two lowest finite-chain energies."""
     jordan_wigner = np.diag(np.full(L, field))
     jordan_wigner += np.diag(np.full(L - 1, J), k=-1)
-    return -np.linalg.svd(jordan_wigner, compute_uv=False).sum()
+    singular_values = np.linalg.svd(jordan_wigner, compute_uv=False)
+    ground = -singular_values.sum()
+    return ground, ground + 2 * singular_values.min()
 
 
 fields = np.array([0.2, 0.1, 0.05, 0.025])
@@ -215,7 +221,7 @@ second_order_energy = second_order[0, 0]
 errors = np.array(
     [
         abs(
-            exact_ground_energy(field)
+            exact_low_energy_levels(field)[0]
             - (unperturbed_energy + field**2 * second_order_energy)
         )
         for field in fields
@@ -232,10 +238,56 @@ assert observed_orders[-1] > 3.99
 }
 
 # %% [markdown]
+# ## Interpret the low-energy doublet
+#
+# The Jordan--Wigner singular values also give the excitation energies.
+# The smallest singular value therefore determines the splitting between the two lowest states.
+# We compare these exact levels with the degenerate pair predicted by the second-order effective Hamiltonian.
+
+# %%
+# %%time
+
+plot_fields = np.linspace(0, 0.8 * J, 101)
+exact_levels = np.array([exact_low_energy_levels(field) for field in plot_fields])
+second_order_level = unperturbed_energy + plot_fields**2 * np.real(second_order_energy)
+
+fig, ax = plt.subplots(figsize=(6, 4))
+ax.plot(
+    plot_fields / J,
+    (exact_levels[:, 0] - unperturbed_energy) / J,
+    label="exact ground state",
+)
+ax.plot(
+    plot_fields / J,
+    (exact_levels[:, 1] - unperturbed_energy) / J,
+    label="exact first excited state",
+)
+ax.plot(
+    plot_fields / J,
+    (second_order_level - unperturbed_energy) / J,
+    "k--",
+    label="second order (both states)",
+)
+ax.set(
+    xlabel=r"$g/J$",
+    ylabel=r"$(E-E_0)/J$",
+    xlim=(0, 0.8),
+)
+ax.grid(alpha=0.25)
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+# %% [markdown]
+# At weak field, both exact levels follow the common second-order curve: virtual one-spin flips lower the ferromagnetic doublet without splitting it at this order.
+# The exact levels separate by an amount of order $g^L$, reflecting tunneling that requires all $L$ spins to flip.
+# Their eventual departure from the dashed curve shows where a second-order expansion ceases to be quantitatively accurate.
+#
 # ## Conclusion
 #
 # This calculation obtains the second-order $2\times2$ effective Hamiltonian while storing only two response MPSs instead of a full transformation MPO.
 # Its coefficient matches the result derived from the spin-flip gaps, and inserting the computed coefficient into the exact finite-chain energy leaves the expected fourth-order error.
+# The level plot separates the common perturbative energy shift from the much smaller high-order tunneling splitting.
 #
 # This example validates the implicit formulation; it is not a scaling benchmark.
 # For larger systems, increase `chi_max`, lower the SVD cutoff, and tighten the residual tolerance until the requested coefficient remains stable.

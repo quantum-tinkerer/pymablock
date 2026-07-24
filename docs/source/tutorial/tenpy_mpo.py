@@ -31,6 +31,7 @@
 
 # %%
 # %%time
+import matplotlib.pyplot as plt
 import numpy as np
 from tenpy.networks.site import SpinHalfSite
 from tenpy_mpo_backend import (
@@ -43,9 +44,10 @@ from pymablock import block_diagonalize
 from pymablock.mpo import BackendMPO, make_mpo_sylvester_solver
 
 # %% [markdown]
-# We study two spins and an additional sector label.
-# Sector $A$ is the low-energy subspace whose effective Hamiltonian we want; the energetically separated sector $B$ will be eliminated.
-# Both sectors contain the same four-dimensional spin Hilbert space.
+# We treat two spins with a low-energy manifold $A$ and a detuned excited manifold $B$.
+# Both manifolds contain the same four spin states, and spin-flip tunnelling connects them.
+# This is the elementary setting behind dispersive elimination: the excited manifold is barely occupied, yet virtual visits to it shift the spectrum measured within $A$.
+# We retain $A$ and perturbatively decouple $B$.
 #
 # We expand in the dimensionless coupling $\lambda$:
 #
@@ -83,8 +85,8 @@ from pymablock.mpo import BackendMPO, make_mpo_sylvester_solver
 # $$
 #
 # The spectra of $A$ and $B$ are disjoint, so this Sylvester equation has a unique solution.
-# At second order, $T$ takes a state from $A$ to $B$ and $T^\dagger$ brings it back.
-# These virtual excursions produce $\widetilde H_{AA}^{(2)}$ even though $V$ has no matrix element within $A$.
+# At second order, $T^\dagger$ takes a state from $A$ to $B$, and $T$ brings it back.
+# These virtual excursions shift and mix the four spin states within $A$, even though $V$ has no matrix element inside that manifold.
 
 # %%
 # %%time
@@ -118,7 +120,7 @@ T = backend.add(x_1, backend.scale(x_2, 0.2))
 # The wrapper makes TeNPy's compressed arithmetic available to Pymablock without adding TeNPy as a core dependency.
 # The backend aims for a relative Sylvester residual below $10^{-9}$, while the adapter independently rejects any result above $10^{-8}$.
 # This second threshold prevents an unconverged compressed result from entering the perturbation series.
-# For a generic equation $A\mathcal X-\mathcal X B=Y$, both thresholds use
+# For a generic equation $A\mathcal X-\mathcal X B=Y$, where $\mathcal X$ is the unknown operator and $Y$ is the source assembled by Pymablock at that order, both thresholds use
 #
 # $$
 # \frac{\lVert Y-(A\mathcal X-\mathcal X B)\rVert_F}{\lVert Y\rVert_F}.
@@ -189,10 +191,76 @@ assert second_order_error < 1e-8
 }
 
 # %% [markdown]
+# ## Low-energy spectrum
+#
+# The coefficient comparison validates the implementation.
+# To see the physics contained in the result, we compare the four low-energy eigenvalues of the full Hamiltonian with those of the second-order effective Hamiltonian
+#
+# $$
+# H_{\mathrm{eff},A}^{(2)}(\lambda)
+# =A+\lambda^2\widetilde H_{AA}^{(2)}.
+# $$
+#
+# The four levels correspond to the four spin states in the retained manifold.
+# We restrict $\lambda$ to a range where the two manifolds remain well separated.
+# Dense matrices enter only to construct this small exact reference spectrum; the perturbative coefficient comes from the MPO calculation.
+
+# %%
+# %%time
+couplings = np.linspace(0, 0.6, 61)
+n_target = dense_a.shape[0]
+dense_h_aa_2 = mpo_to_dense(H_AA_2.operator)
+
+exact_energies = np.empty((len(couplings), n_target))
+effective_energies = np.empty_like(exact_energies)
+
+for index, coupling in enumerate(couplings):
+    full_hamiltonian = np.block(
+        [
+            [dense_a, coupling * dense_t],
+            [coupling * dense_t.conj().T, dense_b],
+        ]
+    )
+    exact_energies[index] = np.linalg.eigvalsh(full_hamiltonian)[:n_target]
+    effective_energies[index] = np.linalg.eigvalsh(dense_a + coupling**2 * dense_h_aa_2)
+
+fig, ax = plt.subplots(figsize=(6, 4))
+for level in range(n_target):
+    color = f"C{level}"
+    ax.plot(couplings, exact_energies[:, level], color=color, linewidth=2)
+    ax.plot(
+        couplings,
+        effective_energies[:, level],
+        color=color,
+        linestyle="--",
+        linewidth=1.5,
+    )
+
+ax.plot([], [], color="0.25", linewidth=2, label="Exact full model")
+ax.plot(
+    [],
+    [],
+    color="0.25",
+    linestyle="--",
+    linewidth=1.5,
+    label=r"MPO PT through $\lambda^2$",
+)
+ax.set_xlabel(r"Perturbation strength $\lambda$")
+ax.set_ylabel("Low-energy eigenvalue")
+ax.legend()
+fig.tight_layout()
+plt.show()
+
+# %% [markdown]
+# Virtual transitions shift all four levels and split the degeneracy at zero energy.
+# The dashed curves reproduce the spectrum at weak coupling, showing that the MPO coefficient describes the complete retained manifold rather than one selected state.
+# Their gradual departure at larger $\lambda$ reflects the omitted fourth- and higher-order terms.
+#
 # ## Conclusion
 #
 # This calculation establishes the minimal end-to-end path from TeNPy MPOs to a Pymablock perturbation series.
 # Agreement of $U_{AB}^{(1)}$ validates the Sylvester solve, while agreement of $\widetilde H_{AA}^{(2)}$ also validates MPO multiplication.
+# The spectrum shows the physical content of that coefficient: virtual transitions shift and split every state in the retained manifold.
 #
 # The model is deliberately too small to demonstrate a scaling advantage.
 # The [large-chain tutorial](tenpy_mpo_ising.md) shows the regime where a dense operator is impossible but the perturbative coefficients remain compact MPOs.

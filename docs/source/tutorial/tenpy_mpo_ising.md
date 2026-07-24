@@ -32,10 +32,10 @@ H_\mathrm{I}
 M_z=\sum_{i=1}^{L}Z_i.
 $$
 
-We couple the chain to two auxiliary sectors, $A$ and $B$.
-Sector $A$ contains $H_\mathrm{I}$ and is the subspace whose effective Hamiltonian we want.
-Sector $B$ has the same spin dynamics but costs an additional energy $\Delta>0$.
-The weak amplitude $g$ changes the auxiliary sector with a strength set by $M_z$:
+A concrete interpretation is a spin chain coupled collectively to a detuned two-level ancilla.
+We call the ancilla ground and excited states $A$ and $B$.
+In sector $A$ the spins evolve with $H_\mathrm{I}$; in sector $B$ the same spin dynamics costs an additional energy $\Delta>0$.
+The coupling $gM_z$ flips the ancilla, so a spin configuration with magnetization $m$ couples the two sectors with amplitude $gm$:
 
 $$
 H(g)=H_0+gV=
@@ -46,7 +46,7 @@ gM_z & H_\mathrm{I}+\Delta I
 $$
 
 Here $I$ is the identity on the spin chain.
-We treat $g$ perturbatively and eliminate $B$ to obtain corrections acting entirely within $A$.
+We treat $g$ perturbatively, retain the ancilla ground sector $A$, and eliminate virtual excursions through $B$.
 We choose $\Delta$ below to make the full spectra of the two unperturbed sectors disjoint.
 
 All terms in $H_\mathrm{I}$ and $M_z$ contain only $Z_i$, so the two operators commute.
@@ -88,13 +88,15 @@ $$
 
 so the effective Hamiltonian contains an all-to-all interaction.
 The fourth-order term also contains long-range four-spin interactions.
-Thus a local-looking virtual sector change lets every spin talk to every other spin in the effective theory.
+Virtual excitation of one ancilla therefore mediates interactions between spins at arbitrary separations.
 
 ```{code-cell}
 %%time
 from functools import reduce
 
 import numpy as np
+from matplotlib import pyplot as plt
+from tenpy.networks.mps import MPS
 from tenpy.networks.site import SpinHalfSite
 from tenpy_mpo_backend import TenpyMPOBackend, mpo_to_mps, product_mpo
 
@@ -265,10 +267,95 @@ assert maximum_sylvester_residual < 1e-8
 }
 ```
 
+## Magnetization-dependent energy shift
+
+The effective MPOs describe how virtual ancilla excitations shift the energy of a spin state.
+For a $Z$-basis product state with total magnetization $m$, the exact shift is
+
+$$
+\delta E_\mathrm{exact}(m)
+=\frac{\Delta-\sqrt{\Delta^2+4g^2m^2}}{2}.
+$$
+
+We evaluate the second- and fourth-order MPOs on one product MPS for every allowed $m$.
+This samples the effective operator across the chain Hilbert space using tensor-network contractions.
+The square-root expansion converges for every spin state when $2|g|L/\Delta<1$.
+We choose $g=0.08$, for which this ratio is $0.768$: close enough to show the truncation error, but inside the convergence radius.
+
+```{code-cell}
+%%time
+plot_coupling = 0.08
+magnetizations = np.arange(-L, L + 1, 2)
+product_states = [
+    MPS.from_product_state(
+        sites,
+        ["up"] * ((L + magnetization) // 2) + ["down"] * ((L - magnetization) // 2),
+        bc="finite",
+        unit_cell_width=L,
+    )
+    for magnetization in magnetizations
+]
+
+
+def real_expectation(operator, state):
+    """Evaluate a Hermitian MPO on an MPS."""
+    value = operator.expectation_value(state)
+    assert abs(np.imag(value)) < 1e-10
+    return float(np.real(value))
+
+
+second_order_shifts = plot_coupling**2 * np.array(
+    [real_expectation(H_AA_2.operator, state) for state in product_states]
+)
+fourth_order_shifts = second_order_shifts + plot_coupling**4 * np.array(
+    [real_expectation(H_AA_4.operator, state) for state in product_states]
+)
+exact_shifts = (Delta - np.sqrt(Delta**2 + 4 * plot_coupling**2 * magnetizations**2)) / 2
+
+expansion_parameter = 2 * plot_coupling * L / Delta
+second_order_max_error = np.max(np.abs(second_order_shifts - exact_shifts))
+fourth_order_max_error = np.max(np.abs(fourth_order_shifts - exact_shifts))
+assert expansion_parameter < 1
+assert fourth_order_max_error < second_order_max_error
+
+figure, axis = plt.subplots(figsize=(6, 4))
+axis.plot(
+    magnetizations / L,
+    exact_shifts / L,
+    color="black",
+    label="exact",
+)
+axis.plot(
+    magnetizations / L,
+    second_order_shifts / L,
+    "o--",
+    label="second order",
+)
+axis.plot(
+    magnetizations / L,
+    fourth_order_shifts / L,
+    "s:",
+    label="fourth order",
+)
+axis.set(
+    xlabel=r"Magnetization density $m/L$",
+    ylabel=r"Induced energy shift $\delta E/L$",
+)
+axis.legend()
+figure.tight_layout()
+plt.show()
+```
+
+The virtual process lowers the energy most strongly for states with large $|m|$.
+The quadratic second-order term lowers these states too much, while the positive fourth-order term bends the result back toward the exact curve.
+Here the fourth-order term reduces the maximum error from about $0.085$ to $0.024$.
+Each point uses the same two effective MPOs; evaluating an entangled MPS would use the same contraction and would still require no dense operator.
+
 ## Conclusion
 
 For a Hilbert space of more than sixteen million states, Pymablock obtains the long-range operators $-M_z^2/\Delta$ and $M_z^4/\Delta^3$ with bond dimensions $3$ and $5$.
 These MPOs can be reused directly in later DMRG, dynamics, or observable calculations; no dense operator is formed.
+The energy-shift curve shows how these reusable MPOs capture the ancilla-mediated interaction across all magnetization sectors.
 
 The one-step GMRES convergence in this example follows from the commuting coupling and constant detuning.
 Generic models require more iterations, and the calculation remains useful only while the residuals and bond dimensions converge as the numerical tolerances are tightened.
