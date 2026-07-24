@@ -1,60 +1,46 @@
 # Matrix product operators
 
 Matrix product operators (MPOs) allow Pymablock to construct effective Hamiltonians without storing exponentially large dense matrices.
-Pymablock only needs an algebra for individual perturbative coefficients and a solver for Sylvester's equation, so the tensor-network implementation can remain independent of the perturbative algorithm.
+The perturbative recursion is unchanged: it combines lower-order coefficients and solves a Sylvester equation for each new off-diagonal coefficient.
+A tensor-network backend supplies the required operator algebra and linear solver.
 
-## When is MPO perturbation theory advantageous?
+## When MPO perturbation theory is useful
 
 For a chain of $L$ sites with local dimension $d$, a dense operator has dimension $D\times D$, with $D=d^L$, and therefore requires $\mathcal{O}(d^{2L})$ storage.
 An MPO with representative bond dimension $\chi$ instead requires $\mathcal{O}(L d^2\chi^2)$ storage.
-The exponential saving is real only while the required $\chi$ grows moderately: the relevant quantity is the operator entanglement of the perturbative coefficients, not merely the locality of the starting Hamiltonian.
+The exponential saving persists only while $\chi$ grows moderately.
+This bond dimension reflects the operator entanglement of each perturbative coefficient—its complexity across a spatial cut—not merely the locality of the starting Hamiltonian.
 
-MPO perturbation theory is most useful when separated energy scales give a low-order, compressible effective Hamiltonian that will be reused for several states or observables.
-If only a few states are needed, the implicit MPS formulation below avoids constructing the full transformation in operator space; direct DMRG may still be cheaper if no perturbative effective model is required.
+MPO perturbation theory is most useful when separated energy scales produce a low-order, compressible effective Hamiltonian that will be reused for several states or observables.
 
 A practical pilot should increase system size and perturbative order while monitoring runtime, bond dimension, truncation error, and Sylvester residual.
 Rapid growth of $\chi$, GMRES iterations, or variational sweeps means that the tensor-network advantage is disappearing.
 
-## Backend-neutral operators
+## Operator algebra and compression
 
-We introduce {autolink}`~pymablock.mpo.BackendMPO` as a thin wrapper around a backend-native MPO.
-The wrapper delegates addition, scalar multiplication, operator multiplication, and adjoints to an implementation of {autolink}`~pymablock.mpo.MPOBackend`.
-Pymablock then uses the wrapped objects in the same lazy Cauchy products as dense matrices.
+{autolink}`~pymablock.mpo.BackendMPO` wraps a backend-native MPO and delegates addition, scaling, multiplication, and adjoints to {autolink}`~pymablock.mpo.MPOBackend`.
+Pymablock can therefore use MPOs in the same lazy perturbative products as dense matrices.
+The backend chooses the compression method and returns new operators so that cached series coefficients remain unchanged.
 
-The backend owns all approximation choices.
-In particular, it decides how and when to compress an MPO and must return new operators rather than mutate cached perturbative coefficients.
-Two wrapped MPOs can only be combined when they share the same backend instance, which prevents accidental mixing of incompatible tensor conventions or truncation policies.
-
-## Adding and multiplying MPOs
-
-We first consider an MPO tensor with output index $s$, input index $t$, and virtual indices $a$ and $b$.
-Adding two MPOs takes a direct sum of their virtual spaces, so the uncompressed bond dimension is
+MPO addition and multiplication increase the virtual bond dimensions before compression:
 
 $$
-\chi_{A+B} = \chi_A + \chi_B.
+\chi_{A+B}=\chi_A+\chi_B,
+\qquad
+\chi_{AB}=\chi_A\chi_B.
 $$
 
-The boundary tensors are concatenated, while every interior tensor is block diagonal in its virtual indices.
-The TeNPy example compresses the result immediately after constructing this exact direct sum.
-
-We then multiply two MPOs by contracting their intermediate physical index at every site.
-For $C=AB$, the local tensor is
+Multiplication contracts the intermediate physical index locally.
+For MPO tensors with output index $s$, input index $t$, and virtual indices $a,b,c,d$,
 
 $$
 C_i^{s,t}\big((a,c),(b,d)\big)
   = \sum_u A_i^{s,u}(a,b) B_i^{u,t}(c,d).
 $$
 
-The two left virtual indices and the two right virtual indices are fused.
-The uncompressed bond dimension is therefore
-
-$$
-\chi_{AB} = \chi_A\chi_B.
-$$
-
-This product rule is exact before compression and fixes the order of operator multiplication.
-Because repeated perturbative products would otherwise multiply bond dimensions rapidly, the TeNPy backend converts every result to an MPS on the local operator space, performs an SVD compression, and converts it back to an MPO.
-Exact cancellations are returned as a bond-dimension-one zero MPO because a zero tensor cannot be put into normalized MPS canonical form.
+The contraction is exact before compression and preserves the order $AB$.
+The TeNPy example compresses after every sum and product because repeated perturbative operations would otherwise make the bond dimensions grow rapidly.
+Compression makes the algebra approximate, so the final coefficients require numerical convergence checks.
 
 ## Choosing between full MPO and implicit MPS
 
@@ -77,53 +63,91 @@ Choose the full-MPO formulation when the operator itself is the result.
 This is appropriate when the retained space is extensive, or when the same effective Hamiltonian or transformation will be reused for many states, observables, dynamics, or later DMRG calculations.
 Its cost is instead controlled by the operator entanglement of the perturbative coefficients.
 
-As a practical rule: use implicit MPS for a few target states, full MPO for a reusable effective operator, and direct DMRG when only one ground state at one parameter value is needed.
+As a practical rule, use implicit MPS for a few target states, full MPO for a reusable effective operator, and direct DMRG when only one ground state at one parameter value is needed.
 
-## Full-MPO Sylvester solve
+## Sylvester equation and energy denominators
 
-At each perturbative order Pymablock solves
+At each perturbative order, Pymablock solves
 
 $$
 AX-XB=Y.
 $$
 
-With row-major vectorization this becomes
+Here $A$ and $B$ are the unperturbed Hamiltonian blocks, $Y$ is the known right-hand side at the requested order, and $X$ is the unknown off-diagonal correction.
+In eigenbases of $A$ and $B$, each matrix element obeys
+
+$$
+(a_i-b_j)X_{ij}=Y_{ij}.
+$$
+
+The Sylvester equation therefore applies the usual perturbative energy denominators without constructing either eigenbasis.
+It has a unique solution when the spectra of $A$ and $B$ do not overlap, and it becomes ill-conditioned when the two spectra approach each other.
+
+The full-MPO and implicit-MPS formulations solve this same equation for different representations of $X$.
+
+### Full-MPO solve with GMRES
+
+Row-major vectorization rewrites the equation as one linear system:
 
 $$
 \left(A\otimes I-I\otimes B^T\right)\operatorname{vec}(X)
 =\operatorname{vec}(Y).
 $$
 
-The transpose is fixed by the vectorization convention; it is not an adjoint.
-The TeNPy full-MPO example stores the vectorized operators as MPSs on local dimension $d^2$ and applies the Sylvester superoperator as an MPO.
-Thus, “full MPO” does not mean that the exponentially large superoperator matrix is constructed.
-
-One restarted GMRES cycle starts from the true residual, repeatedly applies the superoperator, and orthogonalizes the resulting MPSs to build a short Krylov basis.
-It then solves only the small Hessenberg least-squares problem and adds the resulting Krylov correction to $X$.
-Restarting limits the number of stored MPSs.
-Because compression spoils the exact Arnoldi relation, the implementation recomputes $\|AX-XB-Y\|_F$ after every restart instead of trusting the Hessenberg estimate.
-
-GMRES was chosen for this path because it requires only MPO application, MPS addition, overlaps, and compression, and it also handles invertible indefinite or non-normal maps.
-Its drawback is that several operator-space MPSs must be stored and repeatedly combined.
-
-## Implicit MPS solve
-
-Let $\{|\phi_a\rangle\}_{a=1}^m$ be orthonormal eigenstates spanning the retained space $P$, and let $Q=1-P$.
-The implicit method never constructs a basis for $Q$ or the full operator $X$.
-It stores only complement-space columns and solves
+The transpose follows from right multiplication under this vectorization convention; it is not an adjoint.
+The TeNPy example represents $\operatorname{vec}(X)$ as an MPS with local dimension $d^2$ and applies the linear map
 
 $$
-Q(H_0-E_a)Q|\eta_a\rangle=|S_a\rangle,
+\mathcal{L}(X)=AX-XB
+$$
+
+as an MPO.
+It never constructs the exponentially large matrix in the vectorized equation.
+
+GMRES improves an estimate $X_0$ by minimizing the residual over the Krylov space
+
+$$
+R_0=Y-\mathcal{L}(X_0),
 \qquad
-\langle\phi_b|\eta_a\rangle=0.
+\mathcal{K}_m
+=\operatorname{span}\{R_0,\mathcal{L}(R_0),\ldots,
+\mathcal{L}^{m-1}(R_0)\}.
 $$
 
-{autolink}`~pymablock.implicit.ImplicitBlock` represents $P$--$P$ blocks as small dense matrices, $Q$--$P$ blocks as MPS bundles, and $Q$--$Q$ blocks as lazy projected MPO applications.
-Products such as a row times a column become ordinary overlap matrices.
-Applying $Q$ only subtracts overlaps with the reference MPSs, so no projector MPO is built.
-Pymablock's perturbative recursion itself is unchanged.
+Repeated applications of $\mathcal{L}$ build an orthonormal basis of this space.
+GMRES then chooses $\Delta X\in\mathcal{K}_m$ that minimizes
 
-For a Hermitian, sign-definite shifted operator, the equation is the stationarity condition of the Hylleraas functional
+$$
+\left\|R_0-\mathcal{L}(\Delta X)\right\|_F.
+$$
+
+Only the small projected least-squares problem is solved as a dense matrix.
+After applying the correction, GMRES restarts from the new residual to limit the number of stored operator-space MPSs.
+This method needs only applications of $\mathcal{L}$, MPS linear combinations, and inner products.
+It also applies when the Sylvester map is indefinite or non-normal.
+
+Compression after MPO application and MPS addition breaks the exact Krylov relations assumed by ordinary GMRES.
+The implementation therefore recomputes the full residual $\|AX-XB-Y\|_F$ after every restart and uses that value, rather than the small least-squares estimate, to decide convergence.
+
+### Implicit MPS solve
+
+When the retained space contains only a few eigenstates, we need only the columns of $X$ that act on those states.
+The Sylvester equation then reduces to
+
+$$
+Q(H_0-E_a)Q\lvert\eta_a\rangle=\lvert S_a\rangle,
+\qquad
+\langle\phi_b\vert\eta_a\rangle=0.
+$$
+
+The orthonormal eigenstates $\{\lvert\phi_a\rangle\}$ span the retained space $P$, $E_a$ is the corresponding unperturbed energy, $Q=1-P$, and $\lvert\eta_a\rangle=QX\lvert\phi_a\rangle$.
+Each source $\lvert S_a\rangle$ comes from the corresponding column of $Y$.
+The implicit formulation solves one response state $\lvert\eta_a\rangle$ per retained state instead of representing the full operator $X$.
+
+{autolink}`~pymablock.implicit.ImplicitBlock` stores $P$--$P$ blocks as small dense matrices, $Q$--$P$ blocks as MPS bundles, and $Q$--$Q$ blocks as lazy projected operator applications.
+Applying $Q$ subtracts overlaps with the reference MPSs, so the code never constructs a projector MPO or a basis for the complement.
+
+For a Hermitian, sign-definite projected shifted Hamiltonian, the response equation is the stationary condition of the Hylleraas functional
 
 $$
 \mathcal{F}[\eta]
@@ -131,34 +155,19 @@ $$
 -\operatorname{Re}\langle\eta|S_a\rangle.
 $$
 
-The TeNPy example optimizes two neighboring MPS tensors at a time.
-Contracting all other sites gives a local linear equation.
-Orthogonality is imposed in the same solve with Lagrange multipliers,
+The TeNPy solver varies two neighboring MPS tensors while holding the others fixed, as in a two-site DMRG sweep.
+It is a linear-response solve, not a ground-state search: each local update solves the response equation with explicit constraints that enforce orthogonality to every reference state.
+An SVD then moves the optimization center and truncates the MPS.
+After each sweep, the code projects the state again and measures the global residual and reference-state overlaps.
 
-$$
-\begin{pmatrix}
-K_\mathrm{loc} & C^\dagger\\
-C & 0
-\end{pmatrix}
-\begin{pmatrix}\theta\\ \lambda\end{pmatrix}
-=
-\begin{pmatrix}s_\mathrm{loc}\\0\end{pmatrix}.
-$$
-
-After solving, an SVD moves the optimization center and truncates to `chi_max`.
-A left-to-right and right-to-left pass form one sweep.
-After every sweep the code projects again, applies the original MPO, and measures the true global residual and all reference-state overlaps.
-For clarity, this documentation backend rebuilds its left and right environments at every local update; a production backend should cache them to reduce the sweep cost from quadratic to linear in chain length.
-
-The example deliberately does not square $H_0-E_a$, because that squares the condition number and increases the operator bond dimension.
-It also does not silently use a pseudoinverse, broadening, or penalty projector: a singular local constrained equation is reported as a failure.
-For general indefinite or non-Hermitian projected equations, a dedicated MINRES/GMRES-like local strategy is still required.
+The solver acts directly with $H_0-E_a$ rather than squaring it, which avoids squaring the condition number and increasing the MPO bond dimension.
+It reports singular local equations instead of adding a pseudoinverse, broadening, or penalty projector.
+General indefinite or non-Hermitian projected equations require a different local solver.
 
 ## Residual and truncation control
 
-Approximate MPO algebra changes the meaning of an otherwise exact formal perturbation series.
-Compression errors enter additions and products, while the iterative solver adds an independent error to every solution of Sylvester's equation.
-The resulting series coefficients therefore only approximate the coefficients that an exact operator algebra would produce.
+MPO compression and iterative linear solves turn an exact formal series into a numerical approximation.
+We must therefore test both the tensor representation and the Sylvester solve.
 
 The full-MPO solver returns a {autolink}`~pymablock.mpo.SylvesterResult` with the compressed-operator residual
 
@@ -171,7 +180,7 @@ The implicit solver returns a {autolink}`~pymablock.implicit.StateSolveResult` w
 
 $$
 r_\mathrm{MPS} =
-\frac{\lVert Q(H_0-E_a)Q|\eta_a\rangle-|S_a\rangle\rVert}
+\frac{\lVert Q(H_0-E_a)Q\lvert\eta_a\rangle-\lvert S_a\rangle\rVert}
 {\lVert S_a\rVert}.
 $$
 
@@ -186,14 +195,14 @@ Users should record the relevant diagnostics for every requested order:
 - for implicit solves, the largest overlap with a retained reference state.
 
 Convergence requires repeating the calculation with a larger `chi_max`, a smaller `svd_min`, and a tighter solver tolerance.
-The effective Hamiltonian terms relevant to the physical conclusion must remain stable under these changes.
-A stable energy or a small local/Krylov residual alone does not establish convergence of every requested coefficient.
+The requested effective-Hamiltonian coefficients must remain stable under these changes.
+A small global residual is necessary but does not by itself test the MPO or MPS truncation error.
 
 ## Applicability and limitations
 
 The TeNPy examples target finite open chains with square local spaces and `conserve=None`.
-The full-MPO path assumes separated block spectra.
-The implicit path assumes a small set of orthonormal MPS eigenstates and a Hermitian shifted problem on their complement; the demonstrated Hylleraas sweep is intended for sign-definite shifts.
+The full-MPO path requires separated block spectra.
+The implicit path requires a small set of orthonormal MPS eigenstates; the demonstrated Hylleraas sweep targets Hermitian, sign-definite shifted problems.
 Neither path introduces spectral broadening or a pseudoinverse.
 
 Custom Sylvester solvers cannot currently be combined with `fully_diagonalize`.

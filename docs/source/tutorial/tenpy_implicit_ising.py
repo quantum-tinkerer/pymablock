@@ -127,7 +127,9 @@ references = [
 # Q(H_0-E_0)Q|\eta\rangle=|S\rangle
 # $$
 #
-# with constrained two-site sweeps.
+# with constrained two-site sweeps. These sweeps resemble DMRG because they
+# vary neighboring MPS tensors, but each local update solves a linear-response
+# equation rather than a ground-state eigenproblem.
 
 # %%
 # %%time
