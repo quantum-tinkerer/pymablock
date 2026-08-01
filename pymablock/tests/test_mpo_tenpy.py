@@ -11,14 +11,14 @@ from tenpy.networks.site import SpinHalfSite  # noqa: E402
 from docs.source.tutorial.tenpy_implicit_backend import (  # noqa: E402
     TenpyImplicitBackend,
 )
-from docs.source.tutorial.tenpy_mpo_backend import (  # noqa: E402
+from pymablock import block_diagonalize  # noqa: E402
+from pymablock.backends.tenpy import (  # noqa: E402
     TenpyMPOBackend,
     mpo_to_dense,
     mpo_to_mps,
     mps_to_mpo,
     product_mpo,
 )
-from pymablock import block_diagonalize  # noqa: E402
 from pymablock.implicit import block_diagonalize_implicit  # noqa: E402
 from pymablock.mpo import (  # noqa: E402
     BackendMPO,

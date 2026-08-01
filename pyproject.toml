@@ -107,7 +107,7 @@ unfixable = []
 ]
 "docs/source/tutorial/tenpy_implicit_ising.py" = ["D100"]
 "docs/source/tutorial/tenpy_mpo.py" = ["D100"]
-"docs/source/tutorial/tenpy_mpo_ising.py" = ["D100"]
+"docs/source/tutorial/tenpy_pt_vs_dmrg.py" = ["D100"]
 
 [tool.coverage.run]
 include = [

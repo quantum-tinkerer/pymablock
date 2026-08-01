@@ -24,6 +24,14 @@
    :show-inheritance:
 ```
 
+### TeNPy backend
+
+```{eval-rst}
+.. automodule:: pymablock.backends.tenpy
+
+.. autoclass:: pymablock.backends.tenpy.TenpyMPOBackend
+```
+
 ## Implicit state-space perturbation
 
 ```{eval-rst}

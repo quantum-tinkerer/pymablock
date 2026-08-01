@@ -25,9 +25,9 @@ tutorial/jaynes_cummings.md
 Dispersive shift of a resonator <tutorial/dispersive_shift.md>
 Rabi model <tutorial/spin_rwa_floquet.md>
 tutorial/andreev_supercurrent.md
-Minimal full-MPO validation <tutorial/tenpy_mpo.md>
-Large-chain MPO effective interactions <tutorial/tenpy_mpo_ising.md>
+MPO perturbation theory from small to large systems <tutorial/tenpy_mpo.md>
 Implicit MPS perturbation theory <tutorial/tenpy_implicit_ising.md>
+MPO perturbation theory versus warm-started DMRG <tutorial/tenpy_pt_vs_dmrg.md>
 ```
 
 ```{toctree}

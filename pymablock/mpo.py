@@ -24,10 +24,14 @@ MPOType = TypeVar("MPOType")
 
 
 class MPOBackend(Protocol[MPOType]):
-    """Algebra operations required to use MPOs with Pymablock.
+    """Library-specific MPO operations shared by wrapped operators.
 
-    Implementations should return new operators instead of modifying either
-    input.
+    A backend contains no MPO itself. It implements the algebra for one native
+    MPO type and is shared by multiple :class:`BackendMPO` objects. See
+    :class:`~pymablock.backends.tenpy.TenpyMPOBackend` for a
+    concrete implementation.
+
+    Implementations return new operators instead of modifying either input.
     """
 
     def add(self, left: MPOType, right: MPOType) -> MPOType:
@@ -45,7 +49,17 @@ class MPOBackend(Protocol[MPOType]):
 
 @dataclass(frozen=True, eq=False)
 class BackendMPO(Generic[MPOType]):
-    """Wrap a matrix product operator and delegate its algebra to a backend."""
+    """One library-native MPO paired with its :class:`MPOBackend`.
+
+    ``operator`` stores the MPO, while the shared ``backend`` implements its
+    addition, scaling, multiplication, and adjoint.
+
+    Examples
+    --------
+    >>> H = BackendMPO(native_mpo, backend)  # doctest: +SKIP
+    >>> H2 = H.adjoint() @ H  # doctest: +SKIP
+
+    """
 
     operator: MPOType
     backend: MPOBackend[MPOType]
@@ -138,8 +152,21 @@ def make_mpo_sylvester_solver(
 ) -> Callable[[BackendMPO[MPOType], tuple[int, ...]], BackendMPO[MPOType]]:
     """Adapt a backend Sylvester solver to Pymablock's solver interface.
 
-    The backend solver must solve ``left @ X - X @ right = rhs`` and measure
-    the residual of the returned, potentially compressed operator.
+    A backend supplies MPO arithmetic for a tensor-network library; ``solve``
+    is usually a method of that backend.
+
+    At perturbative order ``n``, the backend solver must solve
+    ``left @ V_n - V_n @ right = F_n`` and measure the residual of the
+    returned, potentially compressed coefficient ``V_n``. Here ``F_n`` is
+    supplied as ``rhs``.
+
+    Examples
+    --------
+    >>> blocks = [BackendMPO(H_A, backend), BackendMPO(H_B, backend)]  # doctest: +SKIP
+    >>> solver = make_mpo_sylvester_solver(  # doctest: +SKIP
+    ...     blocks, backend.solve_sylvester
+    ... )
+
     """
     diagonal_blocks = tuple(diagonal_blocks)
     if not diagonal_blocks:

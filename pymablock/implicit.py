@@ -446,13 +446,13 @@ def block_diagonalize_implicit(
     """Block diagonalize around a small state subspace without building its complement.
 
     The returned series contain :class:`ImplicitBlock` coefficients.  Their
-    ``(0, 0)`` blocks expose ordinary small matrices through
-    :attr:`ImplicitBlock.dense`; their ``(1, 0)`` blocks expose complement-space
-    state columns through :attr:`ImplicitBlock.states`.
+    ``(0, 0)`` (``EE``) blocks expose ordinary small matrices through
+    :attr:`ImplicitBlock.dense`; their ``(1, 0)`` (``IE``) blocks expose
+    implicit-subspace state columns through :attr:`ImplicitBlock.states`.
 
     ``solve_shifted`` solves
 
-    ``Q (H_0 - energy) Q state = rhs``
+    ``P_I (H_0 - energy) P_I state = rhs``
 
     for one right-hand side.  It must return the same state used to measure the
     residual and enforce orthogonality to every reference state.

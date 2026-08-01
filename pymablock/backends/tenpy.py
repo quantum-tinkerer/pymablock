@@ -1,4 +1,4 @@
-"""Finite, charge-free TeNPy backend for the MPO perturbation tutorial."""
+"""Finite, charge-free TeNPy backend for MPO perturbation theory."""
 
 from __future__ import annotations
 
@@ -15,6 +15,16 @@ from pymablock.mpo import SylvesterResult
 
 if TYPE_CHECKING:
     from numbers import Number
+
+__all__ = [
+    "CompressionRecord",
+    "SolverRecord",
+    "TenpyMPOBackend",
+    "mpo_to_dense",
+    "mpo_to_mps",
+    "mps_to_mpo",
+    "product_mpo",
+]
 
 
 @dataclass(frozen=True)
@@ -220,7 +230,10 @@ def _mps_norm(vector: MPS) -> float:
 
 
 class TenpyMPOBackend:
-    """Compressed MPO algebra and Sylvester solves implemented with TeNPy."""
+    """Concrete :class:`pymablock.mpo.MPOBackend` implemented with TeNPy.
+
+    It provides compressed MPO algebra and restarted-GMRES Sylvester solves.
+    """
 
     def __init__(
         self,
@@ -432,7 +445,7 @@ class TenpyMPOBackend:
         rhs: MPO,
         index: tuple[int, ...],
     ) -> SylvesterResult[MPO]:
-        """Solve ``left @ X - X @ right = rhs`` with compressed GMRES."""
+        """Solve ``left @ V_n - V_n @ right = F_n`` with compressed GMRES."""
         _validate_pair(left, right)
         _validate_pair(left, rhs)
         if _mpo_norm_squared(rhs) == 0:

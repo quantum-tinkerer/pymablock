@@ -24,18 +24,20 @@
 #
 # ## Model and analytical result
 #
-# We consider $L$ spin-$\frac12$ sites with open boundaries,
+# We use the notation of [the algorithm](../algorithms.md) and consider $L$ spin-$\frac12$ sites with open boundaries,
 #
 # $$
-# H(g)=H_0+gV,
+# \mathcal H(g)=H_0+\mathcal H'(g),
+# \qquad
+# \mathcal H'(g)=gH'_1,
 # \qquad
 # H_0=-J\sum_{i=1}^{L-1}Z_iZ_{i+1},
 # \qquad
-# V=-\sum_{i=1}^{L}X_i.
+# H'_1=-\sum_{i=1}^{L}X_i.
 # $$
 #
 # Here $X_i$ and $Z_i$ are Pauli operators on site $i$, $J>0$ is the ferromagnetic coupling, and the transverse field $g$ is the perturbative parameter.
-# The Ising term favors alignment along $z$, while $V$ flips individual spins and introduces quantum fluctuations.
+# The Ising term favors alignment along $z$, while $H'_1$ flips individual spins and introduces quantum fluctuations.
 # For $g\ll J$, the low-energy physics is a nearly degenerate ferromagnetic doublet separated from spin-flip excitations by a finite gap.
 # Perturbation theory describes both the common energy shift of this doublet and the much weaker tunneling between its two states.
 #
@@ -43,7 +45,9 @@
 # $\lvert\Uparrow\rangle=\lvert\uparrow\cdots\uparrow\rangle$ and
 # $\lvert\Downarrow\rangle=\lvert\downarrow\cdots\downarrow\rangle$
 # are degenerate ground states with energy $E_0=-J(L-1)$.
-# They span the low-energy model space $P$ whose effective Hamiltonian we seek.
+# They form the columns of $\Psi_E$ and span the explicit subspace $E$ whose transformed Hamiltonian block we seek.
+# The projector onto the implicit subspace $I$ is
+# $P_I=1-\Psi_E\Psi_E^\dagger$.
 #
 # We will compute its $2\times2$ effective Hamiltonian and plot the two corresponding energies as functions of $g/J$.
 # Comparison with the exact Jordan--Wigner spectrum will distinguish the second-order energy shift from the higher-order splitting.
@@ -52,10 +56,10 @@
 # An edge flip costs $2J$, while an interior flip costs $4J$, so
 #
 # $$
-# H_\mathrm{eff}
-# =E_0 I_2+g^2H_\mathrm{eff}^{(2)}+\cdots,
+# \tilde{\mathcal H}^{EE}(g)
+# =E_0 I_2+g^2\tilde H_2^{EE}+\cdots,
 # \qquad
-# H_\mathrm{eff}^{(2)}
+# \tilde H_2^{EE}
 # =-\left(\frac{2}{2J}+\frac{L-2}{4J}\right)I_2
 # =-\frac{L+2}{4J}I_2.
 # $$
@@ -72,16 +76,16 @@ import numpy as np
 from tenpy.networks.mps import MPS
 from tenpy.networks.site import SpinHalfSite
 from tenpy_implicit_backend import TenpyImplicitBackend
-from tenpy_mpo_backend import product_mpo
 
+from pymablock.backends.tenpy import product_mpo
 from pymablock.implicit import block_diagonalize_implicit
 
 # %% [markdown]
-# ## Build the MPO and model space
+# ## Build the MPO and explicit subspace
 #
 # We use $L=8$ and $J=0.7$.
-# In the code, `h_0` represents $H_0$, `perturbation` represents $V$, and `references` contains the two MPS basis states of $P$.
-# The complementary space $Q=1-P$ is handled through projected MPO applications, without constructing its basis.
+# In the code, `h_0` represents $H_0$, `perturbation` represents $H'_1$, and `references` contains the two MPS basis states of $E$.
+# The implicit subspace $I$ is handled through applications of $P_I$, without constructing a basis for it.
 
 # %%
 # %%time
@@ -137,18 +141,24 @@ references = [
 # ## Compute the perturbative coefficient
 #
 # Pymablock constructs the perturbative series lazily.
-# Because the retained states diagonalize $H_0$, applying the operator Sylvester equation to each one gives an independent response equation,
+# Because the explicit states diagonalize $H_0$, applying the $IE$ block of the Sylvester equation to each one gives an independent response equation at order $\mathbf n$,
 #
 # $$
-# Q(H_0-E_a)Q\lvert\eta_a\rangle=\lvert S_a\rangle,
+# P_I(H_0-E_a)P_I\lvert v_{\mathbf n,a}\rangle
+# =\lvert f_{\mathbf n,a}\rangle,
 # \qquad
-# \langle\phi_b\vert\eta_a\rangle=0.
+# \langle\phi_b\vert v_{\mathbf n,a}\rangle=0.
 # $$
 #
-# Here $\lvert\phi_a\rangle$ is either retained ferromagnetic state, $E_a=E_0$ is its unperturbed energy, $\lvert\eta_a\rangle$ is the unknown response MPS, and $\lvert S_a\rangle$ is the source assembled from lower perturbative orders.
-# At first order, $V$ makes each source a superposition of one-spin-flip states.
+# Here $\lvert\phi_a\rangle$ is either explicit ferromagnetic state, $E_a=E_0$ is its unperturbed energy,
+# $\lvert v_{\mathbf n,a}\rangle=P_IV_{\mathbf n}^{IE}\lvert\phi_a\rangle$
+# is the unknown response MPS, and
+# $\lvert f_{\mathbf n,a}\rangle=P_IF_{\mathbf n}^{IE}\lvert\phi_a\rangle$
+# is the source assembled from lower perturbative orders.
+# We introduce $F_{\mathbf n}^{IE}$ for the known $IE$-block right-hand side passed to the Sylvester solver.
+# At first order, $H'_1$ makes each source a superposition of one-spin-flip states.
 #
-# The excitation gap makes $Q(H_0-E_0)Q$ positive definite.
+# The excitation gap makes $P_I(H_0-E_0)P_I$ positive definite.
 # The backend solves this response problem with two-site variational sweeps, enforcing orthogonality to both reference states and truncating the MPS after each update.
 # After every sweep, it recomputes the global residual.
 # The sweep pattern resembles DMRG, but its target is a linear response state rather than a ground state.
@@ -167,6 +177,8 @@ second_order = h_tilde[0, 0, 2].dense
 first_order_columns = unitary[1, 0, 1].states
 
 # %% [markdown]
+# Here `second_order` is $\tilde H_2^{EE}$, while `first_order_columns` stores
+# $U_1^{IE}\lvert\phi_a\rangle=V_1^{IE}\lvert\phi_a\rangle$ because $\mathcal W_1=0$.
 # Compare the resulting $2\times2$ coefficient with the spin-flip
 # denominators. This checks both shifted solves and the overlap products that
 # feed the effective Hamiltonian.
@@ -289,7 +301,7 @@ plt.show()
 #
 # ## Conclusion
 #
-# This calculation obtains the second-order $2\times2$ effective Hamiltonian while storing only two response MPSs instead of a full transformation MPO.
+# This calculation obtains the second-order coefficient $\tilde H_2^{EE}$ while storing only the two response MPSs $V_1^{IE}\lvert\phi_a\rangle$ instead of a full transformation MPO.
 # Its coefficient matches the result derived from the spin-flip gaps, and inserting the computed coefficient into the exact finite-chain energy leaves the expected fourth-order error.
 # The level plot separates the common perturbative energy shift from the much smaller high-order tunneling splitting.
 #

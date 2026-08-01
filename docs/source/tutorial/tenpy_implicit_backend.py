@@ -15,24 +15,14 @@ if TYPE_CHECKING:
 
     from tenpy.networks.mpo import MPO
 
-try:
-    from .tenpy_mpo_backend import (
-        TenpyMPOBackend,
-        _add_mps,
-        _mps_norm,
-        _scale_mps,
-        _validate_mpo,
-        product_mpo,
-    )
-except ImportError:
-    from tenpy_mpo_backend import (  # type: ignore[no-redef]
-        TenpyMPOBackend,
-        _add_mps,
-        _mps_norm,
-        _scale_mps,
-        _validate_mpo,
-        product_mpo,
-    )
+from pymablock.backends.tenpy import (
+    TenpyMPOBackend,
+    _add_mps,
+    _mps_norm,
+    _scale_mps,
+    _validate_mpo,
+    product_mpo,
+)
 
 
 @dataclass(frozen=True)
@@ -410,7 +400,7 @@ class TenpyImplicitBackend:
         index: tuple[int, ...],
         column: int,
     ) -> StateSolveResult[MPS]:
-        """Solve ``Q(H_0-energy)Q x=rhs`` with constrained two-site sweeps."""
+        """Solve ``P_I(H_0-energy)P_I v_n_a=f_n_a`` with two-site sweeps."""
         _validate_state(rhs, h_0)
         for reference in references:
             _validate_state(reference, h_0)
