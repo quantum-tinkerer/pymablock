@@ -28,6 +28,7 @@ An open Ising chain couples collectively to a detuned ancilla through $gM_z$.
 We compute the second- and fourth-order coefficients of the effective Hamiltonian within the ancilla ground sector.
 For four spins, we verify both coefficients against analytical expressions and dense Pymablock.
 For 24 spins, we compute the same coefficients without dense matrices and use them to obtain the magnetization-dependent energy shift.
+Finally, we rotate the chain field so that it no longer commutes with the ancilla coupling and demonstrate how to establish convergence when MPO compression becomes a genuine approximation.
 
 ## Ising chain coupled to a detuned ancilla
 
@@ -98,6 +99,8 @@ Pymablock organizes the perturbation series, and {autolink}`~pymablock.backends.
 ```{code-cell}
 %%time
 from functools import reduce
+from itertools import pairwise
+from time import perf_counter
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -114,7 +117,7 @@ from pymablock.backends.tenpy import (
 from pymablock.mpo import BackendMPO, make_mpo_sylvester_solver
 ```
 
-We create one backend and share it between all MPOs in both parts of the tutorial.
+We create one backend and share it between all MPOs in the first two parts of the tutorial.
 `chi_max` caps the retained bond dimension and `svd_min` discards smaller singular values, following [TeNPy's truncation options](https://tenpy.readthedocs.io/en/stable/reference/tenpy.linalg.truncation.truncate.html).
 The remaining parameters set the Krylov-space dimension, restart limit, and residual tolerance of the restarted Sylvester solver.
 
@@ -134,7 +137,7 @@ The first constructs native TeNPy MPOs for $H_\mathrm{I}$, $M_z$, and the detune
 The second pairs each MPO with the shared backend, adapts its Sylvester solver, and returns the lazy transformed Hamiltonian series.
 
 ```{code-cell}
-def build_ising_mpos(L, J, h, Delta):
+def build_ising_mpos(L, J, h, Delta, backend):
     """Construct the three MPOs in the block Hamiltonian."""
     sites = [SpinHalfSite(conserve=None) for _ in range(L)]
     identity = np.eye(2)
@@ -166,7 +169,13 @@ def build_ising_mpos(L, J, h, Delta):
     return sites, ising, detuned, magnetization
 
 
-def effective_hamiltonian(ising, detuned, magnetization):
+def effective_hamiltonian(
+    ising,
+    detuned,
+    magnetization,
+    backend,
+    max_relative_residual=1e-8,
+):
     """Return the transformed Hamiltonian as a lazy perturbative series."""
     wrapped_ising = BackendMPO(ising, backend)
     wrapped_detuned = BackendMPO(detuned, backend)
@@ -175,7 +184,7 @@ def effective_hamiltonian(ising, detuned, magnetization):
     solve_sylvester = make_mpo_sylvester_solver(
         [wrapped_ising, wrapped_detuned],
         backend.solve_sylvester,
-        max_relative_residual=1e-8,
+        max_relative_residual=max_relative_residual,
     )
     H_tilde, _, _ = block_diagonalize(
         [
@@ -219,11 +228,13 @@ small_sites, small_ising, small_detuned, small_magnetization = build_ising_mpos(
     J,
     h,
     Delta,
+    backend,
 )
 H_tilde_small = effective_hamiltonian(
     small_ising,
     small_detuned,
     small_magnetization,
+    backend,
 )
 H_AA_2_small = H_tilde_small[0, 0, 2]
 H_AA_4_small = H_tilde_small[0, 0, 4]
@@ -330,11 +341,13 @@ large_sites, large_ising, large_detuned, large_magnetization = build_ising_mpos(
     J,
     h,
     Delta,
+    backend,
 )
 H_tilde_large = effective_hamiltonian(
     large_ising,
     large_detuned,
     large_magnetization,
+    backend,
 )
 H_AA_2_large = H_tilde_large[0, 0, 2]
 H_AA_4_large = H_tilde_large[0, 0, 4]
@@ -506,10 +519,289 @@ plt.show()
 Virtual ancilla excitations lower the energy most strongly for states with large $|m|$.
 The second-order term overestimates this lowering, while the positive fourth-order term bends the result toward the exact curve and reduces the maximum error.
 
+## Part 3: make the chain noncommuting and test convergence
+
+The first two parts were deliberately favorable: the longitudinal field and the ancilla coupling both use $Z_i$, so $M_z$ is conserved and the effective coefficients reduce to compact powers of $M_z$.
+We now rotate the field from the $z$ direction to the $x$ direction,
+
+$$
+H_\mathrm{I}^{\perp}
+=-J_\perp\sum_{i=1}^{L-1}Z_iZ_{i+1}
+-h_x\sum_{i=1}^{L}X_i,
+\qquad
+M_z=\sum_{i=1}^{L}Z_i.
+$$
+
+Physically, the longitudinal field in Parts 1 and 2 only changes the energy of each $Z$-basis spin configuration.
+The transverse field instead flips spins and creates quantum superpositions of different magnetizations.
+Consequently,
+
+$$
+[H_\mathrm{I}^{\perp},M_z]
+=2ih_x\sum_{i=1}^{L}Y_i\neq0,
+$$
+
+where $Y_i$ is the Pauli $y$ operator on site $i$.
+The ancilla coupling now connects different eigenstates of the chain rather than acting independently on each magnetization sector.
+The effective coefficients are therefore no longer simple powers of $M_z$, and their MPO bond dimensions grow under multiplication.
+
+```{figure} transverse_ising_ancilla_schematic.svg
+:alt: An open transverse-field Ising chain with nearest-neighbor ZZ coupling, collectively coupled through its total Z magnetization to a detuned two-level ancilla.
+:width: 70%
+
+The transverse field flips spins, while the ancilla still couples to their total $z$ magnetization.
+```
+
+We keep the same block Hamiltonian and again compute $\tilde H_2^{AA}$ and $\tilde H_4^{AA}$.
+Parts 1 and 2 have already established that the full-MPO workflow is correct, so we do not repeat a dense or analytical comparison.
+The new question is numerical: do the compressed coefficients stop changing when we increase the available MPO bond dimension and tighten the Sylvester solves?
+
+### Build the transverse-field model
+
+The MPO construction differs from `build_ising_mpos` only in the field operator.
+We pass the backend explicitly because every calculation in the convergence sequence must use its own compression settings.
+
+```{code-cell}
+def build_transverse_ising_mpos(L, J_perp, h_x, Delta, backend):
+    """Construct the noncommuting chain, detuned block, and coupling MPO."""
+    sites = [SpinHalfSite(conserve=None) for _ in range(L)]
+    identity = np.eye(2)
+    x = np.array([[0.0, 1.0], [1.0, 0.0]])
+    z = np.diag([1.0, -1.0])
+
+    def product_term(operators):
+        return product_mpo(
+            sites,
+            [operators.get(site, identity) for site in range(L)],
+        )
+
+    magnetization = reduce(
+        backend.add,
+        [product_term({site: z}) for site in range(L)],
+    )
+    ising_bonds = reduce(
+        backend.add,
+        [product_term({site: z, site + 1: z}) for site in range(L - 1)],
+    )
+    transverse_field = reduce(
+        backend.add,
+        [product_term({site: x}) for site in range(L)],
+    )
+    transverse_ising = backend.add(
+        backend.scale(ising_bonds, -J_perp),
+        backend.scale(transverse_field, -h_x),
+    )
+    detuned = backend.add(
+        transverse_ising,
+        backend.scale(product_term({}), Delta),
+    )
+    return transverse_ising, detuned, magnetization
+```
+
+We use $L=14$, $J_\perp=0.15$, $h_x=0.2$, and $\Delta_\perp=10$.
+The bound $2[J_\perp(L-1)+h_xL]=9.5<\Delta_\perp$ ensures that the unperturbed spectra of $A$ and $B$ remain disjoint.
+
+### Define a refinement sequence
+
+We repeat the same calculation with three settings.
+Each refinement raises `chi_max`, lowers `svd_min`, tightens the requested solver residual, and enlarges the Krylov solve.
+The labels *loose*, *intermediate*, and *strict* describe this sequence only; the measured change in the coefficients will decide what accuracy it supports.
+
+```{code-cell}
+L_noncommuting = 14
+J_perp = 0.15
+h_x = 0.2
+Delta_perp = 10.0
+
+spectral_width_bound = 2 * (J_perp * (L_noncommuting - 1) + h_x * L_noncommuting)
+assert Delta_perp > spectral_width_bound
+
+convergence_cases = [
+    {
+        "name": "loose",
+        "chi_max": 8,
+        "svd_min": 1e-5,
+        "krylov_dimension": 6,
+        "max_restarts": 10,
+        "solver_tolerance": 2e-3,
+    },
+    {
+        "name": "intermediate",
+        "chi_max": 16,
+        "svd_min": 1e-8,
+        "krylov_dimension": 8,
+        "max_restarts": 14,
+        "solver_tolerance": 1e-5,
+    },
+    {
+        "name": "strict",
+        "chi_max": 32,
+        "svd_min": 1e-11,
+        "krylov_dimension": 10,
+        "max_restarts": 18,
+        "solver_tolerance": 1e-7,
+    },
+]
+```
+
+### Run the same MPO calculation at each setting
+
+For every run, we retain the two effective coefficients and record the largest true Sylvester residual, the largest discarded weight reported for one compression, the final bond dimensions, and the runtime.
+
+```{code-cell}
+%%time
+def run_convergence_case(case):
+    """Compute both coefficients for one refinement setting."""
+    case_backend = TenpyMPOBackend(
+        chi_max=case["chi_max"],
+        svd_min=case["svd_min"],
+        krylov_dimension=case["krylov_dimension"],
+        max_restarts=case["max_restarts"],
+        solver_tolerance=case["solver_tolerance"],
+    )
+    transverse_ising, detuned, magnetization = build_transverse_ising_mpos(
+        L_noncommuting,
+        J_perp,
+        h_x,
+        Delta_perp,
+        case_backend,
+    )
+
+    start = perf_counter()
+    H_tilde = effective_hamiltonian(
+        transverse_ising,
+        detuned,
+        magnetization,
+        case_backend,
+        max_relative_residual=2 * case["solver_tolerance"],
+    )
+    H_AA_2 = H_tilde[0, 0, 2].operator
+    H_AA_4 = H_tilde[0, 0, 4].operator
+    elapsed = perf_counter() - start
+
+    return {
+        "name": case["name"],
+        "backend": case_backend,
+        "H_AA_2": H_AA_2,
+        "H_AA_4": H_AA_4,
+        "elapsed": elapsed,
+        "maximum residual": max(
+            record.relative_residuals[-1] for record in case_backend.solver_records
+        ),
+        "maximum discarded weight": max(
+            record.truncation_error for record in case_backend.compression_records
+        ),
+    }
+
+
+convergence_results = [run_convergence_case(case) for case in convergence_cases]
+
+[
+    {
+        "setting": result["name"],
+        "runtime [s]": result["elapsed"],
+        "maximum residual": result["maximum residual"],
+        "maximum discarded weight": result["maximum discarded weight"],
+        "second-order bond dimension": max(result["H_AA_2"].chi),
+        "fourth-order bond dimension": max(result["H_AA_4"].chi),
+    }
+    for result in convergence_results
+]
+```
+
+A small residual shows that a Sylvester equation was solved accurately within its current compressed MPO space.
+It does not show that the space itself was large enough.
+We therefore compare the final coefficients between consecutive refinements using the MPO Frobenius-norm helper from Part 2.
+
+```{code-cell}
+%%time
+refinement_changes = [
+    {
+        "refinement": f"{coarse['name']} to {refined['name']}",
+        "second order": float(
+            relative_frobenius_error(
+                coarse["H_AA_2"],
+                refined["H_AA_2"],
+            )
+        ),
+        "fourth order": float(
+            relative_frobenius_error(
+                coarse["H_AA_4"],
+                refined["H_AA_4"],
+            )
+        ),
+    }
+    for coarse, refined in pairwise(convergence_results)
+]
+
+target_accuracy = 5e-4
+assert refinement_changes[-1]["second order"] < target_accuracy
+assert refinement_changes[-1]["fourth order"] < target_accuracy
+assert refinement_changes[-1]["second order"] < refinement_changes[0]["second order"]
+assert refinement_changes[-1]["fourth order"] < refinement_changes[0]["fourth order"]
+refinement_changes
+```
+
+The second-order coefficient stabilizes much faster than the fourth-order one.
+This is the expected physical and numerical hierarchy: fourth order contains more virtual ancilla excursions, more noncommuting operator products, and more MPO compression.
+Its bond dimension reaches `chi_max` in every run.
+The final fourth-order change is nevertheless below the stated $5\times10^{-4}$ target, so this refinement sequence supports that accuracy, but not a claim of $10^{-5}$ accuracy.
+
+The two panels below separate solver convergence from coefficient convergence.
+The first uses all three solver residuals; the second compares consecutive refinements rather than silently treating the strictest run as exact.
+
+```{code-cell}
+%%time
+figure, (residual_axis, change_axis) = plt.subplots(1, 2, figsize=(9, 3.8))
+
+case_names = [result["name"] for result in convergence_results]
+residual_axis.semilogy(
+    case_names,
+    [result["maximum residual"] for result in convergence_results],
+    "o-",
+)
+residual_axis.set(
+    xlabel="MPO setting",
+    ylabel="Maximum residual",
+)
+
+refinement_names = [
+    r"loose $\to$ intermediate",
+    r"intermediate $\to$ strict",
+]
+change_axis.semilogy(
+    refinement_names,
+    [change["second order"] for change in refinement_changes],
+    "o-",
+    label="second order",
+)
+change_axis.semilogy(
+    refinement_names,
+    [change["fourth order"] for change in refinement_changes],
+    "s-",
+    label="fourth order",
+)
+change_axis.axhline(
+    target_accuracy,
+    color="black",
+    linestyle="--",
+    label="target accuracy",
+)
+change_axis.tick_params(axis="x", rotation=12)
+change_axis.set(
+    xlabel="Refinement",
+    ylabel="Relative change",
+)
+change_axis.legend()
+figure.tight_layout()
+plt.show()
+```
+
 ## Conclusion
 
 The four-site calculation establishes that MPO Pymablock, dense Pymablock, and the analytical expansion produce the same effective operators.
 The 24-site calculation then applies the same workflow where dense operator algebra would require pebibytes of memory.
 The result remains a reusable effective Hamiltonian: its compact MPO coefficients describe every magnetization sector and reproduce the analytical second- and fourth-order interactions.
-This commuting model is deliberately favorable, so it validates the workflow rather than generic bond-dimension scaling.
-For a noncommuting model, repeat the calculation with larger `chi_max`, smaller `svd_min`, and tighter solver tolerances until the requested coefficients are stable.
+Part 3 then rotates the field and changes the physics: magnetization is no longer conserved, the ancilla couples different chain eigenstates, and the effective MPOs require genuine compression.
+In that regime, a small Sylvester residual is necessary but not sufficient.
+Convergence means that the requested coefficients also remain stable as `chi_max` is raised while `svd_min` and the solver tolerance are lowered.
