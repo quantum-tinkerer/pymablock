@@ -2130,7 +2130,7 @@ def test_only_H_0():
 
 
 def test_time_diff_numeric():
-    """Centered finite differences differentiate matrix-valued callables."""
+    """Centered finite differences differentiate only time-dependent values."""
     function = CallableWrapper(
         lambda t: np.array([[t**4, np.sin(t)]], dtype=np.complex128)
     )
@@ -2144,6 +2144,7 @@ def test_time_diff_numeric():
         atol=1e-10,
     )
     assert time_diff_numeric()(zero, ()) is zero
+    assert time_diff_numeric()(np.ones((1, 1)), ()) is zero
 
 
 @pytest.mark.parametrize(
@@ -2169,6 +2170,139 @@ def test_solve_sylvester_time_initial_value():
 
     np.testing.assert_allclose(solution(0), x_0)
     np.testing.assert_allclose(solution(0.5), x_0 * np.exp(0.5j), rtol=1e-6)
+
+
+def test_solve_sylvester_time_static():
+    """A static right-hand side uses the algebraic Sylvester solution."""
+    h_0_aa = np.array([[-1.0]])
+    h_0_bb = np.array([[2.0]])
+    H = BlockSeries(
+        data={(0, 0, 0): h_0_aa, (1, 1, 0): h_0_bb},
+        shape=(2, 2),
+        n_infinite=1,
+    )
+    Y = np.array([[3.0 + 2.0j]])
+    rhs = BlockSeries(
+        data={(0, 1, 1): Y},
+        shape=(2, 2),
+        n_infinite=1,
+    )
+    solve_sylvester = solve_sylvester_time_mixed(H, np.zeros((1, 1)), (0, 1))
+    solution = solve_sylvester(rhs, zero_like(rhs), (0, 1, 1))
+
+    assert not callable(solution)
+    np.testing.assert_allclose(h_0_aa @ solution - solution @ h_0_bb, Y)
+
+
+def test_tdsw_static_matches_static_schrieffer_wolff():
+    """Static perturbations produce the ordinary Schrieffer-Wolff series."""
+    h_0_aa = np.array([[-2.0]])
+    h_0_bb = np.array([[1.0]])
+    h_p_aa = np.array([[0.3]])
+    h_p_bb = np.array([[-0.1]])
+    h_p_ab = np.array([[0.4 + 0.2j]])
+    H = BlockSeries(
+        data={
+            (0, 0, 0): h_0_aa,
+            (1, 1, 0): h_0_bb,
+            (0, 0, 1): h_p_aa,
+            (0, 1, 1): h_p_ab,
+            (1, 0, 1): Dagger(h_p_ab),
+            (1, 1, 1): h_p_bb,
+        },
+        shape=(2, 2),
+        n_infinite=1,
+    )
+    solve_sylvester = solve_sylvester_time_mixed(H, np.zeros((1, 1)), (0, 1))
+    tdsw_series, _ = series_computation(
+        {"H": H},
+        algorithm=tdsw,
+        scope={
+            "solve_sylvester": solve_sylvester,
+            "I": 1.0j,
+            "time_diff": time_diff_numeric(),
+            "reduce_order_adiabatic": reduce_order_adiabatic,
+        },
+    )
+    static_series = block_diagonalize(H)
+
+    for name, expected in zip(("H_tilde", "U", "U†"), static_series):
+        compare_series(tdsw_series[name], expected, (3,), atol=1e-12)
+
+
+def test_tdsw_mixed_static_and_time_dependent():
+    """Static and dynamic perturbations retain their distinct series."""
+    static_ab = np.array([[0.2 + 0.1j]])
+    dynamic_ab = CallableWrapper(
+        lambda t: np.array([[0.1 * np.cos(t) + 0.2j * np.sin(t)]])
+    )
+    H = BlockSeries(
+        data={
+            (0, 0, 0, 0): np.array([[-2.0]]),
+            (1, 1, 0, 0): np.array([[1.0]]),
+            (0, 1, 1, 0): static_ab,
+            (1, 0, 1, 0): Dagger(static_ab),
+            (0, 1, 0, 1): dynamic_ab,
+            (1, 0, 0, 1): Dagger(dynamic_ab),
+        },
+        shape=(2, 2),
+        n_infinite=2,
+        dimension_names=("static", "dynamic"),
+    )
+    t_span = (0, 1)
+    solve_sylvester = solve_sylvester_time_mixed(
+        H, np.zeros((1, 1)), t_span, rtol=1e-10, atol=1e-12
+    )
+    series, _ = series_computation(
+        {"H": H},
+        algorithm=tdsw,
+        scope={
+            "solve_sylvester": solve_sylvester,
+            "I": 1.0j,
+            "time_diff": time_diff_numeric(dx=1e-5),
+            "reduce_order_adiabatic": reduce_order_adiabatic,
+        },
+    )
+    H_tilde, U, U_adj, _, ihdU_dt = (
+        series[name] for name in ("H_tilde", "U", "U†", "ihdU'†/dt", "ihdU'/dt")
+    )
+
+    assert not callable(U[(0, 1, 1, 0)])
+    assert callable(U[(0, 1, 0, 1)])
+
+    offdiagonal = BlockSeries(
+        eval=lambda *index: H_tilde[index] if index[0] != index[1] else zero,
+        shape=H_tilde.shape,
+        n_infinite=H_tilde.n_infinite,
+        dimension_names=H_tilde.dimension_names,
+    )
+    compare_series_t(
+        offdiagonal,
+        zero_like(H_tilde),
+        (2, 2),
+        t_span,
+        atol=1e-5,
+    )
+    compare_series_t(
+        cauchy_dot_product(U_adj, U),
+        identity_like(U),
+        (2, 2),
+        t_span,
+        atol=1e-12,
+    )
+
+    U_H_tilde_U_adj = cauchy_dot_product(U, H_tilde, U_adj)
+    ihdU_dt_U_adj = cauchy_dot_product(ihdU_dt, U_adj)
+    reconstructed = BlockSeries(
+        eval=lambda *index: _zero_sum(
+            U_H_tilde_U_adj[index],
+            ihdU_dt_U_adj[index],
+        ),
+        shape=H.shape,
+        n_infinite=H.n_infinite,
+        dimension_names=H.dimension_names,
+    )
+    compare_series_t(H, reconstructed, (2, 2), t_span, atol=1e-4, rtol=1e-4)
 
 
 def test_check_hermitian_t(block_diagonalized_t, t_span, wanted_orders_t):

@@ -1235,8 +1235,8 @@ def solve_sylvester_time_mixed(
 ) -> Callable:
     """Solve a time-dependent Sylvester's equation with mixed adiabatic and non-adiabatic perturbations.
 
-    Solves adiabatic orders using the diagonal solver.
-    Solves non-adiabatic orders using the initial value problem solver.
+    Solves static and adiabatic orders using the diagonal solver.
+    Solves time-dependent nonadiabatic orders using the initial value problem solver.
 
     Parameters
     ----------
@@ -1260,11 +1260,12 @@ def solve_sylvester_time_mixed(
 
     Notes
     -----
-    This function uses units where ``hbar = 1``. At nonadiabatic orders, it
-    integrates ``i dX/dt = H_A X - X H_B - Y`` with
-    ``X(t_span[0]) = x_0``. Purely adiabatic orders in a final dimension named
+    This function uses units where ``hbar = 1``. For callable right-hand sides
+    at nonadiabatic orders, it integrates
+    ``i dX/dt = H_A X - X H_B - Y`` with ``X(t_span[0]) = x_0``. Static
+    right-hand sides and purely adiabatic orders in a final dimension named
     ``"adiabatic"`` are instead solved algebraically using the diagonal
-    Sylvester solver.
+    Sylvester solver. The initial value only applies to the IVP branches.
 
     """
     if H.shape != (2, 2):
@@ -1301,9 +1302,11 @@ def solve_sylvester_time_mixed(
             return solve_sylvester_adiabatic(rhs, index) if rhs is not zero else zero
 
         rhs = upsilon[index]
-        if rhs is zero and not np.any(x_0):
-            return zero
-        return solve_sylvester_ivp(rhs)
+        if rhs is zero:
+            return solve_sylvester_ivp(rhs) if np.any(x_0) else zero
+        if callable(rhs):
+            return solve_sylvester_ivp(rhs)
+        return solve_sylvester_adiabatic(rhs, index)
 
     return solve_sylvester_time
 
@@ -1753,8 +1756,8 @@ def time_diff_numeric(dx: float = 1e-5, order=3) -> Callable:
     def time_diff(value, index):
         if isinstance(value, BlockSeries):
             value = value[index]
-        if value is zero:
-            return value
+        if value is zero or not callable(value):
+            return zero
         return CallableWrapper(
             lambda t: sum(
                 weight * value(t + offset * dx)
