@@ -244,11 +244,11 @@ def tdsw():
 
     with "ihdU'/dt":
         start = 0
-        time_diff(reduce_order_adiabatic("U'")) * I * hbar
+        time_diff(reduce_order_adiabatic("U'")) * I
 
     with "ihdU'†/dt":
         start = 0
-        time_diff(reduce_order_adiabatic("U'†")) * I * hbar
+        time_diff(reduce_order_adiabatic("U'†")) * I
 
     with "H_tilde":
         "U† @ H @ U" + "ihdU'†/dt @ U"

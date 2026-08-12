@@ -379,16 +379,14 @@ def t_span():
 @pytest.fixture(scope="module")
 def block_diagonalized_t(H_t, Ns, t_span):
     """Run the time-dependent Schrieffer-Wolff series computation."""
-    hbar = 1
     x_0 = np.zeros(Ns, dtype=np.complex128)
-    solve_sylvester = solve_sylvester_time_mixed(H_t, x_0, t_span, hbar=hbar)
+    solve_sylvester = solve_sylvester_time_mixed(H_t, x_0, t_span, rtol=1e-9, atol=1e-11)
     series, _ = series_computation(
         {"H": H_t},
         algorithm=tdsw,
         scope={
             "solve_sylvester": solve_sylvester,
             "I": 1.0j,
-            "hbar": hbar,
             "time_diff": time_diff_numeric(dx=1e-5),
             "reduce_order_adiabatic": reduce_order_adiabatic,
         },
@@ -2158,35 +2156,19 @@ def test_time_diff_numeric_rejects_invalid_stencil(kwargs):
 
 
 def test_solve_sylvester_time_initial_value():
-    """The IVP solver returns the supplied initial Sylvester solution."""
+    """The IVP solver preserves a nonzero initial value for a zero RHS."""
     H = BlockSeries(
         data={(0, 0, 0): np.array([[0.0]]), (1, 1, 0): np.array([[1.0]])},
         shape=(2, 2),
         n_infinite=1,
     )
-    rhs = BlockSeries(
-        data={
-            (0, 1, 1): CallableWrapper(lambda _t: np.zeros((1, 1), dtype=np.complex128))
-        },
-        shape=(2, 2),
-        n_infinite=1,
-    )
+    rhs = BlockSeries(shape=(2, 2), n_infinite=1)
     x_0 = np.array([[2 + 3j]])
-    solve_sylvester = solve_sylvester_time_mixed(H, x_0, (0, 1), hbar=2)
+    solve_sylvester = solve_sylvester_time_mixed(H, x_0, (0, 1))
     solution = solve_sylvester(rhs, zero_like(rhs), (0, 1, 1))
 
     np.testing.assert_allclose(solution(0), x_0)
-    np.testing.assert_allclose(solution(0.5), x_0 * np.exp(0.25j), rtol=1e-6)
-
-
-def test_solve_sylvester_time_rejects_zero_hbar():
-    H = BlockSeries(
-        data={(0, 0, 0): np.array([[0.0]]), (1, 1, 0): np.array([[1.0]])},
-        shape=(2, 2),
-        n_infinite=1,
-    )
-    with pytest.raises(ValueError, match="hbar must be nonzero"):
-        solve_sylvester_time_mixed(H, np.zeros((1, 1)), (0, 1), hbar=0)
+    np.testing.assert_allclose(solution(0.5), x_0 * np.exp(0.5j), rtol=1e-6)
 
 
 def test_check_hermitian_t(block_diagonalized_t, t_span, wanted_orders_t):
@@ -2205,6 +2187,24 @@ def test_check_hermitian_t(block_diagonalized_t, t_span, wanted_orders_t):
         wanted_orders_t,
         t_span,
         atol=1e-6,
+    )
+
+
+def test_check_block_diagonal_t(block_diagonalized_t, t_span, wanted_orders_t):
+    """The transformed Hamiltonian has no off-diagonal terms."""
+    H_tilde, *_ = block_diagonalized_t
+    offdiagonal = BlockSeries(
+        eval=lambda *index: H_tilde[index] if index[0] != index[1] else zero,
+        shape=H_tilde.shape,
+        n_infinite=H_tilde.n_infinite,
+        dimension_names=H_tilde.dimension_names,
+    )
+    compare_series_t(
+        offdiagonal,
+        zero_like(H_tilde),
+        wanted_orders_t,
+        t_span,
+        atol=1e-5,
     )
 
 

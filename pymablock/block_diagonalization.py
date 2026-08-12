@@ -1230,7 +1230,6 @@ def solve_sylvester_time_mixed(
     H: BlockSeries,
     x_0: np.ndarray,
     t_span: tuple[float, float],
-    hbar: float = 1,
     rtol: float = 1e-6,
     atol: float = 1e-9,
 ) -> Callable:
@@ -1249,8 +1248,6 @@ def solve_sylvester_time_mixed(
         ``(0, 1)`` block.
     t_span :
         The start and end of the time-domain to solve the initial value problem over.
-    hbar :
-        Reduced Planck constant in the units of ``H`` and ``t_span``.
     rtol :
         Relative tolerance for the initial value problem solver.
     atol :
@@ -1263,14 +1260,13 @@ def solve_sylvester_time_mixed(
 
     Notes
     -----
-    At nonadiabatic orders, this integrates
-    ``i hbar dX/dt = H_A X - X H_B - Y`` with ``X(t_span[0]) = x_0``.
-    Positive orders in a final dimension named ``"adiabatic"`` are instead
-    solved algebraically using the diagonal Sylvester solver.
+    This function uses units where ``hbar = 1``. At nonadiabatic orders, it
+    integrates ``i dX/dt = H_A X - X H_B - Y`` with
+    ``X(t_span[0]) = x_0``. Purely adiabatic orders in a final dimension named
+    ``"adiabatic"`` are instead solved algebraically using the diagonal
+    Sylvester solver.
 
     """
-    if hbar == 0:
-        raise ValueError("hbar must be nonzero.")
     if H.shape != (2, 2):
         raise ValueError("Time-dependent Sylvester solving requires two blocks.")
 
@@ -1288,7 +1284,7 @@ def solve_sylvester_time_mixed(
             result = h_0_aa @ x - x @ h_0_bb
             if Y is not zero:
                 result -= Y(t)
-            return result.reshape(-1) * (-1j / hbar)
+            return result.reshape(-1) * -1j
 
         sol = solve_ivp(f, t_span=t_span, y0=x_0, dense_output=True, rtol=rtol, atol=atol)
         if not sol.success:
@@ -1300,12 +1296,14 @@ def solve_sylvester_time_mixed(
         return CallableWrapper(solution)
 
     def solve_sylvester_time(upsilon, ihdU_p_adj_dt, index):
-        if has_adiabatic_order(index, upsilon):
+        if is_adiabatic_only(index, upsilon):
             rhs = _zero_sum(upsilon[index], ihdU_p_adj_dt[index])
             return solve_sylvester_adiabatic(rhs, index) if rhs is not zero else zero
 
         rhs = upsilon[index]
-        return solve_sylvester_ivp(rhs) if rhs is not zero else zero
+        if rhs is zero and not np.any(x_0):
+            return zero
+        return solve_sylvester_ivp(rhs)
 
     return solve_sylvester_time
 
@@ -1767,21 +1765,23 @@ def time_diff_numeric(dx: float = 1e-5, order=3) -> Callable:
     return time_diff
 
 
-def has_adiabatic_order(index, series: BlockSeries):
-    """Check whether the index contains a positive adiabatic order.
+def is_adiabatic_only(index, series: BlockSeries):
+    """Check whether an index represents a purely adiabatic perturbation.
 
     The final series dimension represents adiabatic order when it is named
-    ``"adiabatic"``. A time derivative consumes one order in that dimension,
-    including at mixed perturbative orders.
+    ``"adiabatic"``. Purely adiabatic indices have no contribution from the
+    other perturbative dimensions.
     """
-    return str(series.dimension_names[-1]) == "adiabatic" and index[-1] > 0
+    return (
+        str(series.dimension_names[-1]) == "adiabatic"
+        and index[-1] > 0
+        and all(order == 0 for order in index[2:-1])
+    )
 
 
 def reduce_order_adiabatic(series: BlockSeries, index):
-    """Reduce a positive adiabatic order by one before differentiating."""
-    if str(series.dimension_names[-1]) == "adiabatic":
-        if index[-1] == 0:
-            return zero
+    """Reduce a purely adiabatic order by one before differentiating."""
+    if is_adiabatic_only(index, series):
         return series[(*index[:-1], index[-1] - 1)]
 
     return series[index]
