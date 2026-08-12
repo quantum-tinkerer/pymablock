@@ -1228,8 +1228,9 @@ def solve_sylvester_direct(
 
 def solve_sylvester_time_mixed(
     H: BlockSeries,
-    v_0: np.ndarray,
-    t_span: tuple[int, int],
+    x_0: np.ndarray,
+    t_span: tuple[float, float],
+    hbar: float = 1,
     rtol: float = 1e-6,
     atol: float = 1e-9,
 ) -> Callable:
@@ -1241,11 +1242,15 @@ def solve_sylvester_time_mixed(
     Parameters
     ----------
     H :
-        The Hamiltonian matrix.
-    v_0 :
-        Initial value of V^AB for the initial value problem.
+        Two-block Hamiltonian series.
+    x_0 :
+        Initial value of the Sylvester solution ``X``. The TDSW generator uses
+        the convention ``U' = -X``. Its shape must match the off-diagonal
+        ``(0, 1)`` block.
     t_span :
         The start and end of the time-domain to solve the initial value problem over.
+    hbar :
+        Reduced Planck constant in the units of ``H`` and ``t_span``.
     rtol :
         Relative tolerance for the initial value problem solver.
     atol :
@@ -1256,33 +1261,46 @@ def solve_sylvester_time_mixed(
     solve_sylvester_time : `Callable`
         Function that solves the time-dependent Sylvester's equation.
 
+    Notes
+    -----
+    At nonadiabatic orders, this integrates
+    ``i hbar dX/dt = H_A X - X H_B - Y`` with ``X(t_span[0]) = x_0``.
+    Positive orders in a final dimension named ``"adiabatic"`` are instead
+    solved algebraically using the diagonal Sylvester solver.
+
     """
+    if hbar == 0:
+        raise ValueError("hbar must be nonzero.")
+    if H.shape != (2, 2):
+        raise ValueError("Time-dependent Sylvester solving requires two blocks.")
+
     solve_sylvester_adiabatic = solve_sylvester_diagonal(_extract_diagonal(H))
 
     # TODO: See whether we can reuse _extract_diagonal here.
     h_0_aa = H[tuple((0, 0, *([0] * H.n_infinite)))]
     h_0_bb = H[tuple((1, 1, *([0] * H.n_infinite)))]
     shape = (h_0_aa.shape[0], h_0_bb.shape[1])
-    v_0 = v_0.reshape(np.prod(shape))
+    x_0 = np.asarray(x_0, dtype=complex).reshape(np.prod(shape))
 
     def solve_sylvester_ivp(Y):
-        def f(t, v):
-            v = v.reshape(shape)
-            result = h_0_aa @ v - v @ h_0_bb
+        def f(t, x):
+            x = x.reshape(shape)
+            result = h_0_aa @ x - x @ h_0_bb
             if Y is not zero:
-                result += Y(t)
-            # TODO: We have to divide by i*hbar. We assume hbar = 1 now.
-            return result.reshape(-1) * -1j
+                result -= Y(t)
+            return result.reshape(-1) * (-1j / hbar)
 
-        sol = solve_ivp(f, t_span=t_span, y0=v_0, dense_output=True, rtol=rtol, atol=atol)
+        sol = solve_ivp(f, t_span=t_span, y0=x_0, dense_output=True, rtol=rtol, atol=atol)
+        if not sol.success:
+            raise RuntimeError(f"Time-dependent Sylvester solve failed: {sol.message}")
 
         def solution(t):
-            return -sol.sol(t).reshape(shape)
+            return sol.sol(t).reshape(shape)
 
         return CallableWrapper(solution)
 
     def solve_sylvester_time(upsilon, ihdU_p_adj_dt, index):
-        if is_adiabatic_only(index, upsilon):
+        if has_adiabatic_order(index, upsilon):
             rhs = _zero_sum(upsilon[index], ihdU_p_adj_dt[index])
             return solve_sylvester_adiabatic(rhs, index) if rhs is not zero else zero
 
@@ -1711,7 +1729,7 @@ def _check_biorthonormality(right_subspaces, left_subspaces, atol=1e-12):
             raise ValueError("Subspace vectors must satisfy L^† R = I.")
 
 
-def time_diff_numeric(dx: float = 1e-8, order=3) -> Callable:
+def time_diff_numeric(dx: float = 1e-5, order=3) -> Callable:
     """Numerical time derivative function for a BlockSeries.
 
     Parameters
@@ -1722,36 +1740,48 @@ def time_diff_numeric(dx: float = 1e-8, order=3) -> Callable:
         Number of points to use. Must be odd.
 
     """
-    # TODO: This is a temporary solution as ~scipy.misc.derivative is deprecated.
-    from scipy.misc import derivative
+    if dx <= 0:
+        raise ValueError("dx must be positive.")
+    if not isinstance(order, (int, np.integer)) or order < 3 or order % 2 == 0:
+        raise ValueError("order must be an odd integer of at least 3.")
+    order = int(order)
+
+    offsets = np.arange(-(order // 2), order // 2 + 1, dtype=float)
+    powers = np.arange(order)[:, np.newaxis]
+    rhs = np.zeros(order)
+    rhs[1] = 1
+    weights = np.linalg.solve(offsets[np.newaxis, :] ** powers, rhs) / dx
 
     def time_diff(value, index):
         if isinstance(value, BlockSeries):
             value = value[index]
         if value is zero:
             return value
-        return CallableWrapper(lambda t: derivative(value, t, dx=dx, order=order))
+        return CallableWrapper(
+            lambda t: sum(
+                weight * value(t + offset * dx)
+                for weight, offset in zip(weights, offsets)
+            )
+        )
 
     return time_diff
 
 
-def is_adiabatic_only(index, series: BlockSeries):
-    """Check if the index only contains an adiabatic perturbation.
+def has_adiabatic_order(index, series: BlockSeries):
+    """Check whether the index contains a positive adiabatic order.
 
-    This means that all orders are zero except for the adiabatic perturbation.
+    The final series dimension represents adiabatic order when it is named
+    ``"adiabatic"``. A time derivative consumes one order in that dimension,
+    including at mixed perturbative orders.
     """
-    return (
-        str(series.dimension_names[-1]) == "adiabatic"
-        and index[-1] > 0
-        and all(i == 0 for i in index[2:-1])
-    )
+    return str(series.dimension_names[-1]) == "adiabatic" and index[-1] > 0
 
 
 def reduce_order_adiabatic(series: BlockSeries, index):
-    """Reduce the adiabatic order of a series by one if the index is purely adiabatic."""
-    if is_adiabatic_only(index, series):
-        # If there are no non-adiabatic perturbations, we should reduce the adiabatic order by one.
-        index = *index[:-1], index[-1] - 1
-        return series[index]
+    """Reduce a positive adiabatic order by one before differentiating."""
+    if str(series.dimension_names[-1]) == "adiabatic":
+        if index[-1] == 0:
+            return zero
+        return series[(*index[:-1], index[-1] - 1)]
 
     return series[index]

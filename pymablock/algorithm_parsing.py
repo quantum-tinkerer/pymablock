@@ -7,6 +7,7 @@ import dataclasses
 import inspect
 from collections import Counter, defaultdict
 from collections.abc import Callable  # noqa: TC003 (sphinx needs unconditional import)
+from copy import deepcopy
 from enum import Enum
 from functools import cache
 from itertools import chain
@@ -117,6 +118,7 @@ class _EvalTransformer(ast.NodeTransformer):
             # If an offdiagonal eval is present, we need to evaluate
             # this wrapped with `offdiag` for diagonal blocks.
             if eval_type == _EvalType.offdiagonal:
+                expression = deepcopy(node.body[0].value)
                 nodes.append(
                     ast.If(
                         test=ast.BoolOp(
@@ -130,7 +132,7 @@ class _EvalTransformer(ast.NodeTransformer):
                             ast.Expr(
                                 ast.Call(
                                     ast.Name(id="offdiag", ctx=ast.Load()),
-                                    [node.body[0].value],
+                                    [expression],
                                     [],
                                 )
                             )

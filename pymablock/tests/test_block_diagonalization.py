@@ -235,6 +235,15 @@ def wanted_orders_t(request):
 
 
 @pytest.fixture(scope="module")
+def dimension_names_t(wanted_orders_t):
+    """Name the bookkeeping dimension in the mixed adiabatic expansion."""
+    names = tuple(f"n_{i}" for i in range(len(wanted_orders_t)))
+    if len(names) > 1:
+        names = (*names[:-1], "adiabatic")
+    return names
+
+
+@pytest.fixture(scope="module")
 def Ns(module_rng):
     """
     Return a random number of states for each block (A, B).
@@ -328,16 +337,21 @@ def time_matrices_it(N_i, N_j, hermitian, rng, order=4):
 
 
 @pytest.fixture(scope="module")
-def H_t(Ns, wanted_orders_t, module_rng):
+def H_t(Ns, wanted_orders_t, dimension_names_t):
     """Produce a random time-dependent two-block Hamiltonian."""
+    rng = np.random.default_rng(np.random.SeedSequence(wanted_orders_t))
     n_infinite = len(wanted_orders_t)
     orders = np.eye(n_infinite, dtype=int)
-    h_0_aa = np.diag(np.sort(module_rng.random(Ns[0])) - 1)
-    h_0_bb = np.diag(np.sort(module_rng.random(Ns[1])))
+    if dimension_names_t[-1] == "adiabatic":
+        # Adiabatic order counts time derivatives and is not an independent
+        # perturbation of the bare Hamiltonian.
+        orders = orders[:-1]
+    h_0_aa = np.diag(np.sort(rng.random(Ns[0])) - 1)
+    h_0_bb = np.diag(np.sort(rng.random(Ns[1])))
 
     hams = []
     for i, j, hermitian in zip([0, 1, 0], [0, 1, 1], [True, True, False]):
-        matrices = time_matrices_it(Ns[i], Ns[j], hermitian, module_rng)
+        matrices = time_matrices_it(Ns[i], Ns[j], hermitian, rng)
         hams.append({tuple(order): matrix for order, matrix in zip(orders, matrices)})
     h_p_aa, h_p_bb, h_p_ab = hams
     zeroth_order = (0,) * n_infinite
@@ -352,6 +366,7 @@ def H_t(Ns, wanted_orders_t, module_rng):
         },
         shape=(2, 2),
         n_infinite=n_infinite,
+        dimension_names=dimension_names_t,
     )
 
 
@@ -364,17 +379,17 @@ def t_span():
 @pytest.fixture(scope="module")
 def block_diagonalized_t(H_t, Ns, t_span):
     """Run the time-dependent Schrieffer-Wolff series computation."""
-    solve_sylvester = solve_sylvester_time_mixed(
-        H_t, np.zeros(Ns, dtype=np.complex128), t_span
-    )
+    hbar = 1
+    x_0 = np.zeros(Ns, dtype=np.complex128)
+    solve_sylvester = solve_sylvester_time_mixed(H_t, x_0, t_span, hbar=hbar)
     series, _ = series_computation(
         {"H": H_t},
         algorithm=tdsw,
         scope={
             "solve_sylvester": solve_sylvester,
             "I": 1.0j,
-            "hbar": 1,
-            "time_diff": time_diff_numeric(dx=1e-8),
+            "hbar": hbar,
+            "time_diff": time_diff_numeric(dx=1e-5),
             "reduce_order_adiabatic": reduce_order_adiabatic,
         },
     )
@@ -2114,6 +2129,64 @@ def test_only_H_0():
         [np.diag(np.arange(5))],
         subspace_eigenvectors=(np.eye(5)[:, :3], np.eye(5)[:, 3:]),
     )
+
+
+def test_time_diff_numeric():
+    """Centered finite differences differentiate matrix-valued callables."""
+    function = CallableWrapper(
+        lambda t: np.array([[t**4, np.sin(t)]], dtype=np.complex128)
+    )
+    derivative = time_diff_numeric(dx=1e-3, order=5)(function, ())
+
+    t = 0.3
+    np.testing.assert_allclose(
+        derivative(t),
+        np.array([[4 * t**3, np.cos(t)]]),
+        rtol=1e-10,
+        atol=1e-10,
+    )
+    assert time_diff_numeric()(zero, ()) is zero
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    ({"dx": 0}, {"dx": -1}, {"order": 1}, {"order": 4}, {"order": 5.0}),
+)
+def test_time_diff_numeric_rejects_invalid_stencil(kwargs):
+    with pytest.raises(ValueError):
+        time_diff_numeric(**kwargs)
+
+
+def test_solve_sylvester_time_initial_value():
+    """The IVP solver returns the supplied initial Sylvester solution."""
+    H = BlockSeries(
+        data={(0, 0, 0): np.array([[0.0]]), (1, 1, 0): np.array([[1.0]])},
+        shape=(2, 2),
+        n_infinite=1,
+    )
+    rhs = BlockSeries(
+        data={
+            (0, 1, 1): CallableWrapper(lambda _t: np.zeros((1, 1), dtype=np.complex128))
+        },
+        shape=(2, 2),
+        n_infinite=1,
+    )
+    x_0 = np.array([[2 + 3j]])
+    solve_sylvester = solve_sylvester_time_mixed(H, x_0, (0, 1), hbar=2)
+    solution = solve_sylvester(rhs, zero_like(rhs), (0, 1, 1))
+
+    np.testing.assert_allclose(solution(0), x_0)
+    np.testing.assert_allclose(solution(0.5), x_0 * np.exp(0.25j), rtol=1e-6)
+
+
+def test_solve_sylvester_time_rejects_zero_hbar():
+    H = BlockSeries(
+        data={(0, 0, 0): np.array([[0.0]]), (1, 1, 0): np.array([[1.0]])},
+        shape=(2, 2),
+        n_infinite=1,
+    )
+    with pytest.raises(ValueError, match="hbar must be nonzero"):
+        solve_sylvester_time_mixed(H, np.zeros((1, 1)), (0, 1), hbar=0)
 
 
 def test_check_hermitian_t(block_diagonalized_t, t_span, wanted_orders_t):
