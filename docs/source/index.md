@@ -28,6 +28,8 @@ tutorial/andreev_supercurrent.md
 MPO perturbation theory from small to large systems <tutorial/tenpy_mpo.md>
 Implicit MPS perturbation theory <tutorial/tenpy_implicit_ising.md>
 MPO perturbation theory versus warm-started DMRG <tutorial/tenpy_pt_vs_dmrg.md>
+Local FCI charge pumping with MPO perturbation theory <tutorial/tenpy_fci_pump_pt_vs_dmrg.md>
+Full-cycle FCI flux reconstruction with PT-assisted DMRG <tutorial/tenpy_fci_cycle_pt_dmrg.md>
 ```
 
 ```{toctree}

@@ -267,3 +267,45 @@ def test_tenpy_implicit_ising_perturbation_matches_analytical_and_dense():
         and max(record.maximum_bond_dimensions) <= backend.chi_max
         for record in backend.solver_records
     )
+
+
+def test_open_boundary_mpo_preserves_model_operator():
+    from tenpy.algorithms.exact_diag import ExactDiag
+    from tenpy.models.spins import SpinChain
+
+    from pymablock.backends.tenpy import open_boundary_mpo
+
+    model = SpinChain(
+        {
+            "L": 4,
+            "S": 0.5,
+            "Jx": 0.7,
+            "Jy": 0.4,
+            "Jz": 1.2,
+            "hz": 0.3,
+            "conserve": None,
+            "bc_MPS": "finite",
+        }
+    )
+    state = MPS.from_product_state(
+        model.lat.mps_sites(),
+        ["up", "down", "up", "down"],
+        bc="finite",
+        unit_cell_width=4,
+    )
+
+    converted = open_boundary_mpo(model.H_MPO)
+
+    assert converted.chi[0] == converted.chi[-1] == 1
+    np.testing.assert_allclose(
+        converted.expectation_value(state),
+        model.H_MPO.expectation_value(state),
+        atol=1e-12,
+    )
+    exact = ExactDiag(model)
+    exact.build_full_H_from_mpo()
+    np.testing.assert_allclose(
+        mpo_to_dense(converted),
+        exact.full_H.to_ndarray(),
+        atol=1e-12,
+    )

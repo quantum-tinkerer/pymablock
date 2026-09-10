@@ -23,6 +23,7 @@ __all__ = [
     "mpo_to_dense",
     "mpo_to_mps",
     "mps_to_mpo",
+    "open_boundary_mpo",
     "product_mpo",
 ]
 
@@ -99,6 +100,32 @@ def _zero_mpo(sites: list[Site]) -> MPO:
     cores = [np.eye(site.dim).reshape(site.dim, site.dim, 1, 1) for site in sites]
     cores[0] = np.zeros_like(cores[0])
     return _from_cores(sites, cores)
+
+
+def open_boundary_mpo(operator: MPO) -> MPO:
+    """Contract TeNPy's finite-MPO boundary channels.
+
+    MPOs constructed by :class:`~tenpy.models.model.CouplingMPOModel` retain
+    auxiliary boundary channels and select the physical operator through
+    ``IdL`` and ``IdR``.  The tutorial backend instead stores finite operators
+    with one-dimensional boundary bonds.  This conversion preserves the
+    represented operator while making the boundary convention explicit.
+    """
+    if not operator.finite or operator.bc != "finite":
+        raise ValueError("Only finite MPOs can have their boundaries contracted.")
+    if operator.IdL is None or operator.IdR is None:
+        raise ValueError("The MPO does not define finite boundary channels.")
+    left = operator.IdL[0]
+    right = operator.IdR[-1]
+    if left is None or right is None:
+        raise ValueError("The MPO boundary channels are undefined.")
+
+    cores = _cores(operator)
+    cores[0] = cores[0][:, :, left : left + 1, :]
+    cores[-1] = cores[-1][:, :, :, right : right + 1]
+    result = _from_cores(operator.sites, cores)
+    _validate_mpo(result)
+    return result
 
 
 def _mpo_norm_squared(mpo: MPO) -> float:

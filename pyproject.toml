@@ -108,6 +108,8 @@ unfixable = []
 "docs/source/tutorial/tenpy_implicit_ising.py" = ["D100"]
 "docs/source/tutorial/tenpy_mpo.py" = ["D100"]
 "docs/source/tutorial/tenpy_pt_vs_dmrg.py" = ["D100"]
+"docs/source/tutorial/tenpy_fci_pump_pt_vs_dmrg.py" = ["D100"]
+"docs/source/tutorial/tenpy_fci_cycle_pt_dmrg.py" = ["D100"]
 
 [tool.coverage.run]
 include = [
