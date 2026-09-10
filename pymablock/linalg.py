@@ -192,10 +192,10 @@ class ComplementProjector(LinearOperator):
 
     _matvec = _matmat = _apply
 
-    def _apply_left(self: LinearOperator, v: np.ndarray) -> np.ndarray:
-        return v - self._left_vecs.conj() @ (self._vecs.T @ v)
+    def _apply_adjoint(self: LinearOperator, v: np.ndarray) -> np.ndarray:
+        return v - self._left_vecs @ (self._vecs.conj().T @ v)
 
-    _rmatvec = _rmatmat = _apply_left
+    _rmatvec = _rmatmat = _apply_adjoint
 
     def _adjoint(self: LinearOperator) -> LinearOperator:
         if self._adjoint_operator is None:

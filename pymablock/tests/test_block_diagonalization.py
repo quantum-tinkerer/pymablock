@@ -797,7 +797,8 @@ def test_equivalence_explicit_implicit(rng) -> None:
     assert all(isinstance(implicit_H_tilde[1, 1, i], LinearOperator) for i in range(2))
 
     compare_series(implicit_H_tilde, explicit_wrapped_H_tilde, (2,), atol=1e-12)
-    compare_series(implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (2,), atol=1e-8)
+    # Complex implicit products must agree beyond second order (issue #191).
+    compare_series(implicit_H_tilde[0, 0], fully_explicit_H_tilde[0, 0], (4,), atol=1e-8)
 
 
 def test_dtype_mismatch_error_implicit(rng):
