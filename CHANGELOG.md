@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Raised minimum versions to Python 3.12, NumPy 2.2, SciPy 1.15, and SymPy 1.14 following the September 2026 SPEC 0 support window.
 - Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
+- Store fermion and spin factors as packed binary monomials while preserving the `NumberOrderedForm.terms` view.
 - Reduced the number of matrix products in selective Hermitian diagonalization by evaluating the selected auxiliary directly, and in non-Hermitian diagonalization by exploiting the selected structure of the transformed residual.
 
 ### Fixed
