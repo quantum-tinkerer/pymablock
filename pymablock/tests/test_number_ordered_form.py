@@ -493,8 +493,8 @@ def test_empty_round_trip():
     assert result == sympy.S.Zero
 
 
-def test_multiply_op():
-    """Test the _multiply_op method using normal_ordered_form as a reference."""
+def test_multiply_operator_powers():
+    """Check multiplication by operator powers against symbolic ordering."""
     a, b = sympy.symbols("a b", cls=boson.BosonOp)
     n_a, n_b = NumberOperator(a), NumberOperator(b)
 
@@ -528,7 +528,7 @@ def test_multiply_op():
     }
     for term, (op, expr) in zip(terms, to_multiply.items()):
         nof = NumberOrderedForm([a, b], term)
-        result = sympy.expand(nof._multiply_op(*op).as_expr().doit())
+        result = sympy.expand((nof * expr).as_expr().doit())
         expected = sympy.expand(nof.as_expr().doit() * expr)
         assert sympy.expand(
             normal_ordered_form(result, independent=True)
@@ -537,14 +537,11 @@ def test_multiply_op():
         )
 
 
-def test_multiply_op_twice():
+def test_multiply_creation_power_twice():
     b = boson.BosonOp("b")
-    fn1 = NumberOrderedForm([b], {(1,): sympy.S.One})._multiply_op(0, -2)
-    fn2 = (
-        NumberOrderedForm([b], {(1,): sympy.S.One})
-        ._multiply_op(0, -1)
-        ._multiply_op(0, -1)
-    )
+    nof = NumberOrderedForm.from_expr(b)
+    fn1 = nof * Dagger(b) ** 2
+    fn2 = nof * Dagger(b) * Dagger(b)
 
     assert (
         normal_ordered_form(fn1.as_expr().doit())
@@ -553,8 +550,8 @@ def test_multiply_op_twice():
     ), f"Failed for fn1: {fn1.as_expr()} and fn2: {fn2.as_expr()}"
 
 
-def test_multiply_expr():
-    """Test the _multiply_expr method using normal_ordered_form as a reference."""
+def test_multiply_number_expression():
+    """Test multiplication by scalars and number operators."""
     a, b = sympy.symbols("a b", cls=boson.BosonOp)
     x, y = sympy.symbols("x y", real=True)
     n_a, n_b = NumberOperator(a), NumberOperator(b)
@@ -594,15 +591,12 @@ def test_multiply_expr():
 
     for nof in nof_cases:
         for expr in expr_cases:
-            # Apply _multiply_expr
-            result = nof._multiply_expr(
-                expr.xreplace(nof._number_operator_to_placeholder).as_expr()
-            )
+            result = nof * expr
 
             expected = NumberOrderedForm.from_expr(nof.as_expr() * expr).as_expr()
 
             assert result == expected, (
-                f"_multiply_expr failed with nof={nof.as_expr()}, expr={expr}"
+                f"Multiplication failed with nof={nof.as_expr()}, expr={expr}"
             )
 
 
@@ -635,30 +629,6 @@ def test_expand():
         sympy.expand(NumberOrderedForm.from_expr((a + b) ** 2)).as_expr()
         == a**2 + 2 * b * a + b**2
     )
-
-
-def test_multiply_expr_raises_error():
-    """Test that _multiply_expr raises an error when the expression contains operators."""
-    a, b = sympy.symbols("a b", cls=boson.BosonOp)
-    n_a = NumberOperator(a)
-
-    # Create a simple NumberOrderedForm
-    nof = NumberOrderedForm([a, b], {(0, 0): sympy.S.One})
-
-    # Test expressions containing operators or their daggers
-    invalid_expressions = [
-        a,  # Annihilation operator
-        Dagger(a),  # Creation operator
-        n_a + a,  # Number operator + annihilation operator
-        sympy.S(2) * Dagger(b),  # Scalar * creation operator
-        a * Dagger(a),  # Product of operators
-    ]
-
-    for expr in invalid_expressions:
-        with pytest.raises(
-            ValueError, match="Expression contains creation or annihilation operators"
-        ):
-            nof._multiply_expr(expr)
 
 
 def test_addition():

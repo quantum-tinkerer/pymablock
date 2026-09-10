@@ -120,6 +120,7 @@ def solve_scalar(
     H_jj = _diagonal_coefficient(H_jj)
     binary_numbers = Y._number_operator_placeholders[Y._n_inf_order :]
 
+    # Decoding combines number factors for each transition before division.
     shifts = Y.terms
     new_shifts = {}
     for shift, coeff in shifts.items():
@@ -174,14 +175,7 @@ def solve_scalar(
             tuple(number for number in binary_numbers if number not in fixed),
         )
 
-    result = (
-        NumberOrderedForm(
-            operators=Y.args[0],
-            terms=new_shifts,
-        )
-        ._cancel_binary_operator_numbers()
-        ._linearize_binary_operators()
-    )
+    result = NumberOrderedForm(operators=Y.args[0], terms=new_shifts)
 
     if diagonal:
         result -= result.adjoint()

@@ -36,10 +36,9 @@ A number-ordered form is a sum of terms, where each term consists of:
 - A set of annihilation operators for different modes (never the same modes as the creation operators)
 - A coefficient that may contain number operators and scalar values
 
-In the implementation, these concepts are represented as:
+For bosons and ladder operators, these concepts are represented by integer powers:
 
 ```python
-# A number-ordered form is represented with:
 class NumberOrderedForm:
     # 1. A sorted list of all operators (modes)
     operators = [a, b, c, ...]
@@ -50,7 +49,12 @@ class NumberOrderedForm:
     }
 ```
 
-For example, consider the expression $a^\dagger b + 2$ (where $a$ and $b$ are different modes):
+The constructor accepts these power tuples for all operator types.
+The `terms` property returns the same view for inspecting expressions and specifying occupation masks.
+Pymablock does not use the decoded view for operator arithmetic.
+Internally, it stores fermions and spin-$1/2$ operators in the packed binary representation described below.
+
+For example, consider the expression $a^\dagger b + 2$, where $a$ and $b$ are different bosonic modes.
 
 Mathematically, this represents:
 
@@ -131,16 +135,42 @@ Together, these operations provide all the necessary tools to manipulate quantum
 
 #### Fermions and Spins
 
-Fermions and spins work in a similar way, except for the different commutation relations.
-Firstly, the creation and annihilation operators are nilpotent: if $a$ is a fermion or spin $1/2$ operator, then $(a^\dagger)^2 = 0$ and $a^2 = 0$.
-This also means that the number operator is idempotent: $N_a^2 = N_a$, which also allows to linearize any function of the number operator because $f(N_a) = f(1) N_a + f(0) (1 - N_a)$.
-These rules, as well as the commutation relations, combine into the multiplication table for fermions and spins:
+Fermions and spin-$1/2$ operators have four possible local factors in a number-ordered monomial:
 
-| Left × Term | $a^\dagger$ | $N_a$ | $a$ |
-|-------------|-------------|-------|-----|
-| $a^\dagger$ | $0$ | $0$ | $N_a$ |
-| $N_a$ | $a^\dagger$ | $N_a$ | $0$ |
-| $a$ | $1-N_a$ | $a$ | $0$ |
+$$1,\qquad a,\qquad a^\dagger,\qquad N_a=a^\dagger a.$$
+
+Pymablock stores each binary mode in two bit planes. One plane records the presence of an annihilation operator and the other records the presence of a creation operator:
+
+| Annihilation bit | Creation bit | Local factor |
+|------------------|--------------|--------------|
+| 0 | 0 | $1$ |
+| 1 | 0 | $a$ |
+| 0 | 1 | $a^\dagger$ |
+| 1 | 1 | $N_a$ |
+
+The bits for all binary modes are concatenated into one integer.
+Thus a term key consists of a power tuple for the boson and ladder modes together with one packed integer for all fermion and spin modes:
+
+```python
+term_key = (boson_and_ladder_powers, packed_binary_monomial)
+```
+
+Binary number operators are part of this key rather than symbolic factors in the coefficient.
+The coefficient only retains scalar parameters and functions of bosonic or ladder number operators.
+At the expression boundary, a function of a binary number operator is decomposed into the two local basis elements,
+
+$$f(N_a)=f(0)(1-N_a)+f(1)N_a,$$
+
+and the resulting identity and number terms are packed separately.
+For several binary modes, applying this identity to each mode gives the corresponding multilinear Boolean expansion.
+
+Multiplication acts directly on the packed integers.
+The local hard-core relations $a^2=(a^\dagger)^2=0$ and $aa^\dagger=1-N_a$ either eliminate a product or produce one or two packed monomials.
+Odd factors on different fermion modes contribute the fermionic sign, while operators on different spin modes commute.
+Pymablock records which packed modes are fermionic in a separate mask, so spins and fermions share the same local storage without sharing their exchange statistics.
+
+This representation makes nilpotence and $N_a^2=N_a$ properties of the term key.
+Products therefore do not require repeated symbolic expansion and linearization of binary number operators.
 
 ### Ladder Operators
 
