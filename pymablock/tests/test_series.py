@@ -49,7 +49,19 @@ def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) 
         assert isinstance(e, shape)
 
 
-@pytest.mark.parametrize("order", [-1, -2, np.int64(-1), [-1], [0, -1, 2]])
+@pytest.mark.parametrize(
+    "order",
+    [
+        -1,
+        -2,
+        np.int64(-1),
+        [-1],
+        [0, -1, 2],
+        slice(-1, 3),
+        slice(None, -1),
+        slice(None, np.int64(-1)),
+    ],
+)
 @pytest.mark.parametrize("axis", [0, 1])
 def test_negative_orders(order, axis):
     series = BlockSeries(

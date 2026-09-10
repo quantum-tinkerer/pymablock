@@ -261,7 +261,9 @@ class BlockSeries:
             if isinstance(order, slice):
                 if order.stop is None:
                     raise IndexError("Cannot evaluate infinite series")
-                if isinstance(order.start, int) and order.start < 0:
+                if any(
+                    bound is not None and bound < 0 for bound in (order.start, order.stop)
+                ):
                     raise IndexError("Cannot evaluate negative order")
             elif np.any(np.asarray(order) < 0):
                 raise IndexError("Cannot evaluate negative order")
