@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed `BlockSeries` accepting negative perturbative orders, which now raise `IndexError` instead of potentially returning an incorrect term.
 - Made randomized tests reproducible with pytest-randomly without using NumPy's legacy global random number generator.
 
 ### Added
