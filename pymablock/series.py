@@ -249,7 +249,7 @@ class BlockSeries:
         return self._data.pop(item, default)
 
     def _check_finite(self, orders: tuple[OneItem, ...]):
-        """Check that the indices of the infinite dimension are finite and positive.
+        """Check that the indices of the infinite dimension are finite and nonnegative.
 
         Parameters
         ----------
@@ -263,6 +263,8 @@ class BlockSeries:
                     raise IndexError("Cannot evaluate infinite series")
                 if isinstance(order.start, int) and order.start < 0:
                     raise IndexError("Cannot evaluate negative order")
+            elif np.any(np.asarray(order) < 0):
+                raise IndexError("Cannot evaluate negative order")
 
     def _check_number_perturbations(self, item: tuple[OneItem, ...]):
         """Check that the number of indices is correct.
