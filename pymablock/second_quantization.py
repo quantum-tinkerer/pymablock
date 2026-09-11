@@ -191,6 +191,8 @@ def solve_scalar(
 
 def solve_sylvester_2nd_quant(
     eigs: tuple[tuple[sympy.Expr, ...], ...],
+    *,
+    hermitian: bool = True,
 ) -> Callable:
     """Solve a Sylvester equation for 2nd quantized diagonal Hamiltonians.
 
@@ -198,6 +200,9 @@ def solve_sylvester_2nd_quant(
     ----------
     eigs :
         Tuple of lists of expressions representing the diagonal Hamiltonian blocks.
+    hermitian :
+        Whether to use anti-Hermitian symmetry of the solution within diagonal
+        blocks. Set to False for general non-Hermitian sources.
 
     Returns
     -------
@@ -235,18 +240,18 @@ def solve_sylvester_2nd_quant(
         result = sympy.zeros(*Y.shape)
         for i in range(Y.rows):
             for j in range(Y.cols):
-                # Only compute upper triangle of diagonal blocks
-                if index[0] != index[1] or i >= j:
+                # Hermitian problems only need the lower triangle of diagonal blocks
+                if not hermitian or index[0] != index[1] or i >= j:
                     result[i, j] = solve_scalar(
                         Y[i, j],
                         eigs_A[i],
                         eigs_B[j],
-                        diagonal=(i == j and index[0] == index[1]),
+                        diagonal=(hermitian and i == j and index[0] == index[1]),
                     )
         for i in range(Y.rows):
             for j in range(Y.cols):
-                # Fill the lower triangle with minus conjugate transpose
-                if index[0] == index[1] and i < j:
+                # Fill the upper triangle with minus conjugate transpose
+                if hermitian and index[0] == index[1] and i < j:
                     result[i, j] = -result[j, i].adjoint()
 
         return result
