@@ -1,3 +1,5 @@
+import numpy as np
+import pytest
 import sympy
 from sympy.physics.quantum import Dagger, pauli
 from sympy.physics.quantum.boson import BosonOp
@@ -11,6 +13,7 @@ from pymablock.second_quantization import (
 )
 from pymablock.series import cauchy_dot_product
 
+from .second_quantization_helpers import occupation_matrices, operator_matrix
 from .test_block_diagonalization import compare_series, is_unitary
 
 
@@ -384,10 +387,13 @@ def test_solve_sylvester_2nd_quant_fermion_complex():
     n_f, n_g = NumberOperator(f), NumberOperator(g)
 
     # Create symbolic parameters
-    alpha, beta = sympy.symbols("alpha beta", real=True)
+    alpha, beta, gamma, delta = sympy.symbols("alpha beta gamma delta", real=True)
 
-    # Define eigenvalues with number operators and parameters
-    eigs = ((alpha * n_f, beta * (1 - n_f)), (alpha * n_g, beta * (2 - n_g)))
+    # Independent energy offsets avoid zero denominators at occupations 0 and 1.
+    eigs = (
+        (alpha * n_f, beta * (1 - n_f)),
+        (gamma * (2 + n_g), delta * (4 - n_g)),
+    )
 
     # Get the solver function
     solve_sylvester = solve_sylvester_2nd_quant(eigs)
@@ -754,3 +760,40 @@ def test_ladder_and_fermion_block_diagonalize():
     # Verify that the transformation preserves the original Hamiltonian
     H_reconstructed = cauchy_dot_product(U, cauchy_dot_product(H_tilde, U_dagger))
     compare_series(H, H_reconstructed, wanted_orders=(2,))
+
+
+@pytest.mark.parametrize("operator_type", [FermionOp, pauli.SigmaMinus])
+@pytest.mark.parametrize("source_kind", ["empty", "occupied", "two_modes", "transition"])
+def test_sylvester_binary_projector_cancellation(operator_type, source_kind):
+    """Choose X = 0 wherever the matrix equation leaves X undetermined."""
+    f, g = operator_type("f"), operator_type("g")
+    n_f, n_g = NumberOperator(f), NumberOperator(g)
+    if source_kind == "empty":
+        source, energy = 1 - n_f, 1 - n_f
+    elif source_kind == "occupied":
+        source, energy = n_f, n_f
+    elif source_kind == "two_modes":
+        # When both modes are empty, the ratio is 0/0 despite having no common factor.
+        source, energy = n_f, n_f + n_g
+    else:
+        source, energy = Dagger(f) * (1 - n_g), n_f * (1 - n_g)
+    solve = solve_sylvester_2nd_quant(((energy,), (sympy.S.Zero,)))
+    solution = solve(sympy.Matrix([[source]]), (0, 1, 1))[0, 0].simplify()
+    matrices = occupation_matrices((f, g), [(0, 1), (0, 1)])
+    actual = operator_matrix(solution, matrices).toarray()
+    energies = operator_matrix(energy, matrices).diagonal()
+    rhs = operator_matrix(source, matrices).toarray()
+    expected = np.divide(
+        rhs, energies[:, None], out=np.zeros_like(rhs), where=energies[:, None] != 0
+    )
+    np.testing.assert_array_equal(actual, expected)
+    np.testing.assert_array_equal(energies[:, None] * actual, rhs)
+
+
+@pytest.mark.parametrize("offset", [1, 1.0])
+def test_sylvester_binary_resonant_source(offset):
+    """Reject a matrix equation requiring 0 * X = 1 at occupation 1."""
+    f = FermionOp("f")
+    solve = solve_sylvester_2nd_quant(((offset - NumberOperator(f),), (sympy.S.Zero,)))
+    with pytest.raises(ValueError, match="right-hand side is nonzero"):
+        solve(sympy.Matrix([[1]]), (0, 1, 1))
