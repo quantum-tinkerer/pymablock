@@ -1511,6 +1511,19 @@ class NumberOrderedForm(Operator):
             if any(powers[self._n_inf_order :]):
                 return type(self)(self.operators, {}, validate=False)
 
+        # Positive symbolic bosonic powers are used as selective masks.
+        if not self.is_particle_conserving() and exp.is_integer and exp.is_nonnegative:
+            if len(self.terms) == 1 and not exp.is_Integer:
+                powers, coeff = next(iter(self.terms.items()))
+                if not any(powers[self._n_inf_order :]) and not coeff.has(
+                    *self._number_operator_placeholders
+                ):
+                    return type(self)(
+                        self.operators,
+                        {tuple(power * exp for power in powers): coeff**exp},
+                        validate=False,
+                    )
+
         if not self.is_particle_conserving() and not (
             exp.is_Integer and exp.is_nonnegative
         ):

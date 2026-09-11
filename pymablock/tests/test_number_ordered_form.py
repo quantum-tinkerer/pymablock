@@ -1613,7 +1613,7 @@ def test_number_ordered_form_unsupported_multiplication():
         sympy.Rational(1, 2),
         sympy.I,
         sympy.Symbol("x"),
-        sympy.Symbol("n", integer=True, positive=True),
+        sympy.Symbol("n", integer=True),
     ],
 )
 def test_number_ordered_form_rejects_invalid_operator_powers(op, exponent):
