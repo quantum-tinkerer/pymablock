@@ -2089,3 +2089,32 @@ def test_multiblock_kpm_default_tolerance():
     )
     np.testing.assert_allclose(h[0, 0, 2], [[-0.125, 0], [0, 0]])
     np.testing.assert_allclose(h[1, 1, 2], [[0.125, 0], [0, 0]])
+
+
+@pytest.mark.parametrize("offset", [0.0, 1e6, -1e6])
+@pytest.mark.parametrize("as_sparse", [False, True])
+def test_sylvester_invariant_under_energy_shift(offset, as_sparse):
+    solve = solve_sylvester_diagonal((np.array([offset]), np.array([offset + 2.0])))
+    source = sparse.csr_array([[1.0]]) if as_sparse else np.array([[1.0]])
+    result = solve(source, (0, 1))
+    if as_sparse:
+        result = result.toarray()
+    np.testing.assert_allclose(result, [[-0.5]])
+
+
+@pytest.mark.parametrize("gap", [0.0, 0.5e-4, 1e-4, 2e-4])
+def test_sylvester_uses_requested_absolute_tolerance(gap):
+    solve = solve_sylvester_diagonal((np.array([0.0]), np.array([gap])), atol=1e-4)
+    if gap <= 1e-4:
+        with pytest.raises(ValueError, match="must not share eigenvalues"):
+            solve(np.ones((1, 1)), (0, 1))
+    else:
+        np.testing.assert_allclose(solve(np.ones((1, 1)), (0, 1)), [[-1 / gap]])
+
+
+def test_symbolic_sylvester_uses_exact_degeneracy():
+    gap = sympy.Rational(1, 10**6)
+    solve = solve_sylvester_diagonal(
+        (np.array([sympy.S.Zero], dtype=object), np.array([gap], dtype=object)), atol=1
+    )
+    assert solve(sympy.ones(1, 1), (0, 1)) == sympy.Matrix([[-1 / gap]])

@@ -919,9 +919,13 @@ def solve_sylvester_diagonal(
         eigs_A, eigs_B = eigs[index[0]], eigs[index[1]]
 
         if index[0] != index[1] and index[:2] not in index_checked:
-            compare = np.equal if isinstance(Y, sympy.MatrixBase) else np.isclose
-
-            if np.any(compare(eigs_A.reshape(-1, 1), eigs_B.reshape(1, -1))):
+            differences = eigs_A.reshape(-1, 1) - eigs_B.reshape(1, -1)
+            shared = (
+                differences == 0
+                if isinstance(Y, sympy.MatrixBase)
+                else np.abs(differences) <= atol
+            )
+            if np.any(shared):
                 raise ValueError("The subspaces must not share eigenvalues.")
             index_checked.add(index[:2])
 
