@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject invalid powers of unmatched operators in `NumberOrderedForm` immediately; non-negative integer powers and existing positive symbolic bosonic masks remain supported.
 - Fixed multiplication of `NumberOrderedForm` by Python scalar numbers on the right.
 - Fixed multi-block KPM failing when no explicit solver tolerance is supplied.
 - Fixed second-quantized Sylvester equations with zero diagonal blocks, including rectangular right-hand sides.

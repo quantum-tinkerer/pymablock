@@ -1600,3 +1600,37 @@ def test_number_ordered_form_python_scalar_multiplication(scalar):
 def test_number_ordered_form_unsupported_multiplication():
     form = NumberOrderedForm.from_expr(1)
     assert form.__mul__(object()) is NotImplemented
+
+
+@pytest.mark.parametrize(
+    "op",
+    [boson.BosonOp("a"), fermion.FermionOp("f"), pauli.SigmaMinus("s"), LadderOp("l")],
+)
+@pytest.mark.parametrize(
+    "exponent",
+    [
+        -1,
+        sympy.Rational(1, 2),
+        sympy.I,
+        sympy.Symbol("x"),
+        sympy.Symbol("n", integer=True),
+    ],
+)
+def test_number_ordered_form_rejects_invalid_operator_powers(op, exponent):
+    form = NumberOrderedForm.from_expr(op)
+    with pytest.raises(ValueError, match="non-negative integer"):
+        form**exponent
+
+
+@pytest.mark.parametrize(
+    "op",
+    [boson.BosonOp("a"), fermion.FermionOp("f"), pauli.SigmaMinus("s"), LadderOp("l")],
+)
+def test_number_ordered_form_valid_operator_powers(op):
+    form = NumberOrderedForm.from_expr(op)
+    assert form**0 == 1
+    assert form**1 == form
+    assert form**2 == form * form
+    scalar = NumberOrderedForm.from_expr(sympy.Symbol("x", positive=True))
+    assert (scalar**-1).as_expr() == 1 / scalar.as_expr()
+    assert (scalar ** sympy.Rational(1, 2)).as_expr() == sympy.sqrt(scalar.as_expr())
