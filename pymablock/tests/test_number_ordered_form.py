@@ -1465,3 +1465,14 @@ def test_multimode_fermion_product_matches_symbolic_ordering():
     )
 
     assert product == reference
+
+
+@pytest.mark.parametrize("operator", [fermion.FermionOp("a"), pauli.SigmaMinus("a")])
+def test_binary_annihilation_creation_coefficient(operator):
+    """Check ((x + y*N)*a)*a† = x*(1-N), with no contribution from y."""
+    number = NumberOperator(operator)
+    x, y = sympy.symbols("x y")
+    left = NumberOrderedForm.from_expr((x + y * number) * operator)
+    product = left * operator.adjoint()
+    expected = NumberOrderedForm.from_expr(x * (1 - number))
+    assert product.simplify() == expected.simplify()

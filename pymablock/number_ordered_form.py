@@ -1003,8 +1003,9 @@ class NumberOrderedForm(Operator):
                         # c† * c = n_c
                         coeff = n_operator * coeff
                 else:
-                    # Creation operator, n_c * c† = c†
-                    coeff = coeff.xreplace({n_operator: One})
+                    # For an existing annihilation operator, f(n)*c*c† = f(0)*(1-n).
+                    # Otherwise, f(n)*c† = c†*f(1).
+                    coeff = coeff.xreplace({n_operator: Zero if orig_power else One})
                     if orig_power:
                         # c * c† = 1 - n_c
                         coeff = (One - n_operator) * coeff
