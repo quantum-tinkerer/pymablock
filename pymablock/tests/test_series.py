@@ -49,6 +49,37 @@ def test_indexing(possible_keys_and_errors: tuple[tuple[tuple[int, ...]], Any]) 
         assert isinstance(e, shape)
 
 
+@pytest.mark.parametrize(
+    "order",
+    [
+        -1,
+        -2,
+        np.int64(-1),
+        [-1],
+        [0, -1, 2],
+        slice(-1, 3),
+        slice(None, -1),
+        slice(None, np.int64(-1)),
+    ],
+)
+@pytest.mark.parametrize("axis", [0, 1])
+def test_negative_orders(order, axis):
+    series = BlockSeries(
+        lambda *_index: pytest.fail("Invalid order evaluated"), shape=(1, 1), n_infinite=2
+    )
+    orders = [0, 0]
+    orders[axis] = order
+    with pytest.raises(IndexError, match="Cannot evaluate negative order"):
+        series[0, 0, *orders]
+
+
+def test_nonnegative_orders_and_negative_block_indices():
+    series = BlockSeries(lambda _i, _j, n: n + 1, shape=(1, 1), n_infinite=1)
+    assert series[-1, -1, 0] == 1
+    np.testing.assert_array_equal(series[-1, -1, [2, 0, 1]], [3, 1, 2])
+    np.testing.assert_array_equal(series[-1, -1, :3], [1, 2, 3])
+
+
 def test_infinite_views():
     test = BlockSeries(lambda *x: x, data=None, shape=(3, 3, 3), n_infinite=2)
     np.testing.assert_equal(

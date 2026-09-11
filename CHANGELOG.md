@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed incorrect shifts of number-dependent coefficients when multiplying boson and ladder expressions by creation operators.
 - Fixed nondeterministic perturbation indices for SymPy input without explicit `symbols` by sorting inferred symbols by name.
 - Reject distinct symbols with the same name and different assumptions in symbolic input, including when `symbols` is supplied explicitly.
+- Fixed `BlockSeries` accepting negative perturbative orders, which now raise `IndexError` instead of potentially returning an incorrect term.
 - Made randomized tests reproducible with pytest-randomly without using NumPy's legacy global random number generator.
 
 ### Added
