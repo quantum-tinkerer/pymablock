@@ -998,8 +998,10 @@ def solve_sylvester_KPM(
     if solver_options is None:
         solver_options = {}
 
-    aux_vectors = solver_options.get("auxiliary_vectors", np.zeros((h_0.shape[0], 0)))
-    subspace_eigenvectors = (*subspace_eigenvectors, aux_vectors)
+    auxiliary_vectors = solver_options.get(
+        "auxiliary_vectors", np.zeros((h_0.shape[0], 0))
+    )
+    subspace_eigenvectors = (*subspace_eigenvectors, auxiliary_vectors)
     eigs = [
         (Dagger(eigenvectors) @ h_0 @ eigenvectors).diagonal()
         for eigenvectors in subspace_eigenvectors

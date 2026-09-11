@@ -947,7 +947,7 @@ def test_solve_sylvester_kpm_vs_diagonal(rng) -> None:
     diagonal = solve_sylvester_diagonal((eigvals[:a_dim], eigvals[a_dim:]), eigvecs_rest)
     kpm = solve_sylvester_KPM(h, [eigvecs], solver_options={"atol": 1e-3})
     hybrid = solve_sylvester_KPM(
-        h, [eigvecs], solver_options={"atol": 1e-3, "aux_vectors": eigvecs_partial}
+        h, [eigvecs], solver_options={"atol": 1e-3, "auxiliary_vectors": eigvecs_partial}
     )
 
     y = rng.standard_normal(size=(a_dim, n - a_dim)) + 1j * rng.standard_normal(
@@ -1915,7 +1915,7 @@ def test_multiblock_kpm_auxiliary(wanted_orders, rng):
         direct_solver=False,
         # We have all vectors as auxiliary vectors to avoid the problem with
         # the KPM convergence
-        solver_options={"atol": 1e-6, "aux_vectors": np.eye(N)[:, 4:]},
+        solver_options={"atol": 1e-6, "auxiliary_vectors": np.eye(N)[:, 4:]},
     )
     H_tilde_full, *_ = block_diagonalize([H_0, *H_ps], subspace_indices=np.arange(6) // 2)
     compare_series(H_tilde_implicit[0, 0], H_tilde_full[0, 0], wanted_orders, atol=1e-3)
@@ -1939,7 +1939,7 @@ def test_block_diagonalize_filters_direct_solver_options(monkeypatch):
         subspace_eigenvectors=[explicit_vectors],
         solver_options={
             "eigenvalue_atol": 1e-6,
-            "aux_vectors": np.eye(4)[:, 2:],
+            "auxiliary_vectors": np.eye(4)[:, 2:],
         },
     )
 
@@ -2052,3 +2052,27 @@ def test_only_H_0():
         [np.diag(np.arange(5))],
         subspace_eigenvectors=(np.eye(5)[:, :3], np.eye(5)[:, 3:]),
     )
+
+
+def test_kpm_auxiliary_vectors_are_used(monkeypatch):
+    import importlib
+
+    module = importlib.import_module("pymablock.block_diagonalization")
+    projected_sources = []
+
+    def check_source(_h, _energy, vector, _atol, _max_moments):
+        projected_sources.append(vector.copy())
+        return np.zeros_like(vector)
+
+    monkeypatch.setattr(module, "greens_function", check_source)
+    h = np.diag(np.arange(6.0))
+    vectors = np.eye(6)
+    options = {"auxiliary_vectors": vectors[:, 1:], "atol": 1e-12}
+    solve = solve_sylvester_KPM(h, [vectors[:, :1]], options)
+    source = np.array([[0.0, 1.0, 2.0, 3.0, 4.0, 5.0]])
+    np.testing.assert_allclose(
+        solve(source, (0, 1)), [[0.0, -1.0, -1.0, -1.0, -1.0, -1.0]]
+    )
+    assert projected_sources
+    np.testing.assert_allclose(projected_sources, 0, atol=1e-15)
+    assert set(options) == {"auxiliary_vectors", "atol"}
