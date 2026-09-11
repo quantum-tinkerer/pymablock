@@ -21,7 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed symbolic dictionary input with the documented Python integer constant key `1`, without mutating the input mapping.
-
 - Fixed one-block custom Sylvester solvers accessing uninitialized diagonal information during automatic full diagonalization.
 - Made numerical Sylvester degeneracy checks use the supplied absolute tolerance, independent of the common energy offset.
 - Made hashes of equal `NumberOrderedForm` expressions independent of unused operators and stored term order, restoring set and dictionary lookup. Cache the expression hash and avoid repeated sum construction during conversion.
