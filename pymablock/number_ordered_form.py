@@ -804,7 +804,7 @@ class NumberOrderedForm(Operator):
             # If there are no operators, just return the constant term
             return next(iter(self.terms.values())) if self.terms else Zero
 
-        result = Zero
+        terms = []
         reversed_operators = list(reversed(self.operators))
 
         for powers, coeff in self.args[1]:
@@ -823,9 +823,11 @@ class NumberOrderedForm(Operator):
                 # Creation operator (negative power)
                 term = op.adjoint() ** (-power) * term
 
-            result += term
+            terms.append(term)
 
-        return result
+        # Build the sum once: repeated addition repeatedly canonicalizes all
+        # preceding terms, which is costly when this expression is hashed.
+        return sympy.Add(*terms)
 
     def doit(self, **hints) -> sympy.Expr:
         """Evaluate the NumberOrderedForm.
@@ -1374,9 +1376,14 @@ class NumberOrderedForm(Operator):
         """Compute the hash of this NumberOrderedForm."""
         # Equality ignores unused operators and accepts equivalent SymPy
         # expressions, so hash the represented expression rather than args.
-        if self._mhash is None:
-            self._mhash = hash(self.as_expr())
-        return self._mhash
+        # _mhash is the hash cache inherited from sympy.Basic, initialized to
+        # None. As in Basic.__hash__, construct and hash the expression only
+        # on the first call; subsequent calls reuse the cached integer.
+        cached_hash = self._mhash
+        if cached_hash is None:
+            cached_hash = hash(self.as_expr())
+            self._mhash = cached_hash
+        return cached_hash
 
     def _eval_is_zero(self):
         """Check if this NumberOrderedForm is zero.

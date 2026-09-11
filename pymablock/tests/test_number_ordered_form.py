@@ -1682,3 +1682,23 @@ def test_number_ordered_form_hash_term_order_and_zero_coefficients():
     constant = NumberOrderedForm([a, b], {(0, 0): 1})
     assert constant == 1
     assert hash(constant) == hash(1)
+
+
+def test_number_ordered_form_hash_reuses_cached_expression_hash(monkeypatch):
+    a = boson.BosonOp("a")
+    form = NumberOrderedForm.from_expr(1 + a + NumberOperator(a))
+    expected = hash(form.as_expr())
+    convert = NumberOrderedForm.as_expr
+    conversions = []
+
+    def record_conversion(self):
+        conversions.append(id(self))
+        return convert(self)
+
+    monkeypatch.setattr(NumberOrderedForm, "as_expr", record_conversion)
+    assert hash(form) == expected
+    mapping = {form: "found"}
+    assert mapping[form] == "found"
+    assert form in {form}
+    assert hash(form) == expected
+    assert conversions == [id(form)]
