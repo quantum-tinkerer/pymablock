@@ -204,7 +204,8 @@ def H(Ns: np.array, wanted_orders: list[tuple[int, ...]], module_rng) -> BlockSe
     """
     n_infinite = len(wanted_orders)
     orders = np.eye(n_infinite, dtype=int)
-    h_0_AA = np.diag(np.sort(module_rng.random(Ns[0])) - 1)
+    # Keep a gap of at least one to avoid amplifying roundoff at high orders.
+    h_0_AA = np.diag(np.sort(module_rng.random(Ns[0])) - 2)
     h_0_BB = np.diag(np.sort(module_rng.random(Ns[1])))
 
     def matrices_it(N_i, N_j, hermitian):
