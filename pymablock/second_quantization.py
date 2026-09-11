@@ -209,9 +209,12 @@ def solve_sylvester_2nd_quant(
         elements and its ``ValueError`` when the equation has no solution.
 
     """
-    eigs = tuple(
-        [NumberOrderedForm.from_expr(eig) for eig in eig_block] for eig_block in eigs
-    )
+    eigs = [
+        [NumberOrderedForm.from_expr(eig) for eig in eig_block]
+        if np.ndim(eig_block)
+        else []
+        for eig_block in eigs
+    ]
     if any(not eig.is_particle_conserving() for eig_block in eigs for eig in eig_block):
         raise ValueError(
             "The diagonal Hamiltonian blocks must contain only number-conserving expressions."
