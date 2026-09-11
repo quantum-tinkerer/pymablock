@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed second-quantized immutable and sparse SymPy matrices falling through input conversion and producing a misleading error.
 - Fixed symbolic dictionary input with the documented Python integer constant key `1`, without mutating the input mapping.
 - Fixed one-block custom Sylvester solvers accessing uninitialized diagonal information during automatic full diagonalization.
 - Made numerical Sylvester degeneracy checks use the supplied absolute tolerance, independent of the common energy offset.

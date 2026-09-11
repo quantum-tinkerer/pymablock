@@ -848,3 +848,25 @@ def test_nonhermitian_quantized_reconstruction(upper, scalar):
         actual = reconstructed[0, 0, order]
         for i, j in np.ndindex(h0.shape):
             assert sympy.expand(actual[i, j].doit() - expected[i, j].doit()) == 0
+
+
+@pytest.mark.parametrize(
+    "matrix_type",
+    [
+        sympy.Matrix,
+        sympy.ImmutableMatrix,
+        sympy.SparseMatrix,
+        sympy.ImmutableSparseMatrix,
+    ],
+)
+def test_second_quantization_matrix_representations(matrix_type):
+    a = BosonOp("a")
+    w = sympy.Symbol("w", positive=True)
+    g = sympy.Symbol("g", real=True)
+    h0 = matrix_type([[w * NumberOperator(a)]])
+    h1 = matrix_type([[g * (a + Dagger(a))]])
+    result = block_diagonalize([h0, h1])
+    reference = block_diagonalize([sympy.Matrix(h0), sympy.Matrix(h1)])
+    for actual, expected in zip(result, reference):
+        compare_series(actual, expected, (2,))
+    assert (result[0][0, 0, 2][0, 0] + g**2 / w).doit().simplify() == 0
