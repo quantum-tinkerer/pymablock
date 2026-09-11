@@ -126,7 +126,7 @@ def direct_greens_function(
         ctx.set_matrix(
             sparse.coo_array(mat),
             overwrite_a=True,
-            symmetric=not is_complex and not pivot_rows.size,
+            symmetric=not is_complex and (mat != mat.T).nnz == 0,
         )
         ctx.factor()
 

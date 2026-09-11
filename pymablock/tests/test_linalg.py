@@ -199,3 +199,18 @@ def test_direct_greens_function_degenerate_dual_kernels(dtype, rng):
     assert_allclose(solution, expected, atol=1e-12)
     assert_allclose(-h @ solution, source, atol=1e-12)
     assert_allclose(left.conj().T @ solution, 0, atol=1e-12)
+
+
+@pytest.mark.parametrize("dtype", [float, complex])
+@pytest.mark.parametrize("symmetric", [False, True])
+@pytest.mark.parametrize("fallback", [False, True])
+def test_direct_greens_function_matrix_symmetry(dtype, symmetric, fallback, monkeypatch):
+    if fallback:
+        import sys
+
+        monkeypatch.setitem(sys.modules, "mumps", None)
+    h = np.array([[1, 2], [2 if symmetric else 0, 3]], dtype=dtype)
+    source = np.ones(2, dtype=dtype)
+    solution = linalg.direct_greens_function(sparse.csr_array(h), 0.0)(source.copy())
+    assert_allclose(solution, np.linalg.solve(-h, source), atol=1e-14)
+    assert_allclose(-h @ solution, source, atol=1e-14)
