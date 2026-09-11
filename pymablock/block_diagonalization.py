@@ -1363,6 +1363,8 @@ def _symbolic_keys_to_tuples(
         The tuple keys of ``new_hamiltonian`` are ordered according to this list.
 
     """
+    # Normalize Python constants without changing the caller's dictionary.
+    hamiltonian = {sympy.sympify(key): value for key, value in hamiltonian.items()}
     # Collect all symbols from the keys
     symbols = list(set.union(*[key.free_symbols for key in hamiltonian.keys()]))
     symbols = tuple(sorted(symbols, key=lambda s: s.name))
