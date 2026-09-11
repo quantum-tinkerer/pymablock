@@ -1372,7 +1372,11 @@ class NumberOrderedForm(Operator):
 
     def __hash__(self):
         """Compute the hash of this NumberOrderedForm."""
-        return super().__hash__()
+        # Equality ignores unused operators and accepts equivalent SymPy
+        # expressions, so hash the represented expression rather than args.
+        if self._mhash is None:
+            self._mhash = hash(self.as_expr())
+        return self._mhash
 
     def _eval_is_zero(self):
         """Check if this NumberOrderedForm is zero.
