@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed chained and nested custom-algorithm division failing on the zero sentinel by recursively transforming division operands.
 - Fixed nested custom-algorithm callbacks receiving missing or duplicated indices, including diagonal wrappers around off-diagonal expressions.
 - Fixed KPM Green's functions with small moment budgets; positive integer budgets produce an approximation and invalid budgets raise a clear error.
 - Fixed Cauchy products for `BlockSeries` with no perturbation dimensions; these now reduce to ordinary block-matrix products.

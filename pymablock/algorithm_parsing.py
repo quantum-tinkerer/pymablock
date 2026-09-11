@@ -353,7 +353,7 @@ class _DivideTransformer(ast.NodeTransformer):
 
         return ast.Call(
             func=ast.Name(id="_safe_divide", ctx=ast.Load()),
-            args=[node.left, node.right],
+            args=[self.visit(node.left), self.visit(node.right)],
             keywords=[],
         )
 
