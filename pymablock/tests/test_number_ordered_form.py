@@ -1646,3 +1646,59 @@ def test_binary_number_operator_inverse_is_not_idempotent(op):
         result = number**exponent
         assert result == sympy.Pow(number, exponent, evaluate=False)
         assert result != number
+
+
+@pytest.mark.parametrize(
+    "expression",
+    [
+        sympy.S.Zero,
+        sympy.S.One,
+        boson.BosonOp("a"),
+        NumberOperator(boson.BosonOp("a")) + boson.BosonOp("a"),
+    ],
+)
+def test_number_ordered_form_hash_ignores_unused_operators(expression):
+    a, b, c = [boson.BosonOp(name) for name in "abc"]
+    forms = [
+        NumberOrderedForm.from_expr(expression, operators)
+        for operators in [None, [a], [a, b], [a, b, c]]
+    ]
+    for left in forms:
+        for right in forms:
+            assert left == right
+            assert hash(left) == hash(right)
+            assert right in {left}
+            assert {left: "found"}[right] == "found"
+        assert hash(left) == hash(expression)
+
+
+def test_number_ordered_form_hash_term_order_and_zero_coefficients():
+    a, b = [boson.BosonOp(name) for name in "ab"]
+    left = NumberOrderedForm([a, b], {(1, 0): 2, (0, 1): 0, (0, 0): 3})
+    right = NumberOrderedForm([a, b], {(0, 0): 3, (0, 1): 0, (1, 0): 2})
+    assert left == right
+    assert hash(left) == hash(right)
+    assert right in {left}
+    constant = NumberOrderedForm([a, b], {(0, 0): 1})
+    assert constant == 1
+    assert hash(constant) == hash(1)
+
+
+def test_number_ordered_form_hash_reuses_cached_expression_hash(monkeypatch):
+    a = boson.BosonOp("a")
+    form = NumberOrderedForm.from_expr(1 + a + NumberOperator(a))
+    expected = hash(form.as_expr())
+    convert = NumberOrderedForm.as_expr
+    conversions = []
+
+    def record_conversion(self):
+        conversions.append(id(self))
+        return convert(self)
+
+    monkeypatch.setattr(NumberOrderedForm, "as_expr", record_conversion)
+    assert hash(form) == expected
+    mapping = {form: "found"}
+    assert mapping[form] == "found"
+    assert form in {form}
+    assert hash(form) == expected
+    assert conversions == [id(form)]

@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Made hashes of equal `NumberOrderedForm` expressions independent of unused operators and stored term order, restoring set and dictionary lookup. Cache the expression hash and avoid repeated sum construction during conversion.
 - Stopped simplifying inverse and sign-unknown powers of fermion and spin number operators using the positive-power idempotence rule.
 - Fixed MUMPS silently treating real nonsymmetric matrices as symmetric in direct Green's functions.
 - Fixed direct Green's functions with distinct left and right nullspaces by selecting redundant equations and constrained coordinates independently.
