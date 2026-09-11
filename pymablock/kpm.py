@@ -34,7 +34,8 @@ def greens_function(
     atol :
         Accepted precision of the desired result in 2-norm.
     max_moments :
-        Maximum order of KPM expansion to compute.
+        Positive integer maximum order of KPM expansion to compute.
+        Integer-valued floats are also accepted for compatibility.
 
     Returns
     -------
@@ -42,17 +43,18 @@ def greens_function(
         Solution x of (E - H_0) * x = v.
 
     """
-    residue = np.inf
-    num_moments = 10
+    if (
+        isinstance(max_moments, (bool, np.bool_))
+        or not isinstance(max_moments, (int, np.integer, float, np.floating))
+        or not np.isfinite(max_moments)
+        or max_moments <= 0
+        or max_moments != int(max_moments)
+    ):
+        raise ValueError("max_moments must be a positive integer.")
+    max_moments = int(max_moments)
+    num_moments = min(10, max_moments)
 
-    while residue > atol:
-        if num_moments > max_moments:
-            warn(
-                f"KPM expansion did not converge to precision "
-                f"{atol} after {max_moments} moments.",
-                RuntimeWarning,
-            )
-            break
+    while True:
         prefactor = -2 / np.sqrt(1 - energy**2)
         coef = prefactor * np.sin(np.arange(num_moments) * np.arccos(energy))
         coef[0] /= 2
@@ -60,7 +62,16 @@ def greens_function(
 
         sol = sum(vec * c for c, vec in zip(coef, kpm_vectors(hamiltonian, vector)))
         residue = np.linalg.norm((hamiltonian @ sol - energy * sol) + vector)
-        num_moments *= 4
+        if residue <= atol:
+            break
+        if num_moments == max_moments:
+            warn(
+                f"KPM expansion did not converge to precision "
+                f"{atol} after {max_moments} moments.",
+                RuntimeWarning,
+            )
+            break
+        num_moments = min(4 * num_moments, max_moments)
 
     return sol
 
