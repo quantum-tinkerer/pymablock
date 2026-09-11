@@ -1586,3 +1586,17 @@ def test_binary_multiplication_matches_occupation_matrices(operators):
         operator_matrix(left.adjoint(), matrices).toarray(),
         operator_matrix(left, matrices).conj().T.toarray(),
     )
+
+
+@pytest.mark.parametrize("scalar", [0, 2, -3, 0.5, 2 + 3j, sympy.Rational(2, 3)])
+def test_number_ordered_form_python_scalar_multiplication(scalar):
+    a = boson.BosonOp("a")
+    form = NumberOrderedForm.from_expr(a + NumberOperator(a))
+    assert form * scalar == scalar * form
+    expected = sympy.sympify(scalar) * form.as_expr()
+    assert ((form * scalar).as_expr() - expected).expand() == 0
+
+
+def test_number_ordered_form_unsupported_multiplication():
+    form = NumberOrderedForm.from_expr(1)
+    assert form.__mul__(object()) is NotImplemented
