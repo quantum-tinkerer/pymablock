@@ -1036,7 +1036,7 @@ def solve_sylvester_KPM(
 
     vecs_implicit = subspace_eigenvectors[-1]
     solve_sylvester_explicit = solve_sylvester_diagonal(
-        eigs, vecs_implicit, atol=solver_options.get("atol")
+        eigs, vecs_implicit, atol=solver_options.get("atol", 1e-12)
     )
 
     def solve_sylvester(Y: np.ndarray, index: tuple[int]) -> np.ndarray:

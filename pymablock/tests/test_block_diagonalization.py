@@ -2076,3 +2076,16 @@ def test_kpm_auxiliary_vectors_are_used(monkeypatch):
     assert projected_sources
     np.testing.assert_allclose(projected_sources, 0, atol=1e-15)
     assert set(options) == {"auxiliary_vectors", "atol"}
+
+
+def test_multiblock_kpm_default_tolerance():
+    energies = np.arange(6.0)
+    h0 = np.diag(energies)
+    h1 = np.zeros((6, 6))
+    h1[0, 2] = h1[2, 0] = 0.5
+    vectors = [np.eye(6)[:, :2], np.eye(6)[:, 2:4]]
+    h, _, _ = block_diagonalize(
+        [h0, h1], subspace_eigenvectors=vectors, direct_solver=False
+    )
+    np.testing.assert_allclose(h[0, 0, 2], [[-0.125, 0], [0, 0]])
+    np.testing.assert_allclose(h[1, 1, 2], [[0.125, 0], [0, 0]])
