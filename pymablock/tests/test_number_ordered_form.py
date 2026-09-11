@@ -1436,3 +1436,14 @@ def test_is_zero():
     # Test with an empty NumberOrderedForm
     nof_empty = NumberOrderedForm([], {})
     assert nof_empty.is_zero
+
+
+@pytest.mark.parametrize("operator", [boson.BosonOp("a"), LadderOp("a")])
+def test_left_coefficient_with_unpaired_annihilation_operators(operator):
+    """Check (N*a²)*a† = N*(N+2)*a for bosons and N*a for ladder operators."""
+    number = NumberOperator(operator)
+    left = NumberOrderedForm.from_expr(number * operator**2)
+    result = left * operator.adjoint()
+    factor = number + 2 if isinstance(operator, boson.BosonOp) else 1
+    expected = NumberOrderedForm.from_expr(number * factor * operator)
+    assert result.simplify() == expected

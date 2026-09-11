@@ -967,20 +967,21 @@ class NumberOrderedForm(Operator):
                         )
                 else:
                     to_pair = min(-op_power, max(orig_power, 0))
-                    # Create the new number operators from all pairs
+                    # Move unmatched creation operators to the left of the coefficient.
+                    if new_power < 0:
+                        coeff = coeff.xreplace(
+                            {n_operator: n_operator - op_power - to_pair}
+                        )
+                    # Pairing operators produces number factors. Move these factors
+                    # past the unmatched operators to restore number order.
                     if op_index < self._n_bosons:  # Bosons
                         new_numbers = sympy.Mul(
-                            *[n_operator + sympy.S(i) for i in range(1, to_pair + 1)]
+                            *[
+                                n_operator + abs(new_power) + sympy.S(i)
+                                for i in range(1, to_pair + 1)
+                            ]
                         )
                         coeff = coeff * new_numbers
-                    if new_power > 0:
-                        # Bring all unmatched annihilation operators to the right
-                        coeff = coeff.xreplace({n_operator: n_operator + new_power})
-                    else:
-                        # Bring all unmatched creation operators to the left
-                        coeff = coeff.xreplace(
-                            {n_operator: n_operator + sympy.S(-op_power - to_pair)}
-                        )
                 new_terms[new_powers] = coeff
         else:  # Fermions and spins
             if abs(op_power) > One:
