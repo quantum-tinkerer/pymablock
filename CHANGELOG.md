@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed incorrect number-dependent coefficients in products of fermion and spin operators.
 - Fixed extra minus signs in products containing annihilation operators for multiple fermion modes.
 - Fixed incorrect shifts of number-dependent coefficients when multiplying boson and ladder expressions by creation operators.
+- Fixed nondeterministic perturbation indices for SymPy input without explicit `symbols` by sorting inferred symbols by name.
 - Reject distinct symbols with the same name and different assumptions in symbolic input, including when `symbols` is supplied explicitly.
 - Made randomized tests reproducible with pytest-randomly without using NumPy's legacy global random number generator.
 
