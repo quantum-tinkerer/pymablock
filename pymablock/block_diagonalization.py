@@ -1038,7 +1038,7 @@ def solve_sylvester_KPM(
                     energy,
                     vector,
                     solver_options.get("atol", 1e-5),
-                    solver_options.get("max_moments", 1e6),
+                    solver_options.get("max_moments", 1_000_000),
                 )
                 for energy, vector in zip(eigs_rescaled[index[0]], Y_KPM)
             ]

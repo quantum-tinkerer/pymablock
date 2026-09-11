@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed KPM Green's functions with small moment budgets; positive integer budgets produce an approximation and invalid budgets raise a clear error.
 - Fixed Cauchy products for `BlockSeries` with no perturbation dimensions; these now reduce to ordinary block-matrix products.
 - Fixed second-quantized immutable and sparse SymPy matrices falling through input conversion and producing a misleading error.
 - Fixed symbolic dictionary input with the documented Python integer constant key `1`, without mutating the input mapping.
