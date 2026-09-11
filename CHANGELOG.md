@@ -21,7 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed second-quantized Sylvester equations with zero diagonal blocks, including rectangular right-hand sides.
-
 - Corrected the KPM auxiliary-vector option to `auxiliary_vectors` throughout documentation and tests, and verified that auxiliary vectors are used.
 - Corrected the number-operator shifts in the documented boson and ladder multiplication rules.
 - Fixed division by zero in fermion and spin Sylvester equations when both the right-hand side and the energy difference vanish.
