@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed KPM ignoring `aux_vectors`; both documented spellings are accepted, and supplying both raises an error.
+
 - Corrected the number-operator shifts in the documented boson and ladder multiplication rules.
 - Fixed division by zero in fermion and spin Sylvester equations when both the right-hand side and the energy difference vanish.
 - Fixed incorrect number-dependent coefficients in products of fermion and spin operators.

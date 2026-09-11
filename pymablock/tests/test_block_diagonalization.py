@@ -2052,3 +2052,37 @@ def test_only_H_0():
         [np.diag(np.arange(5))],
         subspace_eigenvectors=(np.eye(5)[:, :3], np.eye(5)[:, 3:]),
     )
+
+
+@pytest.mark.parametrize("key", ["aux_vectors", "auxiliary_vectors"])
+def test_kpm_aux_vectors_are_used(key, monkeypatch):
+    import importlib
+
+    module = importlib.import_module("pymablock.block_diagonalization")
+    projected_sources = []
+
+    def check_source(_h, _energy, vector, _atol, _max_moments):
+        projected_sources.append(vector.copy())
+        return np.zeros_like(vector)
+
+    monkeypatch.setattr(module, "greens_function", check_source)
+    h = np.diag(np.arange(6.0))
+    vectors = np.eye(6)
+    options = {key: vectors[:, 1:], "atol": 1e-12}
+    solve = solve_sylvester_KPM(h, [vectors[:, :1]], options)
+    source = np.array([[0.0, 1.0, 2.0, 3.0, 4.0, 5.0]])
+    np.testing.assert_allclose(
+        solve(source, (0, 1)), [[0.0, -1.0, -1.0, -1.0, -1.0, -1.0]]
+    )
+    assert projected_sources
+    np.testing.assert_allclose(projected_sources, 0, atol=1e-15)
+    assert set(options) == {key, "atol"}
+
+
+def test_kpm_aux_vectors_conflicting_aliases():
+    with pytest.raises(ValueError, match="Supply only one"):
+        solve_sylvester_KPM(
+            np.eye(3),
+            [np.eye(3)[:, :1]],
+            {"aux_vectors": np.eye(3)[:, 1:], "auxiliary_vectors": np.eye(3)[:, 1:]},
+        )
