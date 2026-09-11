@@ -239,7 +239,7 @@ class NumberOperator(HermitianOperator):
         """
         if (
             exp.is_integer
-            and exp != 0
+            and exp.is_positive
             and self.args[1].name not in ("BosonOp", "LadderOp")
         ):
             return self  # Fermionic and spin number operators are idempotent.
