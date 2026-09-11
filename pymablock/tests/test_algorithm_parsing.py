@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from pymablock.algorithm_parsing import series_computation
-from pymablock.series import BlockSeries
+from pymablock.series import BlockSeries, zero
 
 
 @pytest.mark.parametrize("evaluated", [False, True])
@@ -56,4 +56,43 @@ def _nested_expression_algorithm():
         start = 0  # noqa: F841
         if offdiagonal:  # noqa: F821
             outer(inner(-"H"))  # noqa: F821
+    return "out"
+
+
+@pytest.mark.parametrize("sentinel", [False, True])
+@pytest.mark.parametrize("kind", ["chained", "parenthesized", "denominator"])
+def test_nested_algorithm_division_preserves_zero(kind, sentinel):
+    source = zero if sentinel else np.array([[1.0, 2.0], [3.0, 4.0]])
+    h = BlockSeries(eval=lambda *_index: source, shape=(1, 1), n_infinite=1)
+    algorithm, factor = {
+        "chained": (_division_chained_algorithm, 1 / 6),
+        "parenthesized": (_division_parenthesized_algorithm, -1 / 6),
+        "denominator": (_division_denominator_algorithm, 1.5),
+    }[kind]
+    result, _ = series_computation({"H": h}, algorithm)
+    actual = result["out"][0, 0, 1]
+    if sentinel:
+        assert actual is zero
+    else:
+        np.testing.assert_allclose(actual, source * factor)
+
+
+def _division_chained_algorithm():
+    with "out":
+        start = 0  # noqa: F841
+        "H" / 2 / 3
+    return "out"
+
+
+def _division_parenthesized_algorithm():
+    with "out":
+        start = 0  # noqa: F841
+        -("H" / 2) / 3
+    return "out"
+
+
+def _division_denominator_algorithm():
+    with "out":
+        start = 0  # noqa: F841
+        "H" / (2 / 3)
     return "out"
