@@ -197,7 +197,13 @@ $$X = (a^\dagger)^n \cdot \frac{f_Y(N)}{H_i(N-n) - H_j(N+m)} \cdot a^m$$
 
 The generalization to multiple modes follows the same pattern: for each mode, apply the appropriate shifts to the Hamiltonian based on the creation and annihilation operators in the perturbation term and find the solution with the same powers of creation and annihilation operators as the right hand side.
 
-The solution for fermions and spins is similar and follows from the multiplication table.
+For fermions and spins, we first combine terms in $Y$ with the same creation and annihilation operators.
+Since $a^\dagger N_a=N_a a=0$, we set $N_a=0$ in the coefficient for each mode that has a creation or annihilation operator.
+We then evaluate the fraction at occupations 0 and 1 for each remaining fermion and spin mode.
+At each choice of occupations, we set the solution coefficient to zero if the numerator is zero, including when the denominator is also zero.
+For example, the equation $N_a X=N_a$ requires $X=1$ at occupation 1 and leaves $X$ undetermined at occupation 0.
+Choosing zero at occupation 0 gives the operator solution $X=N_a$.
+If the numerator is nonzero and the denominator is identically zero, the equation has no solution and the solver raises `ValueError`.
 
 In Pymablock, the {autolink}`~pymablock.second_quantization.solve_sylvester_2nd_quant` function implements this approach.
 

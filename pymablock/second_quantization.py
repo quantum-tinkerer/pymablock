@@ -1,8 +1,4 @@
-"""Second quantization tools.
-
-See number_ordered_form_plan.md for the plan to implement NumberOrderedForm as an
-Operator subclass for better representation of number-ordered expressions.
-"""
+"""Second quantization tools for number-ordered operators."""
 
 from collections.abc import Callable
 
@@ -24,13 +20,57 @@ __all__ = [
 ]
 
 
+def _diagonal_coefficient(expression: NumberOrderedForm | sympy.Expr) -> sympy.Expr:
+    """Return the coefficient of an expression containing only number operators."""
+    if not isinstance(expression, NumberOrderedForm):
+        return sympy.sympify(expression)
+    if not expression.is_particle_conserving():
+        raise ValueError(
+            "Diagonal second-quantized Hamiltonians must contain only number operators."
+        )
+    return next(iter(expression.terms.values()), sympy.S.Zero)
+
+
+def _divide_binary_sectors(
+    numerator: sympy.Expr,
+    denominator: sympy.Expr,
+    variables: tuple[sympy.Symbol, ...],
+) -> sympy.Expr:
+    """Solve denominator * x = numerator at each combination of occupations 0 and 1.
+
+    Choose x = 0 when the numerator is zero, even if the denominator is zero.
+    Raise ValueError when the denominator is zero but the numerator is not.
+    Return an expression in the occupation variables that combines the results.
+    """
+    if numerator.is_zero:
+        return sympy.S.Zero
+    for index, variable in enumerate(variables):
+        if variable not in numerator.free_symbols | denominator.free_symbols:
+            continue
+        samples = [
+            _divide_binary_sectors(
+                numerator.xreplace({variable: value}),
+                denominator.xreplace({variable: value}),
+                variables[index + 1 :],
+            )
+            for value in (sympy.S.Zero, sympy.S.One)
+        ]
+        return samples[0] + variable * (samples[1] - samples[0])
+    if denominator.is_zero:
+        raise ValueError(
+            "Cannot solve the Sylvester equation: the right-hand side is nonzero "
+            "but the energy difference is zero."
+        )
+    return numerator / denominator
+
+
 def solve_scalar(
     Y: sympy.Expr,
     H_ii: sympy.Expr,
     H_jj: sympy.Expr,
     diagonal: bool = False,
 ) -> NumberOrderedForm:
-    """Solve a scalar Sylvester equation with 2nd quantized operators.
+    """Solve ``H_ii * X - X * H_jj = Y`` for the operator ``X``.
 
     `H_ii` and `H_jj` are scalar expressions containing number operators of
     possibly several bosons, fermions, and spin operators.
@@ -41,11 +81,11 @@ def solve_scalar(
     Parameters
     ----------
     Y :
-        Expression with raising and lowering bosonic, fermionic, and spin operators.
+        Right-hand side, expressed using boson, fermion, and spin operators.
     H_ii :
-        Sectors of the unperturbed Hamiltonian.
+        Diagonal block of the unperturbed Hamiltonian.
     H_jj :
-        Sectors of the unperturbed Hamiltonian.
+        Diagonal block of the unperturbed Hamiltonian.
     diagonal : bool
         If True, we're evaluating the diagonal entry of the matrix operator,
         which means that `Y` is Hermitian and `H_ii` and `H_jj` are equal. This
@@ -54,10 +94,17 @@ def solve_scalar(
     Returns
     -------
     NumberOrderedForm
-        Result of the Sylvester equation for 2nd quantized operators.
+        The operator ``X`` satisfying the equation.
 
     Notes
     -----
+    For fermion and spin occupation states, set each solution matrix element
+    to zero when the corresponding right-hand side is zero, even if the energy
+    difference is also zero. For example, solving ``N * X = N`` gives ``X = N``:
+    at occupation 1, X must be 1; at occupation 0, we choose X = 0.
+    Raise ``ValueError`` if the energy difference is identically zero but the
+    right-hand side is nonzero.
+
     See the second quantization documentation for the derivation.
 
     """
@@ -65,7 +112,13 @@ def solve_scalar(
         return sympy.S.Zero
 
     Y = NumberOrderedForm.from_expr(Y)
+    for diagonal_operator in (H_ii, H_jj):
+        if isinstance(diagonal_operator, NumberOrderedForm):
+            Y, _ = Y._combine_operators(diagonal_operator)
     operators = Y.operators
+    H_ii = _diagonal_coefficient(H_ii)
+    H_jj = _diagonal_coefficient(H_jj)
+    binary_numbers = Y._number_operator_placeholders[Y._n_inf_order :]
 
     shifts = Y.terms
     new_shifts = {}
@@ -107,10 +160,19 @@ def solve_scalar(
         else:
             denominator = shifted_H_jj - shifted_H_ii
         # Denominators often simplify because linear powers of bosonic operators cancel.
-        denominator = sympy.collect_const(
-            next(iter((denominator.terms.values()))).simplify()
-        ).doit()  # Not sure why doit is needed here, but it is.
-        new_shifts[shift] = sign * (denominator) ** -sympy.S.One * coeff
+        denominator = sympy.collect_const(denominator.simplify()).doit()
+        # For fermions and spins, a† N = N a = 0. Set N = 0 in the
+        # coefficient when the term contains a† or a for that mode.
+        fixed = {
+            number: sympy.S.Zero
+            for number, power in zip(binary_numbers, shift[Y._n_inf_order :])
+            if power
+        }
+        new_shifts[shift] = _divide_binary_sectors(
+            sign * coeff.xreplace(fixed),
+            denominator.xreplace(fixed),
+            tuple(number for number in binary_numbers if number not in fixed),
+        )
 
     result = (
         NumberOrderedForm(
@@ -142,7 +204,9 @@ def solve_sylvester_2nd_quant(
     Callable
         A function that takes a matrix of operators and a tuple of indices, and
         computes the element-wise solution to the Sylvester equation for those
-        diagonal Hamiltonian blocks.
+        diagonal Hamiltonian blocks. Each entry is computed by ``solve_scalar``,
+        including its choice of zero for undetermined fermion and spin matrix
+        elements and its ``ValueError`` when the equation has no solution.
 
     """
     eigs = tuple(
