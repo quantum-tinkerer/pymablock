@@ -7,6 +7,7 @@ import dataclasses
 import inspect
 from collections import Counter, defaultdict
 from collections.abc import Callable  # noqa: TC003 (sphinx needs unconditional import)
+from copy import deepcopy
 from enum import Enum
 from functools import cache
 from itertools import chain
@@ -130,7 +131,7 @@ class _EvalTransformer(ast.NodeTransformer):
                             ast.Expr(
                                 ast.Call(
                                     ast.Name(id="offdiag", ctx=ast.Load()),
-                                    [node.body[0].value],
+                                    [deepcopy(node.body[0].value)],
                                     [],
                                 )
                             )
@@ -375,6 +376,7 @@ class _FunctionTransformer(ast.NodeTransformer):
         if node.func.id in ["_safe_divide", "_zero_sum"]:
             return self.generic_visit(node)
 
+        self.generic_visit(node)
         return self._visit_series_argument(node)
 
     def _visit_series_argument(self, node: ast.Call) -> ast.AST:
@@ -723,6 +725,10 @@ def series_computation(
       - Function calls. Using ``f("series")`` will call the function ``f`` with the
         series and the block index as arguments. Using ``f(expression)`` will call the
         function with the evaluated expression and block index as arguments.
+        Calls may be nested: ``outer(inner("H"))`` passes the whole series and
+        index to ``inner``, then its result and the same index to ``outer``.
+        In ``outer(inner(-"H"))``, ``inner`` instead receives the evaluated
+        negative coefficient and the index.
 
     - ``if <condition>:`` differentiates evaluation based on the requested index.
       Allowed conditions are:
