@@ -164,7 +164,8 @@ def block_diagonalize(
         Symbols that label the perturbative parameters of a symbolic
         Hamiltonian. The order of the symbols is mapped to the indices of the
         Hamiltonian, see `~pymablock.series.BlockSeries`. If None, the
-        perturbative parameters are taken from the input Hamiltonian.
+        perturbative parameters are taken from the input Hamiltonian and sorted by name.
+        Distinct symbols with the same name are not allowed, even with explicit symbols.
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used
         to validate that the unperturbed Hamiltonian is block-diagonal.
@@ -719,7 +720,8 @@ def operator_to_BlockSeries(
         Symbols that label the perturbative parameters of a symbolic operator. The order
         of the symbols is mapped to the indices of the operator, see
         `~pymablock.series.BlockSeries`. If None, the perturbative parameters are taken
-        from the unperturbed operator.
+        from the input operator and sorted by name.
+        Distinct symbols with the same name are not allowed, even with explicit symbols.
     atol :
         Absolute tolerance to consider matrices as exact zeros. This is used to validate
         that the unperturbed operator is block-diagonal.
@@ -1219,6 +1221,33 @@ def solve_sylvester_direct(
 
 
 ### Auxiliary functions.
+def _validate_symbol_names(operator, symbols=()):
+    """Reject distinct symbols with the same name in symbolic input."""
+    by_name = {}
+
+    def visit(value):
+        if isinstance(value, (sympy.Basic, sympy.MatrixBase)):
+            for symbol in value.free_symbols:
+                if not isinstance(symbol, sympy.Symbol):
+                    continue
+                previous = by_name.setdefault(symbol.name, symbol)
+                if previous != symbol:
+                    raise ValueError(
+                        f"Distinct symbols share the name {symbol.name!r}. "
+                        "Use unique names for symbols with different assumptions."
+                    )
+        elif isinstance(value, dict):
+            for key, term in value.items():
+                visit(key)
+                visit(term)
+        elif isinstance(value, (list, tuple)):
+            for term in value:
+                visit(term)
+
+    visit(operator)
+    visit(symbols)
+
+
 def _list_to_dict(operator: list[Any]) -> dict[int, Any]:
     """Convert a list of perturbations to a dictionary.
 
@@ -1277,6 +1306,7 @@ def _dict_to_BlockSeries(
     operator : `~pymablock.series.BlockSeries`
 
     """
+    _validate_symbol_names(operator, symbols)
     operator = copy(operator)
     key_types = set(isinstance(key, sympy.Basic) for key in operator.keys())
     if any(key_types):
@@ -1327,7 +1357,7 @@ def _symbolic_keys_to_tuples(
     """
     # Collect all symbols from the keys
     symbols = list(set.union(*[key.free_symbols for key in hamiltonian.keys()]))
-    symbols = tuple(sorted(symbols, key=lambda x: x.name))
+    symbols = tuple(sorted(symbols, key=lambda s: s.name))
     if not all(symbol.is_commutative for symbol in symbols):
         raise ValueError("All symbols must be commutative.")
 
@@ -1355,7 +1385,7 @@ def _sympy_to_BlockSeries(
     symbols :
         List of symbols that are the perturbative coefficients.
         If None, all symbols in the Hamiltonian are assumed to be perturbative
-        coefficients.
+        coefficients, sorted by name.
     check_hermitian :
         Whether to check if the operator is Hermitian.
 
@@ -1364,8 +1394,9 @@ def _sympy_to_BlockSeries(
     operator : `~pymablock.series.BlockSeries`
 
     """
+    _validate_symbol_names(operator, symbols)
     if not symbols:
-        symbols = tuple(list(operator.free_symbols))  # All symbols are perturbative
+        symbols = tuple(sorted(operator.free_symbols, key=lambda s: s.name))
     if any(n not in operator.free_symbols for n in symbols):
         raise ValueError("Not all perturbative parameters are in `hamiltonian`.")
 

@@ -1,4 +1,7 @@
 import operator
+import os
+import subprocess
+import sys
 import tracemalloc
 import warnings
 from collections import Counter
@@ -1207,6 +1210,74 @@ def test_zero_h_0(rng):
         [[term[:2, :2], term[2:, :2]], [term[:2, :2], term[2:, 2:]]] for term in h
     ]
     block_diagonalize(h_blocked)[0][:, :, 3]
+
+
+@pytest.mark.parametrize("explicit_symbols", [None, "both", "one"])
+@pytest.mark.parametrize("input_kind", ["matrix", "dict", "tuple_dict", "list", "blocks"])
+def test_reject_same_name_symbols(input_kind, explicit_symbols):
+    x_real, x_any = sympy.Symbol("x", real=True), sympy.Symbol("x")
+    h_0 = sympy.diag(1, 2)
+    h_real, h_any = sympy.diag(x_real, 0), sympy.diag(0, x_any)
+    inputs = {
+        "matrix": h_0 + h_real + h_any,
+        "dict": {sympy.S.One: h_0, x_real: h_real, x_any: h_any},
+        "tuple_dict": {(0,): h_0, (1,): h_real, (2,): h_any},
+        "list": [h_0, h_real, h_any],
+        "blocks": [
+            [[sympy.Matrix([[1 + x_real]]), zero], [zero, sympy.Matrix([[2 + x_any]])]]
+        ],
+    }
+    symbols = {None: None, "both": [x_any, x_real], "one": [x_real]}[explicit_symbols]
+    for convert in (block_diagonalize, operator_to_BlockSeries):
+        with pytest.raises(ValueError, match="Distinct symbols share the name 'x'"):
+            convert(inputs[input_kind], symbols=symbols)
+
+
+def test_repeated_symbol_is_allowed():
+    x = sympy.Symbol("x", real=True)
+    H = sympy.diag(1 + x, 2 - sympy.Symbol("x", real=True))
+    H_tilde, *_ = block_diagonalize(H, subspace_indices=[0, 1])
+    assert H_tilde[0, 0, 1] == sympy.Matrix([[x]])
+    assert H_tilde[1, 1, 1] == sympy.Matrix([[-x]])
+
+
+@pytest.mark.parametrize("hash_seed", [0, 1, 3, 7])
+def test_inferred_symbol_order(hash_seed):
+    # Hash randomization is initialized at startup, so use a fresh interpreter.
+    code = """
+import sympy
+from pymablock import block_diagonalize
+from pymablock.block_diagonalization import _sympy_to_BlockSeries
+from pymablock.series import zero
+
+x, y, z = sympy.symbols('x y z', real=True)
+assert _sympy_to_BlockSeries(sympy.diag(z, y, x)).dimension_names == (x, y, z)
+H = sympy.Matrix([[1 + y, x], [x, 2 - y]])
+H_dict = {
+    sympy.S.One: sympy.diag(1, 2),
+    y: sympy.diag(y, -y),
+    x: sympy.Matrix([[0, x], [x, 0]]),
+}
+for hamiltonian in (H, H_dict):
+    H_tilde, *_ = block_diagonalize(hamiltonian, subspace_indices=[0, 1])
+    assert H_tilde[0, 0, 1, 0] is zero
+    assert H_tilde[0, 0, 0, 1] == sympy.Matrix([[y]])
+    assert H_tilde[0, 0, 2, 0] == sympy.Matrix([[-x**2]])
+
+H_tilde, *_ = block_diagonalize(H, symbols=[y, x], subspace_indices=[0, 1])
+assert H_tilde[0, 0, 1, 0] == sympy.Matrix([[y]])
+assert H_tilde[0, 0, 0, 1] is zero
+assert H_tilde[0, 0, 0, 2] == sympy.Matrix([[-x**2]])
+
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        env={**os.environ, "PYTHONHASHSEED": str(hash_seed)},
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_single_symbol_input():
