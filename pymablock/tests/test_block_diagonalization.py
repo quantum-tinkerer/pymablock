@@ -1209,6 +1209,35 @@ def test_zero_h_0(rng):
     block_diagonalize(h_blocked)[0][:, :, 3]
 
 
+@pytest.mark.parametrize("explicit_symbols", [None, "both", "one"])
+@pytest.mark.parametrize("input_kind", ["matrix", "dict", "tuple_dict", "list", "blocks"])
+def test_reject_same_name_symbols(input_kind, explicit_symbols):
+    x_real, x_any = sympy.Symbol("x", real=True), sympy.Symbol("x")
+    h_0 = sympy.diag(1, 2)
+    h_real, h_any = sympy.diag(x_real, 0), sympy.diag(0, x_any)
+    inputs = {
+        "matrix": h_0 + h_real + h_any,
+        "dict": {sympy.S.One: h_0, x_real: h_real, x_any: h_any},
+        "tuple_dict": {(0,): h_0, (1,): h_real, (2,): h_any},
+        "list": [h_0, h_real, h_any],
+        "blocks": [
+            [[sympy.Matrix([[1 + x_real]]), zero], [zero, sympy.Matrix([[2 + x_any]])]]
+        ],
+    }
+    symbols = {None: None, "both": [x_any, x_real], "one": [x_real]}[explicit_symbols]
+    for convert in (block_diagonalize, operator_to_BlockSeries):
+        with pytest.raises(ValueError, match="Distinct symbols share the name 'x'"):
+            convert(inputs[input_kind], symbols=symbols)
+
+
+def test_repeated_symbol_is_allowed():
+    x = sympy.Symbol("x", real=True)
+    H = sympy.diag(1 + x, 2 - sympy.Symbol("x", real=True))
+    H_tilde, *_ = block_diagonalize(H, subspace_indices=[0, 1])
+    assert H_tilde[0, 0, 1] == sympy.Matrix([[x]])
+    assert H_tilde[1, 1, 1] == sympy.Matrix([[-x]])
+
+
 def test_single_symbol_input():
     """
     Test that the algorithm works with a single symbol as input.
