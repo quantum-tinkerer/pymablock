@@ -1270,8 +1270,6 @@ class NumberOrderedForm(Operator):
 
         """
         if not isinstance(other, NumberOrderedForm):
-            if other.is_commutative:
-                pass
             try:
                 other = NumberOrderedForm.from_expr(sympy.sympify(other))
             except Exception:
