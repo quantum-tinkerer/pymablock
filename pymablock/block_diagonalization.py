@@ -355,9 +355,12 @@ def block_diagonalize(
     if not nonzero_blocks:
         raise ValueError("The diagonal of the unperturbed Hamiltonian may not be zero.")
 
-    # Check if H_0_diag contains scalar expressions (not matrices). Once again we use
-    # that sympy.MatrixBase is not a subclass of sympy.Expr.
-    scalar_input = any(isinstance(block, sympy.Expr) for block in nonzero_blocks)
+    # Immutable SymPy matrices are also Expr instances, so exclude matrices
+    # explicitly when deciding whether to unwrap scalar output.
+    scalar_input = any(
+        isinstance(block, sympy.Expr) and not isinstance(block, sympy.MatrixBase)
+        for block in nonzero_blocks
+    )
 
     if all(hasattr(H, "__matmul__") for H in nonzero_blocks):
         operator = matmul
@@ -393,10 +396,11 @@ def block_diagonalize(
             if scalar_input and not isinstance(result, sympy.MatrixBase):
                 result = sympy.Matrix([[result]])
 
-            if isinstance(result, sympy.Matrix):
+            if isinstance(result, sympy.MatrixBase):
                 return result.applyfunc(
                     lambda x: NumberOrderedForm.from_expr(x, operators)
                 )
+            raise TypeError(f"Unsupported second-quantized block type: {type(result)}")
 
         H = BlockSeries(
             eval=H_eval,
