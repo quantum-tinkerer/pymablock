@@ -284,6 +284,81 @@ def test_equality():
     assert nof1 == sympy.S.One
 
 
+def test_packed_equality_with_unused_modes(monkeypatch):
+    """Equal packed forms need no symbolic number-factor reconstruction."""
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    expression = 1 + NumberOperator(f) + f
+    left = NumberOrderedForm.from_expr(expression, operators=[f])
+    right = NumberOrderedForm.from_expr(expression, operators=[f, g])
+
+    def no_decoding(_self):
+        raise AssertionError("Equality unnecessarily decoded packed terms")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(NumberOrderedForm, "terms", property(no_decoding))
+        assert left == right
+    assert hash(left) == hash(right)
+    assert left != NumberOrderedForm.from_expr(expression + NumberOperator(g))
+
+
+@pytest.mark.parametrize("keep", [False, True])
+@pytest.mark.parametrize("selection", ["exact", "symbolic", "diagonal", "empty"])
+def test_filter_mixed_packed_terms(keep, selection):
+    """Filtering keeps number factors and the signs of two-fermion transitions."""
+    a = boson.BosonOp("a")
+    s = pauli.SigmaMinus("s")
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    transition = a**2 * (1 + NumberOperator(s)) * f * g
+    diagonal = 3 + NumberOperator(f)
+    expression = transition + Dagger(a) * Dagger(g) * Dagger(f) + diagonal
+    nof = NumberOrderedForm.from_expr(expression)
+    powers = {a: 2, s: 0, f: 1, g: 1}
+    if selection == "symbolic":
+        powers[a] = 1 + sympy.Symbol("n", integer=True, positive=True)
+    elif selection == "diagonal":
+        powers = dict.fromkeys(nof.operators, 0)
+    conditions = (
+        ()
+        if selection == "empty"
+        else (tuple(sympy.sympify(powers[op]) for op in nof.operators),)
+    )
+    selected = {
+        "exact": transition,
+        "symbolic": transition,
+        "diagonal": diagonal,
+        "empty": sympy.S.Zero,
+    }[selection]
+    expected = selected if keep else expression - selected
+    matrices = occupation_matrices([a, s, f, g], [range(4), range(2), range(2), range(2)])
+    result = nof.filter_terms(conditions, keep=keep)
+    np.testing.assert_allclose(
+        operator_matrix(result, matrices).toarray(),
+        operator_matrix(expected.expand(), matrices).toarray(),
+    )
+
+
+@pytest.mark.parametrize("replacement", ["zero", "scalar", "occupation", "number"])
+def test_substitution_with_packed_number_factors(replacement):
+    """Scalar substitutions and number substitutions preserve the represented matrix."""
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    x = sympy.Symbol("x")
+    nf, ng = NumberOperator(f), NumberOperator(g)
+    expression = (x + ng) * f + x * nf
+    old, new = {
+        "zero": (x, 0),
+        "scalar": (x, 2),
+        "occupation": (ng, 1),
+        "number": (x, nf),
+    }[replacement]
+    result = NumberOrderedForm.from_expr(expression).subs(old, new).subs(x, 2)
+    expected = expression.subs(old, new).subs(x, 2)
+    matrices = occupation_matrices([f, g], [range(2), range(2)])
+    np.testing.assert_allclose(
+        operator_matrix(result, matrices).toarray(),
+        operator_matrix(expected, matrices).toarray(),
+    )
+
+
 def test_from_expr():
     """Test creating NumberOrderedForm from expressions."""
     a = boson.BosonOp("a")
@@ -1604,6 +1679,57 @@ def test_number_ordered_form_valid_operator_powers(op):
     scalar = NumberOrderedForm.from_expr(sympy.Symbol("x", positive=True))
     assert (scalar**-1).as_expr() == 1 / scalar.as_expr()
     assert (scalar ** sympy.Rational(1, 2)).as_expr() == sympy.sqrt(scalar.as_expr())
+
+
+@pytest.mark.parametrize("op", [fermion.FermionOp("f"), pauli.SigmaMinus("s")])
+def test_packed_powers_with_number_factors(op, monkeypatch):
+    """Power checks preserve spectator number factors without decoding terms."""
+    g = fermion.FermionOp("g")
+    ng = NumberOperator(g)
+    transition = NumberOrderedForm.from_expr((1 + ng) * op)
+    adjoint_transition = Dagger(transition)
+    expression = (1 + ng) * (op + Dagger(op))
+    form = NumberOrderedForm.from_expr(expression)
+    n = sympy.Symbol("n", integer=True, positive=True)
+
+    def no_decoding(_self):
+        raise AssertionError("Integer powers unnecessarily decoded packed terms")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(NumberOrderedForm, "terms", property(no_decoding))
+        assert not (transition**2)
+        assert not (transition ** (n + 1))
+        assert not (adjoint_transition ** (n + 1))
+        powers = [form**exponent for exponent in range(4)]
+
+    matrices = occupation_matrices([op, g], [range(2), range(2)])
+    reference = operator_matrix(expression, matrices)
+    for exponent, result in enumerate(powers):
+        np.testing.assert_allclose(
+            operator_matrix(result, matrices).toarray(),
+            (reference**exponent).toarray(),
+        )
+
+
+@pytest.mark.parametrize("op", [boson.BosonOp("a"), LadderOp("a")])
+def test_symbolic_power_mask_with_unused_binary_mode(op, monkeypatch):
+    """Symbolic masks use infinite-mode powers and retain unused binary modes."""
+    f = fermion.FermionOp("f")
+    n = sympy.Symbol("n", integer=True, positive=True)
+    form = NumberOrderedForm.from_expr(2 * op**2, operators=[op, f])
+    with_number = NumberOrderedForm.from_expr(NumberOperator(f) * op)
+
+    def no_decoding(_self):
+        raise AssertionError("Symbolic power checks unnecessarily decoded packed terms")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(NumberOrderedForm, "terms", property(no_decoding))
+        result = form**n
+        with pytest.raises(ValueError, match="non-negative integer"):
+            with_number**n
+
+    assert result.operators == form.operators
+    assert result.as_expr() == 2**n * op ** (2 * n)
 
 
 @pytest.mark.parametrize("op", [fermion.FermionOp("f"), pauli.SigmaMinus("s")])

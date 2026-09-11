@@ -23,6 +23,7 @@ from pymablock._packed_binary import (
 )
 from pymablock._packed_nof import (
     anticommuting_mask,
+    binary_powers,
     build_packed_terms,
     pack_terms,
     remap_monomial,
@@ -1376,6 +1377,8 @@ class NumberOrderedForm(Operator):
                 return None  # Let SymPy handle the comparison
         if self.operators != other.operators:
             self, other = self._combine_operators(other)
+        if self.args[1] == other.args[1]:
+            return True
         return self.terms == other.terms
 
     def __hash__(self):
@@ -1495,25 +1498,34 @@ class NumberOrderedForm(Operator):
             return NotImplemented
         exp = sympy.sympify(exp)
 
-        # A single monomial with a binary mode is nilpotent, including for
-        # symbolic integer exponents that are provably greater than one.
-        if exp.is_integer and (exp - 1).is_positive and len(self.terms) == 1:
-            powers = next(iter(self.terms))
-            if any(powers[self._n_inf_order :]):
-                return type(self)(self.operators, {}, validate=False)
+        num_binary = len(self.operators) - self._n_inf_order
+        # Terms with the same creation and annihilation powers are nilpotent
+        # if a binary mode is unpaired, even with different number factors.
+        if num_binary and exp.is_integer and (exp - 1).is_positive:
+            transitions = {
+                (powers, binary_powers(monomial, num_binary))
+                for (powers, monomial), _ in self._packed_terms
+            }
+            if len(transitions) == 1 and any(next(iter(transitions))[1]):
+                return type(self)._from_packed_terms(self.operators, ())
 
         # Positive symbolic bosonic powers are used as selective masks.
-        if not self.is_particle_conserving() and exp.is_integer and exp.is_nonnegative:
-            if len(self.terms) == 1 and not exp.is_Integer:
-                powers, coeff = next(iter(self.terms.items()))
-                if not any(powers[self._n_inf_order :]) and not coeff.has(
-                    *self._number_operator_placeholders
-                ):
-                    return type(self)(
-                        self.operators,
-                        {tuple(power * exp for power in powers): coeff**exp},
-                        validate=False,
-                    )
+        if (
+            exp.is_integer
+            and exp.is_nonnegative
+            and not exp.is_Integer
+            and len(self.args[1]) == 1
+        ):
+            (powers, monomial), coeff = next(iter(self._packed_terms))
+            if (
+                any(powers)
+                and not monomial
+                and not coeff.has(*self._number_operator_placeholders)
+            ):
+                return type(self)._from_packed_terms(
+                    self.operators,
+                    [((tuple(power * exp for power in powers), 0), coeff**exp)],
+                )
 
         if not self.is_particle_conserving() and not (
             exp.is_Integer and exp.is_nonnegative
@@ -1524,10 +1536,9 @@ class NumberOrderedForm(Operator):
             )
 
         if exp == 0:
-            return type(self)(
+            return type(self)._from_packed_terms(
                 self.operators,
-                Tuple(Tuple((Zero,) * len(self.operators), One)),
-                validate=False,
+                [(((Zero,) * self._n_inf_order, 0), One)],
             )
 
         # For integer exponents, convert to repeated multiplication
@@ -1581,6 +1592,16 @@ class NumberOrderedForm(Operator):
         old = old.xreplace(self._number_operator_to_placeholder)
         new = new.xreplace(self._number_operator_to_placeholder)
 
+        # Scalar symbol substitutions leave the packed operator factors intact.
+        if (
+            old.is_Symbol
+            and old.is_commutative
+            and new.is_commutative
+            and not old.has(*self._number_operator_placeholders)
+            and not new.has(NumberOperator, *self._number_operator_placeholders)
+        ):
+            return self.applyfunc(lambda coefficient: coefficient.subs(old, new))
+
         return type(self)(
             self.operators,
             {powers: coeff.subs(old, new) for powers, coeff in self.terms.items()},
@@ -1608,11 +1629,12 @@ class NumberOrderedForm(Operator):
             conditions.
 
         """
-        new_terms = tuple(
-            Tuple(powers, coeff)
-            for powers, coeff in self.terms.items()
-            if not bool(keep)
-            != any(
+        num_binary = len(self.operators) - self._n_inf_order
+        new_terms = []
+        for key, coeff in self._packed_terms:
+            infinite_powers, monomial = key
+            powers = (*infinite_powers, *binary_powers(monomial, num_binary))
+            matches = any(
                 all(
                     # is_zero is False when it is guaranteed that a solution does not
                     # exist. This takes care of e.g. 3 - n, where n is a positive
@@ -1622,8 +1644,9 @@ class NumberOrderedForm(Operator):
                 )
                 for condition in conditions
             )
-        )
-        return type(self)(self.operators, new_terms, validate=False)
+            if matches == bool(keep):
+                new_terms.append((key, coeff))
+        return type(self)._from_packed_terms(self.operators, new_terms)
 
     def _poly_simplify(self) -> "NumberOrderedForm":
         """Simplify a NumberOrderedForm by converting it to polynomials and back.

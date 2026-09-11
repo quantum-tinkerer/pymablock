@@ -51,8 +51,9 @@ class NumberOrderedForm:
 
 The constructor accepts these power tuples for all operator types.
 The `terms` property returns the same view for inspecting expressions and specifying occupation masks.
-Pymablock does not use the decoded view for operator arithmetic.
 Internally, it stores fermions and spin-$1/2$ operators in the packed binary representation described below.
+Addition, multiplication, and adjoints operate directly on this storage.
+Functions of number operators, including inverse powers, and the Sylvester solver use the decoded view.
 
 For example, consider the expression $a^\dagger b + 2$, where $a$ and $b$ are different bosonic modes.
 

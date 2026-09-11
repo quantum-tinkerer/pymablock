@@ -219,6 +219,14 @@ def remap_monomial(
     )
 
 
+def binary_powers(monomial: int, num_modes: int) -> tuple[sympy.Integer, ...]:
+    """Return the public powers, with zero for identity and number factors."""
+    return tuple(
+        sympy.Integer(((monomial >> index) & 1) - ((monomial >> (num_modes + index)) & 1))
+        for index in range(num_modes)
+    )
+
+
 def unpack_terms(
     operators: Sequence,
     n_infinite: int,
@@ -248,14 +256,6 @@ def unpack_terms(
         canonical_code, normalization = canonical
         if canonical_code != monomial:  # pragma: no cover
             raise AssertionError("Packed and NOF canonical monomials disagree")
-        binary_powers = tuple(
-            -sympy.S.One
-            if creators & (1 << index)
-            else sympy.S.One
-            if annihilators & (1 << index)
-            else sympy.S.Zero
-            for index in range(num_binary)
-        )
         coefficient = (
             coefficient
             / normalization
@@ -265,7 +265,7 @@ def unpack_terms(
                 if numbers & (1 << index)
             )
         )
-        powers = (*infinite_powers, *binary_powers)
+        powers = (*infinite_powers, *binary_powers(int(monomial), num_binary))
         result[powers] += coefficient
 
     return {
