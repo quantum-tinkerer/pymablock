@@ -165,3 +165,37 @@ def test_is_diagonal(rng):
     sympy_matrix = sympy.Matrix(array)
     assert not linalg.is_diagonal(sympy_matrix)
     assert linalg.is_diagonal(sympy.Matrix.diag(*sympy_matrix.diagonal()))
+
+
+@pytest.mark.parametrize("fallback", [False, True])
+def test_direct_greens_function_distinct_dual_kernels(fallback, monkeypatch):
+    if fallback:
+        import sys
+
+        monkeypatch.setitem(sys.modules, "mumps", None)
+    h = sparse.csr_array([[0.0, 0.0], [-2.0, 1.0]])
+    right = np.array([[1.0], [2.0]])
+    left = np.array([[1.0], [0.0]])
+    source = np.array([0.0, 1.0])
+    solve = linalg.direct_greens_function(h, 0.0, right, left)
+    solution = solve(source.copy())
+    assert_allclose(solution, [0.0, -1.0])
+    assert_allclose(-h @ solution, source)
+    assert_allclose(left.T @ solution, 0.0, atol=1e-14)
+
+
+@pytest.mark.parametrize("dtype", [float, complex])
+def test_direct_greens_function_degenerate_dual_kernels(dtype, rng):
+    basis = np.eye(6) + 0.2 * rng.normal(size=(6, 6))
+    if dtype is complex:
+        basis = basis + 0.2j * rng.normal(size=(6, 6))
+    inverse = np.linalg.inv(basis)
+    h = sparse.csr_array(basis @ np.diag([0.0, 0.0, 2.0, 3.0, 4.0, 5.0]) @ inverse)
+    right = basis[:, :2]
+    left = inverse.conj().T[:, :2]
+    expected = basis[:, 2:] @ np.arange(1.0, 5.0)
+    source = -h @ expected
+    solution = linalg.direct_greens_function(h, 0.0, right, left)(source.copy())
+    assert_allclose(solution, expected, atol=1e-12)
+    assert_allclose(-h @ solution, source, atol=1e-12)
+    assert_allclose(left.conj().T @ solution, 0, atol=1e-12)

@@ -28,8 +28,11 @@ def _kernel_pivot_rows(kernel_vectors: np.ndarray) -> np.ndarray:
 def _constrain_matrix(
     mat: sparse.sparray | spmatrix,
     pivot_rows: np.ndarray,
+    pivot_columns: np.ndarray | None = None,
 ) -> sparse.csr_array:
-    """Replace selected equations with x[row] = 0 constraints."""
+    """Replace selected equations with x[column] = 0 constraints."""
+    if pivot_columns is None:
+        pivot_columns = pivot_rows
     constrained = sparse.csr_array(mat)
     if pivot_rows.size == 0:
         return constrained
@@ -37,12 +40,11 @@ def _constrain_matrix(
     pivot_mask = np.zeros(constrained.shape[0], dtype=bool)
     pivot_mask[pivot_rows] = True
 
-    # Drop all entries on constrained rows, then add back the diagonal ones
-    # that enforce x[row] = 0 on those rows.
+    # Drop selected equations, then constrain independently chosen coordinates.
     constrained_coo = constrained.tocoo(copy=False)
     keep = ~pivot_mask[constrained_coo.row]
     rows = np.concatenate((constrained_coo.row[keep], pivot_rows))
-    cols = np.concatenate((constrained_coo.col[keep], pivot_rows))
+    cols = np.concatenate((constrained_coo.col[keep], pivot_columns))
     data = np.concatenate(
         (
             constrained_coo.data[keep],
@@ -106,9 +108,12 @@ def direct_greens_function(
             stacklevel=2,
         )
 
-    pivot_rows = _kernel_pivot_rows(kernel_vectors)
+    # Left null vectors identify redundant equations; right null vectors
+    # identify the free solution coordinates.
+    pivot_rows = _kernel_pivot_rows(left_kernel_vectors)
+    pivot_columns = _kernel_pivot_rows(kernel_vectors)
     kernel_projector = ComplementProjector(kernel_vectors, left_kernel_vectors)
-    mat = _constrain_matrix(mat, pivot_rows)
+    mat = _constrain_matrix(mat, pivot_rows, pivot_columns)
 
     is_complex = np.iscomplexobj(mat.data)
     try:
