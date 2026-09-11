@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed multi-block KPM failing when no explicit solver tolerance is supplied.
+
 - Fixed second-quantized Sylvester equations with zero diagonal blocks, including rectangular right-hand sides.
 - Corrected the KPM auxiliary-vector option to `auxiliary_vectors` throughout documentation and tests, and verified that auxiliary vectors are used.
 - Corrected the number-operator shifts in the documented boson and ladder multiplication rules.
