@@ -25,6 +25,8 @@ from pymablock.number_ordered_form import (
     find_operators,
 )
 
+from .second_quantization_helpers import occupation_matrices, operator_matrix
+
 # Here and in other tests we need to convert `NumberOrderedForm` to `Expr` in
 # order to check if it is zero because of https://github.com/sympy/sympy/issues/10728
 
@@ -1368,9 +1370,9 @@ def test_mixed_boson_fermion():
     expr1 = f * a * Dagger(a) * Dagger(f)
     nof1 = NumberOrderedForm.from_expr(expr1)
 
-    # Should maintain bosons and fermions correctly ordered with proper signs
-    # Compare with the expression converted back to normal form
-    assert normal_ordered_form(nof1.as_expr().doit() - nof1.as_expr().doit()) == 0
+    # Bosons commute with fermions, while both local contractions contribute.
+    expected1 = NumberOrderedForm.from_expr((1 + n_a) * (1 - n_f), operators=(a, f))
+    assert nof1 == expected1
 
     # Test that bosonic and fermionic number operators commute
     expr2 = n_a * n_f - n_f * n_a
@@ -1476,3 +1478,111 @@ def test_binary_annihilation_creation_coefficient(operator):
     product = left * operator.adjoint()
     expected = NumberOrderedForm.from_expr(x * (1 - number))
     assert product.simplify() == expected.simplify()
+
+
+@pytest.mark.parametrize(
+    "operators",
+    [
+        (boson.BosonOp("b"),),
+        (LadderOp("l"),),
+        (boson.BosonOp("b"), LadderOp("l")),
+    ],
+    ids=("bosons", "ladders", "mixed"),
+)
+def test_infinite_multiplication_matches_occupation_matrices(operators):
+    """Compare products on states unaffected by truncating the occupation basis."""
+    numbers = [NumberOperator(operator) for operator in operators]
+    x = sympy.Symbol("x")
+    patterns = (
+        (-3, 0, 2),
+        (2, -2, 0),
+        (0, 3, -1),
+        (1, 0, -3),
+        (-1, 2, 1),
+        (0, 0, 0),
+    )
+    powers = [pattern[: len(operators)] for pattern in patterns]
+    left = NumberOrderedForm(
+        operators,
+        {
+            power: (term + 1) * x
+            + sum((i + 1) * number for i, number in enumerate(numbers))
+            for term, power in enumerate(powers)
+        },
+    )
+    right = NumberOrderedForm(
+        operators,
+        {power: term + 2 + sum(numbers) for term, power in enumerate(reversed(powers))},
+    )
+
+    left, right = left.subs(x, 2), right.subs(x, 2)
+    occupations = [
+        np.arange(13) if isinstance(op, boson.BosonOp) else np.arange(-6, 7)
+        for op in operators
+    ]
+    matrices = occupation_matrices(operators, occupations)
+    actual = operator_matrix(left * right, matrices)
+    expected = operator_matrix(left, matrices) @ operator_matrix(right, matrices)
+    # Each factor shifts a mode by at most three. Discard boundary states where
+    # a finite ladder differs from the infinite algebra.
+    interior = np.ones((13,) * len(operators), dtype=bool)
+    for indices in np.indices(interior.shape):
+        interior &= (indices >= 3) & (indices < 10)
+    selected = np.flatnonzero(interior.ravel())
+    np.testing.assert_allclose(
+        actual[selected][:, selected].toarray(),
+        expected[selected][:, selected].toarray(),
+        atol=1e-9,
+    )
+
+
+@pytest.mark.parametrize(
+    "operators",
+    [
+        sympy.symbols("f0:3", cls=fermion.FermionOp),
+        tuple(pauli.SigmaMinus(f"s{i}") for i in range(3)),
+        tuple(pauli.SigmaMinus(f"s{i}") for i in range(2))
+        + sympy.symbols("f0:2", cls=fermion.FermionOp),
+    ],
+    ids=("fermions", "spins", "mixed"),
+)
+def test_binary_multiplication_matches_occupation_matrices(operators):
+    """Check the full finite Hilbert space, including fermionic exchange signs."""
+    numbers = [NumberOperator(operator) for operator in operators]
+    x = sympy.Symbol("x")
+    patterns = ((-1, 0, 1), (1, -1, 0), (0, 1, -1), (1, 0, -1), (0, 0, 0))
+    powers = [
+        tuple(pattern[i % len(pattern)] for i in range(len(operators)))
+        for pattern in patterns
+    ]
+    left = NumberOrderedForm(
+        operators,
+        {
+            power: (term + 1) * x
+            + sum((i + 1) * number for i, number in enumerate(numbers))
+            for term, power in enumerate(powers)
+        },
+    )
+    right = NumberOrderedForm(
+        operators,
+        {
+            power: term
+            + 2
+            + sum(
+                number * numbers[(i + 1) % len(numbers)]
+                for i, number in enumerate(numbers)
+            )
+            for term, power in enumerate(reversed(powers))
+        },
+    )
+
+    left, right = left.subs(x, 2), right.subs(x, 2)
+    matrices = occupation_matrices(operators, [(0, 1)] * len(operators))
+    np.testing.assert_array_equal(
+        operator_matrix(left * right, matrices).toarray(),
+        (operator_matrix(left, matrices) @ operator_matrix(right, matrices)).toarray(),
+    )
+    np.testing.assert_array_equal(
+        operator_matrix(left.adjoint(), matrices).toarray(),
+        operator_matrix(left, matrices).conj().T.toarray(),
+    )
