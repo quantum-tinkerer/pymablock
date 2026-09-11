@@ -984,10 +984,9 @@ def solve_sylvester_KPM(
             Accepted precision of the Green's function result in 2-norm.
         - max_moments: int
             Maximum number of expansion moments of the Green's function.
-        - aux_vectors: np.ndarray
+        - auxiliary_vectors: np.ndarray
             Partial set of eigenvectors of the auxiliary subspace, used to speed up
-            convergence of the KPM solver. ``auxiliary_vectors`` is an alias.
-            Supplying both names is an error.
+            convergence of the KPM solver.
 
     Returns
     -------
@@ -999,13 +998,10 @@ def solve_sylvester_KPM(
     if solver_options is None:
         solver_options = {}
 
-    if "aux_vectors" in solver_options and "auxiliary_vectors" in solver_options:
-        raise ValueError("Supply only one of aux_vectors and auxiliary_vectors.")
-    aux_vectors = solver_options.get(
-        "aux_vectors",
-        solver_options.get("auxiliary_vectors", np.zeros((h_0.shape[0], 0))),
+    auxiliary_vectors = solver_options.get(
+        "auxiliary_vectors", np.zeros((h_0.shape[0], 0))
     )
-    subspace_eigenvectors = (*subspace_eigenvectors, aux_vectors)
+    subspace_eigenvectors = (*subspace_eigenvectors, auxiliary_vectors)
     eigs = [
         (Dagger(eigenvectors) @ h_0 @ eigenvectors).diagonal()
         for eigenvectors in subspace_eigenvectors
