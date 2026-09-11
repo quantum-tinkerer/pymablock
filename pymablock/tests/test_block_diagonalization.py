@@ -2170,3 +2170,28 @@ def test_custom_multiblock_solver_keeps_nondiagonal_blocks(monkeypatch):
     reconstructed = cauchy_dot_product(u, h, u_inv)
     np.testing.assert_allclose(reconstructed[0, 1, 1], coupling, atol=1e-14)
     np.testing.assert_allclose(reconstructed[0, 0, 2], 0, atol=1e-14)
+
+
+def test_symbolic_dictionary_python_constant_key():
+    x, y = sympy.symbols("x y", real=True)
+    h0 = np.diag([1.0, 2.0])
+    hx = np.array([[0.1, 0.2], [0.2, 0.3]])
+    hy = np.diag([0.4, 0.5])
+    source = {1: h0, x: hx, y**2: hy}
+    original_keys = list(source)
+    normalized = {sympy.S.One: h0, x: hx, y**2: hy}
+    actual = block_diagonalize(source, subspace_indices=[0, 1])
+    expected = block_diagonalize(normalized, subspace_indices=[0, 1])
+    for left, right in zip(actual, expected):
+        compare_series(left, right, (2, 2))
+    assert list(source) == original_keys
+    assert type(next(iter(source))) is int
+    assert source[1] is h0
+    np.testing.assert_allclose(actual[0][0, 0, 1, 0], [[0.1]])
+
+
+@pytest.mark.parametrize("key", [2, sympy.Symbol("x") + 1, 2 * sympy.Symbol("x")])
+def test_symbolic_dictionary_invalid_monomials(key):
+    x = sympy.Symbol("x")
+    with pytest.raises(ValueError, match="monomials"):
+        block_diagonalize({1: np.diag([1.0, 2.0]), x: np.eye(2), key: np.eye(2)})
