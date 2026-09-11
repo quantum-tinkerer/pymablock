@@ -797,3 +797,33 @@ def test_sylvester_binary_resonant_source(offset):
     solve = solve_sylvester_2nd_quant(((offset - NumberOperator(f),), (sympy.S.Zero,)))
     with pytest.raises(ValueError, match="right-hand side is nonzero"):
         solve(sympy.Matrix([[1]]), (0, 1, 1))
+
+
+@pytest.mark.parametrize("empty", [(), np.array(0)])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_zero_diagonal_block_sylvester(empty, reverse):
+    a = BosonOp("a")
+    energy = NumberOperator(a) + 3
+    eigs = [empty, (energy,)] if reverse else [(energy,), empty]
+    source = sympy.Matrix([[a, 2 * a]])
+    if reverse:
+        source = source.T
+    solve = solve_sylvester_2nd_quant(eigs)
+    result = solve(source, (0, 1))
+    diagonal = NumberOrderedForm.from_expr(energy)
+    for i, value in enumerate(result):
+        residual = -value * diagonal if reverse else diagonal * value
+        assert (residual - source[i]).as_expr().simplify() == 0
+    assert solve(source, (0, 1)) == result
+
+
+def test_zero_diagonal_block_displacement():
+    a = BosonOp("a")
+    w, delta, g = sympy.symbols("w delta g", positive=True)
+    h0 = sympy.diag(w * NumberOperator(a) + delta, 0)
+    h1 = sympy.Matrix([[0, g * a], [g * Dagger(a), 0]])
+    h, _, _ = block_diagonalize([h0, h1], subspace_indices=[0, 1])
+    n = NumberOperator(a)
+    expected = [g**2 * (n + 1) / (delta + w * n), -(g**2) * n / (delta + w * (n - 1))]
+    for i in range(2):
+        assert (h[i, i, 2][0, 0] - expected[i]).simplify() == 0
