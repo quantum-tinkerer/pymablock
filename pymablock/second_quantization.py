@@ -28,7 +28,7 @@ def _diagonal_coefficient(expression: NumberOrderedForm | sympy.Expr) -> sympy.E
         raise ValueError(
             "Diagonal second-quantized Hamiltonians must contain only number operators."
         )
-    return next(iter(expression.terms.values()), sympy.S.Zero)
+    return expression._diagonal_coefficient()
 
 
 def _divide_binary_sectors(
@@ -118,9 +118,10 @@ def solve_scalar(
     operators = Y.operators
     H_ii = _diagonal_coefficient(H_ii)
     H_jj = _diagonal_coefficient(H_jj)
-    binary_numbers = Y._number_operator_placeholders[Y._n_inf_order :]
+    binary_numbers = Y._layout.binary_placeholders
 
-    # Decoding combines number factors for each transition before division.
+    # Combine terms with the same creation and annihilation powers before
+    # dividing their coefficient.
     shifts = Y.terms
     new_shifts = {}
     for shift, coeff in shifts.items():
@@ -166,7 +167,7 @@ def solve_scalar(
         # coefficient when the term contains a† or a for that mode.
         fixed = {
             number: sympy.S.Zero
-            for number, power in zip(binary_numbers, shift[Y._n_inf_order :])
+            for number, power in zip(binary_numbers, shift[Y._layout.n_boson_ladder :])
             if power
         }
         new_shifts[shift] = _divide_binary_sectors(
@@ -272,8 +273,8 @@ def apply_mask_to_operator(
         Matrix operator containing symbolic expressions with second quantized operators.
     mask :
         A matrix with `~pymablock.number_ordered_form.NumberOrderedForm` elements that
-        define selection criteria. Specifically, the elements of the `operator[i, j]`
-        with powers matching any `mask[i, j].terms` are selected.
+        define selection criteria. Terms in ``operator[i, j]`` with creation and
+        annihilation powers matching any term of ``mask[i, j]`` are selected.
     keep :
         If True (default), keep the terms that satisfy any of the conditions. If False
         discard the terms that satisfy any of the conditions. Used for inverting the
@@ -324,8 +325,6 @@ def apply_mask_to_operator(
                     result[i, j] = value
                 continue
             value = NumberOrderedForm.from_expr(value)
-            value, mask[i, j] = value._combine_operators(mask[i, j])
-            assert isinstance(value, NumberOrderedForm)
-            result[i, j] = value.filter_terms(tuple(mask[i, j].terms), keep)
+            result[i, j] = value.filter_terms(mask[i, j], keep)
 
     return result

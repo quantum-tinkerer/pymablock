@@ -17,6 +17,7 @@ from sympy.physics.quantum import (
 )
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
+import pymablock.number_ordered_form as nof_module
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
@@ -282,6 +283,345 @@ def test_equality():
 
     # Different object type
     assert nof1 == sympy.S.One
+
+
+def test_packed_equality_with_unused_modes(monkeypatch):
+    """Equal packed forms need no symbolic number-factor reconstruction."""
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    expression = 1 + NumberOperator(f) + f
+    left = NumberOrderedForm.from_expr(expression, operators=[f])
+    right = NumberOrderedForm.from_expr(expression, operators=[f, g])
+
+    def no_decoding(_self):
+        raise AssertionError("Equality unnecessarily decoded packed terms")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(NumberOrderedForm, "terms", property(no_decoding))
+        assert left == right
+    assert hash(left) == hash(right)
+    assert left != NumberOrderedForm.from_expr(expression + NumberOperator(g))
+
+
+@pytest.mark.parametrize("keep", [False, True])
+@pytest.mark.parametrize("selection", ["exact", "symbolic", "diagonal", "empty"])
+def test_filter_mixed_packed_terms(keep, selection):
+    """Filtering preserves number factors and signs of products of two fermion operators."""
+    a = boson.BosonOp("a")
+    s = pauli.SigmaMinus("s")
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    selected_term = a**2 * (1 + NumberOperator(s)) * f * g
+    diagonal = 3 + NumberOperator(f)
+    expression = selected_term + Dagger(a) * Dagger(g) * Dagger(f) + diagonal
+    nof = NumberOrderedForm.from_expr(expression)
+    powers = {a: 2, s: 0, f: 1, g: 1}
+    if selection == "symbolic":
+        powers[a] = 1 + sympy.Symbol("n", integer=True, positive=True)
+    elif selection == "diagonal":
+        powers = dict.fromkeys(nof.operators, 0)
+    conditions = (
+        ()
+        if selection == "empty"
+        else (tuple(sympy.sympify(powers[op]) for op in nof.operators),)
+    )
+    selected = {
+        "exact": selected_term,
+        "symbolic": selected_term,
+        "diagonal": diagonal,
+        "empty": sympy.S.Zero,
+    }[selection]
+    expected = selected if keep else expression - selected
+    matrices = occupation_matrices([a, s, f, g], [range(4), range(2), range(2), range(2)])
+    result = nof.filter_terms(conditions, keep=keep)
+    np.testing.assert_allclose(
+        operator_matrix(result, matrices).toarray(),
+        operator_matrix(expected.expand(), matrices).toarray(),
+    )
+
+
+@pytest.mark.parametrize("keep", [False, True])
+@pytest.mark.parametrize("empty", [False, True])
+def test_filter_with_nof_mask_and_different_bases(keep, empty, monkeypatch):
+    """NOF masks align modes and select powers independently of number factors."""
+    a, b = sympy.symbols("a b", cls=boson.BosonOp)
+    s = pauli.SigmaMinus("s")
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    n = sympy.Symbol("n", integer=True, positive=True)
+    selected = a**2 * (1 + NumberOperator(s)) * f * g
+    expression = selected + Dagger(a) * Dagger(g) * Dagger(f) + NumberOperator(f)
+    form = NumberOrderedForm.from_expr(expression)
+    mask_expression = 0 if empty else 7 * a ** (n + 1) * NumberOperator(b) * f * g
+    mask = NumberOrderedForm.from_expr(mask_expression, operators=[a, b, f, g])
+    original_args = form.args, mask.args
+
+    def no_decoding(_self):
+        raise AssertionError("NOF mask filtering decoded public terms")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(NumberOrderedForm, "terms", property(no_decoding))
+        result = form.filter_terms(mask, keep=keep)
+    assert (form.args, mask.args) == original_args
+    expected = sympy.S.Zero if empty else selected
+    if not keep:
+        expected = expression - expected
+    matrices = occupation_matrices(
+        [a, b, s, f, g], [range(4), range(2), range(2), range(2), range(2)]
+    )
+    np.testing.assert_allclose(
+        operator_matrix(result, matrices).toarray(),
+        operator_matrix(expected.expand(), matrices).toarray(),
+    )
+
+
+@pytest.mark.parametrize("replacement", ["zero", "scalar", "occupation", "number"])
+def test_substitution_with_packed_number_factors(replacement):
+    """Scalar substitutions and number substitutions preserve the represented matrix."""
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    x = sympy.Symbol("x")
+    nf, ng = NumberOperator(f), NumberOperator(g)
+    expression = (x + ng) * f + x * nf
+    old, new = {
+        "zero": (x, 0),
+        "scalar": (x, 2),
+        "occupation": (ng, 1),
+        "number": (x, nf),
+    }[replacement]
+    result = NumberOrderedForm.from_expr(expression).subs(old, new).subs(x, 2)
+    expected = expression.subs(old, new).subs(x, 2)
+    matrices = occupation_matrices([f, g], [range(2), range(2)])
+    np.testing.assert_allclose(
+        operator_matrix(result, matrices).toarray(),
+        operator_matrix(expected, matrices).toarray(),
+    )
+
+
+def test_diagonal_functions_and_zero_comparisons_without_terms(monkeypatch):
+    """Diagonal functions and zero checks do not reconstruct public term dictionaries."""
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    nf, ng = NumberOperator(f), NumberOperator(g)
+    diagonal = NumberOrderedForm.from_expr(2 + nf + 3 * ng)
+    empty = NumberOrderedForm.from_expr(0, operators=[f, g])
+    projector = NumberOrderedForm.from_expr(1 - nf)
+    expression = sympy.exp(2 + nf + 3 * ng)
+
+    def no_decoding(_self):
+        raise AssertionError("Unnecessary conversion to public terms")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(NumberOrderedForm, "terms", property(no_decoding))
+        assert empty == 0
+        assert empty != projector
+        assert projector != empty
+        inverse = diagonal**-1
+        exponential = NumberOrderedForm.from_expr(expression)
+
+    for i in (0, 1):
+        for j in (0, 1):
+            occupation = {nf: i, ng: j}
+            assert inverse.as_expr().subs(occupation) == sympy.Rational(1, 2 + i + 3 * j)
+            assert (
+                sympy.simplify(
+                    exponential.as_expr().subs(occupation) - sympy.exp(2 + i + 3 * j)
+                )
+                == 0
+            )
+
+
+@pytest.mark.parametrize("basis", ["scalar", "binary", "mixed"])
+def test_packed_construction_and_sympy_reconstruction(basis, monkeypatch):
+    """Constructing expressions and reconstructing from args preserve occupation matrices."""
+    a, ladder = boson.BosonOp("a"), LadderOp("l")
+    s = pauli.SigmaMinus("s")
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    operators = {"scalar": [], "binary": [s, f, g], "mixed": [a, ladder, s, f, g]}[basis]
+    occupations = [range(4) if op in (a, ladder) else range(2) for op in operators]
+    matrices = occupation_matrices(operators, occupations)
+    expression = sympy.S(3) + sum(
+        NumberOperator(op) + op + Dagger(op) for op in operators
+    )
+    if basis != "scalar":
+        lowering = matrices[s]
+        matrices[pauli.SigmaX("s")] = lowering + lowering.T
+        matrices[pauli.SigmaY("s")] = 1j * (lowering - lowering.T)
+        matrices[pauli.SigmaZ("s")] = (
+            2 * matrices[NumberOperator(s)] - matrices[sympy.S.One]
+        )
+        expression += pauli.SigmaX("s") + 2 * pauli.SigmaY("s") + 3 * pauli.SigmaZ("s")
+        expression += (1 + NumberOperator(s)) * f * g + Dagger(g) * Dagger(f)
+    if basis == "mixed":
+        expression += a**2 + Dagger(ladder) ** 3
+    expected = operator_matrix(expression, matrices).toarray()
+
+    def no_public_conversion(*_args):
+        raise AssertionError(
+            "Constructing individual operators went through public power tuples"
+        )
+
+    with monkeypatch.context() as patch:
+        patch.setattr(nof_module, "pack_terms", no_public_conversion)
+        form = NumberOrderedForm.from_expr(expression, operators=operators)
+        restored = form.func(*form.args)
+        empty = NumberOrderedForm.from_expr(0, operators=operators)
+        restored_empty = empty.func(*empty.args)
+    for result in (form, restored):
+        np.testing.assert_allclose(operator_matrix(result, matrices).toarray(), expected)
+        assert result.args == form.args
+    assert restored_empty.args == empty.args
+    assert not restored_empty
+
+
+@pytest.mark.parametrize("explicit_operators", [False, True])
+def test_construct_sum_with_different_operator_lists(explicit_operators, monkeypatch):
+    """NOFs used as terms of a SymPy Add may have different operator lists."""
+    a = boson.BosonOp("a")
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    left = NumberOrderedForm.from_expr(a * f)
+    right = NumberOrderedForm.from_expr(2 * NumberOperator(g))
+    s = pauli.SigmaMinus("s")
+    h = fermion.FermionOp("h")
+    expression = sympy.Add(left, right, NumberOperator(s), evaluate=False)
+
+    def no_expansion(*_args, **_kwargs):
+        raise AssertionError("Operator discovery expanded an existing NOF")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(NumberOrderedForm, "as_expr", no_expansion)
+        assert find_operators(expression) == [a, s, f, g]
+        result = NumberOrderedForm.from_expr(
+            expression, operators=[s, g, h] if explicit_operators else None
+        )
+    expected_operators = (a, s, f, g, h) if explicit_operators else (a, s, f, g)
+    assert tuple(result.operators) == expected_operators
+    matrices = occupation_matrices(
+        [a, s, f, g, h], [range(3), range(2), range(2), range(2), range(2)]
+    )
+    np.testing.assert_allclose(
+        operator_matrix(result, matrices).toarray(),
+        operator_matrix(
+            a * f + 2 * NumberOperator(g) + NumberOperator(s), matrices
+        ).toarray(),
+    )
+
+
+@pytest.mark.parametrize("input_format", ["dict", "list", "iterator"])
+@pytest.mark.parametrize("empty", [False, True])
+def test_public_constructor_sympy_reconstruction(input_format, empty, monkeypatch):
+    """Public inputs produce reconstructible Expr args, also during xreplace.
+
+    A ``sympy.Tuple`` argument is reserved for the packed storage that SymPy
+    passes back when rebuilding ``func(*args)``.
+    """
+    a, s, f = boson.BosonOp("a"), pauli.SigmaMinus("s"), fermion.FermionOp("f")
+    x = sympy.Symbol("x", real=True)
+    ns, nf = NumberOperator(s), NumberOperator(f)
+    entries = (
+        [((0, 0, 0), 0)]
+        if empty
+        else [((0, 0, 0), (x + 1) * (1 - ns) * nf), ((-1, 1, 0), 2)]
+    )
+    inputs = {
+        "dict": dict(entries),
+        "list": entries,
+        "iterator": iter(entries),
+    }
+    form = NumberOrderedForm([a, s, f], inputs[input_format])
+
+    def no_repacking(*_args, **_kwargs):
+        raise AssertionError("SymPy reconstruction repacked public terms")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(nof_module, "pack_terms", no_repacking)
+        restored = form.func(*form.args)
+        replaced = form.xreplace({x: 2})
+        assert restored.args == form.args
+        assert replaced.func(*replaced.args).args == replaced.args
+    matrices = occupation_matrices([a, s, f], [range(3), range(2), range(2)])
+    expected = sympy.S.Zero if empty else 3 * (1 - ns) * nf + 2 * Dagger(a) * s
+    np.testing.assert_allclose(
+        operator_matrix(replaced, matrices).toarray(),
+        operator_matrix(expected, matrices).toarray(),
+    )
+
+
+def test_xreplace_number_operator_into_coefficient():
+    """Rebuilding from packed args normalizes NumberOperators in coefficients."""
+    a = boson.BosonOp("a")
+    x = sympy.Symbol("x")
+    left = NumberOrderedForm.from_expr(x * a).xreplace({x: NumberOperator(a)})
+    assert left == NumberOrderedForm.from_expr(NumberOperator(a) * a)
+    # N a a†² = a† (N + 1)(N + 2) needs the shift of N in the left coefficient.
+    product = left * NumberOrderedForm.from_expr(Dagger(a) ** 2)
+    expected = NumberOrderedForm.from_expr(
+        Dagger(a) * (NumberOperator(a) + 1) * (NumberOperator(a) + 2)
+    )
+    assert product == expected
+
+
+@pytest.mark.parametrize("operator_type", [fermion.FermionOp, pauli.SigmaMinus])
+@pytest.mark.parametrize("projector", [False, True])
+def test_xreplace_binary_number_operator(operator_type, projector):
+    """Inserted binary occupations obey the same multiplication rules as packed ones."""
+    op = operator_type("a")
+    number = NumberOperator(op)
+    x = sympy.Symbol("x")
+    replacement = 1 - number if projector else number
+    result = NumberOrderedForm.from_expr(x, operators=[op]).xreplace({x: replacement})
+    matrices = occupation_matrices([op], [(0, 1)])
+    expected = operator_matrix(replacement, matrices)
+    assert result.func(*result.args).args == result.args
+    for expression in (op, Dagger(op), number):
+        other = NumberOrderedForm.from_expr(expression)
+        other_matrix = operator_matrix(expression, matrices)
+        np.testing.assert_array_equal(
+            operator_matrix(result * other, matrices).toarray(),
+            (expected @ other_matrix).toarray(),
+        )
+        np.testing.assert_array_equal(
+            operator_matrix(other * result, matrices).toarray(),
+            (other_matrix @ expected).toarray(),
+        )
+
+
+def test_xreplace_binary_numbers_in_mixed_terms():
+    """Repacking preserves signs, existing number factors, and cancellations."""
+    s = pauli.SigmaMinus("s")
+    f, g = sympy.symbols("f g", cls=fermion.FermionOp)
+    x, y = sympy.symbols("x y")
+    ns, nf = map(NumberOperator, (s, f))
+    form = NumberOrderedForm.from_expr(x * ns + y * Dagger(f) * g, operators=[s, f, g])
+    result = form.xreplace({x: (1 - ns) * nf, y: 1 + 2 * ns})
+    expected = Dagger(f) * (1 + 2 * ns) * g
+    matrices = occupation_matrices([s, f, g], [(0, 1)] * 3)
+    np.testing.assert_array_equal(
+        operator_matrix(result, matrices).toarray(),
+        operator_matrix(expected, matrices).toarray(),
+    )
+    other = NumberOrderedForm.from_expr(Dagger(g) * f)
+    np.testing.assert_array_equal(
+        operator_matrix(result * other, matrices).toarray(),
+        (
+            operator_matrix(expected, matrices) @ operator_matrix(Dagger(g) * f, matrices)
+        ).toarray(),
+    )
+    assert result.func(*result.args).args == result.args
+    cancelled = form.xreplace({x: 1 - ns, y: nf})
+    assert not cancelled
+    assert cancelled.func(*cancelled.args).args == cancelled.args
+
+
+def test_zero_binary_product_skips_boson_number_factors(monkeypatch):
+    """Fermionic nilpotence eliminates the term before bosonic coefficient work."""
+    a, f = boson.BosonOp("a"), fermion.FermionOp("f")
+    left = NumberOrderedForm.from_expr((NumberOperator(a) + 1) ** 4 * a * f)
+    right = NumberOrderedForm.from_expr(Dagger(a) * f)
+    matrices = occupation_matrices([a, f], [range(4), range(2)])
+    expected = operator_matrix(left, matrices) @ operator_matrix(right, matrices)
+    assert not expected.nnz
+
+    def no_contractions(*_args):
+        raise AssertionError("A zero binary product reached symbolic contractions")
+
+    monkeypatch.setattr(nof_module, "_boson_number_factors", no_contractions)
+    assert not left * right
 
 
 def test_from_expr():
@@ -1459,7 +1799,7 @@ def test_binary_annihilation_creation_coefficient(operator):
     ],
     ids=("bosons", "ladders", "mixed"),
 )
-def test_infinite_multiplication_matches_occupation_matrices(operators):
+def test_boson_ladder_multiplication_matches_occupation_matrices(operators):
     """Compare products on states unaffected by truncating the occupation basis."""
     numbers = [NumberOperator(operator) for operator in operators]
     x = sympy.Symbol("x")
@@ -1604,6 +1944,57 @@ def test_number_ordered_form_valid_operator_powers(op):
     scalar = NumberOrderedForm.from_expr(sympy.Symbol("x", positive=True))
     assert (scalar**-1).as_expr() == 1 / scalar.as_expr()
     assert (scalar ** sympy.Rational(1, 2)).as_expr() == sympy.sqrt(scalar.as_expr())
+
+
+@pytest.mark.parametrize("op", [fermion.FermionOp("f"), pauli.SigmaMinus("s")])
+def test_packed_powers_with_number_factors(op, monkeypatch):
+    """Power checks preserve number factors on other modes without decoding terms."""
+    g = fermion.FermionOp("g")
+    ng = NumberOperator(g)
+    single_term = NumberOrderedForm.from_expr((1 + ng) * op)
+    adjoint_term = Dagger(single_term)
+    expression = (1 + ng) * (op + Dagger(op))
+    form = NumberOrderedForm.from_expr(expression)
+    n = sympy.Symbol("n", integer=True, positive=True)
+
+    def no_decoding(_self):
+        raise AssertionError("Integer powers unnecessarily decoded packed terms")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(NumberOrderedForm, "terms", property(no_decoding))
+        assert not (single_term**2)
+        assert not (single_term ** (n + 1))
+        assert not (adjoint_term ** (n + 1))
+        powers = [form**exponent for exponent in range(4)]
+
+    matrices = occupation_matrices([op, g], [range(2), range(2)])
+    reference = operator_matrix(expression, matrices)
+    for exponent, result in enumerate(powers):
+        np.testing.assert_allclose(
+            operator_matrix(result, matrices).toarray(),
+            (reference**exponent).toarray(),
+        )
+
+
+@pytest.mark.parametrize("op", [boson.BosonOp("a"), LadderOp("a")])
+def test_symbolic_power_mask_with_unused_binary_mode(op, monkeypatch):
+    """Symbolic masks use boson/ladder powers and retain unused spin and fermion modes."""
+    f = fermion.FermionOp("f")
+    n = sympy.Symbol("n", integer=True, positive=True)
+    form = NumberOrderedForm.from_expr(2 * op**2, operators=[op, f])
+    with_number = NumberOrderedForm.from_expr(NumberOperator(f) * op)
+
+    def no_decoding(_self):
+        raise AssertionError("Symbolic power checks unnecessarily decoded packed terms")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(NumberOrderedForm, "terms", property(no_decoding))
+        result = form**n
+        with pytest.raises(ValueError, match="non-negative integer"):
+            with_number**n
+
+    assert result.operators == form.operators
+    assert result.as_expr() == 2**n * op ** (2 * n)
 
 
 @pytest.mark.parametrize("op", [fermion.FermionOp("f"), pauli.SigmaMinus("s")])

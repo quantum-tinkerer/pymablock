@@ -151,7 +151,7 @@ def test_apply_mask_to_operator():
     )
 
     mask_nof = NumberOrderedForm.from_expr(1)
-    mask = sympy.Matrix([[mask_nof]])
+    mask = sympy.ImmutableMatrix([[mask_nof]])
 
     input = (allowed_matrix + not_allowed_matrix).applyfunc(NumberOrderedForm.from_expr)
     masked_expr = apply_mask_to_operator(input, mask, keep=True)

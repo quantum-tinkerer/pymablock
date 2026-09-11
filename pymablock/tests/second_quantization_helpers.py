@@ -1,4 +1,4 @@
-"""Finite occupation matrices independent of number-ordered arithmetic."""
+"""Occupation matrices and operator actions independent of number-ordered arithmetic."""
 
 import numpy as np
 import sympy
@@ -10,7 +10,7 @@ from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 
 
 def occupation_matrices(operators, occupations):
-    """Build ladder matrices, including Jordan-Wigner strings for fermions."""
+    """Build ladder matrices, including Jordan-Wigner strings for fermion_mask."""
     identities = [sparse.eye(len(values), format="csr") for values in occupations]
     matrices = {}
 
@@ -43,13 +43,33 @@ def occupation_matrices(operators, occupations):
     return matrices
 
 
+def apply_local_factors(factors, state, fermion_mask):
+    """Apply a sequence of local factors to one occupation state, right to left.
+
+    Each (mode, factor) pair denotes annihilation (1), creation (2), or number
+    (3). The fermion mask selects the modes that carry Jordan-Wigner signs.
+    Return the final occupation bits and amplitude, or (None, 0).
+    """
+    sign = 1
+    for mode, factor in reversed(factors):
+        occupied = (state >> mode) & 1
+        if (factor in (1, 3) and not occupied) or (factor == 2 and occupied):
+            return None, 0
+        if factor != 3:
+            if fermion_mask & (1 << mode):
+                preceding = state & ((1 << mode) - 1) & fermion_mask
+                sign *= -1 if preceding.bit_count() % 2 else 1
+            state ^= 1 << mode
+    return state, sign
+
+
 def operator_matrix(expression, matrices):
     """Evaluate a symbolic expression using ordinary matrix arithmetic."""
     if isinstance(expression, NumberOrderedForm):
         expression = expression.as_expr()
     if expression in matrices:
         return matrices[expression]
-    if expression.is_Number:
+    if expression.is_number:
         return complex(expression) * matrices[sympy.S.One]
     if expression.is_Add:
         return sum(operator_matrix(term, matrices) for term in expression.args)

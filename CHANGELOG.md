@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `NumberOrderedForm.filter_terms` accepts another `NumberOrderedForm` as a mask and aligns their operator lists automatically.
+
 ### Deprecated
 
 - Deprecated the ignored `atol` and `eps` arguments of `direct_greens_function`. They will be removed in version 2.4.0.

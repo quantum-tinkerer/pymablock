@@ -51,8 +51,9 @@ class NumberOrderedForm:
 
 The constructor accepts these power tuples for all operator types.
 The `terms` property returns the same view for inspecting expressions and specifying occupation masks.
-Pymablock does not use the decoded view for operator arithmetic.
 Internally, it stores fermions and spin-$1/2$ operators in the packed binary representation described below.
+Addition, multiplication, and adjoints operate directly on this storage.
+Functions of number operators, including inverse powers, and the Sylvester solver use the decoded view.
 
 For example, consider the expression $a^\dagger b + 2$, where $a$ and $b$ are different bosonic modes.
 
@@ -164,7 +165,7 @@ $$f(N_a)=f(0)(1-N_a)+f(1)N_a,$$
 and the resulting identity and number terms are packed separately.
 For several binary modes, applying this identity to each mode gives the corresponding multilinear Boolean expansion.
 
-Multiplication acts directly on the packed integers.
+Multiplication unpacks the stored integer into three disjoint masks marking the modes that carry $a^\dagger$, $N_a$, and $a$, and combines the masks of both factors mode by mode.
 The local hard-core relations $a^2=(a^\dagger)^2=0$ and $aa^\dagger=1-N_a$ either eliminate a product or produce one or two packed monomials.
 Odd factors on different fermion modes contribute the fermionic sign, while operators on different spin modes commute.
 Pymablock records which packed modes are fermionic in a separate mask, so spins and fermions share the same local storage without sharing their exchange statistics.
@@ -241,6 +242,10 @@ In Pymablock, the {autolink}`~pymablock.second_quantization.solve_sylvester_2nd_
 
 When working with second quantized operators in perturbation theory, the goal is often to eliminate specific terms from the Hamiltonian.
 Pymablock provides a format for specifying which terms to keep or eliminate based on the powers of creation and annihilation operators.
+
+For a single `NumberOrderedForm`, use `expression.filter_terms(mask, keep=True)`, where `mask` is another `NumberOrderedForm`.
+The operator lists are aligned automatically; matching uses creation and annihilation powers and ignores the mask's coefficients and number factors.
+Use `keep=False` to discard matching terms instead.
 
 Which operators to eliminate is defined by:
 
