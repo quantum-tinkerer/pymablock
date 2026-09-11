@@ -16,9 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
-
-### Improved
-
 - Reduced the number of matrix products in selective Hermitian diagonalization by evaluating the selected auxiliary directly, and in non-Hermitian diagonalization by exploiting the selected structure of the transformed residual.
 
 ### Fixed
@@ -35,8 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a non-Hermitian similarity-transform algorithm via `block_diagonalize(..., hermitian=False)`, including support for asymmetric selective masks, symbolic inputs, and biorthogonal `subspace_eigenvectors=[(right, left), ...]` in the explicit and implicit direct paths. The implicit KPM solver remains unsupported in the non-Hermitian path.
 
 ## [2.2.1] - 2026-03-09
-
-### Added
 
 ### Changed
 
@@ -82,9 +77,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Auxiliary vectors for the implicit KPM solver should now be passed using `solver_options["aux_vectors"]` rather than as the last entry in `subspace_eigenvectors`.
-
-### Improved
-
 - Further reduced the number of matrix products by around 30% for high orders and down to a guaranteed minimum for 3rd order.
 - Improved the efficiency of the MUMPS solver on real Hamiltonians.
 - Allowed subspaces to have degenerate eigenvalues if the corresponding energy denominators are never used. This may happen in multiblock perturbation theory.
@@ -99,7 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.0] - 2024-02-03
 
-### Improved
+### Changed
 
 - Switched to the `python-mumps` wrapper for the direct solver, which is available on all platforms and is more feature-complete.
 - The implicit KPM solver now guarantees reaching a requested accuracy.
