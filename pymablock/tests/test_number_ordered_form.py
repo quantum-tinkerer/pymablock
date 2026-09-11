@@ -1634,3 +1634,15 @@ def test_number_ordered_form_valid_operator_powers(op):
     scalar = NumberOrderedForm.from_expr(sympy.Symbol("x", positive=True))
     assert (scalar**-1).as_expr() == 1 / scalar.as_expr()
     assert (scalar ** sympy.Rational(1, 2)).as_expr() == sympy.sqrt(scalar.as_expr())
+
+
+@pytest.mark.parametrize("op", [fermion.FermionOp("f"), pauli.SigmaMinus("s")])
+def test_binary_number_operator_inverse_is_not_idempotent(op):
+    number = NumberOperator(op)
+    assert number**0 == 1
+    for exponent in [1, 2, 5, sympy.Symbol("p", integer=True, positive=True)]:
+        assert number**exponent == number
+    for exponent in [-1, -2, sympy.Symbol("n", integer=True)]:
+        result = number**exponent
+        assert result == sympy.Pow(number, exponent, evaluate=False)
+        assert result != number
