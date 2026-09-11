@@ -107,6 +107,24 @@ def test_complement_projector_biorthogonal(rng):
     assert_allclose(np.eye(10) @ projector, explicit)
 
 
+@mark.parametrize("hermitian", [True, False])
+def test_complement_projector_reverse_products(rng, hermitian):
+    """Reverse products apply the adjoint, including inside composite operators."""
+    basis = rng.standard_normal((10, 10)) + 1j * rng.standard_normal((10, 10))
+    if hermitian:
+        basis, _ = np.linalg.qr(basis)
+    right = basis[:, :3]
+    left = None if hermitian else np.linalg.inv(basis).conj().T[:, :3]
+    projector = linalg.ComplementProjector(right, left)
+    explicit = np.eye(10) - right @ (right if left is None else left).conj().T
+    vectors = rng.standard_normal((10, 2)) + 1j * rng.standard_normal((10, 2))
+
+    assert_allclose(projector.rmatvec(vectors[:, 0]), explicit.conj().T @ vectors[:, 0])
+    assert_allclose(projector.rmatmat(vectors), explicit.conj().T @ vectors)
+    composite = projector @ aslinearoperator(basis)
+    assert_allclose(vectors.T @ composite, vectors.T @ explicit @ basis, atol=1e-12)
+
+
 def test_complement_projector_cached_transforms(rng):
     vecs = rng.standard_normal((10, 3)) + 1j * rng.standard_normal((10, 3))
     explicit = np.eye(10) - vecs @ vecs.conj().T
