@@ -86,14 +86,14 @@ terms = {
 }
 ```
 
-In order to not store the original $a^\dagger a$ terms in the coefficients, Pymablock uses {autolink}`~pymablock.number_ordered_form.NumberOperator` objects to represent number operators.
+To avoid storing the original $a^\dagger a$ products in the coefficients, Pymablock uses {autolink}`~pymablock.number_ordered_form.NumberOperator` objects to represent number operators.
 
 For more details about the implementation, see {autolink}`~pymablock.number_ordered_form.NumberOrderedForm`.
 
 ### Quantum Operator Multiplication
 
 The real power of number-ordered forms becomes apparent when we multiply quantum operators.
-The multiplication of of quantum operators follows from the commutation relations of individual operators.
+The multiplication of quantum operators follows from the commutation relations of individual operators.
 
 #### Bosons
 
@@ -103,7 +103,7 @@ $$[a, a^\dagger] = aa^\dagger - a^\dagger a = 1 \quad \Rightarrow \quad aa^\dagg
 
 This leads directly to the rule for how operators shift number operators:
 
-$$a \cdot f(N_a) = f(N_a - 1) \cdot a \quad\quad a^\dagger \cdot f(N_a) = f(N_a + 1) \cdot a^\dagger.$$
+$$a \cdot f(N_a) = f(N_a + 1) \cdot a \quad\quad a^\dagger \cdot f(N_a) = f(N_a - 1) \cdot a^\dagger.$$
 
 To illustrate how number-ordered form manipulations work in practice, let's examine multiplication rules for a single mode through a multiplication table. This table shows the result of multiplying different terms of a number-ordered form of an operator from the left by various operators.
 
@@ -117,9 +117,9 @@ The table below shows what happens when we multiply these terms (columns) from t
 
 | Left × Term | $(a^\dagger)^n \cdot f(N_a)$ | $g(N_a)$ | $h(N_a) \cdot a^m$ |
 |-------------|------------------------------|----------|-------------------|
-| $a^\dagger$ | $(a^\dagger)^{n+1} \cdot f(N_a)$ | $a^\dagger \cdot g(N_a)$ | $h(N_a+1) N_a \cdot a^{m-1}$ |
+| $a^\dagger$ | $(a^\dagger)^{n+1} \cdot f(N_a)$ | $a^\dagger \cdot g(N_a)$ | $h(N_a-1) N_a \cdot a^{m-1}$ |
 | $j(N_a)$ | $(a^\dagger)^n \cdot j(N_a+n) \cdot f(N_a)$ | $j(N_a) \cdot g(N_a)$ | $j(N_a) \cdot h(N_a) \cdot a^m$ |
-| $a$ | $(a^\dagger)^{n-1} \cdot (N_a - n + 2) \cdot f(N_a)$ | $g(N_a-1) \cdot a$ | $h(N_a-1) \cdot a^{m+1}$ |
+| $a$ | $(a^\dagger)^{n-1} \cdot (N_a + n) \cdot f(N_a)$ | $g(N_a+1) \cdot a$ | $h(N_a+1) \cdot a^{m+1}$ |
 
 This multiplication table provides a systematic way to derive any number-ordered term by multiplying a number-ordered term from the left with any operator.
 By repeatedly applying these rules to all terms in a number-ordered expression, we compute the product of any sequence of operators while maintaining the number-ordered form.
@@ -154,9 +154,9 @@ The multiplication table for ladder operators is similar to the one for bosons, 
 
 | Left × Term | $(a^\dagger)^n \cdot f(N_a)$ | $g(N_a)$ | $h(N_a) \cdot a^m$ |
 |-------------|------------------------------|----------|-------------------|
-| $a^\dagger$ | $(a^\dagger)^{n+1} \cdot f(N_a)$ | $a^\dagger \cdot g(N_a)$ | $h(N_a+1) \cdot a^{m-1}$ |
+| $a^\dagger$ | $(a^\dagger)^{n+1} \cdot f(N_a)$ | $a^\dagger \cdot g(N_a)$ | $h(N_a-1) \cdot a^{m-1}$ |
 | $j(N_a)$ | $(a^\dagger)^n \cdot j(N_a+n) \cdot f(N_a)$ | $j(N_a) \cdot g(N_a)$ | $j(N_a) \cdot h(N_a) \cdot a^m$ |
-| $a$ | $(a^\dagger)^{n-1} \cdot f(N_a)$ | $g(N_a-1) \cdot a$ | $h(N_a-1) \cdot a^{m+1}$ |
+| $a$ | $(a^\dagger)^{n-1} \cdot f(N_a)$ | $g(N_a+1) \cdot a$ | $h(N_a+1) \cdot a^{m+1}$ |
 
 ### Use within Pymablock
 
@@ -187,13 +187,13 @@ We then use an Ansatz for $X$ with the same operator structure: $X = (a^\dagger)
 
 $$H_i(N) \cdot (a^\dagger)^n \cdot f_X(N) \cdot a^m - (a^\dagger)^n \cdot f_X(N) \cdot a^m \cdot H_j(N) = (a^\dagger)^n \cdot f_Y(N) \cdot a^m.$$
 
-We then commute $H_i$ and $H_j$ into the middle $H_i(N) \cdot (a^\dagger)^n = (a^\dagger)^n \cdot H_i(N-n)$ and $a^m \cdot H_j(N) = H_j(N+m) \cdot a^m$, which transforms the equation to:
+We then commute $H_i$ and $H_j$ into the middle $H_i(N) \cdot (a^\dagger)^n = (a^\dagger)^n \cdot H_i(N+n)$ and $a^m \cdot H_j(N) = H_j(N+m) \cdot a^m$, which transforms the equation to:
 
-$$(a^\dagger)^n \cdot [H_i(N-n) \cdot f_X(N) - f_X(N) \cdot H_j(N+m)] \cdot a^m = (a^\dagger)^n \cdot f_Y(N) \cdot a^m.$$
+$$(a^\dagger)^n \cdot [H_i(N+n) \cdot f_X(N) - f_X(N) \cdot H_j(N+m)] \cdot a^m = (a^\dagger)^n \cdot f_Y(N) \cdot a^m.$$
 
 Because $H_i$ and $H_j$ commute with $f_X(N)$, the solution is:
 
-$$X = (a^\dagger)^n \cdot \frac{f_Y(N)}{H_i(N-n) - H_j(N+m)} \cdot a^m$$
+$$X = (a^\dagger)^n \cdot \frac{f_Y(N)}{H_i(N+n) - H_j(N+m)} \cdot a^m$$
 
 The generalization to multiple modes follows the same pattern: for each mode, apply the appropriate shifts to the Hamiltonian based on the creation and annihilation operators in the perturbation term and find the solution with the same powers of creation and annihilation operators as the right hand side.
 
