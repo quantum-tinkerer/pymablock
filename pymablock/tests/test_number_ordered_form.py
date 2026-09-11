@@ -1447,3 +1447,21 @@ def test_left_coefficient_with_unpaired_annihilation_operators(operator):
     factor = number + 2 if isinstance(operator, boson.BosonOp) else 1
     expected = NumberOrderedForm.from_expr(number * factor * operator)
     assert result.simplify() == expected
+
+
+def test_multimode_fermion_product_matches_symbolic_ordering():
+    """Multiplying a four-mode fermion operator by its adjoint must keep the sign."""
+    operators = sympy.symbols("f0:4", cls=fermion.FermionOp)
+    amplitude = sympy.Symbol("t", real=True)
+    operator = NumberOrderedForm(
+        operators,
+        {(-1, 1, 1, -1): -(amplitude**2)},
+    )
+
+    product = Dagger(operator) * operator
+    reference = NumberOrderedForm.from_expr(
+        Dagger(operator.as_expr()) * operator.as_expr(),
+        operators=operators,
+    )
+
+    assert product == reference

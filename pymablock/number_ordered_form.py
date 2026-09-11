@@ -1290,8 +1290,8 @@ class NumberOrderedForm(Operator):
                 partial = partial._multiply_op(i, power)
             # Now multiply by the number part
             partial = partial._multiply_expr(coeff)
-            # Finally, multiply by annihilation operators
-            for i, power in enumerate(powers):
+            # Apply annihilation operators in reverse mode order.
+            for i, power in reversed(list(enumerate(powers))):
                 if not power > 0:
                     continue
                 partial = partial._multiply_op(i, power)

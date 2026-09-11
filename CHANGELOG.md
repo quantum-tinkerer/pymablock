@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed extra minus signs in products containing annihilation operators for multiple fermion modes.
 - Fixed incorrect shifts of number-dependent coefficients when multiplying boson and ladder expressions by creation operators.
 - Made randomized tests reproducible with pytest-randomly without using NumPy's legacy global random number generator.
 
