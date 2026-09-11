@@ -407,7 +407,7 @@ def block_diagonalize(
         )
 
     # If solve_sylvester is not yet defined, use the diagonal one.
-    if solve_sylvester is None or use_implicit:
+    if solve_sylvester is None or use_implicit or fully_diagonalize:
         diagonal = _extract_diagonal(H, atol, use_implicit, operators)
 
     if solve_sylvester is None:

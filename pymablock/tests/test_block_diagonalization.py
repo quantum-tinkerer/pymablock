@@ -2118,3 +2118,55 @@ def test_symbolic_sylvester_uses_exact_degeneracy():
         (np.array([sympy.S.Zero], dtype=object), np.array([gap], dtype=object)), atol=1
     )
     assert solve(sympy.ones(1, 1), (0, 1)) == sympy.Matrix([[-1 / gap]])
+
+
+@pytest.mark.parametrize("hermitian", [False, True])
+def test_single_block_custom_sylvester(hermitian):
+    energies = np.array([0.0, 1.0, 2.0])
+    h0 = np.diag(energies)
+    h1 = 0.1 * np.eye(3)
+    h1[0, 1] = 0.2
+    if hermitian:
+        h1[1, 0] = 0.2
+    diagonal_solver = solve_sylvester_diagonal((energies,))
+    calls = []
+
+    def custom_solver(source, index):
+        calls.append(index)
+        return diagonal_solver(source, index)
+
+    custom = block_diagonalize(
+        [h0, h1], solve_sylvester=custom_solver, hermitian=hermitian
+    )
+    default = block_diagonalize([h0, h1], hermitian=hermitian)
+    for actual, expected in zip(custom, default):
+        compare_series(actual, expected, (2,))
+    assert calls
+
+
+def test_custom_multiblock_solver_keeps_nondiagonal_blocks(monkeypatch):
+    import importlib
+
+    from scipy.linalg import solve_sylvester as scipy_solve_sylvester
+
+    module = importlib.import_module("pymablock.block_diagonalization")
+
+    def forbidden_extraction(*_args):
+        raise AssertionError("Custom multi-block solver must not extract eigenvalues")
+
+    monkeypatch.setattr(module, "_extract_diagonal", forbidden_extraction)
+    a = np.array([[0.0, 0.2], [0.2, 1.0]])
+    b = np.array([[3.0]])
+    coupling = np.array([[0.1], [0.2]])
+
+    def solve(source, index):
+        blocks = [a, b]
+        return scipy_solve_sylvester(blocks[index[0]], -blocks[index[1]], source)
+
+    h, u, u_inv = block_diagonalize(
+        [[[a, zero], [zero, b]], [[zero, coupling], [coupling.T, zero]]],
+        solve_sylvester=solve,
+    )
+    reconstructed = cauchy_dot_product(u, h, u_inv)
+    np.testing.assert_allclose(reconstructed[0, 1, 1], coupling, atol=1e-14)
+    np.testing.assert_allclose(reconstructed[0, 0, 2], 0, atol=1e-14)

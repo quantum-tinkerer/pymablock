@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed one-block custom Sylvester solvers accessing uninitialized diagonal information during automatic full diagonalization.
+
 - Made numerical Sylvester degeneracy checks use the supplied absolute tolerance, independent of the common energy offset.
 - Made hashes of equal `NumberOrderedForm` expressions independent of unused operators and stored term order, restoring set and dictionary lookup. Cache the expression hash and avoid repeated sum construction during conversion.
 - Stopped simplifying inverse and sign-unknown powers of fermion and spin number operators using the positive-power idempotence rule.
