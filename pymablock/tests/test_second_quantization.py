@@ -827,3 +827,24 @@ def test_zero_diagonal_block_displacement():
     expected = [g**2 * (n + 1) / (delta + w * n), -(g**2) * n / (delta + w * (n - 1))]
     for i in range(2):
         assert (h[i, i, 2][0, 0] - expected[i]).simplify() == 0
+
+
+@pytest.mark.parametrize("upper", [True, False])
+@pytest.mark.parametrize("scalar", [True, False])
+def test_nonhermitian_quantized_reconstruction(upper, scalar):
+    a = BosonOp("a")
+    n = NumberOperator(a)
+    if scalar:
+        h0 = sympy.Matrix([[n]])
+        h1 = sympy.Matrix([[a if upper else Dagger(a)]])
+    else:
+        h0 = sympy.diag(n, n + 2)
+        h1 = sympy.Matrix([[0, 3], [0, 0]])
+        if not upper:
+            h1 = h1.T
+    h, u, u_inv = block_diagonalize([h0, h1], hermitian=False)
+    reconstructed = cauchy_dot_product(u, h, u_inv)
+    for order, expected in enumerate([h0, h1, sympy.zeros(*h0.shape)]):
+        actual = reconstructed[0, 0, order]
+        for i, j in np.ndindex(h0.shape):
+            assert sympy.expand(actual[i, j].doit() - expected[i, j].doit()) == 0

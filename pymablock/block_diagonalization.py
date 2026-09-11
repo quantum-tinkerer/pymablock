@@ -414,7 +414,9 @@ def block_diagonalize(
         if not operators:
             solve_sylvester = solve_sylvester_diagonal(diagonal, atol=atol)
         else:
-            solve_sylvester = second_quantization.solve_sylvester_2nd_quant(diagonal)
+            solve_sylvester = second_quantization.solve_sylvester_2nd_quant(
+                diagonal, hermitian=hermitian
+            )
 
     # When the input Hamiltonian value is a linear operator, so should be the output.
     use_linear_operator = np.zeros(H.shape, dtype=bool)
