@@ -1502,6 +1502,22 @@ class NumberOrderedForm(Operator):
         """
         if not isinstance(exp, (int, sympy.Integer, sympy.Expr)):
             return NotImplemented
+        exp = sympy.sympify(exp)
+
+        # A single monomial with a binary mode is nilpotent, including for
+        # symbolic integer exponents that are provably greater than one.
+        if exp.is_integer and (exp - 1).is_positive and len(self.terms) == 1:
+            powers = next(iter(self.terms))
+            if any(powers[self._n_inf_order :]):
+                return type(self)(self.operators, {}, validate=False)
+
+        if not self.is_particle_conserving() and not (
+            exp.is_Integer and exp.is_nonnegative
+        ):
+            raise ValueError(
+                "Expressions with unmatched creation or annihilation operators require a "
+                "non-negative integer power."
+            )
 
         if exp == 0:
             return type(self)(
@@ -1516,39 +1532,6 @@ class NumberOrderedForm(Operator):
             for _ in range(exp - 1):
                 result = result * self
             return result
-
-        # For non-integer exponents, check that the expression only has
-        # number operators (no unmatched creation/annihilation operators)
-        if not self.is_particle_conserving():
-            if len(self.terms) > 1:
-                raise ValueError(
-                    f"Cannot raise expression with unmatched creation or annihilation "
-                    f"operators to non-integer power: {self}**{exp}"
-                )
-
-            powers, coeff = next(iter(self.terms.items()))
-
-            if any(powers[self._n_inf_order :]) and exp > 1:
-                return type(self)(self.operators, {}, validate=False)
-
-            # One term, may exponentiate to a positive power if the coefficient is
-            # commutative
-            if coeff.has(*self._number_operator_placeholders):
-                raise ValueError(
-                    "Cannot raise expression with creation/annihilation and number "
-                    f"operators to a non-integer power: {self}**{exp}"
-                )
-            if exp.is_negative:
-                raise ValueError(
-                    f"Cannot raise expression with unmatched creation or annihilation "
-                    f"operators to non-positive power: {self}**{exp}"
-                )
-
-            return type(self)(
-                self.operators,
-                {tuple(i * exp for i in powers): coeff**exp},
-                validate=False,
-            )
 
         # Since the expression only contains number operators, it's safe to apply the power
         # We extract the coefficient (if exists) and raise it to the given exponent.
