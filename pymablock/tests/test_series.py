@@ -199,3 +199,22 @@ def test_algebra_element_algebra():
     assert AlgebraElement.call_counts()["__sub__"] == 1
     # subtraction = addition of negative
     assert AlgebraElement.call_counts()["__add__"] == 2
+
+
+@pytest.mark.parametrize("size", [1, 3])
+def test_cauchy_product_without_perturbation_dimensions(size):
+    a = np.arange(1.0, size**2 + 1).reshape(size, size)
+    b = np.flip(a, axis=0)
+    first = BlockSeries(
+        eval=lambda i, j: np.array([[a[i, j]]]), shape=(size, size), n_infinite=0
+    )
+    second = BlockSeries(
+        eval=lambda i, j: np.array([[b[i, j]]]), shape=(size, size), n_infinite=0
+    )
+    result = cauchy_dot_product(first, second)
+    expected = a @ b
+    for i, j in np.ndindex(size, size):
+        np.testing.assert_allclose(result[i, j], [[expected[i, j]]])
+    triple = cauchy_dot_product(first, second, first)
+    for i, j in np.ndindex(size, size):
+        np.testing.assert_allclose(triple[i, j], [[(a @ b @ a)[i, j]]])

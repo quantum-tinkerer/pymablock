@@ -423,7 +423,7 @@ def product_by_order(
 
         # Total complexity of computing an element is ~П(n_i + 1)²
         def cost(orders):
-            return reduce(mul, ((i + 1) ** 2 for i in orders))
+            return reduce(mul, ((i + 1) ** 2 for i in orders), 1)
 
         if cost(orders_1st) <= cost(orders_2nd):
             if (first_value := first[first_index]) is zero:
