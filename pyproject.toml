@@ -176,9 +176,11 @@ tests-all = { depends-on = ["tests-minimal", "tests-mid", "tests-latest-no-mumps
 [tool.pixi.feature.minimal]
 solve-strategy = "lowest-direct"
 
-# Retain Python 3.13 coverage; dependency versions follow the default highest strategy.
+# Pixi has no midpoint strategy; retain intermediate dependency coverage explicitly.
 [tool.pixi.feature.mid.dependencies]
 python = "~=3.13.0"
+numpy = "~=2.3.0"
+scipy = "~=1.16.0"
 
 [tool.pixi.feature.latest]
 solve-strategy = "highest"
