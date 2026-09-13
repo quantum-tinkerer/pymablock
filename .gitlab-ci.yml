@@ -45,7 +45,7 @@ run docs:
     - pixi run docs-build
   artifacts:
     paths:
-      - docs/build
+      - docs/starlight/dist
   cache:
     key: "$CI_JOB_NAME"
     paths:
@@ -99,7 +99,7 @@ pages:
   script:
     - mkdir public
     - cp -r htmlcov public/
-    - cp -r docs/build public/
+    - cp -r docs/starlight/dist/. public/
     # - cp -r paper/ public/
   artifacts:
     paths:

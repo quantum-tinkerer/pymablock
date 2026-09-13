@@ -13,35 +13,6 @@ kernelspec:
 
 # Pymablock
 
-```{toctree}
-:hidden:
-:maxdepth: 1
-:caption: Tutorials
-
-tutorial/getting_started.md
-tutorial/bilayer_graphene.md
-Induced superconducting gap <tutorial/induced_gap.md>
-tutorial/jaynes_cummings.md
-Dispersive shift of a resonator <tutorial/dispersive_shift.md>
-Rabi model <tutorial/spin_rwa_floquet.md>
-tutorial/andreev_supercurrent.md
-```
-
-```{toctree}
-:hidden:
-:maxdepth: 1
-:caption: Documentation
-
-algorithms.md
-nonhermitian_algorithm.md
-Comparison to Schrieffer-Wolff <radius.md>
-second_quantization.md
-documentation/pymablock.md
-CHANGELOG.md
-authors.md
-developer.md
-```
-
 ::::{admonition} **✨ NEW! Second Quantization Support ✨**
 :class: tip
 

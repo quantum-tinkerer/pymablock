@@ -66,7 +66,7 @@ from pymablock import block_diagonalize
 H_tilde, U, U_adjoint = block_diagonalize([H_0, H_p], symbols=[g])
 ```
 
-The function {autolink}`block_diagonalize` takes the Hamiltonian and the perturbative parameter as input.
+The function {autolink}`~pymablock.block_diagonalize` takes the Hamiltonian and the perturbative parameter as input.
 Differently from the rest of the tutorials, here we do not provide `susbpace_vectors` or `subspace_indices`.
 Pymablock treats the Hamiltonian as a **single block**, where the goal is to remove all terms that are not diagonal.
 The output therefore is a $2 \times 2$ diagonal Hamiltonian that only contains one block with number operators.
@@ -74,7 +74,7 @@ The output therefore is a $2 \times 2$ diagonal Hamiltonian that only contains o
 ```{note}
 Pymablock only supports diagonal unperturbed Hamiltonians when using bosonic operators.
 This means that $H_0$ must be block-diagonal and its entries need to be convertible to functions of the number operator, without single boson terms.
-This limitation may be lifted using advanced functionality, by providing a custom `solve_sylvester` input to the {autolink}`block_diagonalize` function.
+This limitation may be lifted using advanced functionality, by providing a custom `solve_sylvester` input to the {autolink}`~pymablock.block_diagonalize` function.
 ```
 
 For example, to compute the 2nd order correction of the Hamiltonian of the $↑, ↓$ subspaces we use
@@ -132,7 +132,7 @@ H_p = g * (pauli.SigmaPlus("s") * a + pauli.SigmaMinus("s") * Dagger(a))
 display_eq('H', H_0 + H_p)
 ```
 
-Similarly as before, we provide the Hamiltonian to {autolink}`block_diagonalize`:
+Similarly as before, we provide the Hamiltonian to {autolink}`~pymablock.block_diagonalize`:
 
 ```{code-cell} ipython3
 H_tilde, *_ = block_diagonalize([H_0, H_p], symbols=[g])

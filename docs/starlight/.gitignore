@@ -1,0 +1,9 @@
+node_modules/
+.astro/
+.pydocs/
+dist/
+test-results/
+playwright-report/
+.jupyterlite/
+_build/
+.jupyterlite.doit.db

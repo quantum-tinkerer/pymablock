@@ -135,7 +135,7 @@ vals, vecs = eigsh(h_0, k=4, sigma=0)
 vecs, _ = scipy.linalg.qr(vecs, mode="economic")  # orthogonalize the vectors
 ```
 
-:::{Note}
+:::{note}
 The orthogonalization is often necessary to do manually because `~scipy.sparse.linalg.eigsh` does not return orthogonal eigenvectors if the matrix is complex and eigenvalues are degenerate.
 :::
 

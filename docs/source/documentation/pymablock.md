@@ -2,88 +2,43 @@
 
 ## Block diagonalization
 
-```{eval-rst}
-.. automodule:: pymablock
-   :members:
-   :show-inheritance:
-```
+- {autolink}`~pymablock.block_diagonalize`
+- {autolink}`~pymablock.operator_to_BlockSeries`
 
 ## Solvers of Sylvester equation
 
-```{eval-rst}
-.. automodule:: pymablock.block_diagonalization
-   :members: solve_sylvester_diagonal, solve_sylvester_direct, solve_sylvester_KPM
-   :show-inheritance:
-```
+- {autolink}`~pymablock.block_diagonalization.solve_sylvester_diagonal`
+- {autolink}`~pymablock.block_diagonalization.solve_sylvester_direct`
+- {autolink}`~pymablock.block_diagonalization.solve_sylvester_KPM`
 
 ## Series
 
-```{eval-rst}
-.. autoclass:: pymablock.series.BlockSeries
-
-.. automodule:: pymablock.series
-   :members: cauchy_dot_product
-   :show-inheritance:
-
-.. autodata:: pymablock.series.zero
-
-.. autodata:: pymablock.series.one
-```
+- {autolink}`~pymablock.series.BlockSeries`
+- {autolink}`~pymablock.series.cauchy_dot_product`
+- {autolink}`~pymablock.series.zero`
+- {autolink}`~pymablock.series.one`
 
 ## Linear algebra
 
-```{eval-rst}
-.. automodule:: pymablock.linalg
-   :members: direct_greens_function
-   :show-inheritance:
-```
+- {autolink}`~pymablock.linalg.direct_greens_function`
 
 ## Number ordered form
 
-```{eval-rst}
-.. autoclass:: pymablock.number_ordered_form.LadderOp
-   :members:
-   :show-inheritance:
-   :class-doc-from: class
-```
-
-```{eval-rst}
-.. autoclass:: pymablock.number_ordered_form.NumberOperator
-   :members:
-   :show-inheritance:
-```
-
-```{eval-rst}
-.. autoclass:: pymablock.number_ordered_form.NumberOrderedForm
-   :members:
-   :show-inheritance:
-   :class-doc-from: class
-```
-
-```{eval-rst}
-.. autofunction:: pymablock.number_ordered_form.find_operators
-```
+- {autolink}`~pymablock.number_ordered_form.LadderOp`
+- {autolink}`~pymablock.number_ordered_form.NumberOperator`
+- {autolink}`~pymablock.number_ordered_form.NumberOrderedForm`
+- {autolink}`~pymablock.number_ordered_form.find_operators`
 
 ## Second quantization
 
-```{eval-rst}
-.. automodule:: pymablock.second_quantization
-   :members: solve_sylvester_2nd_quant, apply_mask_to_operator
-   :show-inheritance:
-```
+- {autolink}`~pymablock.second_quantization.solve_sylvester_2nd_quant`
+- {autolink}`~pymablock.second_quantization.apply_mask_to_operator`
 
 ## Kernel polynomial method (KPM)
 
-```{eval-rst}
-.. automodule:: pymablock.kpm
-   :members: greens_function, rescale
-   :show-inheritance:
-```
+- {autolink}`~pymablock.kpm.greens_function`
+- {autolink}`~pymablock.kpm.rescale`
 
 ## Algorithms
 
-```{eval-rst}
-.. automodule:: pymablock.algorithm_parsing
-   :members: series_computation
-   :show-inheritance:
-```
+- {autolink}`~pymablock.algorithm_parsing.series_computation`

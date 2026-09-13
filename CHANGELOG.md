@@ -104,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix incorrect shape of {autolink}`~pymablock.BlockSeries` blocks if $H_0$ has a zero block (#127).
+- Fix incorrect shape of {autolink}`~pymablock.series.BlockSeries` blocks if $H_0$ has a zero block (#127).
 
 ### Removed
 
@@ -123,7 +123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - A complete description of the algorithm to the documentation, see [documentation](algorithms.md).
-- String representation of {autolink}`~pymablock.BlockSeries` for readability.
+- String representation of {autolink}`~pymablock.series.BlockSeries` for readability.
 
 ### Removed
 

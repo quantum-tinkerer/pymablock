@@ -19,7 +19,7 @@ Doing so benefits from physical insight and requires manipulation of symbolic ex
 
 As an example, we compute supercurrent between two superconductors weakly coupled through a quantum dot.
 
-![Two superconductors and a quantum dot](superconductors_quantum_dot.svg)
+![Two superconductors and a quantum dot](/tutorial/superconductors_quantum_dot.svg)
 
 We compute the supercurrent by treating the tunneling to the quantum dot as a perturbation.
 This requires calculating and manipulating fourth-order corrections in tunneling to the ground state energy [^1^].
@@ -37,11 +37,13 @@ $$
 where the Hamiltonians of the superconductors, of the quantum dot, and of the tunnel coupling are
 
 $$
+\begin{gathered}
 H_{\textrm{SC}} =  \sum_{\alpha=L, R} \xi_{\alpha} \left(
     n_{\alpha \uparrow} + n_{\alpha \downarrow} \right)
 + \Gamma_{\alpha} \left( c_{\alpha, \uparrow}^\dagger c_{\alpha \downarrow}^\dagger + c_{\alpha \downarrow} c_{\alpha, \uparrow} \right), \\
 H_{\textrm{dot}} = \frac{U}{2} \left( n_{\uparrow} + n_{\downarrow} - N \right)^2. \\
 H_{T} = \sum_{\alpha=L,R} t_\alpha \left( c_{\alpha \uparrow}^\dagger d_{\uparrow} + c_{\alpha \downarrow}^\dagger d_{\downarrow} \right) + \textrm{h.c.}.
+\end{gathered}
 $$
 
 Here $c_{\alpha, \sigma}$ and $d_{\sigma}$ are the annihilation operators of electrons in the left (L) and right (R) superconductors and quantum dot, respectively, with $\sigma = \uparrow, \downarrow$.
@@ -126,8 +128,10 @@ To alleviate this, we use physical insight: with the Bogoliubov transformation w
 We define the superconductors' Hamiltonian using the Bogoliubov quasi-particle operators $f_{\alpha, \sigma}$, which are related to the original operators $c_{\alpha, \sigma}$ by the [Bogoliubov transformation](https://en.wikipedia.org/wiki/Bogoliubov_transformation):
 
 $$
+\begin{gathered}
 f_{\alpha, \uparrow} = u_\alpha c_{\alpha, \uparrow} + v_\alpha c_{\alpha, \downarrow} \\
 f_{\alpha, \downarrow} = u_\alpha c_{\alpha, \downarrow} - v_\alpha c_{\alpha, \uparrow}
+\end{gathered}
 $$
 
 where $u_\alpha$ and $v_\alpha$ are complex coefficients that satisfy $\lvert u_\alpha \rvert^2 + \lvert v_\alpha \rvert^2 = 1$.

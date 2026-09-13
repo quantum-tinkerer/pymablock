@@ -18,7 +18,7 @@ As an example, we construct the k.p Hamiltonian of bilayer graphene, starting fr
 
 The crystal structure and the hoppings of bilayer graphene are shown in the figure
 
-![crystal structure and hopping of bilayer grahene](bilayer.svg)
+![crystal structure and hopping of bilayer grahene](/tutorial/bilayer.svg)
 
 The physics of this system is not crucial for us, but here are the main features:
 

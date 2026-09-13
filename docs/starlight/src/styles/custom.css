@@ -1,0 +1,66 @@
+:root {
+  --sl-color-accent-low: #102e38;
+  --sl-color-accent: #359db0;
+  --sl-color-accent-high: #a0dbe2;
+  --sl-font: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --sl-content-width: 49rem;
+  --sl-text-5xl: 3.4rem;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #e3f1f2;
+  --sl-color-accent: #126d7b;
+  --sl-color-accent-high: #164e59;
+  --sl-color-bg: #fdfcf9;
+  --sl-color-bg-sidebar: #f6f5f1;
+  --sl-color-hairline-light: #e6e5df;
+}
+.site-title { font-weight: 650; letter-spacing: -0.045em; }
+.site-title img { height: 2rem; }
+h1, h2, h3 { letter-spacing: -0.035em; }
+.hero { padding-block: 3rem 2.5rem; }
+.hero h1 { max-width: 14ch; line-height: 1.08; }
+.hero .tagline { max-width: 38ch; font-size: 1.2rem; }
+.hero > img { max-width: 15rem; filter: drop-shadow(0 18px 24px #126d7b18); }
+.sl-markdown-content .card { border-radius: 0.75rem; }
+.sl-markdown-content :is(p, li) { line-height: 1.75; }
+@media (max-width: 50rem) {
+  :root { --sl-text-5xl: 2.5rem; }
+  .hero { padding-block: 1rem; }
+  .hero > img { max-width: 8rem; }
+}
+/* Dotted API module paths need a smaller title than tutorial headings. */
+main:has(.pyd-module) h1 { font-size: clamp(1.6rem, 2.4vw, 2.5rem); }
+/* Keep parameter metadata together and give prose the full reading width. */
+.pyd-params, .pyd-params tbody { display: block; width: 100%; }
+.pyd-params thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.pyd-params tbody tr {
+  display: grid;
+  grid-template-columns: minmax(10ch, max-content) minmax(0, 1fr) auto;
+  gap: 0.35rem 1rem;
+  padding-block: 1.25rem;
+  border-bottom: 1px solid var(--sl-color-hairline-light);
+}
+.pyd-params :is(th, td) { border: 0; padding: 0; min-width: 0; }
+.pyd-params .pyd-param-name { font-size: 1rem; }
+.pyd-params .pyd-param-type { color: var(--sl-color-gray-2); }
+.pyd-params .pyd-param-default::before { content: 'Default: '; font-size: 0.85rem; }
+.pyd-params .pyd-param-description {
+  grid-column: 1 / -1;
+  padding-top: 0.5rem;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.pyd-params code { white-space: normal; overflow-wrap: anywhere; }
+.pyd-params .pyd-param-description :is(ul, ol) { padding-inline-start: 1.4rem; }
+.pyd-params .pyd-param-description li + li { margin-top: 0.65rem; }
+@media (max-width: 50rem) {
+  .pyd-params tbody tr { grid-template-columns: minmax(0, 1fr); }
+}
+.pyd-params :is(th, td) { margin: 0; }
+.pyd-params .pyd-param-name code { font-size: 0.9rem; font-weight: 600; }

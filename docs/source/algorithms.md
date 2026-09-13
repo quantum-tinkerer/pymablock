@@ -132,18 +132,21 @@ and obtain
 
 :::{math}
 :label: W
-\toggle{
-  \mathcal{W} = \texttip{\color{red}{\ldots}}{click to expand} = -\frac{1}{2}
+\mathcal{W} = -\frac{1}{2}
   \mathcal{U}'^\dagger \mathcal{U}'.
-}{
-  \begin{align}
+:::
+
+````{admonition} Derivation
+:class: dropdown
+
+```{math}
+\begin{aligned}
     \mathcal{W} &= \frac{1}{2}(\mathcal{U}'^\dagger + \mathcal{U}') \\
       &= \frac{1}{2} \Big[(1 + \mathcal{U}'^\dagger)(1+\mathcal{U}') - 1 - \mathcal{U}'^\dagger \mathcal{U}' \Big] \\
       &= -\frac{1}{2} \mathcal{U}'^\dagger \mathcal{U}'.
-  \end{align}
-}
-\endtoggle
-:::
+  \end{aligned}
+```
+````
 
 Because $\mathcal{U}'$ has no $0$-th order term, $(\mathcal{U}'^\dagger \mathcal{U}')_\mathbf{n}$ does not depend on the $\mathbf{n}$-th order of $\mathcal{U}'$ nor $\mathcal{W}$.
 More generally, a Cauchy product $\mathcal{A}\mathcal{B}$ where $\mathcal{A}$ and $\mathcal{B}$ have no $0$-th order terms depends on $\mathcal{A}_1, \ldots, \mathcal{A}_{n-1}$ and $\mathcal{B}_1, \ldots, \mathcal{B}_{n-1}$.
@@ -232,10 +235,14 @@ to the right and find
 
 :::{math}
 :label: H_tilde
-\toggle{
-  \tilde{\mathcal{H}} = \texttip{\color{red}{\ldots}}{click to expand} = \mathcal{H}_{S} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U},
-}{
-  \begin{align*}
+\tilde{\mathcal{H}} = \mathcal{H}_{S} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U},
+:::
+
+````{admonition} Derivation
+:class: dropdown
+
+```{math}
+\begin{aligned}
   \tilde{\mathcal{H}}
   &= \mathcal{H}_{S} + \mathcal{U}'^\dagger \mathcal{H}_{S} + (\mathcal{H}_{S} \mathcal{U}') + \mathcal{U}'^\dagger \mathcal{H}_{S}
   \mathcal{U}' + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U}
@@ -243,10 +250,9 @@ to the right and find
   &= \mathcal{H}_{S} + \mathcal{U}'^\dagger \mathcal{H}_{S} + \mathcal{U}'\mathcal{H}_{S} - \mathcal{X} + \mathcal{U}'^\dagger (\mathcal{U}' \mathcal{H}_{S} - \mathcal{X}) + \mathcal{U}^\dagger\mathcal{H}_{R}\mathcal{U}\\
   &= \mathcal{H}_{S} + (\mathcal{U}'^\dagger + \mathcal{U}' + \mathcal{U}'^\dagger \mathcal{U}')\mathcal{H}_{S} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U}\\
   &= \mathcal{H}_{S} - \mathcal{X} - \mathcal{U}'^\dagger \mathcal{X} + \mathcal{U}^\dagger\mathcal{H}'_{R}\mathcal{U},
-  \end{align*}
-}
-\endtoggle
-:::
+  \end{aligned}
+```
+````
 
 where the terms multiplied by $\mathcal{H}_{S}$ cancel by unitarity.
 
@@ -258,19 +264,22 @@ This is where the unitarity condition $\mathcal{U}'^\dagger + \mathcal{U}' = -\m
 
 :::{math}
 :label: Z
-\toggle{
-  \mathcal{Z} = \texttip{\color{red}{\ldots}}{click to expand} = \frac{1}{2}(-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}').
-}{
-  \begin{align}
+\mathcal{Z} = \frac{1}{2}(-\mathcal{U}'^\dagger\mathcal{X} + \mathcal{X}^\dagger\mathcal{U}').
+:::
+
+````{admonition} Derivation
+:class: dropdown
+
+```{math}
+\begin{aligned}
   \mathcal{Z}
   &= \frac{1}{2} (\mathcal{X} - \mathcal{X}^{\dagger}) \\
   &= \frac{1}{2}\Big[ (\mathcal{U}' + \mathcal{U}'^{\dagger}) \mathcal{H}_{S} - \mathcal{H}_{S} (\mathcal{U}' + \mathcal{U}'^{\dagger}) \Big] \\
   &= \frac{1}{2} \Big[ - \mathcal{U}'^{\dagger} (\mathcal{U}'\mathcal{H}_{S} - \mathcal{H}_{S} \mathcal{U}') + (\mathcal{U}'\mathcal{H}_{S} - \mathcal{H}_{S} \mathcal{U}')^{\dagger} \mathcal{U}' \Big] \\
   &= \frac{1}{2} (-\mathcal{U}'^{\dagger} \mathcal{X} + \mathcal{X}^{\dagger} \mathcal{U}').
-  \end{align}
-}
-\endtoggle
-:::
+  \end{aligned}
+```
+````
 
 Similar to computing $W_\mathbf{n}$, computing $Z_\mathbf{n}$ requires lower orders of $\mathcal{X}$ and $\mathcal{U}'$, all blocks included.
 *This is our second secret ingredient✨*
@@ -353,35 +362,41 @@ We reuse these products by introducing $\mathcal{B} = \mathcal{X} - \mathcal{H}'
 Using this definition, we first express the remaining part of $\mathcal{B}$ as follows:
 
 $$
-\toggle{
-  \mathcal{B}_{R} = \texttip{\color{red}{\ldots}}{click to expand} = -(\mathcal{U'}^\dagger \mathcal{B})_{R},
-}{
-  \begin{align*}
+\mathcal{B}_{R} = -(\mathcal{U'}^\dagger \mathcal{B})_{R},
+$$
+
+````{admonition} Derivation
+:class: dropdown
+
+```{math}
+\begin{aligned}
   \mathcal{B}_{R} &= \left[\mathcal{X} - \mathcal{H}'_{R} - \mathcal{A} \right]_{R}\\
   &= \left[\mathcal{A}^\dagger + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]_{R}\\
   &= \left[\mathcal{U}'^\dagger\mathcal{H}'_{R} + \mathcal{U}'^\dagger\mathcal{A} - \mathcal{U}'^\dagger \mathcal{X} \right]_{R}\\
   &= -(\mathcal{U'}^\dagger \mathcal{B})_{R},
-  \end{align*}
-}
-\endtoggle
-$$
+  \end{aligned}
+```
+````
 where we also used Eq. {eq}`Y` and the definition of $\mathcal{A}$.
 
 The selected part of $\mathcal{B}$ is then
 
 $$
-\toggle{
-  \mathcal{B}_{S} = \texttip{\color{red}{\ldots}}{click to expand} = \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] + [\mathcal{VH}'_{S} +\textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]_{S},
-}{
-\begin{align*}
+\mathcal{B}_{S} = \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] + [\mathcal{VH}'_{S} +\textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]_{S},
+$$
+
+````{admonition} Derivation
+:class: dropdown
+
+```{math}
+\begin{aligned}
   \mathcal{B}_{S} &= \left[\mathcal{Y} + \mathcal{Z} - \mathcal{H}'_{R} - \mathcal{A}\right]_{S} \\
   &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{X})- \textrm{h.c.}] + \mathcal{Y} - \mathcal{A}\right]_{S} \\
   &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger [\mathcal{X} - \mathcal{H}'_{R} - \mathcal{A}])- \textrm{h.c.}] + \mathcal{Y} - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ] + {\frac{1}{2}[( - \mathcal{U}'^\dagger\mathcal{A} ) - \textrm{h.c.}]}\right]_{S}, \\
   &= \left[\frac{1}{2}[(-\mathcal{U}'^\dagger \mathcal{B})- \textrm{h.c.}] + [\mathcal{VH}'_{S} +\textrm{h.c.}] - \frac{1}{2}[\mathcal{A}^\dagger + \mathcal{A} ]\right]_{S},
-  \end{align*}
-}
-\endtoggle
-$$
+  \end{aligned}
+```
+````
 where we used Eq. {eq}`Z` and that the $\mathcal{U}'^\dagger \mathcal{A}$ is Hermitian.
 
 Using $\mathcal{B}$ changes the relation for $\mathcal{V}$ in Eq. {eq}`sylvester` to

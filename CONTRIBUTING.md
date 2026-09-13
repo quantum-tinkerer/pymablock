@@ -32,6 +32,6 @@ To make a release, do the following:
 3. Add a new level two header to the changelog with the title `[X.Y.Z] - YYYY-MM-DD`, but keep the `[Unreleased]` header. Commit with the message `release vX.Y.Z` and push.
 4. Check that CI runs successfully.
 5. Tag the version with `git tag --sign vX.Y.Z --annotate -m 'release vX.Y.Z'` (skip `--sign` if you do not have git signing configured) and push the tag `git push origin vX.Y.Z`. This publishes the release to pypi.
-6. @isidora.araya updates the Zenodo repository (as its owner) or @anton-akhmerov as an administrator of the quantumtinkerer community.
+6. [@isidora.araya](https://gitlab.kwant-project.org/isidora.araya) updates the Zenodo repository (as its owner) or [@anton-akhmerov](https://gitlab.kwant-project.org/anton-akhmerov) as an administrator of the quantumtinkerer community.
   To do so, download the zip file from the [tags page](https://gitlab.kwant-project.org/qt/pymablock/-/tags), then click "create new version" on [Zenodo](https://doi.org/10.5281/zenodo.7995683), upload the zip file, and update the metadata.
 7. Maintainers of the `pymablock-feedstock` review and merge the pull request created by the conda-forge bot.

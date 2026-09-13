@@ -1,0 +1,15 @@
+name: pymablock-browser
+channels:
+  - https://repo.prefix.dev/emscripten-forge-4x
+  - https://repo.prefix.dev/conda-forge
+dependencies:
+  - xeus-python
+  - python
+  - kwant
+  - numpy
+  - scipy
+  - sympy=1.13.3
+  - matplotlib
+  - packaging
+  - ipython
+  - xeus-python-shell

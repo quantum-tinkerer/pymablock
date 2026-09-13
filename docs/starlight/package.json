@@ -1,0 +1,26 @@
+{
+  "name": "pymablock-starlight",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev --host 0.0.0.0",
+    "build": "astro build",
+    "preview": "astro preview --host 0.0.0.0",
+    "test": "node --test tests/build.test.mjs",
+    "test:browser": "playwright test",
+    "check": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.42.0",
+    "astro": "^7.3.2",
+    "astro-myst-notebooks": "file:vendor/astro-myst-notebooks-0.2.0.tgz",
+    "starlight-pydocs": "^0.2.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "typescript": "^6.0.3"
+  }
+}

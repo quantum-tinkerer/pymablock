@@ -8,4 +8,4 @@ build:
     - asdf global pixi latest
     - pixi run docs-build
     - mkdir -p $READTHEDOCS_OUTPUT/html/
-    - cp -r docs/build/html/** $READTHEDOCS_OUTPUT/html/
+    - cp -r docs/starlight/dist/. $READTHEDOCS_OUTPUT/html/
