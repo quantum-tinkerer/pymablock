@@ -1,0 +1,6 @@
+---
+import Content from 'astro-myst-notebooks/AutodocContent.astro';
+import aliases from '../../legacy-anchors.json';
+const id = Astro.locals.starlightRoute.entry.id || 'index';
+---
+<Content aliases={aliases[id as keyof typeof aliases]}><slot /></Content>

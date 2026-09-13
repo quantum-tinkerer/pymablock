@@ -1,7 +1,9 @@
 // Project choices live here; the integration contains no Pymablock paths/packages.
 /** @type {import('starlight-pydocs').PydocsPackageInput} */
 export const api = {
-  name: 'pymablock', search: ['../..'], docstringStyle: 'numpy',
+  name: 'pymablock',
+  // Include the Python adapter in Pydocs' extraction inputs/cache key.
+  search: ['../..', './node_modules/astro-myst-notebooks/dist'], docstringStyle: 'numpy',
   extensions: ['./griffe_extension.py'],
   sourceLink: { template: 'https://gitlab.kwant-project.org/qt/pymablock/-/blob/{ref}/{path}#L{start}-{end}', root: '../..', ref: 'main' },
   members: { exclude: ['pymablock.tests', 'pymablock.tests.*'] },

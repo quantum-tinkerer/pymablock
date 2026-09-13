@@ -1,0 +1,1234 @@
+{
+  "commit": "f85fcd1",
+  "exclusions": [
+    "Random UUID anchors assigned to unlabelled equations are not stable URLs.",
+    "Sphinx's generic bool constructor text on dynamic SymPy properties is replaced by assumption-query descriptions.",
+    "Signatures, annotation aliases and parameter metadata are checked separately from prose."
+  ],
+  "pages": {
+    "CHANGELOG": {
+      "prose": [
+        "All notable changes to this project will be documented in this file.",
+        "The format is based on Keep a Changelog ,\nand this project adheres to Semantic Versioning .",
+        "Deprecated the ignored atol and eps arguments of direct_greens_function . They will be removed in version 2.4.0.",
+        "Deprecated solver_options[\"atol\"] and solver_options[\"eps\"] for the implicit direct solver. They will be removed in version 2.4.0.",
+        "Deprecated the legacy one-argument custom Sylvester callback form solve_sylvester(Y) . Use solve_sylvester(Y, index) instead. The legacy form will be removed in version 2.4.0.",
+        "Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when python-mumps is unavailable.",
+        "Reduced the number of matrix products in selective Hermitian diagonalization by evaluating the selected auxiliary directly, and in non-Hermitian diagonalization by exploiting the selected structure of the transformed residual.",
+        "Fixed chained and nested custom-algorithm division failing on the zero sentinel by recursively transforming division operands.",
+        "Fixed nested custom-algorithm callbacks receiving missing or duplicated indices, including diagonal wrappers around off-diagonal expressions.",
+        "Fixed KPM Green’s functions with small moment budgets; positive integer budgets produce an approximation and invalid budgets raise a clear error.",
+        "Fixed Cauchy products for BlockSeries with no perturbation dimensions; these now reduce to ordinary block-matrix products.",
+        "Fixed second-quantized immutable and sparse SymPy matrices falling through input conversion and producing a misleading error.",
+        "Fixed symbolic dictionary input with the documented Python integer constant key 1 , without mutating the input mapping.",
+        "Fixed one-block custom Sylvester solvers accessing uninitialized diagonal information during automatic full diagonalization.",
+        "Made numerical Sylvester degeneracy checks use the supplied absolute tolerance, independent of the common energy offset.",
+        "Made hashes of equal NumberOrderedForm expressions independent of unused operators and stored term order, restoring set and dictionary lookup. Cache the expression hash and avoid repeated sum construction during conversion.",
+        "Stopped simplifying inverse and sign-unknown powers of fermion and spin number operators using the positive-power idempotence rule.",
+        "Fixed MUMPS silently treating real nonsymmetric matrices as symmetric in direct Green’s functions.",
+        "Fixed direct Green’s functions with distinct left and right nullspaces by selecting redundant equations and constrained coordinates independently.",
+        "Fixed non-Hermitian second-quantized diagonalization discarding asymmetric couplings by solving the full Sylvester equation.",
+        "Reject invalid powers of unmatched operators in NumberOrderedForm immediately; non-negative integer powers and existing positive symbolic bosonic masks remain supported.",
+        "Fixed multiplication of NumberOrderedForm by Python scalar numbers on the right.",
+        "Fixed multi-block KPM failing when no explicit solver tolerance is supplied.",
+        "Fixed second-quantized Sylvester equations with zero diagonal blocks, including rectangular right-hand sides.",
+        "Corrected the KPM auxiliary-vector option to auxiliary_vectors throughout documentation and tests, and verified that auxiliary vectors are used.",
+        "Corrected the number-operator shifts in the documented boson and ladder multiplication rules.",
+        "Fixed division by zero in fermion and spin Sylvester equations when both the right-hand side and the energy difference vanish.",
+        "Fixed incorrect number-dependent coefficients in products of fermion and spin operators.",
+        "Fixed extra minus signs in products containing annihilation operators for multiple fermion modes.",
+        "Fixed incorrect shifts of number-dependent coefficients when multiplying boson and ladder expressions by creation operators.",
+        "Fixed nondeterministic perturbation indices for SymPy input without explicit symbols by sorting inferred symbols by name.",
+        "Reject distinct symbols with the same name and different assumptions in symbolic input, including when symbols is supplied explicitly.",
+        "Fixed BlockSeries accepting negative perturbative orders, which now raise IndexError instead of potentially returning an incorrect term.",
+        "Made randomized tests reproducible with pytest-randomly without using NumPy’s legacy global random number generator.",
+        "Added a non-Hermitian similarity-transform algorithm via block_diagonalize(..., hermitian=False) , including support for asymmetric selective masks, symbolic inputs, and biorthogonal subspace_eigenvectors=[(right, left), ...] in the explicit and implicit direct paths. The implicit KPM solver remains unsupported in the non-Hermitian path.",
+        "Made python-mumps an optional dependency, only required for the implicit solver.",
+        "When SymPy cannot determine whether an off-diagonal zeroth-order block is zero, emit a warning and proceed instead of erroring.",
+        "Dropped support for Python 3.11, numpy 1.26, and scipy 1.12 according to the SPEC-0 .",
+        "Added a reference implementation of arbitrary order Schrieffer-Wolff transformation to the documentation and a comparison of its convergence radius with Pymablock algorithm.",
+        "Added support for bosonic, fermionic, spin, and ladder (Floquet) second-quantized Hamiltonians in the operator formalism.",
+        "Added a tutorial on the Rabi model with a periodic drive .",
+        "Added documentation for the second quantization formalism.",
+        "Added a comparison with Schrieffer-Wolff and a demonstration of the convergence radius.",
+        "If the Hamiltonian contains only one block, fully_diagonalize can be provided as value instead of {0: value} .",
+        "Updated the dispersive shift tutorial to include the second quantization approach.",
+        "Updated the Jaynes-Cummings tutorial to the new second quantization API.",
+        "Dropped support for Numpy 1.25, Scipy 1.11, and Sympy 1.12 according to the SPEC-0 .",
+        "Generalized the algorithm to support an arbitrary number of blocks. To specify multiple blocks, provide either a list with eigenvectors of each block in subspace_eigenvectors , or a list marking to which block each basis state belongs in subspace_indices .",
+        "Implemented full diagonalization of the Hamiltonian within blocks except for degenerate eigensubspaces. In case of one block with non-degenerate eigenvalues, this implements the Rayleigh-Schrödinger perturbation theory.",
+        "Implemented selective diagonalization of the Hamiltonian within blocks, which can eliminate any subset of the off-diagonal elements within a block.",
+        "Implemented functionality for making optimized series algorithms, see series_computation and a domain-specific language to define those. This is an advanced and an experimental feature, subject to change.",
+        "Added a function operator_to_BlockSeries to transform operators to the same representation as the Hamiltonian, and illustrated its use in the tutorial.",
+        "Included a tutorial on how to manipulate complex symbolic Hamiltonians and demonstrate multi-block diagonalization.",
+        "Included a tutorial on how to compute the dispersive shift in a transmon-resonator system.",
+        "Auxiliary vectors for the implicit KPM solver should now be passed using solver_options[\"auxiliary_vectors\"] rather than as the last entry in subspace_eigenvectors .",
+        "Further reduced the number of matrix products by around 30% for high orders and down to a guaranteed minimum for 3rd order.",
+        "Improved the efficiency of the MUMPS solver on real Hamiltonians.",
+        "Allowed subspaces to have degenerate eigenvalues if the corresponding energy denominators are never used. This may happen in multiblock perturbation theory.",
+        "Fix incorrect shape of BlockSeries blocks if has a zero block (#127).",
+        "Dropped support for Python 3.10 and sympy 1.11 according to the SPEC-0 .",
+        "Switched to the python-mumps wrapper for the direct solver, which is available on all platforms and is more feature-complete.",
+        "The implicit KPM solver now guarantees reaching a requested accuracy.",
+        "A new algorithm that has optimal scaling while avoiding multiplication by , and supports implicit data. This combines advantages of all previous algorithms, and therefore supersedes them.",
+        "Sped up cauchy_dot_product when there are more than 3 series by reusing intermediate results.",
+        "Optimized memory usage of ~pymablock.block_diagonalize by deleting intermediate results when they are no longer needed.",
+        "A complete description of the algorithm to the documentation, see documentation .",
+        "String representation of BlockSeries for readability.",
+        "expanded , symbolic , implicit , and general functions and algorithms (functionality taken over by the new general algorithm, with block_diagonalize the main interface).",
+        "the algorithm argument from block_diagonalize (there is only one algorithm now).",
+        "exclude_last argument of cauchy_dot_product (instead we check whtether other terms lack 0th order)."
+      ],
+      "equations": {}
+    },
+    "algorithms": {
+      "prose": [
+        "In the simplest setting, Pymablock finds a series of the unitary transformation (we use calligraphic letters to denote series) that block-diagonalizes the Hamiltonian",
+        "with containing an arbitrary number and orders of perturbations with block-diagonal components and block-offdiagonal components , respectively. Pymablock ’s algorithm, however, does not just work with block matrices: it can perturbatively cancel any set of offdiagonal elements of .\nFor that we define the selected part of an operator (subscript ) as the subset of its matrix elements that we want to keep, and the remaining part (subscript ) as the rest.\nFor example, selected and remaining parts may look like this:",
+        "As another generalization compared to the simplest case, the series here may be multivariate, and they represent sums of the form",
+        "where are the perturbation parameters and are linear operators.",
+        "The problem statement, therefore, is finding and such that:",
+        "where series multiply according to the Cauchy product :",
+        "Computational complexity of the Cauchy product",
+        "The Cauchy product is the most expensive operation in perturbation theory, because it involves a large number of multiplications between potentially large matrices, so let us discuss its complexity.\nEvaluating -th order of requires multiplications of the series elements.\nA direct computation of all the possible index combinations in a product between three series would have a higher cost , however if we use associativity of the product and compute this as , then the scaling of the cost stays .",
+        "There are many ways to solve this problem that give identical expressions for and .\nWe are searching for a procedure that satisfies three additional constraints:",
+        "It has the same complexity scaling as a Cauchy product.",
+        "It does not require multiplications by .\nThis is because in perturbation theory, -th order corrections to carry energy denominators (see here ).\nTherefore, any additional multiplications by must cancel with additional energy denominators.\nMultiplying by is therefore unnecessary work, and it gives longer intermediate expressions.",
+        "It requires only one Cauchy product by , the selected part of .\nBy considering , we observe that must at least enter as an\nadded term, without any products.\nMoreover, because depends on the entire Hamiltonian, there must be at least one Cauchy product by .\nThis lower bound turns out to be possible to achieve.",
+        "The goal of our algorithm is thus to be efficient and to produce compact results that do not require further simplifications.",
+        "To find , let us separate it into an identity and :",
+        "First, we use the unitarity condition by substituting into it\nand obtain",
+        "Because has no -th order term, does not depend on the -th order of nor .\nMore generally, a Cauchy product where and have no -th order terms depends on and .\nThis allows us to use Cauchy products to define recurrence relations, which we apply throughout the algorithm.\nTherefore, we compute as a Cauchy product of with itself. This recurrence relation is the first secret ingredient of Pymablock ✨",
+        "Choosing the right definition for",
+        "Using the definition of as the Hermitian part of , and the unitarity condition:",
+        "we see that we could alternatively define as a Taylor series in :",
+        "however the scaling of this definition is worse than that of a Cauchy product because we need to compute a Taylor expansion of a series:",
+        "A direct computation of all possible products of terms would require multiplications.\nWe improve on this by defining a new series as and reusing the previously computed results, which brings these costs down to —still worse than a cost of a single Cauchy product.\nUsing the Taylor expansion approach is therefore both more complicated and more computationally expensive than the recurrent definition in (4) .",
+        "To compute we also need to find , which is defined by the requirement .\nAdditionally, we constrain to have no selected part: , so that its norm and the norm of are minimal.\nThis choice is known as the least action principle and is equivalent to the Schrieffer-Wolff transformation in the block case.",
+        "Equivalence to Schrieffer-Wolff transformation",
+        "Both the Pymablock algorithm applied to a block matrix and the Schrieffer-Wolff transformation find a unitary transformation such that .\nThey are therefore equivalent up to a gauge choice in each subspace, and .\nWe establish the equivalence between the two by demonstrating that this gauge choice is the same for both algorithms.",
+        "The Schrieffer-Wolff transformation uses , where and .",
+        "The series contains all possible products of of all lengths with fractional prefactors.\nFor every term , there is a corresponding term with the same prefactor.\nIf the number of is even, then both terms are block-diagonal since each is block off-diagonal.\nBecause are anti-Hermitian, the two terms are Hermitian conjugates of each other, and therefore their sum is Hermitian.\nOn the other hand, if the number of is odd, then the two terms are block off-diagonal and their sum is anti-Hermitian by the same reasoning.",
+        "Therefore, just like in our algorithm, the diagonal blocks of are Hermitian, while off-diagonal blocks are anti-Hermitian.\nSchrieffer-Wolff transformation produces a unique answer and satisfies the same diagonalization requirements as our algorithm, which means that the two are equivalent.",
+        "To find , we need to first look at the transformed Hamiltonian:",
+        "where we used and , since by definition.",
+        "Because we want to avoid unnecessary products by , we need to get rid of the terms that contain it by replacing them with an alternative expression.\nOur strategy is to define an auxiliary operator that we can compute without ever multiplying by .\nLike , needs to be defined via a recurrence relation, which we will find later.\nBecause the expression above has multiplied by from the left and from the right, we get rid of these terms by making sure that multiplies terms from one side only.\nTo achieve this, we choose to be the commutator between and :",
+        "In the common case, when is a block-diagonal part of a matrix, is block off-diagonal. Additionally, in the case of block diagonalization, is block-diagonal.\nWe use to move through\nto the right and find",
+        "where the terms multiplied by cancel by unitarity.",
+        "The transformed Hamiltonian does not contain products by anymore, but it does depend on , an\nauxiliary operator whose recurrent definition we do not know yet.\nTo find it, we first focus on its anti-Hermitian part, .\nSince recurrence relations are expressions whose right hand side contains Cauchy products between series, we need to find a way to make a product appear.\nThis is where the unitarity condition comes in handy and gives:",
+        "Similar to computing , computing requires lower orders of and , all blocks included. This is our second secret ingredient✨",
+        "Then, we compute (the Hermitian part of ) by requiring that and find",
+        "Once again, despite enters the right hand side, because all the terms lack 0-th order, this defines a recursive relation for .\nTo find we use the definition of in (5) , which fixes as a solution of:",
+        "which is a continuous-time Lyapunov equation for .\nIn order for this equation to be satisfiable, the selected part of the right hand side must vanish, since the left hand side only has the remaining part.\nTherefore we find the selected part of as:",
+        "and it vanishes if corresponds to a block-diagonal matrix. This is our last secret ingredient✨",
+        "The final part is straightforward. Finding from amounts to solving a Sylvester’s equation , which we only need to solve once for every new order.\nThis is the only step in the algorithm that requires a direct multiplication by .\nIn the eigenbasis of , the solution of Sylvester’s equation is , where are the eigenvalues of .\nHowever, even if the eigenbasis of is not available, there are efficient algorithms to solve Sylvester’s equation, see below .",
+        "We now have the complete algorithm:",
+        "Define series and and make use of their block structure and Hermiticity.",
+        "To define the Hermitian part , use .",
+        "To find the antihermitian part of , solve Sylvester’s equation . This requires .",
+        "To find the antihermitian part of , define .",
+        "For the Hermitian part of , use .",
+        "Compute the effective Hamiltonian as .",
+        "Extra optimization: common subexpression elimination",
+        "We further optimize the algorithm by reusing products that are needed in several places.",
+        "For selective diagonalization, we evaluate directly from and reuse the product , avoiding its reconstruction from .",
+        "Firstly, we rewrite the expressions for and by utilizing the Hermitian conjugate of without recomputing it:",
+        "where is the Hermitian conjugate, and drops out from because is anti-Hermitian.",
+        "To compute faster, we express it using :",
+        "To further optimize the computations, we observe that some products appear both in and .\nWe reuse these products by introducing .",
+        "Using this definition, we first express the remaining part of as follows:",
+        "where we also used Eq. (8) and the definition of .",
+        "where we used Eq. (7) and that the is Hermitian.",
+        "Using changes the relation for in Eq. (9) to",
+        "Finally, we compute the selected part of as",
+        "Solving Sylvester’s equation and computing the matrix products are the most expensive steps of the algorithms for large Hamiltonians. Pymablock can efficiently construct an effective Hamiltonian of a small subspace even when the full Hamiltonian is a sparse matrix that is too costly to diagonalize.\nIt does so by avoiding forming a matrix representation of operators in the implicit subspace—the one without known eigenvectors, and by utilizing the sparsity of the Hamiltonian to compute the Green’s function.\nTo do so, Pymablock uses either a direct sparse solver for the Green’s function or the KPM method . The direct solver prefers MUMPS via the python-mumps wrapper when available and otherwise falls back to SciPy’s SuperLU implementation; in our experience, MUMPS is typically more performant.",
+        "This approach was originally introduced in this work .",
+        "We use the matrix of the known eigenvectors of the explicit subspace to rewrite the Hamiltonian as",
+        "where is the projector onto the implicit subspace.\nThis Hamiltonian is larger in size than the original one because the implicit block has additional eigenvectors with zero eigenvalue corresponding to the explicit subspace.\nThis, however, allows to preserve the sparsity structure of the Hamiltonian by applying and separately.\nAdditionally, applying is efficient because is a low rank matrix.\nWe then perform perturbation theory of the rewritten .",
+        "To solve the Sylvester’s equation for the modified Hamiltonian, we write it for every row of separately:",
+        "This equation is well defined even though is not invertible, since has no components in the explicit subspace.",
+        "Pymablock implements the corresponding pseudoinverse by projecting out the known kernel and constraining variables where the explicit eigenvectors have large weight.\nWhen several known explicit eigenvectors share the same energy , we collect them in the columns of .\nWe define and .\nThe corresponding projector is:",
+        "The pivot rows come from a pivoted QR factorization of , which selects variables where these eigenvectors are largest.\nWe replace the corresponding rows of by unit rows and solve:"
+      ],
+      "equations": {
+        "equation-hamiltonian": "(1)",
+        "equation-eq-problem-definition": "(2)",
+        "equation-u": "(3)",
+        "equation-w": "(4)",
+        "equation-xyz": "(5)",
+        "equation-h-tilde": "(6)",
+        "equation-z": "(7)",
+        "equation-y": "(8)",
+        "equation-sylvester": "(9)",
+        "equation-y-s": "(10)",
+        "equation-sylvester-optimized": "(11)"
+      }
+    },
+    "authors": {
+      "prose": [
+        "This project was initially developed in Delft University of Technology , supported by the Netherlands Organisation for Scientific Research (NWO/OCW) , as part of the Frontiers of Nanoscience program, as well as grants 016.Vidi.189.180 and\nOCENW.GROOT.2019.004."
+      ],
+      "equations": {}
+    },
+    "developer": {
+      "prose": [
+        "Pymablock is an open source project and we welcome contributions from the community.\nTo contribute code, please follow the guidelines below.",
+        "We use pixi for dependency management, run pixi install to install the default environment.",
+        "Pymablock uses pre-commit , run pixi run pre-commit install to enable it after cloning the repository.",
+        "We use py.test for testing, run it with pixi run tests .\nTo test against multiple dependency versions, run pixi run tests-all .",
+        "Pymablock uses markdown for documentation, run pixi run docs-build to build it.\nWhen writing documentation, ensure that you write one sentence per line to make it easier to review changes.",
+        "Pymablock adopted SPEC-0 for setting minimal requirements on Python, NumPy, and SciPy.",
+        "Before making a release check that the minimal versions specified in pyproject.toml adhere to SPEC-0.",
+        "To make a release, do the following:",
+        "Confirm that the changelog contains all relevant user-visible changes, and update it if necessary.",
+        "Confirm that all contributors have been added to the authors.md file by running git shortlog -s $(git describe --tags --abbrev=0)..HEAD| sed -e \"s/^ *[0-9\\t ]*//\" .",
+        "Add a new level two header to the changelog with the title [X.Y.Z] - YYYY-MM-DD , but keep the [Unreleased] header. Commit with the message release vX.Y.Z and push.",
+        "Check that CI runs successfully.",
+        "Tag the version with git tag --sign vX.Y.Z --annotate -m 'release vX.Y.Z' (skip --sign if you do not have git signing configured) and push the tag git push origin vX.Y.Z . This publishes the release to pypi.",
+        "@isidora.araya updates the Zenodo repository (as its owner) or @anton-akhmerov as an administrator of the quantumtinkerer community.\nTo do so, download the zip file from the tags page , then click “create new version” on Zenodo , upload the zip file, and update the metadata.",
+        "Maintainers of the pymablock-feedstock review and merge the pull request created by the conda-forge bot."
+      ],
+      "equations": {}
+    },
+    "index": {
+      "prose": [
+        "✨ NEW! Second Quantization Support ✨",
+        "Pymablock now fully supports operator formalism and works with second-quantized operators: fermions, bosons, spins, and ladder (Floquet)!\nCheck out our dispersive shift tutorial and Jaynes-Cummings model tutorial to see second quantization in action, and see the theoretical background in second quantization notes .",
+        "Pymablock (Python matrix block-diagonalization) is a Python package that constructs effective models using quasi-degenerate perturbation theory.\nIt handles both numerical and symbolic inputs, and it efficiently block-diagonalizes Hamiltonians with multivariate perturbations to arbitrary order.",
+        "Building an effective model using Pymablock is a three step process:",
+        "Request the desired order of the effective Hamiltonian",
+        "Here is why you should use Pymablock :",
+        "Pymablock provides a tested reference implementation",
+        "Pymablock supports numpy arrays, scipy sparse arrays, sympy matrices and quantum operators",
+        "Due to several optimizations, Pymablock can reliably handle both higher orders and large Hamiltonians",
+        "Pymablock considers a Hamiltonian as a series of block operators with the zeroth order block-diagonal.\nTo carry out the block-diagonalization procedure, Pymablock finds a minimal unitary transformation that cancels the off-diagonal blocks of the Hamiltonian order by order.",
+        "The result of this procedure is a perturbative series of the transformed block-diagonal Hamiltonian.",
+        "Similar to Lowdin perturbation theory or the Schrieffer–Wolff transformation, Pymablock solves Sylvester’s equation and imposes unitarity at every order.\nHowever, Pymablock is unique because it uses efficient algorithms by choosing a different parametrization of the series of the unitary transformation.\nAs a consequence, the computational cost of every order scales linearly with the order, while the algorithms are still mathematically equivalent.\nAdditionally, this parametrization allows Pymablock to perform selective diagonalization and eliminate an arbitrary subset of offdiagonal matrix elements, and to go beyond the standard block-diagonalization.",
+        "To see Pymablock in action, check out the tutorial .\nSee its algorithms to learn about the underlying ideas, or read the reference documentation for the package API.",
+        "Pymablock only supports periodic time-dependent perturbations, general time-dependent perturbations are in progress .",
+        "The preferred way of installing pymablock is to use mamba / conda :",
+        "Be aware that using pymablock on large Hamiltonians benefits from a direct sparse solver. Pymablock prefers MUMPS via the python-mumps package when available, but it can also use SciPy’s SuperLU through scipy.sparse.linalg .\nIn our experience, the MUMPS backend is typically more performant than SuperLU. python-mumps is only pip-installable on Linux, so use conda on other platforms if you want the MUMPS backend.",
+        "If you have used Pymablock for work that has lead to a scientific publication, please cite the accompanying paper as",
+        "Pymablock is an open source package, and we invite you to contribute!\nYou contribute by opening issues , fixing them, and spreading the word about pymablock .\nIf you want to contribute code, please read the developer documentation ."
+      ],
+      "equations": {}
+    },
+    "nonhermitian_algorithm": {
+      "prose": [
+        "This page describes the non-Hermitian extension of Pymablock ’s main algorithm .\nUsing it requires an extra flag:",
+        "Here the third returned series is the perturbative inverse of .\nThis is because unlike in Hermitian block-diagonalization, the inverse transformation is not the adjoint of the forward transformation and we track it explicitly.",
+        "The overall structure is the same:",
+        "split the Hamiltonian into selected and remaining parts,",
+        "organize perturbation theory through multivariate Cauchy products,",
+        "reduce each perturbative order to one Sylvester solve.",
+        "Throughout this page, we use the notation from the main algorithm page .",
+        "We seek a perturbative similarity transform",
+        "Here denotes the selected part and the remainder to eliminate, exactly as in the main algorithm .\nSince in general, the left and right eigenvectors need not coincide.",
+        "Like in the Hermitian case, we separate the transformation into identity at zeroth order and a correction, which allows us to define recurrence relations through Cauchy products.\nWe first introduce as the correction of the transformation and as the correction of its inverse :",
+        "We once again separate the terms that enter and with the same sign from those that enter with opposite signs:",
+        "In the Hermitian case, this split gives the Hermitian and anti-Hermitian parts of . In the non-Hermitian setting, and are only auxiliary series and need not have those symmetries.",
+        "The inverse constraint then gives",
+        "Because both series start at first order, Eq. (5) determines from lower orders.",
+        "The least-action principle, which in the Hermitian case fixes the non-uniqueness of by minimizing , is not available in the non-Hermitian setting because there is no canonical norm. We therefore fix the gauge by the pragmatic choice:",
+        "This choice is simple, sparse, and close to the Hermitian construction.",
+        "Equivalence to the Hermitian algorithm",
+        "Substituting into Eq. (4) gives the Hermitian and anti-Hermitian parts of :",
+        "This is the Hermitian parameterization, together with the same gauge choice and selected-part recurrence.",
+        "As in the main algorithm , we derive the non-Hermitian recurrence in a form that avoids unnecessary products by .",
+        "Starting from , we substitute and use to cancel the terms multiplied by :",
+        "This form lets us assemble the effective Hamiltonian from , , and without extra products by .",
+        "The elimination condition implies",
+        "We split into the contributions from and :",
+        "Equation (5) rewrites the commutator in terms of Cauchy products. We also define",
+        "Equations (12) and (13) give . The implementation encodes this selected structure\nexplicitly and skips the products that would cancel in the remaining part.",
+        "The gauge condition (6) implies , so the selected part only involves :",
+        "For the remaining part, we solve the Sylvester equation",
+        "Equation (20) is the only Sylvester solve. Every earlier step is a Cauchy product between series that start at first order, so the algorithm never multiplies by outside that solve.",
+        "At order , the implementation reduces to the following closed recurrence.",
+        "With this notation, the order-by-order recurrence is",
+        "The last line is the only Sylvester solve. All earlier lines are Cauchy products between series that start at first order, so order depends only on lower orders. Eq. (21) then gives .",
+        "The Hermitian implicit construction assumes that the explicit subspace is described by one orthonormal basis .\nThe missing block is then represented by the orthogonal complement",
+        "For a genuinely non-Hermitian , we instead use biorthogonal right and left bases:",
+        "The columns of span the explicit subspace, and the columns of span its dual.\nThe projector onto this subspace and its complement are",
+        "In general this projector is oblique rather than orthogonal, so it is not self-adjoint.\nThe block projections become",
+        "The Sylvester equations keep the same structure as in the Hermitian implicit derivation, but they use this oblique and the explicit energies",
+        "So the direct implicit solver needs the same two ingredients:",
+        "right subspace bases to define the retained states,",
+        "left dual bases to define the projection and the complementary block."
+      ],
+      "equations": {
+        "equation-nh-setup": "(1)",
+        "equation-nh-h-split": "(2)",
+        "equation-nh-ug-def": "(3)",
+        "equation-nh-ug-from-wv": "(4)",
+        "equation-nh-w-rec": "(5)",
+        "equation-nh-vgauge": "(6)",
+        "equation-nh-herm-limit-assumption": "(7)",
+        "equation-nh-wv-def": "(8)",
+        "equation-nh-herm-limit-w": "(9)",
+        "equation-nh-herm-limit-v": "(10)",
+        "equation-nh-xab-defs": "(11)",
+        "equation-nh-htilde-b": "(12)",
+        "equation-nh-br-rec": "(13)",
+        "equation-nh-yz-def": "(14)",
+        "equation-nh-bplus-def": "(15)",
+        "equation-nh-z-rec": "(16)",
+        "equation-nh-y-rec": "(17)",
+        "equation-nh-y-s": "(18)",
+        "equation-nh-bs-rec": "(19)",
+        "equation-nh-sylvester-v": "(20)",
+        "equation-nh-closed-defs": "(21)",
+        "equation-nh-closed-recs": "(22)",
+        "equation-nh-implicit-herm-projector": "(23)",
+        "equation-nh-implicit-biorth-basis": "(24)",
+        "equation-nh-implicit-oblique-projector": "(25)",
+        "equation-nh-implicit-block-projections": "(26)",
+        "equation-nh-implicit-biorth-energies": "(27)"
+      }
+    },
+    "radius": {
+      "prose": [
+        "This is an advanced topic both code-wise and conceptually. You do not need to follow this even for advanced uses of Pymablock .",
+        "Pymablock computes Hamiltonian’s perturbative series using the least action principle by minimizing .\nIn the two-block case, this is equivalent to the Schrieffer-Wolff transformation.\nHowever, in more general cases such as multi-block diagonalization or eliminating arbitrary off-diagonal elements, the Schrieffer-Wolff transformation does not satisfy the least action principle.",
+        "In introducing the Pymablock algorithm, we show that it is more efficient and naturally extends to multiple perturbations.\nA question remains: do these two algorithms have comparable stability and convergence?",
+        "Implement a prototype selective diagonalization using the Schrieffer-Wolff transformation.",
+        "Compare its convergence properties with those of Pymablock .",
+        "The Schrieffer-Wolff transformation uses a unitary of the form , with each order of strictly off-diagonal.\nJust like in Pymablock algorithm, we eliminate the specified off-diagonal part of at each perturbation order by solving for with a Sylvester equation.",
+        "From the Baker-Campbell-Hausdorff formula, we have:",
+        "Because , the -th order of only contains through . We obtain from the -th order of the remaining terms and solve using the Sylvester equation.",
+        "Below is a helper function to compute terms of the Baker–Campbell–Hausdorff series efficiently.\nThis function builds nested commutators of two series, A and B, and avoids direct expansion of nested terms:",
+        "The implementation of baker_camphell_hausdorff uses the ability to define BlockSeries recursively by providing an eval function.\nSpecifically, evaluating a block of nested_commutators with index (n, m) uses lower order terms of the same series in its computation.",
+        "The following function implements the generalized Schrieffer-Wolff approach, which zeroes out the specified elements of the Hamiltonian (by a binary mask array).\nHere, it focuses on a single first-order perturbation for simplicity:",
+        "First, we confirm correctness in the 2×2 block-diagonalization case by verifying that both approaches give matching results for a random Hamiltonian:",
+        "We then compare the convergence properties for different masks:",
+        "Define a diagonal , a random , and a chosen mask .",
+        "Construct for varying , apply both methods up to a certain perturbation order, and compare the eigenvalues with exact ones.",
+        "Compute and plot the ratio of errors vs. exact energies.",
+        "Finally, we are ready to compare the convergence properties for different patterns of eliminated matrix elements.",
+        "First, we consider a random mask:",
+        "Let us unpack what we see here:",
+        "We are eliminating the matrix elements shown with the white color in the inset.",
+        "In the top panel at low , the error of the Pymablock algorithm drops with the order of perturbation (line color): we are below the convergence radius.",
+        "At high , the error starts diverging faster and faster with order, and the transition between the two regimes is the convergence radius of the series.",
+        "Regardless of whether is high or low, the bottom panel shows that the ratio between two errors stays roughly constant as a function of the perturbation order.",
+        "While the errors behave similarly, the time taken by the algorithms is vastly different: Pymablock is faster by more than an order of magnitude.",
+        "For completeness, let us also consider other masks.\nHere we take a banded mask where we eliminate all off-diagonal elements outside of a width-3 band:",
+        "Finally, we consider 3×3 block-diagonalization:",
+        "We observe that in all cases both approaches exhibit similar radii of convergence and overall error behavior—a fact for which we don’t have an explanation so far.\nStill, just like we expected, the Pymablock algorithm is much faster."
+      ],
+      "equations": {}
+    },
+    "second_quantization": {
+      "prose": [
+        "This document explains the conceptual foundations of the second quantization tools in Pymablock .\nSpecifically, it covers the implementation of number-ordered forms and the solution of Sylvester equations, which are the basis for Pymablock ’s approach to second quantization.\nWe illustrate how our approach works with all common types of second-quantized operators.",
+        "In many-body physics, normal ordering is a fundamental concept where creation operators are placed to the left of annihilation operators in an expression: , with a bosonic annihilation operator , becomes when normal-ordered.\nNormal ordering provides a reference for calculating expectation values and is essential for perturbation theory.",
+        "However, simplifying complex expressions with normal ordering is challenging, because the non-commutative nature of operators leads to an explosion of number of terms as expressions grow.\nEven worse, non-polynomial functions of operators—such as when number operators appear in denominators (like )—cannot be represented in normal-ordered form at all.",
+        "Instead, Pymablock uses a number-ordered form to represent second-quantized operators.\nNumber-ordered form satisfies the key property that no term can simultaneously contain both creation and annihilation operators for the same quantum mode .\nIn addition to this property, number-ordered form specifies a strict ordering of operators in each term:",
+        "Sorted creation operators appear on the left",
+        "Annihilation operators appear on the right in reverse sorted order",
+        "Number operators and scalar expressions appear in the middle (called the “coefficient” of the term)",
+        "This representation is motivated by making the largest part of the expression commutative, and forming as many number operators as possible.\nFor example, because the coefficients only contain commuting operators, they can be simplified using standard algebraic tools.\nThis form also allows to represent and simplify non-polynomial functions of number operators.",
+        "A number-ordered form is a sum of terms, where each term consists of:",
+        "A set of creation operators for various modes",
+        "A set of annihilation operators for different modes (never the same modes as the creation operators)",
+        "A coefficient that may contain number operators and scalar values",
+        "In the implementation, these concepts are represented as:",
+        "For example, consider the expression (where and are different modes):",
+        "Mathematically, this represents:",
+        "The term with one creation operator for mode and one annihilation operator for mode",
+        "In the implementation, this would be represented as:",
+        "where negative values in the tuple indicate creation operators and positive values indicate annihilation operators.",
+        "A more complex expression is represented as:",
+        "First term: Two creation operators for mode , a number operator for mode as part of the coefficient, three annihilation operators for mode , and a scalar coefficient of 2",
+        "Second term: One creation operator for mode , two annihilation operators for mode , and a non-polynomial coefficient",
+        "To avoid storing the original products in the coefficients, Pymablock uses NumberOperator objects to represent number operators.",
+        "For more details about the implementation, see NumberOrderedForm .",
+        "The real power of number-ordered forms becomes apparent when we multiply quantum operators.\nThe multiplication of quantum operators follows from the commutation relations of individual operators.",
+        "For example, the bosonic commutation relation forms the foundation of all manipulations with bosons:",
+        "This leads directly to the rule for how operators shift number operators:",
+        "To illustrate how number-ordered form manipulations work in practice, let’s examine multiplication rules for a single mode through a multiplication table. This table shows the result of multiplying different terms of a number-ordered form of an operator from the left by various operators.",
+        "Consider three possible forms of number-ordered terms with a single mode:",
+        "- Creation operators followed by a function of the number operator",
+        "- Just a function of the number operator",
+        "- A function of the number operator followed by annihilation operators",
+        "The table below shows what happens when we multiply these terms (columns) from the left by different operators (rows):",
+        "This multiplication table provides a systematic way to derive any number-ordered term by multiplying a number-ordered term from the left with any operator.\nBy repeatedly applying these rules to all terms in a number-ordered expression, we compute the product of any sequence of operators while maintaining the number-ordered form.",
+        "The algebraic framework is completed with two additional operations.\nFirst, addition simply merges coefficients of terms with identical operator powers.\nSecond, taking the adjoint negates all the powers, which turns creation operators into annihilation operators and vice versa, and conjugates the coefficients.\nTogether, these operations provide all the necessary tools to manipulate quantum expressions in number-ordered form in Pymablock .",
+        "Fermions and spins work in a similar way, except for the different commutation relations.\nFirstly, the creation and annihilation operators are nilpotent: if is a fermion or spin operator, then and .\nThis also means that the number operator is idempotent: , which also allows to linearize any function of the number operator because .\nThese rules, as well as the commutation relations, combine into the multiplication table for fermions and spins:",
+        "Pymablock also considers ladder operators on a lattice ( LadderOp ), which appear in Floquet systems—time-dependent systems with periodic drive.\nThese operators are similar to bosons, except creation and annihilation operators commute with each other.\nIn other words, the ladder operators and , and the number operator , satisfy the following relations:",
+        "The multiplication table for ladder operators is similar to the one for bosons, but simpler:",
+        "Whenever the user provides input to block_diagonalize which is a matrix containing second quantized operators, Pymablock computes the output as BlockSeries of matrices containing number-ordered forms.",
+        "To convert the matrices to regular sympy expressions, use result.applyfunc(lambda x: x.as_expr()) , however for many applications this is not necessary because the number-ordered forms already allow to easily manipulate the expressions.",
+        "Then to replace the number operators with their operator form, use result.doit() to obtain the matrix with the original creation and annihilation operators.",
+        "Once per perturbative order, Pymablock solves a Sylvester equation as described in the algorithm .\nThe quantum Sylvester equation takes the form:",
+        "where and are Hamiltonian blocks, is a perturbation term, and is the unknown.",
+        "Let us solve this equation when the Hamiltonian only contains a single mode .",
+        "and are functions of . is a number-ordered term with either creation or annihilation operators (not both) for a given mode.",
+        "We express (with either or ).\nWe then use an Ansatz for with the same operator structure: , so that the Sylvester equation becomes:",
+        "We then commute and into the middle and , which transforms the equation to:",
+        "Because and commute with , the solution is:",
+        "The generalization to multiple modes follows the same pattern: for each mode, apply the appropriate shifts to the Hamiltonian based on the creation and annihilation operators in the perturbation term and find the solution with the same powers of creation and annihilation operators as the right hand side.",
+        "For fermions and spins, we first combine terms in with the same creation and annihilation operators.\nSince , we set in the coefficient for each mode that has a creation or annihilation operator.\nWe then evaluate the fraction at occupations 0 and 1 for each remaining fermion and spin mode.\nAt each choice of occupations, we set the solution coefficient to zero if the numerator is zero, including when the denominator is also zero.\nFor example, the equation requires at occupation 1 and leaves undetermined at occupation 0.\nChoosing zero at occupation 0 gives the operator solution .\nIf the numerator is nonzero and the denominator is identically zero, the equation has no solution and the solver raises ValueError .",
+        "In Pymablock , the solve_sylvester_2nd_quant function implements this approach.",
+        "When working with second quantized operators in perturbation theory, the goal is often to eliminate specific terms from the Hamiltonian. Pymablock provides a format for specifying which terms to keep or eliminate based on the powers of creation and annihilation operators.",
+        "Which operators to eliminate is defined by:",
+        "An expression matrix M , which has the same shape as the operator being filtered",
+        "Each element M[i, j] defines the elimination rules for element (i, j) of the operator: every term of the number-ordered form of that element is eliminated from the corresponding element of the operator.",
+        "For a 2×2 block operator with modes a and b , you can specify:",
+        "Block (0,1): Eliminate terms with exactly 3 annihilation operators for mode a",
+        "Block (1,0): Eliminate terms with either 3 creation operators for mode a or 2 creation operators for mode b",
+        "Block (1,1): Eliminate terms with 2 or more creation or annihilation operators for mode a",
+        "This functionality is implemented by apply_mask_to_operator .",
+        "When using block_diagonalize with second quantized operators, the fully_diagonalize parameter accepts this matrix-based format to control term elimination:",
+        "This approach provides fine-grained control over which terms to include in the effective Hamiltonian, making it possible to implement physical approximations like the rotating wave approximation or selective truncation of higher-order terms."
+      ],
+      "equations": {}
+    },
+    "tutorial/andreev_supercurrent": {
+      "prose": [
+        "In this tutorial, we demonstrate how to use Pymablock to compute complicated analytical expressions and block-diagonalize Hamiltonians with more than two subspaces.\nDirectly running Pymablock on a large symbolic Hamiltonian is computationally expensive, and simplifying the inputs and outputs is crucial to obtaining interpretable results in a reasonable amount of time.\nDoing so benefits from physical insight and requires manipulation of symbolic expressions.",
+        "As an example, we compute supercurrent between two superconductors weakly coupled through a quantum dot.",
+        "We compute the supercurrent by treating the tunneling to the quantum dot as a perturbation.\nThis requires calculating and manipulating fourth-order corrections in tunneling to the ground state energy [ 1 ] .",
+        "The Hamiltonian of the system is",
+        "where the Hamiltonians of the superconductors, of the quantum dot, and of the tunnel coupling are",
+        "Here and are the annihilation operators of electrons in the left (L) and right (R) superconductors and quantum dot, respectively, with .\nThe superconductors’ onsite energies are , and their pairing amplitudes are .\nThe quantum dot’s charging energy is .\nThe offset number of electrons is controlled by the gate voltage .\nThe couplings between the quantum dot and the superconductors are and , where is the phase difference between the superconductors.\nWe treat both couplings as independent perturbations.",
+        "We start by importing the necessary libraries and defining the symbols and operators in the Hamiltonian.",
+        "Here we use t_L_complex to avoid complications with simplification routines in sympy , so that is not expanded into a sine and cosine.",
+        "Next, we define the Hamiltonians of quantum dot and tunneling.",
+        "While is already diagonal, the superconductors’ Hamiltonian is not.\nTherefore, we apply the Bogoliubov transformation to , such that the entire unperturbed Hamiltonian is diagonal.",
+        "Diagonalizing a large symbolic Hamiltonian is computationally expensive, and in many cases impossible.\nTo alleviate this, we use physical insight: with the Bogoliubov transformation we get a diagonal unperturbed Hamiltonian.",
+        "We define the superconductors’ Hamiltonian using the Bogoliubov quasi-particle operators , which are related to the original operators by the Bogoliubov transformation :",
+        "where and are complex coefficients that satisfy .\nAs a result,",
+        "where are the Andreev bound state energies, and and are the Bogoliubov coefficients.",
+        "Using square roots leads to complicated expressions, because assumptions about the arguments of square roots are not automatically inferred by sympy.\nFor example, is not equivalent to , but rather .\nTo avoid lengthy expressions from unsimplified expressions with square roots, we replace them with , , and .\nThese will appear in the effective Hamiltonian, so we substitute their values at the end of the calculation.",
+        "Similarly, because the depends on , we apply the Bogoliubov transformation to it as well.",
+        "In this basis, the unperturbed Hamiltonian is diagonal.",
+        "One may apply Pymablock to this Hamiltonian directly, but it turns out to be too slow because Pymablock then fully diagonalizes the Hamiltonian symbolically in second quantization.",
+        "Instead, we convert the Hamiltonian to a matrix representation, split it into blocks, and only compute corrections to the few eigenenergies of interest.\nThe following code cell defines a function to_matrix(...) that computes the matrix representation of a Hamiltonian H with fermionic operators and the corresponding basis .\nThe details of the implementation are hidden for brevity.",
+        "Next, we obtain the matrix Hamiltonian and its basis.",
+        "At this point, we are ready to feed the symbolic Hamiltonian to the block-diagonalization routine of Pymablock .\nHowever, to improve the computational efficiency, we utilize the following observations:",
+        "The diagonal elements of the Hamiltonian will appear in the denominators in the effective Hamiltonian.\nThese elements correspond to the dot energies and the energies of the superconductors .",
+        "To compute supercurrent we will need to take the derivative of the effective Hamiltonian with respect to .",
+        "The Hamiltonian separates into two blocks corresponding to even and odd fermion parities.",
+        "To make the denominators simpler, we replace the dot energies with right away.\nWe then replace and introduce as an extra perturbative parameter.\nComputing a first order response to then directly gives the energy derivative.",
+        "Finally, the Hamiltonian is ready for further analysis.",
+        "Before computing the effective Hamiltonian, we identify the ground state of the unperturbed Hamiltonian .\nThe ground state depends on the offset electron number .",
+        "Therefore, we compute the supercurrent for the three regimes separately by considering the ground states with electrons occupying the dot.",
+        "we need to find the perturbed ground state energy .\nTo do so, we finally use Pymablock to compute the perturbative corrections to the ground state Hamiltonian.\nBecause we are interested in different ground states, we define a separate subspace for .\nAdditionally, to take advantage of the block-diagonal structure of the Hamiltonian, we define separate subspaces for even and odd parity sectors.\nThis way, Pymablock avoids computing the matrix elements between states with different parities because they are zero.\nWe handle the five subspaces separately by labeling each basis state in the input to the block-diagonalization routine with the corresponding subspace number.",
+        "subspace_indices is a list with 0 for every basis state that we include in the subspace, 1 for the subspace, 2 for the subspace, 3 for the odd parity remaining states, and 4 for the even parity remaining states.",
+        "We start by finding the corrections to the ground state for , which is the vacuum state .\nThe first nonzero correction to the ground state energy appears in the order .",
+        "We use the [0, 0] index to extract the ground state energy because for the Hamiltonian is a matrix, and for it is a diagonal matrix with degenerate ground states.\nHere we also expand the energy to first order in and computed its prefactor by setting .\nThis is an efficient alternative to computing the derivative of the Hamiltonian with respect to .\nIt saves time and avoids unnecessary symbolic manipulations.\nThe result, however, is still complicated and requires simplification.",
+        "To simplify the supercurrent expression, we first identify common patterns:",
+        "The expression is formed by a sum of fractions.",
+        "Terms share common prefactors, which are good to factor out.",
+        "The numerators contain products of , , and , all of which are free of square roots.",
+        "Do not call simplify() on large expressions",
+        "Sympy provides several simplification routines, such as simplify() , expand() , factor() , and collect() , among others .\nThe most general simplification routine is simplify() , which tries a combination of simplification routines to the expression.\nHowever, this routine can be unnecessarily slow and it is not guaranteed to simplify the expression to the desired form.\nTherefore, we analyze instead the expression and identify common patterns to simplify it manually.",
+        "Therefore, we first factor the result, make it real, simplify it, and finally substitute the Bogoliubov coefficients and .",
+        "This simplification produces a compact result.",
+        "Applying the same procedure to the other two ground states, we compute the supercurrent for the and regimes.",
+        "Finally, we plot the critical current, , as a function of the number of electrons ."
+      ],
+      "equations": {}
+    },
+    "tutorial/bilayer_graphene": {
+      "prose": [
+        "This tutorial demonstrates how to use symbolic expressions as input to Pymablock .\nAs an example, we construct the k.p Hamiltonian of bilayer graphene, starting from its tight binding dispersion.",
+        "The crystal structure and the hoppings of bilayer graphene are shown in the figure",
+        "The physics of this system is not crucial for us, but here are the main features:",
+        "The unit cell is spanned by vectors and .",
+        "The unit cell contains 4 atoms with wave functions .",
+        "The hoppings within each layer are .",
+        "The interlayer hopping couples atoms that are on top of each other with amplitude .",
+        "The layers have a potential that we introduce to make the problem a bit more complex.",
+        "If you want to get a more systematic introduction to the bilayer graphene and its k.p model, you can check out this review .",
+        "Let’s start from defining the Hamiltonian.\nWe will use sympy for symbolic computation and manipulation which can make the code somewhat verbose.",
+        "We begin with the basic imports",
+        "Now we are ready to define all the parameters and the hamiltonian",
+        "The Hamiltonian elements are symbols .\nWe collected all momentum-dependent factors into the symbol .",
+        "We also make the reference point for the -vector, making and the perturbative parameters.",
+        "Now we obtain the eigenvectors of the unperturbed Hamiltonian by substituting the unperturbed values ( subs ) and diagonalizing ( diagonalize ).",
+        "After substituting the full expression for into the Hamiltonian, we are ready to block_diagonalize it.\nFor that we specify which symbols are the perturbative parameters using symbols argument.\nThe order of symbols is important: it defines the order of variables in the perturbative series.",
+        "The names of symbols specifying the perturbative parameters are stored in the dimension_names attribute of the result:",
+        "Pymablock treats all symbols as commutative by default.\nTo use not-commutative symbols, like e.g. and , add\nthese into the Hamiltonian directly instead.",
+        "Now we are ready to specify which calculation to perform.",
+        "To compute the standard quadratic dispersion of bilayer graphene and trigonal warping, we need corrections up to third order in momentum.\nLet us then group the terms by total power of momentum.\nFor now this requires an explicit definition of all components, but in the future we plan to automate this step.",
+        "A more general way to group by power",
+        "The above manual definition of k_square and k_cube becomes cumbersome for higher orders or dimensions. Instead, we can use the np.mgrid and select the terms we need by total power like this:",
+        "Before we saw that querying H_tilde returns the results in a numpy array.\nTo gather different entries into one symbolic expression, we define a convenience function that sums several orders together. This uses the compressed method of masked numpy arrays, and simplifies the resulting expression.",
+        "Finally, we are ready to obtain the result.",
+        "The first term contains the standard quadratic dispersion of bilayer graphene with a gap.\nThe second term contains trigonal warping and the coupling between the gap and momentum."
+      ],
+      "equations": {}
+    },
+    "tutorial/dispersive_shift": {
+      "prose": [
+        "The need for analytical effective Hamiltonians often arises in circuit quantum electrodynamics (cQED) problems.\nIn this tutorial, we illustrate how to use Pymablock to compute the the frequency shift of a resonator due to its coupling to the qubit, a phenomenon used to measure the qubit’s state [ 1 ] .",
+        "The Hamiltonian of the system is given by",
+        "where and are bosonic annihilation operators of the transmon and resonator, respectively, and and are their frequencies.\nThe transmon has an anharmonicity , so that its energy levels are not equally spaced.\nIn presence of both the coupling between the transmon and the resonator and the anharmonicity, this Hamiltonian admits no analytical solution.\nWe therefore treat as a perturbative parameter.",
+        "We start by importing all necessary packages and defining the Hamiltonian.",
+        "The frequency shift of the resonator is given by:",
+        "where is the second order correction to the energy of the state with excitations in the transmon and in the resonator.\nTo find the corrections, we may use second quantization directly, or compute the matrix representation of the Hamiltonian in a truncated Hilbert space.\nWe demonstrate both approaches.",
+        "To compute the effective Hamiltonian in second quantized form, we provide the Hamiltonian as an expression with BosonOp elements.",
+        "Only diagonal unperturbed Hamiltonians are supported",
+        "Pymablock only supports bosonic Hamiltonians whose unperturbed part is diagonal: diagonal in the matrix representation (if the Hamiltonian is a matrix) and diagonal in the bosonic basis.",
+        "The effective Hamiltonian is a function of the number of excitations in the transmon and the resonator .",
+        "The expression is long, but it becomes simpler if we evaluate it for specific occupation numbers.",
+        "Pymablock ’s number-ordered form",
+        "Pymablock uses number operators combined with the number-ordered form of quantum operators to simplify the expressions that contain bosonic operators throughout the algorithm execution.\nSee here for the explanation of the algorithm.",
+        "To compute the dispersive shift, we need to evaluate for the states with and .\nWe do this by first defining the number operators for the transmon and resonator:",
+        "and then substituting their values in :",
+        "Note that is also a pymablock.number_ordered_form.NumberOrderedForm object and we may use chi.as_expr() to convert it to a sympy expression.",
+        "Alternatively, we can compute the effective Hamiltonian in a matrix representation.\nTo deal with the infinite dimensional Hilbert space, we observe that the perturbation only changes the occupation numbers of the transmon and the resonator by .\nTherefore computing -th order corrections to the -th state allows to disregard states with any occupation numbers larger than .\nWe want to compute the second order correction to the levels with occupation numbers of either the transmon or the resonator being and .\nWe accordingly truncate the Hilbert space to the lowest 3 levels of the transmon and the resonator.\nThe resulting Hamiltonian is a matrix, which we construct by computing the matrix elements of and in the truncated basis.",
+        "To compute the dispersive shift, we need to compute the energy corrections of the lowest levels.\nTherefore, we call block_diagonalize to separate the Hamiltonian into multiple subspaces, replicating a regular perturbation theory calculation for single wavefunctions.\nTo do this, we observe that is diagonal, and use subspace_indices to assign the elements of its eigenbasis to the desired states.",
+        "Here subspaces_indices is a list with integers from to that indicate to which subspace each basis element belongs.\nThe first four elements of subspaces_indices correspond to the states , , , and , and each of them corresponds to a different subspace.\nThe number is used to indicate the subspace of the remaining states.\nThis yields the effective Hamiltonian H_tilde with blocks, all decoupled from each other.",
+        "Finally, we compute the dispersive shift from the second order correction to the energies",
+        "In this example, we have not used the rotating wave approximation, including the frequently omitted counter-rotating terms to illustrate the extensibility of Pymablock .\nComputing higher order corrections to the qubit frequency only requires increasing the size of the truncated Hilbert space and requesting H_tilde[0, 0, n] to the desired order ."
+      ],
+      "equations": {}
+    },
+    "tutorial/getting_started": {
+      "prose": [
+        "Getting started with Pymablock is simple, let’s start by importing it together with numpy .",
+        "Let’s apply perturbation theory to a diagonal Hamiltonian with two subspaces and , coupled by a perturbation.",
+        "We begin by defining a Hamiltonian and a random perturbation.",
+        "While has two subspaces separated in energy, couples them.",
+        "For the perturbation theory to work, the spectra of the two subspaces must differ.\nThe larger the smallest energy difference between the two subspaces, the better the perturbation theory works.",
+        "Most Pymablock users will need only one function: block_diagonalize .\nIt takes all the possible types of input and defines a solution of the perturbation theory problem as infinite series of the transformed Hamiltonian and the corresponding transformation .",
+        "Here the first term in the hamiltonian list is the unperturbed Hamiltonian , and the following terms are the perturbations.\nThe subspace_indices argument defines to which subspace each diagonal term of belongs.",
+        "This does do any computations yet, and only defines the answer as an object that we can query.",
+        "Most users will only ever need the diagonal blocks of H_tilde , however Pymablock returns the extra information in case it is needed.",
+        "To get perturbative corrections to the diagonal blocks of the Hamiltonian, we query H_tilde with the block and the order of the correction.",
+        "For example, we obtain a second order correction to the first subspace as",
+        "where (0, 0) is the first subspace ( block), and 2 means the second order correction.",
+        "Let us also check that the off-diagonal blocks of the Hamiltonian are to any order.",
+        "Some terms in series are completely missing.\nBecause Pymablock supports very different types of operators, it is impossible to have a single one-size-fits-all value for a zero element.\nTherefore Pymablock implements its own sentinel values to represent zero and one .\nThese special values also help the library’s performance by allowing for to skip unnecessary computations.\nTypically, they should not appear in user code, however you may encounter them in rare cases.\nYou can then use expressions like if result is pymablock.series.zero to check for their occurrence and handle them.",
+        "where (0, 1) is the block, and 3 is the third order correction.",
+        "Just like H_tilde , U and U_adjoint are BlockSeries objects too.\nIn most situations these are not necessary, but they can be useful to transform any other observable to the basis of the H_tilde .",
+        "To get more than one perturbative correction at a time, we can query H_tilde using numpy ’s indexing convention.\nFor example, we query the corrected Hamiltonian of the first subspace up to second order using",
+        "The output is a MaskedArray with the same block structure as if we queried a numpy array with the same indices.\nThe entries of this array are the Hamiltonian terms themselves, and therefore they may be of different types: here we see that the unperturbed Hamiltonian is stored as a sparse matrix, while the higher orders are numpy arrays.",
+        "The final block-diagonalized Hamiltonian up to second order looks like this:",
+        "NumPy’s masked arrays are arrays where some entries are masked out because they are undefined, or because they are not needed, such that they are skipped in various operations.\nIn Pymablock , we use masked arrays to skip the terms that are zero, so that they are skipped in summation and multiplication throughout the algorithm.\nTo sum over the entries of a masked array, use np.ma.sum(array) , for example.",
+        "Let us now consider a more complex example, where:",
+        "The unperturbed Hamiltonian is not diagonal",
+        "There are multiple perturbative parameters",
+        "Some perturbations are not first order",
+        "We want to separate the Hamiltonian into more than two subspaces",
+        "Because diagonalization is both standard, and not our focus, Pymablock will not do it for us.\nHowever, it will properly treat a non-diagonal unperturbed Hamiltonian if we provide its eigenvectors.",
+        "Let’s define a problem with two perturbative parameters:",
+        "The keys of the hamiltonian dictionary are tuples of integers, where -th\ninteger is the order of the -th perturbative parameter.",
+        "The Hamiltonian does not contain values of and .\nInstead, to evaluate , we will provide the values of the perturbative parameters at the last step.",
+        "If you want to vary the perturbation strength, providing its values last is more efficient than recomputing the perturbative series.",
+        "Differently from the first example, is not diagonal anymore",
+        "To define the perturbative series we compute the eigenvectors of and split them into groups that define the different subspaces.\nIn this case, we separate the Hamiltonian into three subspaces: , , and .",
+        "block_diagonalize transforms everything to the basis of subspace_vectors , such that, for example, the unperturbed Hamiltonian becomes diagonal.",
+        "Accordingly U is the unitary transformation that block-diagonalizes the Hamiltonian in the eigenbasis of .",
+        "Let us examine how the perturbative series is stored in H_tilde , which is a BlockSeries object.",
+        "It has a block structure corresponding to the , , and subspaces.\nThe number of its infinite size dimensions is the number of perturbative parameters.",
+        "BlockSeries defines a way to compute its entries, which are stored in the internal _data attribute.\nBefore we did any computation, _data is empty",
+        "Querying a multivariate BlockSeries requires either specifying only the block indices, or\nblocks and orders of all its perturbations.",
+        "For example, here define a new BlockSeries that only contains the and subspaces",
+        "Alternatively, here we compute a term of of the order",
+        "Computing this term required also computing several orders of U , which are now stored in U._data",
+        "That means that querying the same term of is now nearly instantaneous",
+        "The same is true for BlockSeries objects that were defined by slicing H_tilde",
+        "The final block-diagonalized Hamiltonian up to second order in each perturbative parameter looks like this:",
+        "Earlier we saw that Pymablock computes the Hamiltonian and the unitary transformation as ~pymablock.series.BlockSeries objects.\nWhile the Hamiltonian is the most important object, the unitary transformation allows to transform any other operator to the basis of the of the perturbed Hamiltonian.\nThese operators may be density matrices, other Hamiltonians, or any other observable.",
+        "Here we create the unperturbed Hamiltonian H_0 , the perturbation H_1 , and an additional operator X that we want to transform to the basis of effective Hamiltonian.\nFirst, we perform the block diagonalization.",
+        "Because block_diagonalize parses the input Hamiltonian and separates it into blocks using subspace_indices or subspace_eigenvectors , we first need to convert X into a BlockSeries object in the same basis as H_0 and with the same perturbative parameters and block structure.\nWe do this by using operator_to_BlockSeries function, which has inputs similar to block_diagonalize , and use the dictionary format to indicate that X depends on a single perturbative parameter.",
+        "Finally, to compute X in the perturbed basis, we multiply it by the unitary transformation.",
+        "In zeroth order X and X_tilde coincide, but X_tilde contains the perturbative corrections.\nLet us confirm this, and check the second order correction to the projection of X on the subspace.",
+        "As an alternative to separating a Hamiltonian into blocks, Pymablock is capable of perturbatively canceling arbitrary off-diagonal terms in a Hamiltonian.\nThe only requirement is that any two states to decouple are not degenerate, unless they are already decoupled.\nLet us illustrate this using a Hamiltonian :",
+        "We define a mask that selects the terms to keep in the Hamiltonian.\nTo show the arbitrary nature of the mask, we use a smiley face.",
+        "The mask is a boolean array of the same shape as the Hamiltonian, where True values indicate the terms to keep in the Hamiltonian, and False values indicate the terms to cancel.",
+        "We apply the mask to the Hamiltonian by providing it as the fully_diagonalize argument to block_diagonalize .",
+        "The argument fully_diagonalize is a dictionary where the keys label the blocks of the Hamiltonian, and the values are the masks that select the terms to keep in that block.\nWe only used one block in this example.",
+        "Finally, we plot the transformed Hamiltonian"
+      ],
+      "equations": {}
+    },
+    "tutorial/induced_gap": {
+      "prose": [
+        "This tutorial demonstrates how to efficiently build effective models from big numerical Hamiltonians.\nIt also shows how Pymablock integrates with Kwant .\nAs an example, we consider a tight binding model of a quantum dot and a superconductor with a tunnel barrier in between.",
+        "Let’s start by importing the necessary packages",
+        "Following Kwant’s tutorials we start by defining the lattice",
+        "Next, we define the onsite potential for the quantum dot and superconductor",
+        "here we make the hoppings between the quantum dots and superconductor equal to t_barrier .",
+        "We can now plot the system and finalize it",
+        "In the plot the blue regions are the left and right quantum dots, while the superconductor is the red region in the middle.",
+        "We see that the system is large: with this many sites even storing all the eigenvectors would take 60 GB of memory. We must therefore use sparse matrices, and may only compute a few eigenvectors.\nIn this case, perturbation theory allows us to compute the effective Hamiltonian of the low energy degrees of\nfreedom.",
+        "To get the unperturbed Hamiltonian, we use the following values for , , , , and .",
+        "The barrier strength and the asymmetry of the dot potentials are the two perturbations that we vary.",
+        "In the implicit mode, Pymablock computes the perturbative series without knowing the eigenvectors of one of the Hamiltonian subspaces.",
+        "Therefore we compute 4 eigenvectors of the unperturbed Hamiltonian, which correspond to the 4 lowest eigenvalues closest to .\nThese are the lowest energy Andreev states in two quantum dots.",
+        "The orthogonalization is often necessary to do manually because ~scipy.sparse.linalg.eigsh does not return orthogonal eigenvectors if the matrix is complex and eigenvalues are degenerate.",
+        "We now define the block diagonalization routine and compute the few lowest orders of the effective Hamiltonian. Here we only provide the set of vectors of the interesting subspace.",
+        "Block diagonalization is now the most time consuming step because it requires pre-computing several decomposition of the full Hamiltonian.\nIt is, however, manageable and it only produces a constant overhead.",
+        "For convenience, we collect the lowest three orders in each parameter in an appropriately sized tensor.",
+        "We see that we have obtained the effective model in only a few seconds.\nWe can now compute the low energy spectrum after rescaling the perturbative corrections by the magnitude of each perturbation.",
+        "As expected, the crossing at due to the dot asymmetry is lifted when the dots are coupled to the superconductor.\nIn addition, we observe how the proximity gap of the dots increases with the coupling strength.",
+        "We also see that computing the spectrum perturbatively is faster than repeatedly using sparse diagonalization for a set of parameters.\nIn this example the total runtime of Pymablock would only allow us to compute the eigenvectors at around 5 points in the parameter space."
+      ],
+      "equations": {}
+    },
+    "tutorial/jaynes_cummings": {
+      "prose": [
+        "In this tutorial we demonstrate how to get a CQED effective Hamiltonian using Pymablock with bosonic operators.\nAs an example, we use the Jaynes-Cummings model, which describes a spin coupled to a boson.\nThis tutorial shows how to use Pymablock with second-quantized operators, without the need to transform the Hamiltonian to a matrix representation.",
+        "Let’s start by importing the sympy functions we need to define the Hamiltonian.\nWe will make use of sympy ’s quantum mechanics module and its matrices .",
+        "We define the onsite energy , the energy gap , the perturbative parameter , and , the bosonic annihilation operator.",
+        "where the basis corresponds to the two spin states.",
+        "We can now define the block-diagonalization routine by calling block_diagonalize",
+        "The function block_diagonalize takes the Hamiltonian and the perturbative parameter as input.\nDifferently from the rest of the tutorials, here we do not provide susbpace_vectors or subspace_indices . Pymablock treats the Hamiltonian as a single block , where the goal is to remove all terms that are not diagonal.\nThe output therefore is a diagonal Hamiltonian that only contains one block with number operators.",
+        "Pymablock only supports diagonal unperturbed Hamiltonians when using bosonic operators.\nThis means that must be block-diagonal and its entries need to be convertible to functions of the number operator, without single boson terms.\nThis limitation may be lifted using advanced functionality, by providing a custom solve_sylvester input to the block_diagonalize function.",
+        "For example, to compute the 2nd order correction of the Hamiltonian of the subspaces we use",
+        "Pymablock ’s output contains , the number operator for the bosonic mode, which is a NumberOperator object.\nFurthermore, the output is stored in the NumberOrderedForm class that Pymablock uses for efficient manipulation of second quantized expressions.\nIn the example above, the diagonal entries of the Hamiltonian are NumberOrderedForm objects.",
+        "To see the result in terms of individual bosonic operators, we may use the doit method:",
+        "Check out the documentation for more information on how to use number operators and simplify expressions that contain them.",
+        "Higher order corrections to the Hamiltonian work exactly the same:",
+        "We see that also computing the 6th order correction takes effectively no time.",
+        "An alternative to defining the Hamiltonian as a 2x2 matrix is to use spin operators:",
+        "Similarly as before, we provide the Hamiltonian to block_diagonalize :",
+        "The fourth order correction to the Hamiltonian depends on the spin occupation number , such that for we recover the diagonal entries of the previous example."
+      ],
+      "equations": {}
+    },
+    "tutorial/spin_rwa_floquet": {
+      "prose": [
+        "In this tutorial, we demonstrate how to apply the rotating wave approximation (RWA) to a spin under periodic driving. Pymablock ’s approach to periodic time-dependent Hamiltonians is to introduce an artificial dimension and work in the Fourier space, thus applying Floquet perturbation theory.",
+        "As a minimal demonstration, we focus on obtaining the corrections to the quasi-energy levels of the system.\nThis system is similar to both the Jaynes-Cummings model and the dispersive shift computation .",
+        "We start with a time-dependent Hamiltonian for a spin-1/2 system under periodic driving:",
+        "where is the frequency of the spin, is the coupling strength, and is the driving frequency.",
+        "Decomposing the cosine term into exponentials:",
+        "To tackle this problem, we represent the exponential terms using ladder operators, which allows us to work with a second-quantized form of the Hamiltonian.",
+        "To do this, we first apply the discrete Fourier transform to the time-dependent Schrödinger equation, which yields an infinite size block Hamiltonian:",
+        "with and matrices.\nHere each block corresponds to a different component of the discrete Fourier transform of the time-dependent spin wave function .\nThe off-diagonal blocks of the Hamiltonian couple these components by .",
+        "Second, we introduce the ladder operator and its number operator that satisfy:",
+        "These follow the commutation relations described in the Second Quantization Tools section.",
+        "Third, we arrive to the second-quantized form of the Floquet Hamiltonian:",
+        "where we have two second-quantized operators: the ladder operator for the drive and the spin operators .",
+        "Let us now implement this in Pymablock using LadderOp and NumberOperator .",
+        "We start by demonstrating a full perturbative diagonalization of the Hamiltonian, where the goal is to eliminate any off-diagonal terms in the Hamiltonian:",
+        "The first order correction is zero: the perturbation is off-diagonal and therefore we eliminated it completely.\nThe second order correction is non-zero and contains contributions from both the rotating and counter-rotating terms with energy denominators .",
+        "We see that the result contains , the number operator for the spin.\nThis is a consequence of Pymablock using the number ordered form to perform the calculations, but we can also substitute the original Pauli operators back in:",
+        "Alternatively, if we want to obtain an effective Hamiltonian that only eliminates the counter-rotating terms instead of all the off-diagonal terms, we need to specify this in the block diagonalization routine. Pymablock offers two ways to do so: either by separating the perturbation into different terms and computing the result to different orders in each perturbation, or by directly specifying which terms should be eliminated from the final Hamiltonian.",
+        "The first approach is more straightforward, so we recommend starting with it and only considering the second one if you need more control over the final result.",
+        "Instead of treating the entire interaction as a single perturbation, we separate it into two perturbations: one with co-rotating terms and another with counter-rotating terms.\nThe co-rotating terms are those that create or annihilate pairs of excitations: , while the counter-rotating terms preserve the excitation number: .\nLet us define these terms explicitly.",
+        "Now we perform block diagonalization with the two separate perturbative parameters.\nThe order specification corresponds to :",
+        "This separation allows us to identify which terms arise from purely co-rotating interactions, purely counter-rotating interactions, or cross-terms between them.\nAs expected, all first-order terms are zero since both perturbations are off-diagonal.",
+        "A more advanced approach is to directly specify which terms should be eliminated in the perturbative Hamiltonian.\nIt is more verbose, and is likely not necessary for most applications, but it offers more control over the final result.",
+        "The rotating wave approximation involves eliminating rapidly oscillating terms.\nWe achieve this by only eliminating some of the terms in the perturbation expansion, using the elimination rules :",
+        "The terms and (counter-rotating terms)",
+        "The terms with any power of the ladder operator on the diagonal.",
+        "The latter is needed to avoid generating terms like .",
+        "The first order effective Hamiltonian is now nonzero because we only eliminate the counter-rotating terms.\nOn the other hand, the second order effective Hamiltonian now only has contributions from the near-resonant terms with energy denominators .",
+        "This tutorial demonstrates two key concepts:",
+        "Floquet formalism : Using ladder operators to represent the time-dependent Hamiltonian in a second-quantized form",
+        "Selective diagonalization : Using elimination rules to eliminate only some of the perturbation terms, specifically the counter-rotating terms in our case."
+      ],
+      "equations": {}
+    }
+  },
+  "objects": {
+    "pymablock.block_diagonalize": [
+      "Find the block diagonalization of a Hamiltonian order by order.",
+      "This uses a generalization of quasi-degenerate perturbation theory known as\nLowdin perturbation theory, Schrieffer-Wolff transformation, or van Vleck\ntransformation to the case of multiple blocks. Some blocks of the resulting\nHamiltonian can be fully diagonalized, reproducing the usual\nRayleigh-Schrodinger perturbation theory. Alternatively, the algorithm can\nperturbatively eliminate any subset of the off-diagonal elements of the\nHamiltonian.",
+      "This function does not yet perform the computation. Instead, it defines the\ncomputation as a BlockSeries object, which can be\nevaluated at any order.",
+      "This function accepts a Hamiltonian in several formats and it first\nbrings it to the eigenbasis of the unperturbed Hamiltonian if the blocks,\neigenvectors or indices of the eigenvalues are provided, see below.",
+      "For large numerical calculations with a sparse Hamiltonian and a low\ndimensional relevant subspace, the algorithm uses an implicit representation\nof the spectrum and does not require full diagonalization. This is enabled\nif subspace_eigenvectors do not span the full space of the unperturbed\nHamiltonian. In the non-Hermitian case, the implicit method uses the same\ndirect-solver machinery but may require distinct left and right subspace\nvectors.",
+      "Full symbolic or numeric Hamiltonian to block diagonalize.\nThe Hamiltonian is normalized to a BlockSeries .",
+      "of the form [h_0, h_1, h_2, ...] where h_0 is the unperturbed\nHamiltonian and h_1, h_2, ... are the first order perturbations. The\nelements h_i may be Matrix , ndarray , spmatrix , that require separating into blocks. Otherwise, h_i may be a list of lists with the Hamiltonian blocks.",
+      "of the form {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2} , or {1: h_0, x: h_1, y: h_2} for symbolic Hamiltonians. In the former\ncase, the keys must be tuples of integers indicating the order of\neach perturbation. In the latter case, the keys must be monomials\nand the indices are ordered as in H.dimension_names . The values\nof the dictionary, h_i have the same format as in the list case.",
+      "unless a list of symbols is provided as perturbative parameters,\nall symbols will be treated as perturbative. The normalization to BlockSeries is done by Taylor expanding in symbols to the desired order.",
+      "A single Expr containing the second-quantized Hamiltonian.",
+      "A function that solves the Sylvester equation. If not provided,\nit is selected automatically based on the inputs. Custom solvers should\naccept solve_sylvester(Y, index) . The legacy one-argument form solve_sylvester(Y) is deprecated and will be removed in version\n2.4.0.",
+      "A tuple describing the subspaces onto which the Hamiltonian is projected\nand separated into blocks. Each entry may be either a single basis V or, for non-Hermitian problems, a pair (R, L) of right and\nleft basis vectors. A single basis is shorthand for (V, V) , i.e.\nidentical left and right subspaces. The combined explicit subspaces\nmust satisfy L^\\dagger R = I . The non-Hermitian pair format (R, L) is only supported when hermitian=False . If None, the\nunperturbed Hamiltonian must be block diagonal. If some vectors are\nmissing, the implicit method is used. Mutually exclusive with subspace_indices . If neither subspace_eigenvectors nor subspace_indices are provided, the\nBlockSeries is defined with a single block.",
+      "An array indicating which state belongs to which subspace. If there are\ntwo blocks, the labels are 0 for the A (effective) subspace and 1 for\nthe B (auxiliary) subspace. Only applicable if the unperturbed\nHamiltonian is diagonal. Mutually exclusive with subspace_eigenvectors .\nIf neither subspace_eigenvectors nor subspace_indices are provided,\nthe BlockSeries is defined with a single block.",
+      "Dictionary containing the options to pass to the Sylvester solver.\nIn the KPM path, see solve_sylvester_KPM for details.\nIn the direct path, eigenvalue_atol sets the tolerance used to\ngroup explicit eigenvalues into degenerate energy subspaces before\nconstructing the constrained sparse solves.",
+      "Whether to use the direct sparse solver (default). It prefers MUMPS\nwhen available and otherwise falls back to SciPy’s sparse LU.\nOtherwise, the KPM solver is used. Only applicable if the implicit\nmethod is used (i.e. subspace_eigenvectors is incomplete).\nNon-Hermitian implicit mode currently requires the direct solver unless\na custom solve_sylvester is provided.",
+      "Symbols that label the perturbative parameters of a symbolic\nHamiltonian. The order of the symbols is mapped to the indices of the\nHamiltonian, see BlockSeries . If None, the\nperturbative parameters are taken from the input Hamiltonian and sorted by name.\nDistinct symbols with the same name are not allowed, even with explicit symbols.",
+      "Absolute tolerance to consider matrices as exact zeros. This is used\nto validate that the unperturbed Hamiltonian is block-diagonal.",
+      "Indices of the blocks that should be fully diagonalized. If the Hamiltonian only\nhas one block, it is fully diagonalized by default. Alternatively can be a\ndictionary with the indices of the diagonal blocks as keys and as values\nappropriately shaped numpy boolean arrays marking which matrix elements should\nbe eliminated by the diagonalization. If there is only one block, the boolean\narray may be provided directly without a dictionary. For Hermitian problems this\nmask must be symmetric, and may not have any True values corresponding to matrix\nelements coupling degenerate eigenvalues. If the Hamiltonian has second-quantized\noperators, the array may be a sympy matrix instead, and its entries must\ncorrespond to sums of all possible operator powers to eliminate, e.g. a + Dagger(a) or a ** k + Dagger(a) ** k .",
+      "Whether to use the Hermitian algorithm (default). If set to False, use the\nnon-Hermitian similarity-transform algorithm. The non-Hermitian\nleft/right pair form of subspace_eigenvectors requires hermitian=False .",
+      "Block diagonalized Hamiltonian.",
+      "Transformation that block diagonalizes H.",
+      "Inverse of U. For Hermitian problems this coincides with the adjoint."
+    ],
+    "pymablock.operator_to_BlockSeries": [
+      "Convert an operator to BlockSeries format.",
+      "The normalization consists of the following steps:",
+      "Determine perturbation parameters from the input format,",
+      "Separate the operator into blocks based on eigenvectors or subspace indices,",
+      "Full symbolic or numeric operator. It is normalized to a BlockSeries and separated into blocks corresponding to\ndifferent subspaces.",
+      "of the form [h_0, h_1, h_2, ...] where h_0 is the unperturbed\noperator and h_1, h_2, ... are the first order perturbations. The\nelements h_i may be Matrix , ndarray , spmatrix , that require separating into blocks. Otherwise, h_i may be a list of lists with the operator blocks.",
+      "of the form {(0, 0): h_0, (1, 0): h_1, (0, 1): h_2} , or {1: h_0, x: h_1, y: h_2} for symbolic operators. In the former case, the keys must be\ntuples of integers indicating the order of each perturbation. In the latter\ncase, the keys must be monomials and the indices are ordered as in operator.dimension_names . h_i have the same format as in the list\ncase.",
+      "unless a list of symbols is provided as perturbative parameters, all\nsymbols will be treated as perturbative. The normalization to BlockSeries is done by Taylor expanding in symbols to the desired order.",
+      "A tuple describing the subspaces onto which the operator is projected\nand separated into blocks. Each entry may be either a single basis V or, for non-Hermitian problems, a pair (R, L) of right and\nleft basis vectors, with the single-basis form understood as (V, V) . The non-Hermitian pair format (R, L) is only supported\nwhen hermitian=False . If some vectors are missing, the last block\nis defined implicitly. Mutually exclusive with subspace_indices .\nIf neither subspace_eigenvectors nor subspace_indices are provided, the BlockSeries is defined with a\nsingle block.",
+      "An array indicating which state belongs to which subspace. If there are two\nblocks, the labels are 0 for the A (effective) subspace and 1 for the B\n(auxiliary) subspace. Mutually exclusive with subspace_eigenvectors .\nIf neither subspace_eigenvectors nor subspace_indices are provided, the\nBlockSeries is defined with a single block.",
+      "Whether to wrap the operator of the last subspace into a linear\noperator.",
+      "Symbols that label the perturbative parameters of a symbolic operator. The order\nof the symbols is mapped to the indices of the operator, see BlockSeries . If None, the perturbative parameters are taken\nfrom the input operator and sorted by name.\nDistinct symbols with the same name are not allowed, even with explicit symbols.",
+      "Absolute tolerance to consider matrices as exact zeros. This is used to validate\nthat the unperturbed operator is block-diagonal.",
+      "Whether the operator may be assumed to be Hermitian (for performance).\nThe non-Hermitian left/right pair form of subspace_eigenvectors requires hermitian=False ."
+    ],
+    "pymablock.block_diagonalization.solve_sylvester_KPM": [
+      "Solve Sylvester energy division for the Kernel Polynomial Method (KPM).",
+      "General energy division for numerical problems through either full\nknowledge of the B-space or application of the KPM Green’s function.",
+      "Unperturbed Hamiltonian of the system.",
+      "Subspaces to project the unperturbed Hamiltonian and separate it into\nblocks.",
+      "Dictionary containing any of the following options for KPM.",
+      "Tolerance for Hamiltonian rescaling.",
+      "Accepted precision of the Green’s function result in 2-norm.",
+      "Maximum number of expansion moments of the Green’s function.",
+      "Partial set of eigenvectors of the auxiliary subspace, used to speed up\nconvergence of the KPM solver.",
+      "Function that applies divide by energies to the right hand side of\nSylvester’s equation."
+    ],
+    "pymablock.block_diagonalization.solve_sylvester_diagonal": [
+      "Define a function for solving a Sylvester’s equation for diagonal matrices.",
+      "Optionally, this function also applies the eigenvectors of the second\nmatrix to the solution.",
+      "List of arrays of eigenvalues in each subspace. If vecs_implicit are provided,\nthe last subspace corresponds to the partial set of eigenvalues of the implicit\nsubspace.",
+      "Partial eigenvectors of the implicit subspace. Only used for KPM. If provided,\nthe last block is returned in the basis of the original Hilbert space rather\nthan eigenbasis of the Hamiltonian.",
+      "Absolute tolerance to consider energy differences as exact zeros.",
+      "Function that solves Sylvester’s equation."
+    ],
+    "pymablock.block_diagonalization.solve_sylvester_direct": [
+      "Solve Sylvester equation using a direct sparse solver.",
+      "This function prefers MUMPS, which is a parallel direct solver for sparse\nmatrices, and falls back to SciPy’s sparse LU when MUMPS is unavailable.",
+      "Unperturbed Hamiltonian of the system.",
+      "Bases of the explicit subspaces of the unperturbed Hamiltonian. Each\nentry may be either a right basis V or, for non-Hermitian problems,\na pair (R, L) of right and left basis vectors, with V understood as (V, V) . The direct solver requires these bases to be\ngiven as NumPy arrays.",
+      "Whether to also prepare the left-implicit Green’s functions needed by\nthe non-Hermitian algorithm. This is more expensive and unnecessary for\nthe Hermitian path.",
+      "Keyword arguments for the direct solver. eigenvalue_atol controls\nhow explicit eigenvalues are grouped into degenerate subspaces before\nconstructing the constrained sparse solves. It defaults to 1e-12 .",
+      "Function that solves the corresponding Sylvester equation."
+    ],
+    "pymablock.series.BlockSeries": [
+      "Series with block structure and caching of evaluated items.",
+      "BlockSeries is used to represent Hamiltonians, unitary transformations,\nand other series needed in the block diagonalization algorithm.",
+      "Construct an infinite series that caches its items.",
+      "The series has finite and infinite dimensions.",
+      "Function that takes an index and returns the corresponding item.",
+      "Dictionary {index: value} with initial data of the series.",
+      "Shape of the finite dimensions.",
+      "Names of the infinite dimensions.\nThis is used for symbolic series.",
+      "Name of the series. Used for printing."
+    ],
+    "pymablock.series.cauchy_dot_product": [
+      "Multivariate Cauchy product of BlockSeries .",
+      "Notes: This treats a singleton one as the identity operator.",
+      "Series to multiply using their block structure. Must be at least two.",
+      "(optional) Function for multiplying elements of the series. Default is\nmatrix multiplication matmul.",
+      "(optional) whether to assume that the result is Hermitian in order to\nreduce computational costs.",
+      "A new series that is the Cauchy dot product of the given series."
+    ],
+    "pymablock.series.zero": [
+      "A sentinel value for missing terms in series.",
+      "Supports multiplication or addition by any other object (and returns itself).\nAny other usage should be handled by other code."
+    ],
+    "pymablock.series.one": [
+      "A sentinel value representing the identity operator.",
+      "Used for the zeroth order of a unitary transformation.\nDoes not support any methods, and should be handled by other code."
+    ],
+    "pymablock.linalg.direct_greens_function": [
+      "Compute the Green’s function of a Hamiltonian using a sparse direct solver.",
+      "Energy at which to compute the Green’s function.",
+      "Basis of the right kernel of E - H . When provided, the solver fixes\nthe gauge by replacing pivot equations selected with pivoted QR by x[pivot] = 0 constraints and projects the kernel away before and\nafter the sparse solve. If omitted, an empty kernel basis is used.",
+      "Basis dual to kernel_vectors used to construct the kernel\nprojector. If omitted, kernel_vectors is used on both sides.",
+      "Deprecated. Ignored and will be removed in version 2.4.0.",
+      "Deprecated. Ignored and will be removed in version 2.4.0."
+    ],
+    "pymablock.number_ordered_form.LadderOp": [
+      "Like a BosonOp , but creation and annihilation\noperators commute. This is useful for simulating Floquet systems. The operator\nimplementation is minimal, and is meant to be used in combination with the NumberOperator class.",
+      "Implementation mostly copied from BosonOp ."
+    ],
+    "pymablock.number_ordered_form.NumberOperator": [
+      "Number operator for bosonic, fermionic, and spin operators.",
+      "This class is used to simplify expressions with second-quantized operators. We do\nthis ourselves, because sympy does not support this yet.",
+      "Construct a number operator for bosonic, ladder, fermionic, or spin mode.",
+      "Operator that the number operator counts.",
+      "Length-1 list with the operator.",
+      "Unused; required for compatibility with sympy."
+    ],
+    "pymablock.number_ordered_form.NumberOperator.doit": [],
+    "pymablock.number_ordered_form.NumberOperator.name": [
+      "Return the name of the operator."
+    ],
+    "pymablock.number_ordered_form.NumberOrderedForm": [
+      "Number ordered form of quantum operators.",
+      "A number ordered form represents quantum operators where:\n1. All creation operators are on the left\n2. All annihilation operators are on the right\n3. Number operators (and other scalar expressions) are in the middle",
+      "This representation makes it easy to manipulate complex quantum expressions, because\ncommuting a creation or annihilation operator through a function of a number operator\nsimply replaces the corresponding number operator N with N ± 1 .",
+      "See the second quantization documentation for a\ndetailed description.",
+      "List of quantum operators (annihilation operators only).",
+      "Dictionary mapping operator power tuples to coefficient expressions.\nNegative powers represent creation operators, positive powers represent\nannihilation operators.",
+      "Additional hints passed to the parent class."
+    ],
+    "pymablock.number_ordered_form.NumberOrderedForm.applyfunc": [
+      "Apply a SymPy function to the terms of this NumberOrderedForm.",
+      "NumberOrderedForm stores its coefficients with number operators replaced with\ninteger placeholder symbols. This method does applies the function to those\ncoefficients, but does not change the operators themselves.",
+      "SymPy function to apply (e.g., sympy.simplify, sympy.factor)",
+      "Additional positional arguments for the function",
+      "Additional keyword arguments for the function",
+      "A new NumberOrderedForm with the function applied to its terms"
+    ],
+    "pymablock.number_ordered_form.NumberOrderedForm.as_expr": [
+      "Convert the NumberOrderedForm to a standard SymPy expression.",
+      "A standard SymPy expression equivalent to this NumberOrderedForm.",
+      "Convert a NumberOrderedForm to a standard SymPy expression:"
+    ],
+    "pymablock.number_ordered_form.NumberOrderedForm.doit": [
+      "Evaluate the NumberOrderedForm.",
+      "Additional hints passed to the parent class.",
+      "The evaluated NumberOrderedForm."
+    ],
+    "pymablock.number_ordered_form.NumberOrderedForm.filter_terms": [
+      "Filter the terms of this NumberOrderedForm based on given conditions.",
+      "Tuples of conditions to filter the terms. Each condition is a tuple\ncontaining the powers of operators, possibly symbolic, e.g. 3 + n .",
+      "If True, keep the terms that satisfy any of the conditions. If False\n(default), keep the terms that do not satisfy any of the conditions.",
+      "A new NumberOrderedForm with only the terms that do not satisfy any of the\nconditions."
+    ],
+    "pymablock.number_ordered_form.NumberOrderedForm.from_expr": [
+      "Create a NumberOrderedForm instance from a sympy expression.",
+      "Sympy expression with quantum operators.",
+      "List of quantum operators to use. If None, operators will be extracted from\nthe expression.",
+      "A NumberOrderedForm instance representing the expression.",
+      "Create a NumberOrderedForm from a sympy expression with bosonic operators:"
+    ],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_algebraic": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_complex": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_composite": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_even": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_extended_negative": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_extended_nonnegative": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_extended_nonpositive": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_extended_nonzero": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_extended_positive": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_extended_real": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_imaginary": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_integer": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_irrational": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_negative": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_noninteger": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_nonnegative": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_nonpositive": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_nonzero": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_odd": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_particle_conserving": [
+      "Check if this expression conserves particle numbers.",
+      "True if the expression has no unpaired creation or annihilation operators,\nFalse otherwise."
+    ],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_positive": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_prime": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_rational": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_real": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_transcendental": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.is_zero": [],
+    "pymablock.number_ordered_form.NumberOrderedForm.operators": [
+      "The list of included operators."
+    ],
+    "pymablock.number_ordered_form.NumberOrderedForm.terms": [
+      "Internally, terms are stored as a tuple of (key, value) tuples for better performance.\nThis property converts the internal representation to a dictionary for compatibility."
+    ],
+    "pymablock.number_ordered_form.find_operators": [
+      "Find all quantum operators in a SymPy expression.",
+      "The expression to search for quantum operators.",
+      "A list of unique quantum operators found in the expression. Boson and spin\noperators are listed before fermion operators and both are sorted by their\nnames."
+    ],
+    "pymablock.second_quantization.apply_mask_to_operator": [
+      "Apply a mask to filter specific terms in a matrix operator.",
+      "This function selectively keeps terms in a symbolic matrix operator based on\ntheir powers of creation and annihilation operators.",
+      "See more details of how this works in the second quantization\ndocumentation .",
+      "Matrix operator containing symbolic expressions with second quantized operators.",
+      "A matrix with NumberOrderedForm elements that\ndefine selection criteria. Specifically, the elements of the operator[i, j] with powers matching any mask[i, j].terms are selected.",
+      "If True (default), keep the terms that satisfy any of the conditions. If False\ndiscard the terms that satisfy any of the conditions. Used for inverting the\nmask.",
+      "A new matrix with the same shape as the input, but containing only the\nselected terms.",
+      "Let’s filter out terms in a Hamiltonian matrix based on their boson number operators:"
+    ],
+    "pymablock.second_quantization.solve_sylvester_2nd_quant": [
+      "Solve a Sylvester equation for 2nd quantized diagonal Hamiltonians.",
+      "Tuple of lists of expressions representing the diagonal Hamiltonian blocks.",
+      "Whether to use anti-Hermitian symmetry of the solution within diagonal\nblocks. Set to False for general non-Hermitian sources.",
+      "A function that takes a matrix of operators and a tuple of indices, and\ncomputes the element-wise solution to the Sylvester equation for those\ndiagonal Hamiltonian blocks. Each entry is computed by solve_scalar ,\nincluding its choice of zero for undetermined fermion and spin matrix\nelements and its ValueError when the equation has no solution."
+    ],
+    "pymablock.kpm.greens_function": [
+      "Return a solution of (energy - hamiltonian) @ x = vector .",
+      "Uses the Kernel polynomial method (KPM) with the Jackson kernel.",
+      "Hamiltonian with shape (N, N) . It is required that the Hamiltonian\nis rescaled so that its spectrum lies in the interval [-1, 1] .",
+      "Rescaled energy at which to evaluate the Green’s function.",
+      "Accepted precision of the desired result in 2-norm.",
+      "Positive integer maximum order of KPM expansion to compute.\nInteger-valued floats are also accepted for compatibility.",
+      "Solution x of (E - H_0) * x = v."
+    ],
+    "pymablock.kpm.rescale": [
+      "Rescale a Hamiltonian to the interval [-1 - eps/2, 1 + eps/2] .",
+      "Adapted with modifications from kwant.kpm Copyright 2011-2016 Kwant\ndevelopers, BSD simplified license https://gitlab.kwant-project.org/kwant/kwant/-/blob/v1.4.3/LICENSE.rst",
+      "Extra tolerance to add to the spectral bounds as a fraction of the bandwidth.",
+      "Estimated boundaries of the spectrum. If not provided the maximum and\nminimum eigenvalues are calculated.",
+      "Energy interval to definitely include within the [-1, 1] rescaled energies.",
+      "Rescaling parameters such that h_rescaled = (h - b) / a ."
+    ],
+    "pymablock.algorithm_parsing.series_computation": [
+      "Compile a BlockSeries computation.",
+      "Given several series, functions to apply to their elements, and an algorithm,\nreturn the output series defined by the algorithm.",
+      "The algorithm parsing used by this function applies multiple optimizations used in\nthe Pymablock main algorithm. While these could be generated by hand, the resulting\ncode is complex and repetitive. The mini-language used to specify the algorithm\nallows to avoid this complexity and enabled multiple improvements of the current\nalgorithm and simplifies development of new algorithms.",
+      "Specifically, code generation from the mini-language description of an algorithm:",
+      "Handles initialization of series and the definition of their evaluation functions.",
+      "Utilizes hermiticity and antihermiticity to reduce the number of evaluations.",
+      "Automatically handles the implicit mode when parts of the series are provided as\nlinear operators.",
+      "Handles deletion of intermediate series terms that are only used once to reduce\nthe memory usage.",
+      "Implementing a new algorithm is advanced usage, and familiarity with the codebase is\nhighly recommended.",
+      "Dictionary with all input series, where the keys are the names of the series.",
+      "Algorithm to use for the block diagonalization. Should be passed as a callable\nwhose contents follow the algorithm mini-language, see notes below.",
+      "Extra variables to pass to pass to the algorithm. It is particularly relevant\nfor passing custom functions or data.",
+      "(optional) function to use for matrix multiplication.\nDefaults to matmul.",
+      "A dictionary with all the series used in the computation. The keys are\nthe names of the series and the values are the corresponding BlockSeries .",
+      "The same series as above, but wrapped into linear operators. Only used\nin the implicit mode.",
+      "The algorithm callable is not evaluated directly, but rather parsed to extract\nthe computation that needs to be performed. It needs to follow the\nspecification below.",
+      "This domain-specific language is experimental and may change in the future.",
+      "The function body contains multiple with statements that define the series and\nproducts of that algorithm. Throughout the definition the series and products are\nrepresented by their name using string literals.",
+      "A series definition allows the following statements:",
+      "start = ... to define the zeroth order of the series. Allowed values are \"series_name\" , 0 , 1 .",
+      "hermitian or antihermitian to optionally mark the lower triangular blocks\nof a series to be evaluated using a conjugate transpose of the upper triangular\nblocks.",
+      "One or more expressions that define how to evaluate the series. If there are\nmultiple expressions, they are summed together. The expression can contain the\nfollowing:",
+      "String literals to represent series.",
+      "Attribute .adj access to represent the conjugate adjoint of a series.",
+      "Function calls. Using f(\"series\") will call the function f with the\nseries and the block index as arguments. Using f(expression) will call the\nfunction with the evaluated expression and block index as arguments.\nCalls may be nested: outer(inner(\"H\")) passes the whole series and\nindex to inner , then its result and the same index to outer .\nIn outer(inner(-\"H\")) , inner instead receives the evaluated\nnegative coefficient and the index.",
+      "if <condition>: differentiates evaluation based on the requested index.\nAllowed conditions are:",
+      "diagonal : indices on the main diagonal.",
+      "offdiagonal : indices not on the main diagonal.",
+      "lower : indices in the lower triangle.",
+      "If a name contains an “@” symbol, it defines a Cauchy product of the terms in it.\nFor example \"A @ B @ C\" is a Cauchy product of the series A , B , and C .",
+      "A product definition must contain one of the two following statements:",
+      "hermitian to mark the product as hermitian.",
+      "The final return statement in the function body defines a tuple of series that are\nthe output of the algorithm and terms of which should not be deleted.",
+      "The algorithm definition may look as follows (this example does not do anything\nuseful):",
+      "Here \"A\" is an input, \"B\" and \"C\" are defined in the computation, and\nthe function f must be provided using the scope.",
+      "For an extended example, see the main function in pymablock/algorithms.py ."
+    ]
+  },
+  "inventory": [
+    {
+      "name": "pymablock",
+      "type": "py:module"
+    },
+    {
+      "name": "pymablock.algorithm_parsing",
+      "type": "py:module"
+    },
+    {
+      "name": "pymablock.algorithm_parsing.series_computation",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.block_diagonalization",
+      "type": "py:module"
+    },
+    {
+      "name": "pymablock.block_diagonalization.solve_sylvester_KPM",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.block_diagonalization.solve_sylvester_diagonal",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.block_diagonalization.solve_sylvester_direct",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.block_diagonalize",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.kpm",
+      "type": "py:module"
+    },
+    {
+      "name": "pymablock.kpm.greens_function",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.kpm.rescale",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.linalg",
+      "type": "py:module"
+    },
+    {
+      "name": "pymablock.linalg.direct_greens_function",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.number_ordered_form.LadderOp",
+      "type": "py:class"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOperator",
+      "type": "py:class"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOperator.doit",
+      "type": "py:method"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOperator.name",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm",
+      "type": "py:class"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.applyfunc",
+      "type": "py:method"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.as_expr",
+      "type": "py:method"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.doit",
+      "type": "py:method"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.filter_terms",
+      "type": "py:method"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.from_expr",
+      "type": "py:method"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_algebraic",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_complex",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_composite",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_even",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_extended_negative",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_extended_nonnegative",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_extended_nonpositive",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_extended_nonzero",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_extended_positive",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_extended_real",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_imaginary",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_integer",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_irrational",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_negative",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_noninteger",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_nonnegative",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_nonpositive",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_nonzero",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_odd",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_particle_conserving",
+      "type": "py:method"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_positive",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_prime",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_rational",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_real",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_transcendental",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.is_zero",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.operators",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.NumberOrderedForm.terms",
+      "type": "py:property"
+    },
+    {
+      "name": "pymablock.number_ordered_form.find_operators",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.operator_to_BlockSeries",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.second_quantization",
+      "type": "py:module"
+    },
+    {
+      "name": "pymablock.second_quantization.apply_mask_to_operator",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.second_quantization.solve_sylvester_2nd_quant",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.series",
+      "type": "py:module"
+    },
+    {
+      "name": "pymablock.series.BlockSeries",
+      "type": "py:class"
+    },
+    {
+      "name": "pymablock.series.cauchy_dot_product",
+      "type": "py:function"
+    },
+    {
+      "name": "pymablock.series.one",
+      "type": "py:data"
+    },
+    {
+      "name": "pymablock.series.zero",
+      "type": "py:data"
+    },
+    {
+      "name": "CHANGELOG",
+      "type": "std:doc"
+    },
+    {
+      "name": "algorithms",
+      "type": "std:doc"
+    },
+    {
+      "name": "authors",
+      "type": "std:doc"
+    },
+    {
+      "name": "developer",
+      "type": "std:doc"
+    },
+    {
+      "name": "documentation/pymablock",
+      "type": "std:doc"
+    },
+    {
+      "name": "genindex",
+      "type": "std:label"
+    },
+    {
+      "name": "implicit",
+      "type": "std:label"
+    },
+    {
+      "name": "index",
+      "type": "std:doc"
+    },
+    {
+      "name": "modindex",
+      "type": "std:label"
+    },
+    {
+      "name": "nonhermitian_algorithm",
+      "type": "std:doc"
+    },
+    {
+      "name": "py-modindex",
+      "type": "std:label"
+    },
+    {
+      "name": "radius",
+      "type": "std:doc"
+    },
+    {
+      "name": "search",
+      "type": "std:label"
+    },
+    {
+      "name": "second_quantization",
+      "type": "std:doc"
+    },
+    {
+      "name": "tutorial/andreev_supercurrent",
+      "type": "std:doc"
+    },
+    {
+      "name": "tutorial/bilayer_graphene",
+      "type": "std:doc"
+    },
+    {
+      "name": "tutorial/dispersive_shift",
+      "type": "std:doc"
+    },
+    {
+      "name": "tutorial/getting_started",
+      "type": "std:doc"
+    },
+    {
+      "name": "tutorial/induced_gap",
+      "type": "std:doc"
+    },
+    {
+      "name": "tutorial/jaynes_cummings",
+      "type": "std:doc"
+    },
+    {
+      "name": "tutorial/spin_rwa_floquet",
+      "type": "std:doc"
+    }
+  ]
+}

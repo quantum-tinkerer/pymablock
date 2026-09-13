@@ -239,6 +239,7 @@ hatch-vcs = ">=0.5.0,<0.6"
 
 [tool.pixi.feature.starlight.pypi-dependencies]
 jupyterlite-xeus = ">=5.1,<6"
+rst-to-myst = ">=0.4, <0.5"
 
 [tool.pixi.feature.starlight.tasks]
 starlight-install = { cmd = "npm ci", cwd = "docs/starlight" }

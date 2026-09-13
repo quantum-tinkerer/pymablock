@@ -2,43 +2,90 @@
 
 ## Block diagonalization
 
-- {autolink}`~pymablock.block_diagonalize`
-- {autolink}`~pymablock.operator_to_BlockSeries`
+```{autodoc} pymablock
+:summary-only: true
+```
+
+```{autodoc} pymablock.block_diagonalize
+```
+```{autodoc} pymablock.operator_to_BlockSeries
+```
 
 ## Solvers of Sylvester equation
 
-- {autolink}`~pymablock.block_diagonalization.solve_sylvester_diagonal`
-- {autolink}`~pymablock.block_diagonalization.solve_sylvester_direct`
-- {autolink}`~pymablock.block_diagonalization.solve_sylvester_KPM`
+```{autodoc} pymablock.block_diagonalization
+:summary-only: true
+```
+
+```{autodoc} pymablock.block_diagonalization.solve_sylvester_diagonal
+```
+```{autodoc} pymablock.block_diagonalization.solve_sylvester_direct
+```
+```{autodoc} pymablock.block_diagonalization.solve_sylvester_KPM
+```
 
 ## Series
 
-- {autolink}`~pymablock.series.BlockSeries`
-- {autolink}`~pymablock.series.cauchy_dot_product`
-- {autolink}`~pymablock.series.zero`
-- {autolink}`~pymablock.series.one`
+```{autodoc} pymablock.series
+:summary-only: true
+```
+
+```{autodoc} pymablock.series.BlockSeries
+```
+```{autodoc} pymablock.series.cauchy_dot_product
+```
+```{autodoc} pymablock.series.zero
+```
+```{autodoc} pymablock.series.one
+```
 
 ## Linear algebra
 
-- {autolink}`~pymablock.linalg.direct_greens_function`
+```{autodoc} pymablock.linalg
+:summary-only: true
+```
+
+```{autodoc} pymablock.linalg.direct_greens_function
+```
 
 ## Number ordered form
 
-- {autolink}`~pymablock.number_ordered_form.LadderOp`
-- {autolink}`~pymablock.number_ordered_form.NumberOperator`
-- {autolink}`~pymablock.number_ordered_form.NumberOrderedForm`
-- {autolink}`~pymablock.number_ordered_form.find_operators`
+```{autodoc} pymablock.number_ordered_form.LadderOp
+```
+```{autodoc} pymablock.number_ordered_form.NumberOperator
+```
+```{autodoc} pymablock.number_ordered_form.NumberOrderedForm
+```
+```{autodoc} pymablock.number_ordered_form.find_operators
+```
 
 ## Second quantization
 
-- {autolink}`~pymablock.second_quantization.solve_sylvester_2nd_quant`
-- {autolink}`~pymablock.second_quantization.apply_mask_to_operator`
+```{autodoc} pymablock.second_quantization
+:summary-only: true
+```
+
+```{autodoc} pymablock.second_quantization.solve_sylvester_2nd_quant
+```
+```{autodoc} pymablock.second_quantization.apply_mask_to_operator
+```
 
 ## Kernel polynomial method (KPM)
 
-- {autolink}`~pymablock.kpm.greens_function`
-- {autolink}`~pymablock.kpm.rescale`
+```{autodoc} pymablock.kpm
+:summary-only: true
+```
+
+```{autodoc} pymablock.kpm.greens_function
+```
+```{autodoc} pymablock.kpm.rescale
+```
 
 ## Algorithms
 
-- {autolink}`~pymablock.algorithm_parsing.series_computation`
+```{autodoc} pymablock.algorithm_parsing
+:summary-only: true
+```
+
+```{autodoc} pymablock.algorithm_parsing.series_computation
+```

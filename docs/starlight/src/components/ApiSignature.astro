@@ -1,0 +1,13 @@
+---
+import { Signature } from 'starlight-pydocs/components';
+
+// SymPy constructs immutable objects through __new__. Pydocs 0.2 currently
+// looks only for __init__; adapt its input through the public component hook.
+const { doc, ...props } = Astro.props;
+const members = doc.object.members;
+const constructor = doc.kind === 'class' && !members?.__init__ && members?.__new__;
+const signatureDoc = constructor
+  ? { ...doc, object: { ...doc.object, members: { ...members, __init__: constructor } } }
+  : doc;
+---
+<Signature doc={signatureDoc} {...props} />

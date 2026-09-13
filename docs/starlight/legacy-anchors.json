@@ -1,0 +1,113 @@
+{
+  "nonhermitian_algorithm": {
+    "non-hermitian-algorithm": "@top",
+    "equation-nh-setup": "nh-setup",
+    "equation-nh-h-split": "nh-h-split",
+    "equation-nh-ug-def": "nh-ug-def",
+    "equation-nh-ug-from-wv": "nh-ug-from-wv",
+    "equation-nh-w-rec": "nh-w-rec",
+    "equation-nh-vgauge": "nh-vgauge",
+    "equation-nh-herm-limit-assumption": "nh-herm-limit-assumption",
+    "equation-nh-wv-def": "nh-wv-def",
+    "equation-nh-herm-limit-w": "nh-herm-limit-w",
+    "equation-nh-herm-limit-v": "nh-herm-limit-v",
+    "equation-nh-xab-defs": "nh-xab-defs",
+    "equation-nh-htilde-b": "nh-htilde-b",
+    "equation-nh-br-rec": "nh-br-rec",
+    "equation-nh-yz-def": "nh-yz-def",
+    "equation-nh-bplus-def": "nh-bplus-def",
+    "equation-nh-z-rec": "nh-z-rec",
+    "equation-nh-y-rec": "nh-y-rec",
+    "equation-nh-y-s": "nh-y-s",
+    "equation-nh-bs-rec": "nh-bs-rec",
+    "equation-nh-sylvester-v": "nh-sylvester-v",
+    "equation-nh-closed-defs": "nh-closed-defs",
+    "equation-nh-closed-recs": "nh-closed-recs",
+    "equation-nh-implicit-herm-projector": "nh-implicit-herm-projector",
+    "equation-nh-implicit-biorth-basis": "nh-implicit-biorth-basis",
+    "equation-nh-implicit-oblique-projector": "nh-implicit-oblique-projector",
+    "equation-nh-implicit-block-projections": "nh-implicit-block-projections",
+    "equation-nh-implicit-biorth-energies": "nh-implicit-biorth-energies"
+  },
+  "radius": {
+    "comparison-to-generalized-schrieffer-wolff-transformation": "@top"
+  },
+  "index": {
+    "pymablock": "@top"
+  },
+  "CHANGELOG": {
+    "changelog": "@top",
+    "unreleased": "id-unreleased",
+    "id1": "id-2-2-1-2026-03-09",
+    "id2": "changed",
+    "id3": "id-2-2-0-2025-06-05",
+    "id4": "added",
+    "id5": "changed",
+    "id6": "removed",
+    "id7": "id-2-1-0-2024-11-19",
+    "id8": "added",
+    "id9": "changed",
+    "id10": "fixed",
+    "id11": "removed",
+    "id12": "id-2-0-0-2024-02-03",
+    "id13": "changed",
+    "id14": "added",
+    "id15": "removed",
+    "id16": "id-1-0-0-2023-06-05"
+  },
+  "second_quantization": {
+    "second-quantization-tools": "@top"
+  },
+  "developer": {
+    "developer-documentation": "@top"
+  },
+  "authors": {
+    "pymablock-authors": "@top"
+  },
+  "algorithms": {
+    "the-algorithm": "@top",
+    "equation-hamiltonian": "hamiltonian",
+    "equation-eq-problem-definition": "eq-problem-definition",
+    "equation-u": "u",
+    "equation-w": "w",
+    "equation-xyz": "xyz",
+    "equation-h-tilde": "h-tilde",
+    "equation-z": "z",
+    "equation-y": "y",
+    "equation-sylvester": "sylvester",
+    "equation-y-s": "y-s",
+    "equation-sylvester-optimized": "sylvester-optimized",
+    "how-to-use-pymablock-on-large-numerical-hamiltonians": "implicit"
+  },
+  "tutorial/bilayer_graphene": {
+    "k-p-model-of-bilayer-graphene": "@top"
+  },
+  "tutorial/andreev_supercurrent": {
+    "supercurrent-through-a-quantum-dot": "@top",
+    "id1": "user-content-fnref-1%5E",
+    "id2": "user-content-fn-1%5E"
+  },
+  "tutorial/dispersive_shift": {
+    "dispersive-shift-of-a-resonator-coupled-to-a-transmon": "@top",
+    "id1": "user-content-fnref-1%5E",
+    "id2": "user-content-fn-1%5E"
+  },
+  "tutorial/spin_rwa_floquet": {
+    "rabi-model-of-a-spin-under-periodic-driving": "@top"
+  },
+  "tutorial/induced_gap": {
+    "induced-gap-in-a-double-quantum-dot": "@top"
+  },
+  "tutorial/jaynes_cummings": {
+    "jaynes-cummings-model": "@top"
+  },
+  "tutorial/getting_started": {
+    "getting-started": "@top",
+    "define-a-hamiltonian": "id-1-define-a-hamiltonian",
+    "define-the-perturbative-series": "id-2-define-the-perturbative-series",
+    "get-the-perturbative-results": "id-3-get-the-perturbative-results"
+  },
+  "documentation/pymablock": {
+    "package-reference": "@top"
+  }
+}

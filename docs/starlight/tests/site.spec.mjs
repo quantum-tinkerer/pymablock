@@ -68,9 +68,8 @@ test('search indexes original documentation and API objects', async ({page}) => 
   await expect(page.locator('dialog a[href$="/tutorial/getting_started/"]').first()).toBeVisible();
 });
 
-test('legacy page aliases and the API inventory remain available', async ({page, request}) => {
-  await page.goto('./tutorial/getting_started.html');
-  await expect(page.locator('h1').first()).toHaveText('Getting started');
+test('redirect stubs stay removed and the API inventory remains available', async ({request}) => {
+  expect((await request.get('./tutorial/getting_started.html')).status()).toBe(404);
   const inventory = await request.get('objects.inv');
   expect(inventory.ok()).toBe(true);
   expect((await inventory.body()).subarray(0, 33).toString()).toContain('# Sphinx inventory version 2');

@@ -11,7 +11,10 @@ export const collections = {
     loader: sourceLoader({
       base: new URL('../../source/', import.meta.url),
       pattern: '**/[^_]*.md',
-      sources,
+      sources: Object.fromEntries(Object.entries(sources).map(([file, source]) => [file, {
+        ...source,
+        editUrl: `https://gitlab.kwant-project.org/qt/pymablock/-/edit/main/docs/source/${file}`,
+      }])),
       documents,
     }),
     schema: docsSchema(),

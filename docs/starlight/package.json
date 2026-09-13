@@ -16,7 +16,7 @@
   "dependencies": {
     "@astrojs/starlight": "^0.42.0",
     "astro": "^7.3.2",
-    "astro-myst-notebooks": "file:vendor/astro-myst-notebooks-0.2.0.tgz",
+    "astro-myst-notebooks": "file:vendor/astro-myst-notebooks-0.2.1.tgz",
     "starlight-pydocs": "^0.2.1"
   },
   "devDependencies": {

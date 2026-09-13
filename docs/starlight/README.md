@@ -4,8 +4,8 @@ The documentation uses Astro and Starlight. All 16 authored pages come directly
 from `docs/source/`, including the root changelog, author list, and contributor
 guide through MyST includes. The original navigation and all executable cells
 are retained. `starlight-pydocs` generates ten API module pages; the original
-reference page links to the same documented objects, with full-width parameter
-descriptions on their generated pages.
+reference page renders the complete API inline through MyST `autodoc` directives
+and Pydocs components, with full-width parameter descriptions.
 
 ```sh
 pixi run docs-build
@@ -14,9 +14,11 @@ pixi run -e starlight starlight-dev --port 51000
 
 The HTML output is `docs/starlight/dist/`. GitLab CI and Read the Docs use this
 build. `READTHEDOCS_CANONICAL_URL` supplies the site's domain and version prefix;
-`DOCS_BASE` and `DOCS_SITE` override the prefix and domain for other hosts. Original `.html` page URLs
-serve aliases of the corresponding Starlight pages. API objects now live on their
-module pages; `objects.inv` publishes their cross-project references. MathJax's five expandable equations use ordinary MyST derivation
+`DOCS_BASE` and `DOCS_SITE` override the prefix and domain for other hosts.
+Legacy in-page anchors are retained without generating `.html` redirect stubs.
+The hosting layer owns extension and trailing-slash routing. API objects also
+have generated module pages; `objects.inv` publishes their cross-project references.
+MathJax's five expandable equations use ordinary MyST derivation
 dropdowns, preserving their mathematical content.
 
 ## Execution and dependencies
@@ -64,6 +66,17 @@ mapped to their source files. Browser execution checks use real Xeus workers,
 including edits, ordered execution, reset, teardown, and failed-download recovery.
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` selects an installed Chromium. Integration unit
 tests live in the sibling repository and execute its compiled package.
+
+The parity audit is recorded in [PARITY.md](PARITY.md). The checked-in Sphinx
+fixture compares original object coverage, prose, equation numbers, and typed
+inventory entries; it is independent of the new renderer. Regenerate it with
+`tests/capture-sphinx.py` against a Sphinx build of commit `f85fcd1`.
+
+The Python API adapter uses Griffe's NumPy parser and `rst-to-myst` for RST
+markup. Constructor docs, `__new__` signatures, and dynamic SymPy properties
+are explicitly retained. Failed docstring rendering fails the build. MyST
+page text keeps exact source mappings; generated docstring fragments use the
+API source link and do not claim exact Markdown offsets.
 
 Unsupported MyST constructs fail explicitly. Arbitrary Sphinx extensions,
 Jupyter widgets, and persistent reader sessions are outside this integration.
