@@ -1,0 +1,28 @@
+---
+import ContentPanel from '@astrojs/starlight/components/ContentPanel.astro';
+import { fromHtml } from 'hast-util-from-html';
+import { toHtml } from 'hast-util-to-html';
+import type { Nodes } from 'hast';
+
+// Restore the original Sphinx content styling at the text-node boundary.
+// Surrounding source-location spans and their text offsets remain intact.
+const tree = fromHtml(await Astro.slots.render('default'), { fragment: true });
+const excluded = new Set(['script', 'style', 'pre', 'code', 'textarea', 'svg', 'math']);
+function brand(node: Nodes): Nodes[] {
+  if (node.type === 'element' && (excluded.has(node.tagName) ||
+      node.properties.className?.toString().includes('katex') ||
+      node.properties.className?.toString().includes('jupyter-outputs'))) return [node];
+  if (node.type === 'text') {
+    return node.value.split(/(Pymablock)/).filter(Boolean).map(value => value === 'Pymablock'
+      ? { type: 'element', tagName: 'b', properties: { className: ['pymablock-name'] }, children: [{ type: 'text', value }] }
+      : { type: 'text', value });
+  }
+  if ('children' in node) node.children = node.children.flatMap(brand) as typeof node.children;
+  return [node];
+}
+brand(tree);
+---
+<ContentPanel><Fragment set:html={toHtml(tree)} /></ContentPanel>
+<style is:global>
+  .pymablock-name { color: #8b4aa0; font-weight: bold; }
+</style>

@@ -71,7 +71,7 @@ byte for byte.
 - Rich Sphinx-Tippy hover cards for cross-references, equations and DOI links
   are not implemented. Links and ordinary tooltips remain available.
 - Sphinx's general/module index pages are replaced by Pydocs' searchable API
-  index and module navigation. Search uses Starlight's search dialog. Exported
+  index and module pages. Search uses Starlight's search dialog. Exported
   inventory labels point to these replacements.
 - Matomo tracking, its opt-out footer, and the Sphinx release string in the page
   title, plus the original author/copyright footer, have not been ported. Tracking needs deployment-specific configuration;
@@ -116,7 +116,7 @@ Content parity does not imply full Sphinx configuration compatibility.
 | `show_toc_level` and book-theme layout | Native Starlight navigation and object-level API TOC; different theme behavior |
 | Project/release/author/copyright metadata | Project branding retained; release in document titles and original author/copyright footer are missing |
 | `extra_footer` and original tracking template | Matomo and opt-out not ported |
-| `_templates`, `_static`, `local.css` | Required assets adapted; the original global purple-name substitution and Tippy-only CSS are not ported, and Jinja templates are not executed |
+| `_templates`, `_static`, `local.css` | Required assets adapted; purple bold name styling is restored through parsed HTML text nodes; Tippy-only CSS is not ported, and Jinja templates are not executed |
 
 ### Hover-preview direction
 
@@ -142,3 +142,10 @@ replacement route, while `_modules/...html` requires source-page replacements
 or explicit source-link redirects. A blanket `.html` rewrite cannot cover those
 special routes. These server changes have not been made here, and no HTML
 redirect stubs have been restored.
+
+
+The later sidebar correction removes the additional "API by module" group.
+Only the original authored navigation is shown; generated module routes remain
+available for API links and inventory targets. The original purple bold
+"Pymablock" typography is restored in page titles and prose, without rewriting
+code, output blocks, URLs, or source-location metadata.

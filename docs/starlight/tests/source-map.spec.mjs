@@ -10,7 +10,17 @@ test('prose selections retain exact origins in authored and included files', asy
         const origin=JSON.parse(el.dataset.sourceLocation);
         return origin.file===file && origin.kind==='exact' && el.textContent.length>30;
       });
-      const range=document.createRange();range.setStart(span.firstChild,2);range.setEnd(span.firstChild,20);
+      // Selections can cross inline branding and other nested markup.
+      const walker=document.createTreeWalker(span,NodeFilter.SHOW_TEXT);
+      const range=document.createRange();
+      let offset=0;
+      while(walker.nextNode()) {
+        const node=walker.currentNode;
+        const end=offset+node.textContent.length;
+        if(offset<=2 && end>2) range.setStart(node,2-offset);
+        if(offset<20 && end>=20) {range.setEnd(node,20-offset);break;}
+        offset=end;
+      }
       return window.mystSourceMap.resolve(range);
     },file);
     expect(result.complete).toBe(true);

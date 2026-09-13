@@ -3,7 +3,7 @@ import { copyFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
-import starlightPydocs, { pydocsSidebarGroup } from 'starlight-pydocs';
+import starlightPydocs from 'starlight-pydocs';
 import notebooks from 'astro-myst-notebooks';
 import { exportInventory } from 'astro-myst-notebooks/inventory';
 import { site, base } from './deployment.mjs';
@@ -19,13 +19,13 @@ export default defineConfig({
     social: [{ icon: 'gitlab', label: 'GitLab', href: 'https://gitlab.kwant-project.org/qt/pymablock' }],
     customCss: ['./src/styles/custom.css'],
     routeMiddleware: './src/api-toc.ts',
-    components: { MarkdownContent: './src/components/MarkdownContent.astro', Footer: './src/components/Footer.astro' },
+    components: { ContentPanel: './src/components/ContentPanel.astro', MarkdownContent: './src/components/MarkdownContent.astro', Footer: './src/components/Footer.astro' },
     plugins: [starlightPydocs({
       packages: [api], runner,
       components: { Signature: './src/components/ApiSignature.astro', DocstringSections: 'astro-myst-notebooks/CheckedDocstrings.astro' },
       inventories: Object.values(references).map(({ file, base }) => ({ file: fileURLToPath(file), base })),
     })],
-    sidebar: [...sidebar, { label: 'API by module', items: [pydocsSidebarGroup], collapsed: true }],
+    sidebar,
   }), {
     name: 'pymablock-api-inventory',
     hooks: {
