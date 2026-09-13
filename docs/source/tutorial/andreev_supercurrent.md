@@ -212,23 +212,15 @@ The details of the implementation are hidden for brevity.
 ```{code-cell} ipython3
 :tags: [hide-cell]
 
-from itertools import combinations
+from itertools import product
 
 def to_matrix(H):
     """Compute a matrix representation of a sympy expression with fermion operators."""
-    # Add an identity operator to all symbols so that we always work with operators
-    H = H.subs({
-        s: sympy.physics.quantum.IdentityOperator() * s for s in H.free_symbols
-        if not isinstance(s, sympy.physics.quantum.Operator)
-    })
     # Choose an order of fermionic operators
-    fermions = [
-        s for s in H.free_symbols
-        if (
-            isinstance(s, sympy.physics.quantum.fermion.FermionOp)
-            and s.is_annihilation
-        )
-    ]
+    fermions = list({
+        op if op.is_annihilation else Dagger(op)
+        for op in H.atoms(sympy.physics.quantum.fermion.FermionOp)
+    })
     fermions.sort(key=lambda f: f.name.name) # Sort by label to ensure consistent order
     # Compute matrix representations
     s_minus = sympy.Matrix([[0, 1], [0, 0]])
@@ -239,24 +231,21 @@ def to_matrix(H):
         for i, op in enumerate(fermions)
     }
     matrix_subs.update({Dagger(op): Dagger(mat) for op, mat in matrix_subs.items()})
-    matrix_subs[sympy.physics.quantum.IdentityOperator()] = sympy.eye(2**len(fermions))
+    identity = sympy.eye(2**len(fermions))
 
-    # Generate basis
-    basis = [(sympy.S.One,)]
-    for n in range(len(fermions)):
-        basis.extend(list(combinations(fermions, n + 1)))
-    reversed_basis = list(reversed(basis))
-    reversed_basis[-1] = (sympy.S.Zero,)
+    # Scalar energy offsets act as the identity on the full Fock space.
+    scalar, operator_part = H.expand().as_independent(*matrix_subs, as_Add=True)
+    matrix = scalar * identity
+    if operator_part != 0:
+        matrix += operator_part.subs(matrix_subs, simultaneous=True)
 
-    basis_matrices = []
-    for b, nb in zip(basis, reversed_basis):
-        expr = [Dagger(op) * op for op in b]
-        expr.extend([sympy.physics.quantum.IdentityOperator()-Dagger(op) * op for op in nb])
-        basis_matrices.append(sympy.Mul(*expr).expand())
-    basis_matrices = [b.subs(matrix_subs, simultaneous=True).expand() for b in basis_matrices]
-    basis_order = [np.nonzero(np.array(b.diagonal(), dtype=int)[0])[0][0] for b in basis_matrices]
-    basis = [sympy.Mul(*basis[i]) for i in np.argsort(basis_order)]
-    return H.subs(matrix_subs, simultaneous=True).expand(), basis
+    # Kronecker products order states by their occupation bitstrings.
+    basis = [
+        sympy.Mul(*(op for op, occupied in zip(fermions, occupations) if occupied))
+        for occupations in product((0, 1), repeat=len(fermions))
+    ]
+    return matrix.expand(), basis
+
 ```
 
 Next, we obtain the matrix Hamiltonian and its basis.

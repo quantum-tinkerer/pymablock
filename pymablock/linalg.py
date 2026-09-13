@@ -179,13 +179,15 @@ class ComplementProjector(LinearOperator):
         left_vecs: np.ndarray | None = None,
     ) -> LinearOperator:
         """Projector on the complement of the span of vecs."""
-        self.shape = (vecs.shape[0], vecs.shape[0])
         self._vecs = vecs
         self._hermitian = (
             left_vecs is None or left_vecs is vecs or np.array_equal(left_vecs, vecs)
         )
         self._left_vecs = vecs if self._hermitian else left_vecs
-        self.dtype = np.result_type(self._vecs.dtype, self._left_vecs.dtype)
+        super().__init__(
+            dtype=np.result_type(self._vecs.dtype, self._left_vecs.dtype),
+            shape=(vecs.shape[0], vecs.shape[0]),
+        )
         self._adjoint_operator = self if self._hermitian else None
         self._conjugate_operator = None
         self._transpose_operator = None

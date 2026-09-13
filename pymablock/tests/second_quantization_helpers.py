@@ -37,7 +37,7 @@ def occupation_matrices(operators, occupations):
         matrices[operator] = tensor(factors)
         matrices[operator.adjoint()] = matrices[operator].T
         factors = identities.copy()
-        factors[index] = sparse.diags(values)
+        factors[index] = sparse.diags(values, dtype=float)
         matrices[NumberOperator(operator)] = tensor(factors)
     matrices[sympy.S.One] = tensor(identities)
     return matrices
