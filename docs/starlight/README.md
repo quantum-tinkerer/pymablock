@@ -15,7 +15,7 @@ pixi run -e starlight starlight-dev --port 51000
 The HTML output is `docs/starlight/dist/`. GitLab CI and Read the Docs use this
 build. `READTHEDOCS_CANONICAL_URL` supplies the site's domain and version prefix;
 `DOCS_BASE` and `DOCS_SITE` override the prefix and domain for other hosts. Original `.html` page URLs
-redirect to the corresponding Starlight routes. API objects now live on their
+serve aliases of the corresponding Starlight pages. API objects now live on their
 module pages; `objects.inv` publishes their cross-project references. MathJax's five expandable equations use ordinary MyST derivation
 dropdowns, preserving their mathematical content.
 

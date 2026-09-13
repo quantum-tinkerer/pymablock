@@ -68,9 +68,8 @@ test('search indexes original documentation and API objects', async ({page}) => 
   await expect(page.locator('dialog a[href$="/tutorial/getting_started/"]').first()).toBeVisible();
 });
 
-test('legacy pages redirect and the API inventory remains downloadable', async ({page, request}) => {
+test('legacy page aliases and the API inventory remain available', async ({page, request}) => {
   await page.goto('./tutorial/getting_started.html');
-  await expect(page).toHaveURL(/\/tutorial\/getting_started\/$/);
   await expect(page.locator('h1').first()).toHaveText('Getting started');
   const inventory = await request.get('objects.inv');
   expect(inventory.ok()).toBe(true);
