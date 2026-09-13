@@ -216,19 +216,11 @@ from itertools import combinations
 
 def to_matrix(H):
     """Compute a matrix representation of a sympy expression with fermion operators."""
-    # Add an identity operator to all symbols so that we always work with operators
-    H = H.subs({
-        s: sympy.physics.quantum.IdentityOperator() * s for s in H.free_symbols
-        if not isinstance(s, sympy.physics.quantum.Operator)
-    })
     # Choose an order of fermionic operators
-    fermions = [
-        s for s in H.free_symbols
-        if (
-            isinstance(s, sympy.physics.quantum.fermion.FermionOp)
-            and s.is_annihilation
-        )
-    ]
+    fermions = list({
+        op if op.is_annihilation else Dagger(op)
+        for op in H.atoms(sympy.physics.quantum.fermion.FermionOp)
+    })
     fermions.sort(key=lambda f: f.name.name) # Sort by label to ensure consistent order
     # Compute matrix representations
     s_minus = sympy.Matrix([[0, 1], [0, 0]])
@@ -239,7 +231,24 @@ def to_matrix(H):
         for i, op in enumerate(fermions)
     }
     matrix_subs.update({Dagger(op): Dagger(mat) for op, mat in matrix_subs.items()})
-    matrix_subs[sympy.physics.quantum.IdentityOperator()] = sympy.eye(2**len(fermions))
+    identity = sympy.eye(2**len(fermions))
+
+    def evaluate(expr):
+        # Scalar terms multiply the identity in the full Fock space.
+        if expr in matrix_subs:
+            return matrix_subs[expr]
+        if expr.is_commutative:
+            return expr * identity
+        if expr.is_Add:
+            return sum((evaluate(arg) for arg in expr.args), sympy.zeros(identity.rows))
+        if expr.is_Mul:
+            result = identity
+            for arg in expr.args:
+                result = result * evaluate(arg)
+            return result
+        if expr.is_Pow and expr.exp.is_Integer:
+            return evaluate(expr.base) ** int(expr.exp)
+        raise ValueError(f"Unsupported operator expression: {expr}")
 
     # Generate basis
     basis = [(sympy.S.One,)]
@@ -251,12 +260,12 @@ def to_matrix(H):
     basis_matrices = []
     for b, nb in zip(basis, reversed_basis):
         expr = [Dagger(op) * op for op in b]
-        expr.extend([sympy.physics.quantum.IdentityOperator()-Dagger(op) * op for op in nb])
+        expr.extend([sympy.S.One-Dagger(op) * op for op in nb])
         basis_matrices.append(sympy.Mul(*expr).expand())
-    basis_matrices = [b.subs(matrix_subs, simultaneous=True).expand() for b in basis_matrices]
+    basis_matrices = [evaluate(b).expand() for b in basis_matrices]
     basis_order = [np.nonzero(np.array(b.diagonal(), dtype=int)[0])[0][0] for b in basis_matrices]
     basis = [sympy.Mul(*basis[i]) for i in np.argsort(basis_order)]
-    return H.subs(matrix_subs, simultaneous=True).expand(), basis
+    return evaluate(H).expand(), basis
 ```
 
 Next, we obtain the matrix Hamiltonian and its basis.

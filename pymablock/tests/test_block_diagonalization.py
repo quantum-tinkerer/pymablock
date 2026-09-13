@@ -321,9 +321,9 @@ def diagonal_hamiltonian(wanted_orders, request, module_rng):
     n_infinite = len(wanted_orders)
 
     h_list = [np.diag(eigenvalues)]
-    h_list_all_sparse = [sparse.diags(eigenvalues)]
+    h_list_all_sparse = [sparse.diags(eigenvalues, dtype=float)]
     h_dict = {(0,) * n_infinite: np.diag(eigenvalues)}
-    h_dict_all_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues)}
+    h_dict_all_sparse = {(0,) * n_infinite: sparse.diags(eigenvalues, dtype=float)}
     for i in range(n_infinite):
         sparse_perturbation = 0.1 * sparse.random(
             4, 4, density=0.2, random_state=module_rng

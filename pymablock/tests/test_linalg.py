@@ -160,7 +160,7 @@ def test_is_diagonal(rng):
 
     sparse_array = sparse.csr_array(array)
     assert not linalg.is_diagonal(sparse_array)
-    assert linalg.is_diagonal(sparse.diags(sparse_array.diagonal()))
+    assert linalg.is_diagonal(sparse.diags(sparse_array.diagonal(), dtype=float))
 
     sympy_matrix = sympy.Matrix(array)
     assert not linalg.is_diagonal(sympy_matrix)

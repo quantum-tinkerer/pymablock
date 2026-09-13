@@ -15,10 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Raised minimum versions to Python 3.12, NumPy 2.2, SciPy 1.15, and SymPy 1.14 following the September 2026 SPEC 0 support window.
+
 - Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
 - Reduced the number of matrix products in selective Hermitian diagonalization by evaluating the selected auxiliary directly, and in non-Hermitian diagonalization by exploiting the selected structure of the transformed residual.
 
 ### Fixed
+
+- Fixed implicit projectors on SciPy 1.18 by initializing the `LinearOperator` base class.
+- Fixed the Andreev supercurrent tutorial's fermionic matrix conversion for SymPy 1.14.
 
 - Fixed chained and nested custom-algorithm division failing on the zero sentinel by recursively transforming division operands.
 - Fixed nested custom-algorithm callbacks receiving missing or duplicated indices, including diagonal wrappers around off-diagonal expressions.
