@@ -234,21 +234,15 @@ def to_matrix(H):
     identity = sympy.eye(2**len(fermions))
 
     def evaluate(expr):
-        # Scalar terms multiply the identity in the full Fock space.
-        if expr in matrix_subs:
-            return matrix_subs[expr]
-        if expr.is_commutative:
-            return expr * identity
-        if expr.is_Add:
-            return sum((evaluate(arg) for arg in expr.args), sympy.zeros(identity.rows))
-        if expr.is_Mul:
-            result = identity
-            for arg in expr.args:
-                result = result * evaluate(arg)
-            return result
-        if expr.is_Pow and expr.exp.is_Integer:
-            return evaluate(expr.base) ** int(expr.exp)
-        raise ValueError(f"Unsupported operator expression: {expr}")
+        result = sympy.zeros(identity.rows)
+        for term in sympy.Add.make_args(expr.expand()):
+            scalars, operators = term.args_cnc()
+            term_matrix = sympy.Mul(*scalars) * identity
+            for factor in operators:
+                operator, power = factor.as_base_exp()
+                term_matrix = term_matrix * matrix_subs[operator] ** power
+            result += term_matrix
+        return result
 
     # Generate basis
     basis = [(sympy.S.One,)]
