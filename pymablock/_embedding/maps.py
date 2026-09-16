@@ -21,8 +21,6 @@ if TYPE_CHECKING:
 
 TargetOperator: TypeAlias = NumberOrderedForm | sympy.MatrixBase
 
-__all__ = ["OperatorMap"]
-
 
 def _is_zero(value: NumberOrderedForm | sympy.MatrixBase) -> bool:
     """Test exact structural zero without simplifying coefficients."""
