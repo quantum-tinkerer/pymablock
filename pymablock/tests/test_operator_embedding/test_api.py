@@ -100,7 +100,7 @@ def test_nonbinary_target_uses_package_matrix_interface() -> None:
 
 def test_bosonic_excursion_is_not_a_product_of_compressions() -> None:
     """The spin target retains the virtual second boson level in products."""
-    from pymablock._operator_embedding import _EmbeddingBackend
+    from pymablock._embedding.solver import _EmbeddingBackend
 
     a, s = BosonOp("a"), SigmaMinus("s")
     backend = _EmbeddingBackend(
@@ -122,7 +122,7 @@ def test_bosonic_excursion_is_not_a_product_of_compressions() -> None:
 @pytest.mark.parametrize("frozen", [0, 1])
 def test_retained_fermions_preserve_car_and_mode_correspondence(reverse, frozen) -> None:
     """Frozen particles and permutations must not change the target CAR."""
-    from pymablock._operator_embedding import _EmbeddingBackend
+    from pymablock._embedding.solver import _EmbeddingBackend
 
     a, fixed, b = (FermionOp(name) for name in ("a", "m", "z"))
     f, g = FermionOp("f"), FermionOp("g")
@@ -153,7 +153,7 @@ def test_retained_fermions_preserve_car_and_mode_correspondence(reverse, frozen)
 
 def test_spin_in_two_fermions_uses_single_occupancy() -> None:
     """The target is one spin, with charge-changing source actions projected out."""
-    from pymablock._operator_embedding import _EmbeddingBackend
+    from pymablock._embedding.solver import _EmbeddingBackend
 
     up, down = FermionOp("up"), FermionOp("down")
     s = SigmaMinus("s")

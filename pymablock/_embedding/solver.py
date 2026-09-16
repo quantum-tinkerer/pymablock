@@ -9,17 +9,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 import sympy
 
-from pymablock._combinatorics import BasisMap, NOFTransition, number_symbols
-from pymablock.algorithm_parsing import series_computation
-from pymablock.algorithms import main
-from pymablock.number_ordered_form import NumberOrderedForm
-from pymablock.operator_map import (
+from pymablock._embedding.maps import (
     AdjointOperatorMap,
     ModuleEndomorphism,
     OperatorMap,
     TargetOperator,
     multiply_projected,
 )
+from pymablock._embedding.transitions import BasisMap, NOFTransition, number_symbols
+from pymablock.algorithm_parsing import series_computation
+from pymablock.algorithms import main
+from pymablock.number_ordered_form import NumberOrderedForm
 from pymablock.series import BlockSeries, zero
 
 if TYPE_CHECKING:
