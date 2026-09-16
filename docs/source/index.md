@@ -36,6 +36,7 @@ algorithms.md
 nonhermitian_algorithm.md
 Comparison to Schrieffer-Wolff <radius.md>
 second_quantization.md
+structured_embeddings.md
 documentation/pymablock.md
 CHANGELOG.md
 authors.md

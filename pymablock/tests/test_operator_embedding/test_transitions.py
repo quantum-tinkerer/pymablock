@@ -7,7 +7,7 @@ from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 
-from pymablock._combinatorics import BasisMap, NOFTransition
+from pymablock._embedding.transitions import BasisMap, NOFTransition
 from pymablock.number_ordered_form import NumberOrderedForm
 
 

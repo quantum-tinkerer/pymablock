@@ -74,36 +74,8 @@
 
 ### Structured embeddings
 
-`Embedding` declares the target operator algebra and source occupation constraints.
-For example, a spin represented by the first two levels of a boson is
-
-```python
-from sympy.physics.quantum.boson import BosonOp
-from sympy.physics.quantum.pauli import SigmaMinus
-from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.second_quantization import Embedding
-
-a, s = BosonOp("a"), SigmaMinus("s")
-embedding = Embedding(target=(s,), occupations={a: N(s)})
-# block_diagonalize([H0, V], subspace_eigenvectors=embedding)
-```
-
-The same constructor accepts `FermionOp` targets. A source spin encoded in two
-fermionic modes uses `occupations={up: N(s), down: 1 - N(s)}`. The expressions
-specify occupations, not replacements for source annihilation operators.
-
-A finite spin-1 target is declared as `target={JminusOp("S"): 3}`. Its occupation
-coordinate is `JzOp("S") + 1`, in units with hbar equal to one. The effective
-operator is a matrix in increasing magnetic-quantum-number order. Binary spins
-and fermions instead return `NumberOrderedForm` objects in their named generators.
-
-The constructor supports full-rank integer affine occupation maps. It validates
-source occupation ranges and direct fermion assignments without enumerating the
-Hilbert space. Relative phases follow the canonical source Fock convention; direct
-fermion targets include frozen-mode and permutation signs. It does not accept a
-particle-number-sector option or perform basis rotations. For superpositions,
-rotate the source Hamiltonian first or supply explicit orthonormal basis columns
-through the existing matrix `subspace_eigenvectors` interface.
+See [structured embeddings](../structured_embeddings.md) for the occupation-map
+interface, physical examples, and the diagonal-Hamiltonian requirement.
 
 ```{eval-rst}
 .. autoclass:: pymablock.operator_embedding.Embedding(*, target, occupations)

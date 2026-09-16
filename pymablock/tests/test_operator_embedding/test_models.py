@@ -1,8 +1,4 @@
-"""Physical fixtures and analytic checks independent of NOF storage.
-
-Model definitions adapted from the embedding spike in commit 182b54c. Only the
-physical Hamiltonians are retained here, without its alternate storage backends.
-"""
+"""Coupler, ring-exchange, and dressed-spin models with physical reference checks."""
 
 from __future__ import annotations
 

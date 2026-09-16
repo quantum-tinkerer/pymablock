@@ -53,14 +53,14 @@ class Embedding:
 
     Parameters
     ----------
-    target : sequence of operators or mapping of operators to dimensions
+    target : collections.abc.Sequence or collections.abc.Mapping
         Target ``SigmaMinus`` or ``FermionOp`` annihilation generators. Their
         dimension is two. For higher spins, pass e.g. ``{JminusOp("S"): 3}``;
         occupations may then depend on ``JzOp("S")`` in units of hbar=1.
         Generators are ordered canonically by type and name. A target containing
         a higher spin uses finite matrices ordered by increasing occupations
         (increasing magnetic quantum number for higher spins).
-    occupations : mapping
+    occupations : collections.abc.Mapping
         Source annihilation generators mapped to integer affine expressions in
         target ``NumberOperator`` objects, or target ``JzOp`` objects. These are
         occupation constraints, not substitutions for source operators. Source
