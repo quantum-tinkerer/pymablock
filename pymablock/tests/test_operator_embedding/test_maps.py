@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import pytest
 import sympy
 
-from pymablock.operator_map import ModuleEndomorphism, OperatorMap
+from pymablock._embedding.maps import ModuleEndomorphism, OperatorMap
 from pymablock.series import zero
 
 
@@ -136,8 +136,8 @@ def test_adjoint_preserves_declared_basis_after_cached_equal_expression():
     """Equal identities can have different declared, unused generators."""
     from sympy.physics.quantum.pauli import SigmaMinus
 
+    from pymablock._embedding.maps import _adjoint
     from pymablock.number_ordered_form import NumberOrderedForm
-    from pymablock.operator_map import _adjoint
 
     first = (SigmaMinus("a"),)
     second = (SigmaMinus("x"), SigmaMinus("y"))
