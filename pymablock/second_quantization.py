@@ -12,9 +12,11 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
     _number_operator_to_placeholder,
 )
+from pymablock.operator_embedding import Embedding
 from pymablock.series import zero
 
 __all__ = [
+    "Embedding",
     "apply_mask_to_operator",
     "solve_sylvester_2nd_quant",
 ]
