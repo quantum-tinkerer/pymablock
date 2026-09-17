@@ -1,25 +1,22 @@
-"""Projection-aware maps between a retained space and its complement.
-
-For an embedding ``W`` and ``Q = 1 - W W†``, one stored term ``(X, A)``
-represents ``Q X W A``.  ``X`` is a source-space
-:class:`~pymablock.number_ordered_form.NumberOrderedForm`; ``A`` is an
-operator on the retained space.
-"""
+"""Projected operator algebra and perturbation theory for occupation selections."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cache
 from typing import TYPE_CHECKING, TypeAlias
 
+import numpy as np
 import sympy
 
+from pymablock.algorithm_parsing import series_computation
+from pymablock.algorithms import main
 from pymablock.number_ordered_form import NumberOrderedForm
-from pymablock.series import zero
+from pymablock.operator_embedding import Embedding, _NOFTransition, _one_term
+from pymablock.series import BlockSeries, zero
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-
-    from pymablock._embedding.selection import _EmbeddingBackend
 
 TargetOperator: TypeAlias = NumberOrderedForm | sympy.MatrixBase
 
@@ -48,7 +45,7 @@ class OperatorMap:
 
     def __init__(
         self,
-        embedding: _EmbeddingBackend,
+        embedding: Embedding,
         terms: Iterable[tuple[NumberOrderedForm, TargetOperator]],
     ):
         """Combine equal source factors and discard exact structural zeros."""
@@ -56,7 +53,7 @@ class OperatorMap:
         for source, target in terms:
             if _is_zero(source) or _is_zero(target):
                 continue
-            combined[source] = combined.get(source, embedding.target_zero) + target
+            combined[source] = combined.get(source, embedding._target_zero) + target
 
         self.embedding = embedding
         self.terms = tuple(
@@ -68,13 +65,13 @@ class OperatorMap:
     @classmethod
     def from_source(
         cls,
-        embedding: _EmbeddingBackend,
+        embedding: Embedding,
         source: NumberOrderedForm,
     ) -> OperatorMap | object:
         """Construct ``Q X W`` from one source-space operator ``X``."""
         return cls(
             embedding,
-            ((source, embedding.target_identity),),
+            ((source, embedding._target_identity),),
         ).or_zero()
 
     def or_zero(self) -> OperatorMap | object:
@@ -157,20 +154,20 @@ class OperatorMap:
         terms = []
         for inner_source, target in self.terms:
             terms.append((source * inner_source, target))
-            terms.append((source, -self.embedding.pullback(inner_source) * target))
+            terms.append((source, -self.embedding._pullback(inner_source) * target))
         return type(self)(self.embedding, terms).or_zero()
 
     def inner(self, other: OperatorMap) -> TargetOperator:
         """Return ``self† other`` in the retained operator algebra."""
         self._require_same_embedding(other)
 
-        result = self.embedding.target_zero
+        result = self.embedding._target_zero
         for left_source, left_target in self.terms:
             left_adjoint = left_source.adjoint()
-            projected_left = self.embedding.pullback(left_adjoint)
+            projected_left = self.embedding._pullback(left_adjoint)
             for right_source, right_target in other.terms:
-                kernel = self.embedding.pullback(left_adjoint * right_source)
-                kernel -= projected_left * self.embedding.pullback(right_source)
+                kernel = self.embedding._pullback(left_adjoint * right_source)
+                kernel -= projected_left * self.embedding._pullback(right_source)
                 result += _adjoint(left_target) * kernel * right_target
         return result
 
@@ -230,7 +227,7 @@ class ModuleEndomorphism:
     @classmethod
     def source(
         cls,
-        embedding: _EmbeddingBackend,
+        embedding: Embedding,
         source: NumberOrderedForm,
     ) -> ModuleEndomorphism:
         """Represent ``Q source Q``."""
@@ -336,3 +333,266 @@ def multiply_projected(left, right):
         if isinstance(right, (NumberOrderedForm, sympy.MatrixBase)):
             return left * right
     raise TypeError(f"Cannot multiply projected blocks {type(left)} and {type(right)}")
+
+
+class _EmbeddingProblem:
+    """Lower one scalar Hamiltonian series to the formal P/Q block algebra."""
+
+    def __init__(self, hamiltonian: BlockSeries, embedding: Embedding):
+        if hamiltonian.shape:
+            raise ValueError("Structured embeddings require an unseparated Hamiltonian.")
+        self.embedding = embedding
+        self.hamiltonian = hamiltonian
+        zero_order = (0,) * hamiltonian.n_infinite
+        h0 = self.embedding._source_form(hamiltonian[zero_order])
+        zero_powers = (0,) * len(self.embedding.operators)
+        if any(tuple(map(int, powers)) != zero_powers for powers in h0.terms):
+            raise ValueError("Structured embeddings currently require diagonal H0")
+        self.source_energy = sympy.simplify(h0.terms.get(zero_powers, sympy.S.Zero))
+
+        # Selecting occupation states of diagonal H0 is automatically invariant.
+        self.target_energy = self.source_energy.xreplace(
+            dict(
+                zip(
+                    self.embedding._source_placeholders,
+                    embedding.source_occupations,
+                    strict=True,
+                )
+            )
+        )
+        self.finite_target_energy = (
+            None
+            if embedding.target_is_nof
+            else tuple(
+                self.target_energy.xreplace(
+                    dict(zip(embedding.coordinate_symbols, state, strict=True))
+                )
+                for state in embedding.target.states
+            )
+        )
+
+    @cache
+    def _source_energy_at(self, state: tuple[int, ...]) -> sympy.Expr:
+        return self.source_energy.xreplace(
+            dict(
+                zip(
+                    self.embedding._source_placeholders,
+                    map(sympy.Integer, state),
+                    strict=True,
+                )
+            )
+        )
+
+    @cache
+    def _target_reciprocal(self, denominator: sympy.Expr) -> NumberOrderedForm:
+        return _one_term(
+            self.embedding.target.operators,
+            (0,) * len(self.embedding.target.operators),
+            sympy.S.One / denominator,
+        )
+
+    def _channel_denominator(
+        self,
+        source: _NOFTransition,
+        target: _NOFTransition,
+    ) -> sympy.Expr:
+        after_target = tuple(
+            symbol - power
+            for symbol, power in zip(
+                self.embedding.coordinate_symbols, target.powers, strict=True
+            )
+        )
+        encoded_after_target = tuple(
+            occupation.xreplace(
+                dict(zip(self.embedding.coordinate_symbols, after_target, strict=True))
+            )
+            for occupation in self.embedding.source_occupations
+        )
+        source_output = tuple(
+            occupation - power
+            for occupation, power in zip(encoded_after_target, source.powers, strict=True)
+        )
+        source_value = self.source_energy.xreplace(
+            dict(zip(self.embedding._source_placeholders, source_output, strict=True))
+        )
+        denominator = sympy.expand(self.target_energy - source_value)
+        denominator = denominator.xreplace(
+            self.embedding._support_substitutions(source, target.powers)
+        )
+        return denominator.xreplace(self.embedding._initial_to_middle(target.powers))
+
+    def _zero_denominator_is_projected_out(
+        self,
+        source: _NOFTransition,
+        target: NumberOrderedForm | sympy.MatrixBase,
+    ) -> bool:
+        projected = self.embedding._pullback(source.form)
+        leakage = (
+            self.embedding._pullback(source.form.adjoint() * source.form)
+            - projected.adjoint() * projected
+        )
+        norm = target.adjoint() * leakage * target
+        return _is_zero(norm)
+
+    def solve_sylvester(self, value, index):
+        """Solve the P-Q Sylvester equation transition by transition."""
+        if value is zero:
+            return zero
+        if index[:2] != (0, 1) or not isinstance(value, AdjointOperatorMap):
+            raise TypeError("The embedding solver expects the P-Q block")
+        if not self.embedding.target_is_nof:
+            return self._solve_finite(value)
+
+        solved_terms = []
+        for _source_form, target_form in value.column.terms:
+            for source in _NOFTransition.from_form(_source_form):
+                for target in _NOFTransition.from_form(target_form):
+                    denominator = self._channel_denominator(source, target)
+                    target_term = target.form
+                    quotient = self._divide_channel(source, target_term, denominator)
+                    if not _is_zero(quotient):
+                        solved_terms.append((source.form, quotient))
+        column = OperatorMap(self.embedding, solved_terms).or_zero()
+        return zero if column is zero else column.adjoint()
+
+    def _divide_channel(
+        self, source: _NOFTransition, target: NumberOrderedForm, denominator: sympy.Expr
+    ) -> NumberOrderedForm:
+        """Divide on binary sectors, discarding unsupported resonances first."""
+        variables = tuple(
+            symbol
+            for symbol in self.embedding._target_placeholders
+            if symbol in denominator.free_symbols
+        )
+
+        sectors = []
+        has_zero = False
+
+        def visit(expression, mask, remaining):
+            nonlocal has_zero
+            expression = sympy.expand(expression)
+            remaining = tuple(x for x in remaining if x in expression.free_symbols)
+            if remaining:
+                symbol, *rest = remaining
+                for value in (0, 1):
+                    visit(
+                        expression.xreplace({symbol: sympy.Integer(value)}),
+                        mask * (symbol if value else 1 - symbol),
+                        rest,
+                    )
+                return
+            expression = sympy.simplify(expression)
+            if expression == 0:
+                has_zero = True
+                sector = _one_term(
+                    self.embedding.target.operators,
+                    (0,) * len(self.embedding.target.operators),
+                    mask,
+                )
+                if not self._zero_denominator_is_projected_out(source, target * sector):
+                    raise ZeroDivisionError(
+                        "A virtual channel is degenerate with the retained space"
+                    )
+            else:
+                sectors.append(mask / expression)
+
+        visit(denominator, sympy.S.One, variables)
+        if not has_zero:
+            return target * self._target_reciprocal(denominator)
+        inverse = _one_term(
+            self.embedding.target.operators,
+            (0,) * len(self.embedding.target.operators),
+            sympy.Add(*sectors),
+        )
+        return target * inverse
+
+    def _solve_finite(self, value: AdjointOperatorMap):
+        solved_terms = []
+        for _source_form, target in value.column.terms:
+            for source in _NOFTransition.from_form(_source_form):
+                for (row, column), target_coefficient in target.todok().items():
+                    action = self.embedding._finite_transition_action(source, row)
+                    # A weighted transition has one output occupation. If it
+                    # returns to P, the outer Q removes it exactly, regardless
+                    # of how complicated its symbolic coefficient is.
+                    if (
+                        action is None
+                        or action.output_state in self.embedding._finite_source_index
+                    ):
+                        continue
+                    denominator = sympy.factor(
+                        self.finite_target_energy[column]
+                        - self._source_energy_at(action.output_state)
+                    )
+                    target_term = sympy.ImmutableSparseMatrix(
+                        self.embedding.target.dimension,
+                        self.embedding.target.dimension,
+                        {(row, column): target_coefficient},
+                    )
+                    if denominator == 0:
+                        if self._zero_denominator_is_projected_out(source, target_term):
+                            continue
+                        raise ZeroDivisionError(
+                            "A virtual channel is degenerate with the retained space"
+                        )
+                    solved_terms.append(
+                        (
+                            source.form,
+                            target_term / denominator,
+                        )
+                    )
+        column = OperatorMap(self.embedding, solved_terms).or_zero()
+        return zero if column is zero else column.adjoint()
+
+    def block_series(self) -> BlockSeries:
+        """Represent the retained and discarded Hamiltonian blocks."""
+        embedding = self.embedding
+        zero_order = (0,) * self.hamiltonian.n_infinite
+
+        def evaluate(*index):
+            row, column, *order = index
+            source = self.hamiltonian[tuple(order)]
+            if source is zero:
+                return zero
+            source = embedding._source_form(source)
+            if _is_zero(source):
+                return zero
+            if row == column == 0:
+                result = embedding._pullback(source)
+                return zero if _is_zero(result) else result
+            if tuple(order) == zero_order and row != column:
+                return zero
+            if (row, column) == (1, 0):
+                return OperatorMap.from_source(embedding, source)
+            if (row, column) == (0, 1):
+                column_map = OperatorMap.from_source(embedding, source)
+                return zero if column_map is zero else column_map.adjoint()
+            return ModuleEndomorphism.source(embedding, source)
+
+        return BlockSeries(
+            eval=evaluate,
+            shape=(2, 2),
+            n_infinite=self.hamiltonian.n_infinite,
+            dimension_names=self.hamiltonian.dimension_names,
+            name="H",
+        )
+
+
+def block_diagonalize(
+    hamiltonian: BlockSeries,
+    embedding: Embedding,
+) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
+    """Run the standard recurrence over a structured embedding."""
+    problem = _EmbeddingProblem(hamiltonian, embedding)
+    outputs, _ = series_computation(
+        {"H": problem.block_series()},
+        algorithm=main,
+        scope={
+            "solve_sylvester": problem.solve_sylvester,
+            "use_linear_operator": np.zeros((2, 2), dtype=bool),
+            "two_block_optimized": True,
+            "commuting_blocks": [True, True],
+        },
+        operator=multiply_projected,
+    )
+    return outputs["H_tilde"], outputs["U"], outputs["U†"]
