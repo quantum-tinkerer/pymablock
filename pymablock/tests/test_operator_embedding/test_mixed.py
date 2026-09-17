@@ -12,7 +12,7 @@ from sympy.physics.quantum.pauli import SigmaMinus
 from sympy.physics.quantum.spin import JminusOp, JzOp
 
 from pymablock import block_diagonalize
-from pymablock._embedding.solver import _EmbeddingBackend
+from pymablock._embedding.selection import _EmbeddingBackend
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.number_ordered_form import NumberOrderedForm
 from pymablock.second_quantization import Embedding
