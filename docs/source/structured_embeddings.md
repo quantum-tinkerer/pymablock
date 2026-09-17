@@ -1,26 +1,59 @@
 # Structured embeddings
 
-A many-body effective model often keeps only a few states of each physical mode.
-For example, the first two occupations of an anharmonic oscillator can represent
-a spin one half. The discarded occupations still contribute through virtual
-transitions, so simply truncating the Hamiltonian would miss their effect.
+A many-body Hamiltonian is written in terms of physical degrees of freedom, but
+its effective model may have a different natural description. Two states of an
+oscillator can behave as a spin one half. A pair of fermionic modes with exactly
+one particle can also behave as a spin. In both cases, the effective spin labels
+selected physical states; it is not an additional physical particle.
 
-An `Embedding` consists of a source occupation-state selection and a definition
-of the operators acting on the selected states. It does not describe arbitrary
-linear combinations of source states or perform a basis rotation. Pymablock uses this description to compute the
-effective Hamiltonian and unitary series while keeping transitions through the
-discarded space symbolic. It does not enumerate a basis for that space.
+An embedding makes that identification precise. It specifies **which source
+occupation states are retained and which target operators act on their labels**.
+For example, calling two oscillator states $|0\rangle_s$ and $|1\rangle_s$ lets us
+define a spin lowering operator $s$ between them, even though the source
+annihilation operator $a$ still acts on the whole oscillator ladder.
 
-## Defining the retained states
+There are two distinct steps in constructing the effective model:
 
-For an oscillator represented by a binary spin, the occupation rule is
+1. **Identify the retained states.** The embedding $W$ maps each target basis
+   state to its selected source occupation state. This fixes the meaning of the
+   new operators before perturbative corrections are calculated.
+2. **Account for virtual excursions.** The perturbative unitary $\mathcal U$
+   dresses those states with components outside the selected subspace. The
+   effective Hamiltonian describes their dynamics using the target labels:
+
+   $$
+   H_{\mathrm{eff}}=W^\dagger\mathcal U^\dagger H\mathcal U W.
+   $$
+
+Thus $W$ is a fixed choice of states and operator labels, while $\mathcal U$
+depends on the Hamiltonian and perturbation order. Keeping these roles separate
+lets the embedding remain a simple state selection. The superpositions produced
+by virtual transitions belong to perturbation theory.
+
+In the interface, `target` declares the effective operators and `occupations`
+expresses each source occupation in terms of the target occupations. The source
+Hamiltonian keeps its original operators. Replacing those operators directly
+would discard their action outside the retained states and lose the virtual
+corrections.
+
+## A complete example: two oscillator states become a spin
+
+Consider an anharmonic oscillator with a weak drive,
 
 $$
-W|0\rangle_s=|0\rangle_a,\qquad W|1\rangle_s=|1\rangle_a.
+H_0=\omega N_a+\frac{\alpha}{2}N_a(N_a-1),
+\qquad V=g(a+a^\dagger).
 $$
 
-The isometry $W$ maps target states to source states. In code, declare the target
-operator and express the source occupation in terms of the target occupation:
+We retain oscillator occupations zero and one. A target spin lowering operator
+$s$ describes the transition between them. The rule $N_a=N_s$ specifies
+
+$$
+|0\rangle_s\longmapsto|0\rangle_a,
+\qquad |1\rangle_s\longmapsto|1\rangle_a.
+$$
+
+Here is the calculation:
 
 ```python
 import sympy
@@ -44,60 +77,32 @@ H_eff, U, U_adjoint = block_diagonalize(
 second_order = H_eff[0, 0, 2]
 ```
 
-Here block zero is the retained spin. The occupation rule identifies states;
-it is not a substitution of `s` for `a`. Source ladder amplitudes and excursions
-to oscillator occupation two still enter the perturbative calculation.
-
-Every source mode must appear in `occupations`, including modes fixed to a
-single occupation. The rules must be injective integer affine functions of the
-target occupations and must give physically allowed source occupations.
-
-Binary spin and fermion targets return `NumberOrderedForm` operators. Higher
-spins are declared with their dimension, such as `target={JminusOp("S"): 3}`,
-and currently return finite matrices in increasing magnetic-quantum-number order.
-Fermion targets support direct one-to-one source assignments. Other source
-occupations may depend on target spins or be fixed. Spin and fermion targets can
-be combined; their relative signs include source mode ordering and spectator
-occupations. For example, a localized spin and a retained fermion use
-`target=(s, f)` with
-`occupations={up: N(s), down: 1 - N(s), conduction: N(f)}`.
-A target containing a higher spin uses finite matrices for the entire target.
-
-## Virtual transitions and energy denominators
-
-The retained projector is $P=WW^\dagger$ and its complement is $Q=1-P$.
-Compression gives a target operator $W^\dagger A W$, but compression alone is not
-multiplicative: a product can leave the retained space and return. In particular,
+Block zero is the retained spin. Through second order in the drive, its effective
+Hamiltonian is
 
 $$
-W^\dagger A Q B W
-= W^\dagger A B W-(W^\dagger A W)(W^\dagger B W).
+H_{\mathrm{eff}}=
+\omega N_s+g(s+s^\dagger)
+-\frac{2g^2}{\omega+\alpha}N_s+O(g^3).
 $$
 
-Pymablock represents complement columns as sums of $QXWA$, where $X$ acts on the
-source and $A$ acts on the target. These maps let the usual perturbative recurrence
-account for virtual excursions without constructing the discarded basis.
+The second-order term comes from the excursion $|1\rangle_a\to|2\rangle_a\to
+|1\rangle_a$. The matrix element is $\sqrt{2}g$ and the energy difference is
+$E_1-E_2=-(\omega+\alpha)$. Substituting $s$ for $a$ in the source Hamiltonian would
+lose that excursion entirely. The embedding instead identifies the retained
+states while preserving the source ladder amplitudes during the calculation.
 
-The unperturbed Hamiltonian must be diagonal in the supplied occupation basis,
-$H_0=E(n_1,\ldots,n_M)$. This includes number-dependent interactions and
-anharmonicities. Each transition has an energy difference obtained by evaluating
-$E$ on its initial and final occupations. The Sylvester solver divides by these
-differences on the occupation sectors where the channel acts. A zero denominator
-in an uncoupled sector contributes zero; a nonzero virtual channel resonant with
-the retained space cannot be eliminated by this expansion. Bosonic annihilation
-requires at least as many particles as are annihilated, so occupations above that
-threshold retain their own energy denominators.
+`U` and `U_adjoint` are the corresponding perturbative unitary series in the
+retained/complement block representation. The complement is represented by
+operator actions, without constructing its full basis.
 
-This representation avoids explicit enumeration of the complementary Hilbert
-space. Its computational cost still depends on perturbative order and the number
-and complexity of generated operator terms.
+## State selections in physical models
 
-## Physical examples
+The same interface describes several different effective degrees of freedom.
+In the following declarations, source and target operators have already been
+created with their appropriate SymPy types.
 
-### Tunable coupler
-
-For two computational oscillators and an auxiliary coupler, retain the first two
-occupations of each computational oscillator and the coupler vacuum:
+### Tunable coupler: two spins from three oscillators
 
 ```python
 embedding = Embedding(
@@ -106,15 +111,13 @@ embedding = Embedding(
 )
 ```
 
-The target is a pair of spins. Virtual excitation of the coupler and higher
-oscillator occupations contributes to their effective interaction even though
-those states are absent from the target. The physical tests check the mediated
-exchange analytically and Hermiticity through fourth order.
+This retains occupations zero and one of each computational oscillator, with the
+coupler in its vacuum. The effective Hamiltonian acts on two spins. Excited
+coupler states and higher computational-oscillator occupations still mediate
+virtual interactions. Fixing an occupation in the embedding therefore does not
+remove that mode from the source Hamiltonian.
 
-### Ring exchange
-
-At a singly occupied fermionic site, a spin can label which of two fermion modes
-is occupied:
+### Ring exchange: one spin per singly occupied site
 
 ```python
 embedding = Embedding(
@@ -123,41 +126,30 @@ embedding = Embedding(
 )
 ```
 
-Applying this rule at each site retains one fermion per site. Hopping can create
-virtual empty and doubly occupied sites. The fourth-order expansion on a square
-then produces ring exchange; the physical test checks the coefficient
-$40t^4/U^3$. Fermionic signs are evaluated in the source algebra before the result
-is expressed in target spins.
+The source modes `up` and `down` are fermions. Target occupation zero selects
+`down` occupied, while target occupation one selects `up` occupied. Both target
+states contain exactly one fermion. Applying this rule at every site gives a
+spin model; empty and doubly occupied sites remain available as intermediate
+states. On a Hubbard square, fourth-order hopping produces ring exchange.
 
-### Dressed spin one
+### Localized spins and retained fermions together
 
-A cavity and a two-state ancilla can realize a spin-1 target using cavity
-occupations zero, one, and two. In the example, the retained ancilla state depends
-on cavity occupation:
+```python
+embedding = Embedding(
+    target=(s, f),
+    occupations={up: N(s), down: 1 - N(s), conduction: N(f)},
+)
+```
 
-$$
-|+_n\rangle = \frac{e^{i\phi_n/2}|g\rangle
-+e^{-i\phi_n/2}|e\rangle}{\sqrt{2}}.
-$$
+Here `s` is a spin and `f` is a fermion. The localized pair supplies the spin,
+while the conduction mode remains fermionic. Pymablock accounts for source mode
+ordering and occupied spectator modes when defining the target fermion's phase.
+This preserves its correspondence with the retained source fermion, including
+when the source modes are interleaved with the spin's constituent fermions.
 
-These are superpositions in the bare ancilla basis. The model first transforms
-the Hamiltonian using the occupation-dependent matrices
+## Higher spins and a preliminary basis rotation
 
-$$
-R_n=\frac{1}{\sqrt{2}}
-\begin{pmatrix}
-e^{i\phi_n/2}&-e^{i\phi_n/2}\\
-e^{-i\phi_n/2}&e^{-i\phi_n/2}
-\end{pmatrix}.
-$$
-
-Their first columns are the retained states. A transition from occupation $n$ to
-$n'$ with ancilla operator $A$ transforms as $R_{n'}^\dagger A R_n$.
-Transforming the perturbation as well as $H_0$ is essential because these rotations
-differ between occupations.
-
-In the rotated basis the selected ancilla has occupation zero, so the embedding
-is an occupation-state map:
+For spin one, declare a three-dimensional representation:
 
 ```python
 from sympy.physics.quantum.spin import JminusOp, JzOp
@@ -168,23 +160,80 @@ embedding = Embedding(
 )
 ```
 
-The target magnetic quantum numbers $-1,0,1$ correspond to cavity occupations
-$0,1,2$. The model supplies the preliminary rotation; `Embedding` does not
-construct it. Observables must also be transformed into the same source basis.
-The physical tests compare the first-order drive with an analytic expression and
-the second-order correction with an independent finite occupation-matrix result.
+The magnetic quantum numbers $m=-1,0,1$ select cavity occupations $n=m+1=0,1,2$.
+The Floquet index and dressed ancilla occupation are both fixed to zero.
 
-## Implementation boundary
+In the dressed spin-1 example, the selected ancilla state in the original basis
+is a superposition that depends on cavity occupation:
 
-The public descriptor is `Embedding`, documented in the
-[API reference](documentation/pymablock.md#structured-embeddings). Occupation
-transitions, projected maps, and the solver are private implementation details
-under `pymablock._embedding`. The `selection` module evaluates the retained
-operators, `transitions` supplies their source ladder amplitudes, `maps` handles
-virtual excursions, and `solver` connects them to perturbation theory. They use the public `NumberOrderedForm` operations
-and term interface, so the embedding construction does not depend on packed
-storage or a particular internal representation of number coefficients.
+$$
+|+_n\rangle=
+\frac{e^{i\phi_n/2}|g\rangle+e^{-i\phi_n/2}|e\rangle}{\sqrt{2}}.
+$$
 
-The executable physical models and their reference checks are grouped in
-`pymablock/tests/test_operator_embedding/test_models.py`, alongside the descriptor,
-transition, and projected-map tests.
+The model first transforms the Hamiltonian into the dressed basis using
+
+$$
+R_n=\frac{1}{\sqrt{2}}
+\begin{pmatrix}
+e^{i\phi_n/2}&-e^{i\phi_n/2}\\
+e^{-i\phi_n/2}&e^{-i\phi_n/2}
+\end{pmatrix}.
+$$
+
+The first column is $|+_n\rangle$. A transition from cavity occupation $n$ to $n'$
+with ancilla operator $A$ becomes $R_{n'}^\dagger A R_n$. Both the unperturbed
+Hamiltonian and the perturbation must be transformed; observables must use that
+same basis. In the transformed coordinates, selecting the dressed ancilla is
+simply the occupation rule `dressed_ancilla: 0`.
+
+The rotation belongs to the model construction. `Embedding` itself selects
+occupation states and defines target operators; it does not diagonalize a source
+Hamiltonian or construct arbitrary superpositions.
+
+## What the calculation assumes and returns
+
+The unperturbed Hamiltonian must be a function of source number operators,
+$H_0=E(n_1,\ldots,n_M)$. Number-dependent interactions and anharmonicities are
+allowed. Each virtual transition is divided by its initial-to-final energy
+difference. A zero denominator in an uncoupled sector contributes zero; a
+nonzero channel resonant with the retained states raises an error.
+
+Every source mode must appear in `occupations`, including fixed modes. The rules
+must be integer affine expressions, such as `N(s)`, `1 - N(s)`, or `1 + N(s)`.
+They must give allowed source occupations and have full column rank, ensuring
+that distinct target states select distinct source states. Direct target fermions
+must each correspond to exactly one source fermion; other source occupations may
+depend on target spins or be fixed.
+
+Binary spin and fermion targets, including mixtures, return `NumberOrderedForm`
+operators. If any target is declared using `JminusOp` and an explicit dimension,
+the entire retained block is currently returned as a finite SymPy matrix.
+Its basis follows the canonical target-generator order, with occupations
+increasing for each generator; for higher spins this means increasing $m$.
+
+## How virtual states remain implicit
+
+Write the state selection as $W$, so $W^\dagger W=I$ on the target. The retained
+projector is $P=WW^\dagger$ and the discarded projector is $Q=1-P$. The identity
+
+$$
+W^\dagger A Q B W
+= W^\dagger A B W-(W^\dagger A W)(W^\dagger B W)
+$$
+
+expresses an excursion through discarded states using source operator products
+and their restrictions to the target. The implementation stores complement
+columns as sums of $QXWA$, where $X$ is a source operator and $A$ is a target
+operator, and applies the standard Pymablock recurrence to these blocks.
+
+This calculation uses the public `NumberOrderedForm` operations and term
+interface. It does not require a particular NOF storage format or enumerate the
+complementary Hilbert space. Its cost still depends on perturbative order and
+operator-expression growth; avoiding basis enumeration does not guarantee
+polynomial runtime.
+
+See the [API reference](documentation/pymablock.md#structured-embeddings) for the
+constructor contract. Executable physical examples and their analytic or
+independent finite-matrix checks are in
+`pymablock/tests/test_embedding_models.py`.

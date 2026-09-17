@@ -247,7 +247,7 @@ def block_diagonalize(
             raise NotImplementedError(
                 "Structured embeddings do not support fully_diagonalize."
             )
-        from pymablock._embedding.solver import (
+        from pymablock._operator_embedding import (
             block_diagonalize as block_diagonalize_embedding,
         )
 
