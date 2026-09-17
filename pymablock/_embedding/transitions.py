@@ -1,18 +1,13 @@
-"""Combinatorial views of number-ordered operators and basis embeddings.
+"""Ladder amplitudes on source occupation states.
 
 The classes in this module do not define a new operator representation.  They
 expose one NOF monomial as a weighted partial transition on occupation states,
-and one basis embedding as a coordinate map
-
-``W |target> = phase(target) |source(target)>``.
-
-Projection, finite materialization, and diagonal energy denominators can then
-share the same transition calculus.
+using the same ladder amplitudes for symbolic and concrete occupations.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cache, cached_property
 from typing import TYPE_CHECKING
 
@@ -25,8 +20,6 @@ from pymablock.number_ordered_form import LadderOp, NumberOperator, NumberOrdere
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
-
-OccupationState = tuple[int | sympy.Expr, ...]
 
 
 @cache
@@ -48,18 +41,16 @@ def number_symbols(operators: tuple) -> tuple[sympy.Symbol, ...]:
 class WeightedTransition:
     """One partial transition between occupation states."""
 
-    input_state: OccupationState
-    output_state: OccupationState
+    output_state: tuple[sympy.Expr, ...]
     weight: sympy.Expr
 
 
 @dataclass(frozen=True)
 class NOFTransition:
-    """A coefficient-normalized weighted-transition view of one NOF term."""
+    """The occupation shift and amplitude of one NOF term."""
 
     form: NumberOrderedForm
     powers: tuple[int, ...]
-    scalar: sympy.Expr = sympy.S.One
 
     @classmethod
     def from_form(cls, form: NumberOrderedForm) -> Iterable[NOFTransition]:
@@ -96,46 +87,21 @@ class NOFTransition:
 
     def apply(self, state: Sequence[int]) -> WeightedTransition | None:
         """Apply this term to a concrete occupation state."""
-        ((_, coefficient),) = self.form.terms.items()
-        initial = tuple(map(int, state))
-        current = list(initial)
-        amplitude = sympy.S.One
-
-        for index, power in enumerate(self.powers):
-            for _ in range(max(power, 0)):
-                action = self._apply_generator(current, index, annihilate=True)
-                if action is None:
-                    return None
-                amplitude *= action
-
-        amplitude *= coefficient.xreplace(
-            dict(zip(self.placeholders, map(sympy.Integer, current), strict=True))
-        )
-        if amplitude == 0:
-            return None
-
-        for index in reversed(range(len(self.powers))):
-            for _ in range(max(-self.powers[index], 0)):
-                action = self._apply_generator(current, index, annihilate=False)
-                if action is None:
-                    return None
-                amplitude *= action
-
-        amplitude = sympy.expand(amplitude)
-        if amplitude == 0:
-            return None
-        return WeightedTransition(initial, tuple(current), amplitude)
+        action = self.symbolic_action(state)
+        return None if action.weight == 0 else action
 
     def symbolic_action(self, occupations: Sequence[sympy.Expr]) -> WeightedTransition:
         """Apply this term to symbolic occupations."""
-        initial = tuple(map(sympy.sympify, occupations))
         ((_, coefficient),) = self.form.terms.items()
-        current = list(initial)
+        current = list(map(sympy.sympify, occupations))
         amplitude = sympy.S.One
 
         for index, power in enumerate(self.powers):
             for _ in range(max(power, 0)):
-                amplitude *= self._symbolic_generator(current, index, annihilate=True)
+                factor = self._symbolic_generator(current, index, annihilate=True)
+                if factor == 0:
+                    return WeightedTransition(tuple(current), sympy.S.Zero)
+                amplitude *= factor
 
         amplitude *= coefficient.xreplace(
             dict(zip(self.placeholders, current, strict=True))
@@ -143,10 +109,12 @@ class NOFTransition:
 
         for index in reversed(range(len(self.powers))):
             for _ in range(max(-self.powers[index], 0)):
-                amplitude *= self._symbolic_generator(current, index, annihilate=False)
+                factor = self._symbolic_generator(current, index, annihilate=False)
+                if factor == 0:
+                    return WeightedTransition(tuple(current), sympy.S.Zero)
+                amplitude *= factor
 
         return WeightedTransition(
-            initial,
             tuple(current),
             sympy.expand(amplitude),
         )
@@ -164,37 +132,6 @@ class NOFTransition:
             # Bosonic annihilation requires occupation >= power, not equality.
             # Its vanishing channels are handled by their transition weights.
         return tuple(equations)
-
-    def _apply_generator(
-        self,
-        state: list[int],
-        index: int,
-        *,
-        annihilate: bool,
-    ) -> sympy.Expr | None:
-        operator = self.operators[index]
-        occupation = state[index]
-        if isinstance(operator, BosonOp):
-            if annihilate and occupation == 0:
-                return None
-            factor = sympy.sqrt(occupation if annihilate else occupation + 1)
-        elif isinstance(operator, LadderOp):
-            factor = sympy.S.One
-        elif isinstance(operator, (SigmaMinus, FermionOp)):
-            if occupation != int(annihilate):
-                return None
-            factor = (
-                (-1)
-                ** sum(
-                    state[earlier] for earlier in self.fermion_indices if earlier < index
-                )
-                if isinstance(operator, FermionOp)
-                else sympy.S.One
-            )
-        else:  # pragma: no cover - guarded by NumberOrderedForm
-            raise TypeError(f"Unsupported source operator: {operator!r}")
-        state[index] += -1 if annihilate else 1
-        return sympy.sympify(factor)
 
     def _symbolic_generator(
         self,
@@ -221,211 +158,3 @@ class NOFTransition:
             raise TypeError(f"Unsupported source operator: {operator!r}")
         state[index] += -1 if annihilate else 1
         return sympy.sympify(factor)
-
-
-@dataclass(frozen=True)
-class BasisMap:
-    """A phase-decorated coordinate map between occupation bases."""
-
-    source_occupations: tuple[sympy.Expr, ...]
-    target_symbols: tuple[sympy.Symbol, ...]
-    target_placeholders: tuple[sympy.Symbol, ...] = ()
-    phase: sympy.Expr = sympy.S.One
-    _occupation_matrix: sympy.Matrix | None = field(
-        init=False, repr=False, compare=False, hash=False
-    )
-    _occupation_left_inverse: sympy.Matrix | None = field(
-        init=False, repr=False, compare=False, hash=False
-    )
-
-    def __post_init__(self) -> None:
-        occupation_matrix = sympy.Matrix(
-            [
-                [sympy.diff(occupation, symbol) for symbol in self.target_symbols]
-                for occupation in self.source_occupations
-            ]
-        )
-        affine = all(
-            not entry.free_symbols.intersection(self.target_symbols)
-            for entry in occupation_matrix
-        )
-        if affine and occupation_matrix.rank() == len(self.target_symbols):
-            left_inverse = (
-                occupation_matrix.T * occupation_matrix
-            ).inv() * occupation_matrix.T
-        else:
-            occupation_matrix = left_inverse = None
-        object.__setattr__(self, "_occupation_matrix", occupation_matrix)
-        object.__setattr__(self, "_occupation_left_inverse", left_inverse)
-
-    @cache
-    def target_shift(self, source_shift: tuple[int, ...]) -> tuple[int, ...] | None:
-        """Solve for a constant retained shift producing ``source_shift``."""
-        if self._occupation_left_inverse is not None:
-            source_vector = sympy.Matrix(source_shift)
-            result = self._occupation_left_inverse * source_vector
-            if self._occupation_matrix * result != source_vector:
-                return None
-            if any(not value.is_Integer for value in result):
-                return None
-            integer_result = tuple(map(int, result))
-            return (
-                integer_result
-                if all(abs(value) <= 1 for value in integer_result)
-                else None
-            )
-
-        shifts = sympy.symbols(f"_shift_0:{len(self.target_symbols)}", integer=True)
-        shifted = {
-            symbol: symbol - shift
-            for symbol, shift in zip(self.target_symbols, shifts, strict=True)
-        }
-        equations = [
-            sympy.expand(occupation.xreplace(shifted) - occupation + power)
-            for occupation, power in zip(
-                self.source_occupations, source_shift, strict=True
-            )
-        ]
-        solution = sympy.solve(equations, shifts, dict=True)
-        if len(solution) != 1 or any(shift not in solution[0] for shift in shifts):
-            return None
-        result = tuple(sympy.simplify(solution[0][shift]) for shift in shifts)
-        if any(not value.is_Integer for value in result):
-            return None
-        integer_result = tuple(map(int, result))
-        return (
-            integer_result if all(abs(value) <= 1 for value in integer_result) else None
-        )
-
-    def pullback_weight(
-        self,
-        transition: NOFTransition,
-        target_shift: tuple[int, ...],
-    ) -> sympy.Expr:
-        """Return the target diagonal weight of a pulled-back transition."""
-        source_action = transition.symbolic_action(self.source_occupations)
-        shifted = {
-            symbol: symbol - power
-            for symbol, power in zip(self.target_symbols, target_shift, strict=True)
-        }
-        phase_ratio = self.phase * sympy.conjugate(self.phase.xreplace(shifted))
-        amplitude = source_action.weight * phase_ratio
-        amplitude = amplitude.xreplace(self.transition_support(target_shift))
-        return sympy.expand(amplitude.xreplace(self.initial_to_middle(target_shift)))
-
-    def transition_support(
-        self, target_shift: tuple[int, ...]
-    ) -> dict[sympy.Symbol, sympy.Expr]:
-        """Return support values forced by the retained transition."""
-        return {
-            symbol: sympy.S.One if power > 0 else sympy.S.Zero
-            for symbol, power in zip(self.target_symbols, target_shift, strict=True)
-            if power
-        }
-
-    def initial_to_middle(
-        self, target_shift: tuple[int, ...]
-    ) -> dict[sympy.Symbol, sympy.Expr]:
-        """Translate input coordinates to NOF middle coordinates."""
-        support = self.transition_support(target_shift)
-        return {
-            symbol: placeholder + max(power, 0)
-            for symbol, placeholder, power in zip(
-                self.target_symbols,
-                self.target_placeholders,
-                target_shift,
-                strict=True,
-            )
-            if symbol not in support
-        }
-
-    @cache
-    def support_substitutions(
-        self,
-        transition: NOFTransition,
-        target_shift: tuple[int, ...],
-    ) -> dict[sympy.Symbol, sympy.Expr]:
-        """Infer Boolean coordinates fixed by a composed transition."""
-        after_target = {
-            symbol: symbol - power
-            for symbol, power in zip(self.target_symbols, target_shift, strict=True)
-        }
-        before_source = tuple(
-            occupation.xreplace(after_target) for occupation in self.source_occupations
-        )
-        equations = list(transition.support_equations(before_source))
-        equations.extend(
-            symbol - (1 if power > 0 else 0)
-            for symbol, power in zip(self.target_symbols, target_shift, strict=True)
-            if power
-        )
-        return _boolean_solutions(equations, self.target_symbols)
-
-    def energy_denominator(
-        self,
-        transition: NOFTransition,
-        target_shift: tuple[int, ...],
-        *,
-        source_energy: sympy.Expr,
-        source_placeholders: tuple[sympy.Symbol, ...],
-        target_energy: sympy.Expr,
-    ) -> sympy.Expr:
-        """Evaluate the diagonal Sylvester denominator on one channel."""
-        after_target = tuple(
-            symbol - power
-            for symbol, power in zip(self.target_symbols, target_shift, strict=True)
-        )
-        encoded_after_target = tuple(
-            occupation.xreplace(dict(zip(self.target_symbols, after_target, strict=True)))
-            for occupation in self.source_occupations
-        )
-        source_output = tuple(
-            occupation - power
-            for occupation, power in zip(
-                encoded_after_target, transition.powers, strict=True
-            )
-        )
-        source_value = source_energy.xreplace(
-            dict(zip(source_placeholders, source_output, strict=True))
-        )
-        denominator = sympy.expand(target_energy - source_value)
-        denominator = denominator.xreplace(
-            self.support_substitutions(transition, target_shift)
-        )
-        return denominator.xreplace(self.initial_to_middle(target_shift))
-
-
-def _boolean_solutions(
-    equations: Sequence[sympy.Expr],
-    variables: tuple[sympy.Symbol, ...],
-) -> dict[sympy.Symbol, sympy.Expr]:
-    """Return Boolean variables uniquely fixed by a small equation system."""
-    if not equations:
-        return {}
-    try:
-        matrix, right_hand_side = sympy.linear_eq_to_matrix(equations, variables)
-    except sympy.NonlinearError:
-        solutions = sympy.solve(equations, variables, dict=True)
-        if len(solutions) != 1:
-            return {}
-        return {
-            symbol: value
-            for symbol, value in solutions[0].items()
-            if value in (sympy.S.Zero, sympy.S.One)
-        }
-
-    reduced, pivots = matrix.row_join(right_hand_side).rref()
-    substitutions = {}
-    for row, pivot in enumerate(pivots):
-        if pivot >= len(variables):
-            return {}
-        if any(
-            reduced[row, column] != 0
-            for column in range(len(variables))
-            if column != pivot
-        ):
-            continue
-        value = reduced[row, -1]
-        if value in (sympy.S.Zero, sympy.S.One):
-            substitutions[variables[pivot]] = value
-    return substitutions

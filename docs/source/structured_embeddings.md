@@ -5,8 +5,9 @@ For example, the first two occupations of an anharmonic oscillator can represent
 a spin one half. The discarded occupations still contribute through virtual
 transitions, so simply truncating the Hamiltonian would miss their effect.
 
-A structured embedding describes which source occupation states represent the
-target degrees of freedom. Pymablock uses this description to compute the
+An `Embedding` consists of a source occupation-state selection and a definition
+of the operators acting on the selected states. It does not describe arbitrary
+linear combinations of source states or perform a basis rotation. Pymablock uses this description to compute the
 effective Hamiltonian and unitary series while keeping transitions through the
 discarded space symbolic. It does not enumerate a basis for that space.
 
@@ -178,7 +179,9 @@ the second-order correction with an independent finite occupation-matrix result.
 The public descriptor is `Embedding`, documented in the
 [API reference](documentation/pymablock.md#structured-embeddings). Occupation
 transitions, projected maps, and the solver are private implementation details
-under `pymablock._embedding`. They use the public `NumberOrderedForm` operations
+under `pymablock._embedding`. The `selection` module evaluates the retained
+operators, `transitions` supplies their source ladder amplitudes, `maps` handles
+virtual excursions, and `solver` connects them to perturbation theory. They use the public `NumberOrderedForm` operations
 and term interface, so the embedding construction does not depend on packed
 storage or a particular internal representation of number coefficients.
 

@@ -1,4 +1,4 @@
-"""Structured embeddings with explicitly declared target operator algebras."""
+"""Source occupation-state selections and their target operators."""
 
 from __future__ import annotations
 
@@ -39,17 +39,13 @@ class _TargetSpace:
     def states(self) -> tuple[tuple[int, ...], ...]:
         return tuple(product(*(range(size) for size in self.dimensions)))
 
-    @cached_property
-    def index(self) -> dict[tuple[int, ...], int]:
-        return {state: index for index, state in enumerate(self.states)}
-
     @property
     def dimension(self) -> int:
         return prod(self.dimensions)
 
 
 class Embedding:
-    """Embed a declared target algebra through source occupation rules.
+    """Select source occupation states and define their target operators.
 
     Parameters
     ----------
@@ -197,10 +193,11 @@ class Embedding:
                     "Source spin and fermion occupations must be zero or one"
                 )
             rows.append(coefficients)
-        if self.coordinate_symbols and sympy.Matrix(rows).rank() != len(
-            self.coordinate_symbols
-        ):
+        matrix = sympy.Matrix(rows)
+        if matrix.rank() != len(self.coordinate_symbols):
             raise ValueError("Occupation rules must have full column rank (be injective)")
+        self._occupation_matrix = matrix
+        self._occupation_left_inverse = (matrix.T * matrix).inv() * matrix.T
 
     def _fermion_phase(self) -> sympy.Expr:
         """Fix relative signs for direct retained fermionic generators."""

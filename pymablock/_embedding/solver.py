@@ -1,9 +1,8 @@
-"""Pymablock adapter for algebraic occupation-basis embeddings."""
+"""Perturbation theory for a selected set of occupation states."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from functools import cache, cached_property
+from functools import cache
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -13,188 +12,18 @@ from pymablock._embedding.maps import (
     AdjointOperatorMap,
     ModuleEndomorphism,
     OperatorMap,
-    TargetOperator,
+    _is_zero,
     multiply_projected,
 )
-from pymablock._embedding.transitions import BasisMap, NOFTransition, number_symbols
+from pymablock._embedding.selection import _EmbeddingBackend, _one_term
+from pymablock._embedding.transitions import NOFTransition
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main
-from pymablock.number_ordered_form import NumberOrderedForm
 from pymablock.series import BlockSeries, zero
 
 if TYPE_CHECKING:
+    from pymablock.number_ordered_form import NumberOrderedForm
     from pymablock.operator_embedding import Embedding
-
-
-def _one(operators) -> NumberOrderedForm:
-    operators = tuple(operators)
-    return NumberOrderedForm(
-        operators,
-        {(0,) * len(operators): sympy.S.One},
-        validate=False,
-    )
-
-
-def _one_term(
-    operators,
-    powers: tuple[int, ...],
-    coefficient: sympy.Expr,
-) -> NumberOrderedForm:
-    return NumberOrderedForm(
-        tuple(operators),
-        {powers: coefficient},
-        validate=False,
-    )
-
-
-def _target_is_zero(value: TargetOperator) -> bool:
-    if isinstance(value, sympy.MatrixBase):
-        return not value.todok()
-    return not any(coefficient != 0 for coefficient in value.terms.values())
-
-
-def _immutable(matrix: sympy.MatrixBase) -> sympy.ImmutableMatrix:
-    if isinstance(matrix, sympy.ImmutableMatrix):
-        return matrix
-    return sympy.ImmutableMatrix(matrix)
-
-
-@dataclass(frozen=True)
-class _ComplementSpace:
-    """The unenumerated complement fixed by one structured embedding."""
-
-    embedding: Embedding
-
-
-class _EmbeddingBackend:
-    """Compile a public embedding to generic weighted transitions."""
-
-    def __init__(self, embedding: Embedding):
-        self.descriptor = embedding
-        self.source_operators = tuple(embedding.operators)
-        self.coordinates = embedding.coordinate_symbols
-        self.target_operators = embedding.target.operators
-        self.target_is_nof = embedding.target_is_nof
-
-        self.source_placeholders = number_symbols(self.source_operators)
-        target_placeholders = (
-            number_symbols(self.target_operators) if self.target_is_nof else ()
-        )
-        self.basis_map = BasisMap(
-            embedding.source_occupations,
-            embedding.coordinate_symbols,
-            target_placeholders,
-            embedding.phase,
-        )
-
-        self.target_space = embedding.target
-        self.complement_space = _ComplementSpace(embedding)
-        if self.target_is_nof:
-            self.target_identity = _one(self.target_operators)
-            self.target_zero = NumberOrderedForm(
-                self.target_operators, {}, validate=False
-            )
-        else:
-            self.target_identity = _immutable(sympy.eye(embedding.target.dimension))
-            self.target_zero = _immutable(sympy.zeros(embedding.target.dimension))
-
-    def source_form(self, expression) -> NumberOrderedForm:
-        """Convert an expression into the source algebra of the embedding."""
-        if isinstance(expression, NumberOrderedForm):
-            if expression.operators == self.source_operators:
-                return expression
-            expression = expression.as_expr()
-        return NumberOrderedForm.from_expr(
-            sympy.sympify(expression),
-            operators=self.source_operators,
-        )
-
-    @cache
-    def project_transition(
-        self,
-        transition: NOFTransition,
-    ) -> NumberOrderedForm:
-        """Pull back one transition and encode it as a target NOF."""
-        target_powers = self.basis_map.target_shift(transition.powers)
-        if target_powers is None:
-            return self.target_zero
-        amplitude = self.basis_map.pullback_weight(transition, target_powers)
-        if amplitude == 0:
-            return self.target_zero
-        # The source action includes its Fock sign. A target fermion monomial
-        # supplies a Fock sign of its own; remove it from the coefficient so
-        # that evaluating the target operator does not count it twice.
-        target_form = _one_term(self.target_operators, target_powers, sympy.S.One)
-        (target_transition,) = NOFTransition.from_form(target_form)
-        target_weight = target_transition.symbolic_action(self.coordinates).weight
-        target_weight = target_weight.xreplace(
-            self.basis_map.transition_support(target_powers)
-        ).xreplace(self.basis_map.initial_to_middle(target_powers))
-        amplitude *= target_weight * target_transition.scalar  # Inverse of a sign.
-        return (
-            _one_term(self.target_operators, target_powers, amplitude) * transition.scalar
-        )
-
-    @cached_property
-    def finite_source_index(self):
-        """Source occupations belonging to a finite target, without coefficients."""
-        return {
-            self.descriptor.encode(state): index
-            for index, state in enumerate(self.descriptor.target.states)
-        }
-
-    @cache
-    def finite_transition_action(
-        self,
-        transition: NOFTransition,
-        retained_row: int,
-    ):
-        """Apply a transition to the source image of one retained state."""
-        target_state = self.descriptor.target.states[retained_row]
-        return transition.apply(self.descriptor.encode(target_state))
-
-    @cache
-    def pullback(self, source: NumberOrderedForm) -> TargetOperator:
-        """Return ``W† source W`` without enumerating the source Hilbert space."""
-        source = self.source_form(source)
-        transitions = tuple(NOFTransition.from_form(source))
-        if self.target_is_nof:
-            result = self.target_zero
-            for transition in transitions:
-                result += self.project_transition(transition)
-            return NumberOrderedForm(
-                result.operators,
-                {
-                    powers: coefficient
-                    for powers, coefficient in result.terms.items()
-                    if coefficient != 0
-                },
-                validate=False,
-            )
-
-        target = self.descriptor.target
-        source_to_target = self.finite_source_index
-        matrix = sympy.MutableSparseMatrix(target.dimension, target.dimension, {})
-        for column, state in enumerate(target.states):
-            source_state = self.descriptor.encode(state)
-            for transition in transitions:
-                action = transition.apply(source_state)
-                if action is None:
-                    continue
-                if (row := source_to_target.get(action.output_state)) is not None:
-                    initial_phase = self.descriptor.phase.xreplace(
-                        dict(zip(self.coordinates, state, strict=True))
-                    )
-                    final_phase = self.descriptor.phase.xreplace(
-                        dict(zip(self.coordinates, target.states[row], strict=True))
-                    )
-                    matrix[row, column] += (
-                        sympy.conjugate(final_phase)
-                        * initial_phase
-                        * action.weight
-                        * transition.scalar
-                    )
-        return _immutable(matrix)
 
 
 class _EmbeddingProblem:
@@ -211,39 +40,34 @@ class _EmbeddingProblem:
         if any(tuple(map(int, powers)) != zero_powers for powers in h0.terms):
             raise ValueError("Structured embeddings currently require diagonal H0")
         self.source_energy = sympy.simplify(h0.terms.get(zero_powers, sympy.S.Zero))
-        self.source_energy_placeholders = number_symbols(tuple(h0.operators))
 
-        target_h0 = self.embedding.pullback(h0)
-        if isinstance(target_h0, NumberOrderedForm):
-            if any(any(map(int, powers)) for powers in target_h0.terms):
-                raise ValueError("The embedding image must be invariant under H0")
-            self.target_energy = sympy.simplify(
-                self.source_energy.xreplace(
-                    dict(
-                        zip(
-                            self.embedding.source_placeholders,
-                            self.embedding.basis_map.source_occupations,
-                            strict=True,
-                        )
-                    )
+        # Selecting occupation states of diagonal H0 is automatically invariant.
+        self.target_energy = self.source_energy.xreplace(
+            dict(
+                zip(
+                    self.embedding.source_placeholders,
+                    embedding.source_occupations,
+                    strict=True,
                 )
             )
-            self.finite_target_energy = None
-        else:
-            if any(row != column for row, column in target_h0.todok()):
-                raise ValueError("The retained finite block must diagonalize H0")
-            self.target_energy = None
-            self.finite_target_energy = tuple(
-                target_h0[index, index]
-                for index in range(self.embedding.target_space.dimension)
+        )
+        self.finite_target_energy = (
+            None
+            if embedding.target_is_nof
+            else tuple(
+                self.target_energy.xreplace(
+                    dict(zip(embedding.coordinate_symbols, state, strict=True))
+                )
+                for state in embedding.target.states
             )
+        )
 
     @cache
     def _source_energy_at(self, state: tuple[int, ...]) -> sympy.Expr:
         return self.source_energy.xreplace(
             dict(
                 zip(
-                    self.source_energy_placeholders,
+                    self.embedding.source_placeholders,
                     map(sympy.Integer, state),
                     strict=True,
                 )
@@ -263,13 +87,30 @@ class _EmbeddingProblem:
         source: NOFTransition,
         target: NOFTransition,
     ) -> sympy.Expr:
-        return self.embedding.basis_map.energy_denominator(
-            source,
-            target.powers,
-            source_energy=self.source_energy,
-            source_placeholders=self.source_energy_placeholders,
-            target_energy=self.target_energy,
+        after_target = tuple(
+            symbol - power
+            for symbol, power in zip(
+                self.embedding.coordinates, target.powers, strict=True
+            )
         )
+        encoded_after_target = tuple(
+            occupation.xreplace(
+                dict(zip(self.embedding.coordinates, after_target, strict=True))
+            )
+            for occupation in self.embedding.descriptor.source_occupations
+        )
+        source_output = tuple(
+            occupation - power
+            for occupation, power in zip(encoded_after_target, source.powers, strict=True)
+        )
+        source_value = self.source_energy.xreplace(
+            dict(zip(self.embedding.source_placeholders, source_output, strict=True))
+        )
+        denominator = sympy.expand(self.target_energy - source_value)
+        denominator = denominator.xreplace(
+            self.embedding.support_substitutions(source, target.powers)
+        )
+        return denominator.xreplace(self.embedding.initial_to_middle(target.powers))
 
     def _zero_denominator_is_projected_out(
         self,
@@ -282,7 +123,7 @@ class _EmbeddingProblem:
             - projected.adjoint() * projected
         )
         norm = target.adjoint() * leakage * target
-        return _target_is_zero(norm)
+        return _is_zero(norm)
 
     def solve_sylvester(self, value, index):
         """Solve the P-Q Sylvester equation transition by transition."""
@@ -298,10 +139,10 @@ class _EmbeddingProblem:
             for source in NOFTransition.from_form(source_form):
                 for target in NOFTransition.from_form(target_form):
                     denominator = self._channel_denominator(source, target)
-                    target_term = target.form * target.scalar
+                    target_term = target.form
                     quotient = self._divide_channel(source, target_term, denominator)
-                    if not _target_is_zero(quotient):
-                        solved_terms.append((source.form, quotient * source.scalar))
+                    if not _is_zero(quotient):
+                        solved_terms.append((source.form, quotient))
         column = OperatorMap(self.embedding, solved_terms).or_zero()
         return zero if column is zero else column.adjoint()
 
@@ -311,7 +152,7 @@ class _EmbeddingProblem:
         """Divide on binary sectors, discarding unsupported resonances first."""
         variables = tuple(
             symbol
-            for symbol in self.embedding.basis_map.target_placeholders
+            for symbol in self.embedding.target_placeholders
             if symbol in denominator.free_symbols
         )
 
@@ -375,8 +216,8 @@ class _EmbeddingProblem:
                         - self._source_energy_at(action.output_state)
                     )
                     target_term = sympy.ImmutableSparseMatrix(
-                        self.embedding.target_space.dimension,
-                        self.embedding.target_space.dimension,
+                        self.embedding.descriptor.target.dimension,
+                        self.embedding.descriptor.target.dimension,
                         {(row, column): target_coefficient},
                     )
                     if denominator == 0:
@@ -388,14 +229,14 @@ class _EmbeddingProblem:
                     solved_terms.append(
                         (
                             source.form,
-                            target_term / denominator * source.scalar,
+                            target_term / denominator,
                         )
                     )
         column = OperatorMap(self.embedding, solved_terms).or_zero()
         return zero if column is zero else column.adjoint()
 
     def block_series(self) -> BlockSeries:
-        """Represent the Hamiltonian in the generic compression module."""
+        """Represent the retained and discarded Hamiltonian blocks."""
         embedding = self.embedding
         zero_order = (0,) * self.hamiltonian.n_infinite
 
@@ -405,11 +246,11 @@ class _EmbeddingProblem:
             if source is zero:
                 return zero
             source = embedding.source_form(source)
-            if _target_is_zero(source):
+            if _is_zero(source):
                 return zero
             if row == column == 0:
                 result = embedding.pullback(source)
-                return zero if _target_is_zero(result) else result
+                return zero if _is_zero(result) else result
             if tuple(order) == zero_order and row != column:
                 return zero
             if (row, column) == (1, 0):
