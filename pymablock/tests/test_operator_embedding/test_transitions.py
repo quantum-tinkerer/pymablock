@@ -6,9 +6,13 @@ import sympy
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
+from sympy.physics.quantum.pauli import SigmaMinus
 
-from pymablock._embedding.transitions import BasisMap, NOFTransition
+from pymablock._embedding.selection import _EmbeddingBackend
+from pymablock._embedding.transitions import NOFTransition
+from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.number_ordered_form import NumberOrderedForm
+from pymablock.second_quantization import Embedding
 
 
 def _only_transition(expression, operators):
@@ -39,27 +43,41 @@ def test_fermion_transition_contains_cross_mode_parity() -> None:
     assert lowering.apply((1, 1)).weight == -1
 
 
-def test_affine_basis_map_solves_integer_target_shift() -> None:
-    """The coordinate map, rather than the embedding backend, solves shifts."""
-    retained = sympy.Symbol("retained", integer=True, nonnegative=True)
-    basis_map = BasisMap((2 * retained,), (retained,))
+def test_state_selection_solves_integer_target_shift() -> None:
+    """Selecting even boson occupations makes a two-step source shift binary."""
+    a, s = BosonOp("a"), SigmaMinus("s")
+    backend = _EmbeddingBackend(Embedding(target=(s,), occupations={a: 2 * N(s)}))
+    assert backend.target_shift((2,)) == (1,)
+    assert backend.target_shift((-2,)) == (-1,)
+    assert backend.target_shift((1,)) is None
 
-    assert basis_map.target_shift((2,)) == (1,)
-    assert basis_map.target_shift((-2,)) == (-1,)
-    assert basis_map.target_shift((1,)) is None
 
-
-def test_basis_phase_is_part_of_transition_pullback() -> None:
-    """A phase-decorated basis map supplies the pullback phase ratio."""
-    source = FermionOp("source")
-    retained = sympy.Symbol("retained", integer=True, nonnegative=True)
-    placeholder = sympy.Symbol("number", integer=True)
-    transition = _only_transition(source, (source,))
-    basis_map = BasisMap(
-        (retained,),
-        (retained,),
-        (placeholder,),
-        1 - 2 * retained,
+def test_frozen_particle_sets_retained_fermion_phase() -> None:
+    """The target definition absorbs the sign from an earlier occupied mode."""
+    fixed, source, target = (FermionOp(name) for name in ("a", "b", "f"))
+    backend = _EmbeddingBackend(
+        Embedding(target=(target,), occupations={fixed: 1, source: N(target)})
     )
+    result = backend.pullback(backend.source_form(source))
+    assert result == NumberOrderedForm.from_expr(target, operators=(target,))
 
-    assert basis_map.pullback_weight(transition, (1,)) == -1
+
+def test_multiple_boson_annihilations_stop_at_vacuum():
+    """The common symbolic action also handles forbidden concrete transitions."""
+    a = BosonOp("a")
+    transition = _only_transition(a**2, (a,))
+    assert transition.apply((0,)) is None
+    assert transition.apply((1,)) is None
+    assert transition.apply((3,)).weight == sympy.sqrt(6)
+
+
+def test_forbidden_creation_ignores_coefficient_pole():
+    """A zero ladder amplitude excludes a sector before its coefficient is used."""
+    from pymablock._embedding.transitions import number_symbols
+
+    f = FermionOp("f")
+    (n,) = number_symbols((f,))
+    form = NumberOrderedForm((f,), {(-1,): 1 / (1 - n)}, validate=False)
+    (transition,) = NOFTransition.from_form(form)
+    assert transition.apply((1,)) is None
+    assert transition.apply((0,)).weight == 1

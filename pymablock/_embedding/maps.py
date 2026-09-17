@@ -9,7 +9,7 @@ operator on the retained space.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 import sympy
 
@@ -18,6 +18,8 @@ from pymablock.series import zero
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from pymablock._embedding.selection import _EmbeddingBackend
 
 TargetOperator: TypeAlias = NumberOrderedForm | sympy.MatrixBase
 
@@ -39,18 +41,6 @@ def _adjoint(value: TargetOperator) -> TargetOperator:
     return result
 
 
-class OperatorEmbeddingBackend(Protocol):
-    """Internal contract required by :class:`OperatorMap`."""
-
-    target_zero: TargetOperator
-    target_identity: TargetOperator
-    target_space: object
-    complement_space: object
-
-    def pullback(self, source: NumberOrderedForm) -> TargetOperator:
-        """Return ``W† source W``."""
-
-
 class OperatorMap:
     """A canonical sum of formal complement columns ``Q X W A``."""
 
@@ -58,7 +48,7 @@ class OperatorMap:
 
     def __init__(
         self,
-        embedding: OperatorEmbeddingBackend,
+        embedding: _EmbeddingBackend,
         terms: Iterable[tuple[NumberOrderedForm, TargetOperator]],
     ):
         """Combine equal source factors and discard exact structural zeros."""
@@ -75,20 +65,10 @@ class OperatorMap:
             if not _is_zero(target)
         )
 
-    @property
-    def left_space(self) -> object:
-        """The source-space complement in which the map takes values."""
-        return self.embedding.complement_space
-
-    @property
-    def right_space(self) -> object:
-        """The retained space on which the map acts."""
-        return self.embedding.target_space
-
     @classmethod
     def from_source(
         cls,
-        embedding: OperatorEmbeddingBackend,
+        embedding: _EmbeddingBackend,
         source: NumberOrderedForm,
     ) -> OperatorMap | object:
         """Construct ``Q X W`` from one source-space operator ``X``."""
@@ -96,11 +76,6 @@ class OperatorMap:
             embedding,
             ((source, embedding.target_identity),),
         ).or_zero()
-
-    @classmethod
-    def zero(cls, embedding: OperatorEmbeddingBackend) -> OperatorMap:
-        """Construct the zero map without returning the series zero sentinel."""
-        return cls(embedding, ())
 
     def or_zero(self) -> OperatorMap | object:
         """Use Pymablock's structural zero sentinel for an empty map."""
@@ -255,7 +230,7 @@ class ModuleEndomorphism:
     @classmethod
     def source(
         cls,
-        embedding: OperatorEmbeddingBackend,
+        embedding: _EmbeddingBackend,
         source: NumberOrderedForm,
     ) -> ModuleEndomorphism:
         """Represent ``Q source Q``."""

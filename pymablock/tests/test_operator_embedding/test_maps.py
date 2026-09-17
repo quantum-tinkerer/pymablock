@@ -34,14 +34,6 @@ class MatrixEmbedding:
     def target_identity(self):
         return sympy.ImmutableMatrix(sympy.eye(2))
 
-    @property
-    def complement_space(self):
-        return f"Q({self.name})"
-
-    @property
-    def target_space(self):
-        return f"P({self.name})"
-
     def pullback(self, source):
         return self.bridge.adjoint() * source * self.bridge
 
@@ -54,7 +46,7 @@ def _lower(operator_map):
     return sympy.ImmutableMatrix(result)
 
 
-def test_storage_is_canonical_and_defines_spaces() -> None:
+def test_storage_combines_equal_source_factors() -> None:
     embedding = MatrixEmbedding()
     source = sympy.ImmutableMatrix([[0, 0, 0], [0, 0, 0], [1, 2, 0]])
     first = sympy.ImmutableMatrix([[1, 2], [0, 0]])
@@ -70,9 +62,7 @@ def test_storage_is_canonical_and_defines_spaces() -> None:
     )
 
     assert operator_map.terms == ((source, first + second),)
-    assert operator_map.left_space == "Q(W)"
-    assert operator_map.right_space == "P(W)"
-    assert not OperatorMap.zero(embedding)
+    assert not OperatorMap(embedding, ())
     assert operator_map + (-operator_map) is zero
 
 
