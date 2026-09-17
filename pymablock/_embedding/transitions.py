@@ -161,10 +161,8 @@ class NOFTransition:
         ):
             if isinstance(operator, (FermionOp, SigmaMinus)) and power:
                 equations.append(occupation - (1 if power > 0 else 0))
-            elif isinstance(operator, BosonOp) and power > 0:
-                # This exact constraint suffices for the finite/binary retained
-                # coordinates currently compiled to an algebraic target.
-                equations.append(occupation - power)
+            # Bosonic annihilation requires occupation >= power, not equality.
+            # Its vanishing channels are handled by their transition weights.
         return tuple(equations)
 
     def _apply_generator(

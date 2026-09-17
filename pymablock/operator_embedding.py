@@ -70,10 +70,10 @@ class Embedding:
     -----
     Spin targets use the source occupation-basis phase convention. Fermionic
     targets currently require a direct one-to-one assignment of each retained
-    fermion to a source fermion, with remaining source modes fixed empty or full.
-    The fermionic phase accounts for frozen particles and mode permutations so
-    that retained generators map to their declared source generators. Mixing
-    target spins and fermions is not currently supported.
+    fermion to a source fermion. Other source occupations may depend on target
+    spins or be fixed. The fermionic phase accounts for spectator occupations
+    and mode permutations so that retained fermionic generators map to their
+    declared source generators. Spin and fermion targets may be combined.
 
     The map must be injective and have physical integer source occupations.
     Only full-rank affine occupation rules are supported. This restricted
@@ -124,8 +124,6 @@ class Embedding:
             sizes.append(int(size))
         self.target = _TargetSpace(operators, tuple(sizes))
         fermions = tuple(op for op in operators if isinstance(op, FermionOp))
-        if fermions and len(fermions) != len(operators):
-            raise ValueError("Mixed spin and fermion targets are not supported")
         self.target_is_nof = not any(isinstance(op, JminusOp) for op in operators)
         if not all(isinstance(op, generator_types) for op in occupations):
             raise TypeError("Source keys must be supported annihilation generators")
@@ -206,26 +204,39 @@ class Embedding:
 
     def _fermion_phase(self) -> sympy.Expr:
         """Fix relative signs for direct retained fermionic generators."""
-        if not all(isinstance(op, FermionOp) for op in self.operators):
-            raise ValueError("Fermion targets require direct source fermion assignments")
+        fermion_coordinates = {
+            i: coordinate
+            for i, (operator, coordinate) in enumerate(
+                zip(self.target.operators, self.coordinate_symbols, strict=True)
+            )
+            if isinstance(operator, FermionOp)
+        }
         mapped = []
-        occupied_fixed = 0
+        spectator_parity = sympy.S.One
         phase = sympy.S.One
-        for occupation in self.source_occupations:
-            if occupation in self.coordinate_symbols:
-                index = self.coordinate_symbols.index(occupation)
-                phase *= (1 - 2 * occupation) ** (occupied_fixed % 2)
+        for operator, occupation in zip(
+            self.operators, self.source_occupations, strict=True
+        ):
+            matches = [
+                i
+                for i, coordinate in fermion_coordinates.items()
+                if occupation == coordinate
+            ]
+            if isinstance(operator, FermionOp) and matches:
+                index = matches[0]
+                phase *= 1 - occupation + occupation * spectator_parity
                 for earlier in mapped:
                     if earlier > index:
-                        phase *= 1 - 2 * self.coordinate_symbols[earlier] * occupation
+                        phase *= 1 - 2 * fermion_coordinates[earlier] * occupation
                 mapped.append(index)
-            elif occupation == 1:
-                occupied_fixed += 1
-            elif occupation != 0:
-                raise ValueError(
-                    "Fermion targets require direct source fermion assignments"
-                )
-        if sorted(mapped) != list(range(len(self.coordinate_symbols))):
+            else:
+                if occupation.free_symbols.intersection(fermion_coordinates.values()):
+                    raise ValueError(
+                        "Fermion targets require direct source fermion assignments"
+                    )
+                if isinstance(operator, FermionOp):
+                    spectator_parity *= 1 - 2 * occupation
+        if sorted(mapped) != sorted(fermion_coordinates):
             raise ValueError("Each target fermion must map to exactly one source mode")
         return sympy.expand(phase)
 
