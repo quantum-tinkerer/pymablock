@@ -198,12 +198,10 @@ def test_invalid_occupation_rules_are_rejected(rule, error) -> None:
 
 
 def test_invalid_target_declarations_are_rejected() -> None:
-    s, f = SigmaMinus("s"), FermionOp("f")
+    s = SigmaMinus("s")
     a = BosonOp("a")
     with pytest.raises(ValueError, match="distinct"):
         Embedding(target=(s, s), occupations={a: NumberOperator(s)})
-    with pytest.raises(ValueError, match="Mixed"):
-        Embedding(target=(s, f), occupations={a: NumberOperator(s)})
     with pytest.raises(ValueError, match="explicit dimension"):
         Embedding(target=(JminusOp("S"),), occupations={a: 0})
     with pytest.raises(ValueError, match="dimension two"):
@@ -245,3 +243,55 @@ def test_finite_virtual_resonance_still_raises() -> None:
     )
     with pytest.raises(ZeroDivisionError, match="degenerate"):
         _ = effective[0, 0, 2]
+
+
+@pytest.mark.parametrize("finite", [False, True])
+def test_boson_annihilation_preserves_occupation_dependent_denominator(finite):
+    """Intermediate energies are 10 and 11, versus retained energies 1 and 4."""
+    a, b = BosonOp("a"), BosonOp("b")
+    s = JminusOp("S") if finite else SigmaMinus("s")
+    n = JzOp("S") + sympy.S.Half if finite else NumberOperator(s)
+    embedding = Embedding(target={s: 2}, occupations={a: 1 + n, b: 0})
+    effective, *_ = block_diagonalize(
+        [NumberOperator(a) ** 2 + 10 * NumberOperator(b), Dagger(b) * a + Dagger(a) * b],
+        subspace_eigenvectors=embedding,
+    )
+    expected = (
+        sympy.diag(-sympy.Rational(1, 9), -sympy.Rational(2, 7))
+        if finite
+        else NumberOrderedForm.from_expr(-(1 - n) / 9 - 2 * n / 7, operators=(s,))
+    )
+    assert effective[0, 0, 2] == expected
+
+
+@pytest.mark.parametrize("coupled", [False, True])
+def test_sector_resonance_requires_nonzero_virtual_channel(coupled):
+    a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
+    n = NumberOperator(a)
+    effective, *_ = block_diagonalize(
+        [n + (1 - n) * NumberOperator(b), (1 if coupled else 1 - n) * (b + Dagger(b))],
+        subspace_eigenvectors=Embedding(
+            target=(s,), occupations={a: NumberOperator(s), b: 0}
+        ),
+    )
+    if coupled:
+        with pytest.raises(ZeroDivisionError, match="degenerate"):
+            _ = effective[0, 0, 2]
+    else:
+        assert effective[0, 0, 2] == NumberOrderedForm.from_expr(
+            NumberOperator(s) - 1, operators=(s,)
+        )
+
+
+def test_empty_boson_channel_does_not_create_a_resonance():
+    """The nominal zero gap at n=0 has zero annihilation amplitude."""
+    a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
+    effective, *_ = block_diagonalize(
+        [NumberOperator(a) ** 2 - NumberOperator(b), Dagger(b) * a + Dagger(a) * b],
+        subspace_eigenvectors=Embedding(
+            target=(s,), occupations={a: NumberOperator(s), b: 0}
+        ),
+    )
+    assert effective[0, 0, 2] == NumberOrderedForm.from_expr(
+        NumberOperator(s) / 2, operators=(s,)
+    )

@@ -54,8 +54,13 @@ target occupations and must give physically allowed source occupations.
 Binary spin and fermion targets return `NumberOrderedForm` operators. Higher
 spins are declared with their dimension, such as `target={JminusOp("S"): 3}`,
 and currently return finite matrices in increasing magnetic-quantum-number order.
-Fermion targets support direct one-to-one source assignments with other source
-occupations fixed. Mixed spin and fermion targets are not supported.
+Fermion targets support direct one-to-one source assignments. Other source
+occupations may depend on target spins or be fixed. Spin and fermion targets can
+be combined; their relative signs include source mode ordering and spectator
+occupations. For example, a localized spin and a retained fermion use
+`target=(s, f)` with
+`occupations={up: N(s), down: 1 - N(s), conduction: N(f)}`.
+A target containing a higher spin uses finite matrices for the entire target.
 
 ## Virtual transitions and energy denominators
 
@@ -76,8 +81,11 @@ The unperturbed Hamiltonian must be diagonal in the supplied occupation basis,
 $H_0=E(n_1,\ldots,n_M)$. This includes number-dependent interactions and
 anharmonicities. Each transition has an energy difference obtained by evaluating
 $E$ on its initial and final occupations. The Sylvester solver divides by these
-differences; a nonzero virtual channel resonant with the retained space cannot be
-eliminated by this expansion.
+differences on the occupation sectors where the channel acts. A zero denominator
+in an uncoupled sector contributes zero; a nonzero virtual channel resonant with
+the retained space cannot be eliminated by this expansion. Bosonic annihilation
+requires at least as many particles as are annihilated, so occupations above that
+threshold retain their own energy denominators.
 
 This representation avoids explicit enumeration of the complementary Hilbert
 space. Its computational cost still depends on perturbative order and the number

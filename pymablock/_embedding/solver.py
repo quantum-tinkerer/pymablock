@@ -182,7 +182,18 @@ class _EmbeddingBackend:
                 if action is None:
                     continue
                 if (row := source_to_target.get(action.output_state)) is not None:
-                    matrix[row, column] += action.weight * transition.scalar
+                    initial_phase = self.descriptor.phase.xreplace(
+                        dict(zip(self.coordinates, state, strict=True))
+                    )
+                    final_phase = self.descriptor.phase.xreplace(
+                        dict(zip(self.coordinates, target.states[row], strict=True))
+                    )
+                    matrix[row, column] += (
+                        sympy.conjugate(final_phase)
+                        * initial_phase
+                        * action.weight
+                        * transition.scalar
+                    )
         return _immutable(matrix)
 
 
@@ -288,22 +299,62 @@ class _EmbeddingProblem:
                 for target in NOFTransition.from_form(target_form):
                     denominator = self._channel_denominator(source, target)
                     target_term = target.form * target.scalar
-                    if denominator == 0:
-                        if self._zero_denominator_is_projected_out(source, target_term):
-                            continue
-                        raise ZeroDivisionError(
-                            "A virtual channel is degenerate with the retained space"
-                        )
-                    solved_terms.append(
-                        (
-                            source.form,
-                            target_term
-                            * self._target_reciprocal(denominator)
-                            * source.scalar,
-                        )
-                    )
+                    quotient = self._divide_channel(source, target_term, denominator)
+                    if not _target_is_zero(quotient):
+                        solved_terms.append((source.form, quotient * source.scalar))
         column = OperatorMap(self.embedding, solved_terms).or_zero()
         return zero if column is zero else column.adjoint()
+
+    def _divide_channel(
+        self, source: NOFTransition, target: NumberOrderedForm, denominator: sympy.Expr
+    ) -> NumberOrderedForm:
+        """Divide on binary sectors, discarding unsupported resonances first."""
+        variables = tuple(
+            symbol
+            for symbol in self.embedding.basis_map.target_placeholders
+            if symbol in denominator.free_symbols
+        )
+
+        sectors = []
+        has_zero = False
+
+        def visit(expression, mask, remaining):
+            nonlocal has_zero
+            expression = sympy.expand(expression)
+            remaining = tuple(x for x in remaining if x in expression.free_symbols)
+            if remaining:
+                symbol, *rest = remaining
+                for value in (0, 1):
+                    visit(
+                        expression.xreplace({symbol: sympy.Integer(value)}),
+                        mask * (symbol if value else 1 - symbol),
+                        rest,
+                    )
+                return
+            expression = sympy.simplify(expression)
+            if expression == 0:
+                has_zero = True
+                sector = _one_term(
+                    self.embedding.target_operators,
+                    (0,) * len(self.embedding.target_operators),
+                    mask,
+                )
+                if not self._zero_denominator_is_projected_out(source, target * sector):
+                    raise ZeroDivisionError(
+                        "A virtual channel is degenerate with the retained space"
+                    )
+            else:
+                sectors.append(mask / expression)
+
+        visit(denominator, sympy.S.One, variables)
+        if not has_zero:
+            return target * self._target_reciprocal(denominator)
+        inverse = _one_term(
+            self.embedding.target_operators,
+            (0,) * len(self.embedding.target_operators),
+            sympy.Add(*sectors),
+        )
+        return target * inverse
 
     def _solve_finite(self, value: AdjointOperatorMap):
         solved_terms = []
