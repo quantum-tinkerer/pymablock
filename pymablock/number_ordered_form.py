@@ -532,7 +532,7 @@ class NumberOrderedForm(Operator):
 
     @property
     def side(self):
-        """Attachment side: -1 for W† X, +1 for X W, zero for no attachment."""
+        """Return -1 for W† X, +1 for X W, or zero for no attachment."""
         return int(self.args[3]) if self.embedding is not None else 0
 
     @cached_property
