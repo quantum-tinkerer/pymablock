@@ -1,7 +1,5 @@
 """Prepare embedding blocks and their algebraic Sylvester solver."""
 
-from itertools import product
-
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 
@@ -9,9 +7,7 @@ from pymablock.number_ordered_form import (
     LadderOp,
     NumberOrderedForm,
     _NOFTransition,
-    _occupation_dimension,
     _projectors,
-    _reduce_projectors,
     _spectral_projector,
 )
 from pymablock.operator_embedding import Embedding, _ReferenceBasis
@@ -58,15 +54,7 @@ def prepare(hamiltonian, embedding):
     source_h0 = basis._source_form(hamiltonian[origin])
     h0 = source_h0 if finite else sympy.ImmutableMatrix([[source_h0]])
     modes, numbers = basis.operators, basis._source_placeholders
-    dimensions = tuple(map(_occupation_dimension, modes))
-    if any(
-        (i != j and x != 0)
-        or (
-            isinstance(x, NumberOrderedForm)
-            and any(any(p) and c != 0 for p, c in x.terms.items())
-        )
-        for (i, j), x in h0.todok().items()
-    ):
+    if any(i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()):
         raise ValueError("Structured embeddings currently require diagonal H0")
     vacuum = (0,) * len(modes)
     if finite:
@@ -85,57 +73,68 @@ def prepare(hamiltonian, embedding):
     frames = (w, sympy.eye(h0.rows) - w * w.adjoint())
     retained = w.adjoint() * h0 * w
     energies = [
-        sympy.expand(h0[i, i].terms.get((0,) * len(modes), sympy.S.Zero))
-        if h0[i, i] != 0
-        else sympy.S.Zero
-        for i in range(h0.rows)
+        x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
+        for x in h0.diagonal()
     ]
+
+    coordinates = () if finite else basis.coordinate_symbols
+    occupations = vacuum if finite else basis.source_occupations
+    sizes = () if finite else basis._target_dimensions
+    binary = [q for q, size in zip(coordinates, sizes) if size == 2]
+
+    def divide_gap(coefficient, gap, weight):
+        """Split gap-dependent binary sectors, checking zero gaps on active channels."""
+        if weight == 0:
+            return sympy.S.Zero
+        gap = sympy.cancel(gap)
+        variables = (gap if gap != 0 else weight).free_symbols
+        q = next((q for q in binary if q in variables), None)
+        if q is not None:
+            return sum(
+                (q if v else 1 - q)
+                * divide_gap(*(x.xreplace({q: v}) for x in (coefficient, gap, weight)))
+                for v in (sympy.S.Zero, sympy.S.One)
+            )
+        point = next(_projectors(coefficient, set(coordinates) & variables), None)
+        if point is not None:
+            delta, n, v = point
+            arguments = coefficient, gap, weight
+            inside = divide_gap(*(x.xreplace({n: v}) for x in arguments))
+            outside = divide_gap(*(x.xreplace({delta: sympy.S.Zero}) for x in arguments))
+            return sympy.Piecewise((inside, sympy.Eq(n, v)), (outside, True))
+        if gap == 0:
+            raise ZeroDivisionError(
+                "A virtual channel is degenerate with the retained space"
+            )
+        return coefficient / gap
 
     def divide_scalar(value, row, col):
         if value == 0 or value.is_zero:
             return sympy.S.Zero
-        value = value.source * entry_embedding._projector
+        value = basis._source_scalar(value.source)
+        energy = (
+            retained[col, col]
+            if finite
+            else basis._at_occupations(energies[col], occupations)
+        )
         terms = {}
-        for powers, coefficient in value.terms.items():
-            outgoing = {n: n + max(-int(power), 0) for n, power in zip(numbers, powers)}
-            incoming = {n: n + max(int(power), 0) for n, power in zip(numbers, powers)}
+        for transition in _NOFTransition.from_form(value):
+            powers = transition.powers
+            action = transition.symbolic_action(occupations)
+            if action.weight == 0:
+                continue
+            middle = [n - max(p, 0) for n, p in zip(occupations, powers)]
+            coefficient = basis._at_occupations(value.terms[powers], middle)
             denominator = sympy.expand(
-                energies[row].xreplace(outgoing)
-                - (retained[col, col] if finite else energies[col].xreplace(incoming))
+                basis._at_occupations(energies[row], action.output_state) - energy
             )
-            pinned = {
-                n: sympy.S.Zero
-                for n, power, size in zip(numbers, powers, dimensions)
-                if power and size == 2
-            }
-            coefficient, denominator = (
-                x.xreplace(pinned) for x in (coefficient, denominator)
-            )
-            binary = [
-                n
-                for n, size in zip(numbers, dimensions)
-                if size == 2 and n in denominator.free_symbols
-            ]
-            result = sympy.S.Zero
-            for values in product((0, 1), repeat=len(binary)):
-                substitutions = dict(zip(binary, values))
-                c = _reduce_projectors(coefficient.xreplace(substitutions), modes)
-                d = denominator.xreplace(substitutions)
-                if c == 0:
-                    continue
-                mask = sympy.prod(n if v else 1 - n for n, v in zip(binary, values))
-                for term in sympy.Add.make_args(
-                    sympy.expand(c) if c.has(sympy.Piecewise) else c
-                ):
-                    local = d
-                    for _, n, value in _projectors(term, numbers):
-                        local = local.xreplace({n: value})
-                    local = sympy.cancel(local)
-                    if local == 0:
-                        raise ZeroDivisionError(
-                            "A virtual channel is degenerate with the retained space"
-                        )
-                    result += mask * term / local
+            result = divide_gap(coefficient, denominator, action.weight)
+            if not finite:
+                incoming = sympy.Matrix([n + max(p, 0) for n, p in zip(numbers, powers)])
+                target = basis._occupation_left_inverse * (
+                    incoming - sympy.Matrix(basis.reference)
+                )
+                result = result.xreplace(dict(zip(coordinates, target)))
             terms[powers] = result
         return NumberOrderedForm(
             basis.operators, terms, entry_embedding, 1, validate=False

@@ -395,7 +395,7 @@ def _spectral_projector(expression, spectrum):
 
 def _projectors(expression, numbers):
     """Yield point indicators and the occupation value they select."""
-    for delta in expression.atoms(sympy.Piecewise):
+    for delta in expression.atoms(sympy.Piecewise) if numbers else ():
         if (
             len(delta.args) != 2
             or delta.args[0].expr != 1
@@ -409,7 +409,7 @@ def _projectors(expression, numbers):
         (n,) = variables
         equation = sympy.expand(delta.args[0].cond.lhs - delta.args[0].cond.rhs)
         slope = equation.coeff(n)
-        if slope.is_number and slope:
+        if slope.is_number and slope and not (equation - slope * n).has(n):
             yield delta, n, sympy.cancel(n - equation / slope)
 
 
