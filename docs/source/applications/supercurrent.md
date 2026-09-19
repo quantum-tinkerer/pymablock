@@ -71,7 +71,6 @@ the final current, where $u_\alpha v_\alpha=\Gamma_\alpha/(2E_\alpha)$.
 
 ```{code-cell} ipython3
 %matplotlib inline
-from itertools import product
 import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
@@ -141,14 +140,17 @@ H, *_ = block_diagonalize(
     {(0, 0): H0, (1, 0): couplings["L"], (0, 1): couplings["R"]},
     subspace_eigenvectors=embedding,
 )
-dot_basis = Embedding(reference=[dict(zip(dot, state)) for state in product((0, 1), repeat=2)])
-h0 = dot_basis.restrict(H[0, 0, 0, 0])
-hL = dot_basis.restrict(H[0, 0, 2, 0])
-hR = dot_basis.restrict(H[0, 0, 0, 2])
-hLR = dot_basis.restrict(H[0, 0, 2, 2])
-assert hL[1, 2] == hR[1, 2] == 0
-print("Dot basis:", [(0, 0), (0, 1), (1, 0), (1, 1)])
-pairing = sp.factor(hL[0, 3]) + sp.factor(hR[0, 3])
+h0 = H[0, 0, 0, 0].as_expr()
+hL, hR = H[0, 0, 2, 0], H[0, 0, 0, 2]
+hLR = H[0, 0, 2, 2]
+assert all(part.filter_terms(((1, -1), (-1, 1)), keep=True).is_zero
+           for part in (hL, hR))
+# Pair annihilation leaves the empty dot; its coefficient is Delta_ind.
+pair_L, pair_R = [
+    part.filter_terms(((1, 1),), keep=True).as_expr().coeff(d_up * d_down)
+    for part in (hL, hR)
+]
+pairing = sp.factor(pair_L) + sp.factor(pair_R)
 display(sp.Eq(sp.Symbol("Delta_ind"), pairing))
 ```
 
@@ -218,12 +220,17 @@ factors = [
     (1 / S - 2 / b) / ((EL + a - b) * (ER + a - b)),
 ]
 phase_amplitudes = []
-for n, charge in enumerate((0, 1, 1, 2)):
-    correction = hLR[n, n]
-    for m in range(4):
-        gap = h0[n, n] - h0[m, m]
-        if gap != 0:
-            correction += (hL[n, m] * hR[m, n] + hR[n, m] * hL[m, n]) / gap
+diagonal_LR = hLR.filter_terms(((0, 0),), keep=True).as_expr()
+pair_mixing = pair_L * sp.conjugate(pair_R) + pair_R * sp.conjugate(pair_L)
+for occupations in ((0, 0), (0, 1), (1, 0), (1, 1)):
+    charge = sum(occupations)
+    values = dict(zip(map(N, dot), occupations))
+    correction = diagonal_LR.subs(values)
+    if charge != 1:
+        # Pairing mixes the empty and doubly occupied dot states.
+        other = dict(zip(map(N, dot), (1 - n for n in occupations)))
+        gap = h0.subs(values) - h0.subs(other)
+        correction += pair_mixing / gap
     # Expose the phase factor in each denominator before extracting harmonics.
     expanded = sp.Add(*(sp.factor_terms(term) for term in sp.Add.make_args(sp.expand(correction))))
     plus = expanded.coeff(sp.exp(sp.I * Phi))
