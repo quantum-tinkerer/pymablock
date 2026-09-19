@@ -16,7 +16,6 @@ from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
-    SpinOp,
 )
 from pymablock.operator_embedding import Embedding
 
@@ -292,8 +291,7 @@ def synthetic_spin_floquet(
         cavity_terms.extend((term, Dagger(term)))
 
     encoding = Embedding(
-        {SpinOp("S", spin): sympy.sqrt(maximum - NumberOperator(cavity)) * cavity},
-        reference={cavity: 0, floquet: 0, dressed: 0},
+        reference=[{cavity: n, floquet: 0, dressed: 0} for n in range(maximum + 1)],
     )
     return SyntheticSpinFloquetModel(
         H0,
@@ -346,7 +344,7 @@ def test_dressed_spin_one_first_order(spin):
     effective, *_ = block_diagonalize(
         [model.H0, model.V], subspace_eigenvectors=model.encoding
     )
-    difference = effective[0, 0, 1].to_matrix() - model.expected_first_order()
+    difference = effective[0, 0, 1] - model.expected_first_order()
     assert difference.applyfunc(
         lambda x: sympy.trigsimp(sympy.expand_complex(x))
     ) == sympy.zeros(int(2 * spin + 1))
@@ -392,7 +390,7 @@ def test_dressed_spin_one_second_order_against_finite_matrices(spin):
         np.ix_(complement, retained)
     ]
     effective, *_ = block_diagonalize(source, subspace_eigenvectors=model.encoding)
-    actual = np.array(effective[0, 0, 2].to_matrix().evalf(), dtype=complex)
+    actual = np.array(effective[0, 0, 2].evalf(), dtype=complex)
     np.testing.assert_allclose(actual, reference, atol=1e-12, rtol=1e-12)
 
 

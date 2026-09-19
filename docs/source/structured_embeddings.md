@@ -4,7 +4,8 @@ An effective model can have different operators from its microscopic Hamiltonian
 For example, a spin flip can represent moving a fermion between two orbitals, or
 exciting an oscillator from its ground state to its first excited state.
 An embedding defines these effective operators by giving **their source
-expressions and one reference state**.
+expressions and one reference state**. For a finite matrix result, an ordered
+list of reference states defines the retained basis directly.
 
 For a spin encoded in two fermions, the definition is
 
@@ -161,7 +162,7 @@ embedding = Embedding({hole: Dagger(electron)}, reference={electron: 1})
 It gives $R(N_{\mathrm{electron}})=1-N_{\mathrm{hole}}$. A pair pseudospin uses
 `{s: down * up}` with both source occupations initially zero.
 
-## Integer ladders and higher spins
+## Integer ladders
 
 A `LadderOp` represents a bilateral integer shift, such as a Floquet index.
 It has no vacuum. Its reference represents target index zero, and its number
@@ -177,45 +178,67 @@ embedding = Embedding(
 )
 ```
 
-For a higher spin, specify its spin quantum number and the correct ladder
-amplitude. The following spin-one generator acts on oscillator occupations
-zero, one, and two, with both lowering amplitudes equal to $\sqrt{2}$:
+## Finite matrices from a reference list
+
+Omit the generator mapping and list the retained source states in the desired
+matrix order. Selecting the first three oscillator levels gives
 
 ```python
-from pymablock.number_ordered_form import SpinOp
-
-S = SpinOp("S", 1)
-embedding = Embedding(
-    {S: sympy.sqrt(2 - N(a)) * a},
-    reference={a: 0},
-)
+embedding = Embedding(reference=[{a: 0}, {a: 1}, {a: 2}])
+assert embedding.restrict(N(a)) == sympy.diag(0, 1, 2)
+H_eff, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
+second_order_matrix = H_eff[0, 0, 2]
 ```
 
-The coefficient is to the left of `a`, so it is evaluated after lowering.
-For dimension $d$, use `sqrt(d - 1 - N(a)) * a`; its action is
-$\sqrt{n(d-n)}|n-1\rangle$.
+The coefficients are ordinary SymPy matrices. This is sufficient for an
+artificial higher spin: its ladder matrices and any engineered drive amplitudes
+are expressed directly in this basis. There is no additional higher-spin
+operator class. The source oscillator remains infinite, including the virtual
+transition from level two to level three.
 
-In the artificial-spin cavity example, the ancilla eigenbasis depends on cavity
-occupation. The model first rotates its Hamiltonian into that dressed basis.
-The embedding then maps the normalized spin generator to the cavity expression,
-with the dressed ancilla and Floquet index fixed in the reference. This preserves
-the physical drive's occupation-dependent matrix elements; defining the target
-spin does not replace the cavity drive by an ideal spin drive.
+Each dictionary must declare the same complete set of source modes. References
+are distinct product occupation states and need not form a contiguous range.
+Their list order fixes both matrix rows and columns. The entire list defines
+one retained subspace, including its internal transitions and degeneracies.
+
+### Matrix Hamiltonians with operator entries
+
+A source may itself be a square SymPy matrix whose entries contain
+second-quantized operators. Each reference then pairs a matrix-basis index with
+an occupation dictionary:
+
+```python
+b = BosonOp("b")
+H0_matrix = sympy.diag(5 * N(b), 2 + 5 * N(b))
+V_matrix = sympy.Matrix([[b + Dagger(b), 2 * b + 3 * Dagger(b)],
+                        [3 * b + 2 * Dagger(b), 0]])
+embedding = Embedding(reference=[(0, {b: 0}), (1, {b: 0})])
+H_eff, *_ = block_diagonalize(
+    [H0_matrix, V_matrix], subspace_eigenvectors=embedding
+)
+assert H_eff[0, 0, 2] == sympy.Matrix([[-sympy.Rational(27, 35), -sympy.Rational(4, 5)],
+                                     [-sympy.Rational(4, 5), -3]])
+```
+
+Both matrix components are retained at boson occupation zero. Virtual processes
+can change the component and excite the boson; their denominators use both.
+The matrix index is zero-based. A dictionary without an index means component
+zero, and an empty dictionary selects a component of an ordinary finite matrix.
+All perturbative coefficients must have the same square source shape.
+
+The [cavity application](applications/cavity_spin.md) uses this construction with
+a two-by-two dressed-ancilla matrix and cavity/Floquet operator entries. Its
+three- or four-state reference list returns the artificial-spin matrix directly.
 
 ## Supported representations and perturbation theory
 
-All target algebras, including higher spins, return `NumberOrderedForm`.
-Higher spins compose with retained bosons, Floquet ladders, and fermions without
-introducing a cutoff. Matrix conversion is explicit:
-
-```python
-embedding.restrict(N(a)).to_matrix()  # diag(0, 1, 2) for the spin-one example
-```
-
-For a target containing infinite modes, `to_matrix` requires an occupation
-sequence for each operator. For example, `[range(5), range(3)]` selects five
-oscillator levels and the complete spin-one representation. Products are
-computed before this compression, so virtual excursions remain included.
+Generator mappings return `NumberOrderedForm`, including when the target
+contains infinite bosonic or Floquet modes. Its `to_matrix()` method uses the
+full binary bases by default. For infinite modes, supply one occupation sequence
+per operator, for example `[range(5), range(2)]` for an oscillator and a fermion.
+Products are evaluated before this compression. Reference-list embeddings
+return finite matrices and specify all occupations explicitly; they do not
+provide matrices with symbolic target-operator entries.
 
 Normalized linear mode mixing is supported directly:
 
@@ -245,7 +268,8 @@ from one it cannot establish symbolically.
 
 The default perturbative solver requires Hermitian input and a source Hamiltonian
 $H_0=E(N_1,\ldots,N_M)$ diagonal in the compiled source occupations, including
-after any mode rotation. The generated occupation states
+after any mode rotation. For a matrix source, H0 must also be diagonal in its
+matrix indices, with occupation-diagonal entries. The selected source states
 are then invariant under $H_0$. Each virtual transition uses its actual energy
 difference; coupled degeneracies require changing the retained block or model.
 For retained infinite modes, symbolic energy denominators require the usual

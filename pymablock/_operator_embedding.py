@@ -10,24 +10,27 @@ import sympy
 
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main
-from pymablock.number_ordered_form import NumberOrderedForm, _occupation_projector
-from pymablock.operator_embedding import Embedding, _NOFTransition
+from pymablock.number_ordered_form import NumberOrderedForm
+from pymablock.operator_embedding import Embedding, _NOFTransition, _source_entries
 from pymablock.series import BlockSeries, zero
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-TargetOperator: TypeAlias = NumberOrderedForm | sympy.MatrixBase
+Operator: TypeAlias = NumberOrderedForm | sympy.MatrixBase
 
 
 def _is_zero(value: NumberOrderedForm | sympy.MatrixBase) -> bool:
     """Test exact structural zero without simplifying coefficients."""
     if isinstance(value, sympy.MatrixBase):
-        return not value.todok()
+        return all(
+            _is_zero(entry) if isinstance(entry, NumberOrderedForm) else entry == 0
+            for entry in value
+        )
     return not any(coefficient != 0 for coefficient in value.terms.values())
 
 
-def _adjoint(value: TargetOperator) -> TargetOperator:
+def _adjoint(value: Operator) -> Operator:
     """Return an algebra-native adjoint."""
     result = value.adjoint()
     if isinstance(value, NumberOrderedForm) and result.operators != value.operators:
@@ -45,10 +48,10 @@ class OperatorMap:
     def __init__(
         self,
         embedding: Embedding,
-        terms: Iterable[tuple[NumberOrderedForm, TargetOperator]],
+        terms: Iterable[tuple[Operator, Operator]],
     ):
         """Combine equal source factors and discard exact structural zeros."""
-        combined: dict[NumberOrderedForm, TargetOperator] = {}
+        combined: dict[Operator, Operator] = {}
         for source, target in terms:
             if _is_zero(source) or _is_zero(target):
                 continue
@@ -65,7 +68,7 @@ class OperatorMap:
     def from_source(
         cls,
         embedding: Embedding,
-        source: NumberOrderedForm,
+        source: Operator,
     ) -> OperatorMap | object:
         """Construct ``Q X W`` from one source-space operator ``X``."""
         return cls(
@@ -138,14 +141,14 @@ class OperatorMap:
         """Divide every term by a scalar."""
         return self.scale(sympy.S.One / divisor)
 
-    def right(self, target: TargetOperator) -> OperatorMap | object:
+    def right(self, target: Operator) -> OperatorMap | object:
         """Compose with a retained-space operator on the right."""
         return type(self)(
             self.embedding,
             ((source, coefficient * target) for source, coefficient in self.terms),
         ).or_zero()
 
-    def left(self, source: NumberOrderedForm) -> OperatorMap | object:
+    def left(self, source: Operator) -> OperatorMap | object:
         """Apply a source operator while preserving the outer projection.
 
         This uses ``Q S Q X W A = Q S X W A - Q S W (W† X W) A``.
@@ -156,7 +159,7 @@ class OperatorMap:
             terms.append((source, -self.embedding._pullback(inner_source) * target))
         return type(self)(self.embedding, terms).or_zero()
 
-    def inner(self, other: OperatorMap) -> TargetOperator:
+    def inner(self, other: OperatorMap) -> Operator:
         """Return ``self† other`` in the retained operator algebra."""
         self._require_same_embedding(other)
 
@@ -227,7 +230,7 @@ class ModuleEndomorphism:
     def source(
         cls,
         embedding: Embedding,
-        source: NumberOrderedForm,
+        source: Operator,
     ) -> ModuleEndomorphism:
         """Represent ``Q source Q``."""
         return cls("source", (embedding, source))
@@ -335,7 +338,7 @@ def multiply_projected(left, right):
 
 
 class _EmbeddingProblem:
-    """Lower one scalar Hamiltonian series to the formal P/Q block algebra."""
+    """Lower a Hamiltonian series to the formal P/Q block algebra."""
 
     def __init__(self, hamiltonian: BlockSeries, embedding: Embedding):
         if hamiltonian.shape:
@@ -344,13 +347,21 @@ class _EmbeddingProblem:
         self.hamiltonian = hamiltonian
         zero_order = (0,) * hamiltonian.n_infinite
         h0 = self.embedding._source_form(hamiltonian[zero_order])
-        zero_powers = (0,) * len(self.embedding.operators)
-        if any(
-            tuple(map(int, powers)) != zero_powers and coefficient != 0
-            for powers, coefficient in h0.terms.items()
-        ):
-            raise ValueError("Structured embeddings currently require diagonal H0")
-        self.source_energy = sympy.expand(h0.terms.get(zero_powers, sympy.S.Zero))
+        self.source_shape = h0.shape if isinstance(h0, sympy.MatrixBase) else None
+        if embedding._references is not None:
+            self.source_energies = [sympy.S.Zero] * (h0.rows if self.source_shape else 1)
+            for row, column, entry in _source_entries(h0):
+                if row != column and not _is_zero(entry):
+                    raise ValueError(
+                        "Structured embeddings currently require diagonal H0"
+                    )
+                if row == column:
+                    self.source_energies[row] = self._diagonal_energy(entry)
+            self.reference_energies = [
+                self._energy(c, state) for c, state in embedding._references
+            ]
+            return
+        self.source_energy = self._diagonal_energy(h0)
 
         # Selecting occupation states of diagonal H0 is automatically invariant.
         self.target_energy = self.source_energy.xreplace(
@@ -362,6 +373,65 @@ class _EmbeddingProblem:
                 )
             )
         )
+
+    def _diagonal_energy(self, entry):
+        zero_powers = (0,) * len(self.embedding.operators)
+        if any(
+            powers != zero_powers and coefficient != 0
+            for powers, coefficient in entry.terms.items()
+        ):
+            raise ValueError("Structured embeddings currently require diagonal H0")
+        return sympy.expand(entry.terms.get(zero_powers, sympy.S.Zero))
+
+    def _energy(self, component, state):
+        return self.source_energies[component].xreplace(
+            dict(zip(self.embedding._source_placeholders, state, strict=True))
+        )
+
+    def _solve_matrix(self, terms):
+        """Resolve virtual transitions from the whole retained reference basis."""
+        embedding = self.embedding
+        solved = []
+        for source_form, target in terms:
+            for row, column, entry in _source_entries(source_form):
+                for transition in _NOFTransition.from_form(entry):
+                    quotient = {}
+                    for j, (component, state) in enumerate(embedding._references):
+                        if component != column:
+                            continue
+                        action = transition.apply(state)
+                        if (
+                            action is None
+                            or (row, action.output_state) in embedding._reference_indices
+                        ):
+                            continue
+                        energy = self._energy(row, action.output_state)
+                        for k in range(target.cols):
+                            if target[j, k] == 0:
+                                continue
+                            denominator = sympy.simplify(
+                                self.reference_energies[k] - energy
+                            )
+                            if denominator == 0:
+                                raise ZeroDivisionError(
+                                    "A virtual channel is degenerate with the retained space"
+                                )
+                            quotient[j, k] = target[j, k] / denominator
+                    if quotient:
+                        source = transition.form
+                        if self.source_shape:
+                            source = sympy.ImmutableSparseMatrix(
+                                *self.source_shape, {(row, column): source}
+                            )
+                        solved.append(
+                            (
+                                source,
+                                sympy.ImmutableSparseMatrix(
+                                    target.rows, target.cols, quotient
+                                ),
+                            )
+                        )
+        return solved
 
     def _channel_denominator(
         self,
@@ -417,6 +487,11 @@ class _EmbeddingProblem:
             return zero
         if index[:2] != (0, 1) or not isinstance(value, AdjointOperatorMap):
             raise TypeError("The embedding solver expects the P-Q block")
+        if self.embedding._references is not None:
+            column = OperatorMap(
+                self.embedding, self._solve_matrix(value.column.terms)
+            ).or_zero()
+            return zero if column is zero else column.adjoint()
         solved_terms = []
         for _source_form, target_form in value.column.terms:
             for source in _NOFTransition.from_form(_source_form):
@@ -456,7 +531,8 @@ class _EmbeddingProblem:
                 for value in range(size):
                     visit(
                         expression.xreplace({symbol: sympy.Integer(value)}),
-                        mask * _occupation_projector(symbol, value, size),
+                        mask
+                        * (sympy.S.One if size == 1 else symbol if value else 1 - symbol),
                         rest,
                     )
                 return
@@ -501,6 +577,11 @@ class _EmbeddingProblem:
             if source is zero:
                 return zero
             source = embedding._source_form(source)
+            shape = source.shape if isinstance(source, sympy.MatrixBase) else None
+            if shape != self.source_shape:
+                raise ValueError(
+                    "All Hamiltonian coefficients must have the same source matrix shape"
+                )
             if _is_zero(source):
                 return zero
             if row == column == 0:

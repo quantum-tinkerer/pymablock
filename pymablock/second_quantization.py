@@ -10,10 +10,7 @@ from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
-    SpinOp,
     _number_operator_to_placeholder,
-    _occupation_dimension,
-    _occupation_projector,
 )
 from pymablock.operator_embedding import Embedding
 from pymablock.series import zero
@@ -36,12 +33,12 @@ def _diagonal_coefficient(expression: NumberOrderedForm | sympy.Expr) -> sympy.E
     return next(iter(expression.terms.values()), sympy.S.Zero)
 
 
-def _divide_finite_sectors(
+def _divide_binary_sectors(
     numerator: sympy.Expr,
     denominator: sympy.Expr,
-    variables: tuple[tuple[sympy.Symbol, int], ...],
+    variables: tuple[sympy.Symbol, ...],
 ) -> sympy.Expr:
-    """Solve denominator * x = numerator on the finite occupation support.
+    """Solve denominator * x = numerator at each combination of occupations 0 and 1.
 
     Choose x = 0 when the numerator is zero, even if the denominator is zero.
     Raise ValueError when the denominator is zero but the numerator is not.
@@ -49,21 +46,18 @@ def _divide_finite_sectors(
     """
     if numerator.is_zero:
         return sympy.S.Zero
-    for index, (variable, size) in enumerate(variables):
+    for index, variable in enumerate(variables):
         if variable not in numerator.free_symbols | denominator.free_symbols:
             continue
         samples = [
-            _divide_finite_sectors(
+            _divide_binary_sectors(
                 numerator.xreplace({variable: value}),
                 denominator.xreplace({variable: value}),
                 variables[index + 1 :],
             )
-            for value in map(sympy.Integer, range(size))
+            for value in (sympy.S.Zero, sympy.S.One)
         ]
-        return sum(
-            value * _occupation_projector(variable, n, size)
-            for n, value in enumerate(samples)
-        )
+        return samples[0] + variable * (samples[1] - samples[0])
     if denominator.is_zero:
         raise ValueError(
             "Cannot solve the Sylvester equation: the right-hand side is nonzero "
@@ -126,6 +120,7 @@ def solve_scalar(
     operators = Y.operators
     H_ii = _diagonal_coefficient(H_ii)
     H_jj = _diagonal_coefficient(H_jj)
+    binary_numbers = Y._number_operator_placeholders[Y._n_inf_order :]
 
     shifts = Y.terms
     new_shifts = {}
@@ -144,7 +139,7 @@ def solve_scalar(
             {
                 _number_operator_to_placeholder(NumberOperator(op)): (
                     _number_operator_to_placeholder(NumberOperator(op)) + delta
-                    if isinstance(op, (BosonOp, LadderOp, SpinOp))
+                    if isinstance(op, (BosonOp, LadderOp))
                     else sympy.S.One
                 )
                 for delta, op in zip(shift, operators)
@@ -155,7 +150,7 @@ def solve_scalar(
             {
                 _number_operator_to_placeholder(NumberOperator(op)): (
                     _number_operator_to_placeholder(NumberOperator(op)) - delta
-                    if isinstance(op, (BosonOp, LadderOp, SpinOp))
+                    if isinstance(op, (BosonOp, LadderOp))
                     else sympy.S.One
                 )
                 for delta, op in zip(shift, operators)
@@ -168,15 +163,17 @@ def solve_scalar(
             denominator = shifted_H_jj - shifted_H_ii
         # Denominators often simplify because linear powers of bosonic operators cancel.
         denominator = sympy.collect_const(denominator.simplify()).doit()
-        finite_numbers = tuple(
-            (number, size - abs(int(power)))
-            for op, number, power in zip(
-                operators, Y._number_operator_placeholders, shift, strict=True
-            )
-            if (size := _occupation_dimension(op)) is not None
-        )
-        new_shifts[shift] = _divide_finite_sectors(
-            sign * coeff, denominator, finite_numbers
+        # For fermions and spins, a† N = N a = 0. Set N = 0 in the
+        # coefficient when the term contains a† or a for that mode.
+        fixed = {
+            number: sympy.S.Zero
+            for number, power in zip(binary_numbers, shift[Y._n_inf_order :])
+            if power
+        }
+        new_shifts[shift] = _divide_binary_sectors(
+            sign * coeff.xreplace(fixed),
+            denominator.xreplace(fixed),
+            tuple(number for number in binary_numbers if number not in fixed),
         )
 
     result = (
