@@ -1933,24 +1933,7 @@ class _NOFTransition:
                     return _WeightedTransition(tuple(current), sympy.S.Zero)
                 amplitude *= factor
 
-        return _WeightedTransition(
-            tuple(current),
-            sympy.expand(amplitude),
-        )
-
-    def support_equations(
-        self, input_occupations: Sequence[sympy.Expr]
-    ) -> tuple[sympy.Expr, ...]:
-        """Return exact occupation constraints implied by this transition."""
-        equations = []
-        for occupation, operator, power in zip(
-            input_occupations, self.operators, self.powers, strict=True
-        ):
-            if isinstance(operator, (FermionOp, pauli.SigmaMinus)) and power:
-                equations.append(occupation - (1 if power > 0 else 0))
-            # Bosonic annihilation requires occupation >= power, not equality.
-            # Its vanishing channels are handled by their transition weights.
-        return tuple(equations)
+        return _WeightedTransition(tuple(current), amplitude)
 
     def _symbolic_generator(
         self,
