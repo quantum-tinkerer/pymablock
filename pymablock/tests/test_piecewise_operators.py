@@ -5,6 +5,7 @@ from sympy.core.cache import clear_cache
 from sympy.physics.quantum.boson import BosonOp
 
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
+from pymablock.tests.second_quantization_helpers import nof_matrix
 
 
 class Unknown(s.Expr):
@@ -80,8 +81,8 @@ def test_nof_piecewise_roundtrip():
     for form in (p, a * p, p * a, a * p - p * a):
         assert NumberOrderedForm.from_expr(form.as_expr(), [a]) == form
     assert a * p - p * a != 0
-    assert p.to_matrix([range(4)]) == s.diag(1, 0, 0, 0)
-    assert (a * p).to_matrix([range(4)]).is_zero_matrix
-    assert (p * a).to_matrix([range(4)])[0, 1] == 1
+    assert nof_matrix(p, [range(4)]) == s.diag(1, 0, 0, 0)
+    assert nof_matrix(a * p, [range(4)]).is_zero_matrix
+    assert nof_matrix(p * a, [range(4)])[0, 1] == 1
     with pytest.raises(ValueError, match="diagonal"):
         NumberOrderedForm.from_expr(s.Piecewise((a, s.Eq(n, 0)), (0, True)))

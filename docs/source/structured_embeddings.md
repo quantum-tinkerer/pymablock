@@ -233,12 +233,11 @@ three- or four-state reference list returns the artificial-spin matrix directly.
 ## Supported representations and perturbation theory
 
 Generator mappings return `NumberOrderedForm`, including when the target
-contains infinite bosonic or Floquet modes. Its `to_matrix()` method uses the
-full binary bases by default. For infinite modes, supply one occupation sequence
-per operator, for example `[range(5), range(2)]` for an oscillator and a fermion.
-Products are evaluated before this compression. Reference-list embeddings
-return finite matrices and specify all occupations explicitly; they do not
-provide matrices with symbolic target-operator entries.
+contains infinite bosonic or Floquet modes. To inspect an operator in a finite
+basis, use `Embedding(reference=[...]).restrict(operator)` with the desired
+occupations. Products are evaluated before this compression. Reference-list
+embeddings return finite matrices; they do not provide matrices with symbolic
+target-operator entries.
 
 Normalized linear mode mixing is supported directly:
 
@@ -313,8 +312,8 @@ occupations. There is no separate embedding wrapper around the matrix.
 
 With linear mode mixing, source operators use the compiler's rotated modes.
 The usual `zero` and `one` series sentinels represent zero and the identity on
-the block's space. `to_matrix()` acts on ordinary operators; for a rectangular
-NOF, convert `.source` and apply the source and target bases explicitly.
+the block's space. To inspect a rectangular NOF in a finite basis, restrict
+`.source` and apply the source and target bases explicitly.
 
 `NumberOrderedForm.as_expr()` exports diagonal projectors as ordinary SymPy
 `Piecewise` expressions, which can be read back with `from_expr()`. A SymPy
