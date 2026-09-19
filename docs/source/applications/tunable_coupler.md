@@ -104,7 +104,8 @@ energies. We extract the exchange between $|10\rangle$ and $|01\rangle$ directly
 from the effective matrix.
 
 ```{code-cell} ipython3
-h2 = H[0, 0, 2].to_matrix()
+qubit_basis = Embedding(reference=[{q1: i, q2: j} for i, j in product((0, 1), repeat=2)])
+h2 = qubit_basis.restrict(H[0, 0, 2])
 exchange = sp.factor(h2[1, 2])
 reference_exchange = g1c * g2c / 2 * (
     1 / (w1 - wc) + 1 / (w2 - wc) - 1 / (w1 + wc) - 1 / (w2 + wc)
@@ -141,7 +142,7 @@ terms quadratic in the direct coupling, mixed direct and mediated processes,
 and terms quartic in the qubit–coupler couplings.
 
 ```{code-cell} ipython3
-h4_symbolic = H[0, 0, 4].to_matrix()
+h4_symbolic = qubit_basis.restrict(H[0, 0, 4])
 assert (h4_symbolic - h4_symbolic.adjoint()).applyfunc(sp.cancel) == sp.zeros(4)
 conditional_symbolic = (h4_symbolic[3, 3] - h4_symbolic[2, 2]
                         - h4_symbolic[1, 1] + h4_symbolic[0, 0])

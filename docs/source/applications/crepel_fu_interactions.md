@@ -99,7 +99,8 @@ def cluster(edges, num_a, num_b):
 star = cluster(((0, 0), (0, 1), (0, 2)), 1, 3)
 H0, V, embedding, A, B, f = star
 H, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
-h2 = H[0, 0, 2].to_matrix()
+dopant_basis = Embedding(reference=[dict(zip(f, state)) for state in product((0, 1), repeat=len(f))])
+h2 = dopant_basis.restrict(H[0, 0, 2])
 ```
 
 ## Bare and assisted hopping
@@ -204,14 +205,15 @@ not establish the formula for arbitrary parameters. No one-A subcluster joins
 these endpoints, so this matrix element needs no proper-subcluster subtraction.
 
 ```{code-cell} ipython3
-H0_two, V_two, embedding_two, *_ = cluster(edges, 2, 5)
+H0_two, V_two, embedding_two, _, _, f_two = cluster(edges, 2, 5)
 H_two, *_ = block_diagonalize(
     [H0_two.subs(parameters), V_two.subs(parameters)],
     subspace_eigenvectors=embedding_two,
 )
+two_basis = Embedding(reference=[dict(zip(f_two, state)) for state in product((0, 1), repeat=len(f_two))])
 # Lexicographic occupations: B0 alone is index 16, B3 alone is index 2.
-assert H_two[0, 0, 2].to_matrix()[2, 16] == 0
-connected = sp.factor(H_two[0, 0, 4].to_matrix()[2, 16])
+assert two_basis.restrict(H_two[0, 0, 2])[2, 16] == 0
+connected = sp.factor(two_basis.restrict(H_two[0, 0, 4])[2, 16])
 reference_connected = -t0**4 * (2 * Delta**2 + 4 * Delta * V0 + V0**2) / (
     2 * (Delta + V0)**3 * (Delta + 2 * V0)**2
 )

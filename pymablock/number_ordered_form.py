@@ -9,7 +9,6 @@ from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from functools import cache, cached_property
-from itertools import product
 
 import sympy
 from packaging.specifiers import SpecifierSet
@@ -933,46 +932,6 @@ class NumberOrderedForm(Operator):
         # Build the sum once: repeated addition repeatedly canonicalizes all
         # preceding terms, which is costly when this expression is hashed.
         return sympy.Add(*terms)
-
-    def to_matrix(self, occupations=None):
-        """Evaluate on an explicitly chosen product occupation basis.
-
-        Pauli spins and fermions use their full bases by default. For infinite
-        modes, supply one occupation sequence per operator, for example
-        ``[range(5), range(2)]`` for an oscillator and a fermion. The resulting
-        matrix is a compression of this expression, with products evaluated
-        before truncation. Rows and columns follow lexicographic occupation order.
-        """
-        if self.embedding is not None:
-            raise ValueError(
-                "Convert .source to a matrix and apply the embedding basis explicitly"
-            )
-        if occupations is None:
-            dimensions = tuple(map(_occupation_dimension, self.operators))
-            if None in dimensions:
-                raise ValueError("Specify occupations for infinite modes")
-            occupations = tuple(range(size) for size in dimensions)
-        if len(occupations) != len(self.operators):
-            raise ValueError("Supply one occupation sequence per operator")
-        domains = tuple(tuple(map(sympy.sympify, domain)) for domain in occupations)
-        for op, domain in zip(self.operators, domains, strict=True):
-            size = _occupation_dimension(op)
-            if len(set(domain)) != len(domain) or any(
-                not n.is_Integer
-                or (not isinstance(op, LadderOp) and n < 0)
-                or (size is not None and n >= size)
-                for n in domain
-            ):
-                raise ValueError(f"Invalid occupation basis for {op}")
-        states = tuple(product(*domains))
-        indices = {state: i for i, state in enumerate(states)}
-        result = sympy.MutableSparseMatrix(len(states), len(states), {})
-        for transition in _NOFTransition.from_form(self):
-            for column, state in enumerate(states):
-                action = transition.apply(state)
-                if action is not None and action.output_state in indices:
-                    result[indices[action.output_state], column] += action.weight
-        return sympy.ImmutableMatrix(result)
 
     def doit(self, **hints) -> sympy.Expr:
         """Evaluate the NumberOrderedForm.

@@ -18,6 +18,7 @@ from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.operator_embedding import _NOFTransition, _number_symbols
 from pymablock.second_quantization import Embedding
 from pymablock.tests.second_quantization_helpers import (
+    nof_matrix,
     occupation_matrices,
     operator_matrix,
 )
@@ -243,7 +244,7 @@ def test_boson_annihilation_preserves_occupation_dependent_denominator(finite):
         subspace_eigenvectors=embedding,
     )
     expected = NumberOrderedForm.from_expr(-(1 - n) / 9 - 2 * n / 7, operators=(s,))
-    assert effective[0, 0, 2] == (expected.to_matrix() if finite else expected)
+    assert effective[0, 0, 2] == (nof_matrix(expected) if finite else expected)
 
 
 @pytest.mark.parametrize("coupled", [False, True])
