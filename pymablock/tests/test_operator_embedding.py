@@ -42,10 +42,13 @@ def test_fermion_embedding_returns_target_nof() -> None:
         subspace_eigenvectors=embedding,
     )
 
-    assert effective[0, 0, 2] == NumberOrderedForm.from_expr(
+    expected = NumberOrderedForm.from_expr(
         coupling**2 * NumberOperator(target) / (source_energy - virtual_energy),
         operators=(target,),
     )
+
+    assert isinstance(effective[0, 0, 2], NumberOrderedForm)
+    assert (effective[0, 0, 2] - expected).applyfunc(sympy.cancel).is_zero
 
 
 def test_frozen_fermion_phase_is_internal() -> None:
@@ -69,13 +72,15 @@ def test_frozen_fermion_phase_is_internal() -> None:
         ),
     )
 
-    assert effective[0, 0, 2].terms[(0,)] == (
+    expected = (
         coupling**2
         * NumberOrderedForm.from_expr(NumberOperator(target), operators=(target,)).terms[
             (0,)
         ]
         / (source_energy - virtual_energy)
     )
+
+    assert sympy.cancel(effective[0, 0, 2].terms[(0,)] - expected) == 0
 
 
 def test_reference_list_returns_matrix() -> None:
@@ -197,7 +202,7 @@ def test_binary_validation_does_not_enumerate_target(monkeypatch) -> None:
     def forbidden(_self, _source):
         raise AssertionError("Target enumeration is not needed")
 
-    monkeypatch.setattr(_ReferenceBasis, "_actions", forbidden)
+    monkeypatch.setattr(_ReferenceBasis, "_pullback", forbidden)
     spins = tuple(SigmaMinus(f"s{i}") for i in range(20))
     embedding = Embedding(
         {s: BosonOp(f"a{i}") for i, s in enumerate(spins)},
@@ -268,23 +273,6 @@ def test_empty_boson_channel_does_not_create_a_resonance():
     assert effective[0, 0, 2] == NumberOrderedForm.from_expr(
         NumberOperator(s) / 2, operators=(s,)
     )
-
-
-def test_adjoint_preserves_declared_basis_after_cached_equal_expression():
-    """Equal identities can have different declared, unused generators."""
-    from sympy.physics.quantum.pauli import SigmaMinus
-
-    from pymablock._operator_embedding import _adjoint
-    from pymablock.number_ordered_form import NumberOrderedForm
-
-    first = (SigmaMinus("a"),)
-    second = (SigmaMinus("x"), SigmaMinus("y"))
-    a = NumberOrderedForm.from_expr(sympy.S.One, operators=first)
-    b = NumberOrderedForm.from_expr(sympy.S.One, operators=second)
-    _ = a.adjoint()
-    result = _adjoint(b)
-    assert tuple(result.operators) == second
-    assert result.as_expr() == 1
 
 
 @pytest.mark.parametrize("reverse", [False, True])

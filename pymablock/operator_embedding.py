@@ -32,7 +32,7 @@ def _operator_sort_key(operator) -> tuple[int, str]:
     return generator_types.index(type(operator)), str(operator.name)
 
 
-class Embedding:
+class Embedding(sympy.Expr):
     r"""Define an effective operator algebra or a finite retained basis.
 
     Pass this object as ``subspace_eigenvectors`` to ``block_diagonalize``.
@@ -67,8 +67,9 @@ class Embedding:
     diagonal in matrix indices and equal source shapes at every order. Reference
     lists produce finite SymPy matrices; generator mappings produce
     ``NumberOrderedForm`` objects, including for infinite targets. These types
-    describe the retained block; other blocks use source-space operators. The
-    solver rejects bosonic selections requiring occupation inequalities.
+    describe the retained block. Off-diagonal NOFs carry the embedding on their
+    left or right; the complement block uses source operators. The solver rejects
+    bosonic selections requiring occupation inequalities.
 
     Examples
     --------
@@ -84,12 +85,76 @@ class Embedding:
 
     """
 
-    def __init__(self, generators=None, *, reference):
-        """Compile the generator map or the ordered reference basis."""
-        self._basis = (
-            _ReferenceBasis(reference)
-            if generators is None
-            else _GeneratorBasis(generators, reference=reference)
+    is_commutative = False
+
+    def __new__(cls, generators=None, reference=None):
+        """Compile a structurally reconstructible generator or reference map."""
+        if generators is None or generators is sympy.S.NaN:
+            reference = tuple(
+                (0, state) if isinstance(state, (Mapping, sympy.Dict)) else state
+                for state in reference
+            )
+            basis = _ReferenceBasis([(i, dict(state)) for i, state in reference])
+            generators = sympy.S.NaN
+            reference = sympy.Tuple(
+                *(sympy.Tuple(i, sympy.Dict(state)) for i, state in reference)
+            )
+        else:
+            basis = _GeneratorBasis(dict(generators), reference=dict(reference))
+            generators, reference = sympy.Dict(generators), sympy.Dict(reference)
+        result = sympy.Expr.__new__(cls, generators, reference)
+        result._basis = basis
+        return result
+
+    @cached_property
+    def _projector(self):
+        from pymablock._operator_embedding import _projector
+
+        return _projector(self._basis)
+
+    @cached_property
+    def _on_support(self):
+        from pymablock._operator_embedding import _support_reducer
+
+        return _support_reducer(self._basis)
+
+    def _clean(self, value):
+        return value.applyfunc(self._on_support)
+
+    def _contract(self, value):
+        result = self.restrict(self._clean(value))
+        return result[0, 0] if isinstance(result, sympy.MatrixBase) else result
+
+    @cache
+    def _lift(self, value):
+        """Substitute the source generator images, restricted to their representation."""
+        basis = self._basis
+        if isinstance(basis, _ReferenceBasis):
+            return basis._source_scalar(value)
+        coordinates = basis._occupation_left_inverse * (
+            sympy.Matrix([NumberOperator(op) for op in basis.operators])
+            - sympy.Matrix(basis.reference)
+        )
+        images = dict(zip(map(NumberOperator, basis._target_operators), coordinates))
+        for op, generator in zip(basis._target_operators, basis._generators):
+            images[op] = generator.form.as_expr()
+            images[op.adjoint()] = generator.form.adjoint().as_expr()
+        result = NumberOrderedForm.from_expr(
+            value.as_expr().xreplace(images), basis.operators
+        )
+        return self._projector * result * self._projector
+
+    def _attach(self, value, side):
+        """Represent X W or W† X without normalizing the source operator."""
+        if isinstance(self._basis, _ReferenceBasis) and (
+            len(self._basis._references) != 1 or self._basis._references[0][0] != 0
+        ):
+            raise ValueError(
+                "Reference lists use matrices of single-reference attachments"
+            )
+        value = self._basis._source_scalar(value)
+        return NumberOrderedForm(
+            value.operators, value.args[1], self, side, validate=False
         )
 
     def restrict(self, expression):
@@ -467,7 +532,6 @@ class _GeneratorBasis(_SourceBasis):
     @cache
     def _pullback(self, source):
         """Return ``W† source W`` without enumerating the discarded space."""
-        source = self._source_form(source)
         result = self._target_zero
         for transition in _NOFTransition.from_form(source):
             result += self._project_transition(transition)
@@ -525,39 +589,18 @@ class _ReferenceBasis(_SourceBasis):
             raise ValueError("Reference matrix index lies outside the source matrix")
         return sympy.ImmutableSparseMatrix(expression.applyfunc(self._source_scalar))
 
-    @cached_property
-    def _target_identity(self):
-        return sympy.ImmutableSparseMatrix.eye(len(self._references))
-
-    @cached_property
-    def _target_zero(self):
-        return sympy.ImmutableSparseMatrix.zeros(len(self._references))
-
-    def _actions(self, source):
-        """Yield (source factor, reference column, output state, amplitude).
-
-        Matrix indices and occupation transitions are resolved here, once for
-        both compression and virtual-channel division. The factor retains the
-        ladder weight; the amplitude identifies its action on this reference.
-        """
-        for (row, column), entry in source.todok().items():
-            for transition in _NOFTransition.from_form(entry):
-                factor = sympy.ImmutableSparseMatrix(
-                    *source.shape, {(row, column): transition.form}
-                )
-                for j, (component, state) in enumerate(self._references):
-                    if (
-                        component == column
-                        and (action := transition.apply(state)) is not None
-                    ):
-                        yield factor, j, (row, action.output_state), action.weight
-
     @cache
     def _pullback(self, source):
         entries = {}
-        for _, j, state, amplitude in self._actions(self._source_form(source)):
-            if (i := self._reference_indices.get(state)) is not None:
-                entries[i, j] = entries.get((i, j), 0) + amplitude
+        for (row, col), entry in source.todok().items():
+            for transition in _NOFTransition.from_form(entry):
+                for j, (component, state) in enumerate(self._references):
+                    if component != col or (action := transition.apply(state)) is None:
+                        continue
+                    if (
+                        i := self._reference_indices.get((row, action.output_state))
+                    ) is not None:
+                        entries[i, j] = entries.get((i, j), 0) + action.weight
         return sympy.ImmutableSparseMatrix(
             len(self._references), len(self._references), entries
         )

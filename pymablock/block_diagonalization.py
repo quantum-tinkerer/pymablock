@@ -253,11 +253,10 @@ def block_diagonalize(
             raise NotImplementedError(
                 "Structured embeddings do not support fully_diagonalize."
             )
-        from pymablock._operator_embedding import (
-            block_diagonalize as block_diagonalize_embedding,
-        )
+        from pymablock._operator_embedding import prepare
 
-        return block_diagonalize_embedding(hamiltonian, subspace_eigenvectors)
+        hamiltonian, solve_sylvester = prepare(hamiltonian, subspace_eigenvectors)
+        subspace_eigenvectors = None
 
     use_implicit = False
     right_subspaces = left_subspaces = None
@@ -434,7 +433,9 @@ def block_diagonalize(
 
             if isinstance(result, sympy.MatrixBase):
                 return result.applyfunc(
-                    lambda x: NumberOrderedForm.from_expr(x, operators)
+                    lambda x: x
+                    if x.is_commutative
+                    else NumberOrderedForm.from_expr(x, operators)
                 )
             raise TypeError(f"Unsupported second-quantized block type: {type(result)}")
 
