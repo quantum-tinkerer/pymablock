@@ -327,6 +327,8 @@ the effective Hamiltonian has already been contracted into the target algebra.
 `Piecewise` expressions, which can be read back with `from_expr()`. A SymPy
 assumptions patch preserves noncommutativity when the conditions contain
 operators; the scalar occupation coefficients inside a NOF remain commutative.
+NOF coefficient arithmetic applies point-projector constraints directly, so
+embedding products use the same reduction as ordinary NOF products.
 
 For infinite bosonic targets, the solver currently requires that nonnegative
 target occupations follow from the physical source occupations. Other selections

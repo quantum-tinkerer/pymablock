@@ -108,17 +108,8 @@ class Embedding(sympy.Expr):
 
         return _projector(self._basis)
 
-    @cached_property
-    def _on_support(self):
-        from pymablock._operator_embedding import _support_reducer
-
-        return _support_reducer(self._basis)
-
-    def _clean(self, value):
-        return value.applyfunc(self._on_support)
-
     def _contract(self, value):
-        result = self.restrict(self._clean(value))
+        result = self.restrict(value)
         return result[0, 0] if isinstance(result, sympy.MatrixBase) else result
 
     @cache

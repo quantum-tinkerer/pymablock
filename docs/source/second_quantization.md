@@ -28,6 +28,15 @@ This representation is motivated by making the largest part of the expression co
 For example, because the coefficients only contain commuting operators, they can be simplified using standard algebraic tools.
 This form also allows to represent and simplify non-polynomial functions of number operators.
 
+Occupation projectors can be written as diagonal SymPy `Piecewise` expressions.
+For example, `Piecewise((1, Eq(N_a, 0)), (0, True))` selects the bosonic vacuum.
+NOF arithmetic evaluates coefficients on such point-projector support:
+$P_k(N_a) f(N_a) = P_k(N_a) f(k)$ for a fixed occupation $k$.
+It also removes impossible negative bosonic occupations while allowing negative
+Floquet occupations. This reduction uses the explicit point constraints and
+leaves unrelated coefficient factors unexpanded; it does not enumerate the
+occupation basis.
+
 ### Mathematical Structure and Implementation
 
 A number-ordered form is a sum of terms, where each term consists of:
