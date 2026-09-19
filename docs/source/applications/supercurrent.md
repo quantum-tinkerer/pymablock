@@ -71,6 +71,7 @@ the final current, where $u_\alpha v_\alpha=\Gamma_\alpha/(2E_\alpha)$.
 
 ```{code-cell} ipython3
 %matplotlib inline
+from itertools import product
 import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
@@ -140,10 +141,11 @@ H, *_ = block_diagonalize(
     {(0, 0): H0, (1, 0): couplings["L"], (0, 1): couplings["R"]},
     subspace_eigenvectors=embedding,
 )
-h0 = H[0, 0, 0, 0].to_matrix()
-hL = H[0, 0, 2, 0].to_matrix()
-hR = H[0, 0, 0, 2].to_matrix()
-hLR = H[0, 0, 2, 2].to_matrix()
+dot_basis = Embedding(reference=[dict(zip(dot, state)) for state in product((0, 1), repeat=2)])
+h0 = dot_basis.restrict(H[0, 0, 0, 0])
+hL = dot_basis.restrict(H[0, 0, 2, 0])
+hR = dot_basis.restrict(H[0, 0, 0, 2])
+hLR = dot_basis.restrict(H[0, 0, 2, 2])
 assert hL[1, 2] == hR[1, 2] == 0
 print("Dot basis:", [(0, 0), (0, 1), (1, 0), (1, 1)])
 pairing = sp.factor(hL[0, 3]) + sp.factor(hR[0, 3])

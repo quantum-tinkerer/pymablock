@@ -8,6 +8,7 @@ import sympy as s
 from pymablock import block_diagonalize
 from pymablock.operator_embedding import Embedding
 from pymablock.series import BlockSeries, one, zero
+from pymablock.tests.second_quantization_helpers import nof_matrix
 
 
 @pytest.mark.parametrize("dimensions", [1, 2])
@@ -136,9 +137,9 @@ def test_bosonic_projector_output_blocks():
         elif entry is zero or entry == 0:
             matrix = s.zeros(2)
         elif i == j == 0:
-            matrix = entry.to_matrix()
+            matrix = nof_matrix(entry)
         else:
-            matrix = entry.source.to_matrix([range(cutoff)]).extract(
+            matrix = nof_matrix(entry.source, [range(cutoff)]).extract(
                 selected[i], selected[j]
             )
         expected = reference[k][i, j, n]
