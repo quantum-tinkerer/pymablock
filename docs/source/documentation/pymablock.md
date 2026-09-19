@@ -79,7 +79,7 @@ interface, physical examples, and the diagonal-Hamiltonian requirement.
 
 ```{eval-rst}
 .. autoclass:: pymablock.operator_embedding.Embedding(generators=None, *, reference)
-   :members: restrict, encode
+   :members: restrict
    :class-doc-from: class
 ```
 
