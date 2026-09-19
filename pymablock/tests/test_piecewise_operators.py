@@ -4,7 +4,7 @@ from sympy.core.assumptions import _assume_defined
 from sympy.core.cache import clear_cache
 from sympy.physics.quantum.boson import BosonOp
 
-from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
+from pymablock.number_ordered_form import LadderOp, NumberOperator, NumberOrderedForm
 from pymablock.tests.second_quantization_helpers import nof_matrix
 
 
@@ -86,3 +86,32 @@ def test_nof_piecewise_roundtrip():
     assert nof_matrix(p * a, [range(4)])[0, 1] == 1
     with pytest.raises(ValueError, match="diagonal"):
         NumberOrderedForm.from_expr(s.Piecewise((a, s.Eq(n, 0)), (0, True)))
+
+
+def test_projector_coefficient_arithmetic():
+    a, b = BosonOp("a"), BosonOp("b")
+    n, m = NumberOperator(a), NumberOperator(b)
+    p0, p2 = (
+        NumberOrderedForm.from_expr(s.Piecewise((1, s.Eq(n, k)), (0, True)), [a, b])
+        for k in (0, 2)
+    )
+    spectator = NumberOrderedForm.from_expr((1 + m) ** 8, [a, b])
+    assert (p0 + p2) * (n + 1) == p0 + 3 * p2
+    assert not p0 * p2
+    assert not a * p0
+    assert p0 * a
+    # Reduction preserves both an unprojected background and unrelated factors.
+    expression = spectator + (n + 1) * (p0 + p2) * spectator
+    assert expression == spectator + (p0 + 3 * p2) * spectator
+    assert nof_matrix(expression, [range(3), range(2)]) == s.diag(2, 512, 1, 256, 4, 1024)
+
+
+@pytest.mark.parametrize("operator", [BosonOp("a"), LadderOp("l")])
+def test_projector_respects_occupation_domain(operator):
+    n = NumberOperator(operator)
+    p = NumberOrderedForm.from_expr(s.Piecewise((1, s.Eq(n + 2, 1)), (0, True)))
+    if isinstance(operator, BosonOp):
+        assert not p
+    else:
+        assert p * (n + 3) == 2 * p
+        assert nof_matrix(p, [range(-2, 2)]) == s.diag(0, 1, 0, 0)
