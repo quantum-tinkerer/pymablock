@@ -48,6 +48,13 @@
 ```
 
 ```{eval-rst}
+.. autoclass:: pymablock.number_ordered_form.SpinOp
+   :members:
+   :show-inheritance:
+   :class-doc-from: class
+```
+
+```{eval-rst}
 .. autoclass:: pymablock.number_ordered_form.NumberOperator
    :members:
    :show-inheritance:
@@ -74,12 +81,12 @@
 
 ### Structured embeddings
 
-See [structured embeddings](../structured_embeddings.md) for the occupation-map
+See [structured embeddings](../structured_embeddings.md) for the generator-and-reference
 interface, physical examples, and the diagonal-Hamiltonian requirement.
 
 ```{eval-rst}
-.. autoclass:: pymablock.operator_embedding.Embedding(*, target, occupations)
-   :members: encode
+.. autoclass:: pymablock.operator_embedding.Embedding(generators, *, reference)
+   :members: restrict, encode
    :class-doc-from: class
 ```
 

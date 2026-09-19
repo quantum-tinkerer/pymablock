@@ -30,6 +30,14 @@ tutorial/andreev_supercurrent.md
 ```{toctree}
 :hidden:
 :maxdepth: 1
+:caption: Applications
+
+Overview <applications/index.md>
+```
+
+```{toctree}
+:hidden:
+:maxdepth: 1
 :caption: Documentation
 
 algorithms.md

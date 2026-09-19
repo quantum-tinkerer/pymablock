@@ -221,7 +221,8 @@ def test_number_ordered_form_validation():
 
     # Test with non-quantum operator
     with pytest.raises(
-        TypeError, match="Operators must be BosonOp, LadderOp, SigmaMinus, or FermionOp."
+        TypeError,
+        match=r"Operators must be BosonOp, LadderOp, SpinOp, SigmaMinus, or FermionOp\.",
     ):
         NumberOrderedForm([sympy.Symbol("x")], {(0,): sympy.S.One})
 
@@ -1718,148 +1719,77 @@ def test_number_ordered_form_hash_reuses_cached_expression_hash(monkeypatch):
     assert conversions == [id(form)]
 
 
-@pytest.mark.parametrize(
-    "operator",
-    [boson.BosonOp("a"), fermion.FermionOp("c"), pauli.SigmaMinus("s"), LadderOp("l")],
-)
-def test_occupation_placeholder_domain(operator):
-    number = NumberOperator(operator)
-    placeholder = _number_operator_to_placeholder(number)
-    form = NumberOrderedForm.from_expr(number)
-    assert placeholder is form._number_operator_placeholders[0]
-    assert placeholder.is_integer
-    assert placeholder.is_nonnegative is None
-    assert form.terms == {(0,): placeholder}
+def test_binary_normalization_does_not_introduce_spectator_numbers():
+    """Unused modes must not cause exponential growth of a local coefficient."""
+    operators = tuple(fermion.FermionOp(f"f{i:02}") for i in range(14))
+    n0, n1 = (NumberOperator(op) for op in operators[:2])
+    expression = n0 * n1 + (1 - n0) * n1
+    form = NumberOrderedForm.from_expr(expression, operators=operators)
+    coefficient = next(iter(form.terms.values()))
+    used = {
+        number
+        for op in operators[:2]
+        for number in NumberOrderedForm.from_expr(
+            NumberOperator(op), operators=operators
+        ).terms.values()
+    }
+    assert coefficient.free_symbols <= used
+    expected = next(
+        iter(NumberOrderedForm.from_expr(n1, operators=operators).terms.values())
+    )
+    assert sympy.expand(coefficient - expected) == 0
 
 
-def test_adjoint_physical_radicals():
-    a = boson.BosonOp("a")
-    n = _number_operator_to_placeholder(NumberOperator(a))
-    for expression in [
-        1 / sympy.sqrt(NumberOperator(a) + 1),
-        a.adjoint() * sympy.sqrt(NumberOperator(a)),
-    ]:
-        form = NumberOrderedForm.from_expr(expression).adjoint()
-        assert NumberOrderedForm.from_expr(form.as_expr()) == form
-        assert NumberOrderedForm.from_expr(form.as_expr(), operators=(a,)) == form
-    assert form.terms == {(1,): sympy.conjugate(sympy.sqrt(n))}
-    for occupation in range(4):
-        assert form.terms[(1,)].subs(n, occupation) == sympy.sqrt(occupation)
+@pytest.mark.parametrize("spin", [sympy.S.Half, sympy.S.One, sympy.Rational(3, 2)])
+def test_higher_spin_algebra_against_matrices(spin):
+    from pymablock.number_ordered_form import SpinOp
+    from pymablock.tests.second_quantization_helpers import (
+        occupation_matrices,
+        operator_matrix,
+    )
+
+    a, s, f = boson.BosonOp("a"), SpinOp("S", spin), fermion.FermionOp("f")
+    operators = (a, s, f)
+    matrices = occupation_matrices(operators, [range(7), range(s.dimension), range(2)])
+    n = NumberOperator(s)
+    first = Dagger(s) * f + (1 + n**2) * a + s**2
+    second = Dagger(f) * s + Dagger(a) * (3 - n) + Dagger(s) ** 2
+    left, right = (
+        NumberOrderedForm.from_expr(x, operators=operators) for x in (first, second)
+    )
+    actual = operator_matrix(left * right, matrices).toarray()
+    expected = (
+        operator_matrix(first, matrices) @ operator_matrix(second, matrices)
+    ).toarray()
+    # Boson cutoff artifacts can only affect the highest levels.
+    size = 5 * s.dimension * 2
+    np.testing.assert_allclose(actual[:size, :size], expected[:size, :size], atol=1e-12)
+    np.testing.assert_allclose(
+        np.asarray(
+            left.to_matrix([range(7), range(s.dimension), range(2)]), dtype=complex
+        ),
+        operator_matrix(first, matrices).toarray(),
+        atol=1e-12,
+    )
+    commutator = NumberOrderedForm.from_expr(s * Dagger(s) - Dagger(s) * s)
+    assert (commutator - (2 * spin - 2 * n)).applyfunc(sympy.simplify).is_zero
+    assert NumberOrderedForm.from_expr(s**s.dimension).is_zero
+    assert s.func(*s.args) == s
+    assert n.func(*n.args) == n
+    assert Dagger(Dagger(s)) == s
+    assert NumberOperator(SpinOp("S", spin + 1)) != n
 
 
-def test_ladder_negative_occupation_adjoint():
-    a = LadderOp("a")
-    form = NumberOrderedForm.from_expr(sympy.sqrt(NumberOperator(a))).adjoint()
-    n = form._number_operator_placeholders[0]
-    assert form.terms[(0,)].subs(n, -4) == -2 * sympy.I
+def test_higher_spin_sylvester_uses_physical_occupation_support():
+    from pymablock.number_ordered_form import SpinOp
+    from pymablock.second_quantization import solve_scalar
 
-
-@pytest.mark.parametrize("operator", [boson.BosonOp("a"), LadderOp("l")])
-def test_export_unresolved_conjugate(operator):
-    number = NumberOperator(operator)
-    for expression in [
-        1 / sympy.sqrt(number + 1),
-        sympy.sqrt(number - 1),
-        sympy.Function("f")(number),
-    ]:
-        form = NumberOrderedForm.from_expr(expression).adjoint()
-        exported = form.as_expr()
-        assert exported == sympy.adjoint(expression, evaluate=False)
-        assert exported.atoms(NumberOperator) == {number}
-        assert not any(
-            conjugate.has(NumberOperator) for conjugate in exported.atoms(sympy.conjugate)
-        )
-        assert not exported.has(sympy.re, sympy.im, sympy.atan2)
-        assert NumberOrderedForm.from_expr(exported) == form
-        assert NumberOrderedForm.from_expr(exported, operators=[operator]) == form
-
-
-def test_export_adjoint_preserves_scalar_conjugates():
-    a = boson.BosonOp("a")
-    z = sympy.Symbol("z")
-    radical = sympy.sqrt(NumberOperator(a) - 1)
-    form = NumberOrderedForm.from_expr(z * radical).adjoint()
-    exported = form.as_expr()
-    assert exported == sympy.conjugate(z) * sympy.adjoint(radical, evaluate=False)
-    assert NumberOrderedForm.from_expr(exported) == form
-
-
-def test_export_elementary_adjoints_evaluate():
-    a = boson.BosonOp("a")
-    number = NumberOperator(a)
-    for expression, expected in [
-        (sympy.I * number, -sympy.I * number),
-        (sympy.exp(sympy.I * number), sympy.exp(-sympy.I * number)),
-        (3 + number**2, 3 + number**2),
-    ]:
-        form = NumberOrderedForm.from_expr(expression).adjoint()
-        assert form.as_expr() == expected
-        assert NumberOrderedForm.from_expr(expected) == form
-
-
-@pytest.mark.parametrize("operator", [fermion.FermionOp("c"), pauli.SigmaMinus("s")])
-@pytest.mark.parametrize("power", [-1, 1])
-def test_binary_linearization_only_samples_acting_occupations(operator, power):
-    form = NumberOrderedForm([operator], {(power,): 1 / (1 - NumberOperator(operator))})
-    # The matrix element of c† f(N) or f(N) c is f(0) = 1.
-    expected = NumberOrderedForm([operator], {(power,): 1})
-    assert form._linearize_binary_operators() == expected
-    assert form.simplify() == expected
-    assert form * NumberOrderedForm.from_expr(1) == expected
-
-
-@pytest.mark.parametrize("operator", [fermion.FermionOp("c"), pauli.SigmaMinus("s")])
-def test_binary_product_restricts_coefficients_before_cancellation(operator):
-    number = NumberOperator(operator)
-    raising = NumberOrderedForm([operator], {(-1,): 1 / (1 - number)})
-    lowering = raising.adjoint()
-    # Both nonzero matrix elements have amplitude one. Their products are
-    # the projectors onto the empty and occupied states, respectively.
-    assert (lowering * raising).simplify() == NumberOrderedForm.from_expr(1 - number)
-    assert (raising * lowering).simplify() == NumberOrderedForm.from_expr(number)
-    assert (lowering * lowering).is_zero
-    assert (raising * raising).is_zero
-
-
-@pytest.mark.parametrize("power", [1, 2])
-@pytest.mark.parametrize("guarded", [False, True])
-def test_bosonic_downward_shift_preserves_inactive_sectors(power, guarded):
-    a = boson.BosonOp("a")
-    number = _number_operator_to_placeholder(NumberOperator(a))
-    denominator = sympy.prod(number + i for i in range(1, power + 1))
-    coefficient = 1 / denominator
-    if guarded:
-        coefficient = sympy.Piecewise(
-            (0, sympy.Eq(sympy.sqrt(denominator), 0)), (coefficient, True)
-        )
-    # a†^k f(N) a^k: the right ladder kills states below k; above it,
-    # the two ladder amplitudes exactly cancel this denominator.
-    raising = NumberOrderedForm([a], {(-power,): coefficient})
-    result = raising * NumberOrderedForm.from_expr(a**power)
-    for occupation in range(power + 4):
-        expected = sympy.S.One if occupation >= power else sympy.S.Zero
-        assert result.terms[(0,)].subs(number, occupation) == expected
-        assert result.simplify().terms[(0,)].subs(number, occupation) == expected
-    assert NumberOrderedForm.from_expr(result.as_expr()) == result
-
-
-def test_bosonic_downward_shift_boundary_pole_from_expression():
-    a = boson.BosonOp("a")
-    form = NumberOrderedForm.from_expr(a.adjoint() * (1 / (NumberOperator(a) + 1)) * a)
-    number = form._number_operator_placeholders[0]
-    assert form.terms == {(0,): sympy.Piecewise((0, sympy.Eq(number, 0)), (1, True))}
-
-
-def test_regular_downward_shift_keeps_plain_product():
-    a = boson.BosonOp("a")
-    form = NumberOrderedForm.from_expr(a.adjoint() * (NumberOperator(a) + 1) * a)
-    number = form._number_operator_placeholders[0]
-    assert form.terms == {(0,): number**2}
-
-
-def test_bilateral_downward_shift_has_no_boundary_guard():
-    a = LadderOp("a")
-    form = NumberOrderedForm.from_expr(a.adjoint() * (1 / (NumberOperator(a) + 1)) * a)
-    number = form._number_operator_placeholders[0]
-    assert form.terms == {(0,): 1 / number}
-    assert form.terms[(0,)].subs(number, -2) == -sympy.Rational(1, 2)
+    s = SpinOp("S", 1)
+    n = NumberOrderedForm.from_expr(NumberOperator(s))
+    assert solve_scalar(n, n, 0).to_matrix() == sympy.diag(0, 1, 1)
+    with pytest.raises(ValueError, match="energy difference is zero"):
+        solve_scalar(NumberOrderedForm.from_expr(1, operators=(s,)), n, 0)
+    # The denominator vanishes only at an occupation outside this raising term's support.
+    y = NumberOrderedForm.from_expr(Dagger(s))
+    result = solve_scalar(y, n, 3)
+    assert n.to_matrix() * result.to_matrix() - 3 * result.to_matrix() == y.to_matrix()

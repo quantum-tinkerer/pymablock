@@ -6,7 +6,7 @@ from scipy import sparse
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 
-from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
+from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm, SpinOp
 
 
 def occupation_matrices(operators, occupations):
@@ -26,6 +26,9 @@ def occupation_matrices(operators, occupations):
             if isinstance(operator, BosonOp)
             else np.ones(len(values) - 1)
         )
+        if isinstance(operator, SpinOp):
+            n = np.asarray(values[1:])
+            weights = np.sqrt(n * (2 * float(operator.spin) + 1 - n))
         factors = identities.copy()
         factors[index] = sparse.diags(weights, 1, shape=(len(values), len(values)))
         if isinstance(operator, FermionOp):
@@ -49,7 +52,7 @@ def operator_matrix(expression, matrices):
         expression = expression.as_expr()
     if expression in matrices:
         return matrices[expression]
-    if expression.is_Number:
+    if expression.is_number and expression.is_commutative:
         return complex(expression) * matrices[sympy.S.One]
     if expression.is_Add:
         return sum(operator_matrix(term, matrices) for term in expression.args)

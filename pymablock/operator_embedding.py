@@ -1,4 +1,4 @@
-"""Source occupation-state selections and their target operators."""
+"""Operator embeddings generated from a source reference state."""
 
 from __future__ import annotations
 
@@ -12,244 +12,350 @@ from typing import TYPE_CHECKING
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
-from sympy.physics.quantum.pauli import SigmaMinus
-from sympy.physics.quantum.spin import JminusOp, JzOp
 
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
+    _NOFTransition,
+    _number_symbols,
+    _occupation_dimension,
+    _occupation_projector,
+    _one_term,
+    find_operators,
     generator_types,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Sequence
 
 __all__ = ["Embedding"]
 
 
 def _operator_sort_key(operator) -> tuple[int, str]:
-    if isinstance(operator, JminusOp):
-        return len(generator_types), str(operator.name)
     return generator_types.index(type(operator)), str(operator.name)
 
 
 @dataclass(frozen=True)
 class _TargetSpace:
-    """Declared generators and their finite occupation bases."""
+    """Target generators and their occupation domains."""
 
     operators: tuple
-    dimensions: tuple[int, ...]
+    dimensions: tuple[int | None, ...]
 
     @cached_property
     def states(self) -> tuple[tuple[int, ...], ...]:
+        if None in self.dimensions:
+            raise ValueError("An infinite target has no enumerated basis")
         return tuple(product(*(range(size) for size in self.dimensions)))
 
     @property
     def dimension(self) -> int:
+        if None in self.dimensions:
+            return sympy.oo
         return prod(self.dimensions)
 
 
 class Embedding:
-    """Select source occupation states and define their target operators.
+    r"""Define target generators by source operators and a reference occupation state.
+
+    ``generators`` maps target lowering operators to source expressions. The
+    reference represents the target vacuum (index zero for a bilateral ladder).
+    Applying the adjoints, in canonical target order and with the target ladder
+    normalization, defines an isometry ``W``. The actual generator image is
+    ``W g W† = P G P``: source actions outside the target's occupation range are
+    allowed, and remain available during perturbation theory.
 
     Parameters
     ----------
-    target : collections.abc.Sequence or collections.abc.Mapping
-        Target ``SigmaMinus`` or ``FermionOp`` annihilation generators. Their
-        dimension is two. For higher spins, pass e.g. ``{JminusOp("S"): 3}``;
-        occupations may then depend on ``JzOp("S")`` in units of hbar=1.
-        Generators are ordered canonically by type and name. A target containing
-        a higher spin uses finite matrices ordered by increasing occupations
-        (increasing magnetic quantum number for higher spins).
-    occupations : collections.abc.Mapping
-        Source annihilation generators mapped to integer affine expressions in
-        target ``NumberOperator`` objects, or target ``JzOp`` objects. These are
-        occupation constraints, not substitutions for source operators. Source
-        modes must be listed even when their occupation is fixed.
+    generators : collections.abc.Mapping
+        Target ``SigmaMinus``, ``FermionOp``, ``BosonOp``, ``LadderOp``, or
+        ``SpinOp`` lowering generators mapped to source expressions. Adjoints
+        and number operators are derived. For ``LadderOp``, also supply
+        ``NumberOperator(target): source_number_expression``; its number is an
+        independent generator, not the product of raising and lowering.
+    reference : collections.abc.Mapping
+        Source lowering generators mapped to integer occupations. List every
+        source mode, including frozen modes. Boson occupations are nonnegative,
+        fermion and Pauli-spin occupations are zero or one; higher spins have
+        occupations zero through twice their spin, and ladder indices may be negative. This specifies one product state, not a basis table.
 
     Notes
     -----
-    Spin targets use the source occupation-basis phase convention. Fermionic
-    targets currently require a direct one-to-one assignment of each retained
-    fermion to a source fermion. Other source occupations may depend on target
-    spins or be fixed. The fermionic phase accounts for spectator occupations
-    and mode permutations so that retained fermionic generators map to their
-    declared source generators. Spin and fermion targets may be combined.
+    The symbolic compiler supports source expressions with one occupation shift
+    per target generator and a product occupation reference. It derives the
+    occupation changes, checks ladder amplitudes and parity, and fixes relative
+    phases from the generators. Orthonormal linear combinations of boson or
+    fermion annihilators are rotated automatically when those source modes start
+    empty. Other multiple-shift superpositions are not supported. Infinite target
+    modes support constant unit phases. Every target returns NumberOrderedForm;
+    use its ``to_matrix()`` method for an explicit finite representation.
 
-    The map must be injective and have physical integer source occupations.
-    Only full-rank affine occupation rules are supported. This restricted
-    contract permits validation without enumerating a source or target basis.
-    Arbitrary superpositions require a prior source-basis rotation or explicit
-    subspace eigenvector matrices; this constructor does not perform rotations.
+    The reference fixes overall phase to one. Target fermions use the canonical
+    NOF ordering; no source-to-target fermion phase convention is an extra input.
+    ``restrict(A)`` evaluates the full source expression before compression.
 
     Examples
     --------
     >>> from sympy.physics.quantum.boson import BosonOp
     >>> from sympy.physics.quantum.pauli import SigmaMinus
-    >>> from pymablock.number_ordered_form import NumberOperator as N
     >>> a, s = BosonOp("a"), SigmaMinus("s")
-    >>> embedding = Embedding(target=(s,), occupations={a: N(s)})
-    >>> embedding.encode((1,))
-    (1,)
+    >>> embedding = Embedding({s: a}, reference={a: 0})
+    >>> embedding.restrict(a).as_expr() == s
+    True
 
     """
 
-    def __init__(
-        self,
-        *,
-        target: Sequence | Mapping,
-        occupations: Mapping,
-    ):
-        """Compile and validate the target-to-source occupation map."""
-        if not occupations:
-            raise ValueError("An embedding must specify source occupations")
-        dimensions = dict(target) if isinstance(target, Mapping) else None
-        operators = tuple(target)
-        if len(operators) != len(set(operators)):
-            raise ValueError("Target generators must be distinct")
-        if not all(isinstance(op, (SigmaMinus, FermionOp, JminusOp)) for op in operators):
-            raise TypeError("Targets must be spin or fermion lowering operators")
-        if any(isinstance(op, FermionOp) and not op.is_annihilation for op in operators):
-            raise ValueError("Target fermions must be annihilation operators")
-        operators = tuple(sorted(operators, key=_operator_sort_key))
-        sizes = []
-        for op in operators:
-            size = dimensions[op] if dimensions is not None else 2
-            if isinstance(op, JminusOp) and dimensions is None:
-                raise ValueError("A higher-spin target requires an explicit dimension")
-            size = sympy.sympify(size)
-            if not size.is_Integer or size < 2:
-                raise ValueError("Target dimensions must be integers of at least two")
-            if not isinstance(op, JminusOp) and size != 2:
-                raise ValueError("SigmaMinus and fermion targets have dimension two")
-            sizes.append(int(size))
-        self.target = _TargetSpace(operators, tuple(sizes))
-        fermions = tuple(op for op in operators if isinstance(op, FermionOp))
-        self.target_is_nof = not any(isinstance(op, JminusOp) for op in operators)
-        if not all(isinstance(op, generator_types) for op in occupations):
-            raise TypeError("Source keys must be supported annihilation generators")
-        if not all(op.is_annihilation for op in occupations):
-            raise ValueError("Source keys must be annihilation generators")
-        self.operators = tuple(sorted(occupations, key=_operator_sort_key))
-        self.coordinate_symbols = tuple(
-            sympy.Dummy(f"target_{i}", integer=True, nonnegative=True)
-            for i in range(len(operators))
-        )
-        substitutions = {
-            (JzOp(op.name) if isinstance(op, JminusOp) else NumberOperator(op)): (
-                symbol - sympy.Rational(size - 1, 2)
-                if isinstance(op, JminusOp)
-                else symbol
-            )
-            for op, symbol, size in zip(
-                operators, self.coordinate_symbols, sizes, strict=True
-            )
-        }
-        self.source_occupations = tuple(
-            sympy.expand(sympy.sympify(occupations[op]).xreplace(substitutions))
-            for op in self.operators
-        )
-        self._validate_occupations()
-        self.phase = sympy.S.One
-        if fermions:
-            self.phase = self._fermion_phase()
-
-    def _validate_occupations(self) -> None:
-        """Prove the supported affine map is physical and injective."""
-        rows = []
-        origin = dict.fromkeys(self.coordinate_symbols, sympy.S.Zero)
-        for operator, expression in zip(
-            self.operators, self.source_occupations, strict=True
+    def __init__(self, generators: Mapping, *, reference: Mapping):
+        """Compile the representation generated from the reference."""
+        if not isinstance(generators, Mapping) or not isinstance(reference, Mapping):
+            raise TypeError("Generators and reference must be mappings")
+        if not reference:
+            raise ValueError("Specify the source reference occupations")
+        if not all(
+            isinstance(op, generator_types) and op.is_annihilation for op in reference
         ):
-            constant = expression.xreplace(origin)
-            coefficients = tuple(
-                sympy.diff(expression, x) for x in self.coordinate_symbols
-            )
-            if not constant.is_Integer or any(not c.is_Integer for c in coefficients):
-                raise ValueError(
-                    "Occupations must be integer affine expressions in declared target numbers"
-                )
+            raise TypeError("Reference keys must be source lowering generators")
+        self._rotation, generators, reference = _rotate_linear_modes(
+            generators, reference
+        )
+        self.operators = tuple(sorted(reference, key=_operator_sort_key))
+        self.reference = tuple(sympy.sympify(reference[op]) for op in self.operators)
+        for op, value in zip(self.operators, self.reference, strict=True):
             if (
-                sympy.expand(
-                    expression
-                    - constant
-                    - sum(
-                        c * x
-                        for c, x in zip(
-                            coefficients, self.coordinate_symbols, strict=True
-                        )
-                    )
+                not value.is_Integer
+                or (not isinstance(op, LadderOp) and value < 0)
+                or (
+                    _occupation_dimension(op) is not None
+                    and value >= _occupation_dimension(op)
                 )
-                != 0
             ):
-                raise ValueError("Only affine occupation rules are supported")
-            minimum = constant + sum(
-                min(0, c) * (size - 1)
-                for c, size in zip(coefficients, self.target.dimensions, strict=True)
-            )
-            maximum = constant + sum(
-                max(0, c) * (size - 1)
-                for c, size in zip(coefficients, self.target.dimensions, strict=True)
-            )
-            if not isinstance(operator, LadderOp) and minimum < 0:
-                raise ValueError("Source occupations must be nonnegative")
-            if isinstance(operator, (FermionOp, SigmaMinus)) and maximum > 1:
-                raise ValueError(
-                    "Source spin and fermion occupations must be zero or one"
-                )
-            rows.append(coefficients)
-        matrix = sympy.Matrix(rows)
-        if matrix.rank() != len(self.coordinate_symbols):
-            raise ValueError("Occupation rules must have full column rank (be injective)")
-        self._occupation_matrix = matrix
-        self._occupation_left_inverse = (matrix.T * matrix).inv() * matrix.T
-
-    def _fermion_phase(self) -> sympy.Expr:
-        """Fix relative signs for direct retained fermionic generators."""
-        fermion_coordinates = {
-            i: coordinate
-            for i, (operator, coordinate) in enumerate(
-                zip(self.target.operators, self.coordinate_symbols, strict=True)
-            )
-            if isinstance(operator, FermionOp)
+                raise ValueError("Reference occupations lie outside the source algebra")
+        numbers = {
+            op: value
+            for op, value in generators.items()
+            if isinstance(op, NumberOperator)
         }
-        mapped = []
-        spectator_parity = sympy.S.One
-        phase = sympy.S.One
-        for operator, occupation in zip(
-            self.operators, self.source_occupations, strict=True
-        ):
-            matches = [
-                i
-                for i, coordinate in fermion_coordinates.items()
-                if occupation == coordinate
-            ]
-            if isinstance(operator, FermionOp) and matches:
-                index = matches[0]
-                phase *= 1 - occupation + occupation * spectator_parity
-                for earlier in mapped:
-                    if earlier > index:
-                        phase *= 1 - 2 * fermion_coordinates[earlier] * occupation
-                mapped.append(index)
-            else:
-                if occupation.free_symbols.intersection(fermion_coordinates.values()):
-                    raise ValueError(
-                        "Fermion targets require direct source fermion assignments"
+        operators = tuple(op for op in generators if op not in numbers)
+        if not all(isinstance(op, generator_types) for op in operators):
+            raise TypeError("Keys must be target lowering generators or ladder numbers")
+        if any(not op.is_annihilation for op in operators):
+            raise ValueError("Target generators must be lowering operators")
+        operators = tuple(sorted(operators, key=_operator_sort_key))
+        self.target = _TargetSpace(
+            operators, tuple(map(_occupation_dimension, operators))
+        )
+        self.coordinate_symbols = tuple(
+            sympy.Dummy(
+                f"target_{i}",
+                integer=True,
+                **({} if isinstance(op, LadderOp) else {"nonnegative": True}),
+            )
+            for i, op in enumerate(operators)
+        )
+        transitions = []
+        for op in operators:
+            form = self._source_form(generators[op])
+            terms = tuple(_NOFTransition.from_form(form))
+            if len(terms) != 1 or not any(terms[0].powers):
+                raise NotImplementedError(
+                    f"Image of {op} must have one nonzero source occupation shift "
+                    "after resolving linear mode mixing"
+                )
+            transition = terms[0]
+            parity = (
+                sum(
+                    power
+                    for source, power in zip(
+                        self.operators, transition.powers, strict=True
                     )
-                if isinstance(operator, FermionOp):
-                    spectator_parity *= 1 - 2 * occupation
-        if sorted(mapped) != sorted(fermion_coordinates):
-            raise ValueError("Each target fermion must map to exactly one source mode")
-        return sympy.expand(phase)
+                    if isinstance(source, FermionOp)
+                )
+                % 2
+            )
+            if parity != isinstance(op, FermionOp):
+                raise ValueError("Generator images must preserve fermionic parity")
+            transitions.append(transition)
+        self._generators = tuple(transitions)
+        self._occupation_matrix = sympy.Matrix(
+            len(self.operators), len(operators), lambda i, j: transitions[j].powers[i]
+        )
+        if self._occupation_matrix.rank() != len(operators):
+            raise ValueError("Generator shifts must be independent")
+        matrix = self._occupation_matrix
+        self._occupation_left_inverse = (matrix.T * matrix).inv() * matrix.T
+        self.source_occupations = tuple(
+            origin + sum(matrix[i, j] * q for j, q in enumerate(self.coordinate_symbols))
+            for i, origin in enumerate(self.reference)
+        )
+        self._validate_domains()
+        self.phase = self._reference_phase()
+        self._validate_generator_actions()
+        expected_numbers = {
+            NumberOperator(op) for op in operators if isinstance(op, LadderOp)
+        }
+        if set(numbers) != expected_numbers:
+            raise ValueError(
+                "Supply the independent number image for each target LadderOp"
+            )
+        for op, number in numbers.items():
+            index = next(
+                i for i, target in enumerate(operators) if NumberOperator(target) == op
+            )
+            form = self._source_form(number)
+            if any(any(powers) for powers in form.terms):
+                raise ValueError("A ladder number image must be occupation diagonal")
+            expression = form.terms.get((0,) * len(self.operators), sympy.S.Zero)
+            expression = expression.xreplace(
+                dict(zip(self._source_placeholders, self.source_occupations, strict=True))
+            )
+            self._validate_identity(
+                expression - self.coordinate_symbols[index],
+                f"Ladder number image {op} must count from the target reference index zero",
+            )
+
+    def _validate_domains(self):
+        """Check all generated occupations without enumerating target states."""
+        for i, op in enumerate(self.operators):
+            lower = upper = self.reference[i]
+            for coefficient, target, size in zip(
+                self._occupation_matrix.row(i),
+                self.target.operators,
+                self.target.dimensions,
+                strict=True,
+            ):
+                if not coefficient:
+                    continue
+                if size is None:
+                    if isinstance(target, LadderOp):
+                        lower, upper = -sympy.oo, sympy.oo
+                    elif coefficient > 0:
+                        upper = sympy.oo
+                    else:
+                        lower = -sympy.oo
+                else:
+                    lower += min(0, coefficient) * (size - 1)
+                    upper += max(0, coefficient) * (size - 1)
+            if not isinstance(op, LadderOp) and lower < 0:
+                raise ValueError("Generators leave the physical source occupation domain")
+            if _occupation_dimension(op) is not None and upper >= _occupation_dimension(
+                op
+            ):
+                raise ValueError("Generators overfill a source spin or fermion")
+
+    def _lowering_weight(self, index):
+        """Use the same generator action as compression and operator arithmetic."""
+        powers = tuple(int(i == index) for i in range(len(self.target.operators)))
+        transition = _NOFTransition(
+            _one_term(self.target.operators, powers, sympy.S.One), powers
+        )
+        return transition.symbolic_action(self.coordinate_symbols).weight
+
+    def _reference_phase(self):
+        """Generate phases by applying creation operators to the reference."""
+        phase = sympy.S.One
+        for i, (transition, q, size) in enumerate(
+            zip(
+                self._generators,
+                self.coordinate_symbols,
+                self.target.dimensions,
+                strict=True,
+            )
+        ):
+            ratio = (
+                self._lowering_weight(i)
+                / transition.symbolic_action(self.source_occupations).weight
+            )
+            ratio = ratio.xreplace(
+                dict.fromkeys(self.coordinate_symbols[:i], sympy.S.Zero)
+            )
+            if size is None:
+                ratio = sympy.simplify(ratio)
+                if ratio.free_symbols.intersection(self.coordinate_symbols):
+                    raise NotImplementedError(
+                        "Infinite target generators require a constant phase relative to their ladder weights"
+                    )
+                _require_identity(
+                    ratio * sympy.conjugate(ratio) - 1,
+                    f"Image of {self.target.operators[i]} must produce normalized target states",
+                )
+                phase *= ratio**q
+            else:
+                value = sympy.S.One
+                values = [value]
+                for k in range(1, size):
+                    value = sympy.simplify(value * ratio.xreplace({q: sympy.Integer(k)}))
+                    values.append(value)
+                phase *= sum(
+                    value * _occupation_projector(q, k, size)
+                    for k, value in enumerate(values)
+                )
+        return sympy.factor(phase)
+
+    def _validate_identity(self, expression, context, substitutions=None):
+        """Check only finite coordinates actually occurring in a condition."""
+        expression = sympy.simplify(expression.xreplace(substitutions or {}))
+        if expression == 0:
+            return
+        for q, size in zip(self.coordinate_symbols, self.target.dimensions, strict=True):
+            if size is not None and q in expression.free_symbols:
+                for k in range(size):
+                    self._validate_identity(
+                        expression, f"{context}, {q}={k}", {q: sympy.Integer(k)}
+                    )
+                return
+        _require_identity(expression, context)
+
+    def _validate_generator_actions(self):
+        """Verify normalization and all lowering actions, including cross signs."""
+        self._validate_identity(
+            self.phase * sympy.conjugate(self.phase) - 1,
+            "Generator images must produce normalized target states",
+        )
+        for i, (transition, q, size) in enumerate(
+            zip(
+                self._generators,
+                self.coordinate_symbols,
+                self.target.dimensions,
+                strict=True,
+            )
+        ):
+            action = transition.symbolic_action(self.source_occupations).weight
+            shifted_phase = self.phase.xreplace({q: q - 1})
+            difference = action * self.phase - self._lowering_weight(i) * shifted_phase
+            context = f"Image of {self.target.operators[i]} must obey the target algebra"
+            if size is None:
+                substitutions = (
+                    {q: q + 1} if isinstance(self.target.operators[i], BosonOp) else {}
+                )
+                self._validate_identity(difference, context, substitutions)
+            else:
+                for k in range(1, size):
+                    self._validate_identity(
+                        difference, f"{context} at occupation {k}", {q: sympy.Integer(k)}
+                    )
+
+    def restrict(self, expression):
+        """Return ``W† expression W`` after evaluating the full source product."""
+        return self._pullback(self._source_form(expression))
 
     def encode(self, state: tuple[int, ...]) -> tuple[int, ...]:
-        """Return source occupations for one target basis state (without its phase)."""
-        if len(state) != len(self.target.dimensions) or any(
-            sympy.sympify(value).is_Integer is not True or not 0 <= value < size
-            for value, size in zip(state, self.target.dimensions)
+        """Return occupations in the compiled source basis for a target tuple.
+
+        With linear mode mixing, these are occupations of the rotated modes,
+        not of the original source operators.
+        """
+        if len(state) != len(self.target.operators):
+            raise ValueError("State has the wrong number of target occupations")
+        for value, op, size in zip(
+            state, self.target.operators, self.target.dimensions, strict=True
         ):
-            raise ValueError("State lies outside the target occupation basis")
+            if (
+                not sympy.sympify(value).is_Integer
+                or (not isinstance(op, LadderOp) and value < 0)
+                or (size is not None and value >= size)
+            ):
+                raise ValueError("State lies outside the target occupation basis")
         substitutions = dict(
             zip(self.coordinate_symbols, map(sympy.Integer, state), strict=True)
         )
@@ -263,30 +369,29 @@ class Embedding:
 
     @cached_property
     def _target_placeholders(self):
-        return _number_symbols(self.target.operators) if self.target_is_nof else ()
+        return _number_symbols(self.target.operators)
 
     @cached_property
     def _target_identity(self):
-        if self.target_is_nof:
-            return _one_term(
-                self.target.operators, (0,) * len(self.target.operators), sympy.S.One
-            )
-        return sympy.ImmutableMatrix.eye(self.target.dimension)
+        return _one_term(
+            self.target.operators, (0,) * len(self.target.operators), sympy.S.One
+        )
 
     @cached_property
     def _target_zero(self):
-        if self.target_is_nof:
-            return NumberOrderedForm(self.target.operators, {}, validate=False)
-        return sympy.ImmutableMatrix.zeros(self.target.dimension)
+        return NumberOrderedForm(self.target.operators, {}, validate=False)
 
     @cache
     def _target_shift(self, source_shift: tuple[int, ...]) -> tuple[int, ...] | None:
-        """Find the binary target transition for a source occupation shift."""
+        """Find the target transition induced by a source occupation shift."""
         source = sympy.Matrix(source_shift)
         result = self._occupation_left_inverse * source
         if self._occupation_matrix * result != source:
             return None
-        if any(not value.is_Integer or abs(value) > 1 for value in result):
+        if any(
+            not value.is_Integer or (size is not None and abs(value) >= size)
+            for value, size in zip(result, self.target.dimensions, strict=True)
+        ):
             return None
         return tuple(map(int, result))
 
@@ -312,8 +417,13 @@ class Embedding:
         """Return support values forced by the retained transition."""
         return {
             symbol: sympy.S.One if power > 0 else sympy.S.Zero
-            for symbol, power in zip(self.coordinate_symbols, _target_shift, strict=True)
-            if power
+            for symbol, power, size in zip(
+                self.coordinate_symbols,
+                _target_shift,
+                self.target.dimensions,
+                strict=True,
+            )
+            if power and size == 2
         }
 
     def _initial_to_middle(
@@ -349,8 +459,13 @@ class Embedding:
         equations = list(transition.support_equations(before_source))
         equations.extend(
             symbol - (1 if power > 0 else 0)
-            for symbol, power in zip(self.coordinate_symbols, _target_shift, strict=True)
-            if power
+            for symbol, power, size in zip(
+                self.coordinate_symbols,
+                _target_shift,
+                self.target.dimensions,
+                strict=True,
+            )
+            if power and size == 2
         )
         return _boolean_solutions(equations, self.coordinate_symbols)
 
@@ -360,10 +475,13 @@ class Embedding:
             if expression.operators == self.operators:
                 return expression
             expression = expression.as_expr()
-        return NumberOrderedForm.from_expr(
-            sympy.sympify(expression),
-            operators=self.operators,
-        )
+        expression = sympy.sympify(expression)
+        if self._rotation:
+            expression = expression.doit().xreplace(self._rotation)
+        if set(find_operators(expression)) - set(self.operators):
+            raise ValueError("Every source mode must be declared in the reference")
+        result = NumberOrderedForm.from_expr(expression, operators=self.operators)
+        return result.applyfunc(sympy.simplify) if self._rotation else result
 
     @cache
     def _project_transition(
@@ -377,81 +495,38 @@ class Embedding:
         amplitude = self._pullback_weight(transition, target_powers)
         if amplitude == 0:
             return self._target_zero
-        # The source action includes its Fock sign. A target fermion monomial
-        # supplies a Fock sign of its own; remove it from the coefficient so
-        # that evaluating the target operator does not count it twice.
+        # Divide out the target monomial's ladder weight and Fock sign: the
+        # coefficient supplies only the remaining source matrix element.
         target_form = _one_term(self.target.operators, target_powers, sympy.S.One)
         (target_transition,) = _NOFTransition.from_form(target_form)
         target_weight = target_transition.symbolic_action(self.coordinate_symbols).weight
         target_weight = target_weight.xreplace(
             self._transition_support(target_powers)
         ).xreplace(self._initial_to_middle(target_powers))
-        amplitude *= target_weight  # Inverse of a sign.
-        # Multiplication applies the public NOF binary-number normalization.
-        return target_form * _one_term(
-            self.target.operators, (0,) * len(target_powers), amplitude
+        amplitude = sympy.cancel(amplitude / target_weight)
+        # Coefficients are already in the NOF middle coordinates. Multiplying
+        # by a diagonal operator on the right would shift boson coefficients.
+        return (
+            _one_term(self.target.operators, target_powers, amplitude)
+            * self._target_identity
         )
 
-    @cached_property
-    def _finite_source_index(self):
-        """Source occupations belonging to a finite target, without coefficients."""
-        return {
-            self.encode(state): index for index, state in enumerate(self.target.states)
-        }
-
     @cache
-    def _finite_transition_action(
-        self,
-        transition: _NOFTransition,
-        retained_row: int,
-    ):
-        """Apply a transition to the source image of one retained state."""
-        target_state = self.target.states[retained_row]
-        return transition.apply(self.encode(target_state))
-
-    @cache
-    def _pullback(
-        self, source: NumberOrderedForm
-    ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Return ``W† source W`` without enumerating the source Hilbert space."""
+    def _pullback(self, source: NumberOrderedForm) -> NumberOrderedForm:
+        """Return ``W† source W`` without enumerating either Hilbert space."""
         source = self._source_form(source)
-        transitions = tuple(_NOFTransition.from_form(source))
-        if self.target_is_nof:
-            result = self._target_zero
-            for transition in transitions:
-                result += self._project_transition(transition)
-            return NumberOrderedForm(
-                result.operators,
-                {
-                    powers: coefficient
-                    for powers, coefficient in result.terms.items()
-                    if coefficient != 0
-                },
-                validate=False,
-            )
-
-        target = self.target
-        source_to_target = self._finite_source_index
-        matrix = sympy.MutableSparseMatrix(target.dimension, target.dimension, {})
-        for column, state in enumerate(target.states):
-            source_state = self.encode(state)
-            for transition in transitions:
-                action = transition.apply(source_state)
-                if action is None:
-                    continue
-                if (row := source_to_target.get(action.output_state)) is not None:
-                    initial_phase = self.phase.xreplace(
-                        dict(zip(self.coordinate_symbols, state, strict=True))
-                    )
-                    final_phase = self.phase.xreplace(
-                        dict(
-                            zip(self.coordinate_symbols, target.states[row], strict=True)
-                        )
-                    )
-                    matrix[row, column] += (
-                        sympy.conjugate(final_phase) * initial_phase * action.weight
-                    )
-        return sympy.ImmutableMatrix(matrix)
+        result = self._target_zero
+        for transition in _NOFTransition.from_form(source):
+            result += self._project_transition(transition)
+        return NumberOrderedForm(
+            result.operators,
+            {
+                powers: coefficient
+                for powers, coefficient in result.terms.items()
+                if coefficient != 0
+            },
+            validate=False,
+        )
 
 
 def _boolean_solutions(
@@ -479,151 +554,125 @@ def _boolean_solutions(
     return substitutions
 
 
-def _one_term(
-    operators,
-    powers: tuple[int, ...],
-    coefficient: sympy.Expr,
-) -> NumberOrderedForm:
-    return NumberOrderedForm(
-        tuple(operators),
-        {powers: coefficient},
-        validate=False,
-    )
+def _rotate_linear_modes(generators, reference):
+    """Complete orthonormal linear images to a passive source basis rotation.
 
-
-@cache
-def _number_symbols(operators: tuple) -> tuple[sympy.Symbol, ...]:
-    """Obtain coefficient coordinates using public NOF term inspection.
-
-    A number operator has one diagonal term whose coefficient is its occupation
-    symbol. Query that term rather than depending on private placeholder names
-    or metadata. This works with both plain and packed NOF storage.
+    Each connected set of mixed modes is rotated independently. Its reference
+    must be the empty Fock state, which the rotation preserves. Nonlinear images
+    continue through the occupation-shift compiler after the same substitution.
     """
-    powers = (0,) * len(operators)
-    return tuple(
-        NumberOrderedForm.from_expr(NumberOperator(op), operators=operators).terms[powers]
-        for op in operators
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class _WeightedTransition:
-    """One partial transition between occupation states."""
-
-    output_state: tuple[sympy.Expr, ...]
-    weight: sympy.Expr
-
-
-@dataclass(frozen=True)
-class _NOFTransition:
-    """The occupation shift and amplitude of one NOF term."""
-
-    form: NumberOrderedForm
-    powers: tuple[int, ...]
-
-    @classmethod
-    def from_form(cls, form: NumberOrderedForm) -> Iterable[_NOFTransition]:
-        """Read the number-ordered term interface, independently of storage."""
-        for powers, coefficient in form.terms.items():
-            powers = tuple(map(int, powers))
-            yield cls(
-                NumberOrderedForm(
-                    form.operators,
-                    {powers: coefficient},
-                    validate=False,
-                ),
-                powers,
+    linear = {}
+    for target, image in generators.items():
+        expression = (
+            image.as_expr()
+            if isinstance(image, NumberOrderedForm)
+            else sympy.sympify(image)
+        )
+        modes = tuple(find_operators(expression))
+        if len(modes) < 2 or not all(type(op) is type(modes[0]) for op in modes):
+            continue
+        if not isinstance(modes[0], (BosonOp, FermionOp)):
+            continue
+        coefficients = tuple(sympy.expand(expression).coeff(op) for op in modes)
+        if any(not c.is_commutative for c in coefficients):
+            continue
+        if (
+            sympy.expand(
+                expression
+                - sum(c * op for c, op in zip(coefficients, modes, strict=True))
             )
-
-    @cached_property
-    def operators(self) -> tuple:
-        """Return the ordered annihilation generators."""
-        return tuple(self.form.operators)
-
-    @cached_property
-    def placeholders(self) -> tuple[sympy.Symbol, ...]:
-        """Return the number-operator placeholders of the source algebra."""
-        return _number_symbols(self.operators)
-
-    @cached_property
-    def fermion_indices(self) -> tuple[int, ...]:
-        """Return source indices that contribute fermionic parity."""
-        return tuple(
-            index
-            for index, operator in enumerate(self.operators)
-            if isinstance(operator, FermionOp)
-        )
-
-    def apply(self, state: Sequence[int]) -> _WeightedTransition | None:
-        """Apply this term to a concrete occupation state."""
-        action = self.symbolic_action(state)
-        return None if action.weight == 0 else action
-
-    def symbolic_action(self, occupations: Sequence[sympy.Expr]) -> _WeightedTransition:
-        """Apply this term to symbolic occupations."""
-        ((_, coefficient),) = self.form.terms.items()
-        current = list(map(sympy.sympify, occupations))
-        amplitude = sympy.S.One
-
-        for index, power in enumerate(self.powers):
-            for _ in range(max(power, 0)):
-                factor = self._symbolic_generator(current, index, annihilate=True)
-                if factor == 0:
-                    return _WeightedTransition(tuple(current), sympy.S.Zero)
-                amplitude *= factor
-
-        amplitude *= coefficient.xreplace(
-            dict(zip(self.placeholders, current, strict=True))
-        )
-
-        for index in reversed(range(len(self.powers))):
-            for _ in range(max(-self.powers[index], 0)):
-                factor = self._symbolic_generator(current, index, annihilate=False)
-                if factor == 0:
-                    return _WeightedTransition(tuple(current), sympy.S.Zero)
-                amplitude *= factor
-
-        return _WeightedTransition(
-            tuple(current),
-            sympy.expand(amplitude),
-        )
-
-    def support_equations(
-        self, input_occupations: Sequence[sympy.Expr]
-    ) -> tuple[sympy.Expr, ...]:
-        """Return exact occupation constraints implied by this transition."""
-        equations = []
-        for occupation, operator, power in zip(
-            input_occupations, self.operators, self.powers, strict=True
+            != 0
         ):
-            if isinstance(operator, (FermionOp, SigmaMinus)) and power:
-                equations.append(occupation - (1 if power > 0 else 0))
-            # Bosonic annihilation requires occupation >= power, not equality.
-            # Its vanishing channels are handled by their transition weights.
-        return tuple(equations)
+            continue
+        if not set(modes) <= reference.keys():
+            raise ValueError("Every source mode must be declared in the reference")
+        linear[target] = (modes, coefficients)
+    if not linear:
+        return {}, generators, reference
 
-    def _symbolic_generator(
-        self,
-        state: list[sympy.Expr],
-        index: int,
-        *,
-        annihilate: bool,
-    ) -> sympy.Expr:
-        operator = self.operators[index]
-        occupation = state[index]
-        if isinstance(operator, BosonOp):
-            factor = sympy.sqrt(occupation if annihilate else occupation + 1)
-        elif isinstance(operator, LadderOp):
-            factor = sympy.S.One
-        elif isinstance(operator, SigmaMinus):
-            factor = occupation if annihilate else 1 - occupation
-        elif isinstance(operator, FermionOp):
-            factor = (occupation if annihilate else 1 - occupation) * sympy.prod(
-                1 - 2 * state[earlier]
-                for earlier in self.fermion_indices
-                if earlier < index
+    groups = []
+    for modes, _ in linear.values():
+        group = set(modes)
+        for other in groups[:]:
+            if group & other:
+                group |= other
+                groups.remove(other)
+        groups.append(group)
+
+    rotation, compiled, reference = {}, dict(generators), dict(reference)
+    for group in groups:
+        modes = tuple(sorted(group, key=_operator_sort_key))
+        if any(reference[op] != 0 for op in modes):
+            raise NotImplementedError(
+                "Linear mode mixing requires an empty reference in the mixed modes"
             )
-        else:  # pragma: no cover - guarded by NumberOrderedForm
-            raise TypeError(f"Unsupported source operator: {operator!r}")
-        state[index] += -1 if annihilate else 1
-        return sympy.sympify(factor)
+        rows, targets = [], []
+        for target, (support, coefficients) in linear.items():
+            if not set(support) <= group:
+                continue
+            weights = dict(zip(support, coefficients, strict=True))
+            row = sympy.Matrix([weights.get(op, 0) for op in modes])
+            residuals = [
+                (previous.conjugate().dot(row), "orthogonal") for previous in rows
+            ]
+            residuals.append((row.conjugate().dot(row) - 1, "normalized"))
+            for residual, requirement in residuals:
+                _require_identity(
+                    residual, f"Linear image of {target} must be {requirement}"
+                )
+            rows.append(row)
+            targets.append(target)
+        # A two-mode completion is nonsingular even for symbolic rotation angles.
+        if len(modes) == 2 and len(rows) == 1:
+            a, b = rows[0]
+            rows.append(sympy.Matrix([-sympy.conjugate(b), sympy.conjugate(a)]))
+        # Complete only the discarded modes; declared images are never renormalized.
+        for candidate in sympy.eye(len(modes)).columnspace():
+            if len(rows) == len(modes):
+                break
+            row = candidate
+            for previous in rows:
+                row = row - previous * previous.conjugate().dot(row)
+            row = row.applyfunc(sympy.simplify)
+            norm = sympy.simplify(row.conjugate().dot(row))
+            if norm == 0:
+                continue
+            if norm.is_zero is None and norm.is_positive is not True:
+                raise NotImplementedError(
+                    "Cannot prove a nonzero norm while completing the source rotation"
+                )
+            rows.append((row / sympy.sqrt(norm)).applyfunc(sympy.simplify))
+            if len(rows) == len(modes):
+                break
+        rotated = tuple(
+            type(modes[0])(f"__embedding_{sympy.Dummy().dummy_index}") for _ in modes
+        )
+        for i, op in enumerate(modes):
+            image = sum(
+                sympy.conjugate(row[i]) * new
+                for row, new in zip(rows, rotated, strict=True)
+            )
+            rotation[op], rotation[op.adjoint()] = image, image.adjoint()
+            del reference[op]
+        reference.update(dict.fromkeys(rotated, 0))
+        compiled.update(zip(targets, rotated, strict=False))
+    for target, image in compiled.items():
+        if target not in linear:
+            expression = (
+                image.as_expr()
+                if isinstance(image, NumberOrderedForm)
+                else sympy.sympify(image)
+            )
+            compiled[target] = expression.doit().xreplace(rotation)
+    return rotation, compiled, reference
+
+
+def _require_identity(expression, context):
+    """Separate a contradicted identity from one not established symbolically."""
+    residual = sympy.simplify(expression)
+    if residual == 0:
+        return
+    message = f"{context}; residual: {residual}"
+    if residual.is_zero is False:
+        raise ValueError(message)
+    raise NotImplementedError(f"Cannot establish {message}")
