@@ -15,12 +15,12 @@ tunable_coupler.md
 cavity_spin.md
 ```
 
-| Application | Retained operators | Results reproduced |
+| Application | Retained representation | Results reproduced |
 | --- | --- | --- |
 | Supercurrent through an interacting dot | Two dot fermions | Symbolic fourth-order currents in all charge sectors and their gate dependence |
 | Crépel–Fu interactions | Doped fermions on the B sublattice | Assisted hopping and density interactions at second order; connected hopping at fourth order |
 | Tunable coupler | Two spin-one-half lowering operators | Exchange including counterrotating processes; the fourth-order effective matrix |
-| Artificial cavity spin | A spin-one or spin-three-halves lowering operator | Engineered ladder amplitudes and second-order cavity/Floquet corrections |
+| Artificial cavity spin | A three- or four-state matrix from a reference list | Engineered ladder amplitudes and second-order cavity/Floquet corrections |
 
 ## Reproducing the calculations
 

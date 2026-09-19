@@ -137,7 +137,8 @@ def block_diagonalize(
         unperturbed Hamiltonian must be block diagonal. If some vectors are
         missing, the implicit method is used. Mutually exclusive with
         ``subspace_indices``. An ``Embedding`` may be supplied instead of explicit
-        basis columns to specify target generators and a source reference state.
+        basis columns to specify target generators and a source reference state,
+        or an ordered reference list for a finite matrix target.
         If neither
         ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
         BlockSeries is defined with a single block.

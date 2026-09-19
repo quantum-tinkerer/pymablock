@@ -22,9 +22,10 @@ spin dynamics in a microwave oscillator*, Physical Review X 15, 021009
 (2025)](https://arxiv.org/html/2405.15695v4), and calculate second-order corrections
 from the discarded ancilla, cavity, and Floquet states.
 
-We treat spin one and spin three halves. The effective operators remain
-symbolic `SpinOp` objects; finite matrices are requested only to display or
-check the result.
+We treat spin one and spin three halves using ordinary three- and four-dimensional
+matrices. The source is a two-by-two ancilla matrix with second-quantized cavity
+and Floquet operators in its entries. An ordered reference list specifies the
+retained basis.
 
 ## Driven Hamiltonian and dressed basis
 
@@ -62,13 +63,12 @@ R_n=\frac{1}{\sqrt2}
 \end{pmatrix}.
 $$
 
-Its first column is the positive-energy dressed branch. We write $d$ for the
-ancilla lowering operator in this basis, so $N_d=0$ selects that branch. The
-unperturbed Sambe Hamiltonian becomes
+Its first column is the positive-energy dressed branch, which is matrix basis
+index zero. In this dressed basis the unperturbed Sambe Hamiltonian becomes
 
 $$
-H_0=\chi N_\ell+\frac{\Omega}{2}
- \sum_{n=0}^{2s}|n\rangle\langle n|(1-2N_d).
+H_0=\chi N_\ell I_2+\frac{\Omega}{2}
+ \sum_{n=0}^{2s}|n\rangle\langle n|\begin{pmatrix}1&0\\0&-1\end{pmatrix}.
 $$
 
 All remaining comb components and the cavity drive enter $V$. We organize
@@ -83,10 +83,9 @@ import matplotlib.pyplot as plt
 from IPython.display import display
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
-from sympy.physics.quantum.pauli import SigmaMinus
 
 from pymablock import block_diagonalize
-from pymablock.number_ordered_form import LadderOp, SpinOp, NumberOrderedForm
+from pymablock.number_ordered_form import LadderOp
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.second_quantization import Embedding
 from validation import occupation_matrices, operator_matrix, occupation_indices, second_order
@@ -94,23 +93,18 @@ from validation import occupation_matrices, operator_matrix, occupation_indices,
 chi, Omega, epsilon = sp.symbols("chi Omega epsilon", nonzero=True, real=True)
 varphi = sp.Symbol("varphi", real=True)
 
-def binary_operator(matrix, d):
-    return (matrix[0, 0] * (1 - N(d)) + matrix[1, 1] * N(d)
-            + matrix[0, 1] * d + matrix[1, 0] * Dagger(d))
-
 def floquet_shift(ell, shift):
     return Dagger(ell)**shift if shift >= 0 else ell**(-shift)
 
 def cavity_model(spin, virtual_shells=1):
     maximum = int(2 * spin)
     cutoff = maximum + virtual_shells
-    c, ell, d = BosonOp("c"), LadderOp("ell"), SigmaMinus("d")
-    S = SpinOp("S", spin)
+    c, ell = BosonOp("c"), LadderOp("ell")
     phases = sp.symbols(f"phi_0:{maximum + 1}", real=True)
     # These polynomials represent number projectors on 0,...,cutoff.
     projectors = [sp.prod((N(c) - j) / (n - j) for j in range(cutoff + 1) if j != n)
                   for n in range(cutoff + 1)]
-    H0 = chi * N(ell) + Omega * sum(projectors[:maximum + 1]) * (1 - 2 * N(d)) / 2
+    H0 = chi * N(ell) * sp.eye(2) + Omega * sum(projectors[:maximum + 1]) * sp.diag(1, -1) / 2
     ground, excited = sp.diag(1, 0), sp.diag(0, 1)
     lowering = sp.Matrix([[0, 1], [0, 0]])
 
@@ -124,7 +118,7 @@ def cavity_model(spin, virtual_shells=1):
     terms = []
     for n, projector in enumerate(projectors):
         R = rotation(n)
-        qubit = binary_operator(R.adjoint() * lowering * R, d)
+        qubit = R.adjoint() * lowering * R
         for tooth, phase in enumerate(phases):
             if tooth == n:
                 continue  # This resonant component is already in H0.
@@ -132,16 +126,16 @@ def cavity_model(spin, virtual_shells=1):
             terms.extend((term, Dagger(term)))
     for n in range(1, cutoff + 1):
         initial, final = rotation(n), rotation(n - 1)
-        ground_path = binary_operator(final.adjoint() * ground * initial, d)
-        excited_path = binary_operator(final.adjoint() * excited * initial, d)
+        ground_path = final.adjoint() * ground * initial
+        excited_path = final.adjoint() * excited * initial
         paths = ground_path * (1 + Dagger(ell)) + excited_path * (1 + ell)
         term = epsilon * sp.exp(sp.I * varphi) * c * projectors[n] * paths / 2
         terms.extend((term, Dagger(term)))
     embedding = Embedding(
-        {S: sp.sqrt(maximum - N(c)) * c}, reference={c: 0, ell: 0, d: 0}
+        reference=[(0, {c: n, ell: 0}) for n in range(maximum + 1)]
     )
-    return dict(H0=H0, V=sp.Add(*terms), embedding=embedding,
-                operators=(c, ell, d), S=S, phases=phases, spin=spin)
+    return dict(H0=H0, V=sum(terms, sp.zeros(2)), embedding=embedding,
+                operators=(c, ell), phases=phases, spin=spin)
 ```
 
 The number-projector polynomials are interpolation identities on the displayed
@@ -150,23 +144,26 @@ by one application of $V$, which suffices through second order. They are not
 global projector identities on the infinite oscillator. We check the same
 second-order result after adding another shell below.
 
-## Spin generators and the source reference
+## Reference states and the retained matrix
 
-The embedding is
+The reference list defines the columns of the isometry $W$ in order:
 
 $$
-S_-\longmapsto\sqrt{2s-N_c}\,c,
-\qquad (N_c,N_\ell,N_d)=(0,0,0)\quad\text{in the reference}.
+W|n\rangle=|0\rangle_{\rm dressed}\otimes|n\rangle_c\otimes|0\rangle_\ell,
+\qquad n=0,\ldots,2s.
 $$
 
-Because the coefficient stands to the left of $c$, the lowering amplitude on
-occupation $n$ is $\sqrt{n(2s+1-n)}$. Thus $n=0,\ldots,2s$ represents
-$m=n-s$. The ancilla is already in its occupation-dependent dressed basis;
-the product reference corresponds to a superposition of bare ancilla states.
+Each `(0, {c: n, ell: 0})` pairs an ancilla matrix index with occupations of
+all source modes. The list selects the whole retained subspace, so transitions
+between these states are retained together. Transitions to the other dressed
+branch and to other cavity or Floquet occupations remain available in virtual
+processes. No source ladder is truncated by the embedding.
 
-The physical cavity drive remains the one in $V$. Defining its target spin
-algebra does not force that drive to have spin-like matrix elements. Those
-amplitudes are determined by the comb phases.
+The returned coefficients are ordinary SymPy matrices in this list order.
+The spin interpretation, $m=n-s$, comes from their engineered matrix elements;
+it requires no additional operator type. The ancilla is already in its
+occupation-dependent dressed basis, so these references correspond to
+superpositions of bare ancilla states.
 
 ## First-order matrix-element modification
 
@@ -193,7 +190,7 @@ for model in models:
     for n in range(1, len(phases)):
         amplitude = epsilon * sp.exp(sp.I * varphi) * sp.sqrt(n) * sp.cos((phases[n] - phases[n-1]) / 2) / 2
         expected[n-1, n], expected[n, n-1] = amplitude, sp.conjugate(amplitude)
-    difference = H[0, 0, 1].to_matrix() - expected
+    difference = H[0, 0, 1] - expected
     assert difference.applyfunc(lambda x: sp.trigsimp(sp.expand_complex(x))) == sp.zeros(len(phases))
     print(f"spin {model['spin']}: first-order matrix agrees symbolically")
 ```
@@ -226,12 +223,11 @@ for ax, model, H in zip(axes, models, series):
         angle += 2 * sp.acos(sp.sqrt(sp.Rational(maximum + 1 - n, maximum)))
         values[phases[n]] = angle
     actual = H[0, 0, 1].applyfunc(lambda x: sp.trigsimp(sp.expand_complex(x.subs(values))))
-    S = model["S"]
-    expected = NumberOrderedForm.from_expr(
-        epsilon * (sp.exp(sp.I * varphi) * S + sp.exp(-sp.I * varphi) * Dagger(S))
-        / (2 * sp.sqrt(maximum))
-    )
-    assert (actual - expected).applyfunc(sp.simplify).is_zero
+    S = sp.zeros(maximum + 1)
+    for n in range(1, maximum + 1):
+        S[n-1, n] = sp.sqrt(n * (maximum + 1 - n))
+    expected = epsilon * (sp.exp(sp.I * varphi) * S + sp.exp(-sp.I * varphi) * S.adjoint()) / (2 * sp.sqrt(maximum))
+    assert (actual - expected).applyfunc(sp.simplify) == sp.zeros(maximum + 1)
     n = np.arange(1, maximum + 1)
     ax.plot(n, np.sqrt(n), "o--", label="oscillator")
     ax.plot(n, np.sqrt(n * (maximum + 1 - n) / maximum), "s-", label="engineered spin")
@@ -260,18 +256,25 @@ for model in models:
     parameters.update({phase: sp.pi * i / (i + 2) for i, phase in enumerate(model["phases"])})
     source = [model[key].subs(parameters) for key in ("H0", "V")]
     H, *_ = block_diagonalize(source, subspace_eigenvectors=model["embedding"])
-    actual = np.asarray(H[0, 0, 2].to_matrix().evalf(), dtype=complex)
-    occupations = [range(size + 1), range(-size, size + 1), range(2)]
+    actual = np.asarray(H[0, 0, 2].evalf(), dtype=complex)
+    occupations = [range(size + 1), range(-size, size + 1)]
     matrices = occupation_matrices(model["operators"], occupations)
     energy = operator_matrix(source[0].evalf(), matrices).diagonal().real
     perturbation = operator_matrix(source[1].evalf(), matrices).toarray()
-    kept = occupation_indices(occupations, [(n, 0, 0) for n in range(size)])
+    # operator_matrix stacks the two ancilla components as outer blocks.
+    # The positive dressed branch is the first block (component zero).
+    kept = occupation_indices(occupations, [(n, 0) for n in range(size)])
     reference = second_order(energy, perturbation, kept)
     error = np.max(np.abs(actual - reference))
     assert error < 1e-12
     second_matrices.append(actual)
     print(f"spin {model['spin']}: maximum second-order matrix error {error:.2e}")
-    display(H[0, 0, 2].to_matrix().evalf(5))
+    # Separate real and imaginary parts to keep the four-state matrix readable.
+    matrix = H[0, 0, 2].evalf(5, chop=True)
+    print("Real part:")
+    display(sp.re(matrix))
+    print("Imaginary part:")
+    display(sp.im(matrix))
 ```
 
 Finally, increasing the polynomial interpolation range for spin one leaves its
@@ -286,7 +289,7 @@ H_expanded, *_ = block_diagonalize(
     [expanded[key].subs(parameters) for key in ("H0", "V")],
     subspace_eigenvectors=expanded["embedding"],
 )
-expanded_h2 = np.asarray(H_expanded[0, 0, 2].to_matrix().evalf(), dtype=complex)
+expanded_h2 = np.asarray(H_expanded[0, 0, 2].evalf(), dtype=complex)
 shell_error = np.max(np.abs(expanded_h2 - second_matrices[0]))
 assert shell_error < 1e-12
 print(f"Change after adding a second cavity shell: {shell_error:.2e}")

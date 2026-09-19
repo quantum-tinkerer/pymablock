@@ -20,7 +20,6 @@ from pymablock.number_ordered_form import (
     _NOFTransition,
     _number_symbols,
     _occupation_dimension,
-    _occupation_projector,
     _one_term,
     find_operators,
     generator_types,
@@ -57,7 +56,7 @@ class _TargetSpace:
 
 
 class Embedding:
-    r"""Define target generators by source operators and a reference occupation state.
+    r"""Embed target generators or a finite reference basis into a source algebra.
 
     ``generators`` maps target lowering operators to source expressions. The
     reference represents the target vacuum (index zero for a bilateral ladder).
@@ -69,16 +68,20 @@ class Embedding:
     Parameters
     ----------
     generators : collections.abc.Mapping
-        Target ``SigmaMinus``, ``FermionOp``, ``BosonOp``, ``LadderOp``, or
-        ``SpinOp`` lowering generators mapped to source expressions. Adjoints
-        and number operators are derived. For ``LadderOp``, also supply
+        Target ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` lowering
+        generators mapped to source expressions. Adjoints and number operators
+        are derived. For ``LadderOp``, also supply
         ``NumberOperator(target): source_number_expression``; its number is an
-        independent generator, not the product of raising and lowering.
-    reference : collections.abc.Mapping
-        Source lowering generators mapped to integer occupations. List every
-        source mode, including frozen modes. Boson occupations are nonnegative,
-        fermion and Pauli-spin occupations are zero or one; higher spins have
-        occupations zero through twice their spin, and ladder indices may be negative. This specifies one product state, not a basis table.
+        independent generator. Omit this mapping for a finite matrix target.
+    reference : collections.abc.Mapping or collections.abc.Sequence
+        With generators, map every source mode to its occupation in the target
+        vacuum. Without generators, supply an ordered list of such dictionaries:
+        each is one retained basis state. For a matrix source, use
+        ``(matrix_index, occupations)`` pairs; a dictionary alone means index zero.
+        All references must declare the same source modes. Boson occupations are
+        nonnegative integers, fermion and Pauli occupations are zero or one, and
+        bilateral ladder indices may be any integer. Empty dictionaries support
+        ordinary finite matrix sources. Reference states must be distinct.
 
     Notes
     -----
@@ -88,8 +91,15 @@ class Embedding:
     phases from the generators. Orthonormal linear combinations of boson or
     fermion annihilators are rotated automatically when those source modes start
     empty. Other multiple-shift superpositions are not supported. Infinite target
-    modes support constant unit phases. Every target returns NumberOrderedForm;
+    modes support constant unit phases. Generator mappings return NumberOrderedForm;
     use its ``to_matrix()`` method for an explicit finite representation.
+
+    Reference lists return SymPy matrices in the supplied order. The source may
+    be a scalar operator expression or a square SymPy matrix with operator
+    entries. All Hamiltonian coefficients must have the same matrix shape.
+    Perturbation theory requires H0 diagonal in both source matrix indices and
+    occupations. The reference list defines one retained subspace; all other
+    source states remain available for virtual transitions.
 
     The reference fixes overall phase to one. Target fermions use the canonical
     NOF ordering; no source-to-target fermion phase convention is an extra input.
@@ -104,10 +114,20 @@ class Embedding:
     >>> embedding.restrict(a).as_expr() == s
     True
 
+    A finite target needs only a list of references:
+
+    >>> matrix_embedding = Embedding(reference=[{a: 0}, {a: 1}, {a: 2}])
+    >>> matrix_embedding.restrict(NumberOperator(a)) == sympy.diag(0, 1, 2)
+    True
+
     """
 
-    def __init__(self, generators: Mapping, *, reference: Mapping):
+    def __init__(self, generators: Mapping | None = None, *, reference):
         """Compile the representation generated from the reference."""
+        self._references = None
+        if generators is None:
+            self._init_references(reference)
+            return
         if not isinstance(generators, Mapping) or not isinstance(reference, Mapping):
             raise TypeError("Generators and reference must be mappings")
         if not reference:
@@ -214,6 +234,50 @@ class Embedding:
                 f"Ladder number image {op} must count from the target reference index zero",
             )
 
+    def _init_references(self, references):
+        """Use an ordered orthonormal product basis for a finite matrix target."""
+        if isinstance(references, Mapping):
+            raise TypeError("A matrix target requires a list of reference states")
+        references = list(references)
+        if not references:
+            raise ValueError("Specify at least one reference state")
+        states = []
+        for reference in references:
+            component, occupations = (
+                (0, reference) if isinstance(reference, Mapping) else reference
+            )
+            component = sympy.sympify(component)
+            if not component.is_Integer or component < 0:
+                raise ValueError("Matrix basis indices must be nonnegative integers")
+            if not isinstance(occupations, Mapping) or not all(
+                isinstance(op, generator_types) and op.is_annihilation
+                for op in occupations
+            ):
+                raise TypeError(
+                    "Reference occupations must map source lowering generators to integers"
+                )
+            operators = tuple(sorted(occupations, key=_operator_sort_key))
+            if states and operators != self.operators:
+                raise ValueError("Every reference must declare the same source modes")
+            self.operators = operators
+            state = tuple(sympy.sympify(occupations[op]) for op in operators)
+            if any(
+                not n.is_Integer
+                or (not isinstance(op, LadderOp) and n < 0)
+                or (
+                    _occupation_dimension(op) is not None
+                    and n >= _occupation_dimension(op)
+                )
+                for op, n in zip(operators, state, strict=True)
+            ):
+                raise ValueError("Reference occupations lie outside the source algebra")
+            states.append((int(component), state))
+        if len(set(states)) != len(states):
+            raise ValueError("Reference states must be distinct")
+        self._references = tuple(states)
+        self._reference_indices = {state: i for i, state in enumerate(states)}
+        self._rotation = {}
+
     def _validate_domains(self):
         """Check all generated occupations without enumerating target states."""
         for i, op in enumerate(self.operators):
@@ -281,15 +345,7 @@ class Embedding:
                 )
                 phase *= ratio**q
             else:
-                value = sympy.S.One
-                values = [value]
-                for k in range(1, size):
-                    value = sympy.simplify(value * ratio.xreplace({q: sympy.Integer(k)}))
-                    values.append(value)
-                phase *= sum(
-                    value * _occupation_projector(q, k, size)
-                    for k, value in enumerate(values)
-                )
+                phase *= 1 - q + q * sympy.simplify(ratio.xreplace({q: sympy.S.One}))
         return sympy.factor(phase)
 
     def _validate_identity(self, expression, context, substitutions=None):
@@ -345,6 +401,10 @@ class Embedding:
         With linear mode mixing, these are occupations of the rotated modes,
         not of the original source operators.
         """
+        if self._references is not None:
+            raise TypeError(
+                "Reference-list embeddings already specify their source basis"
+            )
         if len(state) != len(self.target.operators):
             raise ValueError("State has the wrong number of target occupations")
         for value, op, size in zip(
@@ -373,12 +433,16 @@ class Embedding:
 
     @cached_property
     def _target_identity(self):
+        if self._references is not None:
+            return sympy.ImmutableSparseMatrix.eye(len(self._references))
         return _one_term(
             self.target.operators, (0,) * len(self.target.operators), sympy.S.One
         )
 
     @cached_property
     def _target_zero(self):
+        if self._references is not None:
+            return sympy.ImmutableSparseMatrix.zeros(len(self._references))
         return NumberOrderedForm(self.target.operators, {}, validate=False)
 
     @cache
@@ -469,7 +533,21 @@ class Embedding:
         )
         return _boolean_solutions(equations, self.coordinate_symbols)
 
-    def _source_form(self, expression) -> NumberOrderedForm:
+    def _source_form(self, expression):
+        """Normalize scalar or matrix source expressions without truncation."""
+        if isinstance(expression, sympy.MatrixBase):
+            if self._references is None:
+                raise TypeError("Matrix sources require a list of reference states")
+            if expression.rows != expression.cols:
+                raise ValueError("Source matrices must be square")
+            if any(component >= expression.rows for component, _ in self._references):
+                raise ValueError("Reference matrix index lies outside the source matrix")
+            return sympy.ImmutableSparseMatrix(expression.applyfunc(self._source_scalar))
+        if self._references is not None and any(c for c, _ in self._references):
+            raise ValueError("Nonzero reference matrix indices require a matrix source")
+        return self._source_scalar(expression)
+
+    def _source_scalar(self, expression) -> NumberOrderedForm:
         """Convert an expression into the source algebra of the embedding."""
         if isinstance(expression, NumberOrderedForm):
             if expression.operators == self.operators:
@@ -512,10 +590,24 @@ class Embedding:
         )
 
     @cache
-    def _pullback(self, source: NumberOrderedForm) -> NumberOrderedForm:
-        """Return ``W† source W`` without enumerating either Hilbert space."""
+    def _pullback(self, source):
+        """Return ``W† source W`` without enumerating the discarded space."""
         source = self._source_form(source)
         result = self._target_zero
+        if self._references is not None:
+            entries = {}
+            for row, column, entry in _source_entries(source):
+                for transition in _NOFTransition.from_form(entry):
+                    for j, (component, state) in enumerate(self._references):
+                        if component != column:
+                            continue
+                        action = transition.apply(state)
+                        if action is None:
+                            continue
+                        i = self._reference_indices.get((row, action.output_state))
+                        if i is not None:
+                            entries[i, j] = entries.get((i, j), 0) + action.weight
+            return sympy.ImmutableSparseMatrix(result.rows, result.cols, entries)
         for transition in _NOFTransition.from_form(source):
             result += self._project_transition(transition)
         return NumberOrderedForm(
@@ -527,6 +619,15 @@ class Embedding:
             },
             validate=False,
         )
+
+
+def _source_entries(source):
+    """Iterate matrix entries, treating scalar sources as one component."""
+    if isinstance(source, sympy.MatrixBase):
+        for (row, column), entry in source.todok().items():
+            yield row, column, entry
+    else:
+        yield 0, 0, source
 
 
 def _boolean_solutions(

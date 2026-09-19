@@ -23,7 +23,6 @@ from sympy.physics.quantum.operatorordering import normal_ordered_form
 __all__ = [
     "NumberOperator",
     "NumberOrderedForm",
-    "SpinOp",
     "find_operators",
 ]
 
@@ -145,85 +144,10 @@ class LadderOp(Operator):
         return pform ** prettyForm("\N{DAGGER}")
 
 
-class SpinOp(Operator):
-    """Spin lowering operator with a fixed spin quantum number, in units of hbar=1.
-
-    ``SpinOp("S", 1)`` has three levels. Occupation ``n`` means magnetic quantum
-    number ``m = n - spin``, so the lowering amplitude is ``sqrt(n*(2*spin+1-n))``.
-    The adjoint raises the spin. Unlike an abstract angular momentum operator,
-    this operator carries its representation and composes with infinite modes.
-    """
-
-    is_commutative = False
-
-    def __new__(cls, name, spin, annihilation=True):
-        """Specify the name and a positive integer or half-integer spin."""
-        spin = sympy.sympify(spin)
-        if spin.is_Float:
-            spin = sympy.Rational(spin)
-        if not (2 * spin).is_Integer or spin <= 0:
-            raise ValueError("Spin must be a positive integer or half-integer")
-        return Operator.__new__(cls, name, spin, sympy.Integer(annihilation))
-
-    @property
-    def name(self):
-        """Return the mode name."""
-        return self.args[0]
-
-    @property
-    def spin(self):
-        """Return the spin quantum number."""
-        return self.args[1]
-
-    @property
-    def dimension(self):
-        """Return the number of magnetic sublevels."""
-        return int(2 * self.spin + 1)
-
-    @property
-    def is_annihilation(self):
-        """Whether this is the lowering operator."""
-        return bool(self.args[2])
-
-    def _eval_adjoint(self):
-        return type(self)(self.name, self.spin, not self.is_annihilation)
-
-    def _print_contents(self, printer, *args):  # noqa: ARG002
-        return str(self.name) if self.is_annihilation else f"Dagger({self.name})"
-
-    def _print_contents_latex(self, printer, *args):  # noqa: ARG002
-        return "{%s}^{%s}" % (self.name, "-" if self.is_annihilation else "+")
-
-
-def _occupation_dimension(operator):
-    """Return the finite occupation count, or None for an infinite mode."""
-    if isinstance(operator, SpinOp):
-        return operator.dimension
-    return 2 if isinstance(operator, (pauli.SigmaMinus, FermionOp)) else None
-
-
-def _ladder_squared(operator, occupation):
-    """Squared lowering amplitude on an allowed occupation."""
-    if isinstance(operator, LadderOp):
-        return One
-    if isinstance(operator, SpinOp):
-        return occupation * (operator.dimension - occupation)
-    return occupation
-
-
-def _occupation_projector(number, value, size):
-    """Lagrange polynomial selecting one level of a finite occupation domain."""
-    return sympy.prod(
-        (number - other) / sympy.Integer(value - other)
-        for other in range(size)
-        if other != value
-    )
-
-
 # Type aliases
-operator_types = BosonOp, LadderOp, SpinOp, pauli.SigmaOpBase, FermionOp
-OperatorType = BosonOp | LadderOp | SpinOp | pauli.SigmaOpBase | FermionOp
-generator_types = (BosonOp, LadderOp, SpinOp, pauli.SigmaMinus, FermionOp)
+operator_types = BosonOp, LadderOp, pauli.SigmaOpBase, FermionOp
+OperatorType = BosonOp | LadderOp | pauli.SigmaOpBase | FermionOp
+generator_types = (BosonOp, LadderOp, pauli.SigmaMinus, FermionOp)
 operator_type_by_name = {sympy.Symbol(op.__name__): op for op in operator_types}
 PowerKey = tuple[int | sympy.Integer, ...]
 TermDict = dict[PowerKey, sympy.Expr] | tuple[tuple[PowerKey, sympy.Expr], ...] | Tuple
@@ -257,19 +181,25 @@ class NumberOperator(HermitianOperator):
             Unused; required for compatibility with sympy.
 
         """
-        if len(args) == 1:
+        try:
             (operator,) = args
             if not isinstance(operator, operator_types):
                 raise TypeError(
                     "NumberOperator requires a bosonic, ladder, fermionic, or spin operator."
                 )
+            name = operator.name
             operator_type = next(
                 op.__name__ for op in operator_types if isinstance(operator, op)
             )
-            args = (operator.name, operator_type)
-            if isinstance(operator, SpinOp):
-                args += (operator.spin,)
-        return super().__new__(cls, *args, **hints)
+        except ValueError:
+            name, operator_type = args
+
+        return super().__new__(
+            cls,
+            name,
+            operator_type,
+            **hints,
+        )
 
     def doit(self, **hints) -> sympy.Expr:  # noqa: ARG002
         """Evaluate the operator.
@@ -291,7 +221,7 @@ class NumberOperator(HermitianOperator):
         """
         if self.args[1].name == "SigmaOpBase":
             return (pauli.SigmaZ(self.args[0]) + sympy.S.One) / sympy.S(2)
-        if self.args[1].name in ("LadderOp", "SpinOp"):
+        if self.args[1].name == "LadderOp":
             return self  # No alternative form of ladder number operators.
         op = operator_type_by_name[self.args[1]](self.args[0])
         return Dagger(op) * op
@@ -313,7 +243,7 @@ class NumberOperator(HermitianOperator):
         if (
             exp.is_integer
             and exp.is_positive
-            and self.args[1].name in ("FermionOp", "SigmaOpBase")
+            and self.args[1].name not in ("BosonOp", "LadderOp")
         ):
             return self  # Fermionic and spin number operators are idempotent.
         return super()._eval_power(exp)
@@ -392,28 +322,30 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
         names.
 
     """
+    # replace n -> a† * a and convert number ordered forms to expressions.
+    # Number operator of ladder operators need to be included separately.
     expr = expr.doit()
-    operators = {
-        (atom if atom.is_annihilation else atom.adjoint())
-        if isinstance(atom, SpinOp)
-        else generator(atom.name)
-        for particle, generator in zip(operator_types, generator_types)
-        for atom in expr.atoms(particle)
-    }
-    for number in expr.atoms(NumberOperator):
-        if number.args[1].name == "LadderOp":
-            operators.add(LadderOp(number.name))
-        elif number.args[1].name == "SpinOp":
-            operators.add(SpinOp(number.name, number.args[2]))
     return sorted(
-        operators, key=lambda op: (generator_types.index(type(op)), str(op.name))
+        set().union(
+            (
+                op
+                for particle, generator in zip(operator_types, generator_types)
+                for op in (generator(atom.name) for atom in expr.atoms(particle))
+            ),
+            (
+                LadderOp(atom.name)
+                for atom in expr.atoms(NumberOperator)
+                if atom.args[1].name == "LadderOp"
+            ),
+        ),
+        key=lambda op: (generator_types.index(type(op)), str(op.name)),
     )
 
 
 def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     """Convert a NumberOperator to its placeholder symbol."""
     return sympy.Symbol(
-        "number_operator_placeholder_" + "_".join(map(str, op.args)),
+        f"number_operator_placeholder_{op.args[0]}_{op.args[1]}",
         integer=True,
     )
 
@@ -454,8 +386,11 @@ class NumberOrderedForm(Operator):
     is_commutative = None
 
     # Attribute types
-    # Number of modes with nonbinary occupation algebra
-    _n_nonbinary: int
+    _n_bosons: int
+    _n_ladders: int
+    # Number of infinite order operators (bosons + ladders)
+    _n_inf_order: int
+    _n_spins: int
     _n_fermions: int
     # List of placeholder symbols for NumberOperator instances, ordered like operators
     _number_operator_placeholders: list[sympy.Symbol]
@@ -532,37 +467,12 @@ class NumberOrderedForm(Operator):
             # Validate only after conversion
             cls._validate_terms(terms, operators)
 
-        if any(isinstance(op, SpinOp) for op in operators):
-            reduced = []
-            for powers, coefficient in terms:
-                for op, number, power in zip(
-                    operators, number_operator_placeholders, powers
-                ):
-                    if not isinstance(op, SpinOp):
-                        continue
-                    if not power.is_Integer:
-                        raise ValueError("Spin powers must be concrete integers")
-                    size = op.dimension - abs(int(power))
-                    if size <= 0:
-                        coefficient = Zero
-                        break
-                    if number in coefficient.free_symbols:
-                        coefficient = sympy.expand(
-                            sum(
-                                coefficient.xreplace({number: sympy.Integer(n)})
-                                * _occupation_projector(number, n, size)
-                                for n in range(size)
-                            )
-                        )
-                if coefficient != 0:
-                    reduced.append(Tuple(powers, coefficient))
-            terms = Tuple(*reduced)
-
         result = sympy.Expr.__new__(cls, operators, terms, **hints)
 
-        result._n_nonbinary = sum(
-            isinstance(op, (BosonOp, LadderOp, SpinOp)) for op in operators
-        )
+        result._n_bosons = sum(isinstance(op, BosonOp) for op in operators)
+        result._n_ladders = sum(isinstance(op, LadderOp) for op in operators)
+        result._n_inf_order = result._n_bosons + result._n_ladders
+        result._n_spins = sum(isinstance(op, pauli.SigmaMinus) for op in operators)
         result._n_fermions = sum(isinstance(op, FermionOp) for op in operators)
         result._placeholder_to_number_operator = _placeholder_to_number_operator
         result._number_operator_to_placeholder = replacements
@@ -591,7 +501,7 @@ class NumberOrderedForm(Operator):
         """
         if not all(isinstance(op, generator_types) for op in operators):
             raise TypeError(
-                "Operators must be BosonOp, LadderOp, SpinOp, SigmaMinus, or FermionOp."
+                "Operators must be BosonOp, LadderOp, SigmaMinus, or FermionOp."
             )
         if not all(op.is_annihilation for op in operators):
             raise ValueError("Operators must be annihilation operators.")
@@ -925,9 +835,9 @@ class NumberOrderedForm(Operator):
     def to_matrix(self, occupations=None):
         """Evaluate on an explicitly chosen product occupation basis.
 
-        Finite spins and fermions use their full bases by default. For infinite
+        Pauli spins and fermions use their full bases by default. For infinite
         modes, supply one occupation sequence per operator, for example
-        ``[range(5), range(3)]`` for an oscillator and spin one. The resulting
+        ``[range(5), range(2)]`` for an oscillator and a fermion. The resulting
         matrix is a compression of this expression, with products evaluated
         before truncation. Rows and columns follow lexicographic occupation order.
         """
@@ -1081,7 +991,7 @@ class NumberOrderedForm(Operator):
         # Create a new terms dictionary for the result
         new_terms = {}
 
-        if op_index < self._n_nonbinary:  # Bosons, ladders, and higher spins
+        if op_index < self._n_inf_order:  # Bosons and ladders
             for powers, coeff in self.args[1]:
                 orig_power = powers[op_index]  # Power of the operator at op_index
                 new_power = orig_power + op_power
@@ -1092,9 +1002,10 @@ class NumberOrderedForm(Operator):
                     # Compute how many new number operators appear
                     to_pair = min(op_power, max(-orig_power, 0))
                     coeff = coeff.xreplace({n_operator: n_operator - to_pair})
-                    coeff *= sympy.prod(
-                        _ladder_squared(operator, n_operator - i) for i in range(to_pair)
-                    )
+                    if op_index < self._n_bosons:  # Bosons
+                        coeff = sympy.Mul(
+                            coeff, *(n_operator - i for i in range(to_pair))
+                        )
                 else:
                     to_pair = min(-op_power, max(orig_power, 0))
                     # Move unmatched creation operators to the left of the coefficient.
@@ -1104,10 +1015,14 @@ class NumberOrderedForm(Operator):
                         )
                     # Pairing operators produces number factors. Move these factors
                     # past the unmatched operators to restore number order.
-                    coeff *= sympy.prod(
-                        _ladder_squared(operator, n_operator + abs(new_power) + i)
-                        for i in range(1, to_pair + 1)
-                    )
+                    if op_index < self._n_bosons:  # Bosons
+                        new_numbers = sympy.Mul(
+                            *[
+                                n_operator + abs(new_power) + sympy.S(i)
+                                for i in range(1, to_pair + 1)
+                            ]
+                        )
+                        coeff = coeff * new_numbers
                 new_terms[new_powers] = coeff
         else:  # Fermions and spins
             if abs(op_power) > One:
@@ -1196,7 +1111,7 @@ class NumberOrderedForm(Operator):
                 if power == 0:
                     continue
                 n_i = self._number_operator_placeholders[i]
-                if i < self._n_nonbinary:  # Nonbinary occupations
+                if i < self._n_inf_order:  # Bosons or ladders
                     if power > 0:
                         # a * n_a = n_a + 1
                         replacements[n_i] = n_i + power
@@ -1225,14 +1140,14 @@ class NumberOrderedForm(Operator):
             A new NumberOrderedForm with the fermionic and spin number operators canceled.
 
         """
-        if not (binary_ops := self.operators[self._n_nonbinary :]):
+        if not (binary_ops := self.operators[self._n_inf_order :]):
             # No binary operators, nothing to do
             return self
 
         new_terms = {}
         for powers, coeff in self.args[1]:
             replacements = {}
-            for p, op in zip(powers[self._n_nonbinary :], binary_ops):
+            for p, op in zip(powers[self._n_inf_order :], binary_ops):
                 if not p:
                     continue
                 replacements[_number_operator_to_placeholder(NumberOperator(op))] = Zero
@@ -1579,7 +1494,7 @@ class NumberOrderedForm(Operator):
         if not (
             binary_numbers := [
                 _number_operator_to_placeholder(NumberOperator(op))
-                for op in self.operators[self._n_nonbinary :]
+                for op in self.operators[self._n_inf_order :]
             ]
         ):
             # No binary operators, nothing to do
@@ -1645,14 +1560,14 @@ class NumberOrderedForm(Operator):
         # symbolic integer exponents that are provably greater than one.
         if exp.is_integer and (exp - 1).is_positive and len(self.terms) == 1:
             powers = next(iter(self.terms))
-            if any(powers[self._n_nonbinary :]):
+            if any(powers[self._n_inf_order :]):
                 return type(self)(self.operators, {}, validate=False)
 
         # Positive symbolic bosonic powers are used as selective masks.
         if not self.is_particle_conserving() and exp.is_integer and exp.is_nonnegative:
             if len(self.terms) == 1 and not exp.is_Integer:
                 powers, coeff = next(iter(self.terms.items()))
-                if not any(powers[self._n_nonbinary :]) and not coeff.has(
+                if not any(powers[self._n_inf_order :]) and not coeff.has(
                     *self._number_operator_placeholders
                 ):
                     return type(self)(
@@ -1818,6 +1733,11 @@ class NumberOrderedForm(Operator):
         return type(self)(self.operators, new_terms, validate=False)
 
 
+def _occupation_dimension(operator):
+    """Return the dimension of an existing finite occupation mode."""
+    return 2 if isinstance(operator, (FermionOp, pauli.SigmaMinus)) else None
+
+
 def _one_term(
     operators,
     powers: tuple[int, ...],
@@ -1950,10 +1870,8 @@ class _NOFTransition:
     ) -> sympy.Expr:
         operator = self.operators[index]
         occupation = state[index]
-        if isinstance(operator, (BosonOp, SpinOp)):
-            factor = sympy.sqrt(
-                _ladder_squared(operator, occupation if annihilate else occupation + 1)
-            )
+        if isinstance(operator, BosonOp):
+            factor = sympy.sqrt(occupation if annihilate else occupation + 1)
         elif isinstance(operator, LadderOp):
             factor = sympy.S.One
         elif isinstance(operator, pauli.SigmaMinus):

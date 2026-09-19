@@ -15,7 +15,7 @@ from sympy.physics.quantum.pauli import SigmaMinus
 
 from pymablock import block_diagonalize
 from pymablock._operator_embedding import ModuleEndomorphism, OperatorMap
-from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm, SpinOp
+from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.operator_embedding import _NOFTransition, _number_symbols
 from pymablock.second_quantization import Embedding
@@ -81,18 +81,14 @@ def test_frozen_fermion_phase_is_internal() -> None:
     )
 
 
-def test_higher_spin_returns_symbolic_operators() -> None:
+def test_reference_list_returns_matrix() -> None:
     source = BosonOp("source")
-    retained_spin = SpinOp("S", 1)
     frequency, coupling = sympy.symbols(
         "frequency coupling",
         nonzero=True,
         real=True,
     )
-    embedding = Embedding(
-        {retained_spin: sympy.sqrt(2 - N(source)) * source},
-        reference={source: 0},
-    )
+    embedding = Embedding(reference=[{source: n} for n in range(3)])
 
     effective, *_ = block_diagonalize(
         [
@@ -102,8 +98,8 @@ def test_higher_spin_returns_symbolic_operators() -> None:
         subspace_eigenvectors=embedding,
     )
 
-    assert isinstance(effective[0, 0, 2], NumberOrderedForm)
-    assert effective[0, 0, 2].to_matrix() == sympy.diag(
+    assert isinstance(effective[0, 0, 2], sympy.MatrixBase)
+    assert effective[0, 0, 2] == sympy.diag(
         0,
         0,
         -3 * coupling**2 / frequency,
@@ -225,10 +221,7 @@ def test_finite_virtual_resonance_still_raises() -> None:
     """Dropping transitions within P must not hide a resonant state in Q."""
     a = BosonOp("a")
     n = NumberOperator(a)
-    embedding = Embedding(
-        {SpinOp("S", 1): sympy.sqrt(2 - N(a)) * a},
-        reference={a: 0},
-    )
+    embedding = Embedding(reference=[{a: n} for n in range(3)])
     # Retained n=2 and excluded n=3 both have energy -6.
     effective, *_ = block_diagonalize(
         [n * (n - 5), a + Dagger(a)], subspace_eigenvectors=embedding
@@ -241,18 +234,22 @@ def test_finite_virtual_resonance_still_raises() -> None:
 def test_boson_annihilation_preserves_occupation_dependent_denominator(finite):
     """Intermediate energies are 10 and 11, versus retained energies 1 and 4."""
     a, b = BosonOp("a"), BosonOp("b")
-    s = SpinOp("S", sympy.S.Half) if finite else SigmaMinus("s")
+    s = SigmaMinus("s")
     n = NumberOperator(s)
-    embedding = Embedding(
-        {s: a / sympy.sqrt(2)},
-        reference={a: 1, b: 0},
+    embedding = (
+        Embedding(
+            {s: a / sympy.sqrt(2)},
+            reference={a: 1, b: 0},
+        )
+        if not finite
+        else Embedding(reference=[{a: n, b: 0} for n in (1, 2)])
     )
     effective, *_ = block_diagonalize(
         [NumberOperator(a) ** 2 + 10 * NumberOperator(b), Dagger(b) * a + Dagger(a) * b],
         subspace_eigenvectors=embedding,
     )
     expected = NumberOrderedForm.from_expr(-(1 - n) / 9 - 2 * n / 7, operators=(s,))
-    assert effective[0, 0, 2] == expected
+    assert effective[0, 0, 2] == (expected.to_matrix() if finite else expected)
 
 
 @pytest.mark.parametrize("coupled", [False, True])
@@ -422,7 +419,7 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
         modes[i] for i in ((0, 2, 1, 3) if interleave else (0, 1, 2, 3))
     )
     f, g = FermionOp("f"), FermionOp("g")
-    s = SpinOp("S", sympy.S.Half) if finite else SigmaMinus("s")
+    s = SigmaMinus("s")
     first, second = (g, f) if reverse else (f, g)
     backend = Embedding(
         {s: Dagger(down) * up, first: left, second: right},
@@ -447,6 +444,13 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
         columns.append(column)
     w = np.column_stack(columns)
     np.testing.assert_allclose(w.T @ w, np.eye(8))
+    references = [
+        dict(zip(modes, state, strict=True))
+        for state in source_states
+        if state[modes.index(up)] + state[modes.index(down)] == 1
+    ]
+    finite_embedding = Embedding(reference=references)
+    selected = [source_states.index(tuple(ref[op] for op in modes)) for ref in references]
     target_matrices = occupation_matrices(
         backend.target.operators,
         [(0, 1)] * 3,
@@ -462,8 +466,15 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     ):
         result = backend._pullback(backend._source_form(expression))
         actual = operator_matrix(result, target_matrices).toarray()
-        expected = w.T @ operator_matrix(expression, matrices) @ w
+        full = operator_matrix(expression, matrices).toarray()
+        expected = w.T @ full @ w
         np.testing.assert_allclose(actual, expected, atol=1e-14)
+        if finite:
+            np.testing.assert_allclose(
+                np.array(finite_embedding.restrict(expression), dtype=complex),
+                full[np.ix_(selected, selected)],
+                atol=1e-14,
+            )
     # The chosen columns preserve each directly retained fermion generator.
     for source, target in ((left, first), (right, second)):
         np.testing.assert_allclose(
@@ -476,19 +487,29 @@ def test_mixed_target_second_order(finite):
     """A spin-dependent hopping amplitude gives -N(f) N(s)**2 / 3."""
     a, v = FermionOp("a"), FermionOp("v")
     b, f = BosonOp("b"), FermionOp("f")
-    s = SpinOp("S", 1) if finite else SigmaMinus("s")
-    embedding = Embedding(
-        {f: a, s: sympy.sqrt(2 - N(b)) * b if finite else b},
-        reference={a: 0, v: 0, b: 0},
+    s = SigmaMinus("s")
+    embedding = (
+        Embedding(
+            {f: a, s: b},
+            reference={a: 0, v: 0, b: 0},
+        )
+        if not finite
+        else Embedding(reference=[{a: n, b: k, v: 0} for n in range(2) for k in range(3)])
     )
     h, *_ = block_diagonalize(
         [N(a) + 4 * N(v) + 10 * N(b), N(b) * (Dagger(v) * a + Dagger(a) * v)],
         subspace_eigenvectors=embedding,
     )
-    expected = NumberOrderedForm.from_expr(
-        -N(f) * N(s) ** 2 / 3, operators=embedding.target.operators
-    )
-    assert (h[0, 0, 2] - expected).applyfunc(sympy.simplify).is_zero
+    if finite:
+        expected = sympy.diag(
+            *[-sympy.Rational(n * k**2, 3) for n in range(2) for k in range(3)]
+        )
+        assert h[0, 0, 2] == expected
+    else:
+        expected = NumberOrderedForm.from_expr(
+            -N(f) * N(s) ** 2 / 3, operators=embedding.target.operators
+        )
+        assert (h[0, 0, 2] - expected).applyfunc(sympy.simplify).is_zero
 
 
 def _only_transition(expression, operators):
@@ -734,32 +755,6 @@ def test_symbolic_rotation_and_cross_relations():
         Embedding({f: amplitude * a}, reference={a: 0})
 
 
-def test_higher_spin_composes_with_infinite_oscillator(monkeypatch):
-    from pymablock.operator_embedding import _TargetSpace
-
-    def no_enumeration(_):
-        raise AssertionError("The retained oscillator must not be truncated")
-
-    monkeypatch.setattr(_TargetSpace, "states", property(no_enumeration))
-    a, b, v, r = (BosonOp(name) for name in ("a", "b", "v", "r"))
-    s = SpinOp("S", sympy.Rational(3, 2))
-    embedding = Embedding(
-        {r: a, s: sympy.sqrt(3 - N(b)) * b}, reference={a: 0, b: 0, v: 0}
-    )
-    h, *_ = block_diagonalize(
-        [2 * N(a) + 11 * N(b) + 7 * N(v), N(b) * (Dagger(v) * a + Dagger(a) * v)],
-        subspace_eigenvectors=embedding,
-    )
-    assert isinstance(h[0, 0, 2], NumberOrderedForm)
-    assert (h[0, 0, 2] + N(r) * N(s) ** 2 / 5).applyfunc(sympy.simplify).is_zero
-    with pytest.raises(ValueError, match="infinite modes"):
-        h[0, 0, 2].to_matrix()
-    expected = sympy.diag(
-        *[-sympy.Rational(n * k**2, 5) for n in range(6) for k in range(4)]
-    )
-    assert h[0, 0, 2].to_matrix([range(6), range(4)]) == expected
-
-
 def test_three_mode_rotation_with_frozen_fermionic_spectator():
     a, b, c, fixed = (FermionOp(name) for name in ("a", "b", "c", "0_fixed"))
     f, g = FermionOp("f"), FermionOp("g")
@@ -783,3 +778,102 @@ def test_three_mode_rotation_with_frozen_fermionic_spectator():
         ).toarray()
         expected = w.conj().T @ operator_matrix(expression, matrices) @ w
         np.testing.assert_allclose(actual, expected, atol=1e-14)
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("occupations", [(0, 0), (1, 2)])
+def test_matrix_with_operator_entries_against_full_matrix(reverse, occupations):
+    """Nondegenerate retained levels and complex couplings through fourth order."""
+    b = BosonOp("b")
+    h0 = sympy.diag(5 * N(b), 2 + 5 * N(b))
+    v = sympy.Matrix(
+        [
+            [b + Dagger(b), 2 * b + 3 * sympy.I * Dagger(b) + 1],
+            [2 * Dagger(b) - 3 * sympy.I * b + 1, 2 * (b + Dagger(b))],
+        ]
+    )
+    components = (1, 0) if reverse else (0, 1)
+    embedding = Embedding(reference=[(i, {b: occupations[i]}) for i in components])
+    effective, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
+    # A returning four-step path rises by at most two levels. Both cutoffs close it.
+    for cutoff in (5, 6):
+        lowering = sympy.zeros(cutoff)
+        for n in range(1, cutoff):
+            lowering[n - 1, n] = sympy.sqrt(n)
+        # Explicitly assemble component blocks, without NOF/embedding arithmetic.
+        full_h0 = sympy.diag(*range(0, 5 * cutoff, 5), *range(2, 2 + 5 * cutoff, 5))
+        full_v = sympy.BlockMatrix(
+            [
+                [
+                    lowering + lowering.T,
+                    2 * lowering + 3 * sympy.I * lowering.T + sympy.eye(cutoff),
+                ],
+                [
+                    2 * lowering.T - 3 * sympy.I * lowering + sympy.eye(cutoff),
+                    2 * (lowering + lowering.T),
+                ],
+            ]
+        ).as_explicit()
+        kept = [i * cutoff + occupations[i] for i in components]
+        complement = [i for i in range(2 * cutoff) if i not in kept]
+        basis = sympy.eye(2 * cutoff)
+        reference, *_ = block_diagonalize(
+            [full_h0, full_v],
+            subspace_eigenvectors=[basis[:, kept], basis[:, complement]],
+        )
+        for order in range(5):
+            assert (effective[0, 0, order] - reference[0, 0, order]).applyfunc(
+                sympy.simplify
+            ) == sympy.zeros(2)
+
+
+def test_reference_list_compresses_products_before_selecting_states():
+    b = BosonOp("b")
+    embedding = Embedding(reference=[{b: 2}, {b: 0}])
+    assert embedding.restrict(b) == sympy.zeros(2)
+    assert embedding.restrict(b * Dagger(b)) == sympy.diag(3, 1)
+    assert embedding.restrict(b**2) == sympy.Matrix([[0, 0], [sympy.sqrt(2), 0]])
+
+
+def test_pure_matrix_source_retains_degenerate_internal_transitions():
+    embedding = Embedding(reference=[(1, {}), (0, {})])
+    h0 = sympy.diag(0, 0, 7)
+    v = sympy.Matrix([[0, 2, 1], [2, 0, sympy.I], [1, -sympy.I, 0]])
+    h, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
+    assert h[0, 0, 1] == sympy.Matrix([[0, 2], [2, 0]])
+    assert h[0, 0, 2] == -sympy.Matrix([[1, sympy.I], [-sympy.I, 1]]) / 7
+
+
+@pytest.mark.parametrize(
+    "reference, message",
+    [
+        ([], "at least one"),
+        ([{}, {}], "distinct"),
+        ([(1.5, {})], "indices"),
+        ([{BosonOp("b"): -1}], "occupations"),
+        ([{FermionOp("f"): 2}], "occupations"),
+        ([{}, {BosonOp("b"): 0}], "same source"),
+    ],
+)
+def test_invalid_reference_lists(reference, message):
+    with pytest.raises(ValueError, match=message):
+        Embedding(reference=reference)
+
+
+def test_matrix_source_validation():
+    embedding = Embedding(reference=[(1, {})])
+    with pytest.raises(ValueError, match="matrix source"):
+        embedding.restrict(1)
+    with pytest.raises(ValueError, match="outside"):
+        embedding.restrict(sympy.eye(1))
+    with pytest.raises(ValueError, match="square"):
+        embedding.restrict(sympy.zeros(2, 3))
+    with pytest.raises(ValueError, match="diagonal H0"):
+        block_diagonalize(
+            [sympy.Matrix([[0, 1], [1, 2]])], subspace_eigenvectors=embedding
+        )
+    h, *_ = block_diagonalize(
+        [sympy.diag(1, 2), sympy.eye(3)], subspace_eigenvectors=embedding
+    )
+    with pytest.raises(ValueError, match="same source matrix shape"):
+        _ = h[0, 0, 1]

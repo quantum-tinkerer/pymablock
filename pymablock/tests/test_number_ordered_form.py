@@ -208,7 +208,7 @@ def test_number_ordered_form_validation():
     # Test with non-quantum operator
     with pytest.raises(
         TypeError,
-        match=r"Operators must be BosonOp, LadderOp, SpinOp, SigmaMinus, or FermionOp\.",
+        match=r"Operators must be BosonOp, LadderOp, SigmaMinus, or FermionOp\.",
     ):
         NumberOrderedForm([sympy.Symbol("x")], {(0,): sympy.S.One})
 
@@ -1724,58 +1724,3 @@ def test_binary_normalization_does_not_introduce_spectator_numbers():
         iter(NumberOrderedForm.from_expr(n1, operators=operators).terms.values())
     )
     assert sympy.expand(coefficient - expected) == 0
-
-
-@pytest.mark.parametrize("spin", [sympy.S.Half, sympy.S.One, sympy.Rational(3, 2)])
-def test_higher_spin_algebra_against_matrices(spin):
-    from pymablock.number_ordered_form import SpinOp
-    from pymablock.tests.second_quantization_helpers import (
-        occupation_matrices,
-        operator_matrix,
-    )
-
-    a, s, f = boson.BosonOp("a"), SpinOp("S", spin), fermion.FermionOp("f")
-    operators = (a, s, f)
-    matrices = occupation_matrices(operators, [range(7), range(s.dimension), range(2)])
-    n = NumberOperator(s)
-    first = Dagger(s) * f + (1 + n**2) * a + s**2
-    second = Dagger(f) * s + Dagger(a) * (3 - n) + Dagger(s) ** 2
-    left, right = (
-        NumberOrderedForm.from_expr(x, operators=operators) for x in (first, second)
-    )
-    actual = operator_matrix(left * right, matrices).toarray()
-    expected = (
-        operator_matrix(first, matrices) @ operator_matrix(second, matrices)
-    ).toarray()
-    # Boson cutoff artifacts can only affect the highest levels.
-    size = 5 * s.dimension * 2
-    np.testing.assert_allclose(actual[:size, :size], expected[:size, :size], atol=1e-12)
-    np.testing.assert_allclose(
-        np.asarray(
-            left.to_matrix([range(7), range(s.dimension), range(2)]), dtype=complex
-        ),
-        operator_matrix(first, matrices).toarray(),
-        atol=1e-12,
-    )
-    commutator = NumberOrderedForm.from_expr(s * Dagger(s) - Dagger(s) * s)
-    assert (commutator - (2 * spin - 2 * n)).applyfunc(sympy.simplify).is_zero
-    assert NumberOrderedForm.from_expr(s**s.dimension).is_zero
-    assert s.func(*s.args) == s
-    assert n.func(*n.args) == n
-    assert Dagger(Dagger(s)) == s
-    assert NumberOperator(SpinOp("S", spin + 1)) != n
-
-
-def test_higher_spin_sylvester_uses_physical_occupation_support():
-    from pymablock.number_ordered_form import SpinOp
-    from pymablock.second_quantization import solve_scalar
-
-    s = SpinOp("S", 1)
-    n = NumberOrderedForm.from_expr(NumberOperator(s))
-    assert solve_scalar(n, n, 0).to_matrix() == sympy.diag(0, 1, 1)
-    with pytest.raises(ValueError, match="energy difference is zero"):
-        solve_scalar(NumberOrderedForm.from_expr(1, operators=(s,)), n, 0)
-    # The denominator vanishes only at an occupation outside this raising term's support.
-    y = NumberOrderedForm.from_expr(Dagger(s))
-    result = solve_scalar(y, n, 3)
-    assert n.to_matrix() * result.to_matrix() - 3 * result.to_matrix() == y.to_matrix()
