@@ -122,35 +122,52 @@ class Embedding:
 
     """
 
+    def __new__(cls, generators=None, *, reference):  # noqa: ARG004
+        """Choose the compiled representation once, at the public boundary."""
+        if cls is Embedding:
+            cls = _ReferenceEmbedding if generators is None else _GeneratorEmbedding
+        return object.__new__(cls)
+
+    def restrict(self, expression):
+        """Return ``W† expression W`` after evaluating the full source product."""
+        return self._pullback(self._source_form(expression))
+
+    def encode(self, state):  # noqa: ARG002
+        """Return source occupations for a generator-target occupation tuple."""
+        raise TypeError("Reference-list embeddings already specify their source basis")
+
+    @cached_property
+    def _source_placeholders(self):
+        return _number_symbols(self.operators)
+
+    def _source_scalar(self, expression) -> NumberOrderedForm:
+        """Convert an expression into the source algebra of the embedding."""
+        if isinstance(expression, NumberOrderedForm):
+            if expression.operators == self.operators:
+                return expression
+            expression = expression.as_expr()
+        expression = sympy.sympify(expression)
+        if self._rotation:
+            expression = expression.doit().xreplace(self._rotation)
+        if set(find_operators(expression)) - set(self.operators):
+            raise ValueError("Every source mode must be declared in the reference")
+        result = NumberOrderedForm.from_expr(expression, operators=self.operators)
+        return result.applyfunc(sympy.simplify) if self._rotation else result
+
+
+class _GeneratorEmbedding(Embedding):
+    """Symbolic target algebra generated from one reference state."""
+
     def __init__(self, generators: Mapping | None = None, *, reference):
         """Compile the representation generated from the reference."""
-        self._references = None
-        if generators is None:
-            self._init_references(reference)
-            return
         if not isinstance(generators, Mapping) or not isinstance(reference, Mapping):
             raise TypeError("Generators and reference must be mappings")
         if not reference:
             raise ValueError("Specify the source reference occupations")
-        if not all(
-            isinstance(op, generator_types) and op.is_annihilation for op in reference
-        ):
-            raise TypeError("Reference keys must be source lowering generators")
         self._rotation, generators, reference = _rotate_linear_modes(
             generators, reference
         )
-        self.operators = tuple(sorted(reference, key=_operator_sort_key))
-        self.reference = tuple(sympy.sympify(reference[op]) for op in self.operators)
-        for op, value in zip(self.operators, self.reference, strict=True):
-            if (
-                not value.is_Integer
-                or (not isinstance(op, LadderOp) and value < 0)
-                or (
-                    _occupation_dimension(op) is not None
-                    and value >= _occupation_dimension(op)
-                )
-            ):
-                raise ValueError("Reference occupations lie outside the source algebra")
+        self.operators, self.reference = _reference_state(reference)
         numbers = {
             op: value
             for op, value in generators.items()
@@ -234,49 +251,10 @@ class Embedding:
                 f"Ladder number image {op} must count from the target reference index zero",
             )
 
-    def _init_references(self, references):
-        """Use an ordered orthonormal product basis for a finite matrix target."""
-        if isinstance(references, Mapping):
-            raise TypeError("A matrix target requires a list of reference states")
-        references = list(references)
-        if not references:
-            raise ValueError("Specify at least one reference state")
-        states = []
-        for reference in references:
-            component, occupations = (
-                (0, reference) if isinstance(reference, Mapping) else reference
-            )
-            component = sympy.sympify(component)
-            if not component.is_Integer or component < 0:
-                raise ValueError("Matrix basis indices must be nonnegative integers")
-            if not isinstance(occupations, Mapping) or not all(
-                isinstance(op, generator_types) and op.is_annihilation
-                for op in occupations
-            ):
-                raise TypeError(
-                    "Reference occupations must map source lowering generators to integers"
-                )
-            operators = tuple(sorted(occupations, key=_operator_sort_key))
-            if states and operators != self.operators:
-                raise ValueError("Every reference must declare the same source modes")
-            self.operators = operators
-            state = tuple(sympy.sympify(occupations[op]) for op in operators)
-            if any(
-                not n.is_Integer
-                or (not isinstance(op, LadderOp) and n < 0)
-                or (
-                    _occupation_dimension(op) is not None
-                    and n >= _occupation_dimension(op)
-                )
-                for op, n in zip(operators, state, strict=True)
-            ):
-                raise ValueError("Reference occupations lie outside the source algebra")
-            states.append((int(component), state))
-        if len(set(states)) != len(states):
-            raise ValueError("Reference states must be distinct")
-        self._references = tuple(states)
-        self._reference_indices = {state: i for i, state in enumerate(states)}
-        self._rotation = {}
+    def _source_form(self, expression):
+        if isinstance(expression, sympy.MatrixBase):
+            raise TypeError("Matrix sources require a list of reference states")
+        return self._source_scalar(expression)
 
     def _validate_domains(self):
         """Check all generated occupations without enumerating target states."""
@@ -391,20 +369,12 @@ class Embedding:
                         difference, f"{context} at occupation {k}", {q: sympy.Integer(k)}
                     )
 
-    def restrict(self, expression):
-        """Return ``W† expression W`` after evaluating the full source product."""
-        return self._pullback(self._source_form(expression))
-
     def encode(self, state: tuple[int, ...]) -> tuple[int, ...]:
         """Return occupations in the compiled source basis for a target tuple.
 
         With linear mode mixing, these are occupations of the rotated modes,
         not of the original source operators.
         """
-        if self._references is not None:
-            raise TypeError(
-                "Reference-list embeddings already specify their source basis"
-            )
         if len(state) != len(self.target.operators):
             raise ValueError("State has the wrong number of target occupations")
         for value, op, size in zip(
@@ -424,25 +394,17 @@ class Embedding:
         )
 
     @cached_property
-    def _source_placeholders(self):
-        return _number_symbols(self.operators)
-
-    @cached_property
     def _target_placeholders(self):
         return _number_symbols(self.target.operators)
 
     @cached_property
     def _target_identity(self):
-        if self._references is not None:
-            return sympy.ImmutableSparseMatrix.eye(len(self._references))
         return _one_term(
             self.target.operators, (0,) * len(self.target.operators), sympy.S.One
         )
 
     @cached_property
     def _target_zero(self):
-        if self._references is not None:
-            return sympy.ImmutableSparseMatrix.zeros(len(self._references))
         return NumberOrderedForm(self.target.operators, {}, validate=False)
 
     @cache
@@ -506,6 +468,11 @@ class Embedding:
             if symbol not in support
         }
 
+    def _shifted_occupations(self, powers):
+        """Source occupations after a target monomial acts."""
+        shift = {q: q - p for q, p in zip(self.coordinate_symbols, powers, strict=True)}
+        return tuple(n.xreplace(shift) for n in self.source_occupations)
+
     @cache
     def _support_substitutions(
         self,
@@ -513,53 +480,13 @@ class Embedding:
         _target_shift: tuple[int, ...],
     ) -> dict[sympy.Symbol, sympy.Expr]:
         """Infer Boolean coordinates fixed by a composed transition."""
-        after_target = {
-            symbol: symbol - power
-            for symbol, power in zip(self.coordinate_symbols, _target_shift, strict=True)
-        }
-        before_source = tuple(
-            occupation.xreplace(after_target) for occupation in self.source_occupations
-        )
+        before_source = self._shifted_occupations(_target_shift)
         equations = list(transition.support_equations(before_source))
         equations.extend(
-            symbol - (1 if power > 0 else 0)
-            for symbol, power, size in zip(
-                self.coordinate_symbols,
-                _target_shift,
-                self.target.dimensions,
-                strict=True,
-            )
-            if power and size == 2
+            symbol - value
+            for symbol, value in self._transition_support(_target_shift).items()
         )
         return _boolean_solutions(equations, self.coordinate_symbols)
-
-    def _source_form(self, expression):
-        """Normalize scalar or matrix source expressions without truncation."""
-        if isinstance(expression, sympy.MatrixBase):
-            if self._references is None:
-                raise TypeError("Matrix sources require a list of reference states")
-            if expression.rows != expression.cols:
-                raise ValueError("Source matrices must be square")
-            if any(component >= expression.rows for component, _ in self._references):
-                raise ValueError("Reference matrix index lies outside the source matrix")
-            return sympy.ImmutableSparseMatrix(expression.applyfunc(self._source_scalar))
-        if self._references is not None and any(c for c, _ in self._references):
-            raise ValueError("Nonzero reference matrix indices require a matrix source")
-        return self._source_scalar(expression)
-
-    def _source_scalar(self, expression) -> NumberOrderedForm:
-        """Convert an expression into the source algebra of the embedding."""
-        if isinstance(expression, NumberOrderedForm):
-            if expression.operators == self.operators:
-                return expression
-            expression = expression.as_expr()
-        expression = sympy.sympify(expression)
-        if self._rotation:
-            expression = expression.doit().xreplace(self._rotation)
-        if set(find_operators(expression)) - set(self.operators):
-            raise ValueError("Every source mode must be declared in the reference")
-        result = NumberOrderedForm.from_expr(expression, operators=self.operators)
-        return result.applyfunc(sympy.simplify) if self._rotation else result
 
     @cache
     def _project_transition(
@@ -594,20 +521,6 @@ class Embedding:
         """Return ``W† source W`` without enumerating the discarded space."""
         source = self._source_form(source)
         result = self._target_zero
-        if self._references is not None:
-            entries = {}
-            for row, column, entry in _source_entries(source):
-                for transition in _NOFTransition.from_form(entry):
-                    for j, (component, state) in enumerate(self._references):
-                        if component != column:
-                            continue
-                        action = transition.apply(state)
-                        if action is None:
-                            continue
-                        i = self._reference_indices.get((row, action.output_state))
-                        if i is not None:
-                            entries[i, j] = entries.get((i, j), 0) + action.weight
-            return sympy.ImmutableSparseMatrix(result.rows, result.cols, entries)
         for transition in _NOFTransition.from_form(source):
             result += self._project_transition(transition)
         return NumberOrderedForm(
@@ -621,13 +534,104 @@ class Embedding:
         )
 
 
-def _source_entries(source):
-    """Iterate matrix entries, treating scalar sources as one component."""
-    if isinstance(source, sympy.MatrixBase):
+class _ReferenceEmbedding(Embedding):
+    """Finite target matrix in an ordered source occupation basis."""
+
+    def __init__(self, generators=None, *, reference):  # noqa: ARG002
+        """Use an ordered orthonormal product basis for a finite matrix target."""
+        if isinstance(reference, Mapping):
+            raise TypeError("A matrix target requires a list of reference states")
+        references = list(reference)
+        if not references:
+            raise ValueError("Specify at least one reference state")
+        states = []
+        for reference in references:
+            component, occupations = (
+                (0, reference) if isinstance(reference, Mapping) else reference
+            )
+            component = sympy.sympify(component)
+            if not component.is_Integer or component < 0:
+                raise ValueError("Matrix basis indices must be nonnegative integers")
+            operators, state = _reference_state(occupations)
+            if states and operators != self.operators:
+                raise ValueError("Every reference must declare the same source modes")
+            self.operators = operators
+            states.append((int(component), state))
+        if len(set(states)) != len(states):
+            raise ValueError("Reference states must be distinct")
+        self._references = tuple(states)
+        self._reference_indices = {state: i for i, state in enumerate(states)}
+        self._rotation = {}
+
+    def _source_form(self, expression):
+        """Use one matrix representation, including 1x1 scalar sources."""
+        if not isinstance(expression, sympy.MatrixBase):
+            if any(c for c, _ in self._references):
+                raise ValueError(
+                    "Nonzero reference matrix indices require a matrix source"
+                )
+            expression = sympy.ImmutableSparseMatrix([[expression]])
+        if expression.rows != expression.cols:
+            raise ValueError("Source matrices must be square")
+        if any(component >= expression.rows for component, _ in self._references):
+            raise ValueError("Reference matrix index lies outside the source matrix")
+        return sympy.ImmutableSparseMatrix(expression.applyfunc(self._source_scalar))
+
+    @cached_property
+    def _target_identity(self):
+        return sympy.ImmutableSparseMatrix.eye(len(self._references))
+
+    @cached_property
+    def _target_zero(self):
+        return sympy.ImmutableSparseMatrix.zeros(len(self._references))
+
+    def _actions(self, source):
+        """Yield (source factor, reference column, output state, amplitude).
+
+        Matrix indices and occupation transitions are resolved here, once for
+        both compression and virtual-channel division. The factor retains the
+        ladder weight; the amplitude identifies its action on this reference.
+        """
         for (row, column), entry in source.todok().items():
-            yield row, column, entry
-    else:
-        yield 0, 0, source
+            for transition in _NOFTransition.from_form(entry):
+                factor = sympy.ImmutableSparseMatrix(
+                    *source.shape, {(row, column): transition.form}
+                )
+                for j, (component, state) in enumerate(self._references):
+                    if (
+                        component == column
+                        and (action := transition.apply(state)) is not None
+                    ):
+                        yield factor, j, (row, action.output_state), action.weight
+
+    @cache
+    def _pullback(self, source):
+        entries = {}
+        for _, j, state, amplitude in self._actions(self._source_form(source)):
+            if (i := self._reference_indices.get(state)) is not None:
+                entries[i, j] = entries.get((i, j), 0) + amplitude
+        return sympy.ImmutableSparseMatrix(
+            len(self._references), len(self._references), entries
+        )
+
+
+def _reference_state(reference):
+    """Validate and order one product occupation state."""
+    if not isinstance(reference, Mapping) or not all(
+        isinstance(op, generator_types) and op.is_annihilation for op in reference
+    ):
+        raise TypeError("Reference keys must be source lowering generators")
+    operators = tuple(sorted(reference, key=_operator_sort_key))
+    state = tuple(sympy.sympify(reference[op]) for op in operators)
+    for op, n in zip(operators, state, strict=True):
+        size = _occupation_dimension(op)
+        if (
+            not n.is_Integer
+            or (not isinstance(op, LadderOp) and n < 0)
+            or (size is not None and n >= size)
+        ):
+            raise ValueError("Reference occupations lie outside the source algebra")
+    return operators, state
 
 
 def _boolean_solutions(

@@ -381,7 +381,7 @@ def test_lazy_complement_endomorphisms_match_explicit_projection() -> None:
     left = sympy.ImmutableMatrix([[1, 0, 1], [0, 2, 0], [3, 0, 4]])
     column = OperatorMap.from_source(embedding, source)
 
-    source_action = ModuleEndomorphism.source(embedding, left)
+    source_action = ModuleEndomorphism.source(left)
     assert _lower(source_action.apply(column)) == (
         embedding.projector * left * embedding.projector * _lower(column)
     )
@@ -390,6 +390,16 @@ def test_lazy_complement_endomorphisms_match_explicit_projection() -> None:
     assert _lower(rank_one.apply(column)) == (
         _lower(column) * _lower(column).adjoint() * _lower(column)
     )
+
+    # Composition reverses under adjoint; complex scales must conjugate.
+    action = source_action.compose(rank_one) / sympy.I + rank_one.compose(source_action)
+    q_left = embedding.projector * left * embedding.projector
+    outer = _lower(column) * _lower(column).adjoint()
+    explicit = q_left * outer / sympy.I + outer * q_left
+    assert _lower(action.apply(column)) == explicit * _lower(column)
+    assert _lower(action.adjoint().apply(column)) == explicit.adjoint() * _lower(column)
+    assert action.apply(zero) is zero
+    assert source_action.compose(rank_one - rank_one).apply(column) is zero
 
 
 def test_adjoint_preserves_declared_basis_after_cached_equal_expression():
