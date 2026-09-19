@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from functools import cache, cached_property
-from typing import TYPE_CHECKING
 
 import sympy
 from sympy.physics.quantum.boson import BosonOp
@@ -21,9 +20,6 @@ from pymablock.number_ordered_form import (
     find_operators,
     generator_types,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 __all__ = ["Embedding"]
 
@@ -163,6 +159,8 @@ class Embedding(sympy.Expr):
         Source products are evaluated before compression, including intermediate
         states outside the retained space. Generator mappings return
         ``NumberOrderedForm``; reference lists return a SymPy matrix in list order.
+        Generator coefficients retain symbolic spectator occupations. Call
+        ``simplify()`` on the result when explicit binary reduction is needed.
         """
         return self._basis._pullback(self._basis._source_form(expression))
 
@@ -411,12 +409,6 @@ class _GeneratorBasis(_SourceBasis):
         return _number_symbols(self._target_operators)
 
     @cached_property
-    def _target_identity(self):
-        return _one_term(
-            self._target_operators, (0,) * len(self._target_operators), sympy.S.One
-        )
-
-    @cached_property
     def _target_zero(self):
         return NumberOrderedForm(self._target_operators, {}, validate=False)
 
@@ -434,100 +426,35 @@ class _GeneratorBasis(_SourceBasis):
             return None
         return tuple(map(int, result))
 
-    def _pullback_weight(
-        self,
-        transition: _NOFTransition,
-        _target_shift: tuple[int, ...],
-    ) -> sympy.Expr:
-        """Return the target diagonal weight of a pulled-back transition."""
-        source_action = transition.symbolic_action(self.source_occupations)
-        shifted = {
-            symbol: symbol - power
-            for symbol, power in zip(self.coordinate_symbols, _target_shift, strict=True)
-        }
-        phase_ratio = self.phase * sympy.conjugate(self.phase.xreplace(shifted))
-        amplitude = source_action.weight * phase_ratio
-        amplitude = amplitude.xreplace(self._transition_support(_target_shift))
-        return sympy.expand(amplitude.xreplace(self._initial_to_middle(_target_shift)))
-
-    def _transition_support(
-        self, _target_shift: tuple[int, ...]
-    ) -> dict[sympy.Symbol, sympy.Expr]:
-        """Return support values forced by the retained transition."""
-        return {
-            symbol: sympy.S.One if power > 0 else sympy.S.Zero
-            for symbol, power, size in zip(
-                self.coordinate_symbols,
-                _target_shift,
-                self._target_dimensions,
-                strict=True,
-            )
-            if power and size == 2
-        }
-
-    def _initial_to_middle(
-        self, _target_shift: tuple[int, ...]
-    ) -> dict[sympy.Symbol, sympy.Expr]:
-        """Translate input coordinates to NOF middle coordinates."""
-        support = self._transition_support(_target_shift)
-        return {
-            symbol: placeholder + max(power, 0)
-            for symbol, placeholder, power in zip(
+    @cache
+    def _project_transition(self, transition: _NOFTransition) -> NumberOrderedForm:
+        """Translate one source transition without expanding spectator occupations."""
+        powers = self._target_shift(transition.powers)
+        if powers is None:
+            return self._target_zero
+        target_form = _one_term(self._target_operators, powers, sympy.S.One)
+        (target_transition,) = _NOFTransition.from_form(target_form)
+        source_weight = transition.symbolic_action(self.source_occupations).weight
+        target_weight = target_transition.symbolic_action(self.coordinate_symbols).weight
+        shifted = {q: q - p for q, p in zip(self.coordinate_symbols, powers)}
+        # The phase has unit modulus on the retained domain. Its ratio cancels
+        # unchanged factors without expanding binary occupation identities.
+        amplitude = (
+            source_weight / target_weight * self.phase / self.phase.xreplace(shifted)
+        )
+        # NOF coefficients sit between creation and annihilation operators.
+        # A binary transition fixes its input occupation; spectators stay symbolic.
+        initial = {
+            q: sympy.Integer(p > 0) if p and size == 2 else n + max(p, 0)
+            for q, n, p, size in zip(
                 self.coordinate_symbols,
                 self._target_placeholders,
-                _target_shift,
-                strict=True,
+                powers,
+                self._target_dimensions,
             )
-            if symbol not in support
         }
-
-    def _shifted_occupations(self, powers):
-        """Source occupations after a target monomial acts."""
-        shift = {q: q - p for q, p in zip(self.coordinate_symbols, powers, strict=True)}
-        return tuple(n.xreplace(shift) for n in self.source_occupations)
-
-    @cache
-    def _support_substitutions(
-        self,
-        transition: _NOFTransition,
-        _target_shift: tuple[int, ...],
-    ) -> dict[sympy.Symbol, sympy.Expr]:
-        """Infer Boolean coordinates fixed by a composed transition."""
-        before_source = self._shifted_occupations(_target_shift)
-        equations = list(transition.support_equations(before_source))
-        equations.extend(
-            symbol - value
-            for symbol, value in self._transition_support(_target_shift).items()
-        )
-        return _boolean_solutions(equations, self.coordinate_symbols)
-
-    @cache
-    def _project_transition(
-        self,
-        transition: _NOFTransition,
-    ) -> NumberOrderedForm:
-        """Pull back one transition and encode it as a target NOF."""
-        target_powers = self._target_shift(transition.powers)
-        if target_powers is None:
-            return self._target_zero
-        amplitude = self._pullback_weight(transition, target_powers)
-        if amplitude == 0:
-            return self._target_zero
-        # Divide out the target monomial's ladder weight and Fock sign: the
-        # coefficient supplies only the remaining source matrix element.
-        target_form = _one_term(self._target_operators, target_powers, sympy.S.One)
-        (target_transition,) = _NOFTransition.from_form(target_form)
-        target_weight = target_transition.symbolic_action(self.coordinate_symbols).weight
-        target_weight = target_weight.xreplace(
-            self._transition_support(target_powers)
-        ).xreplace(self._initial_to_middle(target_powers))
-        amplitude = sympy.factor_terms(amplitude / target_weight)
-        # Coefficients are already in the NOF middle coordinates. Multiplying
-        # by a diagonal operator on the right would shift boson coefficients.
-        return (
-            _one_term(self._target_operators, target_powers, amplitude)
-            * self._target_identity
-        )
+        coefficient = sympy.factor_terms(amplitude.xreplace(initial))
+        return _one_term(self._target_operators, powers, coefficient)
 
     @cache
     def _pullback(self, source):
@@ -535,15 +462,7 @@ class _GeneratorBasis(_SourceBasis):
         result = self._target_zero
         for transition in _NOFTransition.from_form(source):
             result += self._project_transition(transition)
-        return NumberOrderedForm(
-            result.operators,
-            {
-                powers: coefficient
-                for powers, coefficient in result.terms.items()
-                if coefficient != 0
-            },
-            validate=False,
-        )
+        return result
 
 
 class _ReferenceBasis(_SourceBasis):
@@ -623,31 +542,6 @@ def _reference_state(reference):
         ):
             raise ValueError("Reference occupations lie outside the source algebra")
     return operators, state
-
-
-def _boolean_solutions(
-    equations: Sequence[sympy.Expr],
-    variables: tuple[sympy.Symbol, ...],
-) -> dict[sympy.Symbol, sympy.Expr]:
-    """Return Boolean variables uniquely fixed by a small equation system."""
-    if not equations:
-        return {}
-    matrix, right_hand_side = sympy.linear_eq_to_matrix(equations, variables)
-    reduced, pivots = matrix.row_join(right_hand_side).rref()
-    substitutions = {}
-    for row, pivot in enumerate(pivots):
-        if pivot >= len(variables):
-            return {}
-        if any(
-            reduced[row, column] != 0
-            for column in range(len(variables))
-            if column != pivot
-        ):
-            continue
-        value = reduced[row, -1]
-        if value in (sympy.S.Zero, sympy.S.One):
-            substitutions[variables[pivot]] = value
-    return substitutions
 
 
 def _rotate_linear_modes(generators, reference):
