@@ -13,7 +13,7 @@ from scipy import sparse
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 
-from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm, SpinOp
+from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 
 
 def occupation_matrices(operators, occupations):
@@ -31,9 +31,6 @@ def occupation_matrices(operators, occupations):
         weights = np.ones(len(values) - 1)
         if isinstance(operator, BosonOp):
             weights = np.sqrt(values[1:])
-        elif isinstance(operator, SpinOp):
-            n = np.asarray(values[1:])
-            weights = np.sqrt(n * (2 * float(operator.spin) + 1 - n))
         factors = identities.copy()
         factors[index] = sparse.diags(weights, 1, shape=(len(values), len(values)))
         if isinstance(operator, FermionOp):
@@ -54,6 +51,17 @@ def occupation_matrices(operators, occupations):
 def operator_matrix(expression, matrices):
     """Evaluate an expression using ordinary sparse-matrix products."""
     expression = sympy.sympify(expression)
+    if isinstance(expression, sympy.MatrixBase):
+        return sparse.bmat(
+            [
+                [
+                    operator_matrix(expression[i, j], matrices)
+                    for j in range(expression.cols)
+                ]
+                for i in range(expression.rows)
+            ],
+            format="csr",
+        )
     if isinstance(expression, NumberOrderedForm):
         expression = expression.as_expr()
     if expression in matrices:
