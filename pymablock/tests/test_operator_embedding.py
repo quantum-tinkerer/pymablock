@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from itertools import product
 
 import numpy as np
@@ -14,12 +13,10 @@ from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.pauli import SigmaMinus
 
 from pymablock import block_diagonalize
-from pymablock._operator_embedding import _ComplementBlock, _CouplingBlock
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.operator_embedding import _NOFTransition, _number_symbols
 from pymablock.second_quantization import Embedding
-from pymablock.series import zero
 from pymablock.tests.second_quantization_helpers import (
     occupation_matrices,
     operator_matrix,
@@ -271,132 +268,6 @@ def test_empty_boson_channel_does_not_create_a_resonance():
     assert effective[0, 0, 2] == NumberOrderedForm.from_expr(
         NumberOperator(s) / 2, operators=(s,)
     )
-
-
-@dataclass(frozen=True)
-class _MatrixBasis:
-    """Explicit source matrices used to check the implicit discarded-space blocks."""
-
-    name: str = "W"
-
-    @property
-    def bridge(self):
-        return sympy.ImmutableMatrix([[1, 0], [0, 1], [0, 0]])
-
-    @property
-    def projector(self):
-        bridge = self.bridge
-        return sympy.eye(3) - bridge * bridge.adjoint()
-
-    @property
-    def _target_zero(self):
-        return sympy.ImmutableMatrix(sympy.zeros(2))
-
-    @property
-    def _target_identity(self):
-        return sympy.ImmutableMatrix(sympy.eye(2))
-
-    def _pullback(self, source):
-        return self.bridge.adjoint() * source * self.bridge
-
-
-def _lower(operator_map):
-    embedding = operator_map.basis
-    result = sympy.zeros(3, 2)
-    for source, target in operator_map.terms:
-        result += embedding.projector * source * embedding.bridge * target
-    return sympy.ImmutableMatrix(result)
-
-
-def test_storage_combines_equal_source_factors() -> None:
-    embedding = _MatrixBasis()
-    source = sympy.ImmutableMatrix([[0, 0, 0], [0, 0, 0], [1, 2, 0]])
-    first = sympy.ImmutableMatrix([[1, 2], [0, 0]])
-    second = sympy.ImmutableMatrix([[0, -2], [3, 0]])
-
-    operator_map = _CouplingBlock(
-        embedding,
-        (
-            (source, first),
-            (source, second),
-            (source, sympy.zeros(2)),
-        ),
-    )
-
-    assert operator_map.terms == ((source, first + second),)
-    assert not _CouplingBlock(embedding, ())
-    assert operator_map + (-operator_map) is zero
-
-
-def test_left_and_right_actions_match_explicit_projection() -> None:
-    embedding = _MatrixBasis()
-    source = sympy.ImmutableMatrix([[0, 0, 0], [0, 0, 0], [1, 2, 0]])
-    left = sympy.ImmutableMatrix([[1, 0, 1], [0, 2, 0], [3, 0, 4]])
-    right = sympy.ImmutableMatrix([[1, 2], [3, 4]])
-    operator_map = _CouplingBlock.from_source(embedding, source)
-
-    assert _lower(operator_map.left(left)) == (
-        embedding.projector * left * _lower(operator_map)
-    )
-    assert _lower(operator_map.right(right)) == _lower(operator_map) * right
-
-
-def test_inner_product_matches_explicit_maps() -> None:
-    embedding = _MatrixBasis()
-    x = sympy.ImmutableMatrix([[0, 0, 1], [0, 0, 2], [1, 3, 0]])
-    y = sympy.ImmutableMatrix([[1, 0, 0], [0, 1, 0], [4, 5, 0]])
-    a = sympy.ImmutableMatrix([[1, 2], [0, 1]])
-    b = sympy.ImmutableMatrix([[2, 0], [3, 1]])
-    left = _CouplingBlock(embedding, ((x, a),))
-    right = _CouplingBlock(embedding, ((y, b),))
-
-    assert left.inner(right) == _lower(left).adjoint() * _lower(right)
-
-
-def test_arithmetic_requires_one_embedding() -> None:
-    first_embedding = _MatrixBasis("first")
-    second_embedding = _MatrixBasis("second")
-    source = sympy.ImmutableMatrix([[0, 0, 0], [0, 0, 0], [1, 0, 0]])
-    first = _CouplingBlock.from_source(first_embedding, source)
-    second = _CouplingBlock.from_source(second_embedding, source)
-
-    assert _lower(3 * first / 2) == sympy.Rational(3, 2) * _lower(first)
-    with pytest.raises(ValueError, match="same embedding"):
-        _ = first + second
-    with pytest.raises(ValueError, match="same embedding"):
-        first.inner(second)
-
-
-def test_lazy_complement_endomorphisms_match_explicit_projection() -> None:
-    embedding = _MatrixBasis()
-    source = sympy.ImmutableMatrix([[0, 0, 1], [0, 0, 2], [1, 3, 0]])
-    left = sympy.ImmutableMatrix([[1, 0, 1], [0, 2, 0], [3, 0, 4]])
-    column = _CouplingBlock.from_source(embedding, source)
-
-    source_action = _ComplementBlock.source(left)
-    assert _lower(source_action.apply(column)) == (
-        embedding.projector * left * embedding.projector * _lower(column)
-    )
-
-    outer_action = _ComplementBlock.outer(column, column)
-    assert _lower(outer_action.apply(column)) == (
-        _lower(column) * _lower(column).adjoint() * _lower(column)
-    )
-
-    # Composition reverses under adjoint; complex scales must conjugate.
-    action = source_action.compose(outer_action) / sympy.I + outer_action.compose(
-        source_action
-    )
-    q_left = embedding.projector * left * embedding.projector
-    outer = _lower(column) * _lower(column).adjoint()
-    explicit = q_left * outer / sympy.I + outer * q_left
-    assert _lower(action.apply(column)) == explicit * _lower(column)
-    assert _lower(action.adjoint().apply(column)) == explicit.adjoint() * _lower(column)
-    # Dividing an adjoint block conjugates the divisor in its stored column.
-    divided_row = column.adjoint() / sympy.I
-    assert _lower(divided_row.adjoint()).adjoint() == _lower(column).adjoint() / sympy.I
-    assert action.apply(zero) is zero
-    assert source_action.compose(outer_action - outer_action).apply(column) is zero
 
 
 def test_adjoint_preserves_declared_basis_after_cached_equal_expression():
