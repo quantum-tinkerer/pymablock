@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
 from functools import cache, cached_property
-from itertools import product
-from math import prod
 from typing import TYPE_CHECKING
 
 import sympy
@@ -35,75 +32,41 @@ def _operator_sort_key(operator) -> tuple[int, str]:
     return generator_types.index(type(operator)), str(operator.name)
 
 
-@dataclass(frozen=True)
-class _TargetSpace:
-    """Target generators and their occupation domains."""
-
-    operators: tuple
-    dimensions: tuple[int | None, ...]
-
-    @cached_property
-    def states(self) -> tuple[tuple[int, ...], ...]:
-        if None in self.dimensions:
-            raise ValueError("An infinite target has no enumerated basis")
-        return tuple(product(*(range(size) for size in self.dimensions)))
-
-    @property
-    def dimension(self) -> int:
-        if None in self.dimensions:
-            return sympy.oo
-        return prod(self.dimensions)
-
-
 class Embedding:
-    r"""Embed target generators or a finite reference basis into a source algebra.
+    r"""Define an effective operator algebra or a finite retained basis.
 
-    ``generators`` maps target lowering operators to source expressions. The
-    reference represents the target vacuum (index zero for a bilateral ladder).
-    Applying the adjoints, in canonical target order and with the target ladder
-    normalization, defines an isometry ``W``. The actual generator image is
-    ``W g W† = P G P``: source actions outside the target's occupation range are
-    allowed, and remain available during perturbation theory.
+    Pass this object as ``subspace_eigenvectors`` to ``block_diagonalize``.
+    Source states outside the embedding remain available for virtual transitions.
 
     Parameters
     ----------
     generators : collections.abc.Mapping
-        Target ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` lowering
-        generators mapped to source expressions. Adjoints and number operators
-        are derived. For ``LadderOp``, also supply
-        ``NumberOperator(target): source_number_expression``; its number is an
-        independent generator. Omit this mapping for a finite matrix target.
+        Target lowering operators mapped to source expressions. Supported targets
+        are ``SigmaMinus``, ``FermionOp``, ``BosonOp``, and ``LadderOp``. For each
+        ``LadderOp``, also give its independent ``NumberOperator`` image. Omit
+        this argument to obtain finite matrices from an ordered reference list.
     reference : collections.abc.Mapping or collections.abc.Sequence
-        With generators, map every source mode to its occupation in the target
-        vacuum. Without generators, supply an ordered list of such dictionaries:
-        each is one retained basis state. For a matrix source, use
-        ``(matrix_index, occupations)`` pairs; a dictionary alone means index zero.
-        All references must declare the same source modes. Boson occupations are
-        nonnegative integers, fermion and Pauli occupations are zero or one, and
-        bilateral ladder indices may be any integer. Empty dictionaries support
-        ordinary finite matrix sources. Reference states must be distinct.
+        With generators, map every source mode to its integer occupation in the
+        target vacuum (index zero for a bilateral ladder). Applying the generator
+        adjoints defines the other target states, including their phases.
+
+        Without generators, list distinct occupation dictionaries in matrix-basis
+        order. For a matrix source, use ``(matrix_index, occupations)`` pairs;
+        a dictionary alone means component zero. All states must declare the same
+        modes. Empty dictionaries support ordinary finite matrices.
 
     Notes
     -----
-    The symbolic compiler supports source expressions with one occupation shift
-    per target generator and a product occupation reference. It derives the
-    occupation changes, checks ladder amplitudes and parity, and fixes relative
-    phases from the generators. Orthonormal linear combinations of boson or
-    fermion annihilators are rotated automatically when those source modes start
-    empty. Other multiple-shift superpositions are not supported. Infinite target
-    modes support constant unit phases. Generator mappings return NumberOrderedForm;
-    use its ``to_matrix()`` method for an explicit finite representation.
+    Boson occupations are nonnegative, fermion and Pauli occupations are zero or
+    one, and bilateral ladder indices may be any integer. Generator images must
+    have one independent occupation shift per target and obey its ladder amplitudes.
+    Orthonormal linear mode mixing is supported for initially empty modes.
 
-    Reference lists return SymPy matrices in the supplied order. The source may
-    be a scalar operator expression or a square SymPy matrix with operator
-    entries. All Hamiltonian coefficients must have the same matrix shape.
-    Perturbation theory requires H0 diagonal in both source matrix indices and
-    occupations. The reference list defines one retained subspace; all other
-    source states remain available for virtual transitions.
-
-    The reference fixes overall phase to one. Target fermions use the canonical
-    NOF ordering; no source-to-target fermion phase convention is an extra input.
-    ``restrict(A)`` evaluates the full source expression before compression.
+    The perturbative solver requires Hermitian input and H0 diagonal in source
+    occupations, including after mode rotation. Matrix sources also require H0
+    diagonal in matrix indices and equal source shapes at every order. Reference
+    lists produce finite SymPy matrices; generator mappings produce
+    ``NumberOrderedForm`` objects, including for infinite targets.
 
     Examples
     --------
@@ -113,32 +76,42 @@ class Embedding:
     >>> embedding = Embedding({s: a}, reference={a: 0})
     >>> embedding.restrict(a).as_expr() == s
     True
-
-    A finite target needs only a list of references:
-
-    >>> matrix_embedding = Embedding(reference=[{a: 0}, {a: 1}, {a: 2}])
-    >>> matrix_embedding.restrict(NumberOperator(a)) == sympy.diag(0, 1, 2)
+    >>> embedding = Embedding(reference=[{a: 0}, {a: 1}, {a: 2}])
+    >>> embedding.restrict(NumberOperator(a)) == sympy.diag(0, 1, 2)
     True
 
     """
 
-    def __new__(cls, generators=None, *, reference):  # noqa: ARG004
-        """Choose the compiled representation once, at the public boundary."""
-        if cls is Embedding:
-            cls = _ReferenceEmbedding if generators is None else _GeneratorEmbedding
-        return object.__new__(cls)
+    def __init__(self, generators=None, *, reference):
+        """Compile the generator map or the ordered reference basis."""
+        self._basis = (
+            _ReferenceBasis(reference)
+            if generators is None
+            else _GeneratorBasis(generators, reference=reference)
+        )
 
     def restrict(self, expression):
-        """Return ``W† expression W`` after evaluating the full source product."""
-        return self._pullback(self._source_form(expression))
+        """Return ``W† expression W`` in the retained representation.
 
-    def encode(self, state):  # noqa: ARG002
-        """Return source occupations for a generator-target occupation tuple."""
-        raise TypeError("Reference-list embeddings already specify their source basis")
+        Source products are evaluated before compression, including intermediate
+        states outside the retained space. Generator mappings return
+        ``NumberOrderedForm``; reference lists return a SymPy matrix in list order.
+        """
+        return self._basis._pullback(self._basis._source_form(expression))
+
+
+class _SourceBasis:
+    """Shared normalization of source expressions and occupation symbols."""
 
     @cached_property
     def _source_placeholders(self):
         return _number_symbols(self.operators)
+
+    def _at_occupations(self, expression, occupations):
+        """Evaluate a source number coefficient at the supplied occupations."""
+        return expression.xreplace(
+            dict(zip(self._source_placeholders, occupations, strict=True))
+        )
 
     def _source_scalar(self, expression) -> NumberOrderedForm:
         """Convert an expression into the source algebra of the embedding."""
@@ -155,10 +128,10 @@ class Embedding:
         return result.applyfunc(sympy.simplify) if self._rotation else result
 
 
-class _GeneratorEmbedding(Embedding):
+class _GeneratorBasis(_SourceBasis):
     """Symbolic target algebra generated from one reference state."""
 
-    def __init__(self, generators: Mapping | None = None, *, reference):
+    def __init__(self, generators: Mapping, *, reference):
         """Compile the representation generated from the reference."""
         if not isinstance(generators, Mapping) or not isinstance(reference, Mapping):
             raise TypeError("Generators and reference must be mappings")
@@ -179,9 +152,8 @@ class _GeneratorEmbedding(Embedding):
         if any(not op.is_annihilation for op in operators):
             raise ValueError("Target generators must be lowering operators")
         operators = tuple(sorted(operators, key=_operator_sort_key))
-        self.target = _TargetSpace(
-            operators, tuple(map(_occupation_dimension, operators))
-        )
+        self._target_operators = operators
+        self._target_dimensions = tuple(map(_occupation_dimension, operators))
         self.coordinate_symbols = tuple(
             sympy.Dummy(
                 f"target_{i}",
@@ -243,9 +215,7 @@ class _GeneratorEmbedding(Embedding):
             if any(any(powers) for powers in form.terms):
                 raise ValueError("A ladder number image must be occupation diagonal")
             expression = form.terms.get((0,) * len(self.operators), sympy.S.Zero)
-            expression = expression.xreplace(
-                dict(zip(self._source_placeholders, self.source_occupations, strict=True))
-            )
+            expression = self._at_occupations(expression, self.source_occupations)
             self._validate_identity(
                 expression - self.coordinate_symbols[index],
                 f"Ladder number image {op} must count from the target reference index zero",
@@ -262,8 +232,8 @@ class _GeneratorEmbedding(Embedding):
             lower = upper = self.reference[i]
             for coefficient, target, size in zip(
                 self._occupation_matrix.row(i),
-                self.target.operators,
-                self.target.dimensions,
+                self._target_operators,
+                self._target_dimensions,
                 strict=True,
             ):
                 if not coefficient:
@@ -287,9 +257,9 @@ class _GeneratorEmbedding(Embedding):
 
     def _lowering_weight(self, index):
         """Use the same generator action as compression and operator arithmetic."""
-        powers = tuple(int(i == index) for i in range(len(self.target.operators)))
+        powers = tuple(int(i == index) for i in range(len(self._target_operators)))
         transition = _NOFTransition(
-            _one_term(self.target.operators, powers, sympy.S.One), powers
+            _one_term(self._target_operators, powers, sympy.S.One), powers
         )
         return transition.symbolic_action(self.coordinate_symbols).weight
 
@@ -300,7 +270,7 @@ class _GeneratorEmbedding(Embedding):
             zip(
                 self._generators,
                 self.coordinate_symbols,
-                self.target.dimensions,
+                self._target_dimensions,
                 strict=True,
             )
         ):
@@ -319,7 +289,7 @@ class _GeneratorEmbedding(Embedding):
                     )
                 _require_identity(
                     ratio * sympy.conjugate(ratio) - 1,
-                    f"Image of {self.target.operators[i]} must produce normalized target states",
+                    f"Image of {self._target_operators[i]} must produce normalized target states",
                 )
                 phase *= ratio**q
             else:
@@ -331,7 +301,7 @@ class _GeneratorEmbedding(Embedding):
         expression = sympy.simplify(expression.xreplace(substitutions or {}))
         if expression == 0:
             return
-        for q, size in zip(self.coordinate_symbols, self.target.dimensions, strict=True):
+        for q, size in zip(self.coordinate_symbols, self._target_dimensions, strict=True):
             if size is not None and q in expression.free_symbols:
                 for k in range(size):
                     self._validate_identity(
@@ -350,17 +320,17 @@ class _GeneratorEmbedding(Embedding):
             zip(
                 self._generators,
                 self.coordinate_symbols,
-                self.target.dimensions,
+                self._target_dimensions,
                 strict=True,
             )
         ):
             action = transition.symbolic_action(self.source_occupations).weight
             shifted_phase = self.phase.xreplace({q: q - 1})
             difference = action * self.phase - self._lowering_weight(i) * shifted_phase
-            context = f"Image of {self.target.operators[i]} must obey the target algebra"
+            context = f"Image of {self._target_operators[i]} must obey the target algebra"
             if size is None:
                 substitutions = (
-                    {q: q + 1} if isinstance(self.target.operators[i], BosonOp) else {}
+                    {q: q + 1} if isinstance(self._target_operators[i], BosonOp) else {}
                 )
                 self._validate_identity(difference, context, substitutions)
             else:
@@ -369,43 +339,19 @@ class _GeneratorEmbedding(Embedding):
                         difference, f"{context} at occupation {k}", {q: sympy.Integer(k)}
                     )
 
-    def encode(self, state: tuple[int, ...]) -> tuple[int, ...]:
-        """Return occupations in the compiled source basis for a target tuple.
-
-        With linear mode mixing, these are occupations of the rotated modes,
-        not of the original source operators.
-        """
-        if len(state) != len(self.target.operators):
-            raise ValueError("State has the wrong number of target occupations")
-        for value, op, size in zip(
-            state, self.target.operators, self.target.dimensions, strict=True
-        ):
-            if (
-                not sympy.sympify(value).is_Integer
-                or (not isinstance(op, LadderOp) and value < 0)
-                or (size is not None and value >= size)
-            ):
-                raise ValueError("State lies outside the target occupation basis")
-        substitutions = dict(
-            zip(self.coordinate_symbols, map(sympy.Integer, state), strict=True)
-        )
-        return tuple(
-            int(value.xreplace(substitutions)) for value in self.source_occupations
-        )
-
     @cached_property
     def _target_placeholders(self):
-        return _number_symbols(self.target.operators)
+        return _number_symbols(self._target_operators)
 
     @cached_property
     def _target_identity(self):
         return _one_term(
-            self.target.operators, (0,) * len(self.target.operators), sympy.S.One
+            self._target_operators, (0,) * len(self._target_operators), sympy.S.One
         )
 
     @cached_property
     def _target_zero(self):
-        return NumberOrderedForm(self.target.operators, {}, validate=False)
+        return NumberOrderedForm(self._target_operators, {}, validate=False)
 
     @cache
     def _target_shift(self, source_shift: tuple[int, ...]) -> tuple[int, ...] | None:
@@ -416,7 +362,7 @@ class _GeneratorEmbedding(Embedding):
             return None
         if any(
             not value.is_Integer or (size is not None and abs(value) >= size)
-            for value, size in zip(result, self.target.dimensions, strict=True)
+            for value, size in zip(result, self._target_dimensions, strict=True)
         ):
             return None
         return tuple(map(int, result))
@@ -446,7 +392,7 @@ class _GeneratorEmbedding(Embedding):
             for symbol, power, size in zip(
                 self.coordinate_symbols,
                 _target_shift,
-                self.target.dimensions,
+                self._target_dimensions,
                 strict=True,
             )
             if power and size == 2
@@ -502,7 +448,7 @@ class _GeneratorEmbedding(Embedding):
             return self._target_zero
         # Divide out the target monomial's ladder weight and Fock sign: the
         # coefficient supplies only the remaining source matrix element.
-        target_form = _one_term(self.target.operators, target_powers, sympy.S.One)
+        target_form = _one_term(self._target_operators, target_powers, sympy.S.One)
         (target_transition,) = _NOFTransition.from_form(target_form)
         target_weight = target_transition.symbolic_action(self.coordinate_symbols).weight
         target_weight = target_weight.xreplace(
@@ -512,7 +458,7 @@ class _GeneratorEmbedding(Embedding):
         # Coefficients are already in the NOF middle coordinates. Multiplying
         # by a diagonal operator on the right would shift boson coefficients.
         return (
-            _one_term(self.target.operators, target_powers, amplitude)
+            _one_term(self._target_operators, target_powers, amplitude)
             * self._target_identity
         )
 
@@ -534,10 +480,10 @@ class _GeneratorEmbedding(Embedding):
         )
 
 
-class _ReferenceEmbedding(Embedding):
+class _ReferenceBasis(_SourceBasis):
     """Finite target matrix in an ordered source occupation basis."""
 
-    def __init__(self, generators=None, *, reference):  # noqa: ARG002
+    def __init__(self, reference):
         """Use an ordered orthonormal product basis for a finite matrix target."""
         if isinstance(reference, Mapping):
             raise TypeError("A matrix target requires a list of reference states")
