@@ -275,16 +275,30 @@ difference; coupled degeneracies require changing the retained block or model.
 For retained infinite modes, symbolic energy denominators require the usual
 nonresonance assumption on the occupations where the effective model is used.
 
-Discarded states remain implicit through the identity
+The solver constructs the fixed occupation projector $P=WW^\dagger$ and its
+complement $Q=1-P$, using equality-based `Piecewise` expressions. All virtual
+products are evaluated as ordinary source operators, without enumerating or
+truncating the discarded states. The retained block is compressed into the
+target algebra during the standard Pymablock recurrence.
 
-$$
-W^\dagger A(1-P)BW
-=W^\dagger ABW-(W^\dagger AW)(W^\dagger BW).
-$$
+For each of `H_eff`, `U`, and `U_adjoint`, block `[0, 0, ...]` uses the target
+operators or reference-list matrix basis. The other blocks are source-space
+operators supported on $P$ or $Q$ on the corresponding side. With linear mode
+mixing, these source operators use the compiler's rotated modes. The usual
+`zero` and `one` series sentinels represent zero and the identity on the block's
+space. Ordinary multiplication of the returned blocks requires lifting the
+retained block back to the source space first.
 
-The solver applies the standard Pymablock recurrence to these projected operator
-products. Avoiding a basis enumeration does not remove the growth in operator
-expressions at high perturbative orders.
+`NumberOrderedForm.as_expr()` exports diagonal projectors as ordinary SymPy
+`Piecewise` expressions, which can be read back with `from_expr()`. A SymPy
+assumptions patch preserves noncommutativity when the conditions contain
+operators; the scalar occupation coefficients inside a NOF remain commutative.
+
+For infinite bosonic targets, the solver currently requires that nonnegative
+target occupations follow from the physical source occupations. Other selections
+raise `NotImplementedError` because they require occupation inequalities.
+Finite reference lists and binary targets use only equality conditions.
+Avoiding basis enumeration does not remove expression growth at high orders.
 
 Executable physical checks for supercurrent, the Crépel–Fu interaction model,
 the tunable coupler, and the artificial cavity spin are in

@@ -1,45 +1,46 @@
-"""Block diagonalization with an implicit discarded space.
+"""Block diagonalization using ordinary operators and fixed projectors.
 
-W embeds the retained model into the source space; P = W W† and Q = 1 - P.
-The retained block uses ordinary operators or matrices. Coupling blocks store
-Q X W A, and complement blocks act within Q without enumerating its basis.
+P = W W† selects the retained representation and Q = 1 - P its complement.
+The retained block is expressed in the target algebra. Other blocks are source
+operators supported on P or Q; no source basis truncation is introduced.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeAlias
+from functools import cache
+from itertools import product
 
 import numpy as np
 import sympy
+from sympy.physics.quantum.boson import BosonOp
 
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main
-from pymablock.number_ordered_form import NumberOrderedForm
-from pymablock.operator_embedding import (
-    Embedding,
+from pymablock.number_ordered_form import (
+    LadderOp,
+    NumberOrderedForm,
     _NOFTransition,
-    _ReferenceBasis,
+    _occupation_dimension,
 )
-from pymablock.series import BlockSeries, zero
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
-
-Operator: TypeAlias = NumberOrderedForm | sympy.MatrixBase
+from pymablock.operator_embedding import Embedding, _ReferenceBasis
+from pymablock.series import BlockSeries, one, zero
 
 
-def _is_zero(value: NumberOrderedForm | sympy.MatrixBase) -> bool:
-    """Test exact structural zero without simplifying coefficients."""
-    if isinstance(value, sympy.MatrixBase):
-        return all(
-            _is_zero(entry) if isinstance(entry, NumberOrderedForm) else entry == 0
-            for entry in value
-        )
-    return not any(coefficient != 0 for coefficient in value.terms.values())
+def _occupation_projector(left, right):
+    return sympy.Piecewise((1, sympy.Eq(left, right)), (0, True))
 
 
-def _adjoint(value: Operator) -> Operator:
+def _projectors(expression):
+    return (
+        p
+        for p in expression.atoms(sympy.Piecewise)
+        if len(p.args) == 2
+        and p.args[0].expr == 1
+        and p.args[1] == (0, sympy.true)
+        and isinstance(p.args[0].cond, sympy.Equality)
+    )
+
+
+def _adjoint(value):
     """Return an algebra-native adjoint."""
     result = value.adjoint()
     if isinstance(value, NumberOrderedForm) and result.operators != value.operators:
@@ -49,450 +50,319 @@ def _adjoint(value: Operator) -> Operator:
     return result
 
 
-def _virtual_product(basis, left, right):
-    """Return ``W† left Q right W``, retaining only discarded intermediate states."""
-    return basis._pullback(left * right) - basis._pullback(left) * basis._pullback(right)
+def _projector(basis, shape):
+    """Compile the occupation indicator of the retained subspace."""
+    numbers = basis._source_placeholders
 
+    def diagonal(expression):
+        return NumberOrderedForm(basis.operators, {(0,) * len(numbers): expression}) * 1
 
-class _CouplingBlock:
-    """Coupling from retained to discarded states: a sum of ``Q X W A``.
-
-    Each stored pair contains a source operator X and a retained operator A.
-    Products are evaluated in the source algebra before compression by W†.
-    """
-
-    __slots__ = ("basis", "terms")
-
-    def __init__(
-        self,
-        basis,
-        terms: Iterable[tuple[Operator, Operator]],
-    ):
-        """Combine equal source factors and discard exact structural zeros."""
-        combined: dict[Operator, Operator] = {}
-        for source, target in terms:
-            if _is_zero(source) or _is_zero(target):
-                continue
-            combined[source] = combined.get(source, basis._target_zero) + target
-
-        self.basis = basis
-        self.terms = tuple(
-            (source, target)
-            for source, target in combined.items()
-            if not _is_zero(target)
+    def point(state):
+        return sympy.prod(
+            _occupation_projector(n, value) for n, value in zip(numbers, state)
         )
 
-    @classmethod
-    def from_source(
-        cls,
-        basis,
-        source: Operator,
-    ):
-        """Construct ``Q X W`` from one source-space operator ``X``."""
-        return cls(
-            basis,
-            ((source, basis._target_identity),),
-        ).or_zero()
-
-    def or_zero(self):
-        """Use Pymablock's structural zero sentinel for an empty map."""
-        return self if self.terms else zero
-
-    def __bool__(self) -> bool:
-        return bool(self.terms)
-
-    def _require_same_basis(self, other: _CouplingBlock) -> None:
-        if self.basis is not other.basis:
-            raise ValueError("Coupling blocks must use the same embedding")
-
-    def __add__(self, other: object):
-        if other is zero:
-            return self
-        if not isinstance(other, _CouplingBlock):
-            return NotImplemented
-        self._require_same_basis(other)
-        return type(self)(
-            self.basis,
-            (*self.terms, *other.terms),
-        ).or_zero()
-
-    def __neg__(self):
-        return self.right(-sympy.S.One)
-
-    def __sub__(self, other: object):
-        return self + (-other)
-
-    def __mul__(self, factor: object):
-        try:
-            factor = sympy.sympify(factor)
-        except sympy.SympifyError:
-            return NotImplemented
-        if not factor.is_commutative:
-            return NotImplemented
-        return self.right(factor)
-
-    __rmul__ = __mul__
-
-    def __truediv__(self, divisor: object):
-        return self.right(sympy.S.One / divisor)
-
-    def right(self, target: Operator):
-        """Compose with a retained-space operator on the right."""
-        return type(self)(
-            self.basis,
-            ((source, coefficient * target) for source, coefficient in self.terms),
-        ).or_zero()
-
-    def left(self, source: Operator):
-        """Apply a source operator while preserving the outer projection.
-
-        This uses ``Q S Q X W A = Q S X W A - Q S W (W† X W) A``.
-        """
-        terms = []
-        for inner_source, target in self.terms:
-            terms.append((source * inner_source, target))
-            terms.append((source, -self.basis._pullback(inner_source) * target))
-        return type(self)(self.basis, terms).or_zero()
-
-    def inner(self, other: _CouplingBlock) -> Operator:
-        """Return ``self† other`` in the retained operator algebra."""
-        self._require_same_basis(other)
-
-        result = self.basis._target_zero
-        for left_source, left_target in self.terms:
-            left_adjoint = left_source.adjoint()
-            for right_source, right_target in other.terms:
-                kernel = _virtual_product(self.basis, left_adjoint, right_source)
-                result += _adjoint(left_target) * kernel * right_target
-        return result
-
-    def adjoint(self) -> _AdjointCouplingBlock:
-        """Return the coupling from discarded to retained states."""
-        return _AdjointCouplingBlock(self)
+    if isinstance(basis, _ReferenceBasis):
+        entries = {}
+        for component, state in basis._references:
+            entries[component, component] = entries.get(
+                (component, component), 0
+            ) + point(state)
+        return sympy.ImmutableSparseMatrix(
+            *shape, {key: diagonal(value) for key, value in entries.items()}
+        )
+    matrix = basis._occupation_matrix
+    occupations = sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
+    target = basis._occupation_left_inverse * occupations
+    indicator = sympy.prod(
+        _occupation_projector(sympy.expand(value), 0)
+        for value in occupations - matrix * target
+    )
+    for q, size, op in zip(target, basis._target_dimensions, basis._target_operators):
+        if size is not None:
+            indicator *= sum(_occupation_projector(q, i) for i in range(size))
+        else:
+            indicator *= _occupation_projector(q, sympy.floor(q))
+            # Prove the target domain using the physical source occupations.
+            physical = {
+                n: sympy.Dummy(integer=True, nonnegative=True)
+                for source, n in zip(basis.operators, numbers)
+                if not isinstance(source, LadderOp)
+            }
+            if (
+                isinstance(op, BosonOp)
+                and q.xreplace(physical).is_nonnegative is not True
+            ):
+                raise NotImplementedError(
+                    "This bosonic embedding requires an occupation inequality"
+                )
+    return diagonal(indicator)
 
 
-@dataclass(frozen=True, slots=True)
-class _AdjointCouplingBlock:
-    """Coupling from discarded to retained states, stored through its adjoint."""
-
-    column: _CouplingBlock
-
-    def __add__(self, other: object):
-        if other is zero:
-            return self
-        if not isinstance(other, _AdjointCouplingBlock):
-            return NotImplemented
-        result = self.column + other.column
-        return result.adjoint()
-
-    def __neg__(self):
-        result = -self.column
-        return result.adjoint()
-
-    def __sub__(self, other: object):
-        return self + (-other)
-
-    def __truediv__(self, divisor: object):
-        result = self.column / sympy.conjugate(divisor)
-        return result.adjoint()
-
-    def adjoint(self) -> _CouplingBlock:
-        """Return the underlying P→Q column."""
-        return self.column
+def _lift(value, basis, p, shape):
+    """Embed a retained operator using its normal-ordered monomials."""
+    numbers = basis._source_placeholders
+    if isinstance(basis, _ReferenceBasis):
+        entries = {}
+        for (i, j), amplitude in value.todok().items():
+            row, final = basis._references[i]
+            col, initial = basis._references[j]
+            powers = tuple(a - b for a, b in zip(initial, final))
+            monomial = NumberOrderedForm(basis.operators, {powers: sympy.S.One})
+            (transition,) = _NOFTransition.from_form(monomial)
+            weight = transition.apply(initial).weight
+            mask = sympy.prod(
+                _occupation_projector(n, a) for n, a in zip(numbers, initial)
+            )
+            column = NumberOrderedForm(basis.operators, {(0,) * len(numbers): mask})
+            key = row, col
+            entries[key] = entries.get(key, 0) + monomial * column * (amplitude / weight)
+        return sympy.ImmutableSparseMatrix(*shape, entries)
+    coordinates = basis._occupation_left_inverse * (
+        sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
+    )
+    substitutions = dict(zip(basis._target_placeholders, coordinates))
+    result = NumberOrderedForm(basis.operators, {}, validate=False)
+    for powers, coefficient in value.terms.items():
+        term = NumberOrderedForm(
+            basis.operators, {(0,) * len(numbers): coefficient.xreplace(substitutions)}
+        )
+        for generator, power in reversed(tuple(zip(basis._generators, powers))):
+            if power > 0:
+                term = term * generator.form**power
+        for generator, power in reversed(tuple(zip(basis._generators, powers))):
+            if power < 0:
+                term = generator.form.adjoint() ** (-power) * term
+        result += term
+    return p * result * p
 
 
 @dataclass(frozen=True)
-class _ComplementBlock:
-    """An operator within the discarded space, stored as forward and adjoint actions.
+class _Block:
+    """A block index and its ordinary source or retained operator."""
 
-    The recurrence needs both actions, but never a matrix representation of Q.
-    """
-
-    action: Callable
-    adjoint_action: Callable
-
-    @classmethod
-    def source(cls, source):
-        """Represent ``Q source Q``."""
-        return cls(lambda c: c.left(source), lambda c: c.left(source.adjoint()))
-
-    @classmethod
-    def outer(cls, left, right):
-        """Represent ``left right†``."""
-        left._require_same_basis(right)
-        return cls(
-            lambda c: left.right(right.inner(c)), lambda c: right.right(left.inner(c))
-        )
-
-    def apply(self, column):
-        """Apply the action, propagating an empty column."""
-        return zero if column is zero else self.action(column)
-
-    def adjoint(self):
-        """Exchange the forward and adjoint actions."""
-        return type(self)(self.adjoint_action, self.action)
-
-    def compose(self, other):
-        """Compose actions; reverse the order for the adjoint."""
-        return type(self)(
-            lambda c: self.apply(other.apply(c)),
-            lambda c: other.adjoint().apply(self.adjoint().apply(c)),
-        )
+    index: tuple[int, int]
+    value: NumberOrderedForm | sympy.MatrixBase
 
     def __add__(self, other):
-        if other is zero:
-            return self
-        if not isinstance(other, _ComplementBlock):
-            return NotImplemented
-        return type(self)(
-            lambda c: self.apply(c) + other.apply(c),
-            lambda c: self.adjoint().apply(c) + other.adjoint().apply(c),
-        )
+        return self if other is zero else _Block(self.index, self.value + other.value)
 
     def __neg__(self):
-        return self / -1
+        return _Block(self.index, -self.value)
 
     def __sub__(self, other):
         return self + (-other)
 
     def __truediv__(self, divisor):
-        return type(self)(
-            lambda c: self.apply(c) * (sympy.S.One / divisor),
-            lambda c: self.adjoint().apply(c) * (sympy.S.One / sympy.conjugate(divisor)),
-        )
+        return _Block(self.index, self.value / divisor)
 
-
-# The four block types have shapes PP, QP, PQ, QQ respectively.
-# This is the complete multiplication table for conformable blocks.
-_BLOCK_PRODUCTS = {
-    (Operator, Operator): lambda a, b: a * b,
-    (Operator, _AdjointCouplingBlock): lambda a, b: b.column.right(a.adjoint()).adjoint(),
-    (_CouplingBlock, Operator): _CouplingBlock.right,
-    (_CouplingBlock, _AdjointCouplingBlock): _ComplementBlock.outer,
-    (_AdjointCouplingBlock, _CouplingBlock): lambda a, b: a.column.inner(b),
-    (_AdjointCouplingBlock, _ComplementBlock): lambda a, b: b.adjoint()
-    .apply(a.column)
-    .adjoint(),
-    (_ComplementBlock, _CouplingBlock): _ComplementBlock.apply,
-    (_ComplementBlock, _ComplementBlock): _ComplementBlock.compose,
-}
-
-
-def multiply_projected(left, right):
-    """Multiply conformable blocks of the projected algebra."""
-    kinds = tuple(
-        Operator if isinstance(x, (NumberOrderedForm, sympy.MatrixBase)) else type(x)
-        for x in (left, right)
-    )
-    try:
-        multiply = _BLOCK_PRODUCTS[kinds]
-    except KeyError:
-        raise TypeError(
-            f"Cannot multiply projected blocks {type(left)} and {type(right)}"
-        ) from None
-    return multiply(left, right)
-
-
-def _diagonal_energy(entry):
-    zero_powers = (0,) * len(entry.operators)
-    if any(
-        powers != zero_powers and coefficient != 0
-        for powers, coefficient in entry.terms.items()
-    ):
-        raise ValueError("Structured embeddings currently require diagonal H0")
-    return sympy.expand(entry.terms.get(zero_powers, sympy.S.Zero))
-
-
-def _generator_solver(h0, basis):
-    """Compile energy division in symbolic target occupations."""
-    source_energy = _diagonal_energy(h0)
-
-    # Selecting occupation states of diagonal H0 is automatically invariant.
-    target_energy = basis._at_occupations(source_energy, basis.source_occupations)
-
-    def _channel_denominator(
-        source: _NOFTransition,
-        target: _NOFTransition,
-    ) -> sympy.Expr:
-        encoded_after_target = basis._shifted_occupations(target.powers)
-        source_output = tuple(
-            occupation - power
-            for occupation, power in zip(encoded_after_target, source.powers, strict=True)
-        )
-        source_value = basis._at_occupations(source_energy, source_output)
-        denominator = sympy.expand(target_energy - source_value)
-        denominator = denominator.xreplace(
-            basis._support_substitutions(source, target.powers)
-        )
-        return denominator.xreplace(basis._initial_to_middle(target.powers))
-
-    def _has_no_virtual_action(
-        source: _NOFTransition,
-        target: NumberOrderedForm,
-    ) -> bool:
-        leakage = _virtual_product(basis, source.form.adjoint(), source.form)
-        norm = target.adjoint() * leakage * target
-        return all(sympy.cancel(coefficient) == 0 for coefficient in norm.terms.values())
-
-    def _divide_channel(
-        source: _NOFTransition, target: NumberOrderedForm, denominator: sympy.Expr
-    ) -> NumberOrderedForm:
-        """Divide middle coefficients, resolving finite occupation sectors."""
-        variables = tuple(
-            (symbol, size - abs(int(power)))
-            for symbol, size, power in zip(
-                basis._target_placeholders,
-                basis._target_dimensions,
-                next(iter(target.terms)),
-                strict=True,
-            )
-            if size is not None and symbol in denominator.free_symbols
-        )
-
-        sectors = []
-        has_zero = False
-
-        def visit(expression, mask, remaining):
-            nonlocal has_zero
-            expression = sympy.expand(expression)
-            remaining = tuple(x for x in remaining if x[0] in expression.free_symbols)
-            if remaining:
-                (symbol, size), *rest = remaining
-                for value in range(size):
-                    visit(
-                        expression.xreplace({symbol: sympy.Integer(value)}),
-                        mask
-                        * (sympy.S.One if size == 1 else symbol if value else 1 - symbol),
-                        rest,
-                    )
-                return
-            expression = sympy.simplify(expression)
-            if expression == 0:
-                has_zero = True
-                sector = target.applyfunc(lambda coefficient: coefficient * mask)
-                if not _has_no_virtual_action(source, sector):
-                    raise ZeroDivisionError(
-                        "A virtual channel is degenerate with the retained space"
-                    )
-            else:
-                sectors.append(mask / expression)
-
-        visit(denominator, sympy.S.One, variables)
-        inverse = sympy.Add(*sectors) if has_zero else 1 / denominator
-        result = target.applyfunc(lambda coefficient: coefficient * inverse)
-        return result * basis._target_identity
-
-    def _solve_terms(terms):
-        for source_form, target_form in terms:
-            for source in _NOFTransition.from_form(source_form):
-                for target in _NOFTransition.from_form(target_form):
-                    denominator = _channel_denominator(source, target)
-                    yield (
-                        source.form,
-                        _divide_channel(source, target.form, denominator),
-                    )
-
-    return _solve_terms
-
-
-def _reference_solver(h0, basis):
-    """Compile energy division for an ordered list of source states."""
-
-    def _energy(component, state):
-        return basis._at_occupations(source_energies[component], state)
-
-    source_energies = [sympy.S.Zero] * h0.rows
-    for (row, column), entry in h0.todok().items():
-        if row != column and not _is_zero(entry):
-            raise ValueError("Structured embeddings currently require diagonal H0")
-        if row == column:
-            source_energies[row] = _diagonal_energy(entry)
-    reference_energies = [_energy(c, state) for c, state in basis._references]
-
-    def _solve_terms(terms):
-        for source, target in terms:
-            for factor, j, state, _ in basis._actions(source):
-                if state in basis._reference_indices:
-                    continue  # Q removes the entire retained subspace.
-                energy = _energy(*state)
-                quotient = {}
-                for (_, k), coefficient in target[j, :].todok().items():
-                    denominator = sympy.simplify(reference_energies[k] - energy)
-                    if denominator == 0:
-                        raise ZeroDivisionError(
-                            "A virtual channel is degenerate with the retained space"
-                        )
-                    quotient[j, k] = coefficient / denominator
-                yield factor, sympy.ImmutableSparseMatrix(*target.shape, quotient)
-
-    return _solve_terms
+    def adjoint(self):
+        return _Block(self.index[::-1], _adjoint(self.value))
 
 
 def block_diagonalize(
-    hamiltonian: BlockSeries,
-    embedding: Embedding,
+    hamiltonian: BlockSeries, embedding: Embedding
 ) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """Run the standard recurrence over a structured embedding."""
+    """Run the standard recurrence, compressing only the retained block."""
     basis = embedding._basis
     if hamiltonian.shape:
         raise ValueError("Structured embeddings require an unseparated Hamiltonian.")
-    zero_order = (0,) * hamiltonian.n_infinite
-    h0 = basis._source_form(hamiltonian[zero_order])
-    source_shape = h0.shape if isinstance(h0, sympy.MatrixBase) else None
-    divide = (
-        _reference_solver if isinstance(basis, _ReferenceBasis) else _generator_solver
-    )(h0, basis)
+    origin = (0,) * hamiltonian.n_infinite
+    h0 = basis._source_form(hamiltonian[origin])
+    shape = h0.shape if isinstance(h0, sympy.MatrixBase) else None
+    numbers = basis._source_placeholders
+    dimensions = tuple(map(_occupation_dimension, basis.operators))
+    unit = basis._source_form(sympy.eye(shape[0]) if shape else sympy.S.One)
+    p = _projector(basis, shape)
+    blocks = (p, unit - p)
 
-    def solve_sylvester(value, index):
-        """Solve a P-Q equation using the compiled representation's channels."""
+    @cache
+    def on_support(coefficient):
+        """Reduce point projectors without expanding unrelated coefficient factors."""
+        replacements, points = {}, {}
+        for delta in _projectors(coefficient):
+            variables = set(numbers) & delta.free_symbols
+            if len(variables) != 1:
+                continue
+            (n,) = variables
+            equation = sympy.expand(delta.args[0].cond.lhs - delta.args[0].cond.rhs)
+            slope = equation.coeff(n)
+            if not slope.is_number or not slope:
+                continue
+            value = sympy.cancel(n - equation / slope)
+            if not value.is_number:
+                continue
+            if value.is_integer is False or (
+                not isinstance(basis.operators[numbers.index(n)], LadderOp) and value < 0
+            ):
+                replacements[delta] = sympy.S.Zero
+            else:
+                replacements[delta] = _occupation_projector(n, value)
+                points.setdefault(n, set()).add(value)
+        coefficient = coefficient.xreplace(replacements)
+        for n, values in sorted(
+            points.items(), key=lambda item: sympy.default_sort_key(item[0])
+        ):
+            background = coefficient.xreplace(
+                {_occupation_projector(n, v): sympy.S.Zero for v in values}
+            )
+            coefficient = background + sum(
+                _occupation_projector(n, v)
+                * (coefficient.xreplace({n: v}) - background.xreplace({n: v}))
+                for v in sorted(values, key=sympy.default_sort_key)
+            )
+        return coefficient
+
+    def clean_scalar(value):
+        if value == 0:
+            return NumberOrderedForm(basis.operators, {}, validate=False)
+        return value.applyfunc(on_support)
+
+    def clean(value):
+        result = value.applyfunc(clean_scalar) if shape else clean_scalar(value)
+        empty = (
+            all(not any(x.terms.values()) for x in result.todok().values())
+            if shape
+            else not any(result.terms.values())
+        )
+        return zero if empty else result
+
+    @cache
+    def lifted(value):
+        return _lift(value, basis, p, shape)
+
+    def wrap(index, value):
+        index = index[:2]
         if value is zero:
             return zero
-        if index[:2] != (0, 1) or not isinstance(value, _AdjointCouplingBlock):
-            raise TypeError("The embedding solver expects the P-Q block")
-        return _CouplingBlock(basis, divide(value.column.terms)).or_zero().adjoint()
+        return _Block(index, basis._pullback(value) if index == (0, 0) else value)
 
-    def evaluate(*index):
-        row, column, *order = index
+    def multiply(a, b):
+        index = (a.index[0], b.index[1])
+        if a.index == b.index == (0, 0):
+            return _Block(index, a.value * b.value)
+        left = lifted(a.value) if a.index == (0, 0) else a.value
+        right = lifted(b.value) if b.index == (0, 0) else b.value
+        return wrap(index, clean(left * right))
+
+    energies = []
+    for i in range(shape[0] if shape else 1):
+        entry = h0[i, i] if shape else h0
+        if entry == 0:
+            energies.append(sympy.S.Zero)
+            continue
+        if any(any(powers) and c != 0 for powers, c in entry.terms.items()):
+            raise ValueError("Structured embeddings currently require diagonal H0")
+        energies.append(sympy.expand(entry.terms.get((0,) * len(numbers), sympy.S.Zero)))
+    if shape and any(i != j and x != 0 for (i, j), x in h0.todok().items()):
+        raise ValueError("Structured embeddings currently require diagonal H0")
+
+    def divide_scalar(value, row, col):
+        terms = {}
+        for powers, coefficient in value.terms.items():
+            outgoing = {n: n + max(-int(power), 0) for n, power in zip(numbers, powers)}
+            incoming = {n: n + max(int(power), 0) for n, power in zip(numbers, powers)}
+            denominator = sympy.expand(
+                energies[row].xreplace(outgoing) - energies[col].xreplace(incoming)
+            )
+            pinned = {
+                n: sympy.S.Zero
+                for n, power, size in zip(numbers, powers, dimensions)
+                if power and size == 2
+            }
+            coefficient, denominator = (
+                x.xreplace(pinned) for x in (coefficient, denominator)
+            )
+            binary = [
+                n
+                for n, size in zip(numbers, dimensions)
+                if size == 2 and n in denominator.free_symbols
+            ]
+            result = sympy.S.Zero
+            for values in product((0, 1), repeat=len(binary)):
+                substitutions = dict(zip(binary, values))
+                c = on_support(coefficient.xreplace(substitutions))
+                d = denominator.xreplace(substitutions)
+                if c == 0:
+                    continue
+                mask = sympy.prod(n if v else 1 - n for n, v in zip(binary, values))
+                for term in sympy.Add.make_args(
+                    sympy.expand(c) if c.has(sympy.Piecewise) else c
+                ):
+                    local = d
+                    for delta in _projectors(term):
+                        variables = set(numbers) & delta.free_symbols
+                        if len(variables) == 1:
+                            (n,) = variables
+                            equation = sympy.expand(
+                                delta.args[0].cond.lhs - delta.args[0].cond.rhs
+                            )
+                            slope = equation.coeff(n)
+                            if slope.is_number and slope:
+                                local = local.xreplace(
+                                    {n: sympy.cancel(n - equation / slope)}
+                                )
+                    local = sympy.cancel(local)
+                    if local == 0:
+                        raise ZeroDivisionError(
+                            "A virtual channel is degenerate with the retained space"
+                        )
+                    result += mask * term / local
+            terms[powers] = result
+        return NumberOrderedForm(basis.operators, terms, validate=False)
+
+    def solve(value, index):
+        if value is zero:
+            return zero
+        value = value.value
+        if shape:
+            return wrap(
+                index,
+                clean(
+                    sympy.ImmutableSparseMatrix(
+                        *shape,
+                        {
+                            key: divide_scalar(entry, *key)
+                            for key, entry in value.todok().items()
+                        },
+                    )
+                ),
+            )
+        return wrap(index, clean(divide_scalar(value, 0, 0)))
+
+    def evaluate(i, j, *order):
         source = hamiltonian[tuple(order)]
-        if source is zero:
+        if source is zero or (i != j and tuple(order) == origin):
             return zero
         source = basis._source_form(source)
-        shape = source.shape if isinstance(source, sympy.MatrixBase) else None
-        if shape != source_shape:
+        if (source.shape if shape else None) != shape:
             raise ValueError(
                 "All Hamiltonian coefficients must have the same source matrix shape"
             )
-        if _is_zero(source):
-            return zero
-        if row == column == 0:
-            result = basis._pullback(source)
-            return zero if _is_zero(result) else result
-        if tuple(order) == zero_order and row != column:
-            return zero
-        if (row, column) == (1, 0):
-            return _CouplingBlock.from_source(basis, source)
-        if (row, column) == (0, 1):
-            column_map = _CouplingBlock.from_source(basis, source)
-            return column_map.adjoint()
-        return _ComplementBlock.source(source)
+        return wrap((i, j), clean(blocks[i] * source * blocks[j]))
 
+    options = dict(
+        n_infinite=hamiltonian.n_infinite, dimension_names=hamiltonian.dimension_names
+    )
     outputs, _ = series_computation(
-        {
-            "H": BlockSeries(
-                eval=evaluate,
-                shape=(2, 2),
-                n_infinite=hamiltonian.n_infinite,
-                dimension_names=hamiltonian.dimension_names,
-                name="H",
-            )
-        },
+        {"H": BlockSeries(eval=evaluate, shape=(2, 2), **options)},
         algorithm=main,
         scope={
-            "solve_sylvester": solve_sylvester,
+            "solve_sylvester": solve,
             "use_linear_operator": np.zeros((2, 2), dtype=bool),
             "two_block_optimized": True,
             "commuting_blocks": [True, True],
         },
-        operator=multiply_projected,
+        operator=multiply,
     )
-    return outputs["H_tilde"], outputs["U"], outputs["U†"]
+
+    def result(name):
+        def evaluate(i, j, *order):
+            value = outputs[name][i, j, *order]
+            if value is zero or value is one:
+                return value
+            return value.value
+
+        return BlockSeries(eval=evaluate, shape=(2, 2), **options)
+
+    return tuple(result(name) for name in ("H_tilde", "U", "U†"))

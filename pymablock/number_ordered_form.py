@@ -14,6 +14,7 @@ from itertools import product
 import sympy
 from packaging.specifiers import SpecifierSet
 from sympy.core.logic import fuzzy_and
+from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
 from sympy.physics.quantum import Dagger, HermitianOperator, Operator, pauli
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
@@ -63,6 +64,38 @@ if sympy.__version__ in SpecifierSet("<1.14"):  # pragma: no cover
         pass
 
 
+# SymPy infers Piecewise commutativity from branches alone. Include condition
+# operands, respecting scalar wrappers and unknown assumptions. Keep branch-only
+# scalar assumptions from overriding this inference, regardless of query order.
+def _condition_commutativity(condition):
+    """Traverse Boolean structure, respecting each expression's assumptions."""
+    traversal = sympy.preorder_traversal(condition)
+    values = []
+    for node in traversal:
+        if isinstance(node, sympy.Expr):
+            values.append(node.is_commutative)
+            traversal.skip()
+    return fuzzy_and(values)
+
+
+def _piecewise_commutative(self):
+    return fuzzy_and((self.expr.is_commutative, _condition_commutativity(self.cond)))
+
+
+_piecewise_original_attribute = Piecewise._eval_template_is_attr
+
+
+def _piecewise_attribute(self, name):
+    # Scalar branch assumptions must not override condition dependence.
+    if fuzzy_and(_condition_commutativity(c) for _, c in self.args) is not True:
+        return None
+    return _piecewise_original_attribute(self, name)
+
+
+ExprCondPair.is_commutative = property(_piecewise_commutative)
+Piecewise._eval_template_is_attr = _piecewise_attribute
+
+
 # TODO: reimplement once https://github.com/sympy/sympy/issues/27385 is fixed.
 # Monkey patch sympy to override the sum method to ExpressionRawDomain.
 def _sum(self, items):  # noqa ARG001
@@ -110,7 +143,7 @@ class LadderOp(Operator):
     def is_annihilation(self):
         return bool(self.args[1])
 
-    def __new__(cls, *args, **hints):  # noqa: ARG004
+    def __new__(cls, *args, **_hints):
         if len(args) not in [1, 2]:
             raise ValueError("1 or 2 parameters expected, got %s" % args)
 
@@ -661,6 +694,20 @@ class NumberOrderedForm(Operator):
 
             # Use the __pow__ method to handle the exponentiation
             return base_nof**exp
+
+        # Piecewise conditions and values share one diagonal occupation algebra.
+        if isinstance(expr, sympy.Piecewise):
+            coefficient = expr.xreplace(
+                {
+                    n: _number_operator_to_placeholder(n)
+                    for n in expr.atoms(NumberOperator)
+                }
+            )
+            if coefficient.has(*operator_types):
+                raise ValueError(
+                    "Piecewise requires diagonal number-operator expressions"
+                )
+            return cls(operators, {(0,) * len(operators): coefficient})
 
         # Handle function calls (like exp, sin, etc.)
         if isinstance(expr, sympy.Function):

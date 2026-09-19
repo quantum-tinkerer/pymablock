@@ -66,7 +66,9 @@ class Embedding:
     occupations, including after mode rotation. Matrix sources also require H0
     diagonal in matrix indices and equal source shapes at every order. Reference
     lists produce finite SymPy matrices; generator mappings produce
-    ``NumberOrderedForm`` objects, including for infinite targets.
+    ``NumberOrderedForm`` objects, including for infinite targets. These types
+    describe the retained block; other blocks use source-space operators. The
+    solver rejects bosonic selections requiring occupation inequalities.
 
     Examples
     --------
@@ -454,7 +456,7 @@ class _GeneratorBasis(_SourceBasis):
         target_weight = target_weight.xreplace(
             self._transition_support(target_powers)
         ).xreplace(self._initial_to_middle(target_powers))
-        amplitude = sympy.cancel(amplitude / target_weight)
+        amplitude = sympy.factor_terms(amplitude / target_weight)
         # Coefficients are already in the NOF middle coordinates. Multiplying
         # by a diagonal operator on the right would shift boson coefficients.
         return (

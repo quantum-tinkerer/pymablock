@@ -18,6 +18,7 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
 )
 from pymablock.operator_embedding import Embedding
+from pymablock.series import zero
 
 
 @dataclass
@@ -26,6 +27,7 @@ class CouplerModel:
 
     H0: sympy.Expr
     V: sympy.Expr
+    V2: sympy.Expr
     encoding: Embedding
     target_coordinates: tuple[SigmaMinus, SigmaMinus]
     frequencies: tuple[sympy.Symbol, sympy.Symbol, sympy.Symbol]
@@ -36,9 +38,10 @@ class CouplerModel:
 def tunable_coupler() -> CouplerModel:
     """Return the three-nonlinear-boson tunable-coupler benchmark.
 
-    The capacitive interaction uses ``g_ij (a_i† - a_i) (a_j† - a_j)`` and includes
-    the direct qubit-qubit capacitance.  The target contains the lowest two levels of
-    the two computational modes, while the coupler starts in its ground state.
+    The capacitive interaction uses ``g_ij (a_i† - a_i) (a_j† - a_j)``. Couplings
+    to the coupler enter at first order and direct qubit coupling at second order.
+    The target contains the lowest two levels of the computational modes, while
+    the coupler starts in its ground state.
     """
     a1, a2, ac = sympy.symbols("a1 a2 ac", cls=BosonOp)
     q1, q2 = SigmaMinus("q1"), SigmaMinus("q2")
@@ -66,7 +69,6 @@ def tunable_coupler() -> CouplerModel:
         *(
             coupling * (Dagger(left) - left) * (Dagger(right) - right)
             for left, right, coupling in (
-                (a1, a2, g12),
                 (a1, ac, g1c),
                 (a2, ac, g2c),
             )
@@ -79,6 +81,7 @@ def tunable_coupler() -> CouplerModel:
     return CouplerModel(
         H0,
         V,
+        g12 * (Dagger(a1) - a1) * (Dagger(a2) - a2),
         encoding,
         (q1, q2),
         frequencies,
@@ -313,15 +316,16 @@ def test_coupler_exchange_and_fourth_order():
     """The two-qubit result retains the analytic mediated exchange."""
     model = tunable_coupler()
     effective, *_ = block_diagonalize(
-        [model.H0, model.V], subspace_eigenvectors=model.encoding
+        {(0,): model.H0, (1,): model.V, (2,): model.V2},
+        subspace_eigenvectors=model.encoding,
     )
     w1, w2, wc = model.frequencies
     g12, g1c, g2c = model.couplings
     expected = (
         g1c * g2c / 2 * (1 / (w1 - wc) + 1 / (w2 - wc) - 1 / (w1 + wc) - 1 / (w2 + wc))
     )
-    assert sympy.simplify(effective[0, 0, 1].terms[(1, -1)] + g12) == 0
-    assert sympy.simplify(effective[0, 0, 2].terms[(1, -1)] - expected) == 0
+    assert effective[0, 0, 1] is zero
+    assert sympy.simplify(effective[0, 0, 2].terms[(1, -1)] + g12 - expected) == 0
     fourth = effective[0, 0, 4]
     assert tuple(fourth.operators) == model.encoding._basis._target_operators
     assert all(sympy.simplify(c) == 0 for c in (fourth - fourth.adjoint()).terms.values())
@@ -830,7 +834,10 @@ def test_coupler_fourth_order_against_converged_matrices():
             strict=True,
         )
     )
-    source = [value.subs(parameters) for value in (model.H0, model.V)]
+    source = {
+        (order,): value.subs(parameters)
+        for order, value in enumerate((model.H0, model.V, model.V2))
+    }
     effective = block_diagonalize(source, subspace_eigenvectors=model.encoding)[0]
     target_matrices = occupation_matrices(
         model.encoding._basis._target_operators, [range(2)] * 2
@@ -839,12 +846,15 @@ def test_coupler_fourth_order_against_converged_matrices():
     for cutoff in (4, 5):
         operators = model.encoding._basis.operators
         matrices = occupation_matrices(operators, [range(cutoff)] * 3)
-        h0, v = (operator_matrix(value, matrices).toarray() for value in source)
+        matrix_source = {
+            order: operator_matrix(value, matrices).toarray()
+            for order, value in source.items()
+        }
         states = list(product(range(cutoff), repeat=3))
         # Canonical source order is a1, a2, ac. No generated columns are used
         # in this independent finite-matrix construction.
         kept = [states.index((n1, n2, 0)) for n1, n2 in product(range(2), repeat=2)]
         labels = np.ones(len(states), dtype=int)
         labels[kept] = 0
-        reference = block_diagonalize([h0, v], subspace_indices=labels)[0][0, 0, 4]
+        reference = block_diagonalize(matrix_source, subspace_indices=labels)[0][0, 0, 4]
         np.testing.assert_allclose(actual, reference, atol=1e-12, rtol=1e-10)

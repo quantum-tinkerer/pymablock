@@ -30,14 +30,16 @@ fourth-order matrix using finite oscillator calculations.
 
 ## Three-oscillator Hamiltonian
 
-We use a formal parameter $\eta$ to count all couplings in $H=H_0+\eta V$:
+We count qubit–coupler couplings at first order and direct qubit–qubit coupling
+at second order: $H=H_0+\eta V_1+\eta^2 V_2$.
 
 $$
 H_0=\sum_{j=1,2,c}\left[\omega_j N_j+
  \frac{\alpha_j}{2}N_j(N_j-1)\right],
 \qquad
-V=\sum_{(i,j)=(1,2),(1,c),(2,c)}g_{ij}
- (a_i^\dagger-a_i)(a_j^\dagger-a_j).
+V_1=\sum_{j=1,2}g_{jc}(a_j^\dagger-a_j)(a_c^\dagger-a_c),
+\qquad
+V_2=g_{12}(a_1^\dagger-a_1)(a_2^\dagger-a_2).
 $$
 
 The $\alpha_j$ are anharmonicities. We retain the pair-creation and
@@ -70,10 +72,12 @@ frequencies = (w1, w2, wc)
 anharmonicities = (alpha1, alpha2, alphac)
 H0 = sum(w * N(a) + alpha * N(a) * (N(a) - 1) / 2
          for a, w, alpha in zip(modes, frequencies, anharmonicities))
-V = sum(g * (Dagger(left) - left) * (Dagger(right) - right)
-        for left, right, g in ((a1, a2, g12), (a1, ac, g1c), (a2, ac, g2c)))
+V1 = sum(g * (Dagger(a) - a) * (Dagger(ac) - ac)
+         for a, g in ((a1, g1c), (a2, g2c)))
+V2 = g12 * (Dagger(a1) - a1) * (Dagger(a2) - a2)
+source = {(0,): H0, (1,): V1, (2,): V2}
 embedding = Embedding({q1: a1, q2: a2}, reference={a1: 0, a2: 0, ac: 0})
-H, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
+H, *_ = block_diagonalize(source, subspace_eigenvectors=embedding)
 ```
 
 The maps $q_1\mapsto a_1$ and $q_2\mapsto a_2$, together with the oscillator
@@ -87,7 +91,7 @@ virtual processes.
 The coefficient of $q_2^\dagger q_1+q_1^\dagger q_2$ is
 
 $$
-J=-\eta g_{12}+\eta^2 J^{(2)}+O(\eta^3),
+J=\eta^2[-g_{12}+J^{(2)}]+O(\eta^4),
 \qquad
 J^{(2)}=\frac{g_{1c}g_{2c}}{2}
  \left[\frac{1}{\omega_1-\omega_c}+\frac{1}{\omega_2-\omega_c}
@@ -100,14 +104,12 @@ energies. We extract the exchange between $|10\rangle$ and $|01\rangle$ directly
 from the effective matrix.
 
 ```{code-cell} ipython3
-h1 = H[0, 0, 1].to_matrix()
 h2 = H[0, 0, 2].to_matrix()
 exchange = sp.factor(h2[1, 2])
 reference_exchange = g1c * g2c / 2 * (
     1 / (w1 - wc) + 1 / (w2 - wc) - 1 / (w1 + wc) - 1 / (w2 + wc)
 )
-assert sp.simplify(h1[1, 2] + g12) == 0
-assert sp.factor(exchange - reference_exchange) == 0
+assert sp.factor(exchange + g12 - reference_exchange) == 0
 display(sp.Eq(sp.Symbol("J^{(2)}"), reference_exchange))
 ```
 
@@ -133,9 +135,20 @@ plt.show()
 
 ## Full fourth-order Hamiltonian
 
-We evaluate the fourth-order coefficient at exact rational parameters and
-convert the two-spin output to a $4\times4$ matrix. The calculation includes the
-direct qubit coupling, so it retains mixed products of all three couplings.
+We compute the complete fourth-order coefficient symbolically and convert the
+two-spin output to a $4\times4$ matrix. With this ordering, fourth order includes
+terms quadratic in the direct coupling, mixed direct and mediated processes,
+and terms quartic in the qubit–coupler couplings.
+
+```{code-cell} ipython3
+h4_symbolic = H[0, 0, 4].to_matrix()
+assert (h4_symbolic - h4_symbolic.adjoint()).applyfunc(sp.cancel) == sp.zeros(4)
+conditional_symbolic = (h4_symbolic[3, 3] - h4_symbolic[2, 2]
+                        - h4_symbolic[1, 1] + h4_symbolic[0, 0])
+```
+
+Only after obtaining the symbolic result do we substitute exact rational
+parameters for display and the independent finite-matrix comparison.
 
 ```{code-cell} ipython3
 parameters = {
@@ -143,12 +156,11 @@ parameters = {
     alpha1: sp.Rational(-1, 5), alpha2: sp.Rational(-1, 4), alphac: sp.Rational(-1, 7),
     g12: sp.Rational(1, 11), g1c: sp.Rational(1, 5), g2c: sp.Rational(1, 6),
 }
-source = [value.subs(parameters) for value in (H0, V)]
-H_numeric, *_ = block_diagonalize(source, subspace_eigenvectors=embedding)
-h4 = H_numeric[0, 0, 4].to_matrix()
+numeric_source = {order: value.subs(parameters) for order, value in source.items()}
+h4 = h4_symbolic.subs(parameters)
 assert (h4 - h4.adjoint()).applyfunc(sp.simplify) == sp.zeros(4)
 display(h4.evalf(6))
-conditional_coefficient = sp.factor(h4[3, 3] - h4[2, 2] - h4[1, 1] + h4[0, 0])
+conditional_coefficient = sp.factor(conditional_symbolic.subs(parameters))
 print("Fourth-order coefficient of N(q1) N(q2):", float(conditional_coefficient))
 ```
 
@@ -169,11 +181,12 @@ errors = []
 for levels in (4, 5):
     occupations = [range(levels)] * 3
     matrices = occupation_matrices(modes, occupations)
-    H0_matrix, V_matrix = (operator_matrix(value, matrices).toarray() for value in source)
+    matrix_source = {order: operator_matrix(value, matrices).toarray()
+                     for order, value in numeric_source.items()}
     kept = occupation_indices(occupations, [(n1, n2, 0) for n1, n2 in product(range(2), repeat=2)])
     labels = np.ones(levels**3, dtype=int)
     labels[kept] = 0
-    matrix_series, *_ = block_diagonalize([H0_matrix, V_matrix], subspace_indices=labels)
+    matrix_series, *_ = block_diagonalize(matrix_source, subspace_indices=labels)
     reference = matrix_series[0, 0, 4]
     error = np.max(np.abs(actual - reference))
     assert error < 1e-12
