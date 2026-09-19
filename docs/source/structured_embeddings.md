@@ -240,6 +240,13 @@ then inspect or display their `as_expr()` expressions. Reference-list embeddings
 return finite matrices directly; they do not provide matrices with symbolic
 target-operator entries.
 
+Conversion translates each source term's occupation shift and substitutes its
+coefficient into the target coordinates. Spectator occupations stay symbolic;
+conversion does not expand them into all binary configurations. Coefficients
+therefore need not be multilinear: for example, a binary occupation can appear
+as `N(q) * (1 - N(q))`. Use the result's `simplify()` method when explicit binary
+reduction is needed, such as before a structural equality or zero check.
+
 Normalized linear mode mixing is supported directly:
 
 ```python

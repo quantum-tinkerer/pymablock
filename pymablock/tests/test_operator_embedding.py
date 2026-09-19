@@ -149,7 +149,7 @@ def test_retained_fermions_preserve_car_and_mode_correspondence(reverse, frozen)
         (b * Dagger(b), right * Dagger(right)),
     ):
         result = backend.restrict(source)
-        assert result == NumberOrderedForm.from_expr(target, operators=(f, g))
+        assert result.simplify() == NumberOrderedForm.from_expr(target, operators=(f, g))
 
 
 def test_spin_in_two_fermions_uses_single_occupancy() -> None:
@@ -165,7 +165,7 @@ def test_spin_in_two_fermions_uses_single_occupancy() -> None:
     assert backend.restrict(NumberOperator(up)) == expected(NumberOperator(s))
     assert backend.restrict(NumberOperator(down)) == expected(1 - NumberOperator(s))
     assert not backend.restrict(up)
-    assert not backend.restrict(NumberOperator(up) * NumberOperator(down))
+    assert not backend.restrict(NumberOperator(up) * NumberOperator(down)).simplify()
     # In canonical source order (down, up), this bilinear takes down to up.
     assert backend.restrict(Dagger(up) * down) == expected(Dagger(s))
 
@@ -194,7 +194,24 @@ def test_particle_hole_and_pair_encodings():
     s = SigmaMinus("s")
     pair = Embedding({s: b * a}, reference={a: 0, b: 0})
     assert pair.restrict(b * a) == NumberOrderedForm.from_expr(s, operators=(s,))
-    assert pair.restrict(N(a) * N(b)) == NumberOrderedForm.from_expr(N(s), operators=(s,))
+    assert pair.restrict(N(a) * N(b)).simplify() == NumberOrderedForm.from_expr(
+        N(s), operators=(s,)
+    )
+
+
+@pytest.mark.parametrize("annihilate", [False, True])
+def test_conversion_preserves_factored_spectators(annihilate):
+    """One term stays compact as independent spectator modes are added."""
+    source = tuple(SigmaMinus(f"s{i:02}") for i in range(16))
+    target = tuple(SigmaMinus(f"t{i:02}") for i in range(16))
+    embedding = Embedding(dict(zip(target, source)), reference=dict.fromkeys(source, 0))
+    powers = (int(annihilate),) + (0,) * 15
+    coefficient = sympy.prod(2 + N(op) for op in source[1:])
+    expression = NumberOrderedForm(source, {powers: coefficient})
+    expected = NumberOrderedForm(
+        target, {powers: sympy.prod(2 + N(op) for op in target[1:])}
+    )
+    assert embedding.restrict(expression) == expected
 
 
 def test_binary_validation_does_not_enumerate_target(monkeypatch) -> None:
@@ -332,7 +349,7 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
         up * down,
     ):
         result = backend.restrict(expression)
-        actual = operator_matrix(result, target_matrices).toarray()
+        actual = operator_matrix(result.simplify(), target_matrices).toarray()
         full = operator_matrix(expression, matrices).toarray()
         expected = w.T @ full @ w
         np.testing.assert_allclose(actual, expected, atol=1e-14)
