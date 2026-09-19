@@ -1,9 +1,8 @@
-"""Projected operator algebra and perturbation theory for occupation selections."""
+"""Projected operator algebra and perturbation theory for generated embeddings."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import cache
 from typing import TYPE_CHECKING, TypeAlias
 
 import numpy as np
@@ -11,8 +10,8 @@ import sympy
 
 from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main
-from pymablock.number_ordered_form import NumberOrderedForm
-from pymablock.operator_embedding import Embedding, _NOFTransition, _one_term
+from pymablock.number_ordered_form import NumberOrderedForm, _occupation_projector
+from pymablock.operator_embedding import Embedding, _NOFTransition
 from pymablock.series import BlockSeries, zero
 
 if TYPE_CHECKING:
@@ -346,9 +345,12 @@ class _EmbeddingProblem:
         zero_order = (0,) * hamiltonian.n_infinite
         h0 = self.embedding._source_form(hamiltonian[zero_order])
         zero_powers = (0,) * len(self.embedding.operators)
-        if any(tuple(map(int, powers)) != zero_powers for powers in h0.terms):
+        if any(
+            tuple(map(int, powers)) != zero_powers and coefficient != 0
+            for powers, coefficient in h0.terms.items()
+        ):
             raise ValueError("Structured embeddings currently require diagonal H0")
-        self.source_energy = sympy.simplify(h0.terms.get(zero_powers, sympy.S.Zero))
+        self.source_energy = sympy.expand(h0.terms.get(zero_powers, sympy.S.Zero))
 
         # Selecting occupation states of diagonal H0 is automatically invariant.
         self.target_energy = self.source_energy.xreplace(
@@ -359,36 +361,6 @@ class _EmbeddingProblem:
                     strict=True,
                 )
             )
-        )
-        self.finite_target_energy = (
-            None
-            if embedding.target_is_nof
-            else tuple(
-                self.target_energy.xreplace(
-                    dict(zip(embedding.coordinate_symbols, state, strict=True))
-                )
-                for state in embedding.target.states
-            )
-        )
-
-    @cache
-    def _source_energy_at(self, state: tuple[int, ...]) -> sympy.Expr:
-        return self.source_energy.xreplace(
-            dict(
-                zip(
-                    self.embedding._source_placeholders,
-                    map(sympy.Integer, state),
-                    strict=True,
-                )
-            )
-        )
-
-    @cache
-    def _target_reciprocal(self, denominator: sympy.Expr) -> NumberOrderedForm:
-        return _one_term(
-            self.embedding.target.operators,
-            (0,) * len(self.embedding.target.operators),
-            sympy.S.One / denominator,
         )
 
     def _channel_denominator(
@@ -432,7 +404,12 @@ class _EmbeddingProblem:
             - projected.adjoint() * projected
         )
         norm = target.adjoint() * leakage * target
-        return _is_zero(norm)
+        if _is_zero(norm):
+            return True
+        coefficients = (
+            norm.terms.values() if isinstance(norm, NumberOrderedForm) else norm
+        )
+        return all(sympy.cancel(coefficient) == 0 for coefficient in coefficients)
 
     def solve_sylvester(self, value, index):
         """Solve the P-Q Sylvester equation transition by transition."""
@@ -440,9 +417,6 @@ class _EmbeddingProblem:
             return zero
         if index[:2] != (0, 1) or not isinstance(value, AdjointOperatorMap):
             raise TypeError("The embedding solver expects the P-Q block")
-        if not self.embedding.target_is_nof:
-            return self._solve_finite(value)
-
         solved_terms = []
         for _source_form, target_form in value.column.terms:
             for source in _NOFTransition.from_form(_source_form):
@@ -458,11 +432,16 @@ class _EmbeddingProblem:
     def _divide_channel(
         self, source: _NOFTransition, target: NumberOrderedForm, denominator: sympy.Expr
     ) -> NumberOrderedForm:
-        """Divide on binary sectors, discarding unsupported resonances first."""
+        """Divide middle coefficients, resolving finite occupation sectors."""
         variables = tuple(
-            symbol
-            for symbol in self.embedding._target_placeholders
-            if symbol in denominator.free_symbols
+            (symbol, size - abs(int(power)))
+            for symbol, size, power in zip(
+                self.embedding._target_placeholders,
+                self.embedding.target.dimensions,
+                next(iter(target.terms)),
+                strict=True,
+            )
+            if size is not None and symbol in denominator.free_symbols
         )
 
         sectors = []
@@ -471,25 +450,28 @@ class _EmbeddingProblem:
         def visit(expression, mask, remaining):
             nonlocal has_zero
             expression = sympy.expand(expression)
-            remaining = tuple(x for x in remaining if x in expression.free_symbols)
+            remaining = tuple(x for x in remaining if x[0] in expression.free_symbols)
             if remaining:
-                symbol, *rest = remaining
-                for value in (0, 1):
+                (symbol, size), *rest = remaining
+                for value in range(size):
                     visit(
                         expression.xreplace({symbol: sympy.Integer(value)}),
-                        mask * (symbol if value else 1 - symbol),
+                        mask * _occupation_projector(symbol, value, size),
                         rest,
                     )
                 return
             expression = sympy.simplify(expression)
             if expression == 0:
                 has_zero = True
-                sector = _one_term(
-                    self.embedding.target.operators,
-                    (0,) * len(self.embedding.target.operators),
-                    mask,
+                sector = NumberOrderedForm(
+                    target.operators,
+                    {
+                        powers: coefficient * mask
+                        for powers, coefficient in target.terms.items()
+                    },
+                    validate=False,
                 )
-                if not self._zero_denominator_is_projected_out(source, target * sector):
+                if not self._zero_denominator_is_projected_out(source, sector):
                     raise ZeroDivisionError(
                         "A virtual channel is degenerate with the retained space"
                     )
@@ -497,52 +479,16 @@ class _EmbeddingProblem:
                 sectors.append(mask / expression)
 
         visit(denominator, sympy.S.One, variables)
-        if not has_zero:
-            return target * self._target_reciprocal(denominator)
-        inverse = _one_term(
-            self.embedding.target.operators,
-            (0,) * len(self.embedding.target.operators),
-            sympy.Add(*sectors),
+        inverse = sympy.Add(*sectors) if has_zero else 1 / denominator
+        result = NumberOrderedForm(
+            target.operators,
+            {
+                powers: coefficient * inverse
+                for powers, coefficient in target.terms.items()
+            },
+            validate=False,
         )
-        return target * inverse
-
-    def _solve_finite(self, value: AdjointOperatorMap):
-        solved_terms = []
-        for _source_form, target in value.column.terms:
-            for source in _NOFTransition.from_form(_source_form):
-                for (row, column), target_coefficient in target.todok().items():
-                    action = self.embedding._finite_transition_action(source, row)
-                    # A weighted transition has one output occupation. If it
-                    # returns to P, the outer Q removes it exactly, regardless
-                    # of how complicated its symbolic coefficient is.
-                    if (
-                        action is None
-                        or action.output_state in self.embedding._finite_source_index
-                    ):
-                        continue
-                    denominator = sympy.factor(
-                        self.finite_target_energy[column]
-                        - self._source_energy_at(action.output_state)
-                    )
-                    target_term = sympy.ImmutableSparseMatrix(
-                        self.embedding.target.dimension,
-                        self.embedding.target.dimension,
-                        {(row, column): target_coefficient},
-                    )
-                    if denominator == 0:
-                        if self._zero_denominator_is_projected_out(source, target_term):
-                            continue
-                        raise ZeroDivisionError(
-                            "A virtual channel is degenerate with the retained space"
-                        )
-                    solved_terms.append(
-                        (
-                            source.form,
-                            target_term / denominator,
-                        )
-                    )
-        column = OperatorMap(self.embedding, solved_terms).or_zero()
-        return zero if column is zero else column.adjoint()
+        return result * self.embedding._target_identity
 
     def block_series(self) -> BlockSeries:
         """Represent the retained and discarded Hamiltonian blocks."""
