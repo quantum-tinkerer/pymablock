@@ -1280,9 +1280,11 @@ class NumberOrderedForm(Operator):
             except Exception:
                 return NotImplemented
 
-        if self.is_zero:
+        # Empty forms are neutral regardless of their embedding attachment.
+        # Avoid symbolic zero inference on every intermediate coefficient.
+        if not self:
             return other
-        if other.is_zero:
+        if not other:
             return self
         if self.args[2:] != other.args[2:]:
             raise ValueError("Addition requires matching embedding attachments")
