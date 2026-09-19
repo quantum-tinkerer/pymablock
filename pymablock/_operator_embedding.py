@@ -10,46 +10,32 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
     _NOFTransition,
     _occupation_dimension,
-    _occupation_projector,
     _projectors,
     _reduce_projectors,
+    _spectral_projector,
 )
 from pymablock.operator_embedding import Embedding, _ReferenceBasis
 from pymablock.series import BlockSeries, zero
 
 
 def _projector(basis):
-    """Compile the occupation indicator of the retained subspace."""
+    """Select the joint spectrum of retained number operators and constraints."""
     numbers = basis._source_placeholders
-
-    def diagonal(expression):
-        return NumberOrderedForm(basis.operators, {(0,) * len(numbers): expression}) * 1
-
     if isinstance(basis, _ReferenceBasis):
-        return diagonal(
-            sympy.prod(
-                _occupation_projector(n, value)
-                for n, value in zip(numbers, basis._references[0][1])
-            )
-        )
-    matrix = basis._occupation_matrix
-    occupations = sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
-    target = basis._occupation_left_inverse * occupations
-    indicator = sympy.prod(
-        _occupation_projector(sympy.expand(value), 0)
-        for value in occupations - matrix * target
-    )
-    for q, size, op in zip(target, basis._target_dimensions, basis._target_operators):
-        if size is not None:
-            indicator *= sum(_occupation_projector(q, i) for i in range(size))
-        else:
-            indicator *= _occupation_projector(q, sympy.floor(q))
-            # Prove the target domain using the physical source occupations.
-            physical = {
-                n: sympy.Dummy(integer=True, nonnegative=True)
-                for source, n in zip(basis.operators, numbers)
-                if not isinstance(source, LadderOp)
-            }
+        spectra = list(zip(numbers, ((n,) for n in basis._references[0][1])))
+    else:
+        offsets = sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
+        spectra = [
+            (sympy.expand(normal.dot(offsets)), (0,))
+            for normal in basis._occupation_matrix.T.nullspace()
+        ]
+        target = basis._occupation_left_inverse * offsets
+        physical = {
+            n: sympy.Dummy(integer=True, nonnegative=True)
+            for source, n in zip(basis.operators, numbers)
+            if not isinstance(source, LadderOp)
+        }
+        for q, op, size in zip(target, basis._target_operators, basis._target_dimensions):
             if (
                 isinstance(op, BosonOp)
                 and q.xreplace(physical).is_nonnegative is not True
@@ -57,7 +43,9 @@ def _projector(basis):
                 raise NotImplementedError(
                     "This bosonic embedding requires an occupation inequality"
                 )
-    return diagonal(indicator)
+            spectra.append((q, range(size) if size is not None else sympy.S.Integers))
+    indicator = sympy.prod(_spectral_projector(q, spectrum) for q, spectrum in spectra)
+    return NumberOrderedForm(basis.operators, {(0,) * len(numbers): indicator}) * 1
 
 
 def prepare(hamiltonian, embedding):

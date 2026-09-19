@@ -330,6 +330,15 @@ operators; the scalar occupation coefficients inside a NOF remain commutative.
 NOF coefficient arithmetic applies point-projector constraints directly, so
 embedding products use the same reduction as ordinary NOF products.
 
+The source projector selects a joint spectrum of commuting number operators.
+Writing the occupation map as $n=r+Mm$, let $LM=I$ and let the rows of $C$
+form a basis of the left nullspace of $M$. The projector imposes
+$C(n-r)=0$ and selects the allowed spectrum of each target number operator
+in $L(n-r)$. Using independent nullspace constraints avoids redundant
+occupation equations. A reference state is the special case that selects one
+eigenvalue of every source number operator. Finite spectral selections are sums
+of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
+
 For infinite bosonic targets, the solver currently requires that nonnegative
 target occupations follow from the physical source occupations. Other selections
 raise `NotImplementedError` because they require occupation inequalities.
