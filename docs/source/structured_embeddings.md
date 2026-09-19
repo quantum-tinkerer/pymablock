@@ -327,7 +327,7 @@ raise `NotImplementedError` because they require occupation inequalities.
 Finite reference lists and binary targets use only equality conditions.
 Avoiding basis enumeration does not remove expression growth at high orders.
 
-Executable physical checks for supercurrent, the Crépel–Fu interaction model,
-the tunable coupler, and the artificial cavity spin are in
-`pymablock/tests/test_embedding_models.py`. See also the
+The [application documents](applications/index.md) reproduce the supercurrent,
+Crépel–Fu interaction model, tunable coupler, and artificial cavity spin.
+See also the
 [API reference](documentation/pymablock.md#structured-embeddings).
