@@ -1,6 +1,5 @@
 """Prepare embedding blocks and their algebraic Sylvester solver."""
 
-from functools import cache
 from itertools import product
 
 import sympy
@@ -11,33 +10,12 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
     _NOFTransition,
     _occupation_dimension,
+    _occupation_projector,
+    _projectors,
+    _reduce_projectors,
 )
 from pymablock.operator_embedding import Embedding, _ReferenceBasis
 from pymablock.series import BlockSeries, zero
-
-
-def _occupation_projector(left, right):
-    return sympy.Piecewise((1, sympy.Eq(left, right)), (0, True))
-
-
-def _projectors(expression, numbers):
-    """Yield point indicators and the occupation value they select."""
-    for delta in expression.atoms(sympy.Piecewise):
-        if (
-            len(delta.args) != 2
-            or delta.args[0].expr != 1
-            or delta.args[1] != (0, sympy.true)
-            or not isinstance(delta.args[0].cond, sympy.Equality)
-        ):
-            continue
-        variables = set(numbers) & delta.free_symbols
-        if len(variables) != 1:
-            continue
-        (n,) = variables
-        equation = sympy.expand(delta.args[0].cond.lhs - delta.args[0].cond.rhs)
-        slope = equation.coeff(n)
-        if slope.is_number and slope:
-            yield delta, n, sympy.cancel(n - equation / slope)
 
 
 def _projector(basis):
@@ -82,41 +60,6 @@ def _projector(basis):
     return diagonal(indicator)
 
 
-def _support_reducer(basis):
-    """Compile reduction of coefficients on point-projector support."""
-    numbers = basis._source_placeholders
-
-    @cache
-    def on_support(coefficient):
-        """Reduce point projectors without expanding unrelated coefficient factors."""
-        replacements, points = {}, {}
-        for delta, n, value in _projectors(coefficient, numbers):
-            if not value.is_number:
-                continue
-            if value.is_integer is False or (
-                not isinstance(basis.operators[numbers.index(n)], LadderOp) and value < 0
-            ):
-                replacements[delta] = sympy.S.Zero
-            else:
-                replacements[delta] = _occupation_projector(n, value)
-                points.setdefault(n, set()).add(value)
-        coefficient = coefficient.xreplace(replacements)
-        for n, values in sorted(
-            points.items(), key=lambda item: sympy.default_sort_key(item[0])
-        ):
-            background = coefficient.xreplace(
-                {_occupation_projector(n, v): sympy.S.Zero for v in values}
-            )
-            coefficient = background + sum(
-                _occupation_projector(n, v)
-                * (coefficient.xreplace({n: v}) - background.xreplace({n: v}))
-                for v in sorted(values, key=sympy.default_sort_key)
-            )
-        return coefficient
-
-    return on_support
-
-
 def prepare(hamiltonian, embedding):
     """Return rectangular Hamiltonian blocks and their Sylvester solver."""
     if hamiltonian.shape:
@@ -159,12 +102,11 @@ def prepare(hamiltonian, embedding):
         else sympy.S.Zero
         for i in range(h0.rows)
     ]
-    on_support = entry_embedding._on_support
 
     def divide_scalar(value, row, col):
         if value == 0 or value.is_zero:
             return sympy.S.Zero
-        value = entry_embedding._clean(value.source * entry_embedding._projector)
+        value = value.source * entry_embedding._projector
         terms = {}
         for powers, coefficient in value.terms.items():
             outgoing = {n: n + max(-int(power), 0) for n, power in zip(numbers, powers)}
@@ -189,7 +131,7 @@ def prepare(hamiltonian, embedding):
             result = sympy.S.Zero
             for values in product((0, 1), repeat=len(binary)):
                 substitutions = dict(zip(binary, values))
-                c = on_support(coefficient.xreplace(substitutions))
+                c = _reduce_projectors(coefficient.xreplace(substitutions), modes)
                 d = denominator.xreplace(substitutions)
                 if c == 0:
                     continue

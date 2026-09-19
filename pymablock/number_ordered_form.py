@@ -382,6 +382,60 @@ def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     )
 
 
+def _occupation_projector(left, right):
+    return sympy.Piecewise((1, sympy.Eq(left, right)), (0, True))
+
+
+def _projectors(expression, numbers):
+    """Yield point indicators and the occupation value they select."""
+    for delta in expression.atoms(sympy.Piecewise):
+        if (
+            len(delta.args) != 2
+            or delta.args[0].expr != 1
+            or delta.args[1] != (0, sympy.true)
+            or not isinstance(delta.args[0].cond, sympy.Equality)
+        ):
+            continue
+        variables = set(numbers) & delta.free_symbols
+        if len(variables) != 1:
+            continue
+        (n,) = variables
+        equation = sympy.expand(delta.args[0].cond.lhs - delta.args[0].cond.rhs)
+        slope = equation.coeff(n)
+        if slope.is_number and slope:
+            yield delta, n, sympy.cancel(n - equation / slope)
+
+
+@cache
+def _reduce_projectors(coefficient, operators):
+    """Evaluate occupation functions on the support of point projectors."""
+    numbers = _number_symbols(tuple(operators))
+    replacements, points = {}, {}
+    for delta, n, value in _projectors(coefficient, numbers):
+        if not value.is_number:
+            continue
+        if value.is_integer is False or (
+            not isinstance(operators[numbers.index(n)], LadderOp) and value < 0
+        ):
+            replacements[delta] = sympy.S.Zero
+        else:
+            replacements[delta] = _occupation_projector(n, value)
+            points.setdefault(n, set()).add(value)
+    coefficient = coefficient.xreplace(replacements)
+    for n, values in sorted(
+        points.items(), key=lambda item: sympy.default_sort_key(item[0])
+    ):
+        background = coefficient.xreplace(
+            {_occupation_projector(n, v): sympy.S.Zero for v in values}
+        )
+        coefficient = background + sum(
+            _occupation_projector(n, v)
+            * (coefficient.xreplace({n: v}) - background.xreplace({n: v}))
+            for v in sorted(values, key=sympy.default_sort_key)
+        )
+    return coefficient
+
+
 class NumberOrderedForm(Operator):
     """Number ordered form of quantum operators.
 
@@ -506,6 +560,14 @@ class NumberOrderedForm(Operator):
             # Validate only after conversion
             cls._validate_terms(terms, operators)
 
+        terms = Tuple(
+            *(
+                Tuple(powers, _reduce_projectors(coeff, operators))
+                if coeff.has(Piecewise)
+                else Tuple(powers, coeff)
+                for powers, coeff in terms
+            )
+        )
         terms = Tuple(*(term for term in terms if term[1] != 0))
         attachment = ()
         if embedding is not None and terms:
@@ -1418,7 +1480,7 @@ class NumberOrderedForm(Operator):
                 raise ValueError("Composition requires opposite matching attachments")
             if self.side == -1:
                 return left._contract(self.source * other.source)
-            return left._clean(self.source * left._projector * other.source)
+            return self.source * left._projector * other.source
         if left is not None:
             value = left._lift(other) if self.side == 1 else other
             result = self.source * value
