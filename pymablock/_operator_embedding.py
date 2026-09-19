@@ -1,20 +1,11 @@
-"""Block diagonalization using ordinary operators and fixed projectors.
+"""Prepare embedding blocks and their algebraic Sylvester solver."""
 
-P = W W† selects the retained representation and Q = 1 - P its complement.
-The retained block is expressed in the target algebra. Other blocks are source
-operators supported on P or Q; no source basis truncation is introduced.
-"""
-
-from dataclasses import dataclass
 from functools import cache
 from itertools import product
 
-import numpy as np
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 
-from pymablock.algorithm_parsing import series_computation
-from pymablock.algorithms import main
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOrderedForm,
@@ -22,54 +13,46 @@ from pymablock.number_ordered_form import (
     _occupation_dimension,
 )
 from pymablock.operator_embedding import Embedding, _ReferenceBasis
-from pymablock.series import BlockSeries, one, zero
+from pymablock.series import BlockSeries, zero
 
 
 def _occupation_projector(left, right):
     return sympy.Piecewise((1, sympy.Eq(left, right)), (0, True))
 
 
-def _projectors(expression):
-    return (
-        p
-        for p in expression.atoms(sympy.Piecewise)
-        if len(p.args) == 2
-        and p.args[0].expr == 1
-        and p.args[1] == (0, sympy.true)
-        and isinstance(p.args[0].cond, sympy.Equality)
-    )
+def _projectors(expression, numbers):
+    """Yield point indicators and the occupation value they select."""
+    for delta in expression.atoms(sympy.Piecewise):
+        if (
+            len(delta.args) != 2
+            or delta.args[0].expr != 1
+            or delta.args[1] != (0, sympy.true)
+            or not isinstance(delta.args[0].cond, sympy.Equality)
+        ):
+            continue
+        variables = set(numbers) & delta.free_symbols
+        if len(variables) != 1:
+            continue
+        (n,) = variables
+        equation = sympy.expand(delta.args[0].cond.lhs - delta.args[0].cond.rhs)
+        slope = equation.coeff(n)
+        if slope.is_number and slope:
+            yield delta, n, sympy.cancel(n - equation / slope)
 
 
-def _adjoint(value):
-    """Return an algebra-native adjoint."""
-    result = value.adjoint()
-    if isinstance(value, NumberOrderedForm) and result.operators != value.operators:
-        # SymPy may cache an equal expression with a different list of unused
-        # generators. Restore the declared basis using the public conversion.
-        return NumberOrderedForm.from_expr(result.as_expr(), operators=value.operators)
-    return result
-
-
-def _projector(basis, shape):
+def _projector(basis):
     """Compile the occupation indicator of the retained subspace."""
     numbers = basis._source_placeholders
 
     def diagonal(expression):
         return NumberOrderedForm(basis.operators, {(0,) * len(numbers): expression}) * 1
 
-    def point(state):
-        return sympy.prod(
-            _occupation_projector(n, value) for n, value in zip(numbers, state)
-        )
-
     if isinstance(basis, _ReferenceBasis):
-        entries = {}
-        for component, state in basis._references:
-            entries[component, component] = entries.get(
-                (component, component), 0
-            ) + point(state)
-        return sympy.ImmutableSparseMatrix(
-            *shape, {key: diagonal(value) for key, value in entries.items()}
+        return diagonal(
+            sympy.prod(
+                _occupation_projector(n, value)
+                for n, value in zip(numbers, basis._references[0][1])
+            )
         )
     matrix = basis._occupation_matrix
     occupations = sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
@@ -99,97 +82,15 @@ def _projector(basis, shape):
     return diagonal(indicator)
 
 
-def _lift(value, basis, p, shape):
-    """Embed a retained operator using its normal-ordered monomials."""
+def _support_reducer(basis):
+    """Compile reduction of coefficients on point-projector support."""
     numbers = basis._source_placeholders
-    if isinstance(basis, _ReferenceBasis):
-        entries = {}
-        for (i, j), amplitude in value.todok().items():
-            row, final = basis._references[i]
-            col, initial = basis._references[j]
-            powers = tuple(a - b for a, b in zip(initial, final))
-            monomial = NumberOrderedForm(basis.operators, {powers: sympy.S.One})
-            (transition,) = _NOFTransition.from_form(monomial)
-            weight = transition.apply(initial).weight
-            mask = sympy.prod(
-                _occupation_projector(n, a) for n, a in zip(numbers, initial)
-            )
-            column = NumberOrderedForm(basis.operators, {(0,) * len(numbers): mask})
-            key = row, col
-            entries[key] = entries.get(key, 0) + monomial * column * (amplitude / weight)
-        return sympy.ImmutableSparseMatrix(*shape, entries)
-    coordinates = basis._occupation_left_inverse * (
-        sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
-    )
-    substitutions = dict(zip(basis._target_placeholders, coordinates))
-    result = NumberOrderedForm(basis.operators, {}, validate=False)
-    for powers, coefficient in value.terms.items():
-        term = NumberOrderedForm(
-            basis.operators, {(0,) * len(numbers): coefficient.xreplace(substitutions)}
-        )
-        for generator, power in reversed(tuple(zip(basis._generators, powers))):
-            if power > 0:
-                term = term * generator.form**power
-        for generator, power in reversed(tuple(zip(basis._generators, powers))):
-            if power < 0:
-                term = generator.form.adjoint() ** (-power) * term
-        result += term
-    return p * result * p
-
-
-@dataclass(frozen=True)
-class _Block:
-    """A block index and its ordinary source or retained operator."""
-
-    index: tuple[int, int]
-    value: NumberOrderedForm | sympy.MatrixBase
-
-    def __add__(self, other):
-        return self if other is zero else _Block(self.index, self.value + other.value)
-
-    def __neg__(self):
-        return _Block(self.index, -self.value)
-
-    def __sub__(self, other):
-        return self + (-other)
-
-    def __truediv__(self, divisor):
-        return _Block(self.index, self.value / divisor)
-
-    def adjoint(self):
-        return _Block(self.index[::-1], _adjoint(self.value))
-
-
-def block_diagonalize(
-    hamiltonian: BlockSeries, embedding: Embedding
-) -> tuple[BlockSeries, BlockSeries, BlockSeries]:
-    """Run the standard recurrence, compressing only the retained block."""
-    basis = embedding._basis
-    if hamiltonian.shape:
-        raise ValueError("Structured embeddings require an unseparated Hamiltonian.")
-    origin = (0,) * hamiltonian.n_infinite
-    h0 = basis._source_form(hamiltonian[origin])
-    shape = h0.shape if isinstance(h0, sympy.MatrixBase) else None
-    numbers = basis._source_placeholders
-    dimensions = tuple(map(_occupation_dimension, basis.operators))
-    unit = basis._source_form(sympy.eye(shape[0]) if shape else sympy.S.One)
-    p = _projector(basis, shape)
-    blocks = (p, unit - p)
 
     @cache
     def on_support(coefficient):
         """Reduce point projectors without expanding unrelated coefficient factors."""
         replacements, points = {}, {}
-        for delta in _projectors(coefficient):
-            variables = set(numbers) & delta.free_symbols
-            if len(variables) != 1:
-                continue
-            (n,) = variables
-            equation = sympy.expand(delta.args[0].cond.lhs - delta.args[0].cond.rhs)
-            slope = equation.coeff(n)
-            if not slope.is_number or not slope:
-                continue
-            value = sympy.cancel(n - equation / slope)
+        for delta, n, value in _projectors(coefficient, numbers):
             if not value.is_number:
                 continue
             if value.is_integer is False or (
@@ -213,57 +114,64 @@ def block_diagonalize(
             )
         return coefficient
 
-    def clean_scalar(value):
-        if value == 0:
-            return NumberOrderedForm(basis.operators, {}, validate=False)
-        return value.applyfunc(on_support)
+    return on_support
 
-    def clean(value):
-        result = value.applyfunc(clean_scalar) if shape else clean_scalar(value)
-        empty = (
-            all(not any(x.terms.values()) for x in result.todok().values())
-            if shape
-            else not any(result.terms.values())
+
+def prepare(hamiltonian, embedding):
+    """Return rectangular Hamiltonian blocks and their Sylvester solver."""
+    if hamiltonian.shape:
+        raise ValueError("Structured embeddings require an unseparated Hamiltonian.")
+    basis = embedding._basis
+    finite = isinstance(basis, _ReferenceBasis)
+    origin = (0,) * hamiltonian.n_infinite
+    source_h0 = basis._source_form(hamiltonian[origin])
+    h0 = source_h0 if finite else sympy.ImmutableMatrix([[source_h0]])
+    modes, numbers = basis.operators, basis._source_placeholders
+    dimensions = tuple(map(_occupation_dimension, modes))
+    if any(
+        (i != j and x != 0)
+        or (
+            isinstance(x, NumberOrderedForm)
+            and any(any(p) and c != 0 for p, c in x.terms.items())
         )
-        return zero if empty else result
-
-    @cache
-    def lifted(value):
-        return _lift(value, basis, p, shape)
-
-    def wrap(index, value):
-        index = index[:2]
-        if value is zero:
-            return zero
-        return _Block(index, basis._pullback(value) if index == (0, 0) else value)
-
-    def multiply(a, b):
-        index = (a.index[0], b.index[1])
-        if a.index == b.index == (0, 0):
-            return _Block(index, a.value * b.value)
-        left = lifted(a.value) if a.index == (0, 0) else a.value
-        right = lifted(b.value) if b.index == (0, 0) else b.value
-        return wrap(index, clean(left * right))
-
-    energies = []
-    for i in range(shape[0] if shape else 1):
-        entry = h0[i, i] if shape else h0
-        if entry == 0:
-            energies.append(sympy.S.Zero)
-            continue
-        if any(any(powers) and c != 0 for powers, c in entry.terms.items()):
-            raise ValueError("Structured embeddings currently require diagonal H0")
-        energies.append(sympy.expand(entry.terms.get((0,) * len(numbers), sympy.S.Zero)))
-    if shape and any(i != j and x != 0 for (i, j), x in h0.todok().items()):
+        for (i, j), x in h0.todok().items()
+    ):
         raise ValueError("Structured embeddings currently require diagonal H0")
+    vacuum = (0,) * len(modes)
+    if finite:
+        entry_embedding = Embedding(reference=[dict(zip(modes, vacuum))])
+        w = sympy.zeros(h0.rows, len(basis._references))
+        for col, (row, state) in enumerate(basis._references):
+            monomial = NumberOrderedForm(modes, {tuple(-n for n in state): sympy.S.One})
+            (transition,) = _NOFTransition.from_form(monomial)
+            w[row, col] = entry_embedding._attach(
+                monomial / transition.apply(vacuum).weight, 1
+            )
+        w = sympy.ImmutableMatrix(w)
+    else:
+        entry_embedding = embedding
+        w = sympy.ImmutableMatrix([[embedding._attach(sympy.S.One, 1)]])
+    frames = (w, sympy.eye(h0.rows) - w * w.adjoint())
+    retained = w.adjoint() * h0 * w
+    energies = [
+        sympy.expand(h0[i, i].terms.get((0,) * len(modes), sympy.S.Zero))
+        if h0[i, i] != 0
+        else sympy.S.Zero
+        for i in range(h0.rows)
+    ]
+    on_support = entry_embedding._on_support
 
     def divide_scalar(value, row, col):
+        if value == 0 or value.is_zero:
+            return sympy.S.Zero
+        value = entry_embedding._clean(value.source * entry_embedding._projector)
         terms = {}
         for powers, coefficient in value.terms.items():
             outgoing = {n: n + max(-int(power), 0) for n, power in zip(numbers, powers)}
             incoming = {n: n + max(int(power), 0) for n, power in zip(numbers, powers)}
             denominator = sympy.expand(
-                energies[row].xreplace(outgoing) - energies[col].xreplace(incoming)
+                energies[row].xreplace(outgoing)
+                - (retained[col, col] if finite else energies[col].xreplace(incoming))
             )
             pinned = {
                 n: sympy.S.Zero
@@ -290,18 +198,8 @@ def block_diagonalize(
                     sympy.expand(c) if c.has(sympy.Piecewise) else c
                 ):
                     local = d
-                    for delta in _projectors(term):
-                        variables = set(numbers) & delta.free_symbols
-                        if len(variables) == 1:
-                            (n,) = variables
-                            equation = sympy.expand(
-                                delta.args[0].cond.lhs - delta.args[0].cond.rhs
-                            )
-                            slope = equation.coeff(n)
-                            if slope.is_number and slope:
-                                local = local.xreplace(
-                                    {n: sympy.cancel(n - equation / slope)}
-                                )
+                    for _, n, value in _projectors(term, numbers):
+                        local = local.xreplace({n: value})
                     local = sympy.cancel(local)
                     if local == 0:
                         raise ZeroDivisionError(
@@ -309,60 +207,34 @@ def block_diagonalize(
                         )
                     result += mask * term / local
             terms[powers] = result
-        return NumberOrderedForm(basis.operators, terms, validate=False)
+        return NumberOrderedForm(
+            basis.operators, terms, entry_embedding, 1, validate=False
+        )
 
     def solve(value, index):
-        if value is zero:
-            return zero
-        value = value.value
-        if shape:
-            return wrap(
-                index,
-                clean(
-                    sympy.ImmutableSparseMatrix(
-                        *shape,
-                        {
-                            key: divide_scalar(entry, *key)
-                            for key, entry in value.todok().items()
-                        },
-                    )
-                ),
-            )
-        return wrap(index, clean(divide_scalar(value, 0, 0)))
+        reverse = index[:2] == (0, 1)
+        source = value.adjoint() if reverse else value
+        result = sympy.ImmutableMatrix(
+            source.rows, source.cols, lambda i, j: divide_scalar(source[i, j], i, j)
+        )
+        return -result.adjoint() if reverse else result
 
     def evaluate(i, j, *order):
         source = hamiltonian[tuple(order)]
         if source is zero or (i != j and tuple(order) == origin):
             return zero
         source = basis._source_form(source)
-        if (source.shape if shape else None) != shape:
+        if not finite:
+            source = sympy.ImmutableMatrix([[source]])
+        if source.shape != h0.shape:
             raise ValueError(
                 "All Hamiltonian coefficients must have the same source matrix shape"
             )
-        return wrap((i, j), clean(blocks[i] * source * blocks[j]))
+        result = frames[i].adjoint() * source * frames[j]
+        return zero if result.is_zero_matrix else result if finite else result[0, 0]
 
     options = dict(
         n_infinite=hamiltonian.n_infinite, dimension_names=hamiltonian.dimension_names
     )
-    outputs, _ = series_computation(
-        {"H": BlockSeries(eval=evaluate, shape=(2, 2), **options)},
-        algorithm=main,
-        scope={
-            "solve_sylvester": solve,
-            "use_linear_operator": np.zeros((2, 2), dtype=bool),
-            "two_block_optimized": True,
-            "commuting_blocks": [True, True],
-        },
-        operator=multiply,
-    )
-
-    def result(name):
-        def evaluate(i, j, *order):
-            value = outputs[name][i, j, *order]
-            if value is zero or value is one:
-                return value
-            return value.value
-
-        return BlockSeries(eval=evaluate, shape=(2, 2), **options)
-
-    return tuple(result(name) for name in ("H_tilde", "U", "U†"))
+    blocks = BlockSeries(eval=evaluate, shape=(2, 2), **options)
+    return blocks, solve

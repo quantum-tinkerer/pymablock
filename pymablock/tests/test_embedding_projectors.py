@@ -6,7 +6,6 @@ import pytest
 import sympy as s
 
 from pymablock import block_diagonalize
-from pymablock._operator_embedding import block_diagonalize as graph
 from pymablock.operator_embedding import Embedding
 from pymablock.series import BlockSeries, one, zero
 
@@ -31,9 +30,9 @@ def test_complete_rotation(dimensions):
         data[(1, 1)] = s.diag(1, -1, 2, 0)
     h = BlockSeries(data=data, n_infinite=dimensions)
     embedding = Embedding(reference=[(0, {}), (1, {})])
-    outputs = graph(h, embedding)
+    outputs = block_diagonalize(h, subspace_eigenvectors=embedding)
     reference = block_diagonalize(h, subspace_indices=[0, 0, 1, 1])
-    w, q = s.eye(4)[:, :2], s.eye(4)[:, 2:]
+    q = s.eye(4)[:, 2:]
 
     def lower(value, i, j):
         if value is zero:
@@ -42,9 +41,14 @@ def test_complete_rotation(dimensions):
             return s.eye(2)
         if i == j == 0:
             return value
-        source = value.applyfunc(lambda x: x.as_expr() if hasattr(x, "as_expr") else x)
-        frames = (w, q)
-        return frames[i].adjoint() * source * frames[j]
+        source = value.applyfunc(
+            lambda x: x.source.as_expr() if hasattr(x, "source") else x
+        )
+        if i == 1:
+            source = q.adjoint() * source
+        if j == 1:
+            source = source * q
+        return source
 
     orders = sorted(
         (n for n in product(range(5), repeat=dimensions) if sum(n) <= 4),
@@ -99,7 +103,7 @@ def test_fermion_result_after_cancellation():
         data={(0,): ea * N(a) + eb * N(b), (1,): g * (Dagger(b) * a + Dagger(a) * b)}
     )
     embedding = Embedding({f: a}, reference={a: 0, b: 0})
-    actual = graph(h, embedding)[0][0, 0, 2]
+    actual = block_diagonalize(h, subspace_eigenvectors=embedding)[0][0, 0, 2]
     expected = NumberOrderedForm.from_expr(g**2 * N(f) / (ea - eb), operators=(f,))
     assert (actual - expected).applyfunc(s.cancel).is_zero
 
@@ -117,7 +121,9 @@ def test_bosonic_projector_output_blocks():
         lowering[n - 1, n] = s.sqrt(n)
     source = [3 * N(a) + N(a) * (N(a) - 1) / 5, (1 + s.I) * a + (1 - s.I) * a.adjoint()]
     e = Embedding({q: a**2 / s.sqrt(2)}, reference={a: 0})
-    actual = graph(BlockSeries(data={(0,): source[0], (1,): source[1]}), e)
+    actual = block_diagonalize(
+        BlockSeries(data={(0,): source[0], (1,): source[1]}), subspace_eigenvectors=e
+    )
     h0 = s.diag(*(3 * n + s.Rational(n * (n - 1), 5) for n in range(cutoff)))
     v = (1 + s.I) * lowering + (1 - s.I) * lowering.T
     labels = [0 if n in (0, 2) else 1 for n in range(cutoff)]
@@ -127,12 +133,14 @@ def test_bosonic_projector_output_blocks():
         entry = actual[k][i, j, n]
         if entry is one:
             matrix = s.eye(2)
-        elif entry is zero:
+        elif entry is zero or entry == 0:
             matrix = s.zeros(2)
         elif i == j == 0:
             matrix = entry.to_matrix()
         else:
-            matrix = entry.to_matrix([range(cutoff)]).extract(selected[i], selected[j])
+            matrix = entry.source.to_matrix([range(cutoff)]).extract(
+                selected[i], selected[j]
+            )
         expected = reference[k][i, j, n]
         if expected is one:
             expected = s.eye(2)

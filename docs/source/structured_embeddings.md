@@ -276,18 +276,45 @@ For retained infinite modes, symbolic energy denominators require the usual
 nonresonance assumption on the occupations where the effective model is used.
 
 The solver constructs the fixed occupation projector $P=WW^\dagger$ and its
-complement $Q=1-P$, using equality-based `Piecewise` expressions. All virtual
-products are evaluated as ordinary source operators, without enumerating or
-truncating the discarded states. The retained block is compressed into the
-target algebra during the standard Pymablock recurrence.
+complement $Q=1-P$, using equality-based `Piecewise` expressions. It prepares
+Hamiltonian blocks and an energy-gap solver for the standard `block_diagonalize`
+driver. Virtual products do not enumerate or truncate the discarded states.
 
 For each of `H_eff`, `U`, and `U_adjoint`, block `[0, 0, ...]` uses the target
-operators or reference-list matrix basis. The other blocks are source-space
-operators supported on $P$ or $Q$ on the corresponding side. With linear mode
-mixing, these source operators use the compiler's rotated modes. The usual
-`zero` and `one` series sentinels represent zero and the identity on the block's
-space. Ordinary multiplication of the returned blocks requires lifting the
-retained block back to the source space first.
+operators or reference-list matrix basis. Block `[1, 1, ...]` uses source
+operators on the complement. The off-diagonal blocks are rectangular maps:
+$XW$ or $W^\dagger X$. Their NOFs carry the fixed `embedding` and a `side`
+(`1` for a right attachment, `-1` for a left attachment). The `source` property
+returns the ordinary operator $X$.
+
+These blocks support ordinary addition, multiplication, and adjoints. In
+particular, $W^\dagger XW$ contracts immediately to an ordinary target operator,
+and $(XW)(W^\dagger Y)=XPY$. Source multiplication preserves the attachment;
+it does not project or normalize after each operation. Support is reduced
+before dividing by an energy gap, so cancelling virtual amplitudes do not
+produce spurious resonance errors.
+
+For a generator embedding, algebraic use looks like this:
+
+```python
+from pymablock.number_ordered_form import NumberOrderedForm
+
+embedding = Embedding({s: a}, reference={a: 0})
+W = NumberOrderedForm.from_expr(embedding)
+X = NumberOrderedForm.from_expr(a + Dagger(a))
+rectangular = X * W
+compressed = W.adjoint() * rectangular  # embedding.restrict(X)
+```
+
+A reference-list embedding is prepared
+as a matrix of NOFs sharing one vacuum attachment. Matrix indices select the
+source components, and normalized creation monomials prepare the listed
+occupations. There is no separate embedding wrapper around the matrix.
+
+With linear mode mixing, source operators use the compiler's rotated modes.
+The usual `zero` and `one` series sentinels represent zero and the identity on
+the block's space. `to_matrix()` acts on ordinary operators; for a rectangular
+NOF, convert `.source` and apply the source and target bases explicitly.
 
 `NumberOrderedForm.as_expr()` exports diagonal projectors as ordinary SymPy
 `Piecewise` expressions, which can be read back with `from_expr()`. A SymPy
