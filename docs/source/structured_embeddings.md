@@ -339,6 +339,20 @@ occupation equations. A reference state is the special case that selects one
 eigenvalue of every source number operator. Finite spectral selections are sums
 of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
 
+The Sylvester solver evaluates each source transition on the incoming occupations
+$n=r+Mm$, then divides by the difference between its outgoing and incoming
+energies. The embedding already fixes the incoming support, so the solver does
+not multiply by the source projector. Reference-list columns use their vacuum
+attachment and creation monomial in the same transition calculation.
+Binary target occupations that affect the gap are resolved one at a time.
+At a zero gap, the solver also checks any remaining binary occupations in the
+transition amplitude: a vanishing channel contributes zero, while a nonzero
+channel raises a degeneracy error. Infinite occupations remain symbolic.
+Point selections in coefficients are handled as conditional branches, so a
+vanishing gap in an excluded occupation does not produce an artificial pole.
+This avoids expansion of projector products, but checking gaps that depend on
+many binary occupations can still require exponentially many sectors.
+
 For infinite bosonic targets, the solver currently requires that nonnegative
 target occupations follow from the physical source occupations. Other selections
 raise `NotImplementedError` because they require occupation inequalities.

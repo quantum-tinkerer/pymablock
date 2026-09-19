@@ -35,6 +35,91 @@ def test_floquet_projector_selects_integer_sublattice():
     assert nof_matrix(embedding._projector, [range(-3, 4)]) == s.diag(0, 1, 0, 1, 0, 1, 0)
 
 
+@pytest.mark.parametrize("coupled", [False, True])
+def test_gap_checks_ignore_terms_annihilating_the_embedding(coupled):
+    """A zero gap can leave a spectator whose coupling vanishes on both levels."""
+    from sympy.physics.quantum.boson import BosonOp
+    from sympy.physics.quantum.pauli import SigmaMinus
+
+    from pymablock.number_ordered_form import NumberOperator as N
+
+    a, b, c = map(BosonOp, ("a", "b", "c"))
+    x, y = SigmaMinus("x"), SigmaMinus("y")
+    embedding = Embedding({x: a, y: b}, reference={a: 0, b: 0, c: 0})
+    h0 = N(a) + 2 * N(b) + N(b) * N(c)
+    coupling = 1 - N(a) if coupled else N(a) * (1 - N(a))
+    h, *_ = block_diagonalize(
+        [h0, coupling * (c + c.adjoint())], subspace_eigenvectors=embedding
+    )
+    if coupled:
+        with pytest.raises(ZeroDivisionError, match="degenerate"):
+            _ = h[0, 0, 2]
+    else:
+        assert h[0, 0, 2].is_zero
+
+
+def test_sylvester_recognizes_algebraically_zero_gap():
+    x = s.Symbol("x")
+    gap = (x**2 - 1) / (x - 1) - x - 1
+    h, *_ = block_diagonalize(
+        [s.diag(0, gap), s.Matrix([[0, 1], [1, 0]])],
+        subspace_eigenvectors=Embedding(reference=[(0, {})]),
+    )
+    with pytest.raises(ZeroDivisionError, match="degenerate"):
+        _ = h[0, 0, 2]
+
+
+@pytest.mark.parametrize("coupled", [False, True])
+def test_bosonic_point_support_at_a_zero_gap(coupled):
+    """Resolve a resonant occupation without dividing an inactive branch by zero."""
+    from sympy.physics.quantum.boson import BosonOp
+
+    from pymablock.number_ordered_form import NumberOperator as N
+
+    a, b, q = map(BosonOp, ("a", "b", "q"))
+    point = s.Piecewise((1, s.Eq(N(a), 1)), (0, True))
+    coupling = point if coupled else 1 - point
+    h, *_ = block_diagonalize(
+        [N(a) + (N(a) - 1) * N(b), coupling * (b + b.adjoint())],
+        subspace_eigenvectors=Embedding({q: a}, reference={a: 0, b: 0}),
+    )
+    if coupled:
+        with pytest.raises(ZeroDivisionError, match="degenerate"):
+            _ = h[0, 0, 2]
+    else:
+        assert nof_matrix(h[0, 0, 2], [range(3)]) == s.diag(1, 0, -1)
+
+
+def test_correlated_boson_sylvester():
+    """Displacing one oscillator shifts every retained energy by -g**2/omega."""
+    from sympy.physics.quantum.boson import BosonOp
+
+    from pymablock.number_ordered_form import NumberOperator as N
+
+    a, b, q = map(BosonOp, ("a", "b", "q"))
+    omega, g = s.symbols("omega g", positive=True)
+    embedding = Embedding({q: (N(a) + 1) ** (-s.S.Half) * a * b}, reference={a: 0, b: 0})
+    h, *_ = block_diagonalize(
+        [omega * (N(a) + 2 * N(b)), g * (a + a.adjoint())],
+        subspace_eigenvectors=embedding,
+    )
+    assert (h[0, 0, 2] + g**2 / omega).applyfunc(s.cancel).is_zero
+
+
+def test_nonlinear_occupation_condition_is_not_a_point_substitution():
+    from sympy.physics.quantum.boson import BosonOp
+
+    from pymablock.number_ordered_form import NumberOperator as N
+
+    a, b, q = map(BosonOp, ("a", "b", "q"))
+    coupling = s.Piecewise((1, s.Eq(N(a) ** 2 + N(a), 2)), (0, True))
+    h, *_ = block_diagonalize(
+        [N(a) + 3 * N(b), coupling * (b + b.adjoint())],
+        subspace_eigenvectors=Embedding({q: a}, reference={a: 0, b: 0}),
+    )
+    assert nof_matrix(h[0, 0, 2], [range(3)]) == s.diag(0, -s.Rational(1, 3), 0)
+
+
 @pytest.mark.parametrize("dimensions", [1, 2])
 def test_complete_rotation(dimensions):
     origin = (0,) * dimensions
