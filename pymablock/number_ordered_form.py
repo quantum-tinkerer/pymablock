@@ -386,6 +386,13 @@ def _occupation_projector(left, right):
     return sympy.Piecewise((1, sympy.Eq(left, right)), (0, True))
 
 
+def _spectral_projector(expression, spectrum):
+    """Select a finite spectrum or the integers for a diagonal expression."""
+    if spectrum is sympy.S.Integers:
+        return _occupation_projector(expression, sympy.floor(expression))
+    return sum(_occupation_projector(expression, value) for value in spectrum)
+
+
 def _projectors(expression, numbers):
     """Yield point indicators and the occupation value they select."""
     for delta in expression.atoms(sympy.Piecewise):

@@ -11,6 +11,30 @@ from pymablock.series import BlockSeries, one, zero
 from pymablock.tests.second_quantization_helpers import nof_matrix
 
 
+def test_correlated_boson_projector():
+    """The conserved number difference selects equal source occupations."""
+    from sympy.physics.quantum.boson import BosonOp
+
+    from pymablock.number_ordered_form import NumberOperator as N
+
+    a, b, q = map(BosonOp, ("a", "b", "q"))
+    embedding = Embedding({q: (N(a) + 1) ** (-s.S.Half) * a * b}, reference={a: 0, b: 0})
+    actual = nof_matrix(embedding._projector, [range(3)] * 2)
+    assert actual == s.diag(*(int(i == j) for i, j in product(range(3), repeat=2)))
+
+
+def test_floquet_projector_selects_integer_sublattice():
+    """A double shift retains exactly the even ladder occupations."""
+    from pymablock.number_ordered_form import LadderOp
+    from pymablock.number_ordered_form import NumberOperator as N
+
+    source, target = LadderOp("source"), LadderOp("target")
+    embedding = Embedding(
+        {target: source**2, N(target): N(source) / 2}, reference={source: 0}
+    )
+    assert nof_matrix(embedding._projector, [range(-3, 4)]) == s.diag(0, 1, 0, 1, 0, 1, 0)
+
+
 @pytest.mark.parametrize("dimensions", [1, 2])
 def test_complete_rotation(dimensions):
     origin = (0,) * dimensions
