@@ -99,8 +99,7 @@ def cluster(edges, num_a, num_b):
 star = cluster(((0, 0), (0, 1), (0, 2)), 1, 3)
 H0, V, embedding, A, B, f = star
 H, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
-dopant_basis = Embedding(reference=[dict(zip(f, state)) for state in product((0, 1), repeat=len(f))])
-h2 = dopant_basis.restrict(H[0, 0, 2])
+h2 = H[0, 0, 2]
 ```
 
 ## Bare and assisted hopping
@@ -118,15 +117,25 @@ $\lambda=t_0^2[1/\Delta-1/(\Delta+V_0)]$. The code checks both expressions
 symbolically, without a large-$U_B$ approximation.
 
 ```{code-cell} ipython3
-bare = sp.factor(h2[2, 4])
-assisted = sp.factor(h2[3, 5])
+# Powers (1, -1, 0) select hopping from B0 to B1, with B2 a spectator.
+hopping = h2.filter_terms(((1, -1, 0),), keep=True).as_expr()
+display(hopping)
+bare = sp.factor(hopping.subs(N(f[2]), 0).coeff(Dagger(f[1]) * f[0]))
+assisted = sp.factor(hopping.subs(N(f[2]), 1).coeff(Dagger(f[1]) * f[0]))
 assert sp.factor(bare - t0**2 / (Delta + V0)) == 0
 assert sp.factor(assisted - t0**2 / Delta) == 0
 lam = sp.factor(assisted - bare)
 display(sp.Eq(sp.Symbol("t"), bare), sp.Eq(sp.Symbol("lambda"), lam))
 
 # Connected pair-density term with the third B site empty.
-interaction = sp.factor(h2[6, 6] - h2[4, 4] - h2[2, 2] + h2[0, 0])
+diagonal = h2.filter_terms(((0, 0, 0),), keep=True).as_expr()
+pair_energy = diagonal.subs(N(f[2]), 0)
+interaction = sp.factor(
+    pair_energy.subs({N(f[0]): 1, N(f[1]): 1})
+    - pair_energy.subs({N(f[0]): 1, N(f[1]): 0})
+    - pair_energy.subs({N(f[0]): 0, N(f[1]): 1})
+    + pair_energy.subs({N(f[0]): 0, N(f[1]): 0})
+)
 reference_interaction = 2 * t0**2 * (
     4 / (Delta + V0) - 3 / (Delta + 2 * V0) - 1 / Delta
     + 1 / (Delta + UB + V0) - 1 / (Delta + UB)
@@ -135,8 +144,9 @@ assert sp.factor(interaction - reference_interaction) == 0
 display(sp.Eq(sp.Symbol("W^{(2)}"), reference_interaction))
 ```
 
-The diagonal combination removes the reference energy and the two individual
-particle shifts, leaving a pair-density interaction. Its sign need not follow
+Evaluating the diagonal expression at the four occupations and taking this
+difference removes the reference energy and individual particle shifts,
+leaving a pair-density interaction. Its sign need not follow
 the sign of the bare repulsions. Both this term and the hopping arise from the
 same charge-transfer processes.
 
@@ -158,7 +168,8 @@ for state in product(range(2), repeat=3):
     selected.append(tuple(values[op] for op in source))
 kept = occupation_indices(occupations, selected)
 reference = second_order(energy, perturbation, kept)
-actual = np.asarray(h2.subs(parameters), dtype=complex)
+target_matrices = occupation_matrices(f, [range(2)] * len(f))
+actual = operator_matrix(h2.subs(parameters), target_matrices).toarray()
 error = np.max(np.abs(actual - reference))
 assert error < 1e-12
 print(f"Maximum second-order matrix error: {error:.2e}")
@@ -210,10 +221,15 @@ H_two, *_ = block_diagonalize(
     [H0_two.subs(parameters), V_two.subs(parameters)],
     subspace_eigenvectors=embedding_two,
 )
-two_basis = Embedding(reference=[dict(zip(f_two, state)) for state in product((0, 1), repeat=len(f_two))])
-# Lexicographic occupations: B0 alone is index 16, B3 alone is index 2.
-assert two_basis.restrict(H_two[0, 0, 2])[2, 16] == 0
-connected = sp.factor(two_basis.restrict(H_two[0, 0, 4])[2, 16])
+# Select B0 -> B3 and set the spectator occupations to zero.
+path = (1, 0, 0, -1, 0)
+coefficients = {}
+for order in (2, 4):
+    term = H_two[0, 0, order].filter_terms((path,), keep=True).as_expr()
+    empty_spectators = term.subs({N(op): 0 for op in f_two})
+    coefficients[order] = sp.factor(empty_spectators.coeff(Dagger(f_two[3]) * f_two[0]))
+assert coefficients[2] == 0
+connected = coefficients[4]
 reference_connected = -t0**4 * (2 * Delta**2 + 4 * Delta * V0 + V0**2) / (
     2 * (Delta + V0)**3 * (Delta + 2 * V0)**2
 )

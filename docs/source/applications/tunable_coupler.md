@@ -100,13 +100,14 @@ $$
 
 The sum-frequency denominators come from counterrotating processes. The
 symmetrized difference-frequency denominators account for unequal qubit
-energies. We extract the exchange between $|10\rangle$ and $|01\rangle$ directly
-from the effective matrix.
+energies. We select the term that annihilates a qubit-1 excitation and creates a
+qubit-2 excitation from the number-ordered effective operator.
 
 ```{code-cell} ipython3
-qubit_basis = Embedding(reference=[{q1: i, q2: j} for i, j in product((0, 1), repeat=2)])
-h2 = qubit_basis.restrict(H[0, 0, 2])
-exchange = sp.factor(h2[1, 2])
+h2 = H[0, 0, 2]
+exchange_term = h2.filter_terms(((1, -1),), keep=True).as_expr()
+display(exchange_term)
+exchange = sp.factor(exchange_term.coeff(Dagger(q2) * q1))
 reference_exchange = g1c * g2c / 2 * (
     1 / (w1 - wc) + 1 / (w2 - wc) - 1 / (w1 + wc) - 1 / (w2 + wc)
 )
@@ -136,16 +137,22 @@ plt.show()
 
 ## Full fourth-order Hamiltonian
 
-We compute the complete fourth-order coefficient symbolically and convert the
-two-spin output to a $4\times4$ matrix. With this ordering, fourth order includes
+We compute the complete fourth-order operator symbolically. Fourth order includes
 terms quadratic in the direct coupling, mixed direct and mediated processes,
 and terms quartic in the qubit–coupler couplings.
+We select its diagonal part and subtract the individual excitation energies
+to extract the conditional interaction.
 
 ```{code-cell} ipython3
-h4_symbolic = qubit_basis.restrict(H[0, 0, 4])
-assert (h4_symbolic - h4_symbolic.adjoint()).applyfunc(sp.cancel) == sp.zeros(4)
-conditional_symbolic = (h4_symbolic[3, 3] - h4_symbolic[2, 2]
-                        - h4_symbolic[1, 1] + h4_symbolic[0, 0])
+h4_symbolic = H[0, 0, 4]
+assert (h4_symbolic - h4_symbolic.adjoint()).applyfunc(sp.cancel).is_zero
+diagonal = h4_symbolic.filter_terms(((0, 0),), keep=True).as_expr()
+conditional_symbolic = (
+    diagonal.subs({N(q1): 1, N(q2): 1})
+    - diagonal.subs({N(q1): 1, N(q2): 0})
+    - diagonal.subs({N(q1): 0, N(q2): 1})
+    + diagonal.subs({N(q1): 0, N(q2): 0})
+)
 ```
 
 Only after obtaining the symbolic result do we substitute exact rational
@@ -159,13 +166,12 @@ parameters = {
 }
 numeric_source = {order: value.subs(parameters) for order, value in source.items()}
 h4 = h4_symbolic.subs(parameters)
-assert (h4 - h4.adjoint()).applyfunc(sp.simplify) == sp.zeros(4)
-display(h4.evalf(6))
+display(h4.as_expr().evalf(6))
 conditional_coefficient = sp.factor(conditional_symbolic.subs(parameters))
 print("Fourth-order coefficient of N(q1) N(q2):", float(conditional_coefficient))
 ```
 
-The displayed diagonal combination is the coefficient multiplying
+The selected density term is the coefficient multiplying
 $N_{q_1}N_{q_2}$ in this effective basis. To obtain a spectroscopic conditional
 frequency shift, one must also include the mixing from the off-diagonal terms
 when diagonalizing the retained Hamiltonian.
@@ -177,7 +183,8 @@ This comparison tests the source algebra, compression, and energy denominators;
 both calculations use the same perturbative recurrence.
 
 ```{code-cell} ipython3
-actual = np.asarray(h4, dtype=complex)
+target_matrices = occupation_matrices((q1, q2), [range(2)] * 2)
+actual = operator_matrix(h4, target_matrices).toarray()
 errors = []
 for levels in (4, 5):
     occupations = [range(levels)] * 3
