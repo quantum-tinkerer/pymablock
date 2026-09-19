@@ -14,7 +14,7 @@ from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.pauli import SigmaMinus
 
 from pymablock import block_diagonalize
-from pymablock._operator_embedding import ModuleEndomorphism, OperatorMap
+from pymablock._operator_embedding import _ComplementBlock, _CouplingBlock
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.operator_embedding import _NOFTransition, _number_symbols
@@ -113,7 +113,7 @@ def test_bosonic_excursion_is_not_a_product_of_compressions() -> None:
     backend = Embedding({s: a}, reference={a: 0})
 
     def _pullback(expr):
-        return backend._pullback(backend._source_form(expr))
+        return backend.restrict(expr)
 
     def expected(expr):
         return NumberOrderedForm.from_expr(expr, operators=(s,))
@@ -135,7 +135,7 @@ def test_retained_fermions_preserve_car_and_mode_correspondence(reverse, frozen)
         {left: a, right: b},
         reference={a: 0, fixed: frozen, b: 0},
     )
-    assert backend.target.operators == (f, g)
+    assert backend._basis._target_operators == (f, g)
     for source, target in (
         (a, left),
         (b, right),
@@ -145,7 +145,7 @@ def test_retained_fermions_preserve_car_and_mode_correspondence(reverse, frozen)
         (a * b, left * right),
         (b * Dagger(b), right * Dagger(right)),
     ):
-        result = backend._pullback(backend._source_form(source))
+        result = backend.restrict(source)
         assert result == NumberOrderedForm.from_expr(target, operators=(f, g))
 
 
@@ -159,20 +159,12 @@ def test_spin_in_two_fermions_uses_single_occupancy() -> None:
     def expected(expr):
         return NumberOrderedForm.from_expr(expr, operators=(s,))
 
-    assert backend._pullback(backend._source_form(NumberOperator(up))) == expected(
-        NumberOperator(s)
-    )
-    assert backend._pullback(backend._source_form(NumberOperator(down))) == expected(
-        1 - NumberOperator(s)
-    )
-    assert not backend._pullback(backend._source_form(up))
-    assert not backend._pullback(
-        backend._source_form(NumberOperator(up) * NumberOperator(down))
-    )
+    assert backend.restrict(NumberOperator(up)) == expected(NumberOperator(s))
+    assert backend.restrict(NumberOperator(down)) == expected(1 - NumberOperator(s))
+    assert not backend.restrict(up)
+    assert not backend.restrict(NumberOperator(up) * NumberOperator(down))
     # In canonical source order (down, up), this bilinear takes down to up.
-    assert backend._pullback(backend._source_form(Dagger(up) * down)) == expected(
-        Dagger(s)
-    )
+    assert backend.restrict(Dagger(up) * down) == expected(Dagger(s))
 
 
 def test_invalid_generator_definitions():
@@ -203,18 +195,18 @@ def test_particle_hole_and_pair_encodings():
 
 
 def test_binary_validation_does_not_enumerate_target(monkeypatch) -> None:
-    from pymablock.operator_embedding import _TargetSpace
+    from pymablock.operator_embedding import _ReferenceBasis
 
-    def forbidden(_self):
+    def forbidden(_self, _source):
         raise AssertionError("Target enumeration is not needed")
 
-    monkeypatch.setattr(_TargetSpace, "states", property(forbidden))
+    monkeypatch.setattr(_ReferenceBasis, "_actions", forbidden)
     spins = tuple(SigmaMinus(f"s{i}") for i in range(20))
     embedding = Embedding(
         {s: BosonOp(f"a{i}") for i, s in enumerate(spins)},
         reference={BosonOp(f"a{i}"): 0 for i in range(len(spins))},
     )
-    assert embedding.target.dimension == 2**20
+    assert set(embedding.restrict(1).operators) == set(spins)
 
 
 def test_finite_virtual_resonance_still_raises() -> None:
@@ -282,8 +274,8 @@ def test_empty_boson_channel_does_not_create_a_resonance():
 
 
 @dataclass(frozen=True)
-class MatrixEmbedding:
-    """Small exact embedding used only to lower formal maps in tests."""
+class _MatrixBasis:
+    """Explicit source matrices used to check the implicit discarded-space blocks."""
 
     name: str = "W"
 
@@ -309,7 +301,7 @@ class MatrixEmbedding:
 
 
 def _lower(operator_map):
-    embedding = operator_map.embedding
+    embedding = operator_map.basis
     result = sympy.zeros(3, 2)
     for source, target in operator_map.terms:
         result += embedding.projector * source * embedding.bridge * target
@@ -317,12 +309,12 @@ def _lower(operator_map):
 
 
 def test_storage_combines_equal_source_factors() -> None:
-    embedding = MatrixEmbedding()
+    embedding = _MatrixBasis()
     source = sympy.ImmutableMatrix([[0, 0, 0], [0, 0, 0], [1, 2, 0]])
     first = sympy.ImmutableMatrix([[1, 2], [0, 0]])
     second = sympy.ImmutableMatrix([[0, -2], [3, 0]])
 
-    operator_map = OperatorMap(
+    operator_map = _CouplingBlock(
         embedding,
         (
             (source, first),
@@ -332,16 +324,16 @@ def test_storage_combines_equal_source_factors() -> None:
     )
 
     assert operator_map.terms == ((source, first + second),)
-    assert not OperatorMap(embedding, ())
+    assert not _CouplingBlock(embedding, ())
     assert operator_map + (-operator_map) is zero
 
 
 def test_left_and_right_actions_match_explicit_projection() -> None:
-    embedding = MatrixEmbedding()
+    embedding = _MatrixBasis()
     source = sympy.ImmutableMatrix([[0, 0, 0], [0, 0, 0], [1, 2, 0]])
     left = sympy.ImmutableMatrix([[1, 0, 1], [0, 2, 0], [3, 0, 4]])
     right = sympy.ImmutableMatrix([[1, 2], [3, 4]])
-    operator_map = OperatorMap.from_source(embedding, source)
+    operator_map = _CouplingBlock.from_source(embedding, source)
 
     assert _lower(operator_map.left(left)) == (
         embedding.projector * left * _lower(operator_map)
@@ -350,23 +342,23 @@ def test_left_and_right_actions_match_explicit_projection() -> None:
 
 
 def test_inner_product_matches_explicit_maps() -> None:
-    embedding = MatrixEmbedding()
+    embedding = _MatrixBasis()
     x = sympy.ImmutableMatrix([[0, 0, 1], [0, 0, 2], [1, 3, 0]])
     y = sympy.ImmutableMatrix([[1, 0, 0], [0, 1, 0], [4, 5, 0]])
     a = sympy.ImmutableMatrix([[1, 2], [0, 1]])
     b = sympy.ImmutableMatrix([[2, 0], [3, 1]])
-    left = OperatorMap(embedding, ((x, a),))
-    right = OperatorMap(embedding, ((y, b),))
+    left = _CouplingBlock(embedding, ((x, a),))
+    right = _CouplingBlock(embedding, ((y, b),))
 
     assert left.inner(right) == _lower(left).adjoint() * _lower(right)
 
 
 def test_arithmetic_requires_one_embedding() -> None:
-    first_embedding = MatrixEmbedding("first")
-    second_embedding = MatrixEmbedding("second")
+    first_embedding = _MatrixBasis("first")
+    second_embedding = _MatrixBasis("second")
     source = sympy.ImmutableMatrix([[0, 0, 0], [0, 0, 0], [1, 0, 0]])
-    first = OperatorMap.from_source(first_embedding, source)
-    second = OperatorMap.from_source(second_embedding, source)
+    first = _CouplingBlock.from_source(first_embedding, source)
+    second = _CouplingBlock.from_source(second_embedding, source)
 
     assert _lower(3 * first / 2) == sympy.Rational(3, 2) * _lower(first)
     with pytest.raises(ValueError, match="same embedding"):
@@ -376,30 +368,35 @@ def test_arithmetic_requires_one_embedding() -> None:
 
 
 def test_lazy_complement_endomorphisms_match_explicit_projection() -> None:
-    embedding = MatrixEmbedding()
+    embedding = _MatrixBasis()
     source = sympy.ImmutableMatrix([[0, 0, 1], [0, 0, 2], [1, 3, 0]])
     left = sympy.ImmutableMatrix([[1, 0, 1], [0, 2, 0], [3, 0, 4]])
-    column = OperatorMap.from_source(embedding, source)
+    column = _CouplingBlock.from_source(embedding, source)
 
-    source_action = ModuleEndomorphism.source(left)
+    source_action = _ComplementBlock.source(left)
     assert _lower(source_action.apply(column)) == (
         embedding.projector * left * embedding.projector * _lower(column)
     )
 
-    rank_one = ModuleEndomorphism.rank_one(column, column)
-    assert _lower(rank_one.apply(column)) == (
+    outer_action = _ComplementBlock.outer(column, column)
+    assert _lower(outer_action.apply(column)) == (
         _lower(column) * _lower(column).adjoint() * _lower(column)
     )
 
     # Composition reverses under adjoint; complex scales must conjugate.
-    action = source_action.compose(rank_one) / sympy.I + rank_one.compose(source_action)
+    action = source_action.compose(outer_action) / sympy.I + outer_action.compose(
+        source_action
+    )
     q_left = embedding.projector * left * embedding.projector
     outer = _lower(column) * _lower(column).adjoint()
     explicit = q_left * outer / sympy.I + outer * q_left
     assert _lower(action.apply(column)) == explicit * _lower(column)
     assert _lower(action.adjoint().apply(column)) == explicit.adjoint() * _lower(column)
+    # Dividing an adjoint block conjugates the divisor in its stored column.
+    divided_row = column.adjoint() / sympy.I
+    assert _lower(divided_row.adjoint()).adjoint() == _lower(column).adjoint() / sympy.I
     assert action.apply(zero) is zero
-    assert source_action.compose(rank_one - rank_one).apply(column) is zero
+    assert source_action.compose(outer_action - outer_action).apply(column) is zero
 
 
 def test_adjoint_preserves_declared_basis_after_cached_equal_expression():
@@ -439,11 +436,11 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     source_states = list(product((0, 1), repeat=4))
     columns = []
     direct = {first: left, second: right}
-    for state in backend.target.states:
-        values = dict(zip(backend.target.operators, state, strict=True))
+    for state in product((0, 1), repeat=len(backend._basis._target_operators)):
+        values = dict(zip(backend._basis._target_operators, state, strict=True))
         baseline = tuple(int(op == down) for op in modes)
         column = np.eye(16)[:, source_states.index(baseline)]
-        for target in reversed(backend.target.operators):
+        for target in reversed(backend._basis._target_operators):
             if values[target]:
                 raising = (
                     matrices[Dagger(up)] @ matrices[down]
@@ -462,7 +459,7 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     finite_embedding = Embedding(reference=references)
     selected = [source_states.index(tuple(ref[op] for op in modes)) for ref in references]
     target_matrices = occupation_matrices(
-        backend.target.operators,
+        backend._basis._target_operators,
         [(0, 1)] * 3,
     )
     for expression in (
@@ -474,7 +471,7 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
         (Dagger(up) * down) * left,
         up * down,
     ):
-        result = backend._pullback(backend._source_form(expression))
+        result = backend.restrict(expression)
         actual = operator_matrix(result, target_matrices).toarray()
         full = operator_matrix(expression, matrices).toarray()
         expected = w.T @ full @ w
@@ -517,7 +514,7 @@ def test_mixed_target_second_order(finite):
         assert h[0, 0, 2] == expected
     else:
         expected = NumberOrderedForm.from_expr(
-            -N(f) * N(s) ** 2 / 3, operators=embedding.target.operators
+            -N(f) * N(s) ** 2 / 3, operators=embedding._basis._target_operators
         )
         assert (h[0, 0, 2] - expected).applyfunc(sympy.simplify).is_zero
 
@@ -554,16 +551,17 @@ def test_state_selection_solves_integer_target_shift() -> None:
     """Selecting even boson occupations makes a two-step source shift binary."""
     a, s = BosonOp("a"), SigmaMinus("s")
     backend = Embedding({s: a**2 / sympy.sqrt(2)}, reference={a: 0})
-    assert backend._target_shift((2,)) == (1,)
-    assert backend._target_shift((-2,)) == (-1,)
-    assert backend._target_shift((1,)) is None
+    expected = NumberOrderedForm.from_expr(sympy.sqrt(2) * s)
+    assert backend.restrict(a**2) == expected
+    assert backend.restrict(Dagger(a) ** 2) == expected.adjoint()
+    assert backend.restrict(a).is_zero
 
 
 def test_frozen_particle_sets_retained_fermion_phase() -> None:
     """The target definition absorbs the sign from an earlier occupied mode."""
     fixed, source, target = (FermionOp(name) for name in ("a", "b", "f"))
     backend = Embedding({target: source}, reference={fixed: 1, source: 0})
-    result = backend._pullback(backend._source_form(source))
+    result = backend.restrict(source)
     assert result == NumberOrderedForm.from_expr(target, operators=(target,))
 
 
@@ -609,8 +607,6 @@ def test_retained_infinite_modes_and_ladder_reference():
         {b: a, ell: source, N(ell): N(source) - 3},
         reference={a: 0, source: 3},
     )
-    assert embedding.target.dimension == sympy.oo
-    assert embedding.encode((4, -7)) == (4, -4)
     for expression, expected in (
         (a**3, b**3),
         (Dagger(a) ** 2 * (N(a) + 3) * a, Dagger(b) ** 2 * (N(b) + 3) * b),

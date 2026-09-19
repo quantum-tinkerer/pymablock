@@ -323,7 +323,7 @@ def test_coupler_exchange_and_fourth_order():
     assert sympy.simplify(effective[0, 0, 1].terms[(1, -1)] + g12) == 0
     assert sympy.simplify(effective[0, 0, 2].terms[(1, -1)] - expected) == 0
     fourth = effective[0, 0, 4]
-    assert tuple(fourth.operators) == model.encoding.target.operators
+    assert tuple(fourth.operators) == model.encoding._basis._target_operators
     assert all(sympy.simplify(c) == 0 for c in (fourth - fourth.adjoint()).terms.values())
 
 
@@ -524,7 +524,7 @@ def test_crepel_fu_interaction_and_assisted_hopping():
     model = crepel_fu_triangle()
     h, *_ = block_diagonalize([model.H0, model.V], subspace_eigenvectors=model.encoding)
     second = h[0, 0, 2]
-    f0, f1, f2 = model.encoding.target.operators
+    f0, f1, f2 = model.encoding._basis._target_operators
     n0, n1, n2 = _number_symbols((f0, f1, f2))
     hopping = second.terms[(1, -1, 0)]
     assert sympy.factor(hopping.subs(n2, 0) - model.t0**2 / (model.Delta + model.V0)) == 0
@@ -539,7 +539,7 @@ def test_crepel_fu_interaction_and_assisted_hopping():
     )
 
     parameters = {model.Delta: 10, model.V0: 2, model.UA: 7, model.UB: 11, model.t0: 1}
-    operators = model.encoding.operators
+    operators = model.encoding._basis.operators
     matrices = occupation_matrices(operators, [range(2)] * len(operators))
     e = operator_matrix(model.H0.subs(parameters), matrices).diagonal().real
     v = operator_matrix(model.V.subs(parameters), matrices).toarray()
@@ -584,7 +584,7 @@ def test_crepel_fu_connected_fourth_order():
     assert h[0, 0, 2].terms.get(powers, 0) == 0
     coefficient = h[0, 0, 4].terms[powers]
     actual = coefficient.subs(
-        dict.fromkeys(_number_symbols(model.encoding.target.operators), 0)
+        dict.fromkeys(_number_symbols(model.encoding._basis._target_operators), 0)
     )
     expected = (
         -(model.t0**4)
@@ -832,10 +832,12 @@ def test_coupler_fourth_order_against_converged_matrices():
     )
     source = [value.subs(parameters) for value in (model.H0, model.V)]
     effective = block_diagonalize(source, subspace_eigenvectors=model.encoding)[0]
-    target_matrices = occupation_matrices(model.encoding.target.operators, [range(2)] * 2)
+    target_matrices = occupation_matrices(
+        model.encoding._basis._target_operators, [range(2)] * 2
+    )
     actual = operator_matrix(effective[0, 0, 4], target_matrices).toarray()
     for cutoff in (4, 5):
-        operators = model.encoding.operators
+        operators = model.encoding._basis.operators
         matrices = occupation_matrices(operators, [range(cutoff)] * 3)
         h0, v = (operator_matrix(value, matrices).toarray() for value in source)
         states = list(product(range(cutoff), repeat=3))
