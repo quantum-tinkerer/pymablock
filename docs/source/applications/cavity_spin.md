@@ -28,22 +28,11 @@ retained basis.
 
 ## Driven Hamiltonian and dressed basis
 
-After the rotating-wave approximation at the carrier frequencies, the source
-Hamiltonian is
-
-$$
-\begin{aligned}
-H_{\rm rot}(t)={}&\chi N_c |e\rangle\langle e|
- +\frac{\Omega}{2}\sum_{k=0}^{2s}e^{i(k\chi t+\phi_k)}|g\rangle\langle e|\\
- &+\frac{\epsilon}{2}e^{i\varphi}(1+e^{i\chi t})c+\mathrm{h.c.},
-\end{aligned}
-$$
-
-where the Hermitian conjugate applies to the drive terms. The cavity lowering
-operator is $c$, the dispersive shift is $\chi$, and the ancilla and cavity
-drive amplitudes are $\Omega$ and $\epsilon$. The independent phases
-$\phi_k$ belong to the ancilla comb; $\varphi$ is the common cavity-drive phase.
-Our phase convention gives $e^{+i\varphi}$ on the cavity lowering term.
+The carrier rotating-wave approximation leaves a comb drive on the ancilla
+and a two-tone cavity drive. The cavity lowering operator is $c$, the dispersive
+shift is $\chi$, and the drive amplitudes are $\Omega$ and $\epsilon$.
+The phases $\phi_k$ belong to the ancilla comb; $\varphi$ is the common
+cavity-drive phase.
 
 We transform to the interaction picture of the dispersive term and keep the
 comb harmonics explicitly in a Sambe space: the bilateral ladder $\ell$ has
@@ -52,27 +41,10 @@ $(\ell^\dagger)^r$ for $r>0$ or $\ell^{-r}$ for $r<0$. The number term is
 $\chi N_\ell$. This representation retains the off-resonant harmonics that
 would be discarded in subsequent rotating-wave reductions.
 
-At cavity occupation $n\leq2s$, we diagonalize the resonant ancilla drive with
-
-$$
-R_n=\frac{1}{\sqrt2}
-\begin{pmatrix}
- e^{i\phi_n/2}&-e^{i\phi_n/2}\\
- e^{-i\phi_n/2}&e^{-i\phi_n/2}
-\end{pmatrix}.
-$$
-
-Its first column is the positive-energy dressed branch, which is matrix basis
-index zero. In this dressed basis the unperturbed Sambe Hamiltonian becomes
-
-$$
-H_0=\chi N_\ell I_2+\frac{\Omega}{2}
- \sum_{n=0}^{2s}|n\rangle\langle n|\begin{pmatrix}1&0\\0&-1\end{pmatrix}.
-$$
-
-All remaining comb components and the cavity drive enter $V$. We organize
-$H_0+\eta V$ in powers of a formal $\eta$, preserving the nonzero dressed
-splitting in $H_0$.
+At each retained cavity occupation, a rotation diagonalizes the resonant
+ancilla drive. Its first column selects the positive-energy dressed branch.
+The resonant splitting belongs to $H_0$; the remaining comb harmonics and
+cavity drive enter $V$.
 
 ```{code-cell} ipython3
 import sympy as sp
@@ -87,6 +59,13 @@ from pymablock.second_quantization import Embedding
 
 chi, Omega, epsilon = sp.symbols("chi Omega epsilon", nonzero=True, real=True)
 varphi = sp.Symbol("varphi", real=True)
+
+def ancilla_rotation(phase):
+    return sp.Matrix([[sp.exp(sp.I * phase / 2), -sp.exp(sp.I * phase / 2)],
+                      [sp.exp(-sp.I * phase / 2), sp.exp(-sp.I * phase / 2)]]) / sp.sqrt(2)
+
+phase = sp.Symbol("phi_n", real=True)
+display(ancilla_rotation(phase))
 
 def floquet_shift(ell, shift):
     return Dagger(ell)**shift if shift >= 0 else ell**(-shift)
@@ -106,9 +85,7 @@ def cavity_model(spin, virtual_shells=1):
     def rotation(n):
         if n > maximum:
             return sp.eye(2)
-        phase = phases[n] / 2
-        return sp.Matrix([[sp.exp(sp.I * phase), -sp.exp(sp.I * phase)],
-                          [sp.exp(-sp.I * phase), sp.exp(-sp.I * phase)]]) / sp.sqrt(2)
+        return ancilla_rotation(phases[n])
 
     terms = []
     for n, projector in enumerate(projectors):
@@ -131,6 +108,14 @@ def cavity_model(spin, virtual_shells=1):
     )
     return dict(H0=H0, V=sum(terms, sp.zeros(2)), embedding=embedding,
                 operators=(c, ell), phases=phases, spin=spin)
+```
+
+For spin one, the unperturbed input is the following matrix of number operators.
+The two entries distinguish the dressed ancilla branches.
+
+```{code-cell} ipython3
+models = [cavity_model(sp.Rational(1)), cavity_model(sp.Rational(3, 2))]
+display(models[0]["H0"].applyfunc(sp.factor))
 ```
 
 The number-projector polynomials are interpolation identities on the displayed
@@ -159,52 +144,44 @@ it requires no additional operator type. The ancilla is already in its
 occupation-dependent dressed basis, so these references correspond to
 superpositions of bare ancilla states.
 
-At first order, the adjacent-level matrix element is
-
-$$
-\langle n-1|H^{(1)}|n\rangle
-=\frac{\epsilon e^{i\varphi}}{2}\sqrt n
- \cos\!\left(\frac{\phi_n-\phi_{n-1}}{2}\right).
-$$
-
-The overlap between neighboring dressed ancilla states supplies the cosine.
-The result reproduces Eq. (18) of Roy et al.[^roy], restricted to the retained
-manifold, and holds symbolically for both spins.
+The computed adjacent-level amplitudes reproduce Eq. (18) of Roy et al.[^roy]
+The cosine dependence comes from the overlap of neighboring dressed ancilla
+states. We display the upper-diagonal entries; Hermitian conjugation supplies
+the reverse transitions.
 
 ```{code-cell} ipython3
-models = [cavity_model(sp.Rational(1)), cavity_model(sp.Rational(3, 2))]
 series = []
 for model in models:
     H, *_ = block_diagonalize([model["H0"], model["V"]], subspace_eigenvectors=model["embedding"])
     series.append(H)
     phases = model["phases"]
-    expected = sp.zeros(len(phases))
     for n in range(1, len(phases)):
-        amplitude = epsilon * sp.exp(sp.I * varphi) * sp.sqrt(n) * sp.cos((phases[n] - phases[n-1]) / 2) / 2
-        expected[n-1, n], expected[n, n-1] = amplitude, sp.conjugate(amplitude)
-    difference = H[0, 0, 1] - expected
-    assert difference.applyfunc(lambda x: sp.trigsimp(sp.expand_complex(x))) == sp.zeros(len(phases))
-    display(expected)
+        # Separate the common drive phase before simplifying the ancilla overlap.
+        amplitude = H[0, 0, 1][n-1, n] * sp.exp(-sp.I * varphi)
+        amplitude = sp.trigsimp(sp.expand_complex(amplitude)) * sp.exp(sp.I * varphi)
+        display(sp.Eq(sp.Symbol(f"h_{{{len(phases)},{n-1}{n}}}"), amplitude))
 ```
 
-The phase choice in Eq. (27) of Roy et al.[^roy],
+The phase prescription in Eq. (27) of Roy et al.[^roy] turns these amplitudes
+into spin ladder weights. Applying it to the computed matrices gives the
+spin-one and spin-three-halves Hamiltonians:
 
-$$
-\phi_0=0,\qquad
-\phi_n-\phi_{n-1}=2\arccos\sqrt{\frac{2s+1-n}{2s}}
-$$
+```{code-cell} ipython3
+spin_phases = []
+for model, H in zip(models, series):
+    maximum = int(2 * model["spin"])
+    values = [sp.S.Zero]
+    for n in range(1, maximum + 1):
+        values.append(values[-1] + 2 * sp.acos(sp.sqrt(sp.Rational(maximum + 1 - n, maximum))))
+    phase_choice = dict(zip(model["phases"], values))
+    spin_phases.append(phase_choice)
+    spin_matrix = H[0, 0, 1].subs(phase_choice)
+    display(spin_matrix.applyfunc(sp.simplify))
+```
 
-gives
-
-$$
-H^{(1)}=\frac{\epsilon}{2\sqrt{2s}}
- (e^{i\varphi}S_-+e^{-i\varphi}S_+).
-$$
-
-For spin one and spin three halves, respectively, the raising and lowering
-weights are $(\sqrt2,\sqrt2)$ and $(\sqrt3,2,\sqrt3)$. The overall factor
-$\epsilon/(2\sqrt{2s})$ sets their drive strength. The matrices above therefore
-realize rotations of the effective spin with axis fixed by $\varphi$.
+The drive phase selects the rotation axis, while its amplitude sets the
+rotation rate. The finite matrices encode the higher spin without introducing
+another operator type.
 
 ## Second-order virtual corrections
 
@@ -216,7 +193,7 @@ second-order Hermitian matrix:
 
 ```{code-cell} ipython3
 spin_one = models[0]
-phase_choice = dict(zip(spin_one["phases"], (0, 0, sp.pi / 2)))
+phase_choice = spin_phases[0]
 h2 = series[0][0, 0, 2].subs(phase_choice)
 for i in range(3):
     for j in range(i, 3):
