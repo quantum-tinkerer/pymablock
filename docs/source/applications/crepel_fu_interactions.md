@@ -15,37 +15,20 @@ mystnb:
 
 # Interaction-assisted hopping in the Crépel–Fu model
 
-Virtual charge transfer can turn repulsive microscopic interactions into
-assisted hopping and effective attraction between dopants. The spinful honeycomb
-model of Crépel and Fu[^crepel-fu] provides a concrete setting: an A–B energy
-offset and local repulsions favor doubly occupied A sites, while added electrons
-occupy the B sublattice.
+We calculate assisted hopping and the induced pair interaction in the spinful
+honeycomb model of Crépel and Fu.[^crepel-fu]
 
-The retained particles are equal-spin dopants on B sites above a reference with
-doubly occupied A sites. A filled neighboring B orbital changes the energy of an
-intermediate charge-transfer excitation and therefore changes the hopping
-amplitude. The second-order effective Hamiltonian gives both this assisted
-hopping and the induced pair-density interaction.
+## Model
 
-## Cluster Hamiltonian and boundary terms
+The cluster contains one doubly occupied A site and its three B neighbors.
+Equal-spin dopants occupy the B sites. The Hamiltonian includes a sublattice
+offset, on-site repulsions $U_A,U_B$, nearest-neighbor repulsion $V_0$, and
+hopping $t_0$.
 
-The cluster consists of one A site and its three B neighbors. Its symbolic
-Hamiltonian includes the sublattice offset, on-site repulsion, nearest-neighbor
-repulsion, and hopping along the explicit bonds.
-
-$z_j$ counts the explicit A
-neighbors of B site $j$. Each omitted A neighbor remains doubly occupied, giving
-the boundary potential $2V_0n_j$. This term preserves the honeycomb coordination
-in the local energy denominators. Omitting it changes the process being
-calculated. The parameter $\Delta$ is the charge-transfer gap after the stated
-interaction shift. In the linked preprint, $\Delta_{\rm CF}=\delta_0-U_A$,
-so our convention is $\Delta=\Delta_{\rm CF}+3V_0$. Its denominators
-$\Delta_{\rm CF}+4V_0$ and $\Delta_{\rm CF}+3V_0$ therefore become
-$\Delta+V_0$ and $\Delta$, respectively.
-
-The retained generators are $f_j\mapsto b_{j\uparrow}$, with every A spin orbital
-occupied and every B spin orbital empty in the reference. B down-spin modes are
-excluded from the target but remain available in virtual states.
+Omitted A neighbors remain doubly occupied. Each contributes $2V_0n_j$ to its
+B neighbor, preserving the lattice energy denominators. Our gap convention is
+$\Delta=\Delta_{\rm CF}+3V_0$, where the preprint defines
+$\Delta_{\rm CF}=\delta_0-U_A$.
 
 ```{code-cell} ipython3
 import sympy as sp
@@ -85,15 +68,23 @@ star = cluster(((0, 0), (0, 1), (0, 2)), 1, 3)
 H0, V, embedding, A, B, f = star
 display(sp.Eq(sp.Symbol("H_0", commutative=False), H0))
 display(sp.Eq(sp.Symbol("V", commutative=False), V))
+```
+
+## Effective dopant Hamiltonian
+
+The embedding retains the B up-spin fermions. The other spin orbitals enter
+only through virtual states.
+
+```{code-cell} ipython3
 H, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
 h2 = H[0, 0, 2]
 ```
 
-## Bare and assisted hopping
+## Hopping and pair interaction
 
-The occupation of the spectator $B_2$ changes the hopping amplitude from
-$B_0$ to $B_1$. Evaluating that occupation at zero and one separates the bare
-hopping from its interaction-assisted contribution.
+The occupation of $B_2$ distinguishes bare hopping from $B_0$ to $B_1$ from
+its assisted contribution. The diagonal term gives the pair interaction after
+subtracting the individual particle shifts.
 
 ```{code-cell} ipython3
 # Powers (1, -1, 0) select hopping from B0 to B1, with B2 a spectator.
@@ -116,18 +107,10 @@ interaction = sp.factor(
 display(sp.Eq(sp.Symbol("W^{(2)}"), interaction))
 ```
 
-The hopping amplitudes reproduce the equal-spin sector of Crépel and Fu[^crepel-fu]
-without taking a large-$U_B$ limit. Evaluating the diagonal expression at the four occupations and taking this
-difference removes the reference energy and individual particle shifts,
-leaving a pair-density interaction. Its sign need not follow
-the sign of the bare repulsions. Both this term and the hopping arise from the
-same charge-transfer processes.
-
-The one-star calculation gives the hopping and pair interaction within the
-equal-spin sector. Reconstructing the full spinful lattice Hamiltonian also
-requires the other spin sectors and the remaining density terms. These local
-coefficients describe the virtual processes behind the pairing mechanism;
-they do not by themselves determine the superconducting phase diagram.
+These amplitudes reproduce the equal-spin sector of Crépel and Fu[^crepel-fu]
+without a large-$U_B$ approximation. A spectator changes the virtual
+charge-transfer energy and assists hopping; the induced pair interaction can
+have a different sign from the microscopic repulsions.
 
 [^crepel-fu]: V. Crépel and L. Fu,
     [Spin-triplet superconductivity from excitonic effect in doped insulators](https://doi.org/10.1073/pnas.2117735119),

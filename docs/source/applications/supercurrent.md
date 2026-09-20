@@ -15,40 +15,22 @@ mystnb:
 
 # Supercurrent through an interacting quantum dot
 
-A Coulomb-blockaded quantum dot carries a Josephson current whose sign depends
-on its charge parity. This interaction effect was studied by Glazman and
-Matveev.[^glazman] Here each superconducting lead is represented by one paired
-orbital, as in the [supercurrent tutorial](../tutorial/andreev_supercurrent.md).
-The finite model captures the parity-dependent current without integrating over
-a continuum of lead states.
+We calculate the fourth-order Josephson current through a Coulomb-blockaded
+dot, including its parity-dependent sign.[^glazman] Each superconducting lead
+is represented by one paired orbital, as in the
+[supercurrent tutorial](../tutorial/andreev_supercurrent.md).
 
-Eliminating the lead quasiparticles leaves an effective Hamiltonian in the two
-dot fermions. Its fourth-order charge-sector energies give fully symbolic
-current–phase relations for all four dot states, with gate voltage, charging
-energy, lead energies, and tunneling amplitudes left as parameters.
+## Model
 
-## Hamiltonian and phase convention
+The dot has charging energy $U$ and offset charge $n_g$. The lead
+quasiparticles have energies $E_\alpha$ and real coherence factors satisfying
+$u_\alpha^2+v_\alpha^2=1$, with pairing amplitudes
+$\Gamma_\alpha=2E_\alpha u_\alpha v_\alpha$.
+The tunneling phase is half the condensate phase difference $\Phi$,
+so $I=(2e/\hbar)\partial_\Phi E$.
 
-We write the superconductors in their Bogoliubov basis and construct the
-charging Hamiltonian and lead tunneling terms symbolically.
-
-Here $U$ is the charging energy, $n_g$ the offset charge, and $E_\alpha>0$ the
-quasiparticle excitation energy. Real coherence factors satisfy
-$u_\alpha^2+v_\alpha^2=1$. They correspond to normal energies
-$\xi_\alpha=E_\alpha(u_\alpha^2-v_\alpha^2)$ and real pairing amplitudes
-$\Gamma_\alpha=2E_\alpha u_\alpha v_\alpha$. We omit the phase-independent
-constant $\sum_\alpha(\xi_\alpha-E_\alpha)$.
-
-We use the **condensate phase difference** $\Phi$ and put
-$\theta_L=\Phi/2$, $\theta_R=0$. Consequently,
-$I=(2e/\hbar)\partial_\Phi E$. The phase in a single-electron tunneling amplitude
-is half the condensate phase; keeping this distinction fixes the current's
-prefactor.
-
-Subtracting the empty-dot energy leaves two independent dot energies, $a$ and
-$b$. The code derives them from the charging Hamiltonian and displays the
-Hamiltonian used in the expansion. The Bogoliubov coefficients remain symbolic
-until the final current, where $u_\alpha v_\alpha=\Gamma_\alpha/(2E_\alpha)$.
+The energies $a$ and $b$ are measured from the empty dot. All parameters remain
+symbolic.
 
 ```{code-cell} ipython3
 import sympy as sp
@@ -98,17 +80,11 @@ for lead, coupling in couplings.items():
     display(sp.Eq(sp.Symbol(f"V_{lead}", commutative=False), coupling))
 ```
 
-## Retaining the dot algebra
+## Effective dot Hamiltonian
 
-The generator map is the identity on the dot fermions. Its reference is the dot
-vacuum with no lead quasiparticles. Applying the dot creation operators generates
-empty, singly occupied, and doubly occupied dot states; lead excitations remain
-available as virtual states.
-
-We count left and right tunneling separately, using formal parameters
-$\eta_L$ and $\eta_R$. A phase-dependent closed process must transfer a pair
-between the leads, so its leading order is $\eta_L^2\eta_R^2$. The coefficients
-retain the symbolic hopping amplitudes $t_L$ and $t_R$.
+We retain both dot fermions and eliminate the lead quasiparticles. Counting
+left and right tunneling separately selects the leading current contribution
+at order $(2,2)$.
 
 ```{code-cell} ipython3
 dot = tuple(sorted((d_up, d_down), key=lambda op: str(op.name)))
@@ -136,31 +112,12 @@ pairing = sp.factor(pair_L) + sp.factor(pair_R)
 display(sp.Eq(sp.Symbol("Delta_ind"), pairing))
 ```
 
-The displayed $\Delta_{\rm ind}=\langle00|h_L+h_R|11\rangle$ is the
-second-order pairing matrix element. It mixes the even-charge states, so the
-diagonal of $h_{LR}$ alone does not give the fourth-order energy. The mixed
-coefficient is
-
-$$
-E_{n,LR}^{(4)}=(h_{LR})_{nn}
- +\sum_{m:E_m^{(0)}\ne E_n^{(0)}}
- \frac{(h_L)_{nm}(h_R)_{mn}+(h_R)_{nm}(h_L)_{mn}}
- {E_n^{(0)}-E_m^{(0)}}.
-$$
-
-For this spin-conserving model the odd-charge doublet does not mix internally.
-The extra sum contributes in the even sectors and includes pair transfer
-through the other retained charge state.
-
 ## Charge-resolved current
 
-We expand the energy in its phase harmonics. At this order,
-$E_{n,LR}^{(4)}=C_n+A_ne^{i\Phi}+A_ne^{-i\Phi}$, with real $A_n$ and
-phase-independent $C_n$.
-
-Extracting the phase harmonics gives the current by differentiation. The
-phase-independent remainder contributes no current. The result is displayed
-for each charge sector with the charging parameters restored.
+The induced pairing mixes the empty and doubly occupied dot states. Their
+energies therefore include the pairing contribution as well as the diagonal
+fourth-order term; the odd doublet does not mix. Differentiating the resulting
+phase-dependent energies gives the three charge-sector currents below.
 
 ```{code-cell} ipython3
 coherence = uL * vL * uR * vR
@@ -195,11 +152,9 @@ for charge, current in enumerate(currents_by_gate):
     display(sp.Eq(sp.Symbol(f"I_{charge}") / sp.Symbol("2e/hbar"), current))
 ```
 
-The branch currents apply away from charge degeneracies. Near $b=0$, the two
-even-charge states must be diagonalized together in the retained Hamiltonian.
-The sign change between the even and odd ground-state sectors gives the
-$0$–$\pi$ transition. Our condensate phase is $\Phi=2\phi$ in the tutorial's
-notation, so both conventions give the same physical current.
+The odd-charge ground state carries a $\pi$-junction current, opposite to the
+even sectors. These branch expressions apply away from charge degeneracies;
+near $b=0$, the retained even block must be diagonalized together.
 
 [^glazman]: L. I. Glazman and K. A. Matveev,
     [Resonant Josephson current through Kondo impurities in a tunnel barrier](http://jetpletters.ru/ps/1121/article_16988.pdf),

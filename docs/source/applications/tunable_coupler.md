@@ -15,27 +15,15 @@ mystnb:
 
 # Two qubits connected through a tunable coupler
 
-A detuned oscillator mediates exchange between two qubits. Changing its frequency
-changes the virtual energy denominators and therefore the effective coupling.
-We use three weakly anharmonic oscillators, retain two levels of each qubit, and
-eliminate the coupler. The resulting two-spin Hamiltonian includes excursions
-through higher qubit levels as well as through the coupler.
+We calculate exchange and fourth-order ZZ coupling for two qubits connected
+through a detuned oscillator, following Yan et al.[^yan]
 
-The model follows the tunable-coupler architecture of Yan et al.[^yan]
-The second-order exchange exhibits cancellation between direct and mediated
-coupling, including counterrotating processes. Extending the symbolic expansion
-to fourth order also gives conditional interactions and corrections from higher
-oscillator levels.
+## Model
 
-## Three-oscillator Hamiltonian
-
-We count qubit–coupler couplings at first order and direct qubit–qubit coupling
-at second order: $H=H_0+\eta V_1+\eta^2 V_2$.
-
-
-The $\alpha_j$ are anharmonicities. We retain the pair-creation and
-pair-annihilation terms along with excitation exchange. In this sign convention,
-the direct qubit exchange amplitude is $-g_{12}$.
+The three modes are Duffing oscillators with frequencies $\omega_j$ and
+anharmonicities $\alpha_j$. Both exchange and counterrotating couplings are
+included. Qubit–coupler coupling enters at first order; direct qubit–qubit
+coupling enters at second order, with exchange amplitude $-g_{12}$.
 
 ```{code-cell} ipython3
 import sympy as sp
@@ -63,21 +51,22 @@ V1 = sum(g * (Dagger(a) - a) * (Dagger(ac) - ac)
 V2 = g12 * (Dagger(a1) - a1) * (Dagger(a2) - a2)
 for name, expression in (("H_0", H0), ("V_1", V1), ("V_2", V2)):
     display(sp.Eq(sp.Symbol(name, commutative=False), expression))
+```
+
+## Effective qubit Hamiltonian
+
+We retain two levels of each qubit and the coupler vacuum. Higher oscillator
+levels remain available in virtual processes.
+
+```{code-cell} ipython3
 source = {(0,): H0, (1,): V1, (2,): V2}
 embedding = Embedding({q1: a1, q2: a2}, reference={a1: 0, a2: 0, ac: 0})
 H, *_ = block_diagonalize(source, subspace_eigenvectors=embedding)
 ```
 
-The maps $q_1\mapsto a_1$ and $q_2\mapsto a_2$, together with the oscillator
-vacuum, identify the qubit lowering operators. The source oscillators remain
-unbounded. For example, annihilation after creation can visit level two even
-when both endpoints lie in the qubit subspace; the embedding retains such
-virtual processes.
+## Exchange
 
-## Exchange including counterrotating processes
-
-The second-order exchange transfers one excitation from qubit 1 to qubit 2.
-We extract its coefficient directly from the effective operator.
+The coefficient below transfers an excitation between the qubits.
 
 ```{code-cell} ipython3
 h2 = H[0, 0, 2]
@@ -86,19 +75,15 @@ exchange = exchange_term.coeff(Dagger(q2) * q1)
 display(sp.Eq(sp.Symbol("J^{(2)}"), exchange))
 ```
 
-The sum-frequency denominators come from counterrotating processes; the
-symmetrized difference-frequency denominators account for unequal qubit
-energies. This reproduces Eq. (33) of the Yan et al. preprint[^yan], with
-$g_{12}^{\rm Yan}=-g_{12}$ in our coupling convention.
+The sum-frequency denominators describe counterrotating processes. The result
+reproduces Eq. (33) of Yan et al.[^yan], with $g_{12}^{\rm Yan}=-g_{12}$.
+Tuning the coupler frequency changes the mediated term and can cancel the
+direct exchange.
 
-## Fourth-order ZZ interaction
+## ZZ coupling
 
-Fourth order includes terms quadratic in the direct coupling, mixed direct and
-mediated processes, and terms quartic in the qubit–coupler couplings. From the
-full symbolic operator, the diagonal combination
-$h_{11}-h_{10}-h_{01}+h_{00}$ isolates the conditional interaction by removing
-the reference energy and individual excitation shifts. Here
-$h_{n_1n_2}=\langle n_1n_2|H^{(4)}|n_1n_2\rangle$.
+The combination $h_{11}-h_{10}-h_{01}+h_{00}$ extracts the conditional shift
+from the diagonal fourth-order Hamiltonian.
 
 ```{code-cell} ipython3
 h4_symbolic = H[0, 0, 4]
@@ -112,17 +97,10 @@ conditional_symbolic = (
 )
 ```
 
-The coefficient of $N_{q_1}N_{q_2}$ is the conditional shift. Since the retained
-Hamiltonian preserves excitation parity, its even and odd blocks each have
-dimension two. Their eigenvalue sums equal their traces, so mixing cancels in
-$E_{11}-E_{10}-E_{01}+E_{00}$. With $Z_j=1-2N_{q_j}$, the ZZ coefficient is
-one quarter of this shift.
-
-The three contributions distinguish direct coupling, interference with a path
-through the coupler, and purely mediated coupling. Their sum is the conditional
-shift. All are obtained from the same computed coefficient, including
-counterrotating processes. SymPy abbreviates repeated gaps and groups terms by
-the remaining virtual-state denominator for display.
+Mixing within each parity block cancels in this energy combination. The ZZ
+coefficient is one quarter of the conditional shift for $Z_j=1-2N_{q_j}$.
+The following direct, mixed, and mediated contributions sum to that shift;
+repeated energy gaps are abbreviated for readability.
 
 ```{code-cell} ipython3
 # Abbreviate repeated one-step energy denominators for display.
@@ -148,16 +126,8 @@ for label, monomial in zip(("direct", "mixed", "mediated"), monomials):
                  + r"\\ &{}+".join(lines) + r"\end{aligned}"))
 ```
 
-The anharmonicities remain in the virtual energy denominators. This fourth-order
-result extends the second-order exchange of Yan et al.[^yan] In the harmonic
-limit the conditional shift vanishes, as required for a quadratic Hamiltonian.
-
-The Duffing Hamiltonian is a local approximation to the circuit spectrum. In
-particular, negative anharmonicity should not be extrapolated to arbitrarily
-high occupations. This finite-order result uses the low-lying levels reached
-by the virtual paths. The dispersive expansion also requires nonzero gaps to
-coupled discarded states; near a coupler or higher-level resonance, those states
-must be retained explicitly.
+The shift vanishes when all anharmonicities are zero. Near a resonance with a
+coupler or higher qubit level, that level must be retained explicitly.
 
 [^yan]: F. Yan et al.,
     [Tunable coupling scheme for implementing high-fidelity two-qubit gates](https://doi.org/10.1103/PhysRevApplied.10.054062),
