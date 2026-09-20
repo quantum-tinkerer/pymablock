@@ -106,6 +106,20 @@ def test_correlated_boson_sylvester():
     assert (h[0, 0, 2] + g**2 / omega).applyfunc(s.cancel).is_zero
 
 
+def test_bosonic_ladder_zero_keeps_inactive_resonance_zero():
+    """A vanishing ladder amplitude must survive cancellation of its energy gap."""
+    from sympy.physics.quantum.boson import BosonOp
+
+    from pymablock.number_ordered_form import NumberOperator as N
+
+    a, b, q = map(BosonOp, ("a", "b", "q"))
+    h, *_ = block_diagonalize(
+        [N(a) + (N(a) + 2) * N(b), a * b.adjoint() + a.adjoint() * b],
+        subspace_eigenvectors=Embedding({q: a}, reference={a: 0, b: 0}),
+    )
+    assert nof_matrix(h[0, 0, 2], [range(3)]) == s.diag(0, -1, -1)
+
+
 def test_nonlinear_occupation_condition_is_not_a_point_substitution():
     from sympy.physics.quantum.boson import BosonOp
 

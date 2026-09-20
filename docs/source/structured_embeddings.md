@@ -344,14 +344,16 @@ $n=r+Mm$, then divides by the difference between its outgoing and incoming
 energies. The embedding already fixes the incoming support, so the solver does
 not multiply by the source projector. Reference-list columns use their vacuum
 attachment and creation monomial in the same transition calculation.
-Binary target occupations that affect the gap are resolved one at a time.
-At a zero gap, the solver also checks any remaining binary occupations in the
-transition amplitude: a vanishing channel contributes zero, while a nonzero
-channel raises a degeneracy error. Infinite occupations remain symbolic.
-Point selections in coefficients are handled as conditional branches, so a
-vanishing gap in an excluded occupation does not produce an artificial pole.
-This avoids expansion of projector products, but checking gaps that depend on
-many binary occupations can still require exponentially many sectors.
+Coefficient division is shared with regular second quantization. It resolves
+binary occupations when substitution immediately exposes a zero amplitude or
+gap, and otherwise keeps generic quotients factored. Point selections and
+unresolved inactive occupation sets use diagonal conditional expressions,
+preserving zero on inactive channels without expanding every binary sector.
+Known nonzero factors need no condition. An exposed zero gap with nonzero
+amplitude raises a degeneracy error; other resonances can remain as symbolic
+poles. This is not an exhaustive resonance check. Resolving an identically zero
+gap can still require checking several binary occupations, and symbolic
+expression growth remains possible.
 
 For infinite bosonic targets, the solver currently requires that nonnegative
 target occupations follow from the physical source occupations. Other selections
