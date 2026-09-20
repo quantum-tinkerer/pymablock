@@ -444,7 +444,14 @@ def _reduce_projectors(coefficient, operators):
 
 
 def _divide_coefficients(numerator, denominator, binary=(), coordinates=(), weight=None):
-    """Divide on explicit support, keeping generic occupation gaps factored."""
+    """Divide using local support checks and a symbolic fallback.
+
+    Choose zero where ``weight`` vanishes, including at zero gaps. The weight
+    defaults to the numerator; embeddings include ladder amplitudes in it.
+    Resolve exposed zero gaps and explicit point support, but leave unresolved
+    resonances as poles. Parameters other than occupation coordinates are generic.
+    This is a partial symbolic solver, not an exhaustive nonresonance check.
+    """
     weight = numerator if weight is None else weight
     if weight == 0:
         return sympy.S.Zero
@@ -459,7 +466,11 @@ def _divide_coefficients(numerator, denominator, binary=(), coordinates=(), weig
     gap = denominator.as_numer_denom()[0]
     for parameter in gap.free_symbols - variables:
         coefficient = gap.coeff(parameter)
-        if coefficient.is_zero is False and not coefficient.free_symbols & variables:
+        if (
+            coefficient.is_Atom
+            and coefficient.is_zero is False
+            and not coefficient.free_symbols & variables
+        ):
             return numerator / denominator
     for n in binary:
         if n not in weight.free_symbols | denominator.free_symbols:
@@ -484,18 +495,26 @@ def _divide_coefficients(numerator, denominator, binary=(), coordinates=(), weig
     quotient = numerator / denominator
     if not denominator.free_symbols & variables:
         return quotient
-    physical = {n: sympy.Dummy(integer=True, nonnegative=True) for n in binary}
-    if denominator.xreplace(physical).is_zero is False:
+    # A constant plus occupations with the same sign cannot vanish. Inspect
+    # numeric coefficients only, rather than asking the assumptions engine to
+    # prove a general expression nonzero.
+    constant, rest = denominator.as_coeff_Add()
+    if constant and all(
+        factor in variables and (coefficient * constant).is_positive is True
+        for coefficient, factor in (
+            term.as_coeff_Mul() for term in sympy.Add.make_args(rest)
+        )
+    ):
         return quotient
-    restore = {v: k for k, v in physical.items()}
+    factors = (factor.as_numer_denom()[0] for factor in sympy.Mul.make_args(weight))
     inactive = sympy.Or(
         *(
-            sympy.Eq(factor.xreplace(physical), 0).xreplace(restore)
-            for factor in sympy.Mul.make_args(weight)
+            sympy.Eq(factor, 0, evaluate=False)
+            for factor in factors
             if factor.free_symbols & variables
         )
     )
-    return sympy.Piecewise((0, inactive), (quotient, True))
+    return sympy.Piecewise((0, inactive), (quotient, True), evaluate=False)
 
 
 class NumberOrderedForm(Operator):

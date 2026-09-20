@@ -215,8 +215,13 @@ For example, the equation $N_a X=N_a$ requires $X=1$ at occupation 1 and leaves 
 Choosing zero at occupation 0 gives the operator solution $X=N_a$.
 If the numerator is nonzero and the denominator is identically zero, the equation has no solution and the solver raises `ValueError`.
 More complicated inactive occupation sets are retained as diagonal `Piecewise`
-conditions instead of enumerating their states. Factors known to be nonzero on
-the occupation domain need no condition. An independent parameter term with a
+conditions instead of enumerating their states. Simple structural checks, such
+as a nonzero constant plus occupations with coefficients of the same sign,
+can establish that a gap does not vanish. Remaining zero conditions are built
+unevaluated, without asking SymPy to infer whether a general expression is zero.
+For rational amplitudes, the zero
+condition uses the numerator; existing poles remain outside the expression's
+domain. An independent parameter term with a
 nonzero occupation-independent coefficient also rules out identically zero
 occupation sectors for generic parameter values. Thus a generic gap such as
 $\Delta+\sum_i U_i N_i$ can remain a single denominator, with no expansion into

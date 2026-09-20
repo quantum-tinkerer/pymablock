@@ -349,7 +349,9 @@ binary occupations when substitution immediately exposes a zero amplitude or
 gap, and otherwise keeps generic quotients factored. Point selections and
 unresolved inactive occupation sets use diagonal conditional expressions,
 preserving zero on inactive channels without expanding every binary sector.
-Known nonzero factors need no condition. An exposed zero gap with nonzero
+Simple structural nonzero checks avoid unnecessary conditions; the fallback
+keeps zero conditions unevaluated rather than asking SymPy to decide them.
+An exposed zero gap with nonzero
 amplitude raises a degeneracy error; other resonances can remain as symbolic
 poles. This is not an exhaustive resonance check. Resolving an identically zero
 gap can still require checking several binary occupations, and symbolic
