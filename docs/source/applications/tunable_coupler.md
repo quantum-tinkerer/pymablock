@@ -21,12 +21,12 @@ We use three weakly anharmonic oscillators, retain two levels of each qubit, and
 eliminate the coupler. The resulting two-spin Hamiltonian includes excursions
 through higher qubit levels as well as through the coupler.
 
-This circuit architecture is described by [Yan et al., *Tunable Coupling Scheme
-for Implementing High-Fidelity Two-Qubit Gates*, Physical Review Applied 10,
-054062 (2018)](https://doi.org/10.1103/PhysRevApplied.10.054062). The parameters
-below define an illustrative Hamiltonian; they are not a device calibration.
-We reproduce its second-order exchange analytically and check the complete
-fourth-order matrix using finite oscillator calculations.
+The model follows the tunable-coupler architecture of Yan et al.[^yan]
+The second-order exchange exhibits cancellation between direct and mediated
+coupling, including counterrotating processes. Extending the symbolic expansion
+to fourth order also gives conditional interactions and corrections from higher
+oscillator levels. The numerical parameters illustrate these effects rather than
+representing a calibrated device.
 
 ## Three-oscillator Hamiltonian
 
@@ -100,8 +100,10 @@ $$
 
 The sum-frequency denominators come from counterrotating processes. The
 symmetrized difference-frequency denominators account for unequal qubit
-energies. We select the term that annihilates a qubit-1 excitation and creates a
-qubit-2 excitation from the number-ordered effective operator.
+energies. This reproduces the dispersive exchange in Eq. (33) of the Yan et al.
+preprint[^yan], with $g_{12}^{\rm Yan}=-g_{12}$ in our coupling convention.
+In number-ordered form it is the coefficient of the term that transfers one
+excitation from qubit 1 to qubit 2.
 
 ```{code-cell} ipython3
 h2 = H[0, 0, 2]
@@ -137,11 +139,12 @@ plt.show()
 
 ## Full fourth-order Hamiltonian
 
-We compute the complete fourth-order operator symbolically. Fourth order includes
-terms quadratic in the direct coupling, mixed direct and mediated processes,
-and terms quartic in the qubit–coupler couplings.
-We select its diagonal part and subtract the individual excitation energies
-to extract the conditional interaction.
+Fourth order includes terms quadratic in the direct coupling, mixed direct and
+mediated processes, and terms quartic in the qubit–coupler couplings. From the
+full symbolic operator, the diagonal combination
+$h_{11}-h_{10}-h_{01}+h_{00}$ isolates the conditional interaction by removing
+the reference energy and individual excitation shifts. Here
+$h_{n_1n_2}=\langle n_1n_2|H^{(4)}|n_1n_2\rangle$.
 
 ```{code-cell} ipython3
 h4_symbolic = H[0, 0, 4]
@@ -155,8 +158,8 @@ conditional_symbolic = (
 )
 ```
 
-Only after obtaining the symbolic result do we substitute exact rational
-parameters for display and the independent finite-matrix comparison.
+The symbolic result can be evaluated at a rational parameter point to display
+the effective operator and compare it with a finite oscillator calculation.
 
 ```{code-cell} ipython3
 parameters = {
@@ -176,11 +179,10 @@ $N_{q_1}N_{q_2}$ in this effective basis. To obtain a spectroscopic conditional
 frequency shift, one must also include the mixing from the off-diagonal terms
 when diagonalizing the retained Hamiltonian.
 
-We now construct ordinary oscillator matrices independently of the symbolic
-operator arithmetic and run Pymablock's matrix interface. Increasing the number
-of levels per oscillator from four to five checks the fourth-order truncation.
-This comparison tests the source algebra, compression, and energy denominators;
-both calculations use the same perturbative recurrence.
+Pymablock's matrix interface gives the same fourth-order block for ordinary
+oscillator matrices with four or five levels per mode. This comparison checks
+the finite-order truncation and symbolic operator arithmetic; it uses the same
+perturbative recurrence in both representations.
 
 ```{code-cell} ipython3
 target_matrices = occupation_matrices((q1, q2), [range(2)] * 2)
@@ -209,3 +211,8 @@ high occupations. This finite-order result uses the low-lying levels reached
 by the virtual paths. The dispersive expansion also requires nonzero gaps to
 coupled discarded states; near a coupler or higher-level resonance, those states
 must be retained explicitly.
+
+[^yan]: F. Yan et al.,
+    [Tunable coupling scheme for implementing high-fidelity two-qubit gates](https://doi.org/10.1103/PhysRevApplied.10.054062),
+    Physical Review Applied **10**, 054062 (2018).
+    [Open preprint](https://arxiv.org/abs/1803.09813).

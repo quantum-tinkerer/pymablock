@@ -30,14 +30,6 @@ tutorial/andreev_supercurrent.md
 ```{toctree}
 :hidden:
 :maxdepth: 1
-:caption: Applications
-
-Overview <applications/index.md>
-```
-
-```{toctree}
-:hidden:
-:maxdepth: 1
 :caption: Documentation
 
 algorithms.md
@@ -49,6 +41,18 @@ documentation/pymablock.md
 CHANGELOG.md
 authors.md
 developer.md
+```
+
+```{toctree}
+:hidden:
+:maxdepth: 1
+:caption: Applications
+
+Overview <applications/index.md>
+applications/supercurrent.md
+applications/crepel_fu_interactions.md
+applications/tunable_coupler.md
+applications/cavity_spin.md
 ```
 
 ::::{admonition} **✨ NEW! Second Quantization Support ✨**
