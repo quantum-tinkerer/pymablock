@@ -17,14 +17,13 @@ mystnb:
 
 A driven dispersive ancilla can modify the cavity's ladder matrix elements,
 turning selected oscillator levels into a spin representation. We reproduce the
-phase-dependent amplitudes of [Roy et al., *Synthetic high angular momentum
-spin dynamics in a microwave oscillator*, Physical Review X 15, 021009
-(2025)](https://arxiv.org/html/2405.15695v4), and calculate second-order corrections
-from the discarded ancilla, cavity, and Floquet states.
+phase-dependent amplitudes of Roy et al.[^roy] for spin one and spin three
+halves. A second-order expansion extends that effective description to include
+virtual excursions through discarded ancilla, cavity, and Floquet states.
 
-We treat spin one and spin three halves using ordinary three- and four-dimensional
-matrices. The source is a two-by-two ancilla matrix with second-quantized cavity
-and Floquet operators in its entries. An ordered reference list specifies the
+The effective spins are ordinary three- and four-dimensional matrices. The
+source is a two-by-two ancilla matrix with second-quantized cavity and Floquet
+operators in its entries. An ordered reference list specifies the
 retained basis.
 
 ## Driven Hamiltonian and dressed basis
@@ -144,7 +143,7 @@ by one application of $V$, which suffices through second order. They are not
 global projector identities on the infinite oscillator. We check the same
 second-order result after adding another shell below.
 
-## Reference states and the retained matrix
+## Effective spin matrices
 
 The reference list defines the columns of the isometry $W$ in order:
 
@@ -165,9 +164,7 @@ it requires no additional operator type. The ancilla is already in its
 occupation-dependent dressed basis, so these references correspond to
 superpositions of bare ancilla states.
 
-## First-order matrix-element modification
-
-The expected adjacent-level matrix element is
+At first order, the adjacent-level matrix element is
 
 $$
 \langle n-1|H^{(1)}|n\rangle
@@ -176,8 +173,8 @@ $$
 $$
 
 The overlap between neighboring dressed ancilla states supplies the cosine.
-This is the amplitude in Eq. (18) of the paper. We compare the full first-order
-matrix with this expression for both spins.
+The result reproduces Eq. (18) of Roy et al.[^roy], restricted to the retained
+manifold, and holds symbolically for both spins.
 
 ```{code-cell} ipython3
 models = [cavity_model(sp.Rational(1)), cavity_model(sp.Rational(3, 2))]
@@ -195,7 +192,7 @@ for model in models:
     print(f"spin {model['spin']}: first-order matrix agrees symbolically")
 ```
 
-The phase choice
+The phase choice in Eq. (27) of Roy et al.[^roy],
 
 $$
 \phi_0=0,\qquad
@@ -209,8 +206,8 @@ H^{(1)}=\frac{\epsilon}{2\sqrt{2s}}
  (e^{i\varphi}S_-+e^{-i\varphi}S_+).
 $$
 
-We verify this operator identity and plot the resulting adjacent-level weights,
-scaled by $\epsilon/2$, against the unmodified oscillator weights.
+The adjacent-level weights, scaled by $\epsilon/2$, now follow the spin ladder
+rather than the oscillator's $\sqrt n$ dependence.
 
 ```{code-cell} ipython3
 fig, axes = plt.subplots(1, 2, figsize=(8, 3.3), constrained_layout=True)
@@ -295,8 +292,12 @@ assert shell_error < 1e-12
 print(f"Change after adding a second cavity shell: {shell_error:.2e}")
 ```
 
-These calculations validate the coherent effective Hamiltonian in the specified
-carrier-rotated model. They omit dissipation and carrier-frequency
-counterrotating corrections. Higher perturbative orders require enough cavity
-shells and Floquet indices to include their longer virtual paths; the
-second-order closure check does not establish those higher-order results.
+The effective Hamiltonian describes coherent dynamics after the carrier
+rotating-wave approximation. Dissipation and carrier-frequency counterrotating
+corrections are outside this model. Higher perturbative orders require more
+cavity shells and Floquet indices to include their longer virtual paths.
+
+[^roy]: S. Roy et al.,
+    [Synthetic high angular momentum spin dynamics in a microwave oscillator](https://doi.org/10.1103/PhysRevX.15.021009),
+    Physical Review X **15**, 021009 (2025).
+    [Open preprint, Appendix B](https://arxiv.org/html/2405.15695v4#A2).
