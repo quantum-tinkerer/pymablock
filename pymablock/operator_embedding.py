@@ -13,13 +13,15 @@ from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
+    _divide_coefficients,
     _NOFTransition,
     _number_symbols,
     _occupation_dimension,
-    _one_term,
+    _spectral_projector,
     find_operators,
     generator_types,
 )
+from pymablock.series import BlockSeries, zero
 
 __all__ = ["Embedding"]
 
@@ -104,9 +106,38 @@ class Embedding(sympy.Expr):
 
     @cached_property
     def _projector(self):
-        from pymablock._operator_embedding import _projector
-
-        return _projector(self._basis)
+        """Select the joint spectrum of retained number operators and constraints."""
+        basis = self._basis
+        numbers = basis._source_placeholders
+        if isinstance(basis, _ReferenceBasis):
+            spectra = list(zip(numbers, ((n,) for n in basis._references[0][1])))
+        else:
+            offsets = sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
+            spectra = [
+                (sympy.expand(normal.dot(offsets)), (0,))
+                for normal in basis._occupation_matrix.T.nullspace()
+            ]
+            target = basis._occupation_left_inverse * offsets
+            physical = {
+                n: sympy.Dummy(integer=True, nonnegative=True)
+                for source, n in zip(basis.operators, numbers)
+                if not isinstance(source, LadderOp)
+            }
+            for q, op, size in zip(
+                target, basis._target_operators, basis._target_dimensions
+            ):
+                if (
+                    isinstance(op, BosonOp)
+                    and q.xreplace(physical).is_nonnegative is not True
+                ):
+                    raise NotImplementedError(
+                        "This bosonic embedding requires an occupation inequality"
+                    )
+                spectra.append((q, range(size) if size is not None else sympy.S.Integers))
+        indicator = sympy.prod(
+            _spectral_projector(q, spectrum) for q, spectrum in spectra
+        )
+        return NumberOrderedForm(basis.operators, {(0,) * len(numbers): indicator}) * 1
 
     def _contract(self, value):
         result = self.restrict(value)
@@ -124,8 +155,13 @@ class Embedding(sympy.Expr):
         )
         images = dict(zip(map(NumberOperator, basis._target_operators), coordinates))
         for op, generator in zip(basis._target_operators, basis._generators):
-            images[op] = generator.form.as_expr()
-            images[op.adjoint()] = generator.form.adjoint().as_expr()
+            image = NumberOrderedForm(
+                generator.operators,
+                {generator.powers: generator.coefficient},
+                validate=False,
+            )
+            images[op] = image.as_expr()
+            images[op.adjoint()] = image.adjoint().as_expr()
         result = NumberOrderedForm.from_expr(
             value.as_expr().xreplace(images), basis.operators
         )
@@ -154,6 +190,115 @@ class Embedding(sympy.Expr):
         ``simplify()`` on the result when explicit binary reduction is needed.
         """
         return self._basis._pullback(self._basis._source_form(expression))
+
+    def _prepare(self, hamiltonian):
+        """Return rectangular Hamiltonian blocks and their Sylvester solver."""
+        if hamiltonian.shape:
+            raise ValueError("Structured embeddings require an unseparated Hamiltonian.")
+        basis = self._basis
+        finite = isinstance(basis, _ReferenceBasis)
+        origin = (0,) * hamiltonian.n_infinite
+        source_h0 = basis._source_form(hamiltonian[origin])
+        h0 = source_h0 if finite else sympy.ImmutableMatrix([[source_h0]])
+        modes, numbers = basis.operators, basis._source_placeholders
+        if any(
+            i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()
+        ):
+            raise ValueError("Structured embeddings currently require diagonal H0")
+        vacuum = (0,) * len(modes)
+        if finite:
+            entry_embedding = Embedding(reference=[dict(zip(modes, vacuum))])
+            w = sympy.zeros(h0.rows, len(basis._references))
+            for col, (row, state) in enumerate(basis._references):
+                monomial = NumberOrderedForm(
+                    modes, {tuple(-n for n in state): sympy.S.One}
+                )
+                (transition,) = _NOFTransition.from_form(monomial)
+                w[row, col] = entry_embedding._attach(
+                    monomial / transition.apply(vacuum).weight, 1
+                )
+            w = sympy.ImmutableMatrix(w)
+        else:
+            entry_embedding = self
+            w = sympy.ImmutableMatrix([[self._attach(sympy.S.One, 1)]])
+        frames = (w, sympy.eye(h0.rows) - w * w.adjoint())
+        retained = w.adjoint() * h0 * w
+        energies = [
+            x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
+            for x in h0.diagonal()
+        ]
+
+        coordinates = () if finite else basis.coordinate_symbols
+        occupations = vacuum if finite else basis.source_occupations
+        sizes = () if finite else basis._target_dimensions
+        binary = [q for q, size in zip(coordinates, sizes) if size == 2]
+
+        def divide_scalar(value, row, col):
+            if value == 0 or value.is_zero:
+                return sympy.S.Zero
+            value = basis._source_scalar(value.source)
+            energy = (
+                retained[col, col]
+                if finite
+                else basis._at_occupations(energies[col], occupations)
+            )
+            terms = {}
+            for transition in _NOFTransition.from_form(value):
+                powers = transition.powers
+                action = transition.symbolic_action(occupations)
+                if action.weight == 0:
+                    continue
+                middle = [n - max(p, 0) for n, p in zip(occupations, powers)]
+                coefficient = basis._at_occupations(value.terms[powers], middle)
+                denominator = sympy.expand(
+                    basis._at_occupations(energies[row], action.output_state) - energy
+                )
+                try:
+                    result = _divide_coefficients(
+                        coefficient, denominator, binary, coordinates, action.weight
+                    )
+                except ValueError as error:
+                    raise ZeroDivisionError(str(error)) from error
+                if not finite:
+                    incoming = sympy.Matrix(
+                        [n + max(p, 0) for n, p in zip(numbers, powers)]
+                    )
+                    target = basis._occupation_left_inverse * (
+                        incoming - sympy.Matrix(basis.reference)
+                    )
+                    result = result.xreplace(dict(zip(coordinates, target)))
+                terms[powers] = result
+            return NumberOrderedForm(
+                basis.operators, terms, entry_embedding, 1, validate=False
+            )
+
+        def solve(value, index):
+            reverse = index[:2] == (0, 1)
+            source = value.adjoint() if reverse else value
+            result = sympy.ImmutableMatrix(
+                source.rows, source.cols, lambda i, j: divide_scalar(source[i, j], i, j)
+            )
+            return -result.adjoint() if reverse else result
+
+        def evaluate(i, j, *order):
+            source = hamiltonian[tuple(order)]
+            if source is zero or (i != j and tuple(order) == origin):
+                return zero
+            source = basis._source_form(source)
+            if not finite:
+                source = sympy.ImmutableMatrix([[source]])
+            if source.shape != h0.shape:
+                raise ValueError(
+                    "All Hamiltonian coefficients must have the same source matrix shape"
+                )
+            result = frames[i].adjoint() * source * frames[j]
+            return zero if result.is_zero_matrix else result if finite else result[0, 0]
+
+        options = dict(
+            n_infinite=hamiltonian.n_infinite, dimension_names=hamiltonian.dimension_names
+        )
+        blocks = BlockSeries(eval=evaluate, shape=(2, 2), **options)
+        return blocks, solve
 
 
 class _SourceBasis:
@@ -314,9 +459,7 @@ class _GeneratorBasis(_SourceBasis):
     def _lowering_weight(self, index):
         """Use the same generator action as compression and operator arithmetic."""
         powers = tuple(int(i == index) for i in range(len(self._target_operators)))
-        transition = _NOFTransition(
-            _one_term(self._target_operators, powers, sympy.S.One), powers
-        )
+        transition = _NOFTransition(self._target_operators, powers, sympy.S.One)
         return transition.symbolic_action(self.coordinate_symbols).weight
 
     def _reference_phase(self):
@@ -423,8 +566,7 @@ class _GeneratorBasis(_SourceBasis):
         powers = self._target_shift(transition.powers)
         if powers is None:
             return self._target_zero
-        target_form = _one_term(self._target_operators, powers, sympy.S.One)
-        (target_transition,) = _NOFTransition.from_form(target_form)
+        target_transition = _NOFTransition(self._target_operators, powers, sympy.S.One)
         source_weight = transition.symbolic_action(self.source_occupations).weight
         target_weight = target_transition.symbolic_action(self.coordinate_symbols).weight
         shifted = {q: q - p for q, p in zip(self.coordinate_symbols, powers)}
@@ -445,7 +587,9 @@ class _GeneratorBasis(_SourceBasis):
             )
         }
         coefficient = sympy.factor_terms(amplitude.xreplace(initial))
-        return _one_term(self._target_operators, powers, coefficient)
+        return NumberOrderedForm(
+            self._target_operators, {powers: coefficient}, validate=False
+        )
 
     @cache
     def _pullback(self, source):
