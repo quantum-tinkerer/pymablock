@@ -277,6 +277,11 @@ as virtual modes. Each mixed set must start in its empty Fock state. Symbolic
 two-mode rotations are supported; larger rotations require the compiler to
 establish nonzero norms when completing the basis. Images are checked for
 normalization and mutual orthogonality, rather than silently renormalized.
+The compiler groups overlapping source modes and collects the linear images
+as matrix rows. It checks their Gram matrix and completes only the orthogonal
+complement. Disconnected groups stay separate, including bosonic and fermionic
+groups. A direct two-mode completion avoids singular denominators at special
+rotation angles.
 
 After any linear rotation, the compiler supports source expressions with **one
 independent occupation shift per target generator** and a product occupation
