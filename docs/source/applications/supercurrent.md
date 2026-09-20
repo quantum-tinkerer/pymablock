@@ -73,10 +73,7 @@ voltage or charging energy. We leave the Bogoliubov coefficients symbolic until
 the final current, where $u_\alpha v_\alpha=\Gamma_\alpha/(2E_\alpha)$.
 
 ```{code-cell} ipython3
-%matplotlib inline
-import numpy as np
 import sympy as sp
-import matplotlib.pyplot as plt
 from IPython.display import display
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.fermion import FermionOp
@@ -84,10 +81,6 @@ from sympy.physics.quantum.fermion import FermionOp
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.second_quantization import Embedding
-from validation import (
-    occupation_matrices, operator_matrix, occupation_indices,
-    fourth_order_degenerate,
-)
 
 Phi = sp.Symbol("Phi", real=True)
 d_up, d_down = FermionOp("d_up"), FermionOp("d_down")
@@ -250,115 +243,15 @@ prefactor = tL**2 * tR**2 * GammaL * GammaR / (EL * ER)
 currents = [prefactor * factor * sp.sin(Phi) for factor in factors]
 # Restore charging energy and gate voltage symbolically, for arbitrary U and n_g.
 currents_by_gate = [current.subs(charging_energies) for current in currents]
-print("All three charge-sector currents agree symbolically.")
-print("Parameters in the gate-dependent currents:",
-      sorted(str(symbol) for symbol in set().union(*(x.free_symbols for x in currents_by_gate))))
+for charge, current in enumerate(currents_by_gate):
+    display(sp.Eq(sp.Symbol(f"I_{charge}") / sp.Symbol("2e/hbar"), current))
 ```
 
-## Comparison with a sector resolvent
-
-We build the full $2^6=64$ dimensional Fock matrices directly. For each charge
-sector, the resolvent excludes that sector alone, so its fourth-order expression
-already includes the even-sector pairing correction. For a degenerate sector
-with $PVP=0$, the reference uses
-
-$$
-E^{(4)}=PVRVRVRVP
- -\frac12\{PVR^2VP,\;PVRVP\},
-\qquad R=Q(E_0-H_0)^{-1}Q.
-$$
-
-A direct Fock-space evaluation provides an independent comparison at three
-gate offsets, one in each ground-state charge region. Subtracting the energy at
-zero phase isolates the phase-dependent contribution; its finite-difference
-derivative gives the current. Both quantities can then be compared with the
-symbolic expressions above.
-
-```{code-cell} ipython3
-occupations = [range(2)] * len(source)
-matrices = occupation_matrices(source, occupations)
-selected_states = [
-    tuple(dict(zip(dot, state)).get(op, 0) for op in source)
-    for state in ((0, 0), (0, 1), (1, 0), (1, 1))
-]
-kept = occupation_indices(occupations, selected_states)
-lead_values = {
-    EL: sp.Rational(11, 10), ER: sp.Rational(7, 5),
-    uL: sp.Rational(3, 5), vL: sp.Rational(4, 5),
-    uR: sp.Rational(5, 13), vR: sp.Rational(12, 13),
-    tL: sp.Rational(1, 5), tR: sp.Rational(3, 20),
-}
-for u, v in ((uL, vL), (uR, vR)):
-    assert (u**2 + v**2).subs(lead_values) == 1
-lead_values.update({
-    GammaL: (2 * EL * uL * vL).subs(lead_values),
-    GammaR: (2 * ER * uR * vR).subs(lead_values),
-})
-phi_sample, step = 0.74, 1e-5
-for gate, charge in ((sp.Rational(1, 5), 0), (sp.Rational(9, 10), 1),
-                     (sp.Rational(9, 5), 2)):
-    parameters = {**lead_values, U: 10, ng: gate}
-    parameters.update({symbol: value.subs(parameters) for symbol, value in charging_energies.items()})
-    energy = operator_matrix(H0.subs(parameters), matrices).diagonal().real
-    retained = [kept[i] for i in ((0,), (1, 2), (3,))[charge]]
-
-    def reference_energy(phi):
-        perturbation = operator_matrix(V.subs(parameters).subs(Phi, phi).evalf(), matrices).toarray()
-        return fourth_order_degenerate(energy, perturbation, retained)[0, 0].real
-
-    current = currents[charge].subs(parameters)
-    actual_shift = float((current / sp.sin(Phi)).subs(Phi, phi_sample)) * (1 - np.cos(phi_sample))
-    energy_error = abs(actual_shift - (reference_energy(phi_sample) - reference_energy(0)))
-    reference_current = (reference_energy(phi_sample + step) - reference_energy(phi_sample - step)) / (2 * step)
-    current_error = abs(float(current.subs(Phi, phi_sample)) - reference_current)
-    assert energy_error < 1e-12
-    assert current_error < 1e-10
-    print(f"charge {charge}, n_g={gate}: energy error {energy_error:.2e}, current error {current_error:.2e}")
-```
-
-## Gate dependence and current–phase relation
-
-We evaluate the symbolic expressions only when plotting. The left panel shows
-the signed critical-current coefficient in the unperturbed ground-state charge
-sector: $n=0$ for $n_g<1/2$, $n=1$ for $1/2<n_g<3/2$, and $n=2$ for $n_g>3/2$.
-The right panel shows its sinusoidal phase dependence at one gate offset in each
-region. Both panels use $I^{(4)}/(2e/\hbar)$; the physical current includes that
-prefactor. The even-sector phase curves coincide at the particle-hole-related
-offsets $n_g=0.2$ and $1.8$. The gate intervals exclude the charge-degeneracy points, where these
-separate nondegenerate branches do not select a unique ground state.
-
-```{code-cell} ipython3
-plot_parameters = {**lead_values, U: 10}
-fig, axes = plt.subplots(1, 2, figsize=(9, 3.5), constrained_layout=True)
-phases = np.linspace(-np.pi, np.pi, 301)
-intervals = ((-0.5, 0.49), (0.51, 1.49), (1.51, 2.5))
-for charge, (interval, gate) in enumerate(zip(intervals, (0.2, 0.9, 1.8))):
-    coefficient = currents_by_gate[charge].subs(plot_parameters).subs(Phi, sp.pi / 2)
-    gates = np.linspace(*interval, 200)
-    axes[0].plot(gates, sp.lambdify(ng, coefficient, "numpy")(gates), label=f"charge {charge}")
-    current = currents_by_gate[charge].subs(plot_parameters).subs(ng, gate)
-    axes[1].plot(phases / np.pi, sp.lambdify(Phi, current, "numpy")(phases), label=f"charge {charge}, n_g={gate}")
-for ax in axes:
-    ax.axhline(0, color="0.6", lw=0.6)
-    ax.legend(frameon=False, fontsize=8)
-    ax.set_ylabel(r"$I^{(4)}/(2e/\hbar)$")
-axes[0].set(xlabel=r"Offset charge $n_g$", title=r"Signed critical current ($\Phi=\pi/2$)")
-axes[1].set(xlabel=r"Condensate phase $\Phi/\pi$", title="Current–phase relation")
-plt.show()
-```
-
-The expressions remain symbolic in $U,n_g,E_L,E_R,\Gamma_L,\Gamma_R,t_L,t_R$
-and $\Phi$. Substituting $E_\alpha=\sqrt{\xi_\alpha^2+\Gamma_\alpha^2}$ restores
-the original superconducting parameters when desired. Our phase convention is
-$\Phi=2\phi$ relative to the single-electron tunneling phase in the tutorial;
-$(2e/\hbar)\partial_\Phi=(e/\hbar)\partial_\phi$ gives the same physical current.
-
-The generator embedding retains all dot charges. The subsequent charge-energy
-expansion requires nonzero gaps to the states it eliminates; in particular,
-near the even-charge degeneracy $b=0$, the retained even block should be
-diagonalized together. The model represents each superconductor by one paired
-orbital; a continuum junction requires the corresponding quasiparticle spectrum
-and energy sums.
+The branch currents apply away from charge degeneracies. Near $b=0$, the two
+even-charge states must be diagonalized together in the retained Hamiltonian.
+The sign change between the even and odd ground-state sectors gives the
+$0$–$\pi$ transition. Our condensate phase is $\Phi=2\phi$ in the tutorial's
+notation, so both conventions give the same physical current.
 
 [^glazman]: L. I. Glazman and K. A. Matveev,
     [Resonant Josephson current through Kondo impurities in a tunnel barrier](http://jetpletters.ru/ps/1121/article_16988.pdf),

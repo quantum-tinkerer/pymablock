@@ -75,10 +75,7 @@ $H_0+\eta V$ in powers of a formal $\eta$, preserving the nonzero dressed
 splitting in $H_0$.
 
 ```{code-cell} ipython3
-%matplotlib inline
-import numpy as np
 import sympy as sp
-import matplotlib.pyplot as plt
 from IPython.display import display
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
@@ -87,7 +84,6 @@ from pymablock import block_diagonalize
 from pymablock.number_ordered_form import LadderOp
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.second_quantization import Embedding
-from validation import occupation_matrices, operator_matrix, occupation_indices, second_order
 
 chi, Omega, epsilon = sp.symbols("chi Omega epsilon", nonzero=True, real=True)
 varphi = sp.Symbol("varphi", real=True)
@@ -140,8 +136,7 @@ def cavity_model(spin, virtual_shells=1):
 The number-projector polynomials are interpolation identities on the displayed
 cavity range. One extra cavity level includes every intermediate state reached
 by one application of $V$, which suffices through second order. They are not
-global projector identities on the infinite oscillator. We check the same
-second-order result after adding another shell below.
+global projector identities on the infinite oscillator.
 
 ## Effective spin matrices
 
@@ -189,7 +184,7 @@ for model in models:
         expected[n-1, n], expected[n, n-1] = amplitude, sp.conjugate(amplitude)
     difference = H[0, 0, 1] - expected
     assert difference.applyfunc(lambda x: sp.trigsimp(sp.expand_complex(x))) == sp.zeros(len(phases))
-    print(f"spin {model['spin']}: first-order matrix agrees symbolically")
+    display(expected)
 ```
 
 The phase choice in Eq. (27) of Roy et al.[^roy],
@@ -206,91 +201,36 @@ H^{(1)}=\frac{\epsilon}{2\sqrt{2s}}
  (e^{i\varphi}S_-+e^{-i\varphi}S_+).
 $$
 
-The adjacent-level weights, scaled by $\epsilon/2$, now follow the spin ladder
-rather than the oscillator's $\sqrt n$ dependence.
-
-```{code-cell} ipython3
-fig, axes = plt.subplots(1, 2, figsize=(8, 3.3), constrained_layout=True)
-for ax, model, H in zip(axes, models, series):
-    maximum = int(2 * model["spin"])
-    phases = model["phases"]
-    values = {phases[0]: sp.S.Zero}
-    angle = sp.S.Zero
-    for n in range(1, maximum + 1):
-        angle += 2 * sp.acos(sp.sqrt(sp.Rational(maximum + 1 - n, maximum)))
-        values[phases[n]] = angle
-    actual = H[0, 0, 1].applyfunc(lambda x: sp.trigsimp(sp.expand_complex(x.subs(values))))
-    S = sp.zeros(maximum + 1)
-    for n in range(1, maximum + 1):
-        S[n-1, n] = sp.sqrt(n * (maximum + 1 - n))
-    expected = epsilon * (sp.exp(sp.I * varphi) * S + sp.exp(-sp.I * varphi) * S.adjoint()) / (2 * sp.sqrt(maximum))
-    assert (actual - expected).applyfunc(sp.simplify) == sp.zeros(maximum + 1)
-    n = np.arange(1, maximum + 1)
-    ax.plot(n, np.sqrt(n), "o--", label="oscillator")
-    ax.plot(n, np.sqrt(n * (maximum + 1 - n) / maximum), "s-", label="engineered spin")
-    ax.set(xticks=n, xlabel="Initial occupation n", ylabel=r"Ladder weight / $(\epsilon/2)$",
-           title=f"Spin {model['spin']}")
-axes[0].legend(frameon=False)
-plt.show()
-```
+For spin one and spin three halves, respectively, the raising and lowering
+weights are $(\sqrt2,\sqrt2)$ and $(\sqrt3,2,\sqrt3)$. The overall factor
+$\epsilon/(2\sqrt{2s})$ sets their drive strength. The matrices above therefore
+realize rotations of the effective spin with axis fixed by $\varphi$.
 
 ## Second-order virtual corrections
 
-At a generic phase choice, we compare against a direct Sambe-matrix resolvent.
-The source ranges include $n=0,\ldots,2s+1$, both ancilla levels, and Floquet
-indices $-(2s+1),\ldots,2s+1$. They contain every state reached by one action of
-$V$ from the retained manifold. All retained states have energy $\Omega/2$.
-
-The numerical point $(\chi,\Omega,\epsilon)=(11,3,1)$ is used to check the
-coefficient of $\eta^2$. The asymptotic accuracy at $\eta=1$ is a separate
-question governed by drive-to-gap ratios.
+The first-order spin Hamiltonian receives corrections from the other dressed
+ancilla branch and from off-resonant comb harmonics. For spin one, the phase
+choice above is $(\phi_0,\phi_1,\phi_2)=(0,0,\pi/2)$. Keeping $\chi$, $\Omega$,
+$\epsilon$, and $\varphi$ symbolic gives the six independent entries of the
+second-order Hermitian matrix:
 
 ```{code-cell} ipython3
-second_matrices = []
-for model in models:
-    size = len(model["phases"])
-    parameters = {chi: 11, Omega: 3, epsilon: 1, varphi: sp.pi / 7}
-    parameters.update({phase: sp.pi * i / (i + 2) for i, phase in enumerate(model["phases"])})
-    source = [model[key].subs(parameters) for key in ("H0", "V")]
-    H, *_ = block_diagonalize(source, subspace_eigenvectors=model["embedding"])
-    actual = np.asarray(H[0, 0, 2].evalf(), dtype=complex)
-    occupations = [range(size + 1), range(-size, size + 1)]
-    matrices = occupation_matrices(model["operators"], occupations)
-    energy = operator_matrix(source[0].evalf(), matrices).diagonal().real
-    perturbation = operator_matrix(source[1].evalf(), matrices).toarray()
-    # operator_matrix stacks the two ancilla components as outer blocks.
-    # The positive dressed branch is the first block (component zero).
-    kept = occupation_indices(occupations, [(n, 0) for n in range(size)])
-    reference = second_order(energy, perturbation, kept)
-    error = np.max(np.abs(actual - reference))
-    assert error < 1e-12
-    second_matrices.append(actual)
-    print(f"spin {model['spin']}: maximum second-order matrix error {error:.2e}")
-    # Separate real and imaginary parts to keep the four-state matrix readable.
-    matrix = H[0, 0, 2].evalf(5, chop=True)
-    print("Real part:")
-    display(sp.re(matrix))
-    print("Imaginary part:")
-    display(sp.im(matrix))
+spin_one = models[0]
+phase_choice = dict(zip(spin_one["phases"], (0, 0, sp.pi / 2)))
+h2 = series[0][0, 0, 2].subs(phase_choice)
+for i in range(3):
+    for j in range(i, 3):
+        entry = h2[i, j].subs(sp.exp(-sp.I * sp.pi / 4), (1 - sp.I) / sp.sqrt(2))
+        entry = sp.factor(sp.expand(entry))
+        display(sp.Eq(sp.Symbol(f"H^{{(2)}}_{{{i}{j}}}"), entry))
 ```
 
-Finally, increasing the polynomial interpolation range for spin one leaves its
-second-order coefficient unchanged. This checks that the result does not depend
-on the arbitrary continuation of those polynomials outside the reached states.
-
-```{code-cell} ipython3
-expanded = cavity_model(sp.Rational(1), virtual_shells=2)
-parameters = {chi: 11, Omega: 3, epsilon: 1, varphi: sp.pi / 7}
-parameters.update({phase: sp.pi * i / (i + 2) for i, phase in enumerate(expanded["phases"])})
-H_expanded, *_ = block_diagonalize(
-    [expanded[key].subs(parameters) for key in ("H0", "V")],
-    subspace_eigenvectors=expanded["embedding"],
-)
-expanded_h2 = np.asarray(H_expanded[0, 0, 2].evalf(), dtype=complex)
-shell_error = np.max(np.abs(expanded_h2 - second_matrices[0]))
-assert shell_error < 1e-12
-print(f"Change after adding a second cavity shell: {shell_error:.2e}")
-```
+The diagonal entries shift the dressed levels, while off-diagonal entries
+modify their couplings. The denominators resolve transitions across the dressed
+splitting $\Omega$ and its Floquet-shifted counterparts. The expansion requires
+these virtual transitions to remain off resonance. One additional cavity level
+contains every intermediate state reached in two perturbation steps; more
+levels are needed at higher orders.
 
 The effective Hamiltonian describes coherent dynamics after the carrier
 rotating-wave approximation. Dissipation and carrier-frequency counterrotating
