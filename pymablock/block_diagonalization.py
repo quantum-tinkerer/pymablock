@@ -253,9 +253,7 @@ def block_diagonalize(
             raise NotImplementedError(
                 "Structured embeddings do not support fully_diagonalize."
             )
-        from pymablock._operator_embedding import prepare
-
-        hamiltonian, solve_sylvester = prepare(hamiltonian, subspace_eigenvectors)
+        hamiltonian, solve_sylvester = subspace_eigenvectors._prepare(hamiltonian)
         subspace_eigenvectors = None
 
     use_implicit = False
