@@ -15,36 +15,20 @@ mystnb:
 
 # Artificial higher spins in a driven cavity
 
-A driven dispersive ancilla can modify the cavity's ladder matrix elements,
-turning selected oscillator levels into a spin representation. We reproduce the
-phase-dependent amplitudes of Roy et al.[^roy] for spin one and spin three
-halves. A second-order expansion extends that effective description to include
-virtual excursions through discarded ancilla, cavity, and Floquet states.
+We reproduce the engineered spin-one and spin-three-halves matrix elements of
+Roy et al.[^roy] and calculate the spin-one second-order correction.
 
-The effective spins are ordinary three- and four-dimensional matrices. The
-source is a two-by-two ancilla matrix with second-quantized cavity and Floquet
-operators in its entries. An ordered reference list specifies the
-retained basis.
+## Model
 
-## Driven Hamiltonian and dressed basis
+A cavity with dispersive shift $\chi$ couples to a driven ancilla. A comb drive
+of amplitude $\Omega$ and phases $\phi_k$ dresses the ancilla; a two-tone cavity
+drive has amplitude $\epsilon$ and phase $\varphi$. We use the carrier
+rotating-wave approximation and retain the other comb harmonics explicitly.
 
-The carrier rotating-wave approximation leaves a comb drive on the ancilla
-and a two-tone cavity drive. The cavity lowering operator is $c$, the dispersive
-shift is $\chi$, and the drive amplitudes are $\Omega$ and $\epsilon$.
-The phases $\phi_k$ belong to the ancilla comb; $\varphi$ is the common
-cavity-drive phase.
-
-We transform to the interaction picture of the dispersive term and keep the
-comb harmonics explicitly in a Sambe space: the bilateral ladder $\ell$ has
-integer number $N_\ell$, and a Fourier factor $e^{ir\chi t}$ becomes
-$(\ell^\dagger)^r$ for $r>0$ or $\ell^{-r}$ for $r<0$. The number term is
-$\chi N_\ell$. This representation retains the off-resonant harmonics that
-would be discarded in subsequent rotating-wave reductions.
-
-At each retained cavity occupation, a rotation diagonalizes the resonant
-ancilla drive. Its first column selects the positive-energy dressed branch.
-The resonant splitting belongs to $H_0$; the remaining comb harmonics and
-cavity drive enter $V$.
+The source is a two-by-two ancilla matrix with cavity and Floquet operators in
+its entries. The ladder $\ell$ shifts the Fourier index and contributes
+$\chi N_\ell$ to the energy. The rotation below puts the resonant ancilla drive
+in its dressed basis, with the positive-energy branch first.
 
 ```{code-cell} ipython3
 import sympy as sp
@@ -110,44 +94,23 @@ def cavity_model(spin, virtual_shells=1):
                 operators=(c, ell), phases=phases, spin=spin)
 ```
 
-For spin one, the unperturbed input is the following matrix of number operators.
-The two entries distinguish the dressed ancilla branches.
+The unperturbed spin-one input has two dressed ancilla branches:
 
 ```{code-cell} ipython3
 models = [cavity_model(sp.Rational(1)), cavity_model(sp.Rational(3, 2))]
 display(models[0]["H0"].applyfunc(sp.factor))
 ```
 
-The number-projector polynomials are interpolation identities on the displayed
-cavity range. One extra cavity level includes every intermediate state reached
-by one application of $V$, which suffices through second order. They are not
-global projector identities on the infinite oscillator.
-
 ## Effective spin matrices
 
-The reference list defines the columns of the isometry $W$ in order:
+The references select the positive dressed branch, cavity occupations
+$n=0,\ldots,2s$, and Fourier index zero. The output matrices use this order,
+corresponding to spin projections $m=n-s$. One extra cavity level closes the
+virtual paths through second order; the interpolated number projectors are
+used only on that finite range.
 
-$$
-W|n\rangle=|0\rangle_{\rm dressed}\otimes|n\rangle_c\otimes|0\rangle_\ell,
-\qquad n=0,\ldots,2s.
-$$
-
-Each `(0, {c: n, ell: 0})` pairs an ancilla matrix index with occupations of
-all source modes. The list selects the whole retained subspace, so transitions
-between these states are retained together. Transitions to the other dressed
-branch and to other cavity or Floquet occupations remain available in virtual
-processes. No source ladder is truncated by the embedding.
-
-The returned coefficients are ordinary SymPy matrices in this list order.
-The spin interpretation, $m=n-s$, comes from their engineered matrix elements;
-it requires no additional operator type. The ancilla is already in its
-occupation-dependent dressed basis, so these references correspond to
-superpositions of bare ancilla states.
-
-The computed adjacent-level amplitudes reproduce Eq. (18) of Roy et al.[^roy]
-The cosine dependence comes from the overlap of neighboring dressed ancilla
-states. We display the upper-diagonal entries; Hermitian conjugation supplies
-the reverse transitions.
+The adjacent-level amplitudes reproduce Eq. (18) of Roy et al.[^roy]
+Their cosine dependence comes from neighboring ancilla-state overlaps.
 
 ```{code-cell} ipython3
 series = []
@@ -162,9 +125,8 @@ for model in models:
         display(sp.Eq(sp.Symbol(f"h_{{{len(phases)},{n-1}{n}}}"), amplitude))
 ```
 
-The phase prescription in Eq. (27) of Roy et al.[^roy] turns these amplitudes
-into spin ladder weights. Applying it to the computed matrices gives the
-spin-one and spin-three-halves Hamiltonians:
+The phases prescribed in Eq. (27) of Roy et al.[^roy] give the spin-one and
+spin-three-halves Hamiltonians:
 
 ```{code-cell} ipython3
 spin_phases = []
@@ -179,17 +141,11 @@ for model, H in zip(models, series):
     display(spin_matrix.applyfunc(sp.simplify))
 ```
 
-The drive phase selects the rotation axis, while its amplitude sets the
-rotation rate. The finite matrices encode the higher spin without introducing
-another operator type.
+The drive phase sets the rotation axis and its amplitude sets the rate.
 
-## Second-order virtual corrections
+## Second-order correction
 
-The first-order spin Hamiltonian receives corrections from the other dressed
-ancilla branch and from off-resonant comb harmonics. For spin one, the phase
-choice above is $(\phi_0,\phi_1,\phi_2)=(0,0,\pi/2)$. Keeping $\chi$, $\Omega$,
-$\epsilon$, and $\varphi$ symbolic gives the six independent entries of the
-second-order Hermitian matrix:
+For the spin-one phase choice, the six independent matrix entries are:
 
 ```{code-cell} ipython3
 spin_one = models[0]
@@ -202,17 +158,10 @@ for i in range(3):
         display(sp.Eq(sp.Symbol(f"H^{{(2)}}_{{{i}{j}}}"), entry))
 ```
 
-The diagonal entries shift the dressed levels, while off-diagonal entries
-modify their couplings. The denominators resolve transitions across the dressed
-splitting $\Omega$ and its Floquet-shifted counterparts. The expansion requires
-these virtual transitions to remain off resonance. One additional cavity level
-contains every intermediate state reached in two perturbation steps; more
-levels are needed at higher orders.
-
-The effective Hamiltonian describes coherent dynamics after the carrier
-rotating-wave approximation. Dissipation and carrier-frequency counterrotating
-corrections are outside this model. Higher perturbative orders require more
-cavity shells and Floquet indices to include their longer virtual paths.
+The diagonal entries shift the dressed levels; the off-diagonal entries change
+their couplings. The poles mark resonances with discarded ancilla or Floquet
+states. This coherent model omits dissipation and carrier-frequency
+counterrotating corrections.
 
 [^roy]: S. Roy et al.,
     [Synthetic high angular momentum spin dynamics in a microwave oscillator](https://doi.org/10.1103/PhysRevX.15.021009),
