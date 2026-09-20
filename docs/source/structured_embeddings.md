@@ -62,6 +62,19 @@ incorrect amplitudes rather than silently normalizing them. The reference has
 phase one; the generators fix all other phases, including signs from occupied
 fermionic spectators and permutations of the target modes.
 
+These checks apply to the compressed generators $PGP$. Each generator must
+have the target ladder norm, and each pair must commute (anticommute for two
+fermions) on the retained occupation lattice. The reference and occupation
+boundaries fix the vacuum and finite truncation; the norm and pair relations
+then also determine the relations involving adjoints. Thus checking the source
+algebra outside the retained space is unnecessary: a boson can represent a
+two-state target even though their uncompressed commutators differ.
+
+Validation leaves spectator occupations symbolic. Binary polynomial identities
+are reduced modulo $n^2-n$, rather than checked separately at every combination
+of occupations. There are quadratically many generator relations, but their
+symbolic coefficients can still grow; this is not a polynomial-time guarantee.
+
 `embedding.restrict(A)` evaluates
 
 $$
