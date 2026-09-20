@@ -16,7 +16,7 @@
   "dependencies": {
     "@astrojs/starlight": "^0.42.0",
     "astro": "^7.3.2",
-    "astro-myst-notebooks": "https://github.com/akhmerov/astro-myst-notebooks/releases/download/preview-2026-09-20/astro-myst-notebooks-0.3.0.tgz",
+    "astro-myst-notebooks": "https://github.com/akhmerov/astro-myst-notebooks/releases/download/v0.4.0/astro-myst-notebooks-0.4.0.tgz",
     "hast-util-from-html": "^2.0.3",
     "hast-util-to-html": "^9.0.5",
     "starlight-pydocs": "^0.2.1"
