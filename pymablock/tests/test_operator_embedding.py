@@ -656,6 +656,31 @@ def test_symbolic_rotation_and_cross_relations():
         Embedding({f: amplitude * a}, reference={a: 0})
 
 
+def test_disconnected_boson_and_fermion_rotations():
+    a, b, q = map(BosonOp, ("a", "b", "q"))
+    c, d, f = map(FermionOp, ("c", "d", "f"))
+    theta = sympy.Symbol("theta", real=True)
+    embedding = Embedding(
+        {
+            q: sympy.cos(theta) * a + sympy.sin(theta) * b,
+            f: (c + sympy.I * d) / sympy.sqrt(2),
+        },
+        reference={a: 0, b: 0, c: 0, d: 0},
+    )
+    for source, expected in (
+        (a, sympy.cos(theta) * q),
+        (b, sympy.sin(theta) * q),
+        (c, f / sympy.sqrt(2)),
+        (d, -sympy.I * f / sympy.sqrt(2)),
+        (N(a) + N(b) + N(c) + N(d), N(q) + N(f)),
+    ):
+        result = embedding.restrict(source)
+        for angle in (0, sympy.pi / 2, theta):
+            assert (
+                (result - expected).subs(theta, angle).applyfunc(sympy.simplify).is_zero
+            )
+
+
 def test_three_mode_rotation_with_frozen_fermionic_spectator():
     a, b, c, fixed = (FermionOp(name) for name in ("a", "b", "c", "0_fixed"))
     f, g = FermionOp("f"), FermionOp("g")
