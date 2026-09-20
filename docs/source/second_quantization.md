@@ -208,11 +208,26 @@ The generalization to multiple modes follows the same pattern: for each mode, ap
 
 For fermions and spins, we first combine terms in $Y$ with the same creation and annihilation operators.
 Since $a^\dagger N_a=N_a a=0$, we set $N_a=0$ in the coefficient for each mode that has a creation or annihilation operator.
-We then evaluate the fraction at occupations 0 and 1 for each remaining fermion and spin mode.
-At each choice of occupations, we set the solution coefficient to zero if the numerator is zero, including when the denominator is also zero.
+The remaining fraction stays factored. We resolve occupations 0 and 1 only when
+substitution immediately exposes a zero numerator or denominator.
+We choose zero when the numerator is zero, including when the denominator is also zero.
 For example, the equation $N_a X=N_a$ requires $X=1$ at occupation 1 and leaves $X$ undetermined at occupation 0.
 Choosing zero at occupation 0 gives the operator solution $X=N_a$.
 If the numerator is nonzero and the denominator is identically zero, the equation has no solution and the solver raises `ValueError`.
+More complicated inactive occupation sets are retained as diagonal `Piecewise`
+conditions instead of enumerating their states. Factors known to be nonzero on
+the occupation domain need no condition. An independent parameter term with a
+nonzero occupation-independent coefficient also rules out identically zero
+occupation sectors for generic parameter values. Thus a generic gap such as
+$\Delta+\sum_i U_i N_i$ can remain a single denominator, with no expansion into
+all binary sectors. Calling `simplify()` on the resulting NOF still permits
+explicit binary reduction when desired.
+
+The solver does not search all occupations for resonances. An unresolved gap
+such as $N_a+N_b-1$ can remain in a denominator; the resulting expression is
+valid away from its poles. Symbolic parameter values are likewise generic.
+Division is shared with the structured-embedding solver, which also includes
+the transition's ladder amplitude when determining inactive channels.
 
 In Pymablock, the {autolink}`~pymablock.second_quantization.solve_sylvester_2nd_quant` function implements this approach.
 

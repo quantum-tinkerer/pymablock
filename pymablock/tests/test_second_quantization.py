@@ -763,7 +763,18 @@ def test_ladder_and_fermion_block_diagonalize():
 
 
 @pytest.mark.parametrize("operator_type", [FermionOp, pauli.SigmaMinus])
-@pytest.mark.parametrize("source_kind", ["empty", "occupied", "two_modes", "transition"])
+@pytest.mark.parametrize(
+    "source_kind",
+    [
+        "empty",
+        "occupied",
+        "two_modes",
+        "transition",
+        "joint_zero",
+        "intersection",
+        "spectator",
+    ],
+)
 def test_sylvester_binary_projector_cancellation(operator_type, source_kind):
     """Choose X = 0 wherever the matrix equation leaves X undetermined."""
     f, g = operator_type("f"), operator_type("g")
@@ -775,6 +786,12 @@ def test_sylvester_binary_projector_cancellation(operator_type, source_kind):
     elif source_kind == "two_modes":
         # When both modes are empty, the ratio is 0/0 despite having no common factor.
         source, energy = n_f, n_f + n_g
+    elif source_kind == "joint_zero":
+        source = energy = n_f + n_g - 1
+    elif source_kind == "intersection":
+        source, energy = n_f - n_g, n_f + n_g
+    elif source_kind == "spectator":
+        source, energy = (1 - n_f) * (2 + n_g), (1 - n_f) * (3 + n_g)
     else:
         source, energy = Dagger(f) * (1 - n_g), n_f * (1 - n_g)
     solve = solve_sylvester_2nd_quant(((energy,), (sympy.S.Zero,)))
@@ -790,6 +807,29 @@ def test_sylvester_binary_projector_cancellation(operator_type, source_kind):
     np.testing.assert_array_equal(energies[:, None] * actual, rhs)
 
 
+@pytest.mark.parametrize("size", [4, 16])
+@pytest.mark.parametrize("spectators", [False, True])
+def test_sylvester_keeps_generic_binary_gap_compact(size, spectators):
+    operators = tuple(FermionOp(f"f{i:02}") for i in range(size))
+    delta, *couplings = sympy.symbols(f"delta u:{size}")
+    gap = delta + sum(u * NumberOperator(f) for u, f in zip(couplings, operators))
+    solve = solve_sylvester_2nd_quant(((gap,), (sympy.S.Zero,)))
+    rhs = NumberOrderedForm(
+        operators,
+        {
+            (0,) * size: sympy.prod(2 + NumberOperator(f) for f in operators)
+            if spectators
+            else 1
+        },
+    )
+    solution = solve(sympy.Matrix([[rhs]]), (0, 1, 1))[0, 0]
+    gap_form = NumberOrderedForm.from_expr(gap, operators=solution.operators)
+    assert solution.terms == {
+        (0,) * size: rhs.terms[(0,) * size] / gap_form.terms[(0,) * size]
+    }
+    assert not solution.as_expr().has(sympy.Piecewise)
+
+
 @pytest.mark.parametrize("offset", [1, 1.0])
 def test_sylvester_binary_resonant_source(offset):
     """Reject a matrix equation requiring 0 * X = 1 at occupation 1."""
@@ -797,6 +837,36 @@ def test_sylvester_binary_resonant_source(offset):
     solve = solve_sylvester_2nd_quant(((offset - NumberOperator(f),), (sympy.S.Zero,)))
     with pytest.raises(ValueError, match="right-hand side is nonzero"):
         solve(sympy.Matrix([[1]]), (0, 1, 1))
+
+
+def test_sylvester_leaves_unresolved_resonances_symbolic():
+    f, g = FermionOp("f"), FermionOp("g")
+    gap = NumberOperator(f) + NumberOperator(g) - 1
+    solve = solve_sylvester_2nd_quant(((gap,), (sympy.S.Zero,)))
+    solution = solve(sympy.Matrix([[1]]), (0, 1, 1))[0, 0]
+    gap_form = NumberOrderedForm.from_expr(gap, operators=solution.operators)
+    assert solution.terms == {(0, 0): 1 / gap_form.terms[(0, 0)]}
+
+
+@pytest.mark.parametrize("offset", [1, sympy.Symbol("delta")])
+def test_sylvester_nonzero_gap_needs_no_zero_guard(offset):
+    f, g = FermionOp("f"), FermionOp("g")
+    gap = offset + NumberOperator(f) + NumberOperator(g)
+    solve = solve_sylvester_2nd_quant(((gap,), (sympy.S.Zero,)))
+    rhs = NumberOperator(f) - NumberOperator(g)
+    solution = solve(sympy.Matrix([[rhs]]), (0, 1, 1))[0, 0]
+    assert not solution.as_expr().has(sympy.Piecewise)
+    assert (NumberOrderedForm.from_expr(gap) * solution - rhs).simplify().is_zero
+
+
+def test_sylvester_parameter_factor_does_not_hide_zero_sectors():
+    f, g = FermionOp("f"), FermionOp("g")
+    n, m = NumberOperator(f), NumberOperator(g)
+    u = sympy.Symbol("u", nonzero=True)
+    source = n + m - 1
+    solve = solve_sylvester_2nd_quant(((u * source,), (sympy.S.Zero,)))
+    solution = solve(sympy.Matrix([[source]]), (0, 1, 1))[0, 0]
+    assert (solution - (1 - n - m + 2 * n * m) / u).simplify().is_zero
 
 
 @pytest.mark.parametrize("empty", [(), np.array(0)])

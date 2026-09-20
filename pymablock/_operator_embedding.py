@@ -6,8 +6,8 @@ from sympy.physics.quantum.boson import BosonOp
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOrderedForm,
+    _divide_coefficients,
     _NOFTransition,
-    _projectors,
     _spectral_projector,
 )
 from pymablock.operator_embedding import Embedding, _ReferenceBasis
@@ -82,32 +82,6 @@ def prepare(hamiltonian, embedding):
     sizes = () if finite else basis._target_dimensions
     binary = [q for q, size in zip(coordinates, sizes) if size == 2]
 
-    def divide_gap(coefficient, gap, weight):
-        """Split gap-dependent binary sectors, checking zero gaps on active channels."""
-        if weight == 0:
-            return sympy.S.Zero
-        gap = sympy.cancel(gap)
-        variables = (gap if gap != 0 else weight).free_symbols
-        q = next((q for q in binary if q in variables), None)
-        if q is not None:
-            return sum(
-                (q if v else 1 - q)
-                * divide_gap(*(x.xreplace({q: v}) for x in (coefficient, gap, weight)))
-                for v in (sympy.S.Zero, sympy.S.One)
-            )
-        point = next(_projectors(coefficient, set(coordinates) & variables), None)
-        if point is not None:
-            delta, n, v = point
-            arguments = coefficient, gap, weight
-            inside = divide_gap(*(x.xreplace({n: v}) for x in arguments))
-            outside = divide_gap(*(x.xreplace({delta: sympy.S.Zero}) for x in arguments))
-            return sympy.Piecewise((inside, sympy.Eq(n, v)), (outside, True))
-        if gap == 0:
-            raise ZeroDivisionError(
-                "A virtual channel is degenerate with the retained space"
-            )
-        return coefficient / gap
-
     def divide_scalar(value, row, col):
         if value == 0 or value.is_zero:
             return sympy.S.Zero
@@ -128,7 +102,12 @@ def prepare(hamiltonian, embedding):
             denominator = sympy.expand(
                 basis._at_occupations(energies[row], action.output_state) - energy
             )
-            result = divide_gap(coefficient, denominator, action.weight)
+            try:
+                result = _divide_coefficients(
+                    coefficient, denominator, binary, coordinates, action.weight
+                )
+            except ValueError as error:
+                raise ZeroDivisionError(str(error)) from error
             if not finite:
                 incoming = sympy.Matrix([n + max(p, 0) for n, p in zip(numbers, powers)])
                 target = basis._occupation_left_inverse * (
