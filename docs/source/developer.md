@@ -13,6 +13,12 @@ Two private compiled representations share source normalization:
 The reference representation converts scalar sources to 1×1 matrices at its
 input boundary.
 
+`_convert_operator()` normalizes one source operator, `_convert_source()` handles
+the source's scalar or matrix representation, and `_compress()` evaluates the
+converted source in the target representation. Block preparation computes the
+incoming energies and coordinate substitutions once; transition division then
+uses the same path for generator and reference-list embeddings.
+
 `_NOFTransition` stores a term's operators, powers, and coefficient directly.
 Its occupation action supplies the destination and ladder-weighted amplitude
 used by both compression and the Sylvester solver. Division uses that amplitude

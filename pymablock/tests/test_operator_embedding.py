@@ -220,7 +220,7 @@ def test_binary_validation_does_not_enumerate_target(monkeypatch) -> None:
     def forbidden(_self, _source):
         raise AssertionError("Target enumeration is not needed")
 
-    monkeypatch.setattr(_ReferenceBasis, "_pullback", forbidden)
+    monkeypatch.setattr(_ReferenceBasis, "_compress", forbidden)
     spins = tuple(SigmaMinus(f"s{i}") for i in range(20))
     embedding = Embedding(
         {s: BosonOp(f"a{i}") for i, s in enumerate(spins)},

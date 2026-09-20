@@ -201,9 +201,8 @@ def block_diagonalize(
         Inverse of U. For Hermitian problems this coincides with the adjoint.
 
     With an ``Embedding``, each retained block ``[0, 0, ...]`` uses the target
-    algebra or reference-list matrix basis. Other blocks are ordinary operators
-    in the compiled source basis, supported on the corresponding retained or
-    discarded subspaces.
+    algebra or reference-list matrix basis. Off-diagonal blocks carry embedding
+    attachments; the complement block uses ordinary source operators.
 
     """
     if isinstance(symbols, sympy.Symbol):
