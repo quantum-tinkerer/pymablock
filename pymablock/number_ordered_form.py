@@ -443,6 +443,61 @@ def _reduce_projectors(coefficient, operators):
     return coefficient
 
 
+def _divide_coefficients(numerator, denominator, binary=(), coordinates=(), weight=None):
+    """Divide on explicit support, keeping generic occupation gaps factored."""
+    weight = numerator if weight is None else weight
+    if weight == 0:
+        return sympy.S.Zero
+    denominator = sympy.cancel(denominator)
+    arguments = numerator, denominator, weight
+
+    def at(substitution):
+        c, d, w = (x.xreplace(substitution) for x in arguments)
+        return _divide_coefficients(c, d, binary, coordinates, w)
+
+    variables = set(coordinates) | set(binary)
+    gap = denominator.as_numer_denom()[0]
+    for parameter in gap.free_symbols - variables:
+        coefficient = gap.coeff(parameter)
+        if coefficient.is_zero is False and not coefficient.free_symbols & variables:
+            return numerator / denominator
+    for n in binary:
+        if n not in weight.free_symbols | denominator.free_symbols:
+            continue
+        if denominator == 0 or any(
+            x.xreplace({n: v}) == 0
+            for x in (weight, denominator)
+            for v in (sympy.S.Zero, sympy.S.One)
+        ):
+            return (1 - n) * at({n: sympy.S.Zero}) + n * at({n: sympy.S.One})
+    point = next(_projectors(numerator, variables & denominator.free_symbols), None)
+    if point is not None:
+        delta, n, v = point
+        return sympy.Piecewise(
+            (at({n: v}), sympy.Eq(n, v)), (at({delta: sympy.S.Zero}), True)
+        )
+    if denominator == 0:
+        raise ValueError(
+            "Cannot solve the Sylvester equation: the right-hand side is nonzero "
+            "but the energy difference is zero (degenerate channel)."
+        )
+    quotient = numerator / denominator
+    if not denominator.free_symbols & variables:
+        return quotient
+    physical = {n: sympy.Dummy(integer=True, nonnegative=True) for n in binary}
+    if denominator.xreplace(physical).is_zero is False:
+        return quotient
+    restore = {v: k for k, v in physical.items()}
+    inactive = sympy.Or(
+        *(
+            sympy.Eq(factor.xreplace(physical), 0).xreplace(restore)
+            for factor in sympy.Mul.make_args(weight)
+            if factor.free_symbols & variables
+        )
+    )
+    return sympy.Piecewise((0, inactive), (quotient, True))
+
+
 class NumberOrderedForm(Operator):
     """Number ordered form of quantum operators.
 
