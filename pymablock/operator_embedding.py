@@ -148,7 +148,7 @@ class Embedding(sympy.Expr):
         """Substitute the source generator images, restricted to their representation."""
         basis = self._basis
         if isinstance(basis, _ReferenceBasis):
-            return basis._source_scalar(value)
+            return basis._convert_operator(value)
         coordinates = basis._occupation_left_inverse * (
             sympy.Matrix([NumberOperator(op) for op in basis.operators])
             - sympy.Matrix(basis.reference)
@@ -175,7 +175,7 @@ class Embedding(sympy.Expr):
             raise ValueError(
                 "Reference lists use matrices of single-reference attachments"
             )
-        value = self._basis._source_scalar(value)
+        value = self._basis._convert_operator(value)
         return NumberOrderedForm(
             value.operators, value.args[1], self, side, validate=False
         )
@@ -189,7 +189,7 @@ class Embedding(sympy.Expr):
         Generator coefficients retain symbolic spectator occupations. Call
         ``simplify()`` on the result when explicit binary reduction is needed.
         """
-        return self._basis._pullback(self._basis._source_form(expression))
+        return self._basis._compress(self._basis._convert_source(expression))
 
     def _prepare(self, hamiltonian):
         """Return rectangular Hamiltonian blocks and their Sylvester solver."""
@@ -198,7 +198,7 @@ class Embedding(sympy.Expr):
         basis = self._basis
         finite = isinstance(basis, _ReferenceBasis)
         origin = (0,) * hamiltonian.n_infinite
-        source_h0 = basis._source_form(hamiltonian[origin])
+        source_h0 = basis._convert_source(hamiltonian[origin])
         h0 = source_h0 if finite else sympy.ImmutableMatrix([[source_h0]])
         modes, numbers = basis.operators, basis._source_placeholders
         if any(
@@ -206,10 +206,17 @@ class Embedding(sympy.Expr):
         ):
             raise ValueError("Structured embeddings currently require diagonal H0")
         vacuum = (0,) * len(modes)
+        energies = [
+            x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
+            for x in h0.diagonal()
+        ]
         if finite:
+            occupations, coordinates, binary, coordinate_map = vacuum, (), (), {}
+            incoming_energies = []
             entry_embedding = Embedding(reference=[dict(zip(modes, vacuum))])
             w = sympy.zeros(h0.rows, len(basis._references))
             for col, (row, state) in enumerate(basis._references):
+                incoming_energies.append(basis._at_occupations(energies[row], state))
                 monomial = NumberOrderedForm(
                     modes, {tuple(-n for n in state): sympy.S.One}
                 )
@@ -219,29 +226,23 @@ class Embedding(sympy.Expr):
                 )
             w = sympy.ImmutableMatrix(w)
         else:
+            occupations, coordinates = basis.source_occupations, basis.coordinate_symbols
+            binary = [
+                q for q, size in zip(coordinates, basis._target_dimensions) if size == 2
+            ]
+            target_numbers = basis._occupation_left_inverse * (
+                sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
+            )
+            coordinate_map = dict(zip(coordinates, target_numbers))
+            incoming_energies = [basis._at_occupations(energies[0], occupations)]
             entry_embedding = self
             w = sympy.ImmutableMatrix([[self._attach(sympy.S.One, 1)]])
         frames = (w, sympy.eye(h0.rows) - w * w.adjoint())
-        retained = w.adjoint() * h0 * w
-        energies = [
-            x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
-            for x in h0.diagonal()
-        ]
-
-        coordinates = () if finite else basis.coordinate_symbols
-        occupations = vacuum if finite else basis.source_occupations
-        sizes = () if finite else basis._target_dimensions
-        binary = [q for q, size in zip(coordinates, sizes) if size == 2]
 
         def divide_scalar(value, row, col):
             if value == 0 or value.is_zero:
                 return sympy.S.Zero
-            value = basis._source_scalar(value.source)
-            energy = (
-                retained[col, col]
-                if finite
-                else basis._at_occupations(energies[col], occupations)
-            )
+            value = basis._convert_operator(value.source)
             terms = {}
             for transition in _NOFTransition.from_form(value):
                 powers = transition.powers
@@ -249,9 +250,10 @@ class Embedding(sympy.Expr):
                 if action.weight == 0:
                     continue
                 middle = [n - max(p, 0) for n, p in zip(occupations, powers)]
-                coefficient = basis._at_occupations(value.terms[powers], middle)
+                coefficient = basis._at_occupations(transition.coefficient, middle)
                 denominator = sympy.expand(
-                    basis._at_occupations(energies[row], action.output_state) - energy
+                    basis._at_occupations(energies[row], action.output_state)
+                    - incoming_energies[col]
                 )
                 try:
                     result = _divide_coefficients(
@@ -259,15 +261,13 @@ class Embedding(sympy.Expr):
                     )
                 except ValueError as error:
                     raise ZeroDivisionError(str(error)) from error
-                if not finite:
-                    incoming = sympy.Matrix(
-                        [n + max(p, 0) for n, p in zip(numbers, powers)]
-                    )
-                    target = basis._occupation_left_inverse * (
-                        incoming - sympy.Matrix(basis.reference)
-                    )
-                    result = result.xreplace(dict(zip(coordinates, target)))
-                terms[powers] = result
+                incoming = {n: n + max(p, 0) for n, p in zip(numbers, powers)}
+                terms[powers] = result.xreplace(
+                    {
+                        q: expression.xreplace(incoming)
+                        for q, expression in coordinate_map.items()
+                    }
+                )
             return NumberOrderedForm(
                 basis.operators, terms, entry_embedding, 1, validate=False
             )
@@ -284,7 +284,7 @@ class Embedding(sympy.Expr):
             source = hamiltonian[tuple(order)]
             if source is zero or (i != j and tuple(order) == origin):
                 return zero
-            source = basis._source_form(source)
+            source = basis._convert_source(source)
             if not finite:
                 source = sympy.ImmutableMatrix([[source]])
             if source.shape != h0.shape:
@@ -314,7 +314,7 @@ class _SourceBasis:
             dict(zip(self._source_placeholders, occupations, strict=True))
         )
 
-    def _source_scalar(self, expression) -> NumberOrderedForm:
+    def _convert_operator(self, expression) -> NumberOrderedForm:
         """Convert an expression into the source algebra of the embedding."""
         if isinstance(expression, NumberOrderedForm):
             if expression.operators == self.operators:
@@ -365,7 +365,7 @@ class _GeneratorBasis(_SourceBasis):
         )
         transitions = []
         for op in operators:
-            form = self._source_form(generators[op])
+            form = self._convert_source(generators[op])
             terms = tuple(_NOFTransition.from_form(form))
             if len(terms) != 1 or not any(terms[0].powers):
                 raise NotImplementedError(
@@ -412,7 +412,7 @@ class _GeneratorBasis(_SourceBasis):
             index = next(
                 i for i, target in enumerate(operators) if NumberOperator(target) == op
             )
-            form = self._source_form(number)
+            form = self._convert_source(number)
             if any(any(powers) for powers in form.terms):
                 raise ValueError("A ladder number image must be occupation diagonal")
             expression = form.terms.get((0,) * len(self.operators), sympy.S.Zero)
@@ -422,10 +422,10 @@ class _GeneratorBasis(_SourceBasis):
                 f"Ladder number image {op} must count from the target reference index zero",
             )
 
-    def _source_form(self, expression):
+    def _convert_source(self, expression):
         if isinstance(expression, sympy.MatrixBase):
             raise TypeError("Matrix sources require a list of reference states")
-        return self._source_scalar(expression)
+        return self._convert_operator(expression)
 
     def _validate_domains(self):
         """Check all generated occupations without enumerating target states."""
@@ -592,7 +592,7 @@ class _GeneratorBasis(_SourceBasis):
         )
 
     @cache
-    def _pullback(self, source):
+    def _compress(self, source):
         """Return ``W† source W`` without enumerating the discarded space."""
         result = self._target_zero
         for transition in _NOFTransition.from_form(source):
@@ -629,7 +629,7 @@ class _ReferenceBasis(_SourceBasis):
         self._reference_indices = {state: i for i, state in enumerate(states)}
         self._rotation = {}
 
-    def _source_form(self, expression):
+    def _convert_source(self, expression):
         """Use one matrix representation, including 1x1 scalar sources."""
         if not isinstance(expression, sympy.MatrixBase):
             if any(c for c, _ in self._references):
@@ -641,10 +641,10 @@ class _ReferenceBasis(_SourceBasis):
             raise ValueError("Source matrices must be square")
         if any(component >= expression.rows for component, _ in self._references):
             raise ValueError("Reference matrix index lies outside the source matrix")
-        return sympy.ImmutableSparseMatrix(expression.applyfunc(self._source_scalar))
+        return sympy.ImmutableSparseMatrix(expression.applyfunc(self._convert_operator))
 
     @cache
-    def _pullback(self, source):
+    def _compress(self, source):
         entries = {}
         for (row, col), entry in source.todok().items():
             for transition in _NOFTransition.from_form(entry):
