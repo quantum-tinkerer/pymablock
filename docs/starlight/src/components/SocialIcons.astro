@@ -1,0 +1,26 @@
+---
+import SocialIcons from '@astrojs/starlight/components/SocialIcons.astro';
+import { Icon } from '@astrojs/starlight/components';
+import { sources } from '../../navigation.mjs';
+
+const id = Astro.locals.starlightRoute.entry.id || 'index';
+const file = Object.entries(sources).find(([, source]) => source.id === id)?.[0];
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<SocialIcons />
+{file && <a class="page-action" href={`${base}/_sources/${file}`} download title="Download MyST source" aria-label="Download MyST source"><Icon name="download" size="1.25rem" /></a>}
+<button class="page-action" type="button" data-print-page title="Print / save PDF" aria-label="Print / save PDF">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 9V3h12v6M6 18H3V9h18v9h-3M6 14h12v7H6z"/><path d="M17 12h1"/></svg>
+</button>
+<a class="page-action" href="https://gitlab.kwant-project.org/qt/pymablock/-/issues" title="Report an issue" aria-label="Report an issue"><Icon name="comment" size="1.25rem" /></a>
+<script>
+  document.addEventListener('click', event => {
+    if ((event.target as Element).closest('[data-print-page]')) window.print();
+  });
+</script>
+<style>
+  .page-action { display: inline-flex; align-items: center; justify-content: center; color: var(--sl-color-text-accent); }
+  button.page-action { border: 0; padding: 0; background: none; cursor: pointer; }
+  .page-action:hover { color: var(--sl-color-text); }
+  @media print { .page-action { display: none; } }
+</style>

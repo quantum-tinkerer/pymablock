@@ -19,7 +19,7 @@ export default defineConfig({
     social: [{ icon: 'gitlab', label: 'GitLab', href: 'https://gitlab.kwant-project.org/qt/pymablock' }],
     customCss: ['./src/styles/custom.css'],
     routeMiddleware: './src/api-toc.ts',
-    components: { ContentPanel: './src/components/ContentPanel.astro', MarkdownContent: './src/components/MarkdownContent.astro', Footer: './src/components/Footer.astro' },
+    components: { ContentPanel: './src/components/ContentPanel.astro', MarkdownContent: './src/components/MarkdownContent.astro', SocialIcons: './src/components/SocialIcons.astro' },
     plugins: [starlightPydocs({
       packages: [api], runner,
       components: { Signature: './src/components/ApiSignature.astro', DocstringSections: 'astro-myst-notebooks/CheckedDocstrings.astro' },
