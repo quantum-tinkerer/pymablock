@@ -3,23 +3,24 @@
 
 ## Structured embeddings
 
-The public `Embedding` object provides construction and `restrict()`. Its private
-compiled basis owns source normalization and compression
-$W^\dagger A W$. The generator representation works symbolically in target
-occupations; the reference basis evaluates matrix elements in the supplied order.
-The latter normalizes scalar sources to 1×1 matrices at the input boundary.
+`Embedding` owns source-projector construction, compression through `restrict()`,
+and preparation of the perturbative blocks through `_prepare()`. The standard
+`block_diagonalize` driver calls `_prepare()` directly and runs the recurrence.
 
-One function in `_operator_embedding.py` constructs the P/Q block series and runs
-the recurrence. Energy-division functions capture the data for each representation;
-there is no solver class hierarchy. The
-reference solver and compression share `_actions`, which applies source
-transitions to references without truncating the source space. Its source factor
-already includes the ladder amplitude; division must not multiply that amplitude
-into the target coefficient again.
+Two private compiled representations share source normalization:
+`_GeneratorBasis` converts transitions into symbolic target occupations, while
+`_ReferenceBasis` evaluates matrix elements in an ordered list of source states.
+The reference representation converts scalar sources to 1×1 matrices at its
+input boundary.
 
-`_CouplingBlock` maps retained states to discarded states, and
-`_AdjointCouplingBlock` maps back. `_ComplementBlock` acts within the discarded
-space, storing an action and its adjoint action. Sums, products, and
-scalar multiples compose these functions, and an explicit block multiplication
-table connects them to the recurrence. Source products remain uncompressed until
-the retained matrix element is evaluated, preserving virtual excursions.
+`_NOFTransition` stores a term's operators, powers, and coefficient directly.
+Its occupation action supplies the destination and ladder-weighted amplitude
+used by both compression and the Sylvester solver. Division uses that amplitude
+to identify inactive transitions, but does not multiply it into the solved NOF
+coefficient again.
+
+Rectangular blocks are NOFs with an embedding attached on the left or right;
+ordinary NOF arithmetic composes them. Contracting `W† X W` returns an ordinary
+target operator or matrix. Source products remain uncompressed until contraction,
+preserving intermediate excursions outside the retained space. Reference lists
+use matrices of NOFs with a shared single-reference attachment.

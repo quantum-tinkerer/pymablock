@@ -1972,18 +1972,6 @@ def _occupation_dimension(operator):
     return 2 if isinstance(operator, (FermionOp, pauli.SigmaMinus)) else None
 
 
-def _one_term(
-    operators,
-    powers: tuple[int, ...],
-    coefficient: sympy.Expr,
-) -> NumberOrderedForm:
-    return NumberOrderedForm(
-        tuple(operators),
-        {powers: coefficient},
-        validate=False,
-    )
-
-
 @cache
 def _number_symbols(operators: tuple) -> tuple[sympy.Symbol, ...]:
     """Obtain coefficient coordinates using public NOF term inspection.
@@ -2011,32 +1999,15 @@ class _WeightedTransition:
 class _NOFTransition:
     """The occupation shift and amplitude of one NOF term."""
 
-    form: NumberOrderedForm
+    operators: tuple[OperatorType, ...]
     powers: tuple[int, ...]
+    coefficient: sympy.Expr
 
     @classmethod
     def from_form(cls, form: NumberOrderedForm) -> Iterable["_NOFTransition"]:
-        """Read the number-ordered term interface, independently of storage."""
+        """Read each term directly, without constructing intermediate NOFs."""
         for powers, coefficient in form.terms.items():
-            powers = tuple(map(int, powers))
-            yield cls(
-                NumberOrderedForm(
-                    form.operators,
-                    {powers: coefficient},
-                    validate=False,
-                ),
-                powers,
-            )
-
-    @cached_property
-    def operators(self) -> tuple:
-        """Return the ordered annihilation generators."""
-        return tuple(self.form.operators)
-
-    @cached_property
-    def placeholders(self) -> tuple[sympy.Symbol, ...]:
-        """Return the number-operator placeholders of the source algebra."""
-        return _number_symbols(self.operators)
+            yield cls(tuple(form.operators), tuple(map(int, powers)), coefficient)
 
     @cached_property
     def fermion_indices(self) -> tuple[int, ...]:
@@ -2054,7 +2025,6 @@ class _NOFTransition:
 
     def symbolic_action(self, occupations: Sequence[sympy.Expr]) -> _WeightedTransition:
         """Apply this term to symbolic occupations."""
-        ((_, coefficient),) = self.form.terms.items()
         current = list(map(sympy.sympify, occupations))
         amplitude = sympy.S.One
 
@@ -2065,8 +2035,8 @@ class _NOFTransition:
                     return _WeightedTransition(tuple(current), sympy.S.Zero)
                 amplitude *= factor
 
-        amplitude *= coefficient.xreplace(
-            dict(zip(self.placeholders, current, strict=True))
+        amplitude *= self.coefficient.xreplace(
+            dict(zip(_number_symbols(self.operators), current, strict=True))
         )
 
         for index in reversed(range(len(self.powers))):
