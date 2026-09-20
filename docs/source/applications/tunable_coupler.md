@@ -25,8 +25,7 @@ The model follows the tunable-coupler architecture of Yan et al.[^yan]
 The second-order exchange exhibits cancellation between direct and mediated
 coupling, including counterrotating processes. Extending the symbolic expansion
 to fourth order also gives conditional interactions and corrections from higher
-oscillator levels. The numerical parameters illustrate these effects rather than
-representing a calibrated device.
+oscillator levels.
 
 ## Three-oscillator Hamiltonian
 
@@ -34,12 +33,12 @@ We count qubit–coupler couplings at first order and direct qubit–qubit coupl
 at second order: $H=H_0+\eta V_1+\eta^2 V_2$.
 
 $$
-H_0=\sum_{j=1,2,c}\left[\omega_j N_j+
- \frac{\alpha_j}{2}N_j(N_j-1)\right],
-\qquad
-V_1=\sum_{j=1,2}g_{jc}(a_j^\dagger-a_j)(a_c^\dagger-a_c),
-\qquad
-V_2=g_{12}(a_1^\dagger-a_1)(a_2^\dagger-a_2).
+\begin{aligned}
+H_0&=\sum_{j=1,2,c}\left[\omega_j N_j+
+ \frac{\alpha_j}{2}N_j(N_j-1)\right],\\
+V_1&=\sum_{j=1,2}g_{jc}(a_j^\dagger-a_j)(a_c^\dagger-a_c),\\
+V_2&=g_{12}(a_1^\dagger-a_1)(a_2^\dagger-a_2).
+\end{aligned}
 $$
 
 The $\alpha_j$ are anharmonicities. We retain the pair-creation and
@@ -47,12 +46,8 @@ pair-annihilation terms along with excitation exchange. In this sign convention,
 the direct qubit exchange amplitude is $-g_{12}$.
 
 ```{code-cell} ipython3
-%matplotlib inline
-import numpy as np
 import sympy as sp
-import matplotlib.pyplot as plt
 from IPython.display import display
-from itertools import product
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.pauli import SigmaMinus
@@ -60,7 +55,6 @@ from sympy.physics.quantum.pauli import SigmaMinus
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.second_quantization import Embedding
-from validation import occupation_matrices, operator_matrix, occupation_indices
 
 a1, a2, ac = (BosonOp(name) for name in ("a1", "a2", "ac"))
 q1, q2 = SigmaMinus("q1"), SigmaMinus("q2")
@@ -117,27 +111,7 @@ assert sp.factor(exchange + g12 - reference_exchange) == 0
 display(sp.Eq(sp.Symbol("J^{(2)}"), reference_exchange))
 ```
 
-An illustrative scan shows cancellation between the direct and mediated terms.
-Here $\eta=1$, $(\omega_1,\omega_2)=(3,5)$,
-$(g_{12},g_{1c},g_{2c})=(10^{-4},1/50,1/60)$, and the coupler stays away from
-both qubit resonances. These scan parameters are separate from the fourth-order
-reference point below.
-
-```{code-cell} ipython3
-scan = {w1: 3, w2: 5, g12: sp.Rational(1, 10000),
-        g1c: sp.Rational(1, 50), g2c: sp.Rational(1, 60)}
-coupler_frequencies = np.linspace(0.8, 2.0, 250)
-mediated = sp.lambdify(wc, reference_exchange.subs(scan), "numpy")(coupler_frequencies)
-fig, ax = plt.subplots(figsize=(6, 3.6), constrained_layout=True)
-ax.plot(coupler_frequencies, mediated, label="mediated exchange")
-ax.plot(coupler_frequencies, mediated - float(scan[g12]), label="direct + mediated")
-ax.axhline(0, color="0.6", lw=0.7)
-ax.set(xlabel=r"Coupler frequency $\omega_c$", ylabel=r"Exchange $J$")
-ax.legend(frameon=False)
-plt.show()
-```
-
-## Full fourth-order Hamiltonian
+## Fourth-order ZZ interaction
 
 Fourth order includes terms quadratic in the direct coupling, mixed direct and
 mediated processes, and terms quartic in the qubit–coupler couplings. From the
@@ -158,52 +132,71 @@ conditional_symbolic = (
 )
 ```
 
-The symbolic result can be evaluated at a rational parameter point to display
-the effective operator and compare it with a finite oscillator calculation.
+The conditional shift is
 
-```{code-cell} ipython3
-parameters = {
-    w1: 3, w2: 5, wc: 9,
-    alpha1: sp.Rational(-1, 5), alpha2: sp.Rational(-1, 4), alphac: sp.Rational(-1, 7),
-    g12: sp.Rational(1, 11), g1c: sp.Rational(1, 5), g2c: sp.Rational(1, 6),
-}
-numeric_source = {order: value.subs(parameters) for order, value in source.items()}
-h4 = h4_symbolic.subs(parameters)
-display(h4.as_expr().evalf(6))
-conditional_coefficient = sp.factor(conditional_symbolic.subs(parameters))
-print("Fourth-order coefficient of N(q1) N(q2):", float(conditional_coefficient))
-```
+$$
+\zeta^{(4)}=h_{11}-h_{10}-h_{01}+h_{00}.
+$$
 
-The selected density term is the coefficient multiplying
-$N_{q_1}N_{q_2}$ in this effective basis. To obtain a spectroscopic conditional
-frequency shift, one must also include the mixing from the off-diagonal terms
-when diagonalizing the retained Hamiltonian.
+It is also the coefficient of $N_{q_1}N_{q_2}$. Since the retained Hamiltonian
+preserves excitation parity, its even and odd blocks each have dimension two.
+Their eigenvalue sums equal their traces, so mixing within those blocks cancels
+in $E_{11}-E_{10}-E_{01}+E_{00}$. Thus this coefficient already gives the
+spectroscopic conditional shift. With $Z_j=1-2N_{q_j}$, the corresponding term
+is $\eta^4\zeta^{(4)}Z_1Z_2/4$.
 
-Pymablock's matrix interface gives the same fourth-order block for ordinary
-oscillator matrices with four or five levels per mode. This comparison checks
-the finite-order truncation and symbolic operator arithmetic; it uses the same
-perturbative recurrence in both representations.
+A compact expression keeps the virtual energy denominators separate. Define
 
-```{code-cell} ipython3
-target_matrices = occupation_matrices((q1, q2), [range(2)] * 2)
-actual = operator_matrix(h4, target_matrices).toarray()
-errors = []
-for levels in (4, 5):
-    occupations = [range(levels)] * 3
-    matrices = occupation_matrices(modes, occupations)
-    matrix_source = {order: operator_matrix(value, matrices).toarray()
-                     for order, value in numeric_source.items()}
-    kept = occupation_indices(occupations, [(n1, n2, 0) for n1, n2 in product(range(2), repeat=2)])
-    labels = np.ones(levels**3, dtype=int)
-    labels[kept] = 0
-    matrix_series, *_ = block_diagonalize(matrix_source, subspace_indices=labels)
-    reference = matrix_series[0, 0, 4]
-    error = np.max(np.abs(actual - reference))
-    assert error < 1e-12
-    errors.append((levels, error))
-for levels, error in errors:
-    print(f"{levels} oscillator levels: maximum fourth-order matrix error {error:.2e}")
-```
+$$
+r_j=\frac1{\omega_j-\omega_c},\qquad
+s_j=\frac1{\omega_j+\omega_c},\qquad
+u_j=\frac1{\omega_j+\omega_c+\alpha_j},
+$$
+
+and $G=g_{1c}g_{2c}$, $W=\omega_1+\omega_2$, $C=2\omega_c+\alpha_c$.
+The first denominator describes excitation exchange with the coupler; the
+other two describe pair creation from an empty or occupied qubit. For repeated
+contributions through a virtual qubit state and its two-coupler-excitation
+counterpart, write
+
+$$
+F(x,y)=\frac{(g_{12}+Gy)^2}{x}+\frac{2G^2y^2}{x+C}.
+$$
+
+Then the full fourth-order result, including counterrotating processes, is
+
+$$
+\begin{aligned}
+\zeta^{(4)}={}&-4F(W+\alpha_1+\alpha_2,u_1+u_2)\\
+&+2\sum_{j\ne k}\left[
+ F(W+\alpha_j,u_j+s_k)
+ -F(\omega_j-\omega_k+\alpha_j,u_j-r_k)\right]\\
+&-4g_{12}G\left[(s_1+r_1-u_1)(s_2+r_2-u_2)+u_1u_2\right]
++G^2 R,
+\end{aligned}
+$$
+
+where the sum contains $(j,k)=(1,2),(2,1)$ and
+
+$$
+\begin{aligned}
+R={}&-\frac{2(s_1+s_2)^2}{C+W}
+     -\frac{2(r_1+r_2)^2}{C-W}
+     -\frac{4(2u_1-s_1-r_1)(2u_2-s_2-r_2)}{C}\\
+&+2\sum_{j\ne k}\left[
+ \frac{(s_j-r_k)^2}{C+\omega_j-\omega_k}
+ +u_j\left(2u_k^2-u_j(s_k+r_k)+r_k^2-s_k^2\right)
+ \right].
+\end{aligned}
+$$
+
+This separates direct coupling ($g_{12}^2$), interference between direct and
+mediated paths ($g_{12}G$), and purely mediated coupling ($G^2$). The
+anharmonicities remain in the denominators, including the two-excitation coupler
+energy $C$; no rotating-wave approximation is used. This fourth-order expression
+extends the second-order exchange result cited above. For harmonic modes
+($\alpha_1=\alpha_2=\alpha_c=0$), all terms cancel and $\zeta^{(4)}=0$,
+as required for a quadratic Hamiltonian.
 
 The Duffing Hamiltonian is a local approximation to the circuit spectrum. In
 particular, negative anharmonicity should not be extrapolated to arbitrarily

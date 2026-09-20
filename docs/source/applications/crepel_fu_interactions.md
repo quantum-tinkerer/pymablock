@@ -24,8 +24,8 @@ occupy the B sublattice.
 The retained particles are equal-spin dopants on B sites above a reference with
 doubly occupied A sites. A filled neighboring B orbital changes the energy of an
 intermediate charge-transfer excitation and therefore changes the hopping
-amplitude. We calculate that dependence at second order, then extend the cluster
-to a hopping process that first appears at fourth order.
+amplitude. The second-order effective Hamiltonian gives both this assisted
+hopping and the induced pair-density interaction.
 
 ## Cluster Hamiltonian and boundary terms
 
@@ -60,19 +60,14 @@ occupied and every B spin orbital empty in the reference. B down-spin modes are
 excluded from the target but remain available in virtual states.
 
 ```{code-cell} ipython3
-%matplotlib inline
-import numpy as np
 import sympy as sp
-import matplotlib.pyplot as plt
 from IPython.display import display
-from itertools import product
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.fermion import FermionOp
 
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.second_quantization import Embedding
-from validation import occupation_matrices, operator_matrix, occupation_indices, second_order
 
 Delta, V0, UA, UB, t0 = sp.symbols("Delta V0 U_A U_B t_0", positive=True)
 
@@ -153,101 +148,11 @@ leaving a pair-density interaction. Its sign need not follow
 the sign of the bare repulsions. Both this term and the hopping arise from the
 same charge-transfer processes.
 
-We compare the complete eight-state second-order block with direct resolvent
-sums in the $2^8=256$ dimensional spinful source space.
-
-```{code-cell} ipython3
-parameters = {Delta: 10, V0: 2, UA: 7, UB: 11, t0: 1}
-source = tuple(sorted((op for site in A + B for op in site), key=lambda op: str(op.name)))
-occupations = [range(2)] * len(source)
-matrices = occupation_matrices(source, occupations)
-energy = operator_matrix(H0.subs(parameters), matrices).diagonal().real
-perturbation = operator_matrix(V.subs(parameters), matrices).toarray()
-selected = []
-for state in product(range(2), repeat=3):
-    values = {**{op: 1 for site in A for op in site},
-              **{op: 0 for site in B for op in site}}
-    values.update({site[0]: n for site, n in zip(B, state)})
-    selected.append(tuple(values[op] for op in source))
-kept = occupation_indices(occupations, selected)
-reference = second_order(energy, perturbation, kept)
-target_matrices = occupation_matrices(f, [range(2)] * len(f))
-actual = operator_matrix(h2.subs(parameters), target_matrices).toarray()
-error = np.max(np.abs(actual - reference))
-assert error < 1e-12
-print(f"Maximum second-order matrix error: {error:.2e}")
-print("Pair-density coefficient at the reference point:", interaction.subs(parameters))
-```
-
-## A connected fourth-order path
-
-Two overlapping A stars contain the four-hop path
-$B_0-A_0-B_1-A_1-B_3$. The additional sites $B_2$ and $B_4$ retain the spectators
-of both triangles. There are fourteen source fermion modes and five retained
-fermions, giving a 32-state target with all dopant occupations retained.
-
-```{code-cell} ipython3
-edges = ((0, 0), (0, 1), (0, 2), (1, 1), (1, 3), (1, 4))
-positions_a = [(-1, 0), (1, 0)]
-positions_b = [(-1.5, np.sqrt(3)/2), (0, 0), (-1.5, -np.sqrt(3)/2),
-               (1.5, np.sqrt(3)/2), (1.5, -np.sqrt(3)/2)]
-fig, ax = plt.subplots(figsize=(5.4, 3), constrained_layout=True)
-for i, j in edges:
-    x, y = zip(positions_a[i], positions_b[j])
-    ax.plot(x, y, color="0.6", lw=2, zorder=0)
-for label, positions, color in (("A", positions_a, "tab:red"), ("B", positions_b, "tab:blue")):
-    for i, (x, y) in enumerate(positions):
-        ax.scatter(x, y, s=140, color=color)
-        ax.annotate(f"{label}{i}", (x, y), xytext=(6, 7), textcoords="offset points")
-ax.set_aspect("equal")
-ax.set_axis_off()
-plt.show()
-```
-
-For the one-particle matrix element, all spectator occupations vanish. The
-reference expression for the connected contribution is
-
-$$
-\langle B_3|H^{(4)}|B_0\rangle
-=-\frac{t_0^4(2\Delta^2+4\Delta V_0+V_0^2)}
- {2(\Delta+V_0)^3(\Delta+2V_0)^2}.
-$$
-
-This fourth-order process extends the second-order effective model of
-Crépel and Fu.[^crepel-fu] The calculation below evaluates the coefficient at
-the rational parameter point above and compares it with the displayed expression;
-the comparison does not establish the formula for arbitrary parameters.
-No one-A subcluster joins these endpoints, so this matrix element needs no
-proper-subcluster subtraction.
-
-```{code-cell} ipython3
-H0_two, V_two, embedding_two, _, _, f_two = cluster(edges, 2, 5)
-H_two, *_ = block_diagonalize(
-    [H0_two.subs(parameters), V_two.subs(parameters)],
-    subspace_eigenvectors=embedding_two,
-)
-# Select B0 -> B3 and set the spectator occupations to zero.
-path = (1, 0, 0, -1, 0)
-coefficients = {}
-for order in (2, 4):
-    term = H_two[0, 0, order].filter_terms((path,), keep=True).as_expr()
-    empty_spectators = term.subs({N(op): 0 for op in f_two})
-    coefficients[order] = sp.factor(empty_spectators.coeff(Dagger(f_two[3]) * f_two[0]))
-assert coefficients[2] == 0
-connected = coefficients[4]
-reference_connected = -t0**4 * (2 * Delta**2 + 4 * Delta * V0 + V0**2) / (
-    2 * (Delta + V0)**3 * (Delta + 2 * V0)**2
-)
-assert connected == reference_connected.subs(parameters)
-assert connected == -sp.Rational(71, 169344)
-display(sp.Eq(sp.Symbol("h^{(4)}_{B_3,B_0}"), connected))
-```
-
-This cluster result does not give every fourth-order lattice operator. That
-requires the other connected four-bond clusters and the subtraction of their
-proper subclusters. The calculation also fixes a single dopant spin sector;
-it does not determine a superconducting phase diagram or a material-specific
-moiré band structure.
+The one-star calculation gives the hopping and pair interaction within the
+equal-spin sector. Reconstructing the full spinful lattice Hamiltonian also
+requires the other spin sectors and the remaining density terms. These local
+coefficients describe the virtual processes behind the pairing mechanism;
+they do not by themselves determine the superconducting phase diagram.
 
 [^crepel-fu]: V. Crépel and L. Fu,
     [Spin-triplet superconductivity from excitonic effect in doped insulators](https://doi.org/10.1073/pnas.2117735119),

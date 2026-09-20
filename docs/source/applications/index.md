@@ -11,16 +11,15 @@ separate reproduced results from further calculations.
 | Application | Retained degrees of freedom | Effective description |
 | --- | --- | --- |
 | [Supercurrent through an interacting dot](supercurrent.md) | Two dot fermions | Symbolic fourth-order current in all charge sectors |
-| [Crépel–Fu interactions](crepel_fu_interactions.md) | Equal-spin dopants on the B sublattice | Assisted hopping and density interactions; a fourth-order hopping path |
-| [Tunable coupler](tunable_coupler.md) | Two qubits | Exchange including counterrotating processes and the fourth-order Hamiltonian |
+| [Crépel–Fu interactions](crepel_fu_interactions.md) | Equal-spin dopants on the B sublattice | Analytic assisted hopping and density interactions |
+| [Tunable coupler](tunable_coupler.md) | Two qubits | Exchange and fourth-order ZZ coupling, including counterrotating processes |
 | [Artificial cavity spin](cavity_spin.md) | A three- or four-state matrix | Engineered ladder amplitudes and second-order virtual corrections |
 
 ## Reproducing the calculations
 
 The pages are executable MyST notebooks. From the repository root,
 `pixi run -e docs docs-build` builds the documentation with their outputs,
-reusing cached calculations where available. The two-star Crépel–Fu cluster is
-the longest calculation; allow a few minutes on a CPU.
+reusing cached calculations where available.
 
 To execute a single document and save its output as a notebook:
 
@@ -32,6 +31,3 @@ pixi run -e docs python docs/source/applications/reproduce.py supercurrent \
 Replace `supercurrent` with `crepel_fu_interactions`, `tunable_coupler`, or
 `cavity_spin` to run another example. The
 {download}`reproduction script <reproduce.py>` uses the current Python environment.
-Keep the documents alongside {download}`validation.py <validation.py>`, which
-supplies finite occupation matrices for the numerical comparisons. Each page
-states the parameter choices and truncations used in those comparisons.
