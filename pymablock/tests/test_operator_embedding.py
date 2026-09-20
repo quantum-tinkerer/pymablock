@@ -475,6 +475,24 @@ def test_reference_fixes_complex_phases_and_cross_relations():
         Embedding({s: a, t: (1 - 2 * N(a)) * b}, reference={a: 0, b: 0})
 
 
+@pytest.mark.parametrize("operator_type", [SigmaMinus, FermionOp])
+def test_generator_relations_with_shared_occupation_phase(operator_type):
+    """A controlled phase preserves the algebra only when both images transform."""
+    a, b = operator_type("a"), operator_type("b")
+    f, g = operator_type("f"), operator_type("g")
+    image = (1 - 2 * N(a)) * b
+    embedding = Embedding({f: (1 - 2 * N(b)) * a, g: image}, reference={a: 0, b: 0})
+    source = occupation_matrices((a, b), [(0, 1)] * 2)
+    target = occupation_matrices((f, g), [(0, 1)] * 2)
+    w = np.diag([1, 1, 1, -1])
+    for expression in (a, b, Dagger(a) * b, a * Dagger(b)):
+        actual = operator_matrix(embedding.restrict(expression).simplify(), target)
+        expected = w @ operator_matrix(expression, source).toarray() @ w
+        np.testing.assert_array_equal(actual.toarray(), expected)
+    with pytest.raises(ValueError, match="target algebra"):
+        Embedding({f: a, g: image}, reference={a: 0, b: 0})
+
+
 def test_retained_infinite_modes_and_ladder_reference():
     from pymablock.number_ordered_form import LadderOp
 
