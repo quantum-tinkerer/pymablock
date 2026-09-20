@@ -254,8 +254,8 @@ class _GeneratorBasis(_SourceBasis):
             for i, origin in enumerate(self.reference)
         )
         self._validate_domains()
+        self._validate_generator_algebra()
         self.phase = self._reference_phase()
-        self._validate_generator_actions()
         expected_numbers = {
             NumberOperator(op) for op in operators if isinstance(op, LadderOp)
         }
@@ -343,57 +343,57 @@ class _GeneratorBasis(_SourceBasis):
                     raise NotImplementedError(
                         "Infinite target generators require a constant phase relative to their ladder weights"
                     )
-                _require_identity(
-                    ratio * sympy.conjugate(ratio) - 1,
-                    f"Image of {self._target_operators[i]} must produce normalized target states",
-                )
                 phase *= ratio**q
             else:
                 phase *= 1 - q + q * sympy.simplify(ratio.xreplace({q: sympy.S.One}))
         return sympy.factor(phase)
 
-    def _validate_identity(self, expression, context, substitutions=None):
-        """Check only finite coordinates actually occurring in a condition."""
-        expression = sympy.simplify(expression.xreplace(substitutions or {}))
-        if expression == 0:
-            return
-        for q, size in zip(self.coordinate_symbols, self._target_dimensions, strict=True):
-            if size is not None and q in expression.free_symbols:
-                for k in range(size):
-                    self._validate_identity(
-                        expression, f"{context}, {q}={k}", {q: sympy.Integer(k)}
-                    )
-                return
+    def _validate_identity(self, expression, context):
+        """Reduce polynomial binary identities without visiting occupation states."""
+        expression = sympy.expand(expression)
+        for q, size in zip(self.coordinate_symbols, self._target_dimensions):
+            if size == 2 and q in expression.free_symbols and expression.is_polynomial(q):
+                expression = sympy.rem(expression, q**2 - q, q)
         _require_identity(expression, context)
 
-    def _validate_generator_actions(self):
-        """Verify normalization and all lowering actions, including cross signs."""
-        self._validate_identity(
-            self.phase * sympy.conjugate(self.phase) - 1,
-            "Generator images must produce normalized target states",
-        )
-        for i, (transition, q, size) in enumerate(
-            zip(
-                self._generators,
-                self.coordinate_symbols,
-                self._target_dimensions,
-                strict=True,
+    def _validate_generator_algebra(self):
+        """Check local norms and graded commutation on the retained lattice.
+
+        The occupation boundaries fix the vacuum and binary truncation. Norms
+        then fix the same-mode algebra; pairwise lowering relations also fix
+        the mixed adjoint relations by reversing an edge of each lattice square.
+        """
+        weights = [
+            g.symbolic_action(self.source_occupations).weight for g in self._generators
+        ]
+        coordinates = self.coordinate_symbols
+        active = {
+            q: sympy.S.One if size == 2 else q + 1
+            for q, size in zip(coordinates, self._target_dimensions)
+        }
+        for i, q in enumerate(coordinates):
+            norm = (
+                weights[i] * sympy.conjugate(weights[i]) - self._lowering_weight(i) ** 2
             )
-        ):
-            action = transition.symbolic_action(self.source_occupations).weight
-            shifted_phase = self.phase.xreplace({q: q - 1})
-            difference = action * self.phase - self._lowering_weight(i) * shifted_phase
-            context = f"Image of {self._target_operators[i]} must obey the target algebra"
-            if size is None:
-                substitutions = (
-                    {q: q + 1} if isinstance(self._target_operators[i], BosonOp) else {}
-                )
-                self._validate_identity(difference, context, substitutions)
-            else:
-                for k in range(1, size):
-                    self._validate_identity(
-                        difference, f"{context} at occupation {k}", {q: sympy.Integer(k)}
+            self._validate_identity(
+                norm.xreplace({q: active[q]}),
+                "Generator images must produce normalized target states",
+            )
+            for j, other in enumerate(coordinates[:i]):
+                sign = (
+                    -1
+                    if all(
+                        isinstance(self._target_operators[k], FermionOp) for k in (i, j)
                     )
+                    else 1
+                )
+                relation = weights[j] * weights[i].xreplace(
+                    {other: other - 1}
+                ) - sign * weights[i] * weights[j].xreplace({q: q - 1})
+                self._validate_identity(
+                    relation.xreplace({q: active[q], other: active[other]}),
+                    "Generator images must obey the target algebra",
+                )
 
     @cached_property
     def _target_placeholders(self):
