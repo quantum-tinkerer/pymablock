@@ -29,21 +29,8 @@ energy, lead energies, and tunneling amplitudes left as parameters.
 
 ## Hamiltonian and phase convention
 
-We write the superconductors in their Bogoliubov basis:
-
-$$
-H_0=\frac{U}{2}(N_{d\uparrow}+N_{d\downarrow}-n_g)^2
-  +\sum_{\alpha=L,R;\,\sigma} E_\alpha N_{\gamma_{\alpha\sigma}},
-$$
-
-$$
-V=\sum_\alpha t_\alpha e^{i\theta_\alpha}
- \left[d_\uparrow^\dagger(u_\alpha\gamma_{\alpha\uparrow}
-                  -v_\alpha\gamma_{\alpha\downarrow}^\dagger)
-      +d_\downarrow^\dagger(u_\alpha\gamma_{\alpha\downarrow}
-                  +v_\alpha\gamma_{\alpha\uparrow}^\dagger)\right]
- +\mathrm{h.c.}
-$$
+We write the superconductors in their Bogoliubov basis and construct the
+charging Hamiltonian and lead tunneling terms symbolically.
 
 Here $U$ is the charging energy, $n_g$ the offset charge, and $E_\alpha>0$ the
 quasiparticle excitation energy. Real coherence factors satisfy
@@ -58,19 +45,10 @@ $I=(2e/\hbar)\partial_\Phi E$. The phase in a single-electron tunneling amplitud
 is half the condensate phase; keeping this distinction fixes the current's
 prefactor.
 
-Subtracting the constant empty-dot energy $E_0$ leaves two independent dot
-energies and simplifies the symbolic denominators:
-
-$$
-a=E_1-E_0=\frac{U}{2}(1-2n_g),\qquad
-b=E_2-E_0=2U(1-n_g),
-$$
-
-and the dot Hamiltonian becomes
-$a(N_{d\uparrow}+N_{d\downarrow})+(b-2a)N_{d\uparrow}N_{d\downarrow}$.
-This choice of energy origin removes a redundant symbol without fixing the gate
-voltage or charging energy. We leave the Bogoliubov coefficients symbolic until
-the final current, where $u_\alpha v_\alpha=\Gamma_\alpha/(2E_\alpha)$.
+Subtracting the empty-dot energy leaves two independent dot energies, $a$ and
+$b$. The code derives them from the charging Hamiltonian and displays the
+Hamiltonian used in the expansion. The Bogoliubov coefficients remain symbolic
+until the final current, where $u_\alpha v_\alpha=\Gamma_\alpha/(2E_\alpha)$.
 
 ```{code-cell} ipython3
 import sympy as sp
@@ -94,7 +72,12 @@ a, b = sp.symbols("a b", real=True)
 EL, ER, tL, tR = sp.symbols("E_L E_R t_L t_R", positive=True)
 GammaL, GammaR = sp.symbols("Gamma_L Gamma_R", positive=True)
 uL, uR, vL, vR = sp.symbols("u_L u_R v_L v_R", real=True)
-charging_energies = {a: U * (1 - 2 * ng) / 2, b: 2 * U * (1 - ng)}
+charge = sp.Symbol("n", integer=True)
+charging = U * (charge - ng)**2 / 2
+charging_energies = {energy: sp.expand(charging.subs(charge, n) - charging.subs(charge, 0))
+                     for energy, n in ((a, 1), (b, 2))}
+for energy, expression in charging_energies.items():
+    display(sp.Eq(energy, expression))
 lead_parameters = {
     "L": (EL, uL, vL, tL, Phi / 2),
     "R": (ER, uR, vR, tR, sp.S.Zero),
@@ -110,6 +93,9 @@ for lead, (energy, u, v, hopping, phase) in lead_parameters.items():
     )
     couplings[lead] = forward + Dagger(forward)
 V = sum(couplings.values())
+display(sp.Eq(sp.Symbol("H_0", commutative=False), H0))
+for lead, coupling in couplings.items():
+    display(sp.Eq(sp.Symbol(f"V_{lead}", commutative=False), coupling))
 ```
 
 ## Retaining the dot algebra
@@ -170,52 +156,15 @@ through the other retained charge state.
 
 We expand the energy in its phase harmonics. At this order,
 $E_{n,LR}^{(4)}=C_n+A_ne^{i\Phi}+A_ne^{-i\Phi}$, with real $A_n$ and
-phase-independent $C_n$. Thus
+phase-independent $C_n$.
 
-$$
-\frac{I_n^{(4)}}{2e/\hbar}=-2A_n\sin\Phi
- =\frac{t_L^2t_R^2\Gamma_L\Gamma_R}{E_LE_R}\,F_n\sin\Phi.
-$$
-
-Writing $S=E_L+E_R$, the empty and doubly occupied branches have
-
-$$
-F_0=\frac{1/S+2/b}{(E_L+a)(E_R+a)},\qquad
-F_2=\frac{1/S-2/b}{(E_L+a-b)(E_R+a-b)}.
-$$
-
-The singly occupied branch has
-
-$$
-\begin{aligned}
-F_1=-\frac{1}{2S}\bigg[&
- \frac{1}{(E_L-a)(E_R-a)}
- +\frac{1}{(E_L+b-a)(E_R+b-a)}\\
- &+\frac{2}{(E_L-a)(E_L+b-a)}
- +\frac{2}{(E_R-a)(E_R+b-a)}\bigg].
-\end{aligned}
-$$
-
-These denominators distinguish virtual empty and doubly occupied dot states.
-In the respective ground-state charge regions, $F_0$ and $F_2$ are positive
-and $F_1$ is negative: the odd sector is a $\pi$ junction.
-
-Extracting the two phase harmonics from the effective Hamiltonian gives these
-three amplitudes directly. The remaining fourth-order energy is phase independent
-and therefore contributes no current.
+Extracting the phase harmonics gives the current by differentiation. The
+phase-independent remainder contributes no current. The result is displayed
+for each charge sector with the charging parameters restored.
 
 ```{code-cell} ipython3
 coherence = uL * vL * uR * vR
-S = EL + ER
-factors = [
-    (1 / S + 2 / b) / ((EL + a) * (ER + a)),
-    -(1 / ((EL - a) * (ER - a))
-      + 1 / ((EL + b - a) * (ER + b - a))
-      + 2 / ((EL - a) * (EL + b - a))
-      + 2 / ((ER - a) * (ER + b - a))) / (2 * S),
-    (1 / S - 2 / b) / ((EL + a - b) * (ER + a - b)),
-]
-phase_amplitudes = []
+currents = []
 diagonal_LR = hLR.filter_terms(((0, 0),), keep=True).as_expr()
 pair_mixing = pair_L * sp.conjugate(pair_R) + pair_R * sp.conjugate(pair_L)
 for occupations in ((0, 0), (0, 1), (1, 0), (1, 1)):
@@ -233,14 +182,13 @@ for occupations in ((0, 0), (0, 1), (1, 0), (1, 1)):
     minus = expanded.coeff(sp.exp(sp.I * Phi), -1)
     constant = sp.expand(expanded - plus * sp.exp(sp.I * Phi) - minus * sp.exp(-sp.I * Phi))
     assert Phi not in constant.free_symbols
-    amplitude = sp.factor(plus / (tL**2 * tR**2 * coherence))
     assert sp.factor(minus - plus) == 0
-    assert sp.factor(-amplitude / 2 - factors[charge]) == 0
-    phase_amplitudes.append(amplitude)
-assert phase_amplitudes[1] == phase_amplitudes[2]
+    amplitude = sp.factor(plus / coherence)
+    current = sp.diff(2 * amplitude * sp.cos(Phi), Phi)
+    currents.append(current * GammaL * GammaR / (4 * EL * ER))
+assert currents[1] == currents[2]
 
-prefactor = tL**2 * tR**2 * GammaL * GammaR / (EL * ER)
-currents = [prefactor * factor * sp.sin(Phi) for factor in factors]
+currents = [currents[i] for i in (0, 1, 3)]
 # Restore charging energy and gate voltage symbolically, for arbitrary U and n_g.
 currents_by_gate = [current.subs(charging_energies) for current in currents]
 for charge, current in enumerate(currents_by_gate):

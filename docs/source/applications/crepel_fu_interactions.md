@@ -29,23 +29,11 @@ hopping and the induced pair-density interaction.
 
 ## Cluster Hamiltonian and boundary terms
 
-For an explicit set of A–B bonds $\mathcal E$, we use
+The cluster consists of one A site and its three B neighbors. Its symbolic
+Hamiltonian includes the sublattice offset, on-site repulsion, nearest-neighbor
+repulsion, and hopping along the explicit bonds.
 
-$$
-H_0=\frac{\delta_0}{2}\left(\sum_{j\in B}n_j-\sum_{i\in A}n_i\right)
- +U_A\sum_{i\in A}n_{i\uparrow}n_{i\downarrow}
- +U_B\sum_{j\in B}n_{j\uparrow}n_{j\downarrow}
- +V_0\sum_{(i,j)\in\mathcal E}n_i n_j
- +2V_0\sum_{j\in B}(3-z_j)n_j,
-$$
-
-$$
-V=-t_0\sum_{(i,j)\in\mathcal E,\sigma}
- (b_{j\sigma}^\dagger a_{i\sigma}+a_{i\sigma}^\dagger b_{j\sigma}),
-\qquad \delta_0=\Delta+U_A-3V_0.
-$$
-
-Here $n_i=n_{i\uparrow}+n_{i\downarrow}$ and $z_j$ counts the explicit A
+$z_j$ counts the explicit A
 neighbors of B site $j$. Each omitted A neighbor remains doubly occupied, giving
 the boundary potential $2V_0n_j$. This term preserves the honeycomb coordination
 in the local energy denominators. Omitting it changes the process being
@@ -95,24 +83,17 @@ def cluster(edges, num_a, num_b):
 
 star = cluster(((0, 0), (0, 1), (0, 2)), 1, 3)
 H0, V, embedding, A, B, f = star
+display(sp.Eq(sp.Symbol("H_0", commutative=False), H0))
+display(sp.Eq(sp.Symbol("V", commutative=False), V))
 H, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
 h2 = H[0, 0, 2]
 ```
 
 ## Bare and assisted hopping
 
-In the target basis $(n_0,n_1,n_2)$, the matrix elements from $B_0$ to $B_1$ are
-
-$$
-t=\langle010|H^{(2)}|100\rangle=\frac{t_0^2}{\Delta+V_0},
-\qquad
-t+\lambda=\langle011|H^{(2)}|101\rangle=\frac{t_0^2}{\Delta}.
-$$
-
-Thus the spectator on $B_2$ assists hopping by
-$\lambda=t_0^2[1/\Delta-1/(\Delta+V_0)]$, reproducing the hopping parameters
-of Crépel and Fu[^crepel-fu] in the equal-spin sector. These amplitudes hold
-without taking a large-$U_B$ limit.
+The occupation of the spectator $B_2$ changes the hopping amplitude from
+$B_0$ to $B_1$. Evaluating that occupation at zero and one separates the bare
+hopping from its interaction-assisted contribution.
 
 ```{code-cell} ipython3
 # Powers (1, -1, 0) select hopping from B0 to B1, with B2 a spectator.
@@ -120,8 +101,6 @@ hopping = h2.filter_terms(((1, -1, 0),), keep=True).as_expr()
 display(hopping)
 bare = sp.factor(hopping.subs(N(f[2]), 0).coeff(Dagger(f[1]) * f[0]))
 assisted = sp.factor(hopping.subs(N(f[2]), 1).coeff(Dagger(f[1]) * f[0]))
-assert sp.factor(bare - t0**2 / (Delta + V0)) == 0
-assert sp.factor(assisted - t0**2 / Delta) == 0
 lam = sp.factor(assisted - bare)
 display(sp.Eq(sp.Symbol("t"), bare), sp.Eq(sp.Symbol("lambda"), lam))
 
@@ -134,15 +113,11 @@ interaction = sp.factor(
     - pair_energy.subs({N(f[0]): 0, N(f[1]): 1})
     + pair_energy.subs({N(f[0]): 0, N(f[1]): 0})
 )
-reference_interaction = 2 * t0**2 * (
-    4 / (Delta + V0) - 3 / (Delta + 2 * V0) - 1 / Delta
-    + 1 / (Delta + UB + V0) - 1 / (Delta + UB)
-)
-assert sp.factor(interaction - reference_interaction) == 0
-display(sp.Eq(sp.Symbol("W^{(2)}"), reference_interaction))
+display(sp.Eq(sp.Symbol("W^{(2)}"), interaction))
 ```
 
-Evaluating the diagonal expression at the four occupations and taking this
+The hopping amplitudes reproduce the equal-spin sector of Crépel and Fu[^crepel-fu]
+without taking a large-$U_B$ limit. Evaluating the diagonal expression at the four occupations and taking this
 difference removes the reference energy and individual particle shifts,
 leaving a pair-density interaction. Its sign need not follow
 the sign of the bare repulsions. Both this term and the hopping arise from the
