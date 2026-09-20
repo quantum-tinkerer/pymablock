@@ -13,7 +13,7 @@ for (const [file, {id, title}] of Object.entries(sources)) {
     const source = await readFile(resolve('../source', file), 'utf8');
     const count = [...source.matchAll(/^`{3,}\{code-cell\}/gm)].length;
     await expect(page.locator('.jupyter-cell')).toHaveCount(count);
-    await expect(page.getByRole('button', {name:'Run interactively',exact:true})).toHaveCount(count ? 1 : 0);
+    await expect(page.locator('[data-thebe-controls]').getByRole('button', {name:'Enable interactivity',exact:true})).toHaveCount(count ? 1 : 0);
     for (const image of await page.locator('main img').all()) {
       expect(await image.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
     }

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 async function activate(page) {
-  await page.getByRole('button', { name: 'Run interactively', exact: true }).click();
+  await page.locator('[data-thebe-controls]').getByRole('button', { name: 'Enable interactivity', exact: true }).click();
   await expect(page.locator('[data-thebe-controls]')).toHaveAttribute('data-state', 'ready', { timeout: 180000 });
 }
 
@@ -34,8 +34,8 @@ test('Thebe runs real Python, accepts edits, clears old results, and resets the 
   await expect(page.locator('.jupyter-live-output').first()).not.toContainText('Edited in browser');
   await expect(page.locator('.jupyter-outputs').first()).toBeHidden();
   await replaceFirstCell(page, sources[0]);
-  await page.getByRole('button', { name: 'Reset session', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Session reset.', { timeout: 120000 });
+  await page.getByRole('button', { name: 'Restart Python', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Python restarted.', { timeout: 120000 });
   await page.getByRole('button', { name: 'Run all', exact: true }).click();
   await expect(page.getByRole('status')).toHaveText('All cells completed.', { timeout: 60000 });
   expect(errors).toEqual([]);
@@ -45,11 +45,11 @@ test('a runtime download failure preserves static content and supports retry', a
   test.setTimeout(240000);
   await page.route('**/thebe/index.js', route => route.abort());
   await page.goto('./tutorial/bilayer_graphene/');
-  await page.getByRole('button', { name: 'Run interactively', exact: true }).click();
+  await page.locator('[data-thebe-controls]').getByRole('button', { name: 'Enable interactivity', exact: true }).click();
   await expect(page.locator('[data-thebe-controls]')).toHaveAttribute('data-state', 'error');
   await expect(page.locator('.jupyter-outputs [data-mime="text/latex"]')).toHaveCount(4);
   await page.unroute('**/thebe/index.js');
-  await page.getByRole('button', { name: 'Retry interactive mode', exact: true }).click();
+  await page.getByRole('button', { name: 'Retry interactivity', exact: true }).click();
   await expect(page.locator('[data-thebe-controls]')).toHaveAttribute('data-state', 'ready', { timeout: 180000 });
 });
 
@@ -93,10 +93,10 @@ test('single-cell execution permits reset; Run all stops on errors and recovers'
   const original = await page.locator('.jupyter-cell').first().getAttribute('data-source');
   await replaceFirstCell(page, 'import time\ntime.sleep(2)\nprint("finished")');
   await page.locator('.thebe-run-button').first().click();
-  await expect(page.getByRole('button', { name: 'Reset session' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Restart Python' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Run all', exact: true })).toBeDisabled();
   await expect(page.locator('.jupyter-live-output').first()).toContainText('finished');
-  await expect(page.getByRole('button', { name: 'Reset session' })).toBeEnabled();
+  await expect(page.getByRole('button', { name: 'Restart Python' })).toBeEnabled();
   await replaceFirstCell(page, 'raise ValueError("reader mistake")');
   await page.getByRole('button', { name: 'Run all', exact: true }).click();
   await expect(page.getByRole('status')).toContainText('A cell failed');
@@ -113,7 +113,7 @@ test('removing a notebook during startup cannot attach a late session', async ({
   let release;
   const held = new Promise(resolve => { release = resolve; });
   await page.route('**/thebe/index.js', async route => { await held; await route.continue(); });
-  await page.getByRole('button', { name: 'Run interactively', exact: true }).click();
+  await page.locator('[data-thebe-controls]').getByRole('button', { name: 'Enable interactivity', exact: true }).click();
   await expect(page.locator('[data-thebe-controls]')).toHaveAttribute('data-state', 'loading');
   await page.evaluate(() => document.querySelector('jupyter-notebook').remove());
   release();
@@ -127,7 +127,7 @@ test('startup timeout restores the static notebook', async ({ page }) => {
   const held = new Promise(resolve => { release = resolve; });
   await page.route('**/thebe/index.js', async route => { await held; await route.abort(); });
   await page.goto('./tutorial/bilayer_graphene/');
-  await page.getByRole('button', { name: 'Run interactively', exact: true }).click();
+  await page.locator('[data-thebe-controls]').getByRole('button', { name: 'Enable interactivity', exact: true }).click();
   await expect(page.locator('[data-thebe-controls]')).toHaveAttribute('data-state', 'loading');
   await page.clock.fastForward(180001);
   await expect(page.locator('[data-thebe-controls]')).toHaveAttribute('data-state', 'error');
@@ -149,9 +149,9 @@ test('reset terminates an infinite Python loop and preserves edited source', asy
   await page.evaluate(() => { window.oldKernel = window.thebe.notebook.session.kernel; });
   await replaceFirstCell(page, 'while True: pass');
   await page.getByRole('button', { name: 'Run all', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Reset session' })).toBeEnabled();
-  await page.getByRole('button', { name: 'Reset session' }).click();
-  await expect(page.getByRole('status')).toContainText('Session reset.', { timeout: 120000 });
+  await expect(page.getByRole('button', { name: 'Restart Python' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Restart Python' }).click();
+  await expect(page.getByRole('status')).toContainText('Python restarted.', { timeout: 120000 });
   expect(await page.evaluate(() => window.oldKernel.isDisposed)).toBe(true);
   await expect.poll(() => originalWorkers.filter(worker => workers.has(worker)).length).toBe(0);
   await replaceFirstCell(page, 'print("recovered after infinite loop")');
@@ -165,9 +165,9 @@ test('a stalled session cleanup is bounded and retry starts usable Python', asyn
   await page.goto('./tutorial/bilayer_graphene/');
   await activate(page);
   await page.evaluate(() => { window.thebe.notebook.session.shutdown = () => new Promise(() => {}); });
-  await page.getByRole('button', { name: 'Reset session' }).click();
+  await page.getByRole('button', { name: 'Restart Python' }).click();
   await expect(page.locator('[data-thebe-controls]')).toHaveAttribute('data-state', 'error', { timeout: 10000 });
-  await page.getByRole('button', { name: 'Retry interactive mode' }).click();
+  await page.getByRole('button', { name: 'Retry interactivity' }).click();
   await expect(page.locator('[data-thebe-controls]')).toHaveAttribute('data-state', 'ready', { timeout: 120000 });
   await replaceFirstCell(page, 'print("cleanup recovered")');
   await page.locator('.thebe-run-button').first().click();
@@ -189,7 +189,7 @@ test('removal during package loading terminates the allocated Python worker', as
   });
   try {
     await page.goto('./tutorial/bilayer_graphene/');
-    await page.getByRole('button', { name: 'Run interactively', exact: true }).click();
+    await page.locator('[data-thebe-controls]').getByRole('button', { name: 'Enable interactivity', exact: true }).click();
     await expect.poll(() => blocked, { timeout: 120000 }).toBeGreaterThan(0);
     expect(workers.size).toBeGreaterThan(0);
     await page.evaluate(() => { window.removedServer = window.thebe.server; document.querySelector('jupyter-notebook').remove(); });

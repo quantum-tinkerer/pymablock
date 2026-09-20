@@ -29,7 +29,7 @@ uses the existing `mid` dependency baseline so the original examples execute
 unchanged. Pixi locks Python, Node, Jupyter, scientific libraries, and build
 tools; `package-lock.json` locks the npm graph.
 
-The **Run interactively** button enables Thebe's editable cells with browser-local
+The **Enable interactivity** button enables Thebe's editable cells with browser-local
 JupyterLite **Xeus Python**, using Emscripten-forge packages, including Kwant.
 `environment.yml` owns the browser environment. JupyterLite builds and bundles
 that environment alongside a wheel from this checkout. Published pages serve
@@ -37,11 +37,15 @@ their own runtime assets; activation does not need Binder or a Python server.
 The environment specification is not yet a complete transitive lockfile. Native
 MUMPS is unavailable in the browser; Kwant uses its SciPy fallback.
 
-The reusable integration lives in `~/src/astro-myst-notebooks`. This checkout
-installs its compiled archive from `vendor/` and builds without the sibling
-repository. Pymablock owns content, navigation, styling, API configuration,
+The reusable integration is installed from the compiled GitHub release asset
+[`preview-2026-09-20` (0.3.0)](https://github.com/akhmerov/astro-myst-notebooks/releases/tag/preview-2026-09-20).
+`package.json` pins the asset URL; `package-lock.json` records its integrity and
+dependency graph. Builds require no sibling checkout or vendored archive.
+Pymablock owns content, navigation, styling, API configuration,
 inventory snapshots, and scientific environments. `docs.config.mjs` configures
-these choices; see `vendor/README.md` for updating the integration.
+these choices. To upgrade, install a specific release's `.tgz` asset from this
+directory, commit the npm manifest and lockfile, and run the checks below. Use
+the compiled release asset, not a Git dependency or GitHub source archive.
 
 ## Validation
 
@@ -65,7 +69,8 @@ equation targets, search, mobile layout, both themes, and exact text selections
 mapped to their source files. Browser execution checks use real Xeus workers,
 including edits, ordered execution, reset, teardown, and failed-download recovery.
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` selects an installed Chromium. Integration unit
-tests live in the sibling repository and execute its compiled package.
+tests live in the upstream repository; the checks here exercise the installed
+release in this consumer.
 
 The parity audit is recorded in [PARITY.md](PARITY.md). The checked-in Sphinx
 fixture compares original object coverage, prose, equation numbers, and typed

@@ -6,7 +6,7 @@ for (const { id } of Object.values(sources).filter(({ id }) => id.startsWith('tu
   test(`unchanged browser notebook: ${id}`, async ({ page }) => {
     test.setTimeout(600000);
     await page.goto(`./${id}/`);
-    await page.getByRole('button', { name: 'Run interactively', exact: true }).click();
+    await page.locator('[data-thebe-controls]').getByRole('button', { name: 'Enable interactivity', exact: true }).click();
     await expect(page.locator('[data-thebe-controls]')).toHaveAttribute('data-state', 'ready', { timeout: 180000 });
     await page.getByRole('button', { name: 'Run all', exact: true }).click();
     await page.waitForFunction(() => ['ready', 'error'].includes(document.querySelector('[data-thebe-controls]')?.dataset.state), {}, { timeout: 480000 });

@@ -27,7 +27,7 @@ export const execution = {
 };
 export const interactive = {
   wheel: { project: new URL('../../', import.meta.url), command: ['python', '-m', 'hatchling', 'build', '-t', 'wheel'] },
-  xeus: { environment: new URL('./environment.yml', import.meta.url) },
+  environment: new URL('./environment.yml', import.meta.url),
   startupTimeout: 180000,
 };
 
