@@ -535,116 +535,105 @@ def _reference_state(reference):
     return operators, state
 
 
-def _rotate_linear_modes(generators, reference):
-    """Complete orthonormal linear images to a passive source basis rotation.
-
-    Each connected set of mixed modes is rotated independently. Its reference
-    must be the empty Fock state, which the rotation preserves. Nonlinear images
-    continue through the occupation-shift compiler after the same substitution.
-    """
-    linear = {}
-    for target, image in generators.items():
-        expression = (
-            image.as_expr()
-            if isinstance(image, NumberOrderedForm)
-            else sympy.sympify(image)
-        )
-        modes = tuple(find_operators(expression))
-        if len(modes) < 2 or not all(type(op) is type(modes[0]) for op in modes):
+def _complete_orthonormal_rows(rows):
+    """Keep the declared rows fixed and complete their orthonormal basis."""
+    gram = rows * rows.adjoint() - sympy.eye(rows.rows)
+    for i in range(rows.rows):
+        for j in range(i + 1):
+            requirement = "normalized" if i == j else "orthogonal"
+            _require_identity(gram[i, j], f"Linear images must be {requirement}")
+    # This completion stays nonsingular for all symbolic two-mode angles.
+    if rows.shape == (1, 2):
+        a, b = rows
+        return rows.col_join(sympy.Matrix([[-sympy.conjugate(b), sympy.conjugate(a)]]))
+    for candidate in sympy.eye(rows.cols).columnspace():
+        if rows.rows == rows.cols:
+            break
+        row = candidate.T
+        row = (row - row * rows.adjoint() * rows).applyfunc(sympy.simplify)
+        norm = sympy.simplify((row * row.adjoint())[0])
+        if norm == 0:
             continue
-        if not isinstance(modes[0], (BosonOp, FermionOp)):
-            continue
-        coefficients = tuple(sympy.expand(expression).coeff(op) for op in modes)
-        if any(not c.is_commutative for c in coefficients):
-            continue
-        if (
-            sympy.expand(
-                expression
-                - sum(c * op for c, op in zip(coefficients, modes, strict=True))
+        if norm.is_zero is None and norm.is_positive is not True:
+            raise NotImplementedError(
+                "Cannot prove a nonzero norm while completing the source rotation"
             )
-            != 0
-        ):
+        rows = rows.col_join((row / sympy.sqrt(norm)).applyfunc(sympy.simplify))
+    return rows
+
+
+def _rotate_linear_modes(generators, reference):
+    """Recognize linear images, complete each mixed group, and change source basis.
+
+    Groups must start in their vacuum. Keeping disconnected groups separate
+    preserves unmixed modes and allows independent bosonic and fermionic rotations.
+    """
+    expressions = {
+        target: image.as_expr()
+        if isinstance(image, NumberOrderedForm)
+        else sympy.sympify(image)
+        for target, image in generators.items()
+    }
+    linear = {}
+    for target, expression in expressions.items():
+        modes = tuple(find_operators(expression))
+        if len(modes) < 2 or not isinstance(modes[0], (BosonOp, FermionOp)):
             continue
-        if not set(modes) <= reference.keys():
+        if not all(type(op) is type(modes[0]) for op in modes):
+            continue
+        expression = sympy.expand(expression)
+        coefficients = {op: expression.coeff(op) for op in modes}
+        if any(not c.is_commutative for c in coefficients.values()):
+            continue
+        if sympy.expand(expression - sum(c * op for op, c in coefficients.items())) != 0:
+            continue
+        if not coefficients.keys() <= reference.keys():
             raise ValueError("Every source mode must be declared in the reference")
-        linear[target] = (modes, coefficients)
+        linear[target] = coefficients
     if not linear:
         return {}, generators, reference
 
     groups = []
-    for modes, _ in linear.values():
-        group = set(modes)
+    for coefficients in linear.values():
+        group = set(coefficients)
         for other in groups[:]:
             if group & other:
                 group |= other
                 groups.remove(other)
         groups.append(group)
 
-    rotation, compiled, reference = {}, dict(generators), dict(reference)
+    rotation, compiled, reference = {}, {}, dict(reference)
     for group in groups:
         modes = tuple(sorted(group, key=_operator_sort_key))
         if any(reference[op] != 0 for op in modes):
             raise NotImplementedError(
                 "Linear mode mixing requires an empty reference in the mixed modes"
             )
-        rows, targets = [], []
-        for target, (support, coefficients) in linear.items():
-            if not set(support) <= group:
-                continue
-            weights = dict(zip(support, coefficients, strict=True))
-            row = sympy.Matrix([weights.get(op, 0) for op in modes])
-            residuals = [
-                (previous.conjugate().dot(row), "orthogonal") for previous in rows
-            ]
-            residuals.append((row.conjugate().dot(row) - 1, "normalized"))
-            for residual, requirement in residuals:
-                _require_identity(
-                    residual, f"Linear image of {target} must be {requirement}"
-                )
-            rows.append(row)
-            targets.append(target)
-        # A two-mode completion is nonsingular even for symbolic rotation angles.
-        if len(modes) == 2 and len(rows) == 1:
-            a, b = rows[0]
-            rows.append(sympy.Matrix([-sympy.conjugate(b), sympy.conjugate(a)]))
-        # Complete only the discarded modes; declared images are never renormalized.
-        for candidate in sympy.eye(len(modes)).columnspace():
-            if len(rows) == len(modes):
-                break
-            row = candidate
-            for previous in rows:
-                row = row - previous * previous.conjugate().dot(row)
-            row = row.applyfunc(sympy.simplify)
-            norm = sympy.simplify(row.conjugate().dot(row))
-            if norm == 0:
-                continue
-            if norm.is_zero is None and norm.is_positive is not True:
-                raise NotImplementedError(
-                    "Cannot prove a nonzero norm while completing the source rotation"
-                )
-            rows.append((row / sympy.sqrt(norm)).applyfunc(sympy.simplify))
-            if len(rows) == len(modes):
-                break
+        targets = [
+            target
+            for target, coefficients in linear.items()
+            if coefficients.keys() <= group
+        ]
+        rows = _complete_orthonormal_rows(
+            sympy.Matrix(
+                [[linear[target].get(op, 0) for op in modes] for target in targets]
+            )
+        )
         rotated = tuple(
             type(modes[0])(f"__embedding_{sympy.Dummy().dummy_index}") for _ in modes
         )
-        for i, op in enumerate(modes):
-            image = sum(
-                sympy.conjugate(row[i]) * new
-                for row, new in zip(rows, rotated, strict=True)
-            )
+        for op, image in zip(modes, rows.adjoint() * sympy.Matrix(rotated), strict=True):
             rotation[op], rotation[op.adjoint()] = image, image.adjoint()
             del reference[op]
         reference.update(dict.fromkeys(rotated, 0))
         compiled.update(zip(targets, rotated, strict=False))
-    for target, image in compiled.items():
-        if target not in linear:
-            expression = (
-                image.as_expr()
-                if isinstance(image, NumberOrderedForm)
-                else sympy.sympify(image)
-            )
-            compiled[target] = expression.doit().xreplace(rotation)
+    compiled.update(
+        {
+            target: expression.doit().xreplace(rotation)
+            for target, expression in expressions.items()
+            if target not in linear
+        }
+    )
     return rotation, compiled, reference
 
 
