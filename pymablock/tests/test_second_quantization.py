@@ -772,6 +772,7 @@ def test_ladder_and_fermion_block_diagonalize():
         "transition",
         "joint_zero",
         "intersection",
+        "rational",
         "spectator",
     ],
 )
@@ -790,6 +791,8 @@ def test_sylvester_binary_projector_cancellation(operator_type, source_kind):
         source = energy = n_f + n_g - 1
     elif source_kind == "intersection":
         source, energy = n_f - n_g, n_f + n_g
+    elif source_kind == "rational":
+        source, energy = (n_f - n_g) / (2 + n_f + n_g), n_f + n_g
     elif source_kind == "spectator":
         source, energy = (1 - n_f) * (2 + n_g), (1 - n_f) * (3 + n_g)
     else:
@@ -799,7 +802,9 @@ def test_sylvester_binary_projector_cancellation(operator_type, source_kind):
     matrices = occupation_matrices((f, g), [(0, 1), (0, 1)])
     actual = operator_matrix(solution, matrices).toarray()
     energies = operator_matrix(energy, matrices).diagonal()
-    rhs = operator_matrix(source, matrices).toarray()
+    # For unequal binary occupations the rational case has denominator 3.
+    reference = (n_f - n_g) / 3 if source_kind == "rational" else source
+    rhs = operator_matrix(reference, matrices).toarray()
     expected = np.divide(
         rhs, energies[:, None], out=np.zeros_like(rhs), where=energies[:, None] != 0
     )
