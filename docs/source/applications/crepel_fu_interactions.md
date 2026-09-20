@@ -15,12 +15,11 @@ mystnb:
 
 # Interaction-assisted hopping in the Crépel–Fu model
 
-We reproduce local virtual processes in the spinful honeycomb interaction model
-of [Crépel and Fu, *Spin-triplet superconductivity from excitonic effect in doped
-insulators*, PNAS 119, e2117735119 (2022)](https://doi.org/10.1073/pnas.2117735119).
-This is the lattice interaction example in the structured-embedding validation
-battery. Its microscopic input consists of an A–B energy offset, on-site
-repulsion, nearest-neighbor repulsion, and spin-conserving hopping.
+Virtual charge transfer can turn repulsive microscopic interactions into
+assisted hopping and effective attraction between dopants. The spinful honeycomb
+model of Crépel and Fu[^crepel-fu] provides a concrete setting: an A–B energy
+offset and local repulsions favor doubly occupied A sites, while added electrons
+occupy the B sublattice.
 
 The retained particles are equal-spin dopants on B sites above a reference with
 doubly occupied A sites. A filled neighboring B orbital changes the energy of an
@@ -51,7 +50,10 @@ neighbors of B site $j$. Each omitted A neighbor remains doubly occupied, giving
 the boundary potential $2V_0n_j$. This term preserves the honeycomb coordination
 in the local energy denominators. Omitting it changes the process being
 calculated. The parameter $\Delta$ is the charge-transfer gap after the stated
-interaction shift.
+interaction shift. In the linked preprint, $\Delta_{\rm CF}=\delta_0-U_A$,
+so our convention is $\Delta=\Delta_{\rm CF}+3V_0$. Its denominators
+$\Delta_{\rm CF}+4V_0$ and $\Delta_{\rm CF}+3V_0$ therefore become
+$\Delta+V_0$ and $\Delta$, respectively.
 
 The retained generators are $f_j\mapsto b_{j\uparrow}$, with every A spin orbital
 occupied and every B spin orbital empty in the reference. B down-spin modes are
@@ -113,8 +115,9 @@ t+\lambda=\langle011|H^{(2)}|101\rangle=\frac{t_0^2}{\Delta}.
 $$
 
 Thus the spectator on $B_2$ assists hopping by
-$\lambda=t_0^2[1/\Delta-1/(\Delta+V_0)]$. The code checks both expressions
-symbolically, without a large-$U_B$ approximation.
+$\lambda=t_0^2[1/\Delta-1/(\Delta+V_0)]$, reproducing the hopping parameters
+of Crépel and Fu[^crepel-fu] in the equal-spin sector. These amplitudes hold
+without taking a large-$U_B$ limit.
 
 ```{code-cell} ipython3
 # Powers (1, -1, 0) select hopping from B0 to B1, with B2 a spectator.
@@ -210,10 +213,12 @@ $$
  {2(\Delta+V_0)^3(\Delta+2V_0)^2}.
 $$
 
-This is an extension of the local second-order calculation. The following cell
-checks this expression at the exact rational parameter point above; it does
-not establish the formula for arbitrary parameters. No one-A subcluster joins
-these endpoints, so this matrix element needs no proper-subcluster subtraction.
+This fourth-order process extends the second-order effective model of
+Crépel and Fu.[^crepel-fu] The calculation below evaluates the coefficient at
+the rational parameter point above and compares it with the displayed expression;
+the comparison does not establish the formula for arbitrary parameters.
+No one-A subcluster joins these endpoints, so this matrix element needs no
+proper-subcluster subtraction.
 
 ```{code-cell} ipython3
 H0_two, V_two, embedding_two, _, _, f_two = cluster(edges, 2, 5)
@@ -243,3 +248,8 @@ requires the other connected four-bond clusters and the subtraction of their
 proper subclusters. The calculation also fixes a single dopant spin sector;
 it does not determine a superconducting phase diagram or a material-specific
 moiré band structure.
+
+[^crepel-fu]: V. Crépel and L. Fu,
+    [Spin-triplet superconductivity from excitonic effect in doped insulators](https://doi.org/10.1073/pnas.2117735119),
+    Proceedings of the National Academy of Sciences **119**, e2117735119 (2022).
+    [Open preprint](https://arxiv.org/abs/2103.12060).

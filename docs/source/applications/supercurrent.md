@@ -15,13 +15,17 @@ mystnb:
 
 # Supercurrent through an interacting quantum dot
 
-A Josephson current through a Coulomb-blockaded dot first appears at fourth
-order in electron tunneling. We retain the two dot fermions and eliminate the
-superconducting quasiparticles, obtaining an effective operator Hamiltonian for
-all four dot states. We then extract charge-sector energies and their phase
-derivatives. The microscopic model is the one used in the
-[supercurrent tutorial](../tutorial/andreev_supercurrent.md); this application
-uses a generator embedding to keep the dot operators explicit.
+A Coulomb-blockaded quantum dot carries a Josephson current whose sign depends
+on its charge parity. This interaction effect was studied by Glazman and
+Matveev.[^glazman] Here each superconducting lead is represented by one paired
+orbital, as in the [supercurrent tutorial](../tutorial/andreev_supercurrent.md).
+The finite model captures the parity-dependent current without integrating over
+a continuum of lead states.
+
+Eliminating the lead quasiparticles leaves an effective Hamiltonian in the two
+dot fermions. Its fourth-order charge-sector energies give fully symbolic
+current–phase relations for all four dot states, with gate voltage, charging
+energy, lead energies, and tunneling amplitudes left as parameters.
 
 ## Hamiltonian and phase convention
 
@@ -54,9 +58,8 @@ $I=(2e/\hbar)\partial_\Phi E$. The phase in a single-electron tunneling amplitud
 is half the condensate phase; keeping this distinction fixes the current's
 prefactor.
 
-We keep every physical parameter symbolic. As in the tutorial, we simplify the
-energy denominators before doing perturbation theory. Subtracting the constant
-empty-dot energy $E_0$ gives the two independent dot energies
+Subtracting the constant empty-dot energy $E_0$ leaves two independent dot
+energies and simplifies the symbolic denominators:
 
 $$
 a=E_1-E_0=\frac{U}{2}(1-2n_g),\qquad
@@ -170,7 +173,7 @@ For this spin-conserving model the odd-charge doublet does not mix internally.
 The extra sum contributes in the even sectors and includes pair transfer
 through the other retained charge state.
 
-## Fully symbolic current
+## Charge-resolved current
 
 We expand the energy in its phase harmonics. At this order,
 $E_{n,LR}^{(4)}=C_n+A_ne^{i\Phi}+A_ne^{-i\Phi}$, with real $A_n$ and
@@ -204,9 +207,9 @@ These denominators distinguish virtual empty and doubly occupied dot states.
 In the respective ground-state charge regions, $F_0$ and $F_2$ are positive
 and $F_1$ is negative: the odd sector is a $\pi$ junction.
 
-The next cell derives the phase amplitudes from the embedding result and verifies
-all three expressions symbolically. It also checks that the remaining energy
-has no phase dependence. No numerical parameter substitution enters these checks.
+Extracting the two phase harmonics from the effective Hamiltonian gives these
+three amplitudes directly. The remaining fourth-order energy is phase independent
+and therefore contributes no current.
 
 ```{code-cell} ipython3
 coherence = uL * vL * uR * vR
@@ -252,7 +255,7 @@ print("Parameters in the gate-dependent currents:",
       sorted(str(symbol) for symbol in set().union(*(x.free_symbols for x in currents_by_gate))))
 ```
 
-## Independent fourth-order check
+## Comparison with a sector resolvent
 
 We build the full $2^6=64$ dimensional Fock matrices directly. For each charge
 sector, the resolvent excludes that sector alone, so its fourth-order expression
@@ -265,13 +268,11 @@ E^{(4)}=PVRVRVRVP
 \qquad R=Q(E_0-H_0)^{-1}Q.
 $$
 
-The occupation matrices and matrix products in this calculation do not use the
-embedding compiler. Only here do we substitute numerical values. We check three
-gate offsets, placing each charge sector in its ground-state region in turn.
-Subtracting the energy at zero phase removes the phase-independent fourth-order
-terms, including the pure-left and pure-right tunneling contributions.
-We also compare the symbolic current with a finite difference of the independent
-resolvent result.
+A direct Fock-space evaluation provides an independent comparison at three
+gate offsets, one in each ground-state charge region. Subtracting the energy at
+zero phase isolates the phase-dependent contribution; its finite-difference
+derivative gives the current. Both quantities can then be compared with the
+symbolic expressions above.
 
 ```{code-cell} ipython3
 occupations = [range(2)] * len(source)
@@ -358,3 +359,7 @@ near the even-charge degeneracy $b=0$, the retained even block should be
 diagonalized together. The model represents each superconductor by one paired
 orbital; a continuum junction requires the corresponding quasiparticle spectrum
 and energy sums.
+
+[^glazman]: L. I. Glazman and K. A. Matveev,
+    [Resonant Josephson current through Kondo impurities in a tunnel barrier](http://jetpletters.ru/ps/1121/article_16988.pdf),
+    JETP Letters **49**, 659–662 (1989).
