@@ -59,9 +59,9 @@ We retain two levels of each qubit and the coupler vacuum. Higher oscillator
 levels remain available in virtual processes.
 
 ```{code-cell} ipython3
-target = {(0,): H0, (1,): V1, (2,): V2}
+hamiltonian = {(0,): H0, (1,): V1, (2,): V2}
 embedding = Embedding({q1: a1, q2: a2}, reference={a1: 0, a2: 0, ac: 0})
-H, *_ = block_diagonalize(target, subspace_eigenvectors=embedding)
+H, *_ = block_diagonalize(hamiltonian, subspace_eigenvectors=embedding)
 ```
 
 ## Exchange
