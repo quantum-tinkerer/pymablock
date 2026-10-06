@@ -11,14 +11,17 @@ from dataclasses import dataclass
 from functools import cache, cached_property
 
 import sympy
-from packaging.specifiers import SpecifierSet
 from sympy.core.logic import fuzzy_and
-from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
+from sympy.functions.elementary.piecewise import Piecewise
 from sympy.physics.quantum import Dagger, HermitianOperator, Operator, pauli
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.operatorordering import normal_ordered_form
+
+from pymablock import _sympy_compat  # noqa: F401
+from pymablock._occupation import _reduce_projectors
+from pymablock._operator_algebra import _Isometry
 
 __all__ = [
     "NumberOperator",
@@ -32,88 +35,6 @@ __all__ = [
 Zero = sympy.S.Zero
 One = sympy.S.One
 Tuple = sympy.Tuple
-
-# Monkey patch sympy to propagate adjoint to matrix elements.
-if sympy.__version__ in SpecifierSet("<1.14"):  # pragma: no cover
-
-    def _eval_adjoint(self):
-        return self.transpose().applyfunc(lambda x: x.adjoint())
-
-    def _eval_transpose(self):
-        from sympy.functions.elementary.complexes import conjugate
-
-        if self.is_commutative:
-            return self
-        if self.is_hermitian:
-            return conjugate(self)
-        if self.is_antihermitian:
-            return -conjugate(self)
-        return None
-
-    sympy.MatrixBase.adjoint = _eval_adjoint
-    sympy.Expr._eval_transpose = _eval_transpose  # type: ignore
-    del _eval_adjoint
-    del _eval_transpose
-
-    # Only implements skipping identity, and is deleted in 1.14.
-    try:
-        del BosonOp.__mul__
-        del Operator.__mul__
-    except AttributeError:
-        pass
-
-
-# SymPy infers Piecewise commutativity from branches alone. Include condition
-# operands, respecting scalar wrappers and unknown assumptions. Keep branch-only
-# scalar assumptions from overriding this inference, regardless of query order.
-def _condition_commutativity(condition):
-    """Traverse Boolean structure, respecting each expression's assumptions."""
-    traversal = sympy.preorder_traversal(condition)
-    values = []
-    for node in traversal:
-        if isinstance(node, sympy.Expr):
-            values.append(node.is_commutative)
-            traversal.skip()
-    return fuzzy_and(values)
-
-
-def _piecewise_commutative(self):
-    return fuzzy_and((self.expr.is_commutative, _condition_commutativity(self.cond)))
-
-
-_piecewise_original_attribute = Piecewise._eval_template_is_attr
-
-
-def _piecewise_attribute(self, name):
-    # Scalar branch assumptions must not override condition dependence.
-    if fuzzy_and(_condition_commutativity(c) for _, c in self.args) is not True:
-        return None
-    return _piecewise_original_attribute(self, name)
-
-
-ExprCondPair.is_commutative = property(_piecewise_commutative)
-Piecewise._eval_template_is_attr = _piecewise_attribute
-
-
-# TODO: reimplement once https://github.com/sympy/sympy/issues/27385 is fixed.
-# Monkey patch sympy to override the sum method to ExpressionRawDomain.
-def _sum(self, items):  # noqa ARG001
-    """Slower, but overridable version of sympy.Add."""
-    if not items:
-        return Zero
-    result = items[0]
-    for item in items[1:]:
-        result += item
-    return result
-
-
-sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum  # type: ignore
-del _sum
-
-if sympy.__version__ in SpecifierSet("<1.15"):
-    # Define is_annihilation on spins for API uniformity
-    pauli.SigmaPlus.is_annihilation = False  # type: ignore
-    pauli.SigmaMinus.is_annihilation = True  # type: ignore
 
 
 class LadderOp(Operator):
@@ -386,141 +307,6 @@ def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     )
 
 
-def _occupation_projector(left, right):
-    return sympy.Piecewise((1, sympy.Eq(left, right)), (0, True))
-
-
-def _spectral_projector(expression, spectrum):
-    """Select a finite spectrum or the integers for a diagonal expression."""
-    if spectrum is sympy.S.Integers:
-        return _occupation_projector(expression, sympy.floor(expression))
-    return sum(_occupation_projector(expression, value) for value in spectrum)
-
-
-def _projectors(expression, numbers):
-    """Yield point indicators and the occupation value they select."""
-    for delta in expression.atoms(sympy.Piecewise) if numbers else ():
-        if (
-            len(delta.args) != 2
-            or delta.args[0].expr != 1
-            or delta.args[1] != (0, sympy.true)
-            or not isinstance(delta.args[0].cond, sympy.Equality)
-        ):
-            continue
-        variables = set(numbers) & delta.free_symbols
-        if len(variables) != 1:
-            continue
-        (n,) = variables
-        equation = sympy.expand(delta.args[0].cond.lhs - delta.args[0].cond.rhs)
-        slope = equation.coeff(n)
-        if slope.is_number and slope and not (equation - slope * n).has(n):
-            yield delta, n, sympy.cancel(n - equation / slope)
-
-
-@cache
-def _reduce_projectors(coefficient, operators):
-    """Evaluate occupation functions on the support of point projectors."""
-    numbers = _number_symbols(tuple(operators))
-    replacements, points = {}, {}
-    for delta, n, value in _projectors(coefficient, numbers):
-        if not value.is_number:
-            continue
-        if value.is_integer is False or (
-            not isinstance(operators[numbers.index(n)], LadderOp) and value < 0
-        ):
-            replacements[delta] = sympy.S.Zero
-        else:
-            replacements[delta] = _occupation_projector(n, value)
-            points.setdefault(n, set()).add(value)
-    coefficient = coefficient.xreplace(replacements)
-    for n, values in sorted(
-        points.items(), key=lambda item: sympy.default_sort_key(item[0])
-    ):
-        background = coefficient.xreplace(
-            {_occupation_projector(n, v): sympy.S.Zero for v in values}
-        )
-        coefficient = background + sum(
-            _occupation_projector(n, v)
-            * (coefficient.xreplace({n: v}) - background.xreplace({n: v}))
-            for v in sorted(values, key=sympy.default_sort_key)
-        )
-    return coefficient
-
-
-def _divide_coefficients(numerator, denominator, binary=(), coordinates=(), weight=None):
-    """Divide using local support checks and a symbolic fallback.
-
-    Choose zero where ``weight`` vanishes, including at zero gaps. The weight
-    defaults to the numerator; embeddings include ladder amplitudes in it.
-    Resolve exposed zero gaps and explicit point support, but leave unresolved
-    resonances as poles. Parameters other than occupation coordinates are generic.
-    This is a partial symbolic solver, not an exhaustive nonresonance check.
-    """
-    weight = numerator if weight is None else weight
-    if weight == 0:
-        return sympy.S.Zero
-    denominator = sympy.cancel(denominator)
-    arguments = numerator, denominator, weight
-
-    def at(substitution):
-        c, d, w = (x.xreplace(substitution) for x in arguments)
-        return _divide_coefficients(c, d, binary, coordinates, w)
-
-    variables = set(coordinates) | set(binary)
-    gap = denominator.as_numer_denom()[0]
-    for parameter in gap.free_symbols - variables:
-        coefficient = gap.coeff(parameter)
-        if (
-            coefficient.is_Atom
-            and coefficient.is_zero is False
-            and not coefficient.free_symbols & variables
-        ):
-            return numerator / denominator
-    for n in binary:
-        if n not in weight.free_symbols | denominator.free_symbols:
-            continue
-        if denominator == 0 or any(
-            x.xreplace({n: v}) == 0
-            for x in (weight, denominator)
-            for v in (sympy.S.Zero, sympy.S.One)
-        ):
-            return (1 - n) * at({n: sympy.S.Zero}) + n * at({n: sympy.S.One})
-    point = next(_projectors(numerator, variables & denominator.free_symbols), None)
-    if point is not None:
-        delta, n, v = point
-        return sympy.Piecewise(
-            (at({n: v}), sympy.Eq(n, v)), (at({delta: sympy.S.Zero}), True)
-        )
-    if denominator == 0:
-        raise ValueError(
-            "Cannot solve the Sylvester equation: the right-hand side is nonzero "
-            "but the energy difference is zero (degenerate channel)."
-        )
-    quotient = numerator / denominator
-    if not denominator.free_symbols & variables:
-        return quotient
-    # A constant plus occupations with the same sign cannot vanish. Inspect
-    # numeric coefficients only, rather than asking the assumptions engine to
-    # prove a general expression nonzero.
-    constant, rest = denominator.as_coeff_Add()
-    if constant and all(
-        factor in variables and (coefficient * constant).is_positive is True
-        for coefficient, factor in (
-            term.as_coeff_Mul() for term in sympy.Add.make_args(rest)
-        )
-    ):
-        return quotient
-    factors = (factor.as_numer_denom()[0] for factor in sympy.Mul.make_args(weight))
-    inactive = sympy.Or(
-        *(
-            sympy.Eq(factor, 0, evaluate=False)
-            for factor in factors
-            if factor.free_symbols & variables
-        )
-    )
-    return sympy.Piecewise((0, inactive), (quotient, True), evaluate=False)
-
-
 class NumberOrderedForm(Operator):
     """Number ordered form of quantum operators.
 
@@ -647,7 +433,18 @@ class NumberOrderedForm(Operator):
 
         terms = Tuple(
             *(
-                Tuple(powers, _reduce_projectors(coeff, operators))
+                Tuple(
+                    powers,
+                    _reduce_projectors(
+                        coeff,
+                        _number_symbols(tuple(operators)),
+                        tuple(
+                            n
+                            for op, n in zip(operators, _number_symbols(tuple(operators)))
+                            if not isinstance(op, LadderOp)
+                        ),
+                    ),
+                )
                 if coeff.has(Piecewise)
                 else Tuple(powers, coeff)
                 for powers, coeff in terms
@@ -823,15 +620,13 @@ class NumberOrderedForm(Operator):
         if isinstance(expr, NumberOrderedForm):
             return expr
 
-        from pymablock.operator_embedding import Embedding
-
-        if isinstance(expr, Embedding):
+        if isinstance(expr, _Isometry):
             return expr._attach(One, 1)
-        if isinstance(expr, sympy.adjoint) and isinstance(expr.args[0], Embedding):
+        if isinstance(expr, sympy.adjoint) and isinstance(expr.args[0], _Isometry):
             return expr.args[0]._attach(One, -1)
 
         # For scalar expressions (no operators)
-        if not expr.has(*operator_types, NumberOperator, Embedding):
+        if not expr.has(*operator_types, NumberOperator, _Isometry):
             # Return a NumberOrderedForm with no operators and a single term
             operators = operators or []
             return cls(
@@ -1583,10 +1378,10 @@ class NumberOrderedForm(Operator):
                 return left._contract(self.source * other.source)
             return self.source * left._projector * other.source
         if left is not None:
-            value = left._lift(other) if self.side == 1 else other
+            value = left._lift(other) if self.side == 1 else left._convert_operator(other)
             result = self.source * value
             return self._rebuild(result.args[1], operators=result.operators)
-        value = right._lift(self) if other.side == -1 else self
+        value = right._lift(self) if other.side == -1 else right._convert_operator(self)
         result = value * other.source
         return other._rebuild(result.args[1], operators=result.operators)
 
@@ -1759,9 +1554,23 @@ class NumberOrderedForm(Operator):
             for number in binary_numbers:
                 if number not in coeff.free_symbols:
                     continue
-                coeff = (One - number) * coeff.xreplace(
-                    {number: Zero}
-                ) + number * coeff.xreplace({number: One})
+                values = tuple(coeff.xreplace({number: n}) for n in (Zero, One))
+                # An unresolved pole must remain meromorphic. Evaluating at its
+                # singular binary point would corrupt every other sector too.
+                if any(
+                    value.has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
+                    for value in values
+                ):
+                    reduced = sympy.cancel(coeff)
+                    values = tuple(reduced.xreplace({number: n}) for n in (Zero, One))
+                    if any(
+                        value.has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
+                        for value in values
+                    ):
+                        continue
+                coeff = sympy.expand_mul(
+                    (One - number) * values[0] + number * values[1], deep=False
+                )
             new_terms[powers] = coeff
         return self._rebuild(new_terms)
 
@@ -1881,17 +1690,30 @@ class NumberOrderedForm(Operator):
         if old in self.operators or new in self.operators:
             raise ValueError("Cannot substitute operators in NumberOrderedForm.")
 
+        if self.embedding is not None:
+            attachment = self.embedding.subs(old, new)
+            expression = self.embedding._source_expression(self.source).subs(old, new)
+            return attachment._attach(expression, self.side)
         old = old.xreplace(self._number_operator_to_placeholder)
         new = new.xreplace(self._number_operator_to_placeholder)
-
-        return type(self)(
-            self.operators,
+        return self._rebuild(
             Tuple(
                 *(Tuple(powers, coeff.subs(old, new)) for powers, coeff in self.args[1])
-            ),
-            *(arg.subs(old, new) for arg in self.args[2:]),
-            validate=False,
+            )
         )
+
+    def _xreplace(self, rule):
+        if self in rule:
+            return rule[self], True
+        if self.embedding is None:
+            return super()._xreplace(rule)
+        attachment, changed = self.embedding._xreplace(rule)
+        expression, source_changed = self.embedding._source_expression(
+            self.source
+        )._xreplace(rule)
+        if not changed and not source_changed:
+            return self, False
+        return attachment._attach(expression, self.side), True
 
     def filter_terms(
         self, conditions: tuple[tuple[sympy.core.Expr, ...], ...], keep: bool = False
