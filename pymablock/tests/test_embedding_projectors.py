@@ -36,8 +36,8 @@ def test_floquet_projector_selects_integer_sublattice():
 
 
 @pytest.mark.parametrize("coupled", [False, True])
-def test_gap_checks_ignore_terms_annihilating_the_embedding(coupled):
-    """A zero gap can leave a spectator whose coupling vanishes on both levels."""
+def test_binary_sector_poles_preserve_inactive_transitions(coupled):
+    """Keep valid sectors and inactive transitions intact beside a binary pole."""
     from sympy.physics.quantum.boson import BosonOp
     from sympy.physics.quantum.pauli import SigmaMinus
 
@@ -52,8 +52,9 @@ def test_gap_checks_ignore_terms_annihilating_the_embedding(coupled):
         [h0, coupling * (c + c.adjoint())], subspace_eigenvectors=embedding
     )
     if coupled:
-        with pytest.raises(ZeroDivisionError, match="degenerate"):
-            _ = h[0, 0, 2]
+        correction = h[0, 0, 2].as_expr()
+        assert correction.subs({N(x): 0, N(y): 1}) == -1
+        assert correction.subs({N(x): 0, N(y): 0}).has(s.zoo, s.nan)
     else:
         assert h[0, 0, 2].is_zero
 

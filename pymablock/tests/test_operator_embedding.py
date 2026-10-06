@@ -265,7 +265,7 @@ def test_boson_annihilation_preserves_occupation_dependent_denominator(finite):
 
 
 @pytest.mark.parametrize("coupled", [False, True])
-def test_sector_resonance_requires_nonzero_virtual_channel(coupled):
+def test_sector_poles_respect_virtual_channel_support(coupled):
     a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
     n = NumberOperator(a)
     effective, *_ = block_diagonalize(
@@ -273,8 +273,9 @@ def test_sector_resonance_requires_nonzero_virtual_channel(coupled):
         subspace_eigenvectors=Embedding({s: a}, reference={a: 0, b: 0}),
     )
     if coupled:
-        with pytest.raises(ZeroDivisionError, match="degenerate"):
-            _ = effective[0, 0, 2]
+        correction = effective[0, 0, 2].as_expr()
+        assert correction.subs(NumberOperator(s), 0) == -1
+        assert correction.subs(NumberOperator(s), 1).has(sympy.zoo, sympy.nan)
     else:
         assert effective[0, 0, 2] == NumberOrderedForm.from_expr(
             NumberOperator(s) - 1, operators=(s,)
