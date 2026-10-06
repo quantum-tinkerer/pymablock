@@ -16,7 +16,7 @@ The subclasses implement compression, projectors, lifting, and frame columns.
 
 The implementation separates three operations:
 
-- `Embedding.convert` constructs the retained/complement frames
+- `Embedding._convert` constructs the retained/complement frames
   and converts general operators. It preserves zeroth-order cross blocks.
 - `second_quantization._make_embedding_sylvester_solver` validates diagonal H0
   and divides transitions by their actual energy differences. The driver can then omit
