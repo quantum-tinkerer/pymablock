@@ -15,7 +15,7 @@ from sympy.physics.quantum.pauli import SigmaMinus
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
 from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.operator_embedding import _NOFTransition, _number_symbols
+from pymablock.operator_embedding import _number_symbols
 from pymablock.second_quantization import Embedding
 from pymablock.tests.second_quantization_helpers import (
     nof_matrix,
@@ -397,34 +397,6 @@ def test_mixed_source_second_order(finite):
         assert (h[0, 0, 2] - expected).applyfunc(sympy.simplify).is_zero
 
 
-def _only_transition(expression, operators):
-    form = NumberOrderedForm.from_expr(expression, operators=operators)
-    (transition,) = tuple(_NOFTransition.from_form(form))
-    return transition
-
-
-def test_boson_transition_contains_kinematic_weight() -> None:
-    """A NOF transition owns both its occupation shift and matrix element."""
-    boson = BosonOp("a")
-
-    lowering = _only_transition(boson, (boson,)).apply((3,))
-    raising = _only_transition(Dagger(boson), (boson,)).apply((3,))
-
-    assert lowering.output_state == (2,)
-    assert lowering.weight == sympy.sqrt(3)
-    assert raising.output_state == (4,)
-    assert raising.weight == 2
-
-
-def test_fermion_transition_contains_cross_mode_parity() -> None:
-    """Fermion transitions retain their Jordan-Wigner parity."""
-    first, second = FermionOp("first"), FermionOp("second")
-    lowering = _only_transition(second, (first, second))
-
-    assert lowering.apply((0, 1)).weight == 1
-    assert lowering.apply((1, 1)).weight == -1
-
-
 def test_state_selection_solves_integer_source_shift() -> None:
     """Selecting even boson occupations makes a two-step target shift binary."""
     a, s = BosonOp("a"), SigmaMinus("s")
@@ -441,27 +413,6 @@ def test_frozen_particle_sets_retained_fermion_phase() -> None:
     backend = Embedding({source: target}, reference={fixed: 1, target: 0})
     result = backend.restrict(target)
     assert result == NumberOrderedForm.from_expr(source, operators=(source,))
-
-
-def test_multiple_boson_annihilations_stop_at_vacuum():
-    """The common symbolic action also handles forbidden concrete transitions."""
-    a = BosonOp("a")
-    transition = _only_transition(a**2, (a,))
-    assert transition.apply((0,)) is None
-    assert transition.apply((1,)) is None
-    assert transition.apply((3,)).weight == sympy.sqrt(6)
-
-
-def test_forbidden_creation_ignores_coefficient_pole():
-    """A zero ladder amplitude excludes a sector before its coefficient is used."""
-    from pymablock.operator_embedding import _number_symbols
-
-    f = FermionOp("f")
-    (n,) = _number_symbols((f,))
-    form = NumberOrderedForm((f,), {(-1,): 1 / (1 - n)}, validate=False)
-    (transition,) = _NOFTransition.from_form(form)
-    assert transition.apply((1,)) is None
-    assert transition.apply((0,)).weight == 1
 
 
 def test_reference_fixes_complex_phases_and_cross_relations():

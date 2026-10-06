@@ -23,10 +23,10 @@ The implementation separates three operations:
   `Embedding` and supplies scalar projectors and support reduction. Both
   Sylvester solvers share coefficient division in `second_quantization`.
 
-`_NOFTransition` describes a term's shift, destination, and ladder amplitude.
-Compression and division share this action. Division uses the amplitude to
-identify inactive transitions, without multiplying it into the NOF coefficient
-again. The zero series sentinel is handled before attempting matrix operations.
+`NumberOrderedForm.act` applies each term to a Fock state, returning its
+destination and matrix element. Compression and division share this action.
+Division uses the matrix element only to identify inactive transitions; it
+divides the bare NOF coefficient, so ladder factors are not applied twice. The zero series sentinel is handled before attempting matrix operations.
 For `fully_diagonalize`, transitions within either diagonal block use the
 ordinary second-quantized Sylvester solver, with retained or target energies.
 Transitions between the blocks use the embedding-aware solver.
