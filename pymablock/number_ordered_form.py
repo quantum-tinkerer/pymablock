@@ -653,14 +653,14 @@ class NumberOrderedForm(Operator):
         return int(self.args[3]) if self.embedding is not None else 0
 
     @cached_property
-    def source(self) -> "NumberOrderedForm":
-        """The source operator without its embedding attachment."""
+    def target(self) -> "NumberOrderedForm":
+        """The target operator without its embedding attachment."""
         return NumberOrderedForm(self.operators, self.args[1], validate=False)
 
     def _rebuild(
         self, terms: TermDict, operators: Sequence[OperatorType] | None = None
     ) -> "NumberOrderedForm":
-        """Replace source terms while preserving the map's domain and codomain."""
+        """Replace the terms while preserving the map's domain and codomain."""
         return type(self)(
             self.operators if operators is None else operators,
             terms,
@@ -1022,7 +1022,7 @@ class NumberOrderedForm(Operator):
 
         """
         if self.embedding is not None:
-            value = self.source.as_expr()
+            value = self.target.as_expr()
             return (
                 value * self.embedding
                 if self.side == 1
@@ -1551,23 +1551,23 @@ class NumberOrderedForm(Operator):
     ) -> "NumberOrderedForm | sympy.Expr":
         """Compose operators when at least one factor carries an embedding.
 
-        Matching opposite attachments give ``W† X Y W`` in target space or
-        ``X W W† Y`` in source space. With one attachment, interpret the adjacent
-        factor in the appropriate source or target basis and preserve the map.
+        Matching opposite attachments give ``W† X Y W`` in source space or
+        ``X W W† Y`` in target space. With one attachment, interpret the adjacent
+        factor in the appropriate target or source basis and preserve the map.
         """
         left, right = self.embedding, other.embedding
         if left is not None and right is not None:
             if left != right or self.side == other.side:
                 raise ValueError("Composition requires opposite matching attachments")
             if self.side == -1:
-                return left._contract(self.source * other.source)
-            return self.source * left._projector * other.source
+                return left._contract(self.target * other.target)
+            return self.target * left._projector * other.target
         if left is not None:
             value = left._lift(other) if self.side == 1 else left._convert_operator(other)
-            result = self.source * value
+            result = self.target * value
             return self._rebuild(result.args[1], operators=result.operators)
         value = right._lift(self) if other.side == -1 else right._convert_operator(self)
-        result = value * other.source
+        result = value * other.target
         return other._rebuild(result.args[1], operators=result.operators)
 
     def __rmul__(self, other) -> "NumberOrderedForm":
@@ -1882,7 +1882,7 @@ class NumberOrderedForm(Operator):
 
         if self.embedding is not None:
             attachment = self.embedding.subs(old, new)
-            return attachment._attach(self.source.subs(old, new), self.side)
+            return attachment._attach(self.target.subs(old, new), self.side)
         old = old.xreplace(self._number_operator_to_placeholder)
         new = new.xreplace(self._number_operator_to_placeholder)
         return self._rebuild(
@@ -1897,7 +1897,7 @@ class NumberOrderedForm(Operator):
         """Replace exact subexpressions and report whether anything changed.
 
         Attached operators are reconstructed with the replaced embedding. Replacing
-        their source modes renames the number operators of those modes as well.
+        their target modes renames the number operators of those modes as well.
         """
         if self in rule:
             return rule[self], True
@@ -1912,12 +1912,12 @@ class NumberOrderedForm(Operator):
                 if isinstance(new := rule.get(op), generator_types)
                 and new.is_annihilation
             }
-            expression, source_changed = self.source.as_expr()._xreplace(
+            expression, target_changed = self.target.as_expr()._xreplace(
                 {**renames, **rule}
             )
         else:
-            expression, source_changed = self.source._xreplace(rule)
-        if not changed and not source_changed:
+            expression, target_changed = self.target._xreplace(rule)
+        if not changed and not target_changed:
             return self, False
         return attachment._attach(expression, self.side), True
 
@@ -2071,7 +2071,7 @@ class _NOFTransition:
 
     @cached_property
     def fermion_indices(self) -> tuple[int, ...]:
-        """Return source indices that contribute fermionic parity."""
+        """Return mode indices that contribute fermionic parity."""
         return tuple(
             index
             for index, operator in enumerate(self.operators)
@@ -2133,6 +2133,6 @@ class _NOFTransition:
                 state[earlier] for earlier in self.fermion_indices if earlier < index
             )
         else:  # pragma: no cover - guarded by NumberOrderedForm
-            raise TypeError(f"Unsupported source operator: {operator!r}")
+            raise TypeError(f"Unsupported operator: {operator!r}")
         state[index] += -1 if annihilate else 1
         return sympy.sympify(factor)

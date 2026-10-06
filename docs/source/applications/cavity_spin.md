@@ -25,10 +25,10 @@ of amplitude $\Omega$ and phases $\phi_k$ dresses the ancilla; a two-tone cavity
 drive has amplitude $\epsilon$ and phase $\varphi$. We use the carrier
 rotating-wave approximation and retain the other comb harmonics explicitly.
 
-The source is a two-by-two ancilla matrix with cavity and Floquet operators in
-its entries. The ladder $\ell$ shifts the Fourier index and contributes
-$\chi N_\ell$ to the energy. The rotation below puts the resonant ancilla drive
-in its dressed basis, with the positive-energy branch first.
+The microscopic Hamiltonian is a two-by-two ancilla matrix with cavity and
+Floquet operators in its entries. The ladder $\ell$ shifts the Fourier index and
+contributes $\chi N_\ell$ to the energy. The rotation below puts the resonant
+ancilla drive in its dressed basis, with the positive-energy branch first.
 
 ```{code-cell} ipython3
 import sympy as sp

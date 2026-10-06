@@ -44,8 +44,8 @@ def test_common_reference_matrix():
         ]
     )
     assert w.adjoint() * w == s.eye(3)
-    target = s.ImmutableMatrix([[1, 2, s.I], [3, 0, 1], [2, -s.I, 4]])
-    assert w.adjoint() * (w * target) == target
+    source = s.ImmutableMatrix([[1, 2, s.I], [3, 0, 1], [2, -s.I, 4]])
+    assert w.adjoint() * (w * source) == source
     assert all(
         not isinstance(x, NumberOrderedForm) or x.embedding is None
         for x in w * w.adjoint()
@@ -70,9 +70,9 @@ def test_generator_attachment_composition():
     e = Embedding({q: a}, reference={a: 0})
     w = NumberOrderedForm.from_expr(e)
     x = NumberOrderedForm.from_expr(a + a.adjoint() + N(a))
-    target = NumberOrderedForm.from_expr(q + q.adjoint())
+    source = NumberOrderedForm.from_expr(q + q.adjoint())
     assert (w.adjoint() * x * w - e.restrict(x)).is_zero
-    assert (w.adjoint() * (w * target) - target).is_zero
+    assert (w.adjoint() * (w * source) - source).is_zero
     assert (w.adjoint() * w).embedding is None
     for value in (x * w, w.adjoint() * x):
         assert NumberOrderedForm.from_expr(value.as_expr()) == value

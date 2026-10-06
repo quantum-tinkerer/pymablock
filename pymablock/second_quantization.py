@@ -138,14 +138,14 @@ def _make_embedding_sylvester_solver(
 ) -> Callable[[Any, tuple[int, ...]], Any]:
     """Validate H0 and return a solver for the embedding's Sylvester equations.
 
-    H0 must be a source matrix of NOF entries, diagonal in both matrix indices and
+    H0 must be a target matrix of NOF entries, diagonal in both matrix indices and
     occupation numbers. Intra-block solves use the ordinary second-quantized solver.
     Rectangular solves evaluate outgoing and incoming energies on the embedding's
-    reference states or symbolic target occupations, then divide each transition.
+    reference states or symbolic source occupations, then divide each transition.
     The callback preserves the series zero sentinel before accessing matrix entries.
     """
     basis, finite = blocks.basis, blocks.finite
-    modes, numbers = basis.operators, basis._source_placeholders
+    modes, numbers = basis.operators, basis._target_placeholders
     if any(i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()):
         raise ValueError("Structured embeddings currently require diagonal H0")
     vacuum = (0,) * len(modes)
@@ -160,19 +160,19 @@ def _make_embedding_sylvester_solver(
             for row, state in basis._references
         ]
     else:
-        occupations, coordinates = basis.source_occupations, basis.coordinate_symbols
+        occupations, coordinates = basis.target_occupations, basis.coordinate_symbols
         nonnegative = tuple(
             q
-            for q, op in zip(coordinates, basis._target_operators)
+            for q, op in zip(coordinates, basis._source_operators)
             if not isinstance(op, LadderOp)
         )
-        target_numbers = basis._occupation_left_inverse * (
+        source_numbers = basis._occupation_left_inverse * (
             sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
         )
-        coordinate_map = dict(zip(coordinates, target_numbers))
+        coordinate_map = dict(zip(coordinates, source_numbers))
         incoming_energies = [basis._at_occupations(energies[0], occupations)]
 
-    # Within each diagonal block the operators already use target or source
+    # Within each diagonal block the operators already use source or target
     # coordinates. Only rectangular blocks require embedding-aware division.
     retained_energies = incoming_energies if finite else [basis._compress(h0[0, 0])]
     diagonal_solver = solve_sylvester_2nd_quant([retained_energies, h0.diagonal()])
@@ -180,10 +180,10 @@ def _make_embedding_sylvester_solver(
     def divide_transition_entry(
         value: NumberOrderedForm | sympy.Expr, row: int, col: int
     ) -> NumberOrderedForm | sympy.Expr:
-        """Solve one retained-to-source matrix entry using its actual transition gap."""
+        """Solve one retained-to-target matrix entry using its actual transition gap."""
         if value == 0 or value.is_zero:
             return sympy.S.Zero
-        value = basis._convert_operator(value.source)
+        value = basis._convert_operator(value.target)
         terms = {}
         for transition in _NOFTransition.from_form(value):
             powers = transition.powers
@@ -197,13 +197,13 @@ def _make_embedding_sylvester_solver(
                 - incoming_energies[col]
             )
             # A literal zero gap still needs the amplitude interpreted in the
-            # target algebra: binary numbers obey n² = n, including indicators.
+            # source algebra: binary numbers obey n² = n, including indicators.
             if denominator == 0 and not finite:
                 amplitude = NumberOrderedForm(
-                    basis._target_operators,
+                    basis._source_operators,
                     {
                         (0,) * len(coordinates): action.weight.xreplace(
-                            dict(zip(coordinates, basis._target_placeholders))
+                            dict(zip(coordinates, basis._source_placeholders))
                         )
                     },
                     validate=False,
@@ -238,11 +238,11 @@ def _make_embedding_sylvester_solver(
         if index[0] == index[1]:
             return diagonal_solver(value, index)
         reverse = index[:2] == (0, 1)
-        source = value.adjoint() if reverse else value
+        block = value.adjoint() if reverse else value
         result = sympy.ImmutableMatrix(
-            source.rows,
-            source.cols,
-            lambda i, j: divide_transition_entry(source[i, j], i, j),
+            block.rows,
+            block.cols,
+            lambda i, j: divide_transition_entry(block[i, j], i, j),
         )
         return -result.adjoint() if reverse else result
 

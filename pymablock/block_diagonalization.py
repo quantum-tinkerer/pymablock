@@ -139,8 +139,9 @@ def block_diagonalize(
         unperturbed Hamiltonian must be block diagonal. If some vectors are
         missing, the implicit method is used. Mutually exclusive with
         ``subspace_indices``. An ``Embedding`` may be supplied instead of explicit
-        basis columns to specify target generators and a source reference state,
-        or an ordered reference list for a finite matrix target.
+        basis columns. It either maps the operators of the effective model (the
+        source) to expressions in the Hamiltonian's operators (the target), or
+        lists target states that form a finite matrix basis.
         If neither
         ``subspace_eigenvectors`` nor ``subspace_indices`` are provided, the
         BlockSeries is defined with a single block.
@@ -202,9 +203,9 @@ def block_diagonalize(
     U_inv : `~pymablock.series.BlockSeries`
         Inverse of U. For Hermitian problems this coincides with the adjoint.
 
-    With an ``Embedding``, each retained block ``[0, 0, ...]`` uses the target
+    With an ``Embedding``, each retained block ``[0, 0, ...]`` uses the source
     algebra or reference-list matrix basis. Off-diagonal blocks carry embedding
-    attachments; the complement block uses ordinary source operators.
+    attachments; the complement block uses ordinary target operators.
 
     """
     if isinstance(symbols, sympy.Symbol):
@@ -260,7 +261,7 @@ def block_diagonalize(
                 "Structured embeddings use exact coefficients and do not accept a numerical atol."
             )
         embedding_blocks = _EmbeddingBlocks(subspace_eigenvectors)
-        h0 = embedding_blocks.source_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
+        h0 = embedding_blocks.target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
         solve_sylvester = second_quantization._make_embedding_sylvester_solver(
             embedding_blocks, h0
         )
@@ -762,7 +763,7 @@ def operator_to_BlockSeries(
         An `~pymablock.operator_embedding.Embedding` converts a second-quantized
         observable into retained/complement blocks, including zeroth-order cross
         blocks. Its references need not be eigenstates of the observable.
-        Generator embeddings produce target operators; reference lists produce
+        Generator embeddings produce source operators; reference lists produce
         finite matrices. Floating coefficients are treated as their exact stored
         rational values.
 

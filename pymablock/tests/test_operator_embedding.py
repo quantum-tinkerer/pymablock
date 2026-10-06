@@ -1,4 +1,4 @@
-"""Occupation selections, target algebras, and projected perturbation operations."""
+"""Occupation selections, source algebras, and projected perturbation operations."""
 
 from __future__ import annotations
 
@@ -24,19 +24,19 @@ from pymablock.tests.second_quantization_helpers import (
 )
 
 
-def test_fermion_embedding_returns_target_nof() -> None:
-    source, virtual = FermionOp("source"), FermionOp("virtual")
-    target = FermionOp("target")
-    source_energy, virtual_energy, coupling = sympy.symbols(
-        "source_energy virtual_energy coupling",
+def test_fermion_embedding_returns_source_nof() -> None:
+    target, virtual = FermionOp("target"), FermionOp("virtual")
+    source = FermionOp("source")
+    target_energy, virtual_energy, coupling = sympy.symbols(
+        "target_energy virtual_energy coupling",
         nonzero=True,
         real=True,
     )
-    h_0 = source_energy * NumberOperator(source) + virtual_energy * NumberOperator(
+    h_0 = target_energy * NumberOperator(target) + virtual_energy * NumberOperator(
         virtual
     )
-    perturbation = coupling * (Dagger(virtual) * source + Dagger(source) * virtual)
-    embedding = Embedding({target: source}, reference={source: 0, virtual: 0})
+    perturbation = coupling * (Dagger(virtual) * target + Dagger(target) * virtual)
+    embedding = Embedding({source: target}, reference={target: 0, virtual: 0})
 
     effective, *_ = block_diagonalize(
         [h_0, perturbation],
@@ -44,8 +44,8 @@ def test_fermion_embedding_returns_target_nof() -> None:
     )
 
     expected = NumberOrderedForm.from_expr(
-        coupling**2 * NumberOperator(target) / (source_energy - virtual_energy),
-        operators=(target,),
+        coupling**2 * NumberOperator(source) / (target_energy - virtual_energy),
+        operators=(source,),
     )
 
     assert isinstance(effective[0, 0, 2], NumberOrderedForm)
@@ -53,50 +53,50 @@ def test_fermion_embedding_returns_target_nof() -> None:
 
 
 def test_frozen_fermion_phase_is_internal() -> None:
-    fixed, source = FermionOp("a_fixed"), FermionOp("b_source")
-    target, virtual = FermionOp("target"), FermionOp("virtual")
-    source_energy, virtual_energy, coupling = sympy.symbols(
-        "source_energy virtual_energy coupling",
+    fixed, target = FermionOp("a_fixed"), FermionOp("b_target")
+    source, virtual = FermionOp("source"), FermionOp("virtual")
+    target_energy, virtual_energy, coupling = sympy.symbols(
+        "target_energy virtual_energy coupling",
         nonzero=True,
         real=True,
     )
-    h_0 = source_energy * NumberOperator(source) + virtual_energy * NumberOperator(
+    h_0 = target_energy * NumberOperator(target) + virtual_energy * NumberOperator(
         virtual
     )
-    perturbation = coupling * (Dagger(virtual) * source + Dagger(source) * virtual)
+    perturbation = coupling * (Dagger(virtual) * target + Dagger(target) * virtual)
 
     effective, *_ = block_diagonalize(
         [h_0, perturbation],
         subspace_eigenvectors=Embedding(
-            {target: source},
-            reference={fixed: 1, source: 0, virtual: 0},
+            {source: target},
+            reference={fixed: 1, target: 0, virtual: 0},
         ),
     )
 
     expected = (
         coupling**2
-        * NumberOrderedForm.from_expr(NumberOperator(target), operators=(target,)).terms[
+        * NumberOrderedForm.from_expr(NumberOperator(source), operators=(source,)).terms[
             (0,)
         ]
-        / (source_energy - virtual_energy)
+        / (target_energy - virtual_energy)
     )
 
     assert sympy.cancel(effective[0, 0, 2].terms[(0,)] - expected) == 0
 
 
 def test_reference_list_returns_matrix() -> None:
-    source = BosonOp("source")
+    target = BosonOp("target")
     frequency, coupling = sympy.symbols(
         "frequency coupling",
         nonzero=True,
         real=True,
     )
-    embedding = Embedding(reference=[{source: n} for n in range(3)])
+    embedding = Embedding(reference=[{target: n} for n in range(3)])
 
     effective, *_ = block_diagonalize(
         [
-            frequency * NumberOperator(source),
-            coupling * (source + Dagger(source)),
+            frequency * NumberOperator(target),
+            coupling * (target + Dagger(target)),
         ],
         subspace_eigenvectors=embedding,
     )
@@ -110,7 +110,7 @@ def test_reference_list_returns_matrix() -> None:
 
 
 def test_bosonic_excursion_is_not_a_product_of_compressions() -> None:
-    """The spin target retains the virtual second boson level in products."""
+    """The source spin retains the virtual second boson level in products."""
 
     a, s = BosonOp("a"), SigmaMinus("s")
     backend = Embedding({s: a}, reference={a: 0})
@@ -129,7 +129,7 @@ def test_bosonic_excursion_is_not_a_product_of_compressions() -> None:
 @pytest.mark.parametrize("reverse", [False, True])
 @pytest.mark.parametrize("frozen", [0, 1])
 def test_retained_fermions_preserve_car_and_mode_correspondence(reverse, frozen) -> None:
-    """Frozen particles and permutations must not change the target CAR."""
+    """Frozen particles and permutations must not change the source CAR."""
 
     a, fixed, b = (FermionOp(name) for name in ("a", "m", "z"))
     f, g = FermionOp("f"), FermionOp("g")
@@ -138,8 +138,8 @@ def test_retained_fermions_preserve_car_and_mode_correspondence(reverse, frozen)
         {left: a, right: b},
         reference={a: 0, fixed: frozen, b: 0},
     )
-    assert backend._basis._target_operators == (f, g)
-    for source, target in (
+    assert backend._basis._source_operators == (f, g)
+    for target, source in (
         (a, left),
         (b, right),
         (Dagger(a), Dagger(left)),
@@ -148,12 +148,12 @@ def test_retained_fermions_preserve_car_and_mode_correspondence(reverse, frozen)
         (a * b, left * right),
         (b * Dagger(b), right * Dagger(right)),
     ):
-        result = backend.restrict(source)
-        assert result.simplify() == NumberOrderedForm.from_expr(target, operators=(f, g))
+        result = backend.restrict(target)
+        assert result.simplify() == NumberOrderedForm.from_expr(source, operators=(f, g))
 
 
 def test_spin_in_two_fermions_uses_single_occupancy() -> None:
-    """The target is one spin, with charge-changing source actions projected out."""
+    """The source is one spin, with charge-changing target actions projected out."""
 
     up, down = FermionOp("up"), FermionOp("down")
     s = SigmaMinus("s")
@@ -166,7 +166,7 @@ def test_spin_in_two_fermions_uses_single_occupancy() -> None:
     assert backend.restrict(NumberOperator(down)) == expected(1 - NumberOperator(s))
     assert not backend.restrict(up)
     assert not backend.restrict(NumberOperator(up) * NumberOperator(down)).simplify()
-    # In canonical source order (down, up), this bilinear takes down to up.
+    # In canonical target order (down, up), this bilinear takes down to up.
     assert backend.restrict(Dagger(up) * down) == expected(Dagger(s))
 
 
@@ -202,23 +202,23 @@ def test_particle_hole_and_pair_encodings():
 @pytest.mark.parametrize("annihilate", [False, True])
 def test_conversion_preserves_factored_spectators(annihilate):
     """One term stays compact as independent spectator modes are added."""
-    source = tuple(SigmaMinus(f"s{i:02}") for i in range(16))
     target = tuple(SigmaMinus(f"t{i:02}") for i in range(16))
-    embedding = Embedding(dict(zip(target, source)), reference=dict.fromkeys(source, 0))
+    source = tuple(SigmaMinus(f"s{i:02}") for i in range(16))
+    embedding = Embedding(dict(zip(source, target)), reference=dict.fromkeys(target, 0))
     powers = (int(annihilate),) + (0,) * 15
-    coefficient = sympy.prod(2 + N(op) for op in source[1:])
-    expression = NumberOrderedForm(source, {powers: coefficient})
+    coefficient = sympy.prod(2 + N(op) for op in target[1:])
+    expression = NumberOrderedForm(target, {powers: coefficient})
     expected = NumberOrderedForm(
-        target, {powers: sympy.prod(2 + N(op) for op in target[1:])}
+        source, {powers: sympy.prod(2 + N(op) for op in source[1:])}
     )
     assert embedding.restrict(expression) == expected
 
 
-def test_binary_validation_does_not_enumerate_target(monkeypatch) -> None:
+def test_binary_validation_does_not_enumerate_source(monkeypatch) -> None:
     from pymablock.operator_embedding import _ReferenceBasis
 
-    def forbidden(_self, _source):
-        raise AssertionError("Target enumeration is not needed")
+    def forbidden(_self, _target):
+        raise AssertionError("Source enumeration is not needed")
 
     monkeypatch.setattr(_ReferenceBasis, "_compress", forbidden)
     spins = tuple(SigmaMinus(f"s{i}") for i in range(20))
@@ -311,19 +311,19 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
         reference={up: 0, down: 1, left: 0, right: 0},
     )
     matrices = occupation_matrices(modes, [(0, 1)] * 4)
-    source_states = list(product((0, 1), repeat=4))
+    target_states = list(product((0, 1), repeat=4))
     columns = []
     direct = {first: left, second: right}
-    for state in product((0, 1), repeat=len(backend._basis._target_operators)):
-        values = dict(zip(backend._basis._target_operators, state, strict=True))
+    for state in product((0, 1), repeat=len(backend._basis._source_operators)):
+        values = dict(zip(backend._basis._source_operators, state, strict=True))
         baseline = tuple(int(op == down) for op in modes)
-        column = np.eye(16)[:, source_states.index(baseline)]
-        for target in reversed(backend._basis._target_operators):
-            if values[target]:
+        column = np.eye(16)[:, target_states.index(baseline)]
+        for source in reversed(backend._basis._source_operators):
+            if values[source]:
                 raising = (
                     matrices[Dagger(up)] @ matrices[down]
-                    if target == s
-                    else matrices[Dagger(direct[target])]
+                    if source == s
+                    else matrices[Dagger(direct[source])]
                 )
                 column = raising @ column
         columns.append(column)
@@ -331,13 +331,13 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     np.testing.assert_allclose(w.T @ w, np.eye(8))
     references = [
         dict(zip(modes, state, strict=True))
-        for state in source_states
+        for state in target_states
         if state[modes.index(up)] + state[modes.index(down)] == 1
     ]
     finite_embedding = Embedding(reference=references)
-    selected = [source_states.index(tuple(ref[op] for op in modes)) for ref in references]
-    target_matrices = occupation_matrices(
-        backend._basis._target_operators,
+    selected = [target_states.index(tuple(ref[op] for op in modes)) for ref in references]
+    source_matrices = occupation_matrices(
+        backend._basis._source_operators,
         [(0, 1)] * 3,
     )
     for expression in (
@@ -350,7 +350,7 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
         up * down,
     ):
         result = backend.restrict(expression)
-        actual = operator_matrix(result.simplify(), target_matrices).toarray()
+        actual = operator_matrix(result.simplify(), source_matrices).toarray()
         full = operator_matrix(expression, matrices).toarray()
         expected = w.T @ full @ w
         np.testing.assert_allclose(actual, expected, atol=1e-14)
@@ -361,14 +361,14 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
                 atol=1e-14,
             )
     # The chosen columns preserve each directly retained fermion generator.
-    for source, target in ((left, first), (right, second)):
+    for target, source in ((left, first), (right, second)):
         np.testing.assert_allclose(
-            w.T @ matrices[source] @ w, target_matrices[target].toarray()
+            w.T @ matrices[target] @ w, source_matrices[source].toarray()
         )
 
 
 @pytest.mark.parametrize("finite", [False, True])
-def test_mixed_target_second_order(finite):
+def test_mixed_source_second_order(finite):
     """A spin-dependent hopping amplitude gives -N(f) N(s)**2 / 3."""
     a, v = FermionOp("a"), FermionOp("v")
     b, f = BosonOp("b"), FermionOp("f")
@@ -392,7 +392,7 @@ def test_mixed_target_second_order(finite):
         assert h[0, 0, 2] == expected
     else:
         expected = NumberOrderedForm.from_expr(
-            -N(f) * N(s) ** 2 / 3, operators=embedding._basis._target_operators
+            -N(f) * N(s) ** 2 / 3, operators=embedding._basis._source_operators
         )
         assert (h[0, 0, 2] - expected).applyfunc(sympy.simplify).is_zero
 
@@ -425,8 +425,8 @@ def test_fermion_transition_contains_cross_mode_parity() -> None:
     assert lowering.apply((1, 1)).weight == -1
 
 
-def test_state_selection_solves_integer_target_shift() -> None:
-    """Selecting even boson occupations makes a two-step source shift binary."""
+def test_state_selection_solves_integer_source_shift() -> None:
+    """Selecting even boson occupations makes a two-step target shift binary."""
     a, s = BosonOp("a"), SigmaMinus("s")
     backend = Embedding({s: a**2 / sympy.sqrt(2)}, reference={a: 0})
     expected = NumberOrderedForm.from_expr(sympy.sqrt(2) * s)
@@ -436,11 +436,11 @@ def test_state_selection_solves_integer_target_shift() -> None:
 
 
 def test_frozen_particle_sets_retained_fermion_phase() -> None:
-    """The target definition absorbs the sign from an earlier occupied mode."""
-    fixed, source, target = (FermionOp(name) for name in ("a", "b", "f"))
-    backend = Embedding({target: source}, reference={fixed: 1, source: 0})
-    result = backend.restrict(source)
-    assert result == NumberOrderedForm.from_expr(target, operators=(target,))
+    """The source definition absorbs the sign from an earlier occupied mode."""
+    fixed, target, source = (FermionOp(name) for name in ("a", "b", "f"))
+    backend = Embedding({source: target}, reference={fixed: 1, target: 0})
+    result = backend.restrict(target)
+    assert result == NumberOrderedForm.from_expr(source, operators=(source,))
 
 
 def test_multiple_boson_annihilations_stop_at_vacuum():
@@ -472,7 +472,7 @@ def test_reference_fixes_complex_phases_and_cross_relations():
     embedding = Embedding({s: phase * a}, reference={a: 0})
     result = embedding.restrict(a).as_expr()
     assert sympy.simplify(result - s / phase) == 0
-    with pytest.raises(ValueError, match="target algebra"):
+    with pytest.raises(ValueError, match="source algebra"):
         Embedding({s: a, t: (1 - 2 * N(a)) * b}, reference={a: 0, b: 0})
 
 
@@ -483,14 +483,14 @@ def test_generator_relations_with_shared_occupation_phase(operator_type):
     f, g = operator_type("f"), operator_type("g")
     image = (1 - 2 * N(a)) * b
     embedding = Embedding({f: (1 - 2 * N(b)) * a, g: image}, reference={a: 0, b: 0})
-    source = occupation_matrices((a, b), [(0, 1)] * 2)
-    target = occupation_matrices((f, g), [(0, 1)] * 2)
+    target = occupation_matrices((a, b), [(0, 1)] * 2)
+    source = occupation_matrices((f, g), [(0, 1)] * 2)
     w = np.diag([1, 1, 1, -1])
     for expression in (a, b, Dagger(a) * b, a * Dagger(b)):
-        actual = operator_matrix(embedding.restrict(expression).simplify(), target)
-        expected = w @ operator_matrix(expression, source).toarray() @ w
+        actual = operator_matrix(embedding.restrict(expression).simplify(), source)
+        expected = w @ operator_matrix(expression, target).toarray() @ w
         np.testing.assert_array_equal(actual.toarray(), expected)
-    with pytest.raises(ValueError, match="target algebra"):
+    with pytest.raises(ValueError, match="source algebra"):
         Embedding({f: a, g: image}, reference={a: 0, b: 0})
 
 
@@ -498,16 +498,16 @@ def test_retained_infinite_modes_and_ladder_reference():
     from pymablock.number_ordered_form import LadderOp
 
     a, b = BosonOp("a"), BosonOp("b")
-    source, ell = LadderOp("source"), LadderOp("ell")
+    target, ell = LadderOp("target"), LadderOp("ell")
     embedding = Embedding(
-        {b: a, ell: source, N(ell): N(source) - 3},
-        reference={a: 0, source: 3},
+        {b: a, ell: target, N(ell): N(target) - 3},
+        reference={a: 0, target: 3},
     )
     for expression, expected in (
         (a**3, b**3),
         (Dagger(a) ** 2 * (N(a) + 3) * a, Dagger(b) ** 2 * (N(b) + 3) * b),
-        (source**4, ell**4),
-        (N(source), N(ell) + 3),
+        (target**4, ell**4),
+        (N(target), N(ell) + 3),
         (a * Dagger(a), 1 + N(b)),
     ):
         difference = embedding.restrict(expression) - NumberOrderedForm.from_expr(
@@ -515,16 +515,16 @@ def test_retained_infinite_modes_and_ladder_reference():
         )
         assert all(sympy.simplify(value) == 0 for value in difference.terms.values())
     with pytest.raises(ValueError, match="independent number"):
-        Embedding({ell: source}, reference={source: 0})
+        Embedding({ell: target}, reference={target: 0})
     with pytest.raises(ValueError, match="reference index zero"):
-        Embedding({ell: source, N(ell): N(source)}, reference={source: 3})
+        Embedding({ell: target, N(ell): N(target)}, reference={target: 3})
 
 
 def test_boson_generator_normalization_is_not_renormalized_silently():
     a, b = BosonOp("a"), BosonOp("b")
     with pytest.raises(ValueError, match="normalized"):
         Embedding({b: 2 * a}, reference={a: 0})
-    with pytest.raises(ValueError, match="physical source"):
+    with pytest.raises(ValueError, match="physical target"):
         Embedding({b: Dagger(a)}, reference={a: 0})
 
 
@@ -532,14 +532,14 @@ def test_retained_boson_virtual_ancilla_against_matrix_formula():
     """Keep the full oscillator; compare non-diagonal second-order elements."""
     a, b = BosonOp("a"), BosonOp("b")
     q = SigmaMinus("q")
-    source = (a, q)
+    target = (a, q)
     h0 = 3 * N(a) + N(a) * (N(a) - 1) / 5 + (8 + N(a) / 7) * N(q)
     v = (a + Dagger(a)) * (q + Dagger(q))
     embedding = Embedding({b: a}, reference={a: 0, q: 0})
     h, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
     second = h[0, 0, 2]
     occupations = (range(8), range(2))
-    matrices = occupation_matrices(source, occupations)
+    matrices = occupation_matrices(target, occupations)
     energy = operator_matrix(h0, matrices).diagonal().real
     vmat = operator_matrix(v, matrices).toarray()
     retained, complement = np.arange(0, 16, 2), np.arange(1, 16, 2)
@@ -548,7 +548,7 @@ def test_retained_boson_virtual_ancilla_against_matrix_formula():
     reference = (
         (coupling / gap) @ coupling.conj().T + coupling @ (coupling / gap).conj().T
     ) / 2
-    # Evaluate rational functions of the target number by their spectral values.
+    # Evaluate rational functions of the source number by their spectral values.
     actual = np.zeros((6, 6), dtype=complex)
     n = N(b)
     for powers, coefficient in second.terms.items():
@@ -570,7 +570,7 @@ def test_retained_boson_virtual_ancilla_against_matrix_formula():
 
 
 def test_retained_boson_with_drive_through_fourth_order():
-    """Higher orders exercise shifted target denominators and vanishing leakage."""
+    """Higher orders exercise shifted source denominators and vanishing leakage."""
     a, b = BosonOp("a"), BosonOp("b")
     q = SigmaMinus("q")
     h0 = 3 * N(a) + N(a) * (N(a) - 1) / 5 + (8 + N(a) / 7) * N(q)
@@ -603,7 +603,7 @@ def test_retained_boson_with_drive_through_fourth_order():
 
 
 def test_generator_images_are_single_shifts():
-    """Linear combinations of source modes are rejected, not rotated."""
+    """Linear combinations of target modes are rejected, not rotated."""
     a, b, f = (FermionOp(name) for name in ("a", "b", "f"))
     with pytest.raises(ValueError, match="one nonzero shift"):
         Embedding({f: (a + b) / sympy.sqrt(2)}, reference={a: 0, b: 0})
@@ -667,7 +667,7 @@ def test_reference_list_compresses_products_before_selecting_states():
     assert embedding.restrict(b**2) == sympy.Matrix([[0, 0], [sympy.sqrt(2), 0]])
 
 
-def test_pure_matrix_source_retains_degenerate_internal_transitions():
+def test_pure_matrix_target_retains_degenerate_internal_transitions():
     embedding = Embedding(reference=[(1, {}), (0, {})])
     h0 = sympy.diag(0, 0, 7)
     v = sympy.Matrix([[0, 2, 1], [2, 0, sympy.I], [1, -sympy.I, 0]])
@@ -684,7 +684,7 @@ def test_pure_matrix_source_retains_degenerate_internal_transitions():
         ([(1.5, {})], "indices"),
         ([{BosonOp("b"): -1}], "occupations"),
         ([{FermionOp("f"): 2}], "occupations"),
-        ([{}, {BosonOp("b"): 0}], "same source"),
+        ([{}, {BosonOp("b"): 0}], "same target"),
     ],
 )
 def test_invalid_reference_lists(reference, message):
@@ -692,9 +692,9 @@ def test_invalid_reference_lists(reference, message):
         Embedding(reference=reference)
 
 
-def test_matrix_source_validation():
+def test_matrix_target_validation():
     embedding = Embedding(reference=[(1, {})])
-    with pytest.raises(ValueError, match="matrix source"):
+    with pytest.raises(ValueError, match="matrix target"):
         embedding.restrict(1)
     with pytest.raises(ValueError, match="outside"):
         embedding.restrict(sympy.eye(1))
@@ -707,5 +707,5 @@ def test_matrix_source_validation():
     h, *_ = block_diagonalize(
         [sympy.diag(1, 2), sympy.eye(3)], subspace_eigenvectors=embedding
     )
-    with pytest.raises(ValueError, match="same source matrix shape"):
+    with pytest.raises(ValueError, match="same target matrix shape"):
         _ = h[0, 0, 1]

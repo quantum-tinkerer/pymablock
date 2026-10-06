@@ -3,10 +3,14 @@
 
 ## Structured embeddings
 
-`Embedding` is a structural SymPy expression: its arguments specify the source
+As in the user documentation, the *source* is the effective model and the
+*target* is the Hamiltonian passed to `block_diagonalize`. The embedding is an
+isometry $W$ from source states to target states.
+
+`Embedding` is a structural SymPy expression: its arguments specify the target
 images and references, while private compiled bases implement them. Reconstructing
-or unpickling equal arguments produces the same source modes. The generator and
-reference-list representations share source normalization and compression.
+or unpickling equal arguments produces the same target modes. The generator and
+reference-list representations share target normalization and compression.
 
 The implementation separates three operations:
 
@@ -24,7 +28,7 @@ Compression and division share this action. Division uses the amplitude to
 identify inactive transitions, without multiplying it into the NOF coefficient
 again. The zero series sentinel is handled before attempting matrix operations.
 For `fully_diagonalize`, transitions within either diagonal block use the
-ordinary second-quantized Sylvester solver, with retained or source energies.
+ordinary second-quantized Sylvester solver, with retained or target energies.
 Transitions between the blocks use the embedding-aware solver.
 
 Method caches belong to their compiled instance, so discarding an embedding
@@ -35,12 +39,12 @@ workaround is feature-detected and installed once, including across reloads.
 ### Validation
 
 These checks apply to the compressed generators $PGP$. Each generator must
-have the target ladder norm, and each pair must commute (anticommute for two
+have the source ladder norm, and each pair must commute (anticommute for two
 fermions) on the retained occupation lattice. The reference and occupation
 boundaries fix the vacuum and finite truncation; the norm and pair relations
-then also determine the relations involving adjoints. Thus checking the source
+then also determine the relations involving adjoints. Thus checking the target
 algebra outside the retained space is unnecessary: a boson can represent a
-two-state target even though their uncompressed commutators differ.
+two-state source even though their uncompressed commutators differ.
 
 Validation leaves spectator occupations symbolic. Binary polynomial identities
 are reduced modulo $n^2-n$, rather than checked separately at every combination
@@ -48,9 +52,9 @@ of occupations. There are quadratically many generator relations, but their
 symbolic coefficients can still grow; this is not a polynomial-time guarantee.
 
 Each generator image has one fixed occupation change, so retained states are
-source Fock states and source operators keep their declared names. Parameter substitution in an
-attached NOF substitutes in its source operator and reattaches it to the
-substituted embedding.
+target Fock states and target operators keep their declared names. Parameter
+substitution in an attached NOF substitutes in its target operator and
+reattaches it to the substituted embedding.
 
 ### Rectangular arithmetic
 
@@ -59,19 +63,19 @@ complement $Q=1-P$, using equality-based `Piecewise` expressions. It prepares
 Hamiltonian blocks and an energy-gap solver for the standard `block_diagonalize`
 driver. Virtual products do not enumerate or truncate the discarded states.
 
-For each of `H_eff`, `U`, and `U_adjoint`, block `[0, 0, ...]` uses the target
-operators or reference-list matrix basis. Block `[1, 1, ...]` uses source
+For each of `H_eff`, `U`, and `U_adjoint`, block `[0, 0, ...]` uses the source
+operators or reference-list matrix basis. Block `[1, 1, ...]` uses target
 operators on the complement. The off-diagonal blocks are rectangular maps:
 $XW$ or $W^\dagger X$. Their NOFs carry the fixed `embedding` and a `side`
-(`1` for a right attachment, `-1` for a left attachment). The `source` property
-returns the ordinary operator $X$.
+(`1` for a right attachment, `-1` for a left attachment). The `target` property
+returns the ordinary target operator $X$.
 
 These blocks support ordinary addition, multiplication, and adjoints. In
-particular, $W^\dagger XW$ contracts immediately to an ordinary target operator,
-and $(XW)(W^\dagger Y)=XPY$. Source multiplication preserves the attachment;
-it does not project or normalize after each operation. Support is reduced
-before dividing by an energy gap, so cancelling virtual amplitudes do not
-produce spurious resonance errors.
+particular, $W^\dagger XW$ contracts immediately to an ordinary source operator,
+and $(XW)(W^\dagger Y)=XPY$. Multiplying by a target operator preserves the
+attachment; it does not project or normalize after each operation. Support is
+reduced before dividing by an energy gap, so cancelling virtual amplitudes do
+not produce spurious resonance errors.
 
 For a generator embedding, algebraic use looks like this:
 
@@ -87,12 +91,12 @@ compressed = W.adjoint() * rectangular  # embedding.restrict(X)
 
 A reference-list embedding is prepared
 as a matrix of NOFs sharing one vacuum attachment. Matrix indices select the
-source components, and normalized creation monomials prepare the listed
+target components, and normalized creation monomials prepare the listed
 occupations. There is no separate embedding wrapper around the matrix.
 
 The usual `zero` and `one` series sentinels represent zero and the identity on
 the block's space. Embedding attachments occur only on rectangular blocks;
-the effective Hamiltonian has already been contracted into the target algebra.
+the effective Hamiltonian has already been contracted into the source algebra.
 
 `NumberOrderedForm.as_expr()` exports diagonal projectors as ordinary SymPy
 `Piecewise` expressions, which can be read back with `from_expr()`. A SymPy
@@ -101,19 +105,19 @@ operators; the scalar occupation coefficients inside a NOF remain commutative.
 NOF coefficient arithmetic applies point-projector constraints directly, so
 embedding products use the same reduction as ordinary NOF products.
 
-The source projector selects a joint spectrum of commuting number operators.
+The target projector selects a joint spectrum of commuting number operators.
 Writing the occupation map as $n=r+Mm$, let $LM=I$ and let the rows of $C$
 form a basis of the left nullspace of $M$. The projector imposes
-$C(n-r)=0$ and selects the allowed spectrum of each target number operator
+$C(n-r)=0$ and selects the allowed spectrum of each source number operator
 in $L(n-r)$. Using independent nullspace constraints avoids redundant
 occupation equations. A reference state is the special case that selects one
-eigenvalue of every source number operator. Finite spectral selections are sums
+eigenvalue of every target number operator. Finite spectral selections are sums
 of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
 
-The Sylvester solver evaluates each source transition on the incoming occupations
+The Sylvester solver evaluates each target transition on the incoming occupations
 $n=r+Mm$, then divides by the difference between its outgoing and incoming
 energies. The embedding already fixes the incoming support, so the solver does
-not multiply by the source projector. Reference-list columns use their vacuum
+not multiply by the target projector. Reference-list columns use their vacuum
 attachment and creation monomial in the same transition calculation.
 Coefficient division is shared with regular second quantization. It evaluates
 occupations already fixed by explicit indicators, then divides the coefficient
@@ -125,10 +129,10 @@ Scalar parameters are treated as generic, and arithmetic shortcuts avoid
 conditional expressions when the gap cannot vanish as occupations change.
 A returned expression therefore does not certify nonresonance in every sector.
 
-For infinite bosonic targets, the solver currently requires that nonnegative
-target occupations follow from the physical source occupations. Other selections
+For infinite bosonic source modes, the solver currently requires that nonnegative
+source occupations follow from the physical target occupations. Other selections
 raise `NotImplementedError` because they require occupation inequalities.
-Finite reference lists and binary targets use only equality conditions.
+Finite reference lists and binary source modes use only equality conditions.
 Avoiding basis enumeration does not remove expression growth at high orders.
 
 The [application documents](applications/index.md) reproduce the supercurrent,

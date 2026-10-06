@@ -1,4 +1,4 @@
-"""Operator embeddings generated from a source reference state."""
+"""Operator embeddings generated from a target reference state."""
 
 from __future__ import annotations
 
@@ -55,34 +55,35 @@ def _operator_sort_key(operator: OperatorType) -> tuple[int, str]:
 class Embedding(sympy.Expr):
     r"""Select the states of an effective model inside a second-quantized Hamiltonian.
 
-    Below, *source* refers to the operators of the Hamiltonian passed to
-    `~pymablock.block_diagonalize`, and *target* refers to the operators of the
-    effective model. An embedding either describes how each target operator acts
-    on the source states, or lists source states that form a finite matrix basis.
+    Below, *source* refers to the effective model, and *target* refers to the
+    Hamiltonian passed to `~pymablock.block_diagonalize`. The embedding maps
+    source states to target states. It either describes how each source operator
+    acts on the target states, or lists target states that form a finite matrix
+    basis.
 
     Pass the embedding as ``subspace_eigenvectors`` to
     `~pymablock.block_diagonalize` or `~pymablock.operator_to_BlockSeries`.
-    Block 0 contains the embedded states and block 1 contains all other source
+    Block 0 contains the embedded states and block 1 contains all other target
     states, which remain available for virtual transitions.
 
     Parameters
     ----------
     generators : collections.abc.Mapping
-        Maps each target lowering operator to a source expression. The keys may be
+        Maps each source lowering operator to a target expression. The keys may be
         ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` operators. A
-        ``LadderOp`` target also needs an entry mapping its ``NumberOperator`` to a
-        source expression, because its lowering operator does not determine it.
+        ``LadderOp`` key also needs an entry mapping its ``NumberOperator`` to a
+        target expression, because its lowering operator does not determine it.
         Omit ``generators`` to select a finite list of states instead.
     reference : collections.abc.Mapping or collections.abc.Sequence
-        If ``generators`` is given, maps every source operator to its occupation in
-        the source state that represents the target state with all occupations and
-        ``LadderOp`` indices equal to zero. Applying the adjoints of the source
+        If ``generators`` is given, maps every target operator to its occupation in
+        the target state that represents the source state with all occupations and
+        ``LadderOp`` indices equal to zero. Applying the adjoints of the target
         expressions to this state defines all other embedded states and their
-        phases. ``LadderOp`` targets also use the source expressions themselves to
-        reach negative indices.
+        phases. ``LadderOp`` source operators also use the target expressions
+        themselves to reach negative indices.
 
         Otherwise, lists the embedded states in the order of the matrix rows and
-        columns. Each state maps every source operator to its occupation, and all
+        columns. Each state maps every target operator to its occupation, and all
         states must use the same operators. If the Hamiltonian is a matrix, give
         ``(matrix_index, occupations)`` pairs; a mapping without an index refers to
         index 0. For a matrix Hamiltonian without operators, use pairs with empty
@@ -91,33 +92,34 @@ class Embedding(sympy.Expr):
     Notes
     -----
     Boson occupations are nonnegative, fermion and spin occupations are 0 or 1,
-    and ``LadderOp`` indices may be any integer. Each source expression must
-    change every source occupation by a fixed amount, possibly zero, as a
+    and ``LadderOp`` indices may be any integer. Each target expression must
+    change every target occupation by a fixed amount, possibly zero, as a
     product of creation and annihilation operators does. Embedded states are
-    therefore Fock states of the source operators. To embed a combination such
+    therefore Fock states of the target operators. To embed a combination such
     as ``(c1 + c2) / sqrt(2)``, first rewrite the Hamiltonian in terms of new
     operators for that combination and those orthogonal to it.
 
-    The matrix elements of each source expression between embedded states must
-    equal those of the target operator, up to a phase factor. For example,
+    The matrix elements of each target expression between embedded states must
+    equal those of the source operator, up to a phase factor. For example,
     ``{s: 2 * a}`` raises an error instead of being normalized. Phases may depend
-    on occupations, such as fermion signs, only for spin and fermion targets.
+    on occupations, such as fermion signs, only for spin and fermion source
+    operators.
 
     With ``generators``, the block 0 entries are
-    `~pymablock.number_ordered_form.NumberOrderedForm` objects in the target
-    operators. This includes bosonic or ``LadderOp`` targets with infinitely many
-    states. With a list of states, block 0 entries are SymPy matrices in the
-    order of the list. Block 1 uses the source operators. Blocks (0, 1) and
-    (1, 0) map between target and source states.
+    `~pymablock.number_ordered_form.NumberOrderedForm` objects in the source
+    operators. This includes bosonic or ``LadderOp`` source operators with
+    infinitely many states. With a list of states, block 0 entries are SymPy
+    matrices in the order of the list. Block 1 uses the target operators. Blocks
+    (0, 1) and (1, 0) map between source and target states.
 
     Perturbation theory with an embedding requires:
 
     - A Hermitian Hamiltonian.
-    - An unperturbed Hamiltonian that is diagonal in the source occupations.
+    - An unperturbed Hamiltonian that is diagonal in the target occupations.
     - For matrix Hamiltonians, an unperturbed Hamiltonian that is also diagonal
       in the matrix index, with all perturbative orders of the same shape.
-    - For each bosonic target, an occupation that is nonnegative for every source
-      state. For example, a boson defined in terms of a ``LadderOp`` is not
+    - For each bosonic source operator, an occupation that is nonnegative for
+      every target state. For example, a boson defined in terms of a ``LadderOp`` is not
       supported.
 
     The solver uses exact symbolic arithmetic. It treats a floating-point number
@@ -180,13 +182,13 @@ class Embedding(sympy.Expr):
 
     @cached_property
     def _projector(self) -> NumberOrderedForm:
-        """Return ``W W†``, the source-space projector onto retained states.
+        """Return ``W W†``, the target-space projector onto retained states.
 
-        Scalar indicators enforce the affine occupation constraints and each target
-        mode's allowed numbers. No source occupation states are enumerated.
+        Scalar indicators enforce the affine occupation constraints and each source
+        mode's allowed numbers. No target occupation states are enumerated.
         """
         basis = self._basis
-        numbers = basis._source_placeholders
+        numbers = basis._target_placeholders
         if isinstance(basis, _ReferenceBasis):
             spectra = list(zip(numbers, ((n,) for n in basis._references[0][1])))
         else:
@@ -195,14 +197,14 @@ class Embedding(sympy.Expr):
                 (sympy.expand(normal.dot(offsets)), (0,))
                 for normal in basis._occupation_matrix.T.nullspace()
             ]
-            target = basis._occupation_left_inverse * offsets
+            source = basis._occupation_left_inverse * offsets
             physical = {
                 n: sympy.Dummy(integer=True, nonnegative=True)
-                for source, n in zip(basis.operators, numbers)
-                if not isinstance(source, LadderOp)
+                for target, n in zip(basis.operators, numbers)
+                if not isinstance(target, LadderOp)
             }
             for q, op, size in zip(
-                target, basis._target_operators, basis._target_dimensions
+                source, basis._source_operators, basis._source_dimensions
             ):
                 if (
                     isinstance(op, BosonOp)
@@ -218,12 +220,12 @@ class Embedding(sympy.Expr):
         return NumberOrderedForm(basis.operators, {(0,) * len(numbers): indicator}) * 1
 
     @property
-    def _source_operators(self) -> tuple[OperatorType, ...]:
-        """Return source lowering modes in the compiled basis order."""
+    def _target_operators(self) -> tuple[OperatorType, ...]:
+        """Return target lowering modes in the compiled basis order."""
         return self._basis.operators
 
     def _convert_operator(self, value: sympy.Expr) -> NumberOrderedForm:
-        """Normalize one source operator in the compiled mode basis."""
+        """Normalize one target operator in the compiled mode basis."""
         return self._basis._convert_operator(value)
 
     def _contract(self, value: NumberOrderedForm) -> NumberOrderedForm | sympy.Expr:
@@ -233,11 +235,11 @@ class Embedding(sympy.Expr):
 
     @_cache_on_instance
     def _lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
-        """Represent a target operator in source space, as ``W value W†``.
+        """Represent a source operator in target space, as ``W value W†``.
 
-        Replace target generators and numbers by their source images, then project
+        Replace source generators and numbers by their target images, then project
         both sides onto the retained space. A single-reference attachment already
-        uses source operators and only needs normalization.
+        uses target operators and only needs normalization.
         """
         basis = self._basis
         if isinstance(basis, _ReferenceBasis):
@@ -246,8 +248,8 @@ class Embedding(sympy.Expr):
             sympy.Matrix([NumberOperator(op) for op in basis.operators])
             - sympy.Matrix(basis.reference)
         )
-        images = dict(zip(map(NumberOperator, basis._target_operators), coordinates))
-        for op, generator in zip(basis._target_operators, basis._generators):
+        images = dict(zip(map(NumberOperator, basis._source_operators), coordinates))
+        for op, generator in zip(basis._source_operators, basis._generators):
             image = NumberOrderedForm(
                 generator.operators,
                 {generator.powers: generator.coefficient},
@@ -263,7 +265,7 @@ class Embedding(sympy.Expr):
     def _attach(self, value: sympy.Expr, side: int) -> NumberOrderedForm:
         """Represent ``value W`` for side +1, or ``W† value`` for side -1.
 
-        Normalize the source expression but retain the attachment until arithmetic
+        Normalize the target expression but retain the attachment until arithmetic
         contracts it. Reference lists use matrices of single-reference attachments.
         """
         if isinstance(self._basis, _ReferenceBasis) and (
@@ -280,48 +282,48 @@ class Embedding(sympy.Expr):
     def restrict(
         self, expression: sympy.Expr | sympy.MatrixBase
     ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Express a source operator in terms of the embedded states.
+        """Express a target operator in terms of the embedded states.
 
         The result contains the matrix elements of ``expression`` between embedded
         states, without perturbative corrections. Products are evaluated in the full
-        source space before taking these matrix elements, so intermediate states
+        target space before taking these matrix elements, so intermediate states
         outside the embedding contribute. For example, with ``{s: a}``,
         ``restrict(a * Dagger(a))`` is ``1 + N_s``, while
         ``restrict(a) * restrict(Dagger(a))`` is ``1 - N_s``.
 
         With ``generators``, the result is a
-        `~pymablock.number_ordered_form.NumberOrderedForm` in the target operators.
+        `~pymablock.number_ordered_form.NumberOrderedForm` in the source operators.
         It may contain products such as ``N_s * (1 - N_s)`` that vanish because
         fermion and spin occupations are 0 or 1; call ``simplify()`` to remove
         them. With a list of states, the result is a SymPy matrix in the order of
         the list.
         """
-        return self._basis._compress(self._basis._convert_source(expression))
+        return self._basis._compress(self._basis._convert_target(expression))
 
 
 class _EmbeddingBlocks:
-    """Reusable conversion from source expressions to retained/complement blocks."""
+    """Reusable conversion from target expressions to retained/complement blocks."""
 
     def __init__(self, embedding: Embedding) -> None:
-        """Store a compiled embedding; infer source matrix size on first conversion."""
+        """Store a compiled embedding; infer target matrix size on first conversion."""
         self.embedding, self.basis = embedding, embedding._basis
         self.finite = isinstance(self.basis, _ReferenceBasis)
-        self.source_shape: tuple[int, int] | None = None
+        self.target_shape: tuple[int, int] | None = None
 
-    def source_matrix(
+    def target_matrix(
         self, expression: sympy.Expr | sympy.MatrixBase
     ) -> sympy.MatrixBase:
-        """Normalize a source coefficient as a square matrix with a consistent size."""
-        source = self.basis._convert_source(expression)
+        """Normalize a target coefficient as a square matrix with a consistent size."""
+        target = self.basis._convert_target(expression)
         if not self.finite:
-            source = sympy.ImmutableMatrix([[source]])
-        if self.source_shape is None:
-            self.source_shape = source.shape
-        elif source.shape != self.source_shape:
+            target = sympy.ImmutableMatrix([[target]])
+        if self.target_shape is None:
+            self.target_shape = target.shape
+        elif target.shape != self.target_shape:
             raise ValueError(
-                "All operator coefficients must have the same source matrix shape"
+                "All operator coefficients must have the same target matrix shape"
             )
-        return source
+        return target
 
     @cached_property
     def entry_embedding(self) -> Embedding:
@@ -334,14 +336,14 @@ class _EmbeddingBlocks:
     def frames(self) -> tuple[sympy.MatrixBase, sympy.MatrixBase]:
         """Return retained frame W and complement projector Q = 1 - W W†.
 
-        Source matrix size must already be set by ``source_matrix``. Reference
+        Target matrix size must already be set by ``target_matrix``. Reference
         columns are normalized creation monomials acting on a vacuum attachment.
         """
         basis = self.basis
         modes = basis.operators
         vacuum = (0,) * len(modes)
         if self.finite:
-            w = sympy.zeros(self.source_shape[0], len(basis._references))
+            w = sympy.zeros(self.target_shape[0], len(basis._references))
             for col, (row, state) in enumerate(basis._references):
                 monomial = NumberOrderedForm(
                     modes, {tuple(-n for n in state): sympy.S.One}
@@ -353,7 +355,7 @@ class _EmbeddingBlocks:
             w = sympy.ImmutableMatrix(w)
         else:
             w = sympy.ImmutableMatrix([[self.embedding._attach(sympy.S.One, 1)]])
-        return w, sympy.eye(self.source_shape[0]) - w * w.adjoint()
+        return w, sympy.eye(self.target_shape[0]) - w * w.adjoint()
 
     def convert(
         self, operator: BlockSeries, *, diagonal_origin: bool = False
@@ -369,11 +371,11 @@ class _EmbeddingBlocks:
         origin = (0,) * operator.n_infinite
 
         def evaluate(i: int, j: int, *order: int) -> Any:
-            source = operator[tuple(order)]
-            if source is zero or (diagonal_origin and i != j and tuple(order) == origin):
+            target = operator[tuple(order)]
+            if target is zero or (diagonal_origin and i != j and tuple(order) == origin):
                 return zero
-            source = self.source_matrix(source)
-            result = self.frames[i].adjoint() * source * self.frames[j]
+            target = self.target_matrix(target)
+            result = self.frames[i].adjoint() * target * self.frames[j]
             return (
                 zero if result.is_zero_matrix else result if self.finite else result[0, 0]
             )
@@ -387,26 +389,26 @@ class _EmbeddingBlocks:
         )
 
 
-class _SourceBasis:
-    """Shared normalization of source expressions and occupation symbols."""
+class _TargetBasis:
+    """Shared normalization of target expressions and occupation symbols."""
 
     operators: tuple[OperatorType, ...]
 
     @cached_property
-    def _source_placeholders(self) -> tuple[sympy.Symbol, ...]:
-        """Return scalar number symbols in source mode order."""
+    def _target_placeholders(self) -> tuple[sympy.Symbol, ...]:
+        """Return scalar number symbols in target mode order."""
         return _number_symbols(self.operators)
 
     def _at_occupations(
         self, expression: sympy.Expr, occupations: Sequence[int | sympy.Expr]
     ) -> sympy.Expr:
-        """Evaluate a source number coefficient at the supplied occupations."""
+        """Evaluate a target number coefficient at the supplied occupations."""
         return expression.xreplace(
-            dict(zip(self._source_placeholders, occupations, strict=True))
+            dict(zip(self._target_placeholders, occupations, strict=True))
         )
 
     def _convert_operator(self, expression: sympy.Expr) -> NumberOrderedForm:
-        """Convert an expression to NOF in the compiled source mode order.
+        """Convert an expression to NOF in the compiled target mode order.
 
         Rationalize stored floating coefficients before cancellation and reject
         modes missing from the reference declaration.
@@ -426,12 +428,12 @@ class _SourceBasis:
             {v: sympy.Rational(v) for v in expression.atoms(sympy.Float)}
         )
         if set(find_operators(expression)) - set(self.operators):
-            raise ValueError("Every source mode must be declared in the reference")
+            raise ValueError("Every target mode must be declared in the reference")
         return NumberOrderedForm.from_expr(expression, operators=self.operators)
 
 
-class _GeneratorBasis(_SourceBasis):
-    """Symbolic target algebra generated from one reference state."""
+class _GeneratorBasis(_TargetBasis):
+    """Symbolic source algebra generated from one reference state."""
 
     def __init__(
         self,
@@ -443,12 +445,12 @@ class _GeneratorBasis(_SourceBasis):
         if not isinstance(generators, Mapping) or not isinstance(reference, Mapping):
             raise TypeError("Generators and reference must be mappings")
         if not reference:
-            raise ValueError("Specify the source reference occupations")
+            raise ValueError("Specify the target reference occupations")
         if any(
-            target in reference and target != image
-            for target, image in generators.items()
+            source in reference and source != image
+            for source, image in generators.items()
         ):
-            raise ValueError("Target modes must not shadow distinct source modes")
+            raise ValueError("Source modes must not shadow distinct target modes")
         self.operators, self.reference = _ordered_reference_state(reference)
         numbers = {
             op: value
@@ -457,15 +459,15 @@ class _GeneratorBasis(_SourceBasis):
         }
         operators = tuple(op for op in generators if op not in numbers)
         if not all(isinstance(op, generator_types) for op in operators):
-            raise TypeError("Keys must be target lowering generators or ladder numbers")
+            raise TypeError("Keys must be source lowering generators or ladder numbers")
         if any(not op.is_annihilation for op in operators):
-            raise ValueError("Target generators must be lowering operators")
+            raise ValueError("Source generators must be lowering operators")
         operators = tuple(sorted(operators, key=_operator_sort_key))
-        self._target_operators = operators
-        self._target_dimensions = tuple(map(_occupation_dimension, operators))
+        self._source_operators = operators
+        self._source_dimensions = tuple(map(_occupation_dimension, operators))
         self.coordinate_symbols = tuple(
             sympy.Dummy(
-                f"target_{i}",
+                f"source_{i}",
                 integer=True,
                 **({} if isinstance(op, LadderOp) else {"nonnegative": True}),
             )
@@ -473,20 +475,20 @@ class _GeneratorBasis(_SourceBasis):
         )
         transitions = []
         for op in operators:
-            form = self._convert_source(generators[op])
+            form = self._convert_target(generators[op])
             terms = tuple(_NOFTransition.from_form(form))
             if len(terms) != 1 or not any(terms[0].powers):
                 raise ValueError(
-                    f"Image of {op} must change source occupations by one nonzero shift"
+                    f"Image of {op} must change target occupations by one nonzero shift"
                 )
             transition = terms[0]
             parity = (
                 sum(
                     power
-                    for source, power in zip(
+                    for target, power in zip(
                         self.operators, transition.powers, strict=True
                     )
-                    if isinstance(source, FermionOp)
+                    if isinstance(target, FermionOp)
                 )
                 % 2
             )
@@ -501,7 +503,7 @@ class _GeneratorBasis(_SourceBasis):
             raise ValueError("Generator shifts must be independent")
         matrix = self._occupation_matrix
         self._occupation_left_inverse = (matrix.T * matrix).inv() * matrix.T
-        self.source_occupations = tuple(
+        self.target_occupations = tuple(
             origin + sum(matrix[i, j] * q for j, q in enumerate(self.coordinate_symbols))
             for i, origin in enumerate(self.reference)
         )
@@ -513,46 +515,46 @@ class _GeneratorBasis(_SourceBasis):
         }
         if set(numbers) != expected_numbers:
             raise ValueError(
-                "Supply the independent number image for each target LadderOp"
+                "Supply the independent number image for each source LadderOp"
             )
         for op, number in numbers.items():
             index = next(
-                i for i, target in enumerate(operators) if NumberOperator(target) == op
+                i for i, source in enumerate(operators) if NumberOperator(source) == op
             )
-            form = self._convert_source(number)
+            form = self._convert_target(number)
             if any(any(powers) for powers in form.terms):
                 raise ValueError("A ladder number image must be occupation diagonal")
             expression = form.terms.get((0,) * len(self.operators), sympy.S.Zero)
-            expression = self._at_occupations(expression, self.source_occupations)
+            expression = self._at_occupations(expression, self.target_occupations)
             self._validate_identity(
                 expression - self.coordinate_symbols[index],
-                f"Ladder number image {op} must count from the target reference index zero",
+                f"Ladder number image {op} must count from the source reference index zero",
             )
 
-    def _convert_source(self, expression: sympy.Expr) -> NumberOrderedForm:
-        """Normalize a scalar source; matrix sources require reference lists."""
+    def _convert_target(self, expression: sympy.Expr) -> NumberOrderedForm:
+        """Normalize a scalar target; matrix targets require reference lists."""
         if isinstance(expression, sympy.MatrixBase):
-            raise TypeError("Matrix sources require a list of reference states")
+            raise TypeError("Matrix targets require a list of reference states")
         return self._convert_operator(expression)
 
     def _validate_domains(self) -> None:
-        """Check source occupation bounds over the full target occupation domain.
+        """Check target occupation bounds over the full source occupation domain.
 
         Use each affine map's minimum and maximum, rather than enumerating states.
-        Raise ValueError if a generator can overfill or underfill a source mode.
+        Raise ValueError if a generator can overfill or underfill a target mode.
         """
         for i, op in enumerate(self.operators):
             lower = upper = self.reference[i]
-            for coefficient, target, size in zip(
+            for coefficient, source, size in zip(
                 self._occupation_matrix.row(i),
-                self._target_operators,
-                self._target_dimensions,
+                self._source_operators,
+                self._source_dimensions,
                 strict=True,
             ):
                 if not coefficient:
                     continue
                 if size is None:
-                    if isinstance(target, LadderOp):
+                    if isinstance(source, LadderOp):
                         lower, upper = -sympy.oo, sympy.oo
                     elif coefficient > 0:
                         upper = sympy.oo
@@ -562,22 +564,22 @@ class _GeneratorBasis(_SourceBasis):
                     lower += min(0, coefficient) * (size - 1)
                     upper += max(0, coefficient) * (size - 1)
             if not isinstance(op, LadderOp) and lower < 0:
-                raise ValueError("Generators leave the physical source occupation domain")
+                raise ValueError("Generators leave the physical target occupation domain")
             if _occupation_dimension(op) is not None and upper >= _occupation_dimension(
                 op
             ):
-                raise ValueError("Generators overfill a source spin or fermion")
+                raise ValueError("Generators overfill a target spin or fermion")
 
     def _lowering_weight(self, index: int) -> sympy.Expr:
-        """Return the target lowering amplitude for mode ``index`` at symbolic numbers."""
-        powers = tuple(int(i == index) for i in range(len(self._target_operators)))
-        transition = _NOFTransition(self._target_operators, powers, sympy.S.One)
+        """Return the source lowering amplitude for mode ``index`` at symbolic numbers."""
+        powers = tuple(int(i == index) for i in range(len(self._source_operators)))
+        transition = _NOFTransition(self._source_operators, powers, sympy.S.One)
         return transition.symbolic_action(self.coordinate_symbols).weight
 
     def _reference_phase(self) -> sympy.Expr:
-        """Return the phase relating normalized source and target occupation states.
+        """Return the phase relating normalized target and source occupation states.
 
-        Compare source and target lowering amplitudes in a fixed creation order.
+        Compare target and source lowering amplitudes in a fixed creation order.
         Infinite modes require a number-independent ratio; otherwise raise
         NotImplementedError. The reference state's phase is one.
         """
@@ -586,13 +588,13 @@ class _GeneratorBasis(_SourceBasis):
             zip(
                 self._generators,
                 self.coordinate_symbols,
-                self._target_dimensions,
+                self._source_dimensions,
                 strict=True,
             )
         ):
             ratio = (
                 self._lowering_weight(i)
-                / transition.symbolic_action(self.source_occupations).weight
+                / transition.symbolic_action(self.target_occupations).weight
             )
             ratio = ratio.xreplace(
                 dict.fromkeys(self.coordinate_symbols[:i], sympy.S.Zero)
@@ -601,7 +603,7 @@ class _GeneratorBasis(_SourceBasis):
                 ratio = sympy.simplify(ratio)
                 if ratio.free_symbols.intersection(self.coordinate_symbols):
                     raise NotImplementedError(
-                        "Infinite target generators require a constant phase relative to their ladder weights"
+                        "Infinite source generators require a constant phase relative to their ladder weights"
                     )
                 phase *= ratio**q
             else:
@@ -615,12 +617,12 @@ class _GeneratorBasis(_SourceBasis):
         identity raises ValueError; an undecidable identity raises NotImplementedError.
         """
         expression = sympy.expand(expression)
-        for q, size in zip(self.coordinate_symbols, self._target_dimensions):
+        for q, size in zip(self.coordinate_symbols, self._source_dimensions):
             if size == 2 and q in expression.free_symbols and expression.is_polynomial(q):
                 expression = sympy.rem(expression, q**2 - q, q)
         binary = {
             q
-            for q, size in zip(self.coordinate_symbols, self._target_dimensions)
+            for q, size in zip(self.coordinate_symbols, self._source_dimensions)
             if size == 2
         }
         if (
@@ -639,12 +641,12 @@ class _GeneratorBasis(_SourceBasis):
         the mixed adjoint relations by reversing an edge of each lattice square.
         """
         weights = [
-            g.symbolic_action(self.source_occupations).weight for g in self._generators
+            g.symbolic_action(self.target_occupations).weight for g in self._generators
         ]
         coordinates = self.coordinate_symbols
         active = {
             q: sympy.S.One if size == 2 else q + 1
-            for q, size in zip(coordinates, self._target_dimensions)
+            for q, size in zip(coordinates, self._source_dimensions)
         }
         for i, q in enumerate(coordinates):
             norm = (
@@ -652,13 +654,13 @@ class _GeneratorBasis(_SourceBasis):
             )
             self._validate_identity(
                 norm.xreplace({q: active[q]}),
-                "Generator images must produce normalized target states",
+                "Generator images must produce normalized source states",
             )
             for j, other in enumerate(coordinates[:i]):
                 sign = (
                     -1
                     if all(
-                        isinstance(self._target_operators[k], FermionOp) for k in (i, j)
+                        isinstance(self._source_operators[k], FermionOp) for k in (i, j)
                     )
                     else 1
                 )
@@ -667,55 +669,55 @@ class _GeneratorBasis(_SourceBasis):
                 ) - sign * weights[i] * weights[j].xreplace({q: q - 1})
                 self._validate_identity(
                     relation.xreplace({q: active[q], other: active[other]}),
-                    "Generator images must obey the target algebra",
+                    "Generator images must obey the source algebra",
                 )
 
     @cached_property
-    def _target_placeholders(self) -> tuple[sympy.Symbol, ...]:
-        """Return scalar number symbols in target mode order."""
-        return _number_symbols(self._target_operators)
+    def _source_placeholders(self) -> tuple[sympy.Symbol, ...]:
+        """Return scalar number symbols in source mode order."""
+        return _number_symbols(self._source_operators)
 
     @cached_property
-    def _target_zero(self) -> NumberOrderedForm:
-        """Return zero carrying the target operator basis."""
-        return NumberOrderedForm(self._target_operators, {}, validate=False)
+    def _source_zero(self) -> NumberOrderedForm:
+        """Return zero carrying the source operator basis."""
+        return NumberOrderedForm(self._source_operators, {}, validate=False)
 
     @_cache_on_instance
-    def _target_shift(self, source_shift: tuple[int, ...]) -> tuple[int, ...] | None:
-        """Return the induced target shift, or None if compression annihilates it.
+    def _source_shift(self, target_shift: tuple[int, ...]) -> tuple[int, ...] | None:
+        """Return the induced source shift, or None if compression annihilates it.
 
-        The source shift must lie in the occupation map's image and correspond to
-        integer target steps within each finite mode's range.
+        The target shift must lie in the occupation map's image and correspond to
+        integer source steps within each finite mode's range.
         """
-        source = sympy.Matrix(source_shift)
-        result = self._occupation_left_inverse * source
-        if self._occupation_matrix * result != source:
+        target = sympy.Matrix(target_shift)
+        result = self._occupation_left_inverse * target
+        if self._occupation_matrix * result != target:
             return None
         if any(
             not value.is_Integer or (size is not None and abs(value) >= size)
-            for value, size in zip(result, self._target_dimensions, strict=True)
+            for value, size in zip(result, self._source_dimensions, strict=True)
         ):
             return None
         return tuple(map(int, result))
 
     @_cache_on_instance
     def _project_transition(self, transition: _NOFTransition) -> NumberOrderedForm:
-        """Compress one source term, including ladder amplitudes and reference phases.
+        """Compress one target term, including ladder amplitudes and reference phases.
 
-        Convert its shift and middle coefficient to target coordinates. Spectator
+        Convert its shift and middle coefficient to source coordinates. Spectator
         numbers stay symbolic; a transition outside the retained lattice gives zero.
         """
-        powers = self._target_shift(transition.powers)
+        powers = self._source_shift(transition.powers)
         if powers is None:
-            return self._target_zero
-        target_transition = _NOFTransition(self._target_operators, powers, sympy.S.One)
-        source_weight = transition.symbolic_action(self.source_occupations).weight
-        target_weight = target_transition.symbolic_action(self.coordinate_symbols).weight
+            return self._source_zero
+        source_transition = _NOFTransition(self._source_operators, powers, sympy.S.One)
+        target_weight = transition.symbolic_action(self.target_occupations).weight
+        source_weight = source_transition.symbolic_action(self.coordinate_symbols).weight
         shifted = {q: q - p for q, p in zip(self.coordinate_symbols, powers)}
         # The phase has unit modulus on the retained domain. Its ratio cancels
         # unchanged factors without expanding binary occupation identities.
         amplitude = (
-            source_weight / target_weight * self.phase / self.phase.xreplace(shifted)
+            target_weight / source_weight * self.phase / self.phase.xreplace(shifted)
         )
         # NOF coefficients sit between creation and annihilation operators.
         # A binary transition fixes its input occupation; spectators stay symbolic.
@@ -723,32 +725,32 @@ class _GeneratorBasis(_SourceBasis):
             q: sympy.Integer(p > 0) if p and size == 2 else n + max(p, 0)
             for q, n, p, size in zip(
                 self.coordinate_symbols,
-                self._target_placeholders,
+                self._source_placeholders,
                 powers,
-                self._target_dimensions,
+                self._source_dimensions,
             )
         }
         coefficient = sympy.factor_terms(amplitude.xreplace(initial))
         return NumberOrderedForm(
-            self._target_operators, {powers: coefficient}, validate=False
+            self._source_operators, {powers: coefficient}, validate=False
         )
 
     @_cache_on_instance
-    def _compress(self, source: NumberOrderedForm) -> NumberOrderedForm:
-        """Return ``W† source W`` by translating each term to the target algebra."""
-        result = self._target_zero
-        for transition in _NOFTransition.from_form(source):
+    def _compress(self, target: NumberOrderedForm) -> NumberOrderedForm:
+        """Return ``W† target W`` by translating each term to the source algebra."""
+        result = self._source_zero
+        for transition in _NOFTransition.from_form(target):
             result += self._project_transition(transition)
         return result
 
 
-class _ReferenceBasis(_SourceBasis):
-    """Finite target matrix in an ordered source occupation basis."""
+class _ReferenceBasis(_TargetBasis):
+    """Finite source matrix in an ordered target occupation basis."""
 
     def __init__(self, reference: Sequence[Mapping | tuple[int, Mapping]]) -> None:
-        """Use an ordered orthonormal product basis for a finite matrix target."""
+        """Use an ordered orthonormal product basis for a finite matrix source."""
         if isinstance(reference, Mapping):
-            raise TypeError("A matrix target requires a list of reference states")
+            raise TypeError("A matrix source requires a list of reference states")
         references = list(reference)
         if not references:
             raise ValueError("Specify at least one reference state")
@@ -762,7 +764,7 @@ class _ReferenceBasis(_SourceBasis):
                 raise ValueError("Matrix basis indices must be nonnegative integers")
             operators, state = _ordered_reference_state(occupations)
             if states and operators != self.operators:
-                raise ValueError("Every reference must declare the same source modes")
+                raise ValueError("Every reference must declare the same target modes")
             self.operators = operators
             states.append((int(component), state))
         if len(set(states)) != len(states):
@@ -770,27 +772,27 @@ class _ReferenceBasis(_SourceBasis):
         self._references = tuple(states)
         self._reference_indices = {state: i for i, state in enumerate(states)}
 
-    def _convert_source(
+    def _convert_target(
         self, expression: sympy.Expr | sympy.MatrixBase
     ) -> sympy.MatrixBase:
-        """Normalize square matrix entries, promoting scalar sources to 1x1 matrices."""
+        """Normalize square matrix entries, promoting scalar targets to 1x1 matrices."""
         if not isinstance(expression, sympy.MatrixBase):
             if any(c for c, _ in self._references):
                 raise ValueError(
-                    "Nonzero reference matrix indices require a matrix source"
+                    "Nonzero reference matrix indices require a matrix target"
                 )
             expression = sympy.ImmutableSparseMatrix([[expression]])
         if expression.rows != expression.cols:
-            raise ValueError("Source matrices must be square")
+            raise ValueError("Target matrices must be square")
         if any(component >= expression.rows for component, _ in self._references):
-            raise ValueError("Reference matrix index lies outside the source matrix")
+            raise ValueError("Reference matrix index lies outside the target matrix")
         return sympy.ImmutableSparseMatrix(expression.applyfunc(self._convert_operator))
 
     @_cache_on_instance
-    def _compress(self, source: sympy.MatrixBase) -> sympy.MatrixBase:
+    def _compress(self, target: sympy.MatrixBase) -> sympy.MatrixBase:
         """Evaluate matrix elements between the listed reference states, in list order."""
         entries = {}
-        for (row, col), entry in source.todok().items():
+        for (row, col), entry in target.todok().items():
             for transition in _NOFTransition.from_form(entry):
                 for j, (component, state) in enumerate(self._references):
                     if component != col or (action := transition.apply(state)) is None:
@@ -815,7 +817,7 @@ def _ordered_reference_state(
     if not isinstance(reference, Mapping) or not all(
         isinstance(op, generator_types) and op.is_annihilation for op in reference
     ):
-        raise TypeError("Reference keys must be source lowering generators")
+        raise TypeError("Reference keys must be target lowering generators")
     operators = tuple(sorted(reference, key=_operator_sort_key))
     state = tuple(sympy.sympify(reference[op]) for op in operators)
     for op, n in zip(operators, state, strict=True):
@@ -825,7 +827,7 @@ def _ordered_reference_state(
             or (not isinstance(op, LadderOp) and n < 0)
             or (size is not None and n >= size)
         ):
-            raise ValueError("Reference occupations lie outside the source algebra")
+            raise ValueError("Reference occupations lie outside the target algebra")
     return operators, state
 
 
