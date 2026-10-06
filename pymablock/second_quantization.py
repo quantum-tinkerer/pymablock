@@ -6,13 +6,13 @@ import numpy as np
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 
-from pymablock._occupation import _projectors
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
     _NOFTransition,
     _number_operator_to_placeholder,
+    _projectors,
 )
 from pymablock.operator_embedding import Embedding
 from pymablock.series import zero
