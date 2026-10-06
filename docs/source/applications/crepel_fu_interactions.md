@@ -93,6 +93,8 @@ display(hopping)
 bare = sp.factor(hopping.subs(N(f[2]), 0).coeff(Dagger(f[1]) * f[0]))
 assisted = sp.factor(hopping.subs(N(f[2]), 1).coeff(Dagger(f[1]) * f[0]))
 lam = sp.factor(assisted - bare)
+assert sp.cancel(bare - t0**2 / (Delta + V0)) == 0
+assert sp.cancel(lam - V0 * t0**2 / (Delta * (Delta + V0))) == 0
 display(sp.Eq(sp.Symbol("t"), bare), sp.Eq(sp.Symbol("lambda"), lam))
 
 # Connected pair-density term with the third B site empty.
@@ -104,7 +106,12 @@ interaction = sp.factor(
     - pair_energy.subs({N(f[0]): 0, N(f[1]): 1})
     + pair_energy.subs({N(f[0]): 0, N(f[1]): 0})
 )
-display(sp.Eq(sp.Symbol("W^{(2)}"), interaction))
+# Independently sum the six one-hop virtual channels for 0, 1, and 2 dopants.
+shift0 = -6 * t0**2 / (Delta + 2 * V0)
+shift1 = -t0**2 / (Delta + V0 + UB) - 4 * t0**2 / (Delta + V0)
+shift2 = -2 * t0**2 / (Delta + UB) - 2 * t0**2 / Delta
+assert sp.cancel(interaction - (shift2 - 2 * shift1 + shift0)) == 0
+display(sp.Eq(sp.Symbol("W^{(2)}"), sp.apart(interaction, Delta)))
 ```
 
 These amplitudes reproduce the equal-spin sector of Crépel and Fu[^crepel-fu]

@@ -72,6 +72,10 @@ The coefficient below transfers an excitation between the qubits.
 h2 = H[0, 0, 2]
 exchange_term = h2.filter_terms(((1, -1),), keep=True).as_expr()
 exchange = exchange_term.coeff(Dagger(q2) * q1)
+expected_exchange = -g12 + g1c * g2c * (
+    1 / (w1 - wc) + 1 / (w2 - wc) - 1 / (w1 + wc) - 1 / (w2 + wc)
+) / 2
+assert sp.cancel(exchange - expected_exchange) == 0
 display(sp.Eq(sp.Symbol("J^{(2)}"), exchange))
 ```
 
@@ -95,6 +99,17 @@ conditional_symbolic = (
     - diagonal.subs({N(q1): 0, N(q2): 1})
     + diagonal.subs({N(q1): 0, N(q2): 0})
 )
+# With the coupler disconnected, sum the direct virtual transitions from
+# |11>, |10>, |01>, and |00>, including counterrotating paths.
+direct_shift = 2 * g12**2 * (
+    1 / (w2 - w1 - alpha1) + 1 / (w1 - w2 - alpha2)
+    + 1 / (w1 + w2 + alpha1) + 1 / (w1 + w2 + alpha2)
+    - 2 / (w1 + w2 + alpha1 + alpha2)
+)
+assert sp.cancel(conditional_symbolic.subs({g1c: 0, g2c: 0}) - direct_shift) == 0
+# Check the harmonic limit at nonresonant frequencies, keeping all couplings symbolic.
+harmonic_point = {alpha1: 0, alpha2: 0, alphac: 0, w1: 5, w2: 7, wc: 11}
+assert sp.cancel(conditional_symbolic.subs(harmonic_point)) == 0
 ```
 
 Mixing within each parity block cancels in this energy combination. The ZZ

@@ -146,6 +146,10 @@ for occupations in ((0, 0), (0, 1), (1, 0), (1, 1)):
 assert currents[1] == currents[2]
 
 currents = [currents[i] for i in (0, 1, 3)]
+# The empty-dot branch includes both virtual quasiparticles and pair mixing.
+expected_empty = (GammaL * GammaR * tL**2 * tR**2 * (2 * EL + 2 * ER + b)
+                  * sp.sin(Phi) / (EL * ER * b * (EL + ER) * (EL + a) * (ER + a)))
+assert sp.cancel(currents[0] - expected_empty) == 0
 # Restore charging energy and gate voltage symbolically, for arbitrary U and n_g.
 currents_by_gate = [current.subs(charging_energies) for current in currents]
 for charge, current in enumerate(currents_by_gate):

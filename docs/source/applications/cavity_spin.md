@@ -120,6 +120,8 @@ for model in models:
     phases = model["phases"]
     for n in range(1, len(phases)):
         # Separate the common drive phase before simplifying the ancilla overlap.
+        expected = epsilon * sp.sqrt(n) * sp.exp(sp.I * varphi) * sp.cos((phases[n] - phases[n-1]) / 2) / 2
+        assert sp.trigsimp(sp.expand_complex(H[0, 0, 1][n-1, n] - expected)) == 0
         amplitude = H[0, 0, 1][n-1, n] * sp.exp(-sp.I * varphi)
         amplitude = sp.trigsimp(sp.expand_complex(amplitude)) * sp.exp(sp.I * varphi)
         display(sp.Eq(sp.Symbol(f"h_{{{len(phases)},{n-1}{n}}}"), amplitude))
