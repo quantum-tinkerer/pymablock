@@ -52,9 +52,10 @@ of occupations. There are quadratically many generator relations, but their
 symbolic coefficients can still grow; this is not a polynomial-time guarantee.
 
 Each generator image has one fixed occupation change, so retained states are
-target Fock states and target operators keep their declared names. Parameter
-substitution in an attached NOF substitutes in its target operator and
-reattaches it to the substituted embedding.
+target Fock states and target operators keep their declared names. Substitution
+and replacement in an attached NOF act on its arguments, including the embedding.
+Renaming a mode also renames its number-operator placeholder, and the constructor
+reorders the result to match the replaced embedding.
 
 ### Rectangular arithmetic
 
