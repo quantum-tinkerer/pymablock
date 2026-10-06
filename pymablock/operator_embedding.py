@@ -91,20 +91,6 @@ class Embedding(sympy.Expr):
 
     Notes
     -----
-    Boson occupations are nonnegative, fermion and spin occupations are 0 or 1,
-    and ``LadderOp`` indices may be any integer. Each target expression must
-    change every target occupation by a fixed amount, possibly zero, as a
-    product of creation and annihilation operators does. Embedded states are
-    therefore Fock states of the target operators. To embed a combination such
-    as ``(c1 + c2) / sqrt(2)``, first rewrite the Hamiltonian in terms of new
-    operators for that combination and those orthogonal to it.
-
-    The matrix elements of each target expression between embedded states must
-    equal those of the source operator, up to a phase factor. For example,
-    ``{s: 2 * a}`` raises an error instead of being normalized. Phases may depend
-    on occupations, such as fermion signs, only for spin and fermion source
-    operators.
-
     With ``generators``, the block 0 entries are
     `~pymablock.number_ordered_form.NumberOrderedForm` objects in the source
     operators. This includes bosonic or ``LadderOp`` source operators with
