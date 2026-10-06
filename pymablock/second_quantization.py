@@ -140,7 +140,7 @@ def _make_embedding_sylvester_solver(
     reference states or symbolic source occupations, then divide each transition.
     The callback preserves the series zero sentinel before accessing matrix entries.
     """
-    modes, numbers = embedding.operators, embedding.target_numbers
+    modes, numbers = embedding._target_operators, embedding._target_numbers
     if any(i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()):
         raise ValueError("Structured embeddings currently require diagonal H0")
     vacuum = (0,) * len(modes)
@@ -148,21 +148,24 @@ def _make_embedding_sylvester_solver(
         x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
         for x in h0.diagonal()
     ]
-    occupations, coordinates = embedding.target_occupations, embedding.coordinate_symbols
-    coordinate_map = embedding.coordinate_map
+    occupations, coordinates = (
+        embedding._target_occupations,
+        embedding._coordinate_symbols,
+    )
+    coordinate_map = embedding._coordinate_map
     nonnegative = tuple(
         q
-        for q, op in zip(coordinates, embedding.source_operators)
+        for q, op in zip(coordinates, embedding._source_operators)
         if not isinstance(op, LadderOp)
     )
     incoming_energies = [
-        embedding.evaluate_numbers(energies[row], state)
-        for row, state in embedding.energy_states
+        embedding._evaluate_numbers(energies[row], state)
+        for row, state in embedding._energy_states
     ]
 
     # Within each diagonal block the operators already use source or target
     # coordinates. Only rectangular blocks require embedding-aware division.
-    retained_energies = embedding.restrict(embedding.block_result(h0))
+    retained_energies = embedding.restrict(embedding._block_result(h0))
     retained_energies = (
         retained_energies.diagonal()
         if isinstance(retained_energies, sympy.MatrixBase)
@@ -182,20 +185,21 @@ def _make_embedding_sylvester_solver(
             # Divide the coefficient, not the full matrix element; ladder factors
             # only determine whether the transition is active.
             middle_occupations = [n - max(p, 0) for n, p in zip(occupations, powers)]
-            coefficient = embedding.evaluate_numbers(
+            coefficient = embedding._evaluate_numbers(
                 coefficients[powers], middle_occupations
             )
             denominator = sympy.expand(
-                embedding.evaluate_numbers(energies[row], output) - incoming_energies[col]
+                embedding._evaluate_numbers(energies[row], output)
+                - incoming_energies[col]
             )
             # A literal zero gap still needs the amplitude interpreted in the
             # source algebra: binary numbers obey n² = n, including indicators.
             if denominator == 0 and coordinates:
                 amplitude = NumberOrderedForm(
-                    embedding.source_operators,
+                    embedding._source_operators,
                     {
                         (0,) * len(coordinates): matrix_element.xreplace(
-                            dict(zip(coordinates, embedding.source_placeholders))
+                            dict(zip(coordinates, embedding._source_placeholders))
                         )
                     },
                     validate=False,
@@ -220,7 +224,11 @@ def _make_embedding_sylvester_solver(
                 }
             )
         return NumberOrderedForm(
-            embedding.operators, terms, embedding.entry_embedding, 1, validate=False
+            embedding._target_operators,
+            terms,
+            embedding._entry_embedding,
+            1,
+            validate=False,
         )
 
     def solve(value: Any, index: tuple[int, ...]) -> Any:

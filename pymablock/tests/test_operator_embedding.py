@@ -148,7 +148,7 @@ def test_retained_fermions_preserve_car_and_mode_correspondence(reverse, frozen)
         {left: a, right: b},
         reference={a: 0, fixed: frozen, b: 0},
     )
-    assert backend.source_operators == (f, g)
+    assert backend._source_operators == (f, g)
     for target, source in (
         (a, left),
         (b, right),
@@ -324,11 +324,11 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     target_states = list(product((0, 1), repeat=4))
     columns = []
     direct = {first: left, second: right}
-    for state in product((0, 1), repeat=len(backend.source_operators)):
-        values = dict(zip(backend.source_operators, state, strict=True))
+    for state in product((0, 1), repeat=len(backend._source_operators)):
+        values = dict(zip(backend._source_operators, state, strict=True))
         baseline = tuple(int(op == down) for op in modes)
         column = np.eye(16)[:, target_states.index(baseline)]
-        for source in reversed(backend.source_operators):
+        for source in reversed(backend._source_operators):
             if values[source]:
                 raising = (
                     matrices[Dagger(up)] @ matrices[down]
@@ -347,7 +347,7 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     finite_embedding = Embedding(reference=references)
     selected = [target_states.index(tuple(ref[op] for op in modes)) for ref in references]
     source_matrices = occupation_matrices(
-        backend.source_operators,
+        backend._source_operators,
         [(0, 1)] * 3,
     )
     for expression in (
@@ -402,7 +402,7 @@ def test_mixed_source_second_order(finite):
         assert h[0, 0, 2] == expected
     else:
         expected = NumberOrderedForm.from_expr(
-            -N(f) * N(s) ** 2 / 3, operators=embedding.source_operators
+            -N(f) * N(s) ** 2 / 3, operators=embedding._source_operators
         )
         assert (h[0, 0, 2] - expected).applyfunc(sympy.simplify).is_zero
 

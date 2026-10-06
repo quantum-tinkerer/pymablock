@@ -261,13 +261,13 @@ def block_diagonalize(
                 "Structured embeddings use exact coefficients and do not accept a numerical atol."
             )
         embedding = subspace_eigenvectors
-        h0 = embedding.target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
+        h0 = embedding._target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
         solve_sylvester = second_quantization._make_embedding_sylvester_solver(
             embedding, h0
         )
         # Validate the projector before lazy series evaluation.
-        embedding.frames(h0.rows)
-        hamiltonian = embedding.convert(hamiltonian, diagonal_origin=True)
+        embedding._frames(h0.rows)
+        hamiltonian = embedding._convert(hamiltonian, diagonal_origin=True)
         subspace_eigenvectors = None
 
     use_implicit = False
@@ -838,7 +838,7 @@ def operator_to_BlockSeries(
     if isinstance(subspace_eigenvectors, Embedding):
         if implicit:
             raise ValueError("Structured embedding conversion does not use implicit mode")
-        return subspace_eigenvectors.convert(operator)
+        return subspace_eigenvectors._convert(operator)
 
     # Separation into subspace_eigenvectors
     if not to_split:
