@@ -251,10 +251,6 @@ def block_diagonalize(
             raise NotImplementedError(
                 "Structured embeddings do not accept solver_options."
             )
-        if fully_diagonalize:
-            raise NotImplementedError(
-                "Structured embeddings do not support fully_diagonalize."
-            )
         if not direct_solver:
             raise NotImplementedError(
                 "Structured embeddings use an exact algebraic solver; direct_solver=False is unsupported."
