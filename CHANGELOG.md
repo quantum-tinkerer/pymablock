@@ -15,12 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Second-quantized energy-gap division uses local support checks and preserves unresolved resonances as symbolic poles, rather than enumerating all binary occupation sectors. Exposed nonzero couplings at zero gaps still raise an error.
 - Raised minimum versions to Python 3.12, NumPy 2.2, SciPy 1.15, and SymPy 1.14 following the September 2026 SPEC 0 support window.
 - Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
 - Reduced the number of matrix products in selective Hermitian diagonalization by evaluating the selected auxiliary directly, and in non-Hermitian diagonalization by exploiting the selected structure of the transformed residual.
 
 ### Fixed
 
+- Preserved meromorphic occupation coefficients during binary simplification, preventing singular points from corrupting nonresonant sectors.
+- Fixed zero off-diagonal orders, mode mixing, reconstruction and substitution of structured embeddings. Finite embedding outputs consistently contain scalar SymPy entries, and symbolic conversion rationalizes stored floating coefficients before cancellation.
+- Fixed the zero-solution convention at inactive negative sites of bilateral ladders.
 - Fixed implicit projectors on SciPy 1.18 by initializing the `LinearOperator` base class.
 - Fixed the Andreev supercurrent tutorial's fermionic matrix conversion for SymPy 1.14.
 - Fixed chained and nested custom-algorithm division failing on the zero sentinel by recursively transforming division operands.
@@ -53,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added `Embedding` for generator-defined target operators and ordered finite reference bases, with virtual transitions outside the retained space. The same embedding converts observables through `operator_to_BlockSeries`.
 - Added a non-Hermitian similarity-transform algorithm via `block_diagonalize(..., hermitian=False)`, including support for asymmetric selective masks, symbolic inputs, and biorthogonal `subspace_eigenvectors=[(right, left), ...]` in the explicit and implicit direct paths. The implicit KPM solver remains unsupported in the non-Hermitian path.
 
 ## [2.2.1] - 2026-03-09

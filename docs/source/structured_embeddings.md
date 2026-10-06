@@ -1,3 +1,18 @@
+---
+jupytext:
+  text_representation:
+    extension: .md
+    format_name: myst
+    format_version: 0.13
+kernelspec:
+  display_name: Python 3 (ipykernel)
+  language: python
+  name: python3
+mystnb:
+  execution_mode: cache
+  execution_timeout: 120
+---
+
 # Structured embeddings
 
 An effective model can have different operators from its microscopic Hamiltonian.
@@ -21,7 +36,7 @@ and amplitude. Repeating this definition at each site requires one local
 operator expression per spin, without listing a many-body basis or supplying a
 projector.
 
-```python
+```{code-cell} ipython3
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.pauli import SigmaMinus
@@ -62,19 +77,6 @@ incorrect amplitudes rather than silently normalizing them. The reference has
 phase one; the generators fix all other phases, including signs from occupied
 fermionic spectators and permutations of the target modes.
 
-These checks apply to the compressed generators $PGP$. Each generator must
-have the target ladder norm, and each pair must commute (anticommute for two
-fermions) on the retained occupation lattice. The reference and occupation
-boundaries fix the vacuum and finite truncation; the norm and pair relations
-then also determine the relations involving adjoints. Thus checking the source
-algebra outside the retained space is unnecessary: a boson can represent a
-two-state target even though their uncompressed commutators differ.
-
-Validation leaves spectator occupations symbolic. Binary polynomial identities
-are reduced modulo $n^2-n$, rather than checked separately at every combination
-of occupations. There are quadratically many generator relations, but their
-symbolic coefficients can still grow; this is not a polynomial-time guarantee.
-
 `embedding.restrict(A)` evaluates
 
 $$
@@ -98,7 +100,7 @@ The generator $s\mapsto a$ and the source vacuum identify the first two
 oscillator levels with the target spin. The target algebra sets the upper
 boundary, so no source cutoff is needed.
 
-```python
+```{code-cell} ipython3
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 from pymablock import block_diagonalize
@@ -114,6 +116,9 @@ H_eff, U, U_adjoint = block_diagonalize(
     [H0, V], subspace_eigenvectors=embedding
 )
 second_order = H_eff[0, 0, 2]
+from pymablock.number_ordered_form import NumberOrderedForm
+expected = NumberOrderedForm.from_expr(-2 * g**2 * N(s) / (omega + alpha))
+assert (second_order - expected).applyfunc(sympy.cancel).is_zero
 ```
 
 The effective Hamiltonian through second order is
@@ -136,12 +141,37 @@ The fixed embedding defines the target operators. The perturbative unitary
 $\mathcal U$ subsequently accounts for virtual dressing:
 $H_{\mathrm{eff}}=W^\dagger\mathcal U^\dagger H\mathcal U W$.
 
+## Dressed observables
+
+`restrict(A)` gives the observable in the fixed reference representation.
+To include virtual dressing, convert it with the same embedding and apply the
+perturbative unitary returned by `block_diagonalize`:
+
+```{code-cell} ipython3
+from operator import mul
+from pymablock import operator_to_BlockSeries
+from pymablock.series import cauchy_dot_product
+
+# The one-element order tuple gives the observable the same series dimension.
+A = operator_to_BlockSeries({(0,): N(a)}, subspace_eigenvectors=embedding)
+A_eff = cauchy_dot_product(U_adjoint, A, U, operator=mul)
+expected = NumberOrderedForm.from_expr(2 * g**2 * N(s) / (omega + alpha)**2)
+assert (A_eff[0, 0, 2] - expected).simplify().is_zero
+```
+
+The correction comes from the virtual population of oscillator level two.
+Conversion accepts non-diagonal observables and preserves their zeroth-order
+cross blocks. Use scalar multiplication (`operator=mul`) for generator
+embeddings; it also multiplies the SymPy matrices from reference lists.
+
 ## Combining degrees of freedom
 
 Independent generator definitions fit in one mapping. A tunable coupler uses
 three source oscillators and two target spins:
 
-```python
+```{code-cell} ipython3
+a1, a2, coupler = (BosonOp(name) for name in ("a1", "a2", "coupler"))
+s1, s2 = SigmaMinus("s1"), SigmaMinus("s2")
 embedding = Embedding(
     {s1: a1, s2: a2},
     reference={a1: 0, a2: 0, coupler: 0},
@@ -154,7 +184,9 @@ visit higher levels during perturbation theory.
 
 A localized spin, conduction fermion, and cavity can coexist in one target:
 
-```python
+```{code-cell} ipython3
+f, conduction = FermionOp("f"), FermionOp("conduction")
+b, cavity = BosonOp("b"), BosonOp("cavity")
 embedding = Embedding(
     {s: Dagger(down) * up, f: conduction, b: cavity},
     reference={up: 0, down: 1, conduction: 0, cavity: 0},
@@ -168,7 +200,8 @@ dependence on all modes.
 
 A hole is also a direct generator definition:
 
-```python
+```{code-cell} ipython3
+hole, electron = FermionOp("hole"), FermionOp("electron")
 embedding = Embedding({hole: Dagger(electron)}, reference={electron: 1})
 ```
 
@@ -181,7 +214,7 @@ A `LadderOp` represents a bilateral integer shift, such as a Floquet index.
 It has no vacuum. Its reference represents target index zero, and its number
 operator must be supplied independently because $L^\dagger L=1$:
 
-```python
+```{code-cell} ipython3
 from pymablock.number_ordered_form import LadderOp
 
 ell, source_ell = LadderOp("ell"), LadderOp("source_ell")
@@ -196,7 +229,7 @@ embedding = Embedding(
 Omit the generator mapping and list the retained source states in the desired
 matrix order. Selecting the first three oscillator levels gives
 
-```python
+```{code-cell} ipython3
 embedding = Embedding(reference=[{a: 0}, {a: 1}, {a: 2}])
 assert embedding.restrict(N(a)) == sympy.diag(0, 1, 2)
 H_eff, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
@@ -220,7 +253,7 @@ A source may itself be a square SymPy matrix whose entries contain
 second-quantized operators. Each reference then pairs a matrix-basis index with
 an occupation dictionary:
 
-```python
+```{code-cell} ipython3
 b = BosonOp("b")
 H0_matrix = sympy.diag(5 * N(b), 2 + 5 * N(b))
 V_matrix = sympy.Matrix([[b + Dagger(b), 2 * b + 3 * Dagger(b)],
@@ -253,16 +286,9 @@ then inspect or display their `as_expr()` expressions. Reference-list embeddings
 return finite matrices directly; they do not provide matrices with symbolic
 target-operator entries.
 
-Conversion translates each source term's occupation shift and substitutes its
-coefficient into the target coordinates. Spectator occupations stay symbolic;
-conversion does not expand them into all binary configurations. Coefficients
-therefore need not be multilinear: for example, a binary occupation can appear
-as `N(q) * (1 - N(q))`. Use the result's `simplify()` method when explicit binary
-reduction is needed, such as before a structural equality or zero check.
-
 Normalized linear mode mixing is supported directly:
 
-```python
+```{code-cell} ipython3
 c1, c2, f = (FermionOp(name) for name in ("c1", "c2", "f"))
 embedding = Embedding(
     {f: (c1 + sympy.I * c2) / sympy.sqrt(2)},
@@ -277,12 +303,6 @@ as virtual modes. Each mixed set must start in its empty Fock state. Symbolic
 two-mode rotations are supported; larger rotations require the compiler to
 establish nonzero norms when completing the basis. Images are checked for
 normalization and mutual orthogonality, rather than silently renormalized.
-The compiler groups overlapping source modes and collects the linear images
-as matrix rows. It checks their Gram matrix and completes only the orthogonal
-complement. Disconnected groups stay separate, including bosonic and fermionic
-groups. A direct two-mode completion avoids singular denominators at special
-rotation angles.
-
 After any linear rotation, the compiler supports source expressions with **one
 independent occupation shift per target generator** and a product occupation
 reference. Coefficients may depend on source occupations. Finite targets permit
@@ -300,88 +320,18 @@ difference; coupled degeneracies require changing the retained block or model.
 For retained infinite modes, symbolic energy denominators require the usual
 nonresonance assumption on the occupations where the effective model is used.
 
-The solver constructs the fixed occupation projector $P=WW^\dagger$ and its
-complement $Q=1-P$, using equality-based `Piecewise` expressions. It prepares
-Hamiltonian blocks and an energy-gap solver for the standard `block_diagonalize`
-driver. Virtual products do not enumerate or truncate the discarded states.
+Symbolic division selects zero when the virtual amplitude vanishes, including
+at a zero gap. An exposed zero gap with a nonzero amplitude raises an error.
+Unresolved occupation-dependent resonances remain symbolic poles: evaluate
+the effective model only in nonresonant sectors. Binary simplification preserves
+such coefficients rather than evaluating their singular points.
 
-For each of `H_eff`, `U`, and `U_adjoint`, block `[0, 0, ...]` uses the target
-operators or reference-list matrix basis. Block `[1, 1, ...]` uses source
-operators on the complement. The off-diagonal blocks are rectangular maps:
-$XW$ or $W^\dagger X$. Their NOFs carry the fixed `embedding` and a `side`
-(`1` for a right attachment, `-1` for a left attachment). The `source` property
-returns the ordinary operator $X$.
+The algebraic solver treats a floating coefficient as the exact rational value
+stored by SymPy. This prevents roundoff during symbolic cancellation from
+creating false resonances. A stored `0.1` differs from `sympy.Rational("0.1")`;
+use rational input when exact decimal values or exact decimal resonances are
+intended. The solver rejects nondefault `atol`, `direct_solver=False`, and
+`solver_options`; those numerical settings do not apply to symbolic division.
 
-These blocks support ordinary addition, multiplication, and adjoints. In
-particular, $W^\dagger XW$ contracts immediately to an ordinary target operator,
-and $(XW)(W^\dagger Y)=XPY$. Source multiplication preserves the attachment;
-it does not project or normalize after each operation. Support is reduced
-before dividing by an energy gap, so cancelling virtual amplitudes do not
-produce spurious resonance errors.
-
-For a generator embedding, algebraic use looks like this:
-
-```python
-from pymablock.number_ordered_form import NumberOrderedForm
-
-embedding = Embedding({s: a}, reference={a: 0})
-W = NumberOrderedForm.from_expr(embedding)
-X = NumberOrderedForm.from_expr(a + Dagger(a))
-rectangular = X * W
-compressed = W.adjoint() * rectangular  # embedding.restrict(X)
-```
-
-A reference-list embedding is prepared
-as a matrix of NOFs sharing one vacuum attachment. Matrix indices select the
-source components, and normalized creation monomials prepare the listed
-occupations. There is no separate embedding wrapper around the matrix.
-
-With linear mode mixing, source operators use the compiler's rotated modes.
-The usual `zero` and `one` series sentinels represent zero and the identity on
-the block's space. Embedding attachments occur only on rectangular blocks;
-the effective Hamiltonian has already been contracted into the target algebra.
-
-`NumberOrderedForm.as_expr()` exports diagonal projectors as ordinary SymPy
-`Piecewise` expressions, which can be read back with `from_expr()`. A SymPy
-assumptions patch preserves noncommutativity when the conditions contain
-operators; the scalar occupation coefficients inside a NOF remain commutative.
-NOF coefficient arithmetic applies point-projector constraints directly, so
-embedding products use the same reduction as ordinary NOF products.
-
-The source projector selects a joint spectrum of commuting number operators.
-Writing the occupation map as $n=r+Mm$, let $LM=I$ and let the rows of $C$
-form a basis of the left nullspace of $M$. The projector imposes
-$C(n-r)=0$ and selects the allowed spectrum of each target number operator
-in $L(n-r)$. Using independent nullspace constraints avoids redundant
-occupation equations. A reference state is the special case that selects one
-eigenvalue of every source number operator. Finite spectral selections are sums
-of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
-
-The Sylvester solver evaluates each source transition on the incoming occupations
-$n=r+Mm$, then divides by the difference between its outgoing and incoming
-energies. The embedding already fixes the incoming support, so the solver does
-not multiply by the source projector. Reference-list columns use their vacuum
-attachment and creation monomial in the same transition calculation.
-Coefficient division is shared with regular second quantization. It resolves
-binary occupations when substitution immediately exposes a zero amplitude or
-gap, and otherwise keeps generic quotients factored. Point selections and
-unresolved inactive occupation sets use diagonal conditional expressions,
-preserving zero on inactive channels without expanding every binary sector.
-Simple structural nonzero checks avoid unnecessary conditions; the fallback
-keeps zero conditions unevaluated rather than asking SymPy to decide them.
-An exposed zero gap with nonzero
-amplitude raises a degeneracy error; other resonances can remain as symbolic
-poles. This is not an exhaustive resonance check. Resolving an identically zero
-gap can still require checking several binary occupations, and symbolic
-expression growth remains possible.
-
-For infinite bosonic targets, the solver currently requires that nonnegative
-target occupations follow from the physical source occupations. Other selections
-raise `NotImplementedError` because they require occupation inequalities.
-Finite reference lists and binary targets use only equality conditions.
-Avoiding basis enumeration does not remove expression growth at high orders.
-
-The [application documents](applications/index.md) reproduce the supercurrent,
-Crépel–Fu interaction model, tunable coupler, and artificial cavity spin.
-See also the
-[API reference](documentation/pymablock.md#structured-embeddings).
+[The developer documentation](developer.md) describes source rotations,
+projectors, and the rectangular blocks returned outside the retained subspace.
