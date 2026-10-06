@@ -158,27 +158,6 @@ def test_diagonalize_embedded_infinite_oscillators(selective):
     assert h[0, 0, 2] == expected
 
 
-@pytest.mark.parametrize("angle", [0, s.pi / 2, s.pi / 4])
-@pytest.mark.parametrize("method", ["subs", "xreplace"])
-def test_substitution_preserves_independent_rotation_groups(angle, method):
-    a, b, c, d, f, g = map(FermionOp, ("a", "b", "c", "d", "f", "g"))
-    theta, phi = s.symbols("theta phi", real=True)
-    embedding = Embedding(
-        {f: s.cos(theta) * a + s.sin(theta) * b, g: s.cos(phi) * c + s.sin(phi) * d},
-        reference={a: 0, b: 0, c: 0, d: 0},
-    )
-    replacements = {theta: angle, phi: s.pi / 4}
-    updated = getattr(embedding, method)(replacements)
-    ket = NumberOrderedForm.from_expr(
-        N(a) + 3 * N(b) + 2 * N(c)
-    ) * NumberOrderedForm.from_expr(embedding)
-    transformed = getattr(ket, method)(replacements)
-    value = NumberOrderedForm.from_expr(updated).adjoint() * transformed
-    # Independent local occupation probabilities, in the declared target basis.
-    expected = (s.cos(angle) ** 2 + 3 * s.sin(angle) ** 2) * N(f) + N(g)
-    assert nof_matrix(value) == nof_matrix(NumberOrderedForm.from_expr(expected))
-
-
 def test_binary_equality_after_multiplication():
     """Canonical binary products retain structural equality."""
     a, b = FermionOp("a"), FermionOp("b")
@@ -222,35 +201,54 @@ def test_dressed_observable_conversion(finite):
         assert nof_matrix(value) == s.diag(0, s.Rational(2, 9))
 
 
-def test_mixed_mode_public_composition_and_reconstruction():
-    """A rank-one occupied projector fixes the independently known matrix element."""
-    a, b, f = map(FermionOp, ("a", "b", "f"))
-    theta = s.Symbol("theta", real=True)
-    embedding = Embedding(
-        {f: s.cos(theta) * a + s.sin(theta) * b}, reference={a: 0, b: 0}
-    )
+def test_attached_reconstruction():
+    """Attached NOFs survive reconstruction and pickling."""
+    a, q = BosonOp("a"), SigmaMinus("q")
+    embedding = Embedding({q: a}, reference={a: 0})
     w = NumberOrderedForm.from_expr(embedding)
-    x = NumberOrderedForm.from_expr(N(a))
-    y = NumberOrderedForm.from_expr(N(b))
-    product = (x * w) * (w.adjoint() * y)
-    retained = embedding.restrict(product)
-    expected = NumberOrderedForm.from_expr(s.cos(theta) ** 2 * s.sin(theta) ** 2 * N(f))
-    assert (retained - expected).applyfunc(s.trigsimp).is_zero
+    x = NumberOrderedForm.from_expr(N(a) + a)
     for restore in (lambda v: v.func(*v.args), lambda v: pickle.loads(pickle.dumps(v))):
         restored = restore(x * w)
         assert restored == x * w
-        assert (
-            (w.adjoint() * restored - embedding.restrict(N(a)))
-            .applyfunc(s.trigsimp)
-            .is_zero
+        assert w.adjoint() * restored == embedding.restrict(N(a) + a)
+
+
+@pytest.mark.parametrize("method", ["subs", "xreplace"])
+def test_attached_blocks_substitute_parameters(method):
+    """Number-operator conditions in rectangular blocks survive substitution."""
+    a, q = BosonOp("a"), SigmaMinus("q")
+    omega, alpha, g = s.symbols("omega alpha g", positive=True)
+    h0 = omega * N(a) + alpha * N(a) * (N(a) - 1) / 2
+    embedding = Embedding({q: a}, reference={a: 0})
+    _, u, _ = block_diagonalize(
+        [h0, g * (a + a.adjoint())], subspace_eigenvectors=embedding, symbols=[g]
+    )
+    values = {omega: 2, alpha: 3}
+    _, expected, _ = block_diagonalize(
+        [h0.subs(values), g * (a + a.adjoint())],
+        subspace_eigenvectors=embedding,
+        symbols=[g],
+    )
+    for index in ((1, 0, 1), (0, 1, 1)):
+        value = getattr(u[index], method)(values)
+        assert value.embedding == embedding
+        assert value.side == expected[index].side
+        assert nof_matrix(value.source, [range(4)]) == nof_matrix(
+            expected[index].source, [range(4)]
         )
-    for replace in (
-        lambda v: v.subs(theta, s.pi / 4),
-        lambda v: v.xreplace({theta: s.pi / 4}),
-    ):
-        ket = replace(x * w)
-        bra = NumberOrderedForm.from_expr(replace(embedding)).adjoint()
-        assert (bra * ket - NumberOrderedForm.from_expr(N(f) / 2)).is_zero
+
+
+def test_attached_xreplace_renames_source_modes():
+    """Renaming a source mode also renames its number operator."""
+    a, b, q = BosonOp("a"), BosonOp("b"), SigmaMinus("q")
+    renamed = Embedding({q: b}, reference={b: 0})
+    attached = NumberOrderedForm.from_expr(N(a)) * NumberOrderedForm.from_expr(
+        Embedding({q: a}, reference={a: 0})
+    )
+    value = attached.xreplace({a: b, a.adjoint(): b.adjoint()})
+    assert value.embedding == renamed
+    contracted = NumberOrderedForm.from_expr(renamed).adjoint() * value
+    assert contracted == renamed.restrict(N(b))
 
 
 def test_compiled_bases_are_collectable():

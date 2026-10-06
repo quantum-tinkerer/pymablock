@@ -306,35 +306,37 @@ then inspect or display their `as_expr()` expressions. Reference-list embeddings
 return finite matrices directly; they do not provide matrices with symbolic
 target-operator entries.
 
-Normalized linear mode mixing is supported directly:
+An embedding maps Fock states of the target to Fock states of the source. To
+embed a linear combination of source modes, such as a bonding orbital, first
+rewrite the Hamiltonian in terms of operators for that combination and the
+combinations orthogonal to it:
 
 ```{code-cell} ipython3
-c1, c2, f = (FermionOp(name) for name in ("c1", "c2", "f"))
-embedding = Embedding(
-    {f: (c1 + sympy.I * c2) / sympy.sqrt(2)},
-    reference={c1: 0, c2: 0},
-)
-embedding.restrict(c1).as_expr()  # f / sqrt(2)
+c1, c2 = FermionOp("c1"), FermionOp("c2")
+bonding, antibonding, f = (FermionOp(name) for name in ("bonding", "antibonding", "f"))
+H0 = 3 * (N(c1) + N(c2)) + Dagger(c1) * c2 + Dagger(c2) * c1
+modes = {
+    c1: (bonding + antibonding) / sympy.sqrt(2),
+    c2: (bonding - antibonding) / sympy.sqrt(2),
+}
+modes.update({Dagger(op): Dagger(image) for op, image in list(modes.items())})
+# doit() writes number operators as products that the substitution can replace.
+H0 = sympy.expand(H0.doit().xreplace(modes))
+embedding = Embedding({f: bonding}, reference={bonding: 0, antibonding: 0})
+embedding.restrict(H0).as_expr()  # 4 * N_f
 ```
 
-The same construction works for bosons. The compiler completes orthonormal
-linear images to a source basis rotation, retaining the orthogonal combinations
-as virtual modes. Each mixed set must start in its empty Fock state. Symbolic
-two-mode rotations are supported; larger rotations require the compiler to
-establish nonzero norms when completing the basis. Images are checked for
-normalization and mutual orthogonality, rather than silently renormalized.
-After any linear rotation, the compiler supports source expressions with **one
-independent occupation shift per target generator** and a product occupation
-reference. Coefficients may depend on source occupations. Finite targets permit
-occupation-dependent phases; infinite targets require constant phases relative
-to their ladder amplitudes. General nonlinear superpositions and entangled
+Each source expression must make **one independent occupation shift per target
+generator**, starting from a product occupation reference. Coefficients may
+depend on source occupations. Finite targets permit occupation-dependent phases;
+infinite targets require constant phases relative to their ladder amplitudes. General nonlinear superpositions and entangled
 reference states are not supported. Validation distinguishes a violated identity
 from one it cannot establish symbolically.
 
 The default perturbative solver requires Hermitian input and a source Hamiltonian
-$H_0=E(N_1,\ldots,N_M)$ diagonal in the compiled source occupations, including
-after any mode rotation. For a matrix source, H0 must also be diagonal in its
-matrix indices, with occupation-diagonal entries. The selected source states
+$H_0=E(N_1,\ldots,N_M)$ diagonal in the source occupations. For a matrix
+source, H0 must also be diagonal in its matrix indices, with occupation-diagonal
+entries. The selected source states
 are then invariant under $H_0$. Each virtual transition uses its actual energy
 difference; coupled degeneracies require changing the retained block or model.
 For retained infinite modes, symbolic energy denominators require the usual
@@ -353,5 +355,5 @@ use rational input when exact decimal values or exact decimal resonances are
 intended. The solver rejects nondefault `atol`, `direct_solver=False`, and
 `solver_options`; those numerical settings do not apply to symbolic division.
 
-[The developer documentation](developer.md) describes source rotations,
+[The developer documentation](developer.md) describes validation,
 projectors, and the rectangular blocks returned outside the retained subspace.

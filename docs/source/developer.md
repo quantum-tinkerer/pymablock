@@ -32,7 +32,7 @@ also discards its basis caches. The scalar projector cache has a fixed size.
 SymPy compatibility patches live in `number_ordered_form`; the condition
 workaround is feature-detected and installed once, including across reloads.
 
-### Validation and rotations
+### Validation
 
 These checks apply to the compressed generators $PGP$. Each generator must
 have the target ladder norm, and each pair must commute (anticommute for two
@@ -47,19 +47,10 @@ are reduced modulo $n^2-n$, rather than checked separately at every combination
 of occupations. There are quadratically many generator relations, but their
 symbolic coefficients can still grow; this is not a polynomial-time guarantee.
 
-The compiler groups overlapping source modes and collects the linear images
-as matrix rows. It checks their Gram matrix and completes only the orthogonal
-complement. Disconnected groups stay separate, including bosonic and fermionic
-groups. A direct two-mode completion avoids singular denominators at special
-rotation angles.
-
-Rotated-mode names depend on the source group, target group, and rotation matrix.
-SymPy's boson and fermion adjoints stringify names, so the compiler uses ordinary
-symbols with deterministic names. An attached NOF parameter substitution first
-undoes the compiled rotation, substitutes in the declared source expression, and reattaches through the new
-embedding. This also handles reordered groups and disappearing rotations.
-Plain source operands are converted into this basis before multiplying an
-attachment; mixing original and rotated names would represent extra modes.
+Each generator image has one fixed occupation change, so retained states are
+source Fock states and source operators keep their declared names. Parameter substitution in an
+attached NOF substitutes in its source operator and reattaches it to the
+substituted embedding.
 
 ### Rectangular arithmetic
 
@@ -99,7 +90,6 @@ as a matrix of NOFs sharing one vacuum attachment. Matrix indices select the
 source components, and normalized creation monomials prepare the listed
 occupations. There is no separate embedding wrapper around the matrix.
 
-With linear mode mixing, source operators use the compiler's rotated modes.
 The usual `zero` and `one` series sentinels represent zero and the identity on
 the block's space. Embedding attachments occur only on rectangular blocks;
 the effective Hamiltonian has already been contracted into the target algebra.

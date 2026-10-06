@@ -1873,7 +1873,7 @@ class NumberOrderedForm(Operator):
         return all(not any(powers) for powers, _ in self.args[1])
 
     def _eval_subs(self, old: sympy.Basic, new: sympy.Basic) -> "NumberOrderedForm":
-        """Substitute coefficients, reconstructing attachments in declared source modes.
+        """Substitute coefficients, reconstructing attachments with the new embedding.
 
         Bare operators retain their basis; direct mode replacement is rejected.
         """
@@ -1882,10 +1882,7 @@ class NumberOrderedForm(Operator):
 
         if self.embedding is not None:
             attachment = self.embedding.subs(old, new)
-            expression = self.embedding._as_declared_source_expression(self.source).subs(
-                old, new
-            )
-            return attachment._attach(expression, self.side)
+            return attachment._attach(self.source.subs(old, new), self.side)
         old = old.xreplace(self._number_operator_to_placeholder)
         new = new.xreplace(self._number_operator_to_placeholder)
         return self._rebuild(
@@ -1899,17 +1896,27 @@ class NumberOrderedForm(Operator):
     ) -> tuple[sympy.Basic, bool]:
         """Replace exact subexpressions and report whether anything changed.
 
-        Attached operators are reconstructed through their declared source basis,
-        so a parameter replacement may change the compiled rotation consistently.
+        Attached operators are reconstructed with the replaced embedding. Replacing
+        their source modes renames the number operators of those modes as well.
         """
         if self in rule:
             return rule[self], True
         if self.embedding is None:
             return super()._xreplace(rule)
         attachment, changed = self.embedding._xreplace(rule)
-        expression, source_changed = self.embedding._as_declared_source_expression(
-            self.source
-        )._xreplace(rule)
+        if any(op in rule or op.adjoint() in rule for op in self.operators):
+            # Number operators store mode names, so renames must be explicit.
+            renames = {
+                NumberOperator(op): NumberOperator(new)
+                for op in self.operators
+                if isinstance(new := rule.get(op), generator_types)
+                and new.is_annihilation
+            }
+            expression, source_changed = self.source.as_expr()._xreplace(
+                {**renames, **rule}
+            )
+        else:
+            expression, source_changed = self.source._xreplace(rule)
         if not changed and not source_changed:
             return self, False
         return attachment._attach(expression, self.side), True
