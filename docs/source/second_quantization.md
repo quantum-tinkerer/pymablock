@@ -4,6 +4,16 @@ This document explains the conceptual foundations of the second quantization too
 Specifically, it covers the implementation of number-ordered forms and the solution of Sylvester equations, which are the basis for Pymablock's approach to second quantization.
 We illustrate how our approach works with all common types of second-quantized operators.
 
+## Resonances in effective models
+
+Second-quantized Sylvester solutions use partial symbolic division. An exposed
+zero energy gap with a nonzero coupling raises `ValueError`, but other
+occupation-dependent resonances can remain as symbolic poles. A result without
+an exception therefore does not guarantee that all occupation sectors are
+nonresonant. Substitute the occupations of interest into the coefficients before
+using the effective model in those sectors. A zero right-hand side selects the
+zero solution, including where the gap also vanishes.
+
 ## Number-Ordered Forms
 
 ### Concept and Significance
