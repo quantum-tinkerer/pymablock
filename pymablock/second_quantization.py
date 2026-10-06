@@ -1,8 +1,7 @@
 """Second quantization tools for number-ordered operators."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from collections.abc import Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import sympy
@@ -20,9 +19,6 @@ from pymablock.operator_embedding import Embedding
 from pymablock.series import zero
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
-    from typing import Any
-
     from pymablock.operator_embedding import _EmbeddingBlocks
 
 __all__ = [
@@ -143,7 +139,7 @@ def _divide_by_energy_gap(
 
 
 def _make_embedding_sylvester_solver(
-    blocks: _EmbeddingBlocks, h0: sympy.MatrixBase
+    blocks: "_EmbeddingBlocks", h0: sympy.MatrixBase
 ) -> Callable[[Any, tuple[int, ...]], Any]:
     """Validate H0 and return a solver for the embedding's Sylvester equations.
 
