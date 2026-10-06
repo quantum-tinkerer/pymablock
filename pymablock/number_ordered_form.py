@@ -8,20 +8,17 @@ and number operators in the middle.
 from collections import defaultdict
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
-from functools import cache, cached_property
+from functools import cache, cached_property, lru_cache
 
 import sympy
+from packaging.specifiers import SpecifierSet
 from sympy.core.logic import fuzzy_and
-from sympy.functions.elementary.piecewise import Piecewise
+from sympy.functions.elementary.piecewise import ExprCondPair, Piecewise
 from sympy.physics.quantum import Dagger, HermitianOperator, Operator, pauli
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.operatorordering import normal_ordered_form
-
-from pymablock import _sympy_compat  # noqa: F401
-from pymablock._occupation import _reduce_projectors
-from pymablock._operator_algebra import _Isometry
 
 __all__ = [
     "NumberOperator",
@@ -35,6 +32,73 @@ __all__ = [
 Zero = sympy.S.Zero
 One = sympy.S.One
 Tuple = sympy.Tuple
+
+
+# SymPy infers Piecewise commutativity from branches alone. Include condition
+# operands, respecting scalar wrappers and unknown assumptions. Keep branch-only
+# scalar assumptions from overriding this inference, regardless of query order.
+def _condition_commutativity(condition):
+    """Traverse Boolean structure, respecting each expression's assumptions."""
+    traversal = sympy.preorder_traversal(condition)
+    values = []
+    for node in traversal:
+        if isinstance(node, sympy.Expr):
+            values.append(node.is_commutative)
+            traversal.skip()
+    return fuzzy_and(values)
+
+
+def _piecewise_commutative(self):
+    return fuzzy_and((self.expr.is_commutative, _condition_commutativity(self.cond)))
+
+
+_piecewise_original_attribute = getattr(
+    Piecewise, "_pymablock_original_attribute", Piecewise._eval_template_is_attr
+)
+
+
+def _piecewise_attribute(self, name):
+    # Scalar branch assumptions must not override condition dependence.
+    if fuzzy_and(_condition_commutativity(c) for _, c in self.args) is not True:
+        return None
+    return _piecewise_original_attribute(self, name)
+
+
+def _install_piecewise_patch():
+    """Install once, only while upstream ignores operator-valued conditions."""
+    if getattr(Piecewise, "_pymablock_condition_patch", False):
+        return
+    probe = Piecewise((1, sympy.Eq(Operator("_probe"), 0)), (0, True))
+    if probe.is_commutative is False:
+        return
+    ExprCondPair.is_commutative = property(_piecewise_commutative)
+    Piecewise._pymablock_original_attribute = _piecewise_original_attribute
+    Piecewise._eval_template_is_attr = _piecewise_attribute
+    Piecewise._pymablock_condition_patch = True
+
+
+_install_piecewise_patch()
+
+
+# TODO: reimplement once https://github.com/sympy/sympy/issues/27385 is fixed.
+# Monkey patch sympy to override the sum method to ExpressionRawDomain.
+def _sum(self, items):  # noqa ARG001
+    """Slower, but overridable version of sympy.Add."""
+    if not items:
+        return sympy.S.Zero
+    result = items[0]
+    for item in items[1:]:
+        result += item
+    return result
+
+
+sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum  # type: ignore
+del _sum
+
+if sympy.__version__ in SpecifierSet("<1.15"):
+    # Define is_annihilation on spins for API uniformity
+    pauli.SigmaPlus.is_annihilation = False  # type: ignore
+    pauli.SigmaMinus.is_annihilation = True  # type: ignore
 
 
 class LadderOp(Operator):
@@ -305,6 +369,64 @@ def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
         f"number_operator_placeholder_{op.args[0]}_{op.args[1]}",
         integer=True,
     )
+
+
+def _occupation_projector(left, right):
+    return sympy.Piecewise((1, sympy.Eq(left, right)), (0, True))
+
+
+def _spectral_projector(expression, spectrum):
+    """Select a finite spectrum or the integers for a diagonal expression."""
+    if spectrum is sympy.S.Integers:
+        return _occupation_projector(expression, sympy.floor(expression))
+    return sum(_occupation_projector(expression, value) for value in spectrum)
+
+
+def _projectors(expression, numbers):
+    """Yield point indicators and the occupation value they select."""
+    for delta in expression.atoms(sympy.Piecewise) if numbers else ():
+        if (
+            len(delta.args) != 2
+            or delta.args[0].expr != 1
+            or delta.args[1] != (0, sympy.true)
+            or not isinstance(delta.args[0].cond, sympy.Equality)
+        ):
+            continue
+        variables = set(numbers) & delta.free_symbols
+        if len(variables) != 1:
+            continue
+        (n,) = variables
+        equation = sympy.expand(delta.args[0].cond.lhs - delta.args[0].cond.rhs)
+        slope = equation.coeff(n)
+        if slope.is_number and slope and not (equation - slope * n).has(n):
+            yield delta, n, sympy.cancel(n - equation / slope)
+
+
+@lru_cache(maxsize=1024)
+def _reduce_projectors(coefficient, numbers, nonnegative):
+    """Evaluate occupation functions on the support of point projectors."""
+    replacements, points = {}, {}
+    for delta, n, value in _projectors(coefficient, numbers):
+        if not value.is_number:
+            continue
+        if value.is_integer is False or (n in nonnegative and value < 0):
+            replacements[delta] = sympy.S.Zero
+        else:
+            replacements[delta] = _occupation_projector(n, value)
+            points.setdefault(n, set()).add(value)
+    coefficient = coefficient.xreplace(replacements)
+    for n, values in sorted(
+        points.items(), key=lambda item: sympy.default_sort_key(item[0])
+    ):
+        background = coefficient.xreplace(
+            {_occupation_projector(n, v): sympy.S.Zero for v in values}
+        )
+        coefficient = background + sum(
+            _occupation_projector(n, v)
+            * (coefficient.xreplace({n: v}) - background.xreplace({n: v}))
+            for v in sorted(values, key=sympy.default_sort_key)
+        )
+    return coefficient
 
 
 class NumberOrderedForm(Operator):
@@ -620,13 +742,15 @@ class NumberOrderedForm(Operator):
         if isinstance(expr, NumberOrderedForm):
             return expr
 
-        if isinstance(expr, _Isometry):
+        from pymablock.operator_embedding import Embedding
+
+        if isinstance(expr, Embedding):
             return expr._attach(One, 1)
-        if isinstance(expr, sympy.adjoint) and isinstance(expr.args[0], _Isometry):
+        if isinstance(expr, sympy.adjoint) and isinstance(expr.args[0], Embedding):
             return expr.args[0]._attach(One, -1)
 
         # For scalar expressions (no operators)
-        if not expr.has(*operator_types, NumberOperator, _Isometry):
+        if not expr.has(*operator_types, NumberOperator, Embedding):
             # Return a NumberOrderedForm with no operators and a single term
             operators = operators or []
             return cls(

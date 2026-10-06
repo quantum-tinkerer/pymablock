@@ -1,7 +1,6 @@
 """Counterexamples from the independent embedding review."""
 
 import gc
-import importlib
 import pickle
 import weakref
 
@@ -325,13 +324,14 @@ def test_violated_binary_identity_is_decidable():
 
 
 def test_sympy_workaround_is_idempotent_and_preserves_scalars():
-    """Repeated imports preserve scalar assumptions and operator condition order."""
-    from pymablock import _sympy_compat
+    """Repeated installation preserves scalar assumptions and operator condition order."""
+    from pymablock.number_ordered_form import _install_piecewise_patch
 
     x = s.Symbol("x", real=True)
     scalar = s.Piecewise((1, x > 0), (0, True))
     before = scalar.is_commutative, scalar.is_real
-    importlib.reload(_sympy_compat)
+    _install_piecewise_patch()
+    _install_piecewise_patch()
     assert (scalar.is_commutative, scalar.is_real) == before == (True, True)
     a = BosonOp("a")
     operator = s.Piecewise((1, s.Eq(N(a), 0)), (0, True))

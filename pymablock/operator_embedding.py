@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from functools import cached_property
+from functools import cached_property, wraps
 from hashlib import sha256
 
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 
-from pymablock._occupation import _spectral_projector
-from pymablock._operator_algebra import _cache_method, _Isometry
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
@@ -19,6 +17,7 @@ from pymablock.number_ordered_form import (
     _NOFTransition,
     _number_symbols,
     _occupation_dimension,
+    _spectral_projector,
     find_operators,
     generator_types,
 )
@@ -27,11 +26,24 @@ from pymablock.series import BlockSeries, zero
 __all__ = ["Embedding"]
 
 
+def _cache_method(method):
+    """Cache on the instance so dropped compiled bases can be collected."""
+
+    @wraps(method)
+    def cached(self, *args):
+        memo = self.__dict__.setdefault("_memo_" + method.__name__, {})
+        if args not in memo:
+            memo[args] = method(self, *args)
+        return memo[args]
+
+    return cached
+
+
 def _operator_sort_key(operator) -> tuple[int, str]:
     return generator_types.index(type(operator)), str(operator.name)
 
 
-class Embedding(_Isometry):
+class Embedding(sympy.Expr):
     r"""Define an effective operator algebra or a finite retained basis.
 
     Pass this object as ``subspace_eigenvectors`` to ``block_diagonalize``.
@@ -86,6 +98,8 @@ class Embedding(_Isometry):
     True
 
     """
+
+    is_commutative = False
 
     def __new__(cls, generators=None, reference=None):
         """Compile a structurally reconstructible generator or reference map."""
