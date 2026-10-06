@@ -29,13 +29,15 @@ from pymablock.number_ordered_form import (
     find_operators,
     generator_types,
 )
-from pymablock.operator_embedding import Embedding
+from pymablock.operator_embedding import Embedding, _EmbeddingBlocks
 from pymablock.series import (
     BlockSeries,
     zero,
 )
 
 __all__ = ["block_diagonalize", "operator_to_BlockSeries"]
+
+_DEFAULT_ATOL = 1e-12
 
 # Common types
 SingleSubspaceBasis = np.ndarray | sympy.MatrixBase | sparse.spmatrix | sparse.sparray
@@ -54,7 +56,7 @@ def block_diagonalize(
     direct_solver: bool = True,
     solver_options: dict | None = None,
     symbols: sympy.Symbol | Sequence[sympy.Symbol] | None = None,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
     fully_diagonalize: (
         tuple[int, ...]
         | dict[int, np.ndarray | sympy.Matrix | sympy.Expr]
@@ -231,6 +233,7 @@ def block_diagonalize(
     )
     solver_options = {} if solver_options is None else dict(solver_options)
 
+    embedding_blocks = None
     if isinstance(subspace_eigenvectors, Embedding):
         if subspace_indices is not None:
             raise ValueError(
@@ -252,7 +255,20 @@ def block_diagonalize(
             raise NotImplementedError(
                 "Structured embeddings do not support fully_diagonalize."
             )
-        hamiltonian, solve_sylvester = subspace_eigenvectors._prepare(hamiltonian)
+        if not direct_solver:
+            raise NotImplementedError(
+                "Structured embeddings use an exact algebraic solver; direct_solver=False is unsupported."
+            )
+        if atol != _DEFAULT_ATOL:
+            raise NotImplementedError(
+                "Structured embeddings use exact coefficients and do not accept a numerical atol."
+            )
+        embedding_blocks = _EmbeddingBlocks(subspace_eigenvectors)
+        h0 = embedding_blocks.source_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
+        solve_sylvester = second_quantization._embedding_sylvester(embedding_blocks, h0)
+        # Validate the projector before lazy series evaluation.
+        embedding_blocks.frames
+        hamiltonian = embedding_blocks.convert(hamiltonian, diagonal_origin=True)
         subspace_eigenvectors = None
 
     use_implicit = False
@@ -430,9 +446,11 @@ def block_diagonalize(
 
             if isinstance(result, sympy.MatrixBase):
                 return result.applyfunc(
-                    lambda x: x
-                    if x.is_commutative
-                    else NumberOrderedForm.from_expr(x, operators)
+                    lambda x: (
+                        x
+                        if x.is_commutative
+                        else NumberOrderedForm.from_expr(x, operators)
+                    )
                 )
             raise TypeError(f"Unsupported second-quantized block type: {type(result)}")
 
@@ -499,7 +517,7 @@ def block_diagonalize(
         i: (
             (np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol).astype(int)
             if diagonal[i].dtype != object  # numerical array, else sympy
-            else ((diagonal[i].reshape(-1, 1) == diagonal[i]) == True)  # noqa E712
+            else ((diagonal[i].reshape(-1, 1) == diagonal[i]) == True)  # noqa: E712
         )
         for i in set(fully_diagonalize)
     }
@@ -646,7 +664,7 @@ def block_diagonalize(
 
     # Simplify the results and unwrap them for scalar inputs - convert 1x1 matrices back
     # to scalars
-    if operators:
+    if operators or embedding_blocks is not None:
 
         def create_postprocessing_eval(block_series):
             """Create an eval function that unwraps 1x1 matrices to scalars."""
@@ -657,9 +675,15 @@ def block_diagonalize(
                     return result
 
                 result = result.applyfunc(
-                    lambda x: x._poly_simplify()
-                    if isinstance(x, NumberOrderedForm)
-                    else x
+                    lambda x: (
+                        (
+                            x.as_expr()
+                            if not x.operators and x.embedding is None
+                            else x._poly_simplify()
+                        )
+                        if isinstance(x, NumberOrderedForm)
+                        else x
+                    )
                 )
 
                 if (
@@ -690,11 +714,11 @@ def operator_to_BlockSeries(
     operator: list | dict | BlockSeries | sympy.Matrix,
     *,
     name: str | None = None,
-    subspace_eigenvectors: tuple[Any, Any] | None = None,
+    subspace_eigenvectors: Embedding | tuple[Any, Any] | None = None,
     subspace_indices: tuple[int, ...] | None = None,
     implicit: bool = False,
     symbols: list[sympy.Symbol] | None = None,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
     hermitian: bool = False,
 ) -> BlockSeries:
     """Convert an operator to `~pymablock.series.BlockSeries` format.
@@ -737,7 +761,14 @@ def operator_to_BlockSeries(
     name:
         Name of the operator.
     subspace_eigenvectors :
-        A tuple describing the subspaces onto which the operator is projected
+        An `~pymablock.operator_embedding.Embedding` converts a second-quantized
+        observable into retained/complement blocks, including zeroth-order cross
+        blocks. Its references need not be eigenstates of the observable.
+        Generator embeddings produce target operators; reference lists produce
+        finite matrices. Floating coefficients are treated as their exact stored
+        rational values.
+
+        Alternatively, a tuple describing the subspaces onto which the operator is projected
         and separated into blocks. Each entry may be either a single basis
         ``V`` or, for non-Hermitian problems, a pair ``(R, L)`` of right and
         left basis vectors, with the single-basis form understood as
@@ -804,6 +835,11 @@ def operator_to_BlockSeries(
             raise ValueError("operator must be a square block series.")
 
         return operator
+
+    if isinstance(subspace_eigenvectors, Embedding):
+        if implicit:
+            raise ValueError("Structured embedding conversion does not use implicit mode")
+        return _EmbeddingBlocks(subspace_eigenvectors).convert(operator)
 
     # Separation into subspace_eigenvectors
     if not to_split:
@@ -919,7 +955,7 @@ def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
 def solve_sylvester_diagonal(
     eigs: tuple[np.ndarray | sympy.matrices.MatrixBase, ...],
     vecs_implicit: np.ndarray | None = None,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
 ) -> Callable:
     """Define a function for solving a Sylvester's equation for diagonal matrices.
 
@@ -1326,7 +1362,7 @@ def _list_to_dict(operator: list[Any]) -> dict[int, Any]:
 def _dict_to_BlockSeries(
     operator: dict[tuple[int, ...], Any],
     symbols: Sequence[sympy.Symbol] | None = None,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
 ) -> tuple[BlockSeries, list[sympy.Symbol]]:
     """Convert a dictionary of perturbations to a BlockSeries.
 
@@ -1495,7 +1531,7 @@ def _sympy_to_BlockSeries(
 def _to_scalar_BlockSeries(
     operator: list | dict | BlockSeries | sympy.Matrix,
     symbols: Sequence[sympy.Symbol] = (),
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
     check_hermitian: bool = True,
 ) -> BlockSeries:
     """Normalize input to BlockSeries without transforming values.
@@ -1518,7 +1554,7 @@ def _to_scalar_BlockSeries(
     raise TypeError(f"Unsupported input type of Hamiltonian: {type(operator)}.")
 
 
-def _unpack_blocks(operator: BlockSeries, atol: float = 1e-12) -> BlockSeries:
+def _unpack_blocks(operator: BlockSeries, atol: float = _DEFAULT_ATOL) -> BlockSeries:
     """Check if operator values are list of lists and if so, unpack them into blocks."""
     if operator.shape:
         return operator
@@ -1617,7 +1653,7 @@ def _normalize_subspace_eigenvectors(
 
 def _extract_diagonal(
     operator: BlockSeries,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
     implicit: bool = False,
     operators: Sequence[sympy.physics.quantum.Operator] = (),
 ) -> tuple[np.ndarray, ...]:
@@ -1659,7 +1695,7 @@ def _extract_diagonal(
     return tuple(diags)
 
 
-def _convert_if_zero(value: Any, atol: float = 1e-12):
+def _convert_if_zero(value: Any, atol: float = _DEFAULT_ATOL):
     """Convert an exact zero to sentinel value zero.
 
     Parameters

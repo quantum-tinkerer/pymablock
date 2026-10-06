@@ -6,11 +6,12 @@ import numpy as np
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 
+from pymablock._occupation import _divide_coefficients
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
-    _divide_coefficients,
+    _NOFTransition,
     _number_operator_to_placeholder,
 )
 from pymablock.operator_embedding import Embedding
@@ -21,6 +22,96 @@ __all__ = [
     "apply_mask_to_operator",
     "solve_sylvester_2nd_quant",
 ]
+
+
+def _embedding_sylvester(blocks, h0):
+    """Validate diagonal H0 and divide transitions in embedding coordinates."""
+    basis, finite = blocks.basis, blocks.finite
+    modes, numbers = basis.operators, basis._source_placeholders
+    if any(i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()):
+        raise ValueError("Structured embeddings currently require diagonal H0")
+    vacuum = (0,) * len(modes)
+    energies = [
+        x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
+        for x in h0.diagonal()
+    ]
+    if finite:
+        occupations, coordinates, binary, coordinate_map, nonnegative = (
+            vacuum,
+            (),
+            (),
+            {},
+            (),
+        )
+        incoming_energies = [
+            basis._at_occupations(energies[row], state)
+            for row, state in basis._references
+        ]
+    else:
+        occupations, coordinates = basis.source_occupations, basis.coordinate_symbols
+        binary = tuple(
+            q for q, size in zip(coordinates, basis._target_dimensions) if size == 2
+        )
+        nonnegative = tuple(
+            q
+            for q, op in zip(coordinates, basis._target_operators)
+            if not isinstance(op, LadderOp)
+        )
+        target_numbers = basis._occupation_left_inverse * (
+            sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
+        )
+        coordinate_map = dict(zip(coordinates, target_numbers))
+        incoming_energies = [basis._at_occupations(energies[0], occupations)]
+
+    def divide_scalar(value, row, col):
+        if value == 0 or value.is_zero:
+            return sympy.S.Zero
+        value = basis._convert_operator(value.source)
+        terms = {}
+        for transition in _NOFTransition.from_form(value):
+            powers = transition.powers
+            action = transition.symbolic_action(occupations)
+            if action.weight == 0:
+                continue
+            middle = [n - max(p, 0) for n, p in zip(occupations, powers)]
+            coefficient = basis._at_occupations(transition.coefficient, middle)
+            denominator = sympy.expand(
+                basis._at_occupations(energies[row], action.output_state)
+                - incoming_energies[col]
+            )
+            try:
+                result = _divide_coefficients(
+                    coefficient,
+                    denominator,
+                    binary,
+                    coordinates,
+                    action.weight,
+                    nonnegative,
+                )
+            except ValueError as error:
+                raise ZeroDivisionError(str(error)) from error
+            incoming = {n: n + max(p, 0) for n, p in zip(numbers, powers)}
+            terms[powers] = result.xreplace(
+                {
+                    q: expression.xreplace(incoming)
+                    for q, expression in coordinate_map.items()
+                }
+            )
+        return NumberOrderedForm(
+            basis.operators, terms, blocks.entry_embedding, 1, validate=False
+        )
+
+    def solve(value, index):
+        if value is zero:
+            return zero
+        reverse = index[:2] == (0, 1)
+        source = value.adjoint() if reverse else value
+        result = sympy.ImmutableMatrix(
+            source.rows, source.cols, lambda i, j: divide_scalar(source[i, j], i, j)
+        )
+        return -result.adjoint() if reverse else result
+
+    return solve
 
 
 def _diagonal_coefficient(expression: NumberOrderedForm | sympy.Expr) -> sympy.Expr:
@@ -82,12 +173,12 @@ def solve_scalar(
         return sympy.S.Zero
 
     Y = NumberOrderedForm.from_expr(Y)
+    H_ii, H_jj = (NumberOrderedForm.from_expr(h) for h in (H_ii, H_jj))
     for diagonal_operator in (H_ii, H_jj):
-        if isinstance(diagonal_operator, NumberOrderedForm):
-            Y, _ = Y._combine_operators(diagonal_operator)
+        Y, _ = Y._combine_operators(diagonal_operator)
     operators = Y.operators
-    H_ii = _diagonal_coefficient(H_ii)
-    H_jj = _diagonal_coefficient(H_jj)
+    H_ii = _diagonal_coefficient(H_ii._expand_operators(operators))
+    H_jj = _diagonal_coefficient(H_jj._expand_operators(operators))
     binary_numbers = Y._number_operator_placeholders[Y._n_inf_order :]
 
     shifts = Y.terms
@@ -143,6 +234,11 @@ def solve_scalar(
             denominator.xreplace(fixed),
             tuple(number for number in binary_numbers if number not in fixed),
             tuple(Y._number_operator_placeholders),
+            nonnegative=tuple(
+                n
+                for op, n in zip(Y.operators, Y._number_operator_placeholders)
+                if not isinstance(op, LadderOp)
+            ),
         )
 
     result = NumberOrderedForm(
@@ -273,14 +369,14 @@ def apply_mask_to_operator(
     >>>
     >>> # Create a matrix with different operator terms
     >>> H = sympy.Matrix([[a * Dagger(a) + b * Dagger(b), a * Dagger(b)],
-            [b * Dagger(a), a * Dagger(a) - b * Dagger(b)]])
+    ...                   [b * Dagger(a), a * Dagger(a) - b * Dagger(b)]])
     >>> # Convert to NumberOrderedForm for easier handling
     >>> H_nof = H.applyfunc(NumberOrderedForm.from_expr)
     >>>
     >>> # Create a mask that selects only terms with a specific power pattern
     >>> # Select only terms with exactly one 'a' operator and one 'b' operator
     >>> mask = sympy.Matrix([[sympy.S.Zero, NumberOrderedForm([a, b], {(1, -1): sympy.S.One})],
-                [NumberOrderedForm([a, b], {(1, 1): sympy.S.One}), sympy.S.Zero]])
+    ...                      [NumberOrderedForm([a, b], {(1, 1): sympy.S.One}), sympy.S.Zero]])
     >>> H_filtered = apply_mask_to_operator(H_nof, mask, keep=True)
     >>> # H_filtered now contains only the terms that match the mask:
     >>> # [[0, Dagger(b)a], [0, 0]]

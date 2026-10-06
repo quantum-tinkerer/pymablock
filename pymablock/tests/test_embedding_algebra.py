@@ -78,7 +78,7 @@ def test_generator_attachment_composition():
         assert NumberOrderedForm.from_expr(value.as_expr()) == value
         assert value.func(*value.args) == value
     with pytest.raises(ValueError, match="power"):
-        (NumberOrderedForm.from_expr(q) * w) ** 2
+        (x * w) ** 2
 
 
 @pytest.mark.parametrize("generator", [False, True])

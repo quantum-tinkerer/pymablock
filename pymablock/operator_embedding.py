@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from functools import cache, cached_property
+from functools import cached_property
+from hashlib import sha256
 
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 
+from pymablock._occupation import _spectral_projector
+from pymablock._operator_algebra import _cache_method, _Isometry
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
-    _divide_coefficients,
     _NOFTransition,
     _number_symbols,
     _occupation_dimension,
-    _spectral_projector,
     find_operators,
     generator_types,
 )
@@ -30,7 +31,7 @@ def _operator_sort_key(operator) -> tuple[int, str]:
     return generator_types.index(type(operator)), str(operator.name)
 
 
-class Embedding(sympy.Expr):
+class Embedding(_Isometry):
     r"""Define an effective operator algebra or a finite retained basis.
 
     Pass this object as ``subspace_eigenvectors`` to ``block_diagonalize``.
@@ -67,7 +68,10 @@ class Embedding(sympy.Expr):
     ``NumberOrderedForm`` objects, including for infinite targets. These types
     describe the retained block. Off-diagonal NOFs carry the embedding on their
     left or right; the complement block uses source operators. The solver rejects
-    bosonic selections requiring occupation inequalities.
+    bosonic selections requiring occupation inequalities. Floating coefficients
+    are interpreted as their exact stored binary rational values. Use rational
+    inputs for intended decimal values; numerical ``atol`` and iterative solver
+    options do not apply to this algebraic solver.
 
     Examples
     --------
@@ -83,10 +87,10 @@ class Embedding(sympy.Expr):
 
     """
 
-    is_commutative = False
-
     def __new__(cls, generators=None, reference=None):
         """Compile a structurally reconstructible generator or reference map."""
+        if reference is None:
+            raise TypeError("Specify reference occupations for the embedding")
         if generators is None or generators is sympy.S.NaN:
             reference = tuple(
                 (0, state) if isinstance(state, (Mapping, sympy.Dict)) else state
@@ -139,11 +143,35 @@ class Embedding(sympy.Expr):
         )
         return NumberOrderedForm(basis.operators, {(0,) * len(numbers): indicator}) * 1
 
+    @property
+    def _source_operators(self):
+        return self._basis.operators
+
+    def _convert_operator(self, value):
+        return self._basis._convert_operator(value)
+
+    def _source_expression(self, value):
+        """Undo compiled linear mixing before transforming symbolic parameters."""
+        expression = value.as_expr()
+        rotation = self._basis._rotation
+        inverse = {}
+        for source, image in rotation.items():
+            if not source.is_annihilation:
+                continue
+            for mode in find_operators(image):
+                inverse[mode] = (
+                    inverse.get(mode, 0) + image.coeff(mode).conjugate() * source
+                )
+        inverse.update(
+            {mode.adjoint(): image.adjoint() for mode, image in list(inverse.items())}
+        )
+        return expression.doit().xreplace(inverse)
+
     def _contract(self, value):
         result = self.restrict(value)
         return result[0, 0] if isinstance(result, sympy.MatrixBase) else result
 
-    @cache
+    @_cache_method
     def _lift(self, value):
         """Substitute the source generator images, restricted to their representation."""
         basis = self._basis
@@ -191,114 +219,76 @@ class Embedding(sympy.Expr):
         """
         return self._basis._compress(self._basis._convert_source(expression))
 
-    def _prepare(self, hamiltonian):
-        """Return rectangular Hamiltonian blocks and their Sylvester solver."""
-        if hamiltonian.shape:
-            raise ValueError("Structured embeddings require an unseparated Hamiltonian.")
-        basis = self._basis
-        finite = isinstance(basis, _ReferenceBasis)
-        origin = (0,) * hamiltonian.n_infinite
-        source_h0 = basis._convert_source(hamiltonian[origin])
-        h0 = source_h0 if finite else sympy.ImmutableMatrix([[source_h0]])
-        modes, numbers = basis.operators, basis._source_placeholders
-        if any(
-            i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()
-        ):
-            raise ValueError("Structured embeddings currently require diagonal H0")
+
+class _EmbeddingBlocks:
+    """Reusable conversion from source expressions to retained/complement blocks."""
+
+    def __init__(self, embedding):
+        self.embedding, self.basis = embedding, embedding._basis
+        self.finite = isinstance(self.basis, _ReferenceBasis)
+        self.source_shape = None
+
+    def source_matrix(self, expression):
+        source = self.basis._convert_source(expression)
+        if not self.finite:
+            source = sympy.ImmutableMatrix([[source]])
+        if self.source_shape is None:
+            self.source_shape = source.shape
+        elif source.shape != self.source_shape:
+            raise ValueError(
+                "All operator coefficients must have the same source matrix shape"
+            )
+        return source
+
+    @cached_property
+    def entry_embedding(self):
+        if not self.finite:
+            return self.embedding
+        return Embedding(reference=[dict.fromkeys(self.basis.operators, 0)])
+
+    @cached_property
+    def frames(self):
+        basis = self.basis
+        modes = basis.operators
         vacuum = (0,) * len(modes)
-        energies = [
-            x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
-            for x in h0.diagonal()
-        ]
-        if finite:
-            occupations, coordinates, binary, coordinate_map = vacuum, (), (), {}
-            incoming_energies = []
-            entry_embedding = Embedding(reference=[dict(zip(modes, vacuum))])
-            w = sympy.zeros(h0.rows, len(basis._references))
+        if self.finite:
+            w = sympy.zeros(self.source_shape[0], len(basis._references))
             for col, (row, state) in enumerate(basis._references):
-                incoming_energies.append(basis._at_occupations(energies[row], state))
                 monomial = NumberOrderedForm(
                     modes, {tuple(-n for n in state): sympy.S.One}
                 )
                 (transition,) = _NOFTransition.from_form(monomial)
-                w[row, col] = entry_embedding._attach(
+                w[row, col] = self.entry_embedding._attach(
                     monomial / transition.apply(vacuum).weight, 1
                 )
             w = sympy.ImmutableMatrix(w)
         else:
-            occupations, coordinates = basis.source_occupations, basis.coordinate_symbols
-            binary = [
-                q for q, size in zip(coordinates, basis._target_dimensions) if size == 2
-            ]
-            target_numbers = basis._occupation_left_inverse * (
-                sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
-            )
-            coordinate_map = dict(zip(coordinates, target_numbers))
-            incoming_energies = [basis._at_occupations(energies[0], occupations)]
-            entry_embedding = self
-            w = sympy.ImmutableMatrix([[self._attach(sympy.S.One, 1)]])
-        frames = (w, sympy.eye(h0.rows) - w * w.adjoint())
+            w = sympy.ImmutableMatrix([[self.embedding._attach(sympy.S.One, 1)]])
+        return w, sympy.eye(self.source_shape[0]) - w * w.adjoint()
 
-        def divide_scalar(value, row, col):
-            if value == 0 or value.is_zero:
-                return sympy.S.Zero
-            value = basis._convert_operator(value.source)
-            terms = {}
-            for transition in _NOFTransition.from_form(value):
-                powers = transition.powers
-                action = transition.symbolic_action(occupations)
-                if action.weight == 0:
-                    continue
-                middle = [n - max(p, 0) for n, p in zip(occupations, powers)]
-                coefficient = basis._at_occupations(transition.coefficient, middle)
-                denominator = sympy.expand(
-                    basis._at_occupations(energies[row], action.output_state)
-                    - incoming_energies[col]
-                )
-                try:
-                    result = _divide_coefficients(
-                        coefficient, denominator, binary, coordinates, action.weight
-                    )
-                except ValueError as error:
-                    raise ZeroDivisionError(str(error)) from error
-                incoming = {n: n + max(p, 0) for n, p in zip(numbers, powers)}
-                terms[powers] = result.xreplace(
-                    {
-                        q: expression.xreplace(incoming)
-                        for q, expression in coordinate_map.items()
-                    }
-                )
-            return NumberOrderedForm(
-                basis.operators, terms, entry_embedding, 1, validate=False
-            )
-
-        def solve(value, index):
-            reverse = index[:2] == (0, 1)
-            source = value.adjoint() if reverse else value
-            result = sympy.ImmutableMatrix(
-                source.rows, source.cols, lambda i, j: divide_scalar(source[i, j], i, j)
-            )
-            return -result.adjoint() if reverse else result
+    def convert(self, operator, *, diagonal_origin=False):
+        """Preserve all observable blocks; a validated diagonal H0 may omit cross blocks."""
+        if operator.shape:
+            raise ValueError("Structured embeddings require an unseparated operator.")
+        origin = (0,) * operator.n_infinite
 
         def evaluate(i, j, *order):
-            source = hamiltonian[tuple(order)]
-            if source is zero or (i != j and tuple(order) == origin):
+            source = operator[tuple(order)]
+            if source is zero or (diagonal_origin and i != j and tuple(order) == origin):
                 return zero
-            source = basis._convert_source(source)
-            if not finite:
-                source = sympy.ImmutableMatrix([[source]])
-            if source.shape != h0.shape:
-                raise ValueError(
-                    "All Hamiltonian coefficients must have the same source matrix shape"
-                )
-            result = frames[i].adjoint() * source * frames[j]
-            return zero if result.is_zero_matrix else result if finite else result[0, 0]
+            source = self.source_matrix(source)
+            result = self.frames[i].adjoint() * source * self.frames[j]
+            return (
+                zero if result.is_zero_matrix else result if self.finite else result[0, 0]
+            )
 
-        options = dict(
-            n_infinite=hamiltonian.n_infinite, dimension_names=hamiltonian.dimension_names
+        return BlockSeries(
+            eval=evaluate,
+            shape=(2, 2),
+            n_infinite=operator.n_infinite,
+            dimension_names=operator.dimension_names,
+            name=operator.name,
         )
-        blocks = BlockSeries(eval=evaluate, shape=(2, 2), **options)
-        return blocks, solve
 
 
 class _SourceBasis:
@@ -318,9 +308,18 @@ class _SourceBasis:
         """Convert an expression into the source algebra of the embedding."""
         if isinstance(expression, NumberOrderedForm):
             if expression.operators == self.operators:
+                if expression.has(sympy.Float):
+                    return expression.applyfunc(
+                        lambda c: c.xreplace(
+                            {v: sympy.Rational(v) for v in c.atoms(sympy.Float)}
+                        )
+                    )
                 return expression
             expression = expression.as_expr()
         expression = sympy.sympify(expression)
+        expression = expression.xreplace(
+            {v: sympy.Rational(v) for v in expression.atoms(sympy.Float)}
+        )
         if self._rotation:
             expression = expression.doit().xreplace(self._rotation)
         if set(find_operators(expression)) - set(self.operators):
@@ -338,6 +337,11 @@ class _GeneratorBasis(_SourceBasis):
             raise TypeError("Generators and reference must be mappings")
         if not reference:
             raise ValueError("Specify the source reference occupations")
+        if any(
+            target in reference and target != image
+            for target, image in generators.items()
+        ):
+            raise ValueError("Target modes must not shadow distinct source modes")
         self._rotation, generators, reference = _rotate_linear_modes(
             generators, reference
         )
@@ -497,6 +501,17 @@ class _GeneratorBasis(_SourceBasis):
         for q, size in zip(self.coordinate_symbols, self._target_dimensions):
             if size == 2 and q in expression.free_symbols and expression.is_polynomial(q):
                 expression = sympy.rem(expression, q**2 - q, q)
+        binary = {
+            q
+            for q, size in zip(self.coordinate_symbols, self._target_dimensions)
+            if size == 2
+        }
+        if (
+            expression != 0
+            and expression.free_symbols <= binary
+            and expression.is_polynomial(*binary)
+        ):
+            raise ValueError(f"{context}; residual: {expression}")
         _require_identity(expression, context)
 
     def _validate_generator_algebra(self):
@@ -546,7 +561,7 @@ class _GeneratorBasis(_SourceBasis):
     def _target_zero(self):
         return NumberOrderedForm(self._target_operators, {}, validate=False)
 
-    @cache
+    @_cache_method
     def _target_shift(self, source_shift: tuple[int, ...]) -> tuple[int, ...] | None:
         """Find the target transition induced by a source occupation shift."""
         source = sympy.Matrix(source_shift)
@@ -560,7 +575,7 @@ class _GeneratorBasis(_SourceBasis):
             return None
         return tuple(map(int, result))
 
-    @cache
+    @_cache_method
     def _project_transition(self, transition: _NOFTransition) -> NumberOrderedForm:
         """Translate one source transition without expanding spectator occupations."""
         powers = self._target_shift(transition.powers)
@@ -591,7 +606,7 @@ class _GeneratorBasis(_SourceBasis):
             self._target_operators, {powers: coefficient}, validate=False
         )
 
-    @cache
+    @_cache_method
     def _compress(self, source):
         """Return ``W† source W`` without enumerating the discarded space."""
         result = self._target_zero
@@ -643,7 +658,7 @@ class _ReferenceBasis(_SourceBasis):
             raise ValueError("Reference matrix index lies outside the source matrix")
         return sympy.ImmutableSparseMatrix(expression.applyfunc(self._convert_operator))
 
-    @cache
+    @_cache_method
     def _compress(self, source):
         entries = {}
         for (row, col), entry in source.todok().items():
@@ -753,19 +768,33 @@ def _rotate_linear_modes(generators, reference):
             raise NotImplementedError(
                 "Linear mode mixing requires an empty reference in the mixed modes"
             )
-        targets = [
-            target
-            for target, coefficients in linear.items()
-            if coefficients.keys() <= group
-        ]
+        targets = sorted(
+            (
+                target
+                for target, coefficients in linear.items()
+                if coefficients.keys() <= group
+            ),
+            key=_operator_sort_key,
+        )
         rows = _complete_orthonormal_rows(
             sympy.Matrix(
                 [[linear[target].get(op, 0) for op in modes] for target in targets]
             )
         )
-        rotated = tuple(
-            type(modes[0])(f"__embedding_{sympy.Dummy().dummy_index}") for _ in modes
+        # A structural label survives reconstruction, pickle, and parameter
+        # substitution. Include the source group and rotation to avoid collisions.
+        label = sympy.Tuple(
+            sympy.Symbol("__embedding_mode"),
+            sympy.Tuple(*(op.name for op in modes)),
+            sympy.Tuple(*(op.name for op in targets)),
+            sympy.Tuple(*rows),
         )
+        digest = sha256(sympy.srepr(label).encode()).hexdigest()
+        rotated = tuple(
+            type(modes[0])(f"__embedding_{digest}_{i}") for i in range(len(modes))
+        )
+        if set(rotated) & set(reference):
+            raise ValueError("Source names collide with the compiled rotation")
         for op, image in zip(modes, rows.adjoint() * sympy.Matrix(rotated), strict=True):
             rotation[op], rotation[op.adjoint()] = image, image.adjoint()
             del reference[op]
