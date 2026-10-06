@@ -24,6 +24,16 @@ from pymablock.tests.second_quantization_helpers import (
 )
 
 
+def test_qubit_projector_size_is_linear() -> None:
+    targets = [BosonOp(f"a{i}") for i in range(8)]
+    sources = [SigmaMinus(f"q{i}") for i in range(8)]
+    embedding = Embedding(
+        dict(zip(sources, targets)), reference=dict.fromkeys(targets, 0)
+    )
+    projector = embedding._projector
+    assert sum(sympy.count_ops(c) for c in projector.terms.values()) < 8 * 8
+
+
 def test_fermion_embedding_returns_source_nof() -> None:
     target, virtual = FermionOp("target"), FermionOp("virtual")
     source = FermionOp("source")

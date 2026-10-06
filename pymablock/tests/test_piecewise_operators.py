@@ -4,7 +4,13 @@ from sympy.core.assumptions import _assume_defined
 from sympy.core.cache import clear_cache
 from sympy.physics.quantum.boson import BosonOp
 
-from pymablock.number_ordered_form import LadderOp, NumberOperator, NumberOrderedForm
+from pymablock.number_ordered_form import (
+    LadderOp,
+    NumberOperator,
+    NumberOrderedForm,
+    _equal_value_indicator,
+    _simplify_on_fixed_numbers,
+)
 from pymablock.tests.second_quantization_helpers import nof_matrix
 
 
@@ -115,3 +121,60 @@ def test_projector_respects_occupation_domain(operator):
     else:
         assert p * (n + 3) == 2 * p
         assert nof_matrix(p, [range(-2, 2)]) == s.diag(0, 1, 0, 0)
+
+
+@pytest.mark.parametrize("kind", ["sum", "product", "function", "pole"])
+def test_fixed_number_reduction(kind):
+    n = s.Symbol("n", integer=True, nonnegative=True)
+    p0, p1, p2 = (_equal_value_indicator(n, v) for v in range(3))
+    f = s.Function("f")
+    coefficient, expected = {
+        "sum": (p0 + p1, p0 + p1),
+        "product": (p0 * p2, s.S.Zero),
+        "function": (f(n) * p1, f(1) * p1),
+        "pole": (p1 / (n - 1), p1 / (n - 1)),
+    }[kind]
+    assert _simplify_on_fixed_numbers(coefficient, (n,), (n,)) == expected
+
+
+@pytest.mark.parametrize("power", [1, 2])
+def test_fixed_number_sums_stay_factored(power):
+    numbers = s.symbols("n:8", integer=True, nonnegative=True)
+    coefficient = s.prod(
+        _equal_value_indicator(n, 0) + _equal_value_indicator(n, 1) for n in numbers
+    )
+    result = _simplify_on_fixed_numbers(coefficient**power, numbers, numbers)
+    assert result == coefficient
+    assert s.count_ops(result) < 8 * 8
+
+
+def test_affine_fixed_number_sum_cancels():
+    a = BosonOp("a")
+    n = NumberOperator(a)
+    g = s.Symbol("g")
+    p0, p1 = (_equal_value_indicator(n, v) for v in (0, 1))
+    expression = g * (p0 + p1) - g * p0 - g * p1
+    assert expression != 0  # SymPy leaves this scalar sum undistributed.
+    result = NumberOrderedForm.from_expr(expression)
+    assert result == 0
+    assert result.is_zero is True
+
+
+@pytest.mark.parametrize("pole", [s.zoo, s.oo])
+def test_affine_fixed_number_pole_stays_in_its_sector(pole):
+    n = s.Symbol("n", integer=True, nonnegative=True)
+    coefficient = pole * _equal_value_indicator(n, 0)
+    assert _simplify_on_fixed_numbers(coefficient, (n,), (n,)) == coefficient
+
+
+def test_fixed_number_background_indicators_cancel():
+    n = s.Symbol("n", integer=True, nonnegative=True)
+    g = s.Symbol("g")
+    indicators = [_equal_value_indicator(n, v) for v in (0, 1)]
+    nested = [
+        s.Piecewise((1 + delta, s.Eq(n, v)), (0, True))
+        for v, delta in enumerate(indicators)
+    ]
+    # Setting the inner indicators to zero creates indicators in the background.
+    coefficient = sum(g * delta for delta in nested) - 2 * g * sum(indicators)
+    assert _simplify_on_fixed_numbers(coefficient, (n,), (n,)) == 0
