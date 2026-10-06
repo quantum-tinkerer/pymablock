@@ -444,6 +444,8 @@ def _simplify_on_fixed_numbers(
     Discard indicators selecting noninteger values or negative values for symbols
     listed in ``nonnegative``. For each remaining numeric selection ``n == v``,
     evaluate the coefficient at ``n = v`` while preserving its value elsewhere.
+    Factor structurally equal correction weights when the background is free of
+    that occupation, preserving per-mode selections without expanding coefficients.
     Leave it unsplit if a selected value is a pole, so undefined values cannot
     corrupt other sectors. The bounded cache stores scalar expressions only.
     """
@@ -460,9 +462,9 @@ def _simplify_on_fixed_numbers(
     for n, values in sorted(
         points.items(), key=lambda item: sympy.default_sort_key(item[0])
     ):
-        background = coefficient.xreplace(
-            {_equal_value_indicator(n, v): sympy.S.Zero for v in values}
-        )
+        indicators = {_equal_value_indicator(n, v) for v in values}
+        inactive = dict.fromkeys(indicators, sympy.S.Zero)
+        background = coefficient.xreplace(inactive)
         # Keep a pole inside its original coefficient rather than spreading
         # undefined point values to the other occupation sectors.
         if any(
@@ -471,10 +473,21 @@ def _simplify_on_fixed_numbers(
             for v in values
         ):
             continue
-        coefficient = background + sum(
-            _equal_value_indicator(n, v)
-            * (coefficient.xreplace({n: v}) - background.xreplace({n: v}))
+        weights = {
+            _equal_value_indicator(n, v): (
+                coefficient.xreplace({n: v}) - background.xreplace({n: v})
+            )
             for v in sorted(values, key=sympy.default_sort_key)
+        }
+        common = next(iter(weights.values()))
+        # Extract weights even for affine sums so undistributed zeros cancel.
+        # Equal weights can stay factored over all spectator modes. A background
+        # depending on n can contain new indicators that need the old sum to cancel.
+        coefficient = background + (
+            common * sum(indicators)
+            if not background.has(n)
+            and all(weight == common for weight in weights.values())
+            else sum(delta * weight for delta, weight in weights.items())
         )
     return coefficient
 
