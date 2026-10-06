@@ -1,6 +1,8 @@
 """Second quantization tools for number-ordered operators."""
 
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
 import sympy
@@ -10,12 +12,18 @@ from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
+    _iter_fixed_number_indicators,
     _NOFTransition,
     _number_operator_to_placeholder,
-    _projectors,
 )
 from pymablock.operator_embedding import Embedding
 from pymablock.series import zero
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping, Sequence
+    from typing import Any
+
+    from pymablock.operator_embedding import _EmbeddingBlocks
 
 __all__ = [
     "Embedding",
@@ -24,73 +32,102 @@ __all__ = [
 ]
 
 
-def _divide_coefficients(
-    numerator, denominator, binary=(), coordinates=(), weight=None, nonnegative=()
-):
-    """Divide using local support checks and a symbolic fallback.
+def _divide_by_energy_gap(
+    coefficient: sympy.Expr,
+    energy_gap: sympy.Expr,
+    binary_numbers: Sequence[sympy.Symbol] = (),
+    number_symbols: Sequence[sympy.Symbol] = (),
+    amplitude: sympy.Expr | None = None,
+    nonnegative_numbers: Sequence[sympy.Symbol] = (),
+) -> sympy.Expr:
+    """Divide a term's coefficient by its gap, choosing zero on inactive channels.
 
-    Choose zero where ``weight`` vanishes, including at zero gaps. The weight
-    defaults to the numerator; embeddings include ladder amplitudes in it.
-    Resolve exposed zero gaps and explicit point support, but leave unresolved
-    resonances as poles. Parameters other than occupation coordinates are generic.
-    This is a partial symbolic solver, not an exhaustive nonresonance check.
+    ``number_symbols`` are scalar occupation coordinates; other free symbols are
+    generic parameters. ``binary_numbers`` range over 0 and 1, while
+    ``nonnegative_numbers`` exclude negative occupations (unlike bilateral ladders).
+
+    ``amplitude`` determines where the transition is inactive. It defaults to the
+    coefficient; embedding solves also include ladder amplitudes and fermionic
+    signs. The returned coefficient is not multiplied by those factors again.
+
+    Resolve immediately exposed zero gaps and fixed-number indicators locally.
+    A nonzero amplitude at an exposed zero gap raises ValueError. Unresolved gaps
+    remain symbolic poles; this does not certify nonresonance in every sector.
+    The result is zero where the amplitude vanishes, including at a zero gap.
     """
-    weight = numerator if weight is None else weight
-    if weight == 0:
+    amplitude = coefficient if amplitude is None else amplitude
+    if amplitude == 0:
         return sympy.S.Zero
-    denominator = sympy.cancel(denominator)
-    arguments = numerator, denominator, weight
+    energy_gap = sympy.cancel(energy_gap)
+    arguments = coefficient, energy_gap, amplitude
 
-    def at(substitution):
-        c, d, w = (x.xreplace(substitution) for x in arguments)
-        return _divide_coefficients(c, d, binary, coordinates, w, nonnegative)
+    def divide_after_substitution(
+        substitution: Mapping[sympy.Expr, sympy.Expr],
+    ) -> sympy.Expr:
+        selected_coefficient, selected_gap, selected_amplitude = (
+            expression.xreplace(substitution) for expression in arguments
+        )
+        return _divide_by_energy_gap(
+            selected_coefficient,
+            selected_gap,
+            binary_numbers,
+            number_symbols,
+            selected_amplitude,
+            nonnegative_numbers,
+        )
 
-    variables = set(coordinates) | set(binary)
-    gap = denominator.as_numer_denom()[0]
+    variables = set(number_symbols) | set(binary_numbers)
+    gap = energy_gap.as_numer_denom()[0]
     for parameter in gap.free_symbols - variables:
-        coefficient = gap.coeff(parameter)
+        parameter_coefficient = gap.coeff(parameter)
         if (
-            coefficient.is_Atom
-            and coefficient.is_zero is False
-            and not coefficient.free_symbols & variables
+            parameter_coefficient.is_Atom
+            and parameter_coefficient.is_zero is False
+            and not parameter_coefficient.free_symbols & variables
         ):
-            return numerator / denominator
-    for n in binary:
-        if n not in weight.free_symbols | denominator.free_symbols:
+            return coefficient / energy_gap
+    for n in binary_numbers:
+        if n not in amplitude.free_symbols | energy_gap.free_symbols:
             continue
-        if denominator == 0 or any(
+        if energy_gap == 0 or any(
             x.xreplace({n: v}) == 0
-            for x in (weight, denominator)
+            for x in (amplitude, energy_gap)
             for v in (sympy.S.Zero, sympy.S.One)
         ):
-            return (1 - n) * at({n: sympy.S.Zero}) + n * at({n: sympy.S.One})
-    point = next(_projectors(numerator, variables & denominator.free_symbols), None)
+            return (1 - n) * divide_after_substitution(
+                {n: sympy.S.Zero}
+            ) + n * divide_after_substitution({n: sympy.S.One})
+    point = next(
+        _iter_fixed_number_indicators(coefficient, variables & energy_gap.free_symbols),
+        None,
+    )
     if point is not None:
         delta, n, v = point
         return sympy.Piecewise(
-            (at({n: v}), sympy.Eq(n, v)), (at({delta: sympy.S.Zero}), True)
+            (divide_after_substitution({n: v}), sympy.Eq(n, v)),
+            (divide_after_substitution({delta: sympy.S.Zero}), True),
         )
-    if denominator == 0:
+    if energy_gap == 0:
         raise ValueError(
             "Cannot solve the Sylvester equation: the right-hand side is nonzero "
             "but the energy difference is zero (degenerate channel)."
         )
-    quotient = numerator / denominator
-    if not denominator.free_symbols & variables:
+    quotient = coefficient / energy_gap
+    if not energy_gap.free_symbols & variables:
         return quotient
     # A constant plus occupations with the same sign cannot vanish. Inspect
     # numeric coefficients only, rather than asking the assumptions engine to
     # prove a general expression nonzero.
-    constant, rest = denominator.as_coeff_Add()
+    constant, rest = energy_gap.as_coeff_Add()
     if constant and all(
-        factor in set(nonnegative) | set(binary)
+        factor in set(nonnegative_numbers) | set(binary_numbers)
         and (coefficient * constant).is_positive is True
         for coefficient, factor in (
             term.as_coeff_Mul() for term in sympy.Add.make_args(rest)
         )
     ):
         return quotient
-    factors = (factor.as_numer_denom()[0] for factor in sympy.Mul.make_args(weight))
+    factors = (factor.as_numer_denom()[0] for factor in sympy.Mul.make_args(amplitude))
     inactive = sympy.Or(
         *(
             sympy.Eq(factor, 0, evaluate=False)
@@ -98,15 +135,24 @@ def _divide_coefficients(
             if factor.free_symbols & variables
         )
     )
-    # A meromorphic weight has no defined zero at its poles. Its numerator
+    # A meromorphic amplitude has no defined zero at its poles. Its numerator
     # can vanish there without making the virtual channel inactive.
-    weight_denominator = sympy.together(weight).as_numer_denom()[1]
-    inactive = sympy.And(inactive, sympy.Ne(weight_denominator, 0))
+    amplitude_denominator = sympy.together(amplitude).as_numer_denom()[1]
+    inactive = sympy.And(inactive, sympy.Ne(amplitude_denominator, 0))
     return sympy.Piecewise((0, inactive), (quotient, True), evaluate=False)
 
 
-def _embedding_sylvester(blocks, h0):
-    """Validate diagonal H0 and divide transitions in embedding coordinates."""
+def _make_embedding_sylvester_solver(
+    blocks: _EmbeddingBlocks, h0: sympy.MatrixBase
+) -> Callable[[Any, tuple[int, ...]], Any]:
+    """Validate H0 and return a solver for the embedding's Sylvester equations.
+
+    H0 must be a source matrix of NOF entries, diagonal in both matrix indices and
+    occupation numbers. Intra-block solves use the ordinary second-quantized solver.
+    Rectangular solves evaluate outgoing and incoming energies on the embedding's
+    reference states or symbolic target occupations, then divide each transition.
+    The callback preserves the series zero sentinel before accessing matrix entries.
+    """
     basis, finite = blocks.basis, blocks.finite
     modes, numbers = basis.operators, basis._source_placeholders
     if any(i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()):
@@ -149,7 +195,10 @@ def _embedding_sylvester(blocks, h0):
     retained_energies = incoming_energies if finite else [basis._compress(h0[0, 0])]
     diagonal_solver = solve_sylvester_2nd_quant([retained_energies, h0.diagonal()])
 
-    def divide_scalar(value, row, col):
+    def divide_transition_entry(
+        value: NumberOrderedForm | sympy.Expr, row: int, col: int
+    ) -> NumberOrderedForm | sympy.Expr:
+        """Solve one retained-to-source matrix entry using its actual transition gap."""
         if value == 0 or value.is_zero:
             return sympy.S.Zero
         value = basis._convert_operator(value.source)
@@ -166,7 +215,7 @@ def _embedding_sylvester(blocks, h0):
                 - incoming_energies[col]
             )
             try:
-                result = _divide_coefficients(
+                result = _divide_by_energy_gap(
                     coefficient,
                     denominator,
                     binary,
@@ -187,7 +236,8 @@ def _embedding_sylvester(blocks, h0):
             basis.operators, terms, blocks.entry_embedding, 1, validate=False
         )
 
-    def solve(value, index):
+    def solve(value: Any, index: tuple[int, ...]) -> Any:
+        """Dispatch by block; use anti-Hermitian symmetry for the reverse cross block."""
         if value is zero:
             return zero
         if index[0] == index[1]:
@@ -195,7 +245,9 @@ def _embedding_sylvester(blocks, h0):
         reverse = index[:2] == (0, 1)
         source = value.adjoint() if reverse else value
         result = sympy.ImmutableMatrix(
-            source.rows, source.cols, lambda i, j: divide_scalar(source[i, j], i, j)
+            source.rows,
+            source.cols,
+            lambda i, j: divide_transition_entry(source[i, j], i, j),
         )
         return -result.adjoint() if reverse else result
 
@@ -203,7 +255,10 @@ def _embedding_sylvester(blocks, h0):
 
 
 def _diagonal_coefficient(expression: NumberOrderedForm | sympy.Expr) -> sympy.Expr:
-    """Return the coefficient of an expression containing only number operators."""
+    """Extract a diagonal NOF's scalar number coefficient, or pass a scalar through.
+
+    Reject ladder shifts: the zero-shift coefficient is the only allowed term.
+    """
     if not isinstance(expression, NumberOrderedForm):
         return sympy.sympify(expression)
     if not expression.is_particle_conserving():
@@ -317,12 +372,12 @@ def solve_scalar(
             for number, power in zip(binary_numbers, shift[Y._n_inf_order :])
             if power
         }
-        new_shifts[shift] = _divide_coefficients(
+        new_shifts[shift] = _divide_by_energy_gap(
             sign * coeff.xreplace(fixed),
             denominator.xreplace(fixed),
             tuple(number for number in binary_numbers if number not in fixed),
             tuple(Y._number_operator_placeholders),
-            nonnegative=tuple(
+            nonnegative_numbers=tuple(
                 n
                 for op, n in zip(Y.operators, Y._number_operator_placeholders)
                 if not isinstance(op, LadderOp)

@@ -5,10 +5,12 @@ which represents operators with creation operators on the left, annihilation ope
 and number operators in the middle.
 """
 
+from __future__ import annotations
+
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from functools import cache, cached_property, lru_cache
+from typing import TYPE_CHECKING
 
 import sympy
 from packaging.specifiers import SpecifierSet
@@ -19,6 +21,18 @@ from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.operatorordering import normal_ordered_form
+
+if TYPE_CHECKING:
+    from collections.abc import (
+        Callable,
+        Collection,
+        Iterable,
+        Iterator,
+        Mapping,
+        Sequence,
+    )
+
+    from pymablock.operator_embedding import Embedding
 
 __all__ = [
     "NumberOperator",
@@ -37,8 +51,12 @@ Tuple = sympy.Tuple
 # SymPy infers Piecewise commutativity from branches alone. Include condition
 # operands, respecting scalar wrappers and unknown assumptions. Keep branch-only
 # scalar assumptions from overriding this inference, regardless of query order.
-def _condition_commutativity(condition):
-    """Traverse Boolean structure, respecting each expression's assumptions."""
+def _condition_commutativity(condition: sympy.logic.boolalg.Boolean) -> bool | None:
+    """Combine operand commutativity across a Boolean condition.
+
+    Inspect each expression as a whole rather than overriding its assumptions
+    with those of its children. Return None when commutativity is unknown.
+    """
     traversal = sympy.preorder_traversal(condition)
     values = []
     for node in traversal:
@@ -48,7 +66,8 @@ def _condition_commutativity(condition):
     return fuzzy_and(values)
 
 
-def _piecewise_commutative(self):
+def _piecewise_commutative(self: ExprCondPair) -> bool | None:
+    """Include the condition when determining a Piecewise branch's commutativity."""
     return fuzzy_and((self.expr.is_commutative, _condition_commutativity(self.cond)))
 
 
@@ -57,14 +76,15 @@ _piecewise_original_attribute = getattr(
 )
 
 
-def _piecewise_attribute(self, name):
+def _piecewise_attribute(self: Piecewise, name: str) -> bool | None:
+    """Avoid inferring scalar assumptions from branches with operator conditions."""
     # Scalar branch assumptions must not override condition dependence.
     if fuzzy_and(_condition_commutativity(c) for _, c in self.args) is not True:
         return None
     return _piecewise_original_attribute(self, name)
 
 
-def _install_piecewise_patch():
+def _install_piecewise_patch() -> None:
     """Install once, only while upstream ignores operator-valued conditions."""
     if getattr(Piecewise, "_pymablock_condition_patch", False):
         return
@@ -82,8 +102,10 @@ _install_piecewise_patch()
 
 # TODO: reimplement once https://github.com/sympy/sympy/issues/27385 is fixed.
 # Monkey patch sympy to override the sum method to ExpressionRawDomain.
-def _sum(self, items):  # noqa ARG001
-    """Slower, but overridable version of sympy.Add."""
+def _sum_sequentially(
+    _domain: sympy.polys.domains.ExpressionRawDomain, items: Sequence[sympy.Expr]
+) -> sympy.Expr:
+    """Sum from left to right so operator subclasses can handle each addition."""
     if not items:
         return sympy.S.Zero
     result = items[0]
@@ -92,8 +114,8 @@ def _sum(self, items):  # noqa ARG001
     return result
 
 
-sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum  # type: ignore
-del _sum
+sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum_sequentially  # type: ignore
+del _sum_sequentially
 
 if sympy.__version__ in SpecifierSet("<1.15"):
     # Define is_annihilation on spins for API uniformity
@@ -371,20 +393,39 @@ def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     )
 
 
-def _occupation_projector(left, right):
+def _equal_value_indicator(left: sympy.Expr, right: sympy.Expr | int) -> sympy.Expr:
+    """Return the scalar indicator of ``left == right`` (1 if equal, else 0).
+
+    Inputs are scalar occupation expressions or values, not quantum operators.
+    A symbolic condition is represented by a two-branch SymPy Piecewise.
+    """
     return sympy.Piecewise((1, sympy.Eq(left, right)), (0, True))
 
 
-def _spectral_projector(expression, spectrum):
-    """Select a finite spectrum or the integers for a diagonal expression."""
-    if spectrum is sympy.S.Integers:
-        return _occupation_projector(expression, sympy.floor(expression))
-    return sum(_occupation_projector(expression, value) for value in spectrum)
+def _allowed_values_indicator(
+    expression: sympy.Expr, allowed_values: Iterable[int | sympy.Expr] | sympy.Set
+) -> sympy.Expr:
+    """Return 1 when a scalar expression lies in the allowed set, else 0.
+
+    ``allowed_values`` is either a finite collection of distinct values or
+    ``sympy.S.Integers``. Integer membership is expressed by ``x == floor(x)``.
+    This scalar coefficient can be used to construct a diagonal quantum projector.
+    """
+    if allowed_values is sympy.S.Integers:
+        return _equal_value_indicator(expression, sympy.floor(expression))
+    return sum(_equal_value_indicator(expression, value) for value in allowed_values)
 
 
-def _projectors(expression, numbers):
-    """Yield point indicators and the occupation value they select."""
-    for delta in expression.atoms(sympy.Piecewise) if numbers else ():
+def _iter_fixed_number_indicators(
+    expression: sympy.Expr, number_symbols: Collection[sympy.Symbol]
+) -> Iterator[tuple[sympy.Piecewise, sympy.Symbol, sympy.Expr]]:
+    """Find 0/1 Piecewise indicators that fix one number symbol to a value.
+
+    Yield ``(indicator, number_symbol, selected_value)`` for equalities linear
+    in a single supplied symbol with a nonzero numeric slope. Other conditional
+    expressions are ignored; no general equation solving is attempted.
+    """
+    for delta in expression.atoms(sympy.Piecewise) if number_symbols else ():
         if (
             len(delta.args) != 2
             or delta.args[0].expr != 1
@@ -392,7 +433,7 @@ def _projectors(expression, numbers):
             or not isinstance(delta.args[0].cond, sympy.Equality)
         ):
             continue
-        variables = set(numbers) & delta.free_symbols
+        variables = set(number_symbols) & delta.free_symbols
         if len(variables) != 1:
             continue
         (n,) = variables
@@ -403,26 +444,36 @@ def _projectors(expression, numbers):
 
 
 @lru_cache(maxsize=1024)
-def _reduce_projectors(coefficient, numbers, nonnegative):
-    """Evaluate occupation functions on the support of point projectors."""
+def _simplify_on_fixed_numbers(
+    coefficient: sympy.Expr,
+    number_symbols: tuple[sympy.Symbol, ...],
+    nonnegative: tuple[sympy.Symbol, ...],
+) -> sympy.Expr:
+    """Simplify a scalar coefficient where fixed-number indicators equal 1.
+
+    Discard indicators selecting noninteger values or negative values for symbols
+    listed in ``nonnegative``. For each remaining numeric selection ``n == v``,
+    evaluate the coefficient at ``n = v`` while preserving its value elsewhere.
+    The inputs are scalar symbols, so the bounded cache does not retain embeddings.
+    """
     replacements, points = {}, {}
-    for delta, n, value in _projectors(coefficient, numbers):
+    for delta, n, value in _iter_fixed_number_indicators(coefficient, number_symbols):
         if not value.is_number:
             continue
         if value.is_integer is False or (n in nonnegative and value < 0):
             replacements[delta] = sympy.S.Zero
         else:
-            replacements[delta] = _occupation_projector(n, value)
+            replacements[delta] = _equal_value_indicator(n, value)
             points.setdefault(n, set()).add(value)
     coefficient = coefficient.xreplace(replacements)
     for n, values in sorted(
         points.items(), key=lambda item: sympy.default_sort_key(item[0])
     ):
         background = coefficient.xreplace(
-            {_occupation_projector(n, v): sympy.S.Zero for v in values}
+            {_equal_value_indicator(n, v): sympy.S.Zero for v in values}
         )
         coefficient = background + sum(
-            _occupation_projector(n, v)
+            _equal_value_indicator(n, v)
             * (coefficient.xreplace({n: v}) - background.xreplace({n: v}))
             for v in sorted(values, key=sympy.default_sort_key)
         )
@@ -557,7 +608,7 @@ class NumberOrderedForm(Operator):
             *(
                 Tuple(
                     powers,
-                    _reduce_projectors(
+                    _simplify_on_fixed_numbers(
                         coeff,
                         _number_symbols(tuple(operators)),
                         tuple(
@@ -592,21 +643,23 @@ class NumberOrderedForm(Operator):
         return result
 
     @property
-    def embedding(self):
-        """The attached isometry, or None for an ordinary operator."""
+    def embedding(self) -> Embedding | None:
+        """Return the attached embedding, or None for an ordinary operator."""
         return self.args[2] if len(self.args) == 4 else None
 
     @property
-    def side(self):
+    def side(self) -> int:
         """Return -1 for W† X, +1 for X W, or zero for no attachment."""
         return int(self.args[3]) if self.embedding is not None else 0
 
     @cached_property
-    def source(self):
+    def source(self) -> NumberOrderedForm:
         """The source operator without its embedding attachment."""
         return NumberOrderedForm(self.operators, self.args[1], validate=False)
 
-    def _rebuild(self, terms, operators=None):
+    def _rebuild(
+        self, terms: TermDict, operators: Sequence[OperatorType] | None = None
+    ) -> NumberOrderedForm:
         """Replace source terms while preserving the map's domain and codomain."""
         return type(self)(
             self.operators if operators is None else operators,
@@ -1493,7 +1546,15 @@ class NumberOrderedForm(Operator):
 
         return result
 
-    def _multiply_attached(self, other):
+    def _multiply_attached(
+        self, other: NumberOrderedForm
+    ) -> NumberOrderedForm | sympy.Expr:
+        """Compose operators when at least one factor carries an embedding.
+
+        Matching opposite attachments give ``W† X Y W`` in target space or
+        ``X W W† Y`` in source space. With one attachment, interpret the adjacent
+        factor in the appropriate source or target basis and preserve the map.
+        """
         left, right = self.embedding, other.embedding
         if left is not None and right is not None:
             if left != right or self.side == other.side:
@@ -1658,11 +1719,12 @@ class NumberOrderedForm(Operator):
 
         return self._rebuild(new_terms)
 
-    def _linearize_binary_operators(self):
-        """Convert coefficients with binary number operators to linear form.
+    def _linearize_binary_operators(self) -> NumberOrderedForm:
+        """Reduce binary-number dependence while preserving unresolved poles.
 
-        This method applies `f(n_a) = (1 - n_a ) * f(0) + n_a * f(1)` to all binary
-        number operators (fermions and spins) in the terms of this NumberOrderedForm.
+        Interpolate each fermion or spin number with ``f(n) = (1-n) f(0) + n f(1)``.
+        If either endpoint is singular even after cancellation, leave that number's
+        dependence unchanged so the pole cannot corrupt other occupation sectors.
         """
         if not (
             binary_numbers := [
@@ -1810,13 +1872,19 @@ class NumberOrderedForm(Operator):
         """
         return all(not any(powers) for powers, _ in self.args[1])
 
-    def _eval_subs(self, old, new):
+    def _eval_subs(self, old: sympy.Basic, new: sympy.Basic) -> NumberOrderedForm:
+        """Substitute coefficients, reconstructing attachments in declared source modes.
+
+        Bare operators retain their basis; direct mode replacement is rejected.
+        """
         if old in self.operators or new in self.operators:
             raise ValueError("Cannot substitute operators in NumberOrderedForm.")
 
         if self.embedding is not None:
             attachment = self.embedding.subs(old, new)
-            expression = self.embedding._source_expression(self.source).subs(old, new)
+            expression = self.embedding._as_declared_source_expression(self.source).subs(
+                old, new
+            )
             return attachment._attach(expression, self.side)
         old = old.xreplace(self._number_operator_to_placeholder)
         new = new.xreplace(self._number_operator_to_placeholder)
@@ -1826,13 +1894,20 @@ class NumberOrderedForm(Operator):
             )
         )
 
-    def _xreplace(self, rule):
+    def _xreplace(
+        self, rule: Mapping[sympy.Basic, sympy.Basic]
+    ) -> tuple[sympy.Basic, bool]:
+        """Replace exact subexpressions and report whether anything changed.
+
+        Attached operators are reconstructed through their declared source basis,
+        so a parameter replacement may change the compiled rotation consistently.
+        """
         if self in rule:
             return rule[self], True
         if self.embedding is None:
             return super()._xreplace(rule)
         attachment, changed = self.embedding._xreplace(rule)
-        expression, source_changed = self.embedding._source_expression(
+        expression, source_changed = self.embedding._as_declared_source_expression(
             self.source
         )._xreplace(rule)
         if not changed and not source_changed:
@@ -1933,18 +2008,21 @@ class NumberOrderedForm(Operator):
         return self._rebuild(new_terms)
 
 
-def _occupation_dimension(operator):
-    """Return the dimension of an existing finite occupation mode."""
+def _occupation_dimension(operator: OperatorType) -> int | None:
+    """Return 2 for a spin or fermion mode, and None for an infinite mode.
+
+    Boson occupations range over nonnegative integers; bilateral ladder indices
+    range over all integers. Both therefore have infinite-dimensional spaces.
+    """
     return 2 if isinstance(operator, (FermionOp, pauli.SigmaMinus)) else None
 
 
 @cache
-def _number_symbols(operators: tuple) -> tuple[sympy.Symbol, ...]:
-    """Obtain coefficient coordinates using public NOF term inspection.
+def _number_symbols(operators: tuple[OperatorType, ...]) -> tuple[sympy.Symbol, ...]:
+    """Return scalar occupation symbols in the supplied mode order.
 
-    A number operator has one diagonal term whose coefficient is its occupation
-    symbol. Query that term rather than depending on private placeholder names
-    or metadata. This works with both plain and packed NOF storage.
+    Read each number operator's zero-shift coefficient instead of constructing
+    placeholder names independently of NumberOrderedForm's representation.
     """
     powers = (0,) * len(operators)
     return tuple(
@@ -1955,7 +2033,11 @@ def _number_symbols(operators: tuple) -> tuple[sympy.Symbol, ...]:
 
 @dataclass(frozen=True, slots=True)
 class _WeightedTransition:
-    """One partial transition between occupation states."""
+    """Result of applying a term: final occupations and its matrix element.
+
+    ``weight`` includes the coefficient, ladder amplitudes and fermionic signs.
+    A zero weight marks an inactive transition; no normalized state is implied.
+    """
 
     output_state: tuple[sympy.Expr, ...]
     weight: sympy.Expr
@@ -1963,7 +2045,12 @@ class _WeightedTransition:
 
 @dataclass(frozen=True)
 class _NOFTransition:
-    """The occupation shift and amplitude of one NOF term."""
+    """One number-ordered term, before evaluating its ladder amplitudes.
+
+    Positive ``powers`` annihilate particles and negative powers create them.
+    ``coefficient`` is evaluated between the annihilation and creation steps.
+    The operator order determines the fermionic sign convention.
+    """
 
     operators: tuple[OperatorType, ...]
     powers: tuple[int, ...]
@@ -1985,12 +2072,16 @@ class _NOFTransition:
         )
 
     def apply(self, state: Sequence[int]) -> _WeightedTransition | None:
-        """Apply this term to a concrete occupation state."""
+        """Return the final state and matrix element, or None for zero amplitude."""
         action = self.symbolic_action(state)
         return None if action.weight == 0 else action
 
     def symbolic_action(self, occupations: Sequence[sympy.Expr]) -> _WeightedTransition:
-        """Apply this term to symbolic occupations."""
+        """Compute the final occupations and full matrix element symbolically.
+
+        Apply annihilation operators first, evaluate the middle coefficient, then
+        apply creation operators in reverse mode order. The input is not mutated.
+        """
         current = list(map(sympy.sympify, occupations))
         amplitude = sympy.S.One
 
@@ -2021,6 +2112,7 @@ class _NOFTransition:
         *,
         annihilate: bool,
     ) -> sympy.Expr:
+        """Apply one ladder step in place and return its amplitude, including parity."""
         operator = self.operators[index]
         occupation = state[index]
         if isinstance(operator, BosonOp):
