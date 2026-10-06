@@ -569,6 +569,10 @@ class NumberOrderedForm(Operator):
         if not isinstance(operators, Tuple):
             operators = Tuple(*operators)
 
+        if embedding is not None and tuple(operators) != embedding._target_operators:
+            # Rebuilding after a mode rename can change the embedding's mode order.
+            return embedding._attach(cls(operators, terms, validate=validate), side)
+
         if validate:
             cls._validate_operators(operators)
 
@@ -1896,30 +1900,20 @@ class NumberOrderedForm(Operator):
     ) -> tuple[sympy.Basic, bool]:
         """Replace exact subexpressions and report whether anything changed.
 
-        Attached operators are reconstructed with the replaced embedding. Replacing
-        their target modes renames the number operators of those modes as well.
+        Coefficients store number operators as placeholder symbols named after their
+        modes, so renaming a mode also renames its placeholder. The constructor
+        normalizes attached operators for the replaced embedding.
         """
         if self in rule:
             return rule[self], True
-        if self.embedding is None:
-            return super()._xreplace(rule)
-        attachment, changed = self.embedding._xreplace(rule)
-        if any(op in rule or op.adjoint() in rule for op in self.operators):
-            # Number operators store mode names, so renames must be explicit.
-            renames = {
-                NumberOperator(op): NumberOperator(new)
-                for op in self.operators
-                if isinstance(new := rule.get(op), generator_types)
-                and new.is_annihilation
-            }
-            expression, target_changed = self.target.as_expr()._xreplace(
-                {**renames, **rule}
+        renames = {
+            placeholder: _number_operator_to_placeholder(NumberOperator(new))
+            for op, placeholder in zip(
+                self.operators, self._number_operator_placeholders, strict=True
             )
-        else:
-            expression, target_changed = self.target._xreplace(rule)
-        if not changed and not target_changed:
-            return self, False
-        return attachment._attach(expression, self.side), True
+            if isinstance(new := rule.get(op), generator_types) and new.is_annihilation
+        }
+        return super()._xreplace({**renames, **rule} if renames else rule)
 
     def filter_terms(
         self, conditions: tuple[tuple[sympy.core.Expr, ...], ...], keep: bool = False

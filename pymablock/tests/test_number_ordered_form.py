@@ -1236,6 +1236,20 @@ def test_raise_if_substitution():
         nof.subs(a, a + 1)
 
 
+def test_xreplace_renames_number_operators():
+    """Renaming a mode also renames its number operator in the coefficients."""
+    a, b = boson.BosonOp("a"), boson.BosonOp("b")
+    nof = NumberOrderedForm.from_expr(NumberOperator(a) * a + 2)
+    expected = NumberOrderedForm.from_expr(NumberOperator(b) * b + 2)
+    assert nof.xreplace({a: b, Dagger(a): Dagger(b)}) == expected
+
+    c, d, e = (fermion.FermionOp(name) for name in ("c", "d", "a0"))
+    nof = NumberOrderedForm.from_expr(Dagger(c) * d + NumberOperator(c) * d)
+    expected = NumberOrderedForm.from_expr(Dagger(e) * d + NumberOperator(e) * d)
+    renamed = nof.xreplace({c: e, Dagger(c): Dagger(e)})
+    assert renamed.as_expr() == expected.as_expr()
+
+
 def test_is_particle_conserving():
     """Test the is_particle_conserving method."""
     a = boson.BosonOp("a")
