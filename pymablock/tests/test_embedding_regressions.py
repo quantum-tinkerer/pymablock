@@ -251,7 +251,7 @@ def test_attached_xreplace_renames_target_modes():
     assert contracted == renamed.restrict(N(b))
 
 
-def test_compiled_bases_are_collectable():
+def test_embeddings_are_collectable():
     """Caching useful conversions cannot keep dropped embeddings alive."""
     a, q = BosonOp("a"), SigmaMinus("q")
     bases = []
@@ -260,7 +260,7 @@ def test_compiled_bases_are_collectable():
         embedding.restrict(a)
         w = NumberOrderedForm.from_expr(embedding)
         w * NumberOrderedForm.from_expr(q)
-        bases.append(weakref.ref(embedding._basis))
+        bases.append(weakref.ref(embedding))
     del embedding, w
     gc.collect()
     assert all(basis() is None for basis in bases)

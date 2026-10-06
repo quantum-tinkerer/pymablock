@@ -32,7 +32,7 @@ __all__ = ["Embedding"]
 def _cache_on_instance[Result](method: Callable[..., Result]) -> Callable[..., Result]:
     """Memoize a method with hashable positional arguments on its owning instance.
 
-    Unlike a global method cache, this does not keep discarded compiled bases alive.
+    Unlike a global method cache, this does not keep discarded embeddings alive.
     The wrapped methods accept positional arguments only.
     """
 
@@ -119,245 +119,33 @@ class Embedding(sympy.Expr):
         generators: Mapping | sympy.Expr | None = None,
         reference: Mapping | Sequence | None = None,
     ) -> Self:
-        """Compile a structurally reconstructible generator or reference map."""
+        """Dispatch to the representation specified by the structural arguments."""
         if reference is None:
             raise TypeError("Specify reference occupations for the embedding")
         if generators is None or generators is sympy.S.NaN:
-            reference = tuple(
-                (0, state) if isinstance(state, (Mapping, sympy.Dict)) else state
-                for state in reference
-            )
-            basis = _ReferenceBasis([(i, dict(state)) for i, state in reference])
-            generators = sympy.S.NaN
-            reference = sympy.Tuple(
-                *(sympy.Tuple(i, sympy.Dict(state)) for i, state in reference)
-            )
-        else:
-            basis = _GeneratorBasis(dict(generators), reference=dict(reference))
-            generators, reference = sympy.Dict(generators), sympy.Dict(reference)
-        result = sympy.Expr.__new__(cls, generators, reference)
-        result._basis = basis
-        return result
+            return _ReferenceEmbedding(generators, reference)
+        return _GeneratorEmbedding(generators, reference)
+
+    def _sympystr(self, printer) -> str:
+        """Keep the public expression name when printing either subclass."""
+        return f"Embedding({printer.stringify(self.args, ', ')})"
+
+    def _latex(self, printer) -> str:
+        """Keep the public expression name in rendered equations."""
+        arguments = ", ".join(printer._print(arg) for arg in self.args)
+        return rf"\operatorname{{Embedding}}\left({arguments}\right)"
 
     @cached_property
-    def _projector(self) -> NumberOrderedForm:
-        """Return ``W W†``, the target-space projector onto retained states.
-
-        Scalar indicators enforce the affine occupation constraints and each source
-        mode's allowed numbers. No target occupation states are enumerated.
-        """
-        basis = self._basis
-        numbers = basis._target_placeholders
-        if isinstance(basis, _ReferenceBasis):
-            spectra = list(zip(numbers, ((n,) for n in basis._references[0][1])))
-        else:
-            offsets = sympy.Matrix(numbers) - sympy.Matrix(basis.reference)
-            spectra = [
-                (sympy.expand(normal.dot(offsets)), (0,))
-                for normal in basis._occupation_matrix.T.nullspace()
-            ]
-            source = basis._occupation_left_inverse * offsets
-            physical = {
-                n: sympy.Dummy(integer=True, nonnegative=True)
-                for target, n in zip(basis.operators, numbers)
-                if not isinstance(target, LadderOp)
-            }
-            for q, op, size in zip(
-                source, basis._source_operators, basis._source_dimensions
-            ):
-                if (
-                    isinstance(op, BosonOp)
-                    and q.xreplace(physical).is_nonnegative is not True
-                ):
-                    raise NotImplementedError(
-                        "This bosonic embedding requires an occupation inequality"
-                    )
-                spectra.append((q, range(size) if size is not None else sympy.S.Integers))
-        indicator = sympy.prod(
-            _allowed_values_indicator(q, spectrum) for q, spectrum in spectra
-        )
-        return NumberOrderedForm(basis.operators, {(0,) * len(numbers): indicator}) * 1
-
-    @property
-    def _target_operators(self) -> tuple[OperatorType, ...]:
-        """Return target lowering modes in the compiled basis order."""
-        return self._basis.operators
-
-    def _convert_operator(self, value: sympy.Expr) -> NumberOrderedForm:
-        """Normalize one target operator in the compiled mode basis."""
-        return self._basis._convert_operator(value)
-
-    def _contract(self, value: NumberOrderedForm) -> NumberOrderedForm | sympy.Expr:
-        """Compute ``W† value W``, unwrapping a single-reference 1x1 result."""
-        result = self.restrict(value)
-        return result[0, 0] if isinstance(result, sympy.MatrixBase) else result
-
-    @_cache_on_instance
-    def _lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
-        """Represent a source operator in target space, as ``W value W†``.
-
-        Replace source generators and numbers by their target images, then project
-        both sides onto the retained space. A single-reference attachment already
-        uses target operators and only needs normalization.
-        """
-        basis = self._basis
-        if isinstance(basis, _ReferenceBasis):
-            return basis._convert_operator(value)
-        coordinates = basis._occupation_left_inverse * (
-            sympy.Matrix([NumberOperator(op) for op in basis.operators])
-            - sympy.Matrix(basis.reference)
-        )
-        images = dict(zip(map(NumberOperator, basis._source_operators), coordinates))
-        for op, image in zip(basis._source_operators, basis._generators):
-            images[op] = image.as_expr()
-            images[op.adjoint()] = image.adjoint().as_expr()
-        result = NumberOrderedForm.from_expr(
-            value.as_expr().xreplace(images), basis.operators
-        )
-        return self._projector * result * self._projector
-
-    def _attach(self, value: sympy.Expr, side: int) -> NumberOrderedForm:
-        """Represent ``value W`` for side +1, or ``W† value`` for side -1.
-
-        Normalize the target expression but retain the attachment until arithmetic
-        contracts it. Reference lists use matrices of single-reference attachments.
-        """
-        if isinstance(self._basis, _ReferenceBasis) and (
-            len(self._basis._references) != 1 or self._basis._references[0][0] != 0
-        ):
-            raise ValueError(
-                "Reference lists use matrices of single-reference attachments"
-            )
-        value = self._basis._convert_operator(value)
-        return NumberOrderedForm(
-            value.operators, value.args[1], self, side, validate=False
-        )
-
-    def restrict(
-        self, expression: sympy.Expr | sympy.MatrixBase
-    ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Express a target operator in terms of the embedded states.
-
-        The result contains the matrix elements of ``expression`` between embedded
-        states, without perturbative corrections. Products are evaluated in the full
-        target space before taking these matrix elements, so intermediate states
-        outside the embedding contribute. For example, with ``{s: a}``,
-        ``restrict(a * Dagger(a))`` is ``1 + N_s``, while
-        ``restrict(a) * restrict(Dagger(a))`` is ``1 - N_s``.
-
-        With ``generators``, the result is a
-        `~pymablock.number_ordered_form.NumberOrderedForm` in the source operators.
-        It may contain products such as ``N_s * (1 - N_s)`` that vanish because
-        fermion and spin occupations are 0 or 1; call ``simplify()`` to remove
-        them. With a list of states, the result is a SymPy matrix in the order of
-        the list.
-        """
-        return self._basis._compress(self._basis._convert_target(expression))
-
-
-class _EmbeddingBlocks:
-    """Reusable conversion from target expressions to retained/complement blocks."""
-
-    def __init__(self, embedding: Embedding) -> None:
-        """Store a compiled embedding; infer target matrix size on first conversion."""
-        self.embedding, self.basis = embedding, embedding._basis
-        self.finite = isinstance(self.basis, _ReferenceBasis)
-        self.target_shape: tuple[int, int] | None = None
-
-    def target_matrix(
-        self, expression: sympy.Expr | sympy.MatrixBase
-    ) -> sympy.MatrixBase:
-        """Normalize a target coefficient as a square matrix with a consistent size."""
-        target = self.basis._convert_target(expression)
-        if not self.finite:
-            target = sympy.ImmutableMatrix([[target]])
-        if self.target_shape is None:
-            self.target_shape = target.shape
-        elif target.shape != self.target_shape:
-            raise ValueError(
-                "All operator coefficients must have the same target matrix shape"
-            )
-        return target
-
-    @cached_property
-    def entry_embedding(self) -> Embedding:
-        """Return the attachment shared by entries of the retained-space frame."""
-        if not self.finite:
-            return self.embedding
-        return Embedding(reference=[dict.fromkeys(self.basis.operators, 0)])
-
-    @cached_property
-    def frames(self) -> tuple[sympy.MatrixBase, sympy.MatrixBase]:
-        """Return retained frame W and complement projector Q = 1 - W W†.
-
-        Target matrix size must already be set by ``target_matrix``. Reference
-        columns are normalized creation monomials acting on a vacuum attachment.
-        """
-        basis = self.basis
-        modes = basis.operators
-        vacuum = (0,) * len(modes)
-        if self.finite:
-            w = sympy.zeros(self.target_shape[0], len(basis._references))
-            for col, (row, state) in enumerate(basis._references):
-                monomial = NumberOrderedForm(
-                    modes, {tuple(-n for n in state): sympy.S.One}
-                )
-                w[row, col] = self.entry_embedding._attach(
-                    monomial / _matrix_element(monomial, vacuum), 1
-                )
-            w = sympy.ImmutableMatrix(w)
-        else:
-            w = sympy.ImmutableMatrix([[self.embedding._attach(sympy.S.One, 1)]])
-        return w, sympy.eye(self.target_shape[0]) - w * w.adjoint()
-
-    def convert(
-        self, operator: BlockSeries, *, diagonal_origin: bool = False
-    ) -> BlockSeries:
-        """Convert an unseparated series to retained/complement operator blocks.
-
-        Preserve every block by default, including zeroth-order observable cross
-        blocks. ``diagonal_origin=True`` omits those cross blocks only for a
-        Hamiltonian whose H0 has already been validated by the solver.
-        """
-        if operator.shape:
-            raise ValueError("Structured embeddings require an unseparated operator.")
-        origin = (0,) * operator.n_infinite
-
-        def evaluate(i: int, j: int, *order: int) -> Any:
-            target = operator[tuple(order)]
-            if target is zero or (diagonal_origin and i != j and tuple(order) == origin):
-                return zero
-            target = self.target_matrix(target)
-            result = self.frames[i].adjoint() * target * self.frames[j]
-            return (
-                zero if result.is_zero_matrix else result if self.finite else result[0, 0]
-            )
-
-        return BlockSeries(
-            eval=evaluate,
-            shape=(2, 2),
-            n_infinite=operator.n_infinite,
-            dimension_names=operator.dimension_names,
-            name=operator.name,
-        )
-
-
-class _TargetBasis:
-    """Shared normalization of target expressions and occupation symbols."""
-
-    operators: tuple[OperatorType, ...]
-
-    @cached_property
-    def _target_placeholders(self) -> tuple[sympy.Symbol, ...]:
+    def target_numbers(self) -> tuple[sympy.Symbol, ...]:
         """Return scalar number symbols in target mode order."""
         return _number_symbols(self.operators)
 
-    def _at_occupations(
+    def evaluate_numbers(
         self, expression: sympy.Expr, occupations: Sequence[int | sympy.Expr]
     ) -> sympy.Expr:
         """Evaluate a target number coefficient at the supplied occupations."""
         return expression.xreplace(
-            dict(zip(self._target_placeholders, occupations, strict=True))
+            dict(zip(self.target_numbers, occupations, strict=True))
         )
 
     def _convert_operator(self, expression: sympy.Expr) -> NumberOrderedForm:
@@ -384,17 +172,111 @@ class _TargetBasis:
             raise ValueError("Every target mode must be declared in the reference")
         return NumberOrderedForm.from_expr(expression, operators=self.operators)
 
+    def _contract(self, value: NumberOrderedForm) -> NumberOrderedForm | sympy.Expr:
+        """Compute ``W† value W``, unwrapping a single-reference 1x1 result."""
+        result = self.restrict(value)
+        return result[0, 0] if isinstance(result, sympy.MatrixBase) else result
 
-class _GeneratorBasis(_TargetBasis):
+    def _attach(self, value: sympy.Expr, side: int) -> NumberOrderedForm:
+        """Represent ``value W`` for side +1, or ``W† value`` for side -1.
+
+        Normalize the target expression but retain the attachment until arithmetic
+        contracts it. Reference lists use matrices of single-reference attachments.
+        """
+        value = self._convert_operator(value)
+        return NumberOrderedForm(
+            value.operators, value.args[1], self, side, validate=False
+        )
+
+    def restrict(
+        self, expression: sympy.Expr | sympy.MatrixBase
+    ) -> NumberOrderedForm | sympy.MatrixBase:
+        """Express a target operator in terms of the embedded states.
+
+        The result contains the matrix elements of ``expression`` between embedded
+        states, without perturbative corrections. Products are evaluated in the full
+        target space before taking these matrix elements, so intermediate states
+        outside the embedding contribute. For example, with ``{s: a}``,
+        ``restrict(a * Dagger(a))`` is ``1 + N_s``, while
+        ``restrict(a) * restrict(Dagger(a))`` is ``1 - N_s``.
+
+        With ``generators``, the result is a
+        `~pymablock.number_ordered_form.NumberOrderedForm` in the source operators.
+        It may contain products such as ``N_s * (1 - N_s)`` that vanish because
+        fermion and spin occupations are 0 or 1; call ``simplify()`` to remove
+        them. With a list of states, the result is a SymPy matrix in the order of
+        the list.
+        """
+        return self._compress(self._convert_target(expression))
+
+    def target_matrix(
+        self, expression: sympy.Expr | sympy.MatrixBase
+    ) -> sympy.MatrixBase:
+        """Normalize a target coefficient, promoting scalar NOFs to 1x1 matrices."""
+        target = self._convert_target(expression)
+        return (
+            sympy.ImmutableMatrix([[target]])
+            if isinstance(target, NumberOrderedForm)
+            else target
+        )
+
+    @_cache_on_instance
+    def frames(self, rows: int) -> tuple[sympy.MatrixBase, sympy.MatrixBase]:
+        """Return retained frame W and complement Q for a target matrix size."""
+        w = self._frame_columns(rows)
+        return w, sympy.eye(rows) - w * w.adjoint()
+
+    def convert(
+        self, operator: BlockSeries, *, diagonal_origin: bool = False
+    ) -> BlockSeries:
+        """Convert an unseparated series to retained/complement operator blocks.
+
+        Preserve every block by default, including zeroth-order observable cross
+        blocks. ``diagonal_origin=True`` omits those cross blocks only for a
+        Hamiltonian whose H0 has already been validated by the solver.
+        """
+        if operator.shape:
+            raise ValueError("Structured embeddings require an unseparated operator.")
+        origin = (0,) * operator.n_infinite
+        target_shape = None
+        frames = None
+
+        def evaluate(i: int, j: int, *order: int) -> Any:
+            nonlocal target_shape, frames
+            target = operator[tuple(order)]
+            if target is zero or (diagonal_origin and i != j and tuple(order) == origin):
+                return zero
+            target = self.target_matrix(target)
+            if target_shape is None:
+                target_shape = target.shape
+                frames = self.frames(target.rows)
+            elif target.shape != target_shape:
+                raise ValueError(
+                    "All operator coefficients must have the same target matrix shape"
+                )
+            result = frames[i].adjoint() * target * frames[j]
+            return zero if result.is_zero_matrix else self.block_result(result)
+
+        return BlockSeries(
+            eval=evaluate,
+            shape=(2, 2),
+            n_infinite=operator.n_infinite,
+            dimension_names=operator.dimension_names,
+            name=operator.name,
+        )
+
+
+class _GeneratorEmbedding(Embedding):
     """Symbolic source algebra generated from one reference state."""
 
-    def __init__(
-        self,
-        generators: Mapping[sympy.Expr, sympy.Expr],
-        *,
-        reference: Mapping[OperatorType, int],
-    ) -> None:
-        """Compile the representation generated from the reference."""
+    def __new__(cls, generators: Mapping, reference: Mapping) -> Self:
+        """Recompile the generator map from its SymPy arguments."""
+        self = sympy.Expr.__new__(cls, sympy.Dict(generators), sympy.Dict(reference))
+        self._compile(dict(generators), dict(reference))
+        return self
+
+    def _compile(self, generators: Mapping, reference: Mapping) -> None:
+        """Compile and validate the affine occupation map."""
         if not isinstance(generators, Mapping) or not isinstance(reference, Mapping):
             raise TypeError("Generators and reference must be mappings")
         if not reference:
@@ -416,7 +298,7 @@ class _GeneratorBasis(_TargetBasis):
         if any(not op.is_annihilation for op in operators):
             raise ValueError("Source generators must be lowering operators")
         operators = tuple(sorted(operators, key=_operator_sort_key))
-        self._source_operators = operators
+        self.source_operators = operators
         self._source_dimensions = tuple(map(_occupation_dimension, operators))
         self.coordinate_symbols = tuple(
             sympy.Dummy(
@@ -450,6 +332,11 @@ class _GeneratorBasis(_TargetBasis):
             raise ValueError("Generator shifts must be independent")
         matrix = self._occupation_matrix
         self._occupation_left_inverse = (matrix.T * matrix).inv() * matrix.T
+        self.source_coordinates = tuple(
+            self._occupation_left_inverse
+            * (sympy.Matrix(self.target_numbers) - sympy.Matrix(self.reference))
+        )
+        self.coordinate_map = dict(zip(self.coordinate_symbols, self.source_coordinates))
         self.target_occupations = tuple(
             origin + sum(matrix[i, j] * q for j, q in enumerate(self.coordinate_symbols))
             for i, origin in enumerate(self.reference)
@@ -472,7 +359,7 @@ class _GeneratorBasis(_TargetBasis):
             if any(any(powers) for powers in form.terms):
                 raise ValueError("A ladder number image must be occupation diagonal")
             expression = form.terms.get((0,) * len(self.operators), sympy.S.Zero)
-            expression = self._at_occupations(expression, self.target_occupations)
+            expression = self.evaluate_numbers(expression, self.target_occupations)
             self._validate_identity(
                 expression - self.coordinate_symbols[index],
                 f"Ladder number image {op} must count from the source reference index zero",
@@ -494,7 +381,7 @@ class _GeneratorBasis(_TargetBasis):
             lower = upper = self.reference[i]
             for coefficient, source, size in zip(
                 self._occupation_matrix.row(i),
-                self._source_operators,
+                self.source_operators,
                 self._source_dimensions,
                 strict=True,
             ):
@@ -521,14 +408,14 @@ class _GeneratorBasis(_TargetBasis):
     def _source_weight(self, powers: tuple[int, ...]) -> sympy.Expr:
         """Return the source ladder amplitude of a shift at symbolic occupations."""
         term = NumberOrderedForm(
-            self._source_operators, {powers: sympy.S.One}, validate=False
+            self.source_operators, {powers: sympy.S.One}, validate=False
         )
         return _matrix_element(term, self.coordinate_symbols)
 
     def _lowering_weight(self, index: int) -> sympy.Expr:
         """Return the source lowering amplitude for mode ``index`` at symbolic numbers."""
         return self._source_weight(
-            tuple(int(i == index) for i in range(len(self._source_operators)))
+            tuple(int(i == index) for i in range(len(self.source_operators)))
         )
 
     def _reference_phase(self) -> sympy.Expr:
@@ -614,7 +501,7 @@ class _GeneratorBasis(_TargetBasis):
                 sign = (
                     -1
                     if all(
-                        isinstance(self._source_operators[k], FermionOp) for k in (i, j)
+                        isinstance(self.source_operators[k], FermionOp) for k in (i, j)
                     )
                     else 1
                 )
@@ -627,14 +514,14 @@ class _GeneratorBasis(_TargetBasis):
                 )
 
     @cached_property
-    def _source_placeholders(self) -> tuple[sympy.Symbol, ...]:
+    def source_placeholders(self) -> tuple[sympy.Symbol, ...]:
         """Return scalar number symbols in source mode order."""
-        return _number_symbols(self._source_operators)
+        return _number_symbols(self.source_operators)
 
     @cached_property
     def _source_zero(self) -> NumberOrderedForm:
         """Return zero carrying the source operator basis."""
-        return NumberOrderedForm(self._source_operators, {}, validate=False)
+        return NumberOrderedForm(self.source_operators, {}, validate=False)
 
     @_cache_on_instance
     def _source_shift(self, target_shift: tuple[int, ...]) -> tuple[int, ...] | None:
@@ -681,14 +568,14 @@ class _GeneratorBasis(_TargetBasis):
             q: sympy.Integer(p > 0) if p and size == 2 else n + max(p, 0)
             for q, n, p, size in zip(
                 self.coordinate_symbols,
-                self._source_placeholders,
+                self.source_placeholders,
                 powers,
                 self._source_dimensions,
             )
         }
         coefficient = sympy.factor_terms(amplitude.xreplace(initial))
         return NumberOrderedForm(
-            self._source_operators, {powers: coefficient}, validate=False
+            self.source_operators, {powers: coefficient}, validate=False
         )
 
     @_cache_on_instance
@@ -699,22 +586,109 @@ class _GeneratorBasis(_TargetBasis):
             result += self._project_term(shift, weight)
         return result
 
+    @cached_property
+    def _projector(self) -> NumberOrderedForm:
+        """Return ``W W†``, the target-space projector onto retained states.
 
-class _ReferenceBasis(_TargetBasis):
+        Scalar indicators enforce the affine occupation constraints and each source
+        mode's allowed numbers. No target occupation states are enumerated.
+        """
+        numbers = self.target_numbers
+        offsets = sympy.Matrix(numbers) - sympy.Matrix(self.reference)
+        spectra = [
+            (sympy.expand(normal.dot(offsets)), (0,))
+            for normal in self._occupation_matrix.T.nullspace()
+        ]
+        source = self.source_coordinates
+        physical = {
+            n: sympy.Dummy(integer=True, nonnegative=True)
+            for target, n in zip(self.operators, numbers)
+            if not isinstance(target, LadderOp)
+        }
+        for q, op, size in zip(source, self.source_operators, self._source_dimensions):
+            if (
+                isinstance(op, BosonOp)
+                and q.xreplace(physical).is_nonnegative is not True
+            ):
+                raise NotImplementedError(
+                    "This bosonic embedding requires an occupation inequality"
+                )
+            spectra.append((q, range(size) if size is not None else sympy.S.Integers))
+        indicator = sympy.prod(
+            _allowed_values_indicator(q, spectrum) for q, spectrum in spectra
+        )
+        return NumberOrderedForm(self.operators, {(0,) * len(numbers): indicator}) * 1
+
+    @_cache_on_instance
+    def _lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
+        """Represent a source operator in target space, as ``W value W†``.
+
+        Replace source generators and numbers by their target images, then project
+        both sides onto the retained space.
+        """
+        target_numbers = dict(
+            zip(self.target_numbers, map(NumberOperator, self.operators))
+        )
+        coordinates = [q.xreplace(target_numbers) for q in self.source_coordinates]
+        images = dict(zip(map(NumberOperator, self.source_operators), coordinates))
+        for op, image in zip(self.source_operators, self._generators):
+            images[op] = image.as_expr()
+            images[op.adjoint()] = image.adjoint().as_expr()
+        result = NumberOrderedForm.from_expr(
+            value.as_expr().xreplace(images), self.operators
+        )
+        return self._projector * result * self._projector
+
+    @property
+    def energy_states(self) -> tuple:
+        """Target occupations at which each retained energy is evaluated."""
+        return ((0, self.target_occupations),)
+
+    @property
+    def entry_embedding(self) -> Embedding:
+        """Attachment used by scalar entries of the retained frame."""
+        return self
+
+    def _frame_columns(self, _rows: int) -> sympy.MatrixBase:
+        """Represent the generator isometry as one attached scalar."""
+        return sympy.ImmutableMatrix([[self._attach(sympy.S.One, 1)]])
+
+    def block_result(self, result: sympy.MatrixBase) -> NumberOrderedForm:
+        """Unwrap the scalar block used by a generator embedding."""
+        return result[0, 0]
+
+
+class _ReferenceEmbedding(Embedding):
     """Finite source matrix in an ordered target occupation basis."""
 
-    def __init__(self, reference: Sequence[Mapping | tuple[int, Mapping]]) -> None:
-        """Use an ordered orthonormal product basis for a finite matrix source."""
+    coordinate_symbols = ()
+    source_operators = ()
+    source_placeholders = ()
+
+    def __new__(cls, generators=None, reference=None) -> Self:  # noqa: ARG004
+        """Recompile the listed states from their SymPy arguments."""
+        if isinstance(reference, Mapping):
+            raise TypeError("A matrix source requires a list of reference states")
+        reference = tuple(
+            (0, state) if isinstance(state, (Mapping, sympy.Dict)) else state
+            for state in reference
+        )
+        args = sympy.Tuple(*(sympy.Tuple(i, sympy.Dict(state)) for i, state in reference))
+        self = sympy.Expr.__new__(cls, sympy.S.NaN, args)
+        self.coordinate_map = {}
+        self._compile([(i, dict(state)) for i, state in reference])
+        return self
+
+    def _compile(self, reference: Sequence) -> None:
+        """Validate an ordered list of orthonormal target product states."""
         if isinstance(reference, Mapping):
             raise TypeError("A matrix source requires a list of reference states")
         references = list(reference)
         if not references:
             raise ValueError("Specify at least one reference state")
         states = []
-        for reference in references:
-            component, occupations = (
-                (0, reference) if isinstance(reference, Mapping) else reference
-            )
+        for entry in references:
+            component, occupations = (0, entry) if isinstance(entry, Mapping) else entry
             component = sympy.sympify(component)
             if not component.is_Integer or component < 0:
                 raise ValueError("Matrix basis indices must be nonnegative integers")
@@ -758,6 +732,61 @@ class _ReferenceBasis(_TargetBasis):
         return sympy.ImmutableSparseMatrix(
             len(self._references), len(self._references), entries
         )
+
+    @cached_property
+    def target_occupations(self) -> tuple:
+        """Entry attachments act on the target vacuum."""
+        return (0,) * len(self.operators)
+
+    @property
+    def energy_states(self) -> tuple:
+        """Matrix components and occupations of the listed retained states."""
+        return self._references
+
+    @cached_property
+    def entry_embedding(self) -> Embedding:
+        """Vacuum attachment shared by entries of the retained frame."""
+        return Embedding(reference=[dict.fromkeys(self.operators, 0)])
+
+    def _frame_columns(self, rows: int) -> sympy.MatrixBase:
+        """Prepare each listed state with a normalized creation monomial."""
+        w = sympy.zeros(rows, len(self._references))
+        for col, (row, state) in enumerate(self._references):
+            monomial = NumberOrderedForm(
+                self.operators, {tuple(-n for n in state): sympy.S.One}
+            )
+            w[row, col] = self.entry_embedding._attach(
+                monomial / _matrix_element(monomial, self.target_occupations), 1
+            )
+        return sympy.ImmutableMatrix(w)
+
+    def block_result(self, result: sympy.MatrixBase) -> sympy.MatrixBase:
+        """Reference-list blocks retain their matrix indices."""
+        return result
+
+    @cached_property
+    def _projector(self) -> NumberOrderedForm:
+        """Project an entry attachment onto its single reference state."""
+        indicator = sympy.prod(
+            _allowed_values_indicator(q, (n,))
+            for q, n in zip(self.target_numbers, self._references[0][1])
+        )
+        return (
+            NumberOrderedForm(self.operators, {(0,) * len(self.operators): indicator}) * 1
+        )
+
+    @_cache_on_instance
+    def _lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
+        """Normalize a reference entry, which already uses target operators."""
+        return self._convert_operator(value)
+
+    def _attach(self, value: sympy.Expr, side: int) -> NumberOrderedForm:
+        """Attach one reference; lists use matrices of vacuum attachments."""
+        if len(self._references) != 1 or self._references[0][0] != 0:
+            raise ValueError(
+                "Reference lists use matrices of single-reference attachments"
+            )
+        return super()._attach(value, side)
 
 
 def _matrix_element(term: NumberOrderedForm, occupations: Sequence) -> sympy.Expr:

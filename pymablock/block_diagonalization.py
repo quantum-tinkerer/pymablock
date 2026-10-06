@@ -29,7 +29,7 @@ from pymablock.number_ordered_form import (
     find_operators,
     generator_types,
 )
-from pymablock.operator_embedding import Embedding, _EmbeddingBlocks
+from pymablock.operator_embedding import Embedding
 from pymablock.series import (
     BlockSeries,
     zero,
@@ -260,14 +260,14 @@ def block_diagonalize(
             raise NotImplementedError(
                 "Structured embeddings use exact coefficients and do not accept a numerical atol."
             )
-        embedding_blocks = _EmbeddingBlocks(subspace_eigenvectors)
-        h0 = embedding_blocks.target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
+        embedding = subspace_eigenvectors
+        h0 = embedding.target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
         solve_sylvester = second_quantization._make_embedding_sylvester_solver(
-            embedding_blocks, h0
+            embedding, h0
         )
         # Validate the projector before lazy series evaluation.
-        embedding_blocks.frames
-        hamiltonian = embedding_blocks.convert(hamiltonian, diagonal_origin=True)
+        embedding.frames(h0.rows)
+        hamiltonian = embedding.convert(hamiltonian, diagonal_origin=True)
         subspace_eigenvectors = None
 
     use_implicit = False
@@ -838,7 +838,7 @@ def operator_to_BlockSeries(
     if isinstance(subspace_eigenvectors, Embedding):
         if implicit:
             raise ValueError("Structured embedding conversion does not use implicit mode")
-        return _EmbeddingBlocks(subspace_eigenvectors).convert(operator)
+        return subspace_eigenvectors.convert(operator)
 
     # Separation into subspace_eigenvectors
     if not to_split:
