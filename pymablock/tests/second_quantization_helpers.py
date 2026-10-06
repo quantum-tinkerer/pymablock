@@ -12,7 +12,6 @@ from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
-    _NOFTransition,
     _occupation_dimension,
 )
 
@@ -115,9 +114,8 @@ def nof_matrix(form, occupations=None):
     states = tuple(product(*domains))
     indices = {state: i for i, state in enumerate(states)}
     result = sympy.MutableSparseMatrix(len(states), len(states), {})
-    for transition in _NOFTransition.from_form(form):
-        for column, state in enumerate(states):
-            action = transition.apply(state)
-            if action is not None and action.output_state in indices:
-                result[indices[action.output_state], column] += action.weight
+    for column, state in enumerate(states):
+        for output, weight in form.act(state).values():
+            if output in indices:
+                result[indices[output], column] += weight
     return sympy.ImmutableMatrix(result)

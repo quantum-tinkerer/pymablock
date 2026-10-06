@@ -16,7 +16,6 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
     OperatorType,
     _allowed_values_indicator,
-    _NOFTransition,
     _number_symbols,
     _occupation_dimension,
     find_operators,
@@ -209,12 +208,7 @@ class Embedding(sympy.Expr):
             - sympy.Matrix(basis.reference)
         )
         images = dict(zip(map(NumberOperator, basis._source_operators), coordinates))
-        for op, generator in zip(basis._source_operators, basis._generators):
-            image = NumberOrderedForm(
-                generator.operators,
-                {generator.powers: generator.coefficient},
-                validate=False,
-            )
+        for op, image in zip(basis._source_operators, basis._generators):
             images[op] = image.as_expr()
             images[op.adjoint()] = image.adjoint().as_expr()
         result = NumberOrderedForm.from_expr(
@@ -308,9 +302,8 @@ class _EmbeddingBlocks:
                 monomial = NumberOrderedForm(
                     modes, {tuple(-n for n in state): sympy.S.One}
                 )
-                (transition,) = _NOFTransition.from_form(monomial)
                 w[row, col] = self.entry_embedding._attach(
-                    monomial / transition.apply(vacuum).weight, 1
+                    monomial / _matrix_element(monomial, vacuum), 1
                 )
             w = sympy.ImmutableMatrix(w)
         else:
@@ -433,31 +426,25 @@ class _GeneratorBasis(_TargetBasis):
             )
             for i, op in enumerate(operators)
         )
-        transitions = []
+        images, shifts = [], []
         for op in operators:
-            form = self._convert_target(generators[op])
-            terms = tuple(_NOFTransition.from_form(form))
-            if len(terms) != 1 or not any(terms[0].powers):
+            image = self._convert_target(generators[op])
+            if len(image.terms) != 1 or not any(shift := next(iter(image.terms))):
                 raise ValueError(
                     f"Image of {op} must change target occupations by one nonzero shift"
                 )
-            transition = terms[0]
-            parity = (
-                sum(
-                    power
-                    for target, power in zip(
-                        self.operators, transition.powers, strict=True
-                    )
-                    if isinstance(target, FermionOp)
-                )
-                % 2
+            parity = sum(
+                power
+                for target, power in zip(self.operators, shift, strict=True)
+                if isinstance(target, FermionOp)
             )
-            if parity != isinstance(op, FermionOp):
+            if parity % 2 != isinstance(op, FermionOp):
                 raise ValueError("Generator images must preserve fermionic parity")
-            transitions.append(transition)
-        self._generators = tuple(transitions)
+            images.append(image)
+            shifts.append(shift)
+        self._generators = tuple(images)
         self._occupation_matrix = sympy.Matrix(
-            len(self.operators), len(operators), lambda i, j: transitions[j].powers[i]
+            len(self.operators), len(operators), lambda i, j: shifts[j][i]
         )
         if self._occupation_matrix.rank() != len(operators):
             raise ValueError("Generator shifts must be independent")
@@ -530,11 +517,19 @@ class _GeneratorBasis(_TargetBasis):
             ):
                 raise ValueError("Generators overfill a target spin or fermion")
 
+    @_cache_on_instance
+    def _source_weight(self, powers: tuple[int, ...]) -> sympy.Expr:
+        """Return the source ladder amplitude of a shift at symbolic occupations."""
+        term = NumberOrderedForm(
+            self._source_operators, {powers: sympy.S.One}, validate=False
+        )
+        return _matrix_element(term, self.coordinate_symbols)
+
     def _lowering_weight(self, index: int) -> sympy.Expr:
         """Return the source lowering amplitude for mode ``index`` at symbolic numbers."""
-        powers = tuple(int(i == index) for i in range(len(self._source_operators)))
-        transition = _NOFTransition(self._source_operators, powers, sympy.S.One)
-        return transition.symbolic_action(self.coordinate_symbols).weight
+        return self._source_weight(
+            tuple(int(i == index) for i in range(len(self._source_operators)))
+        )
 
     def _reference_phase(self) -> sympy.Expr:
         """Return the phase relating normalized target and source occupation states.
@@ -544,7 +539,7 @@ class _GeneratorBasis(_TargetBasis):
         NotImplementedError. The reference state's phase is one.
         """
         phase = sympy.S.One
-        for i, (transition, q, size) in enumerate(
+        for i, (image, q, size) in enumerate(
             zip(
                 self._generators,
                 self.coordinate_symbols,
@@ -552,9 +547,8 @@ class _GeneratorBasis(_TargetBasis):
                 strict=True,
             )
         ):
-            ratio = (
-                self._lowering_weight(i)
-                / transition.symbolic_action(self.target_occupations).weight
+            ratio = self._lowering_weight(i) / _matrix_element(
+                image, self.target_occupations
             )
             ratio = ratio.xreplace(
                 dict.fromkeys(self.coordinate_symbols[:i], sympy.S.Zero)
@@ -601,7 +595,7 @@ class _GeneratorBasis(_TargetBasis):
         the mixed adjoint relations by reversing an edge of each lattice square.
         """
         weights = [
-            g.symbolic_action(self.target_occupations).weight for g in self._generators
+            _matrix_element(image, self.target_occupations) for image in self._generators
         ]
         coordinates = self.coordinate_symbols
         active = {
@@ -661,23 +655,25 @@ class _GeneratorBasis(_TargetBasis):
         return tuple(map(int, result))
 
     @_cache_on_instance
-    def _project_transition(self, transition: _NOFTransition) -> NumberOrderedForm:
-        """Compress one target term, including ladder amplitudes and reference phases.
+    def _project_term(
+        self, target_shift: tuple[int, ...], target_weight: sympy.Expr
+    ) -> NumberOrderedForm:
+        """Compress one target term, given its matrix element on retained states.
 
-        Convert its shift and middle coefficient to source coordinates. Spectator
-        numbers stay symbolic; a transition outside the retained lattice gives zero.
+        Convert its shift and matrix element to source coordinates. Spectator
+        numbers stay symbolic; a term outside the retained lattice gives zero.
         """
-        powers = self._source_shift(transition.powers)
+        powers = self._source_shift(target_shift)
         if powers is None:
             return self._source_zero
-        source_transition = _NOFTransition(self._source_operators, powers, sympy.S.One)
-        target_weight = transition.symbolic_action(self.target_occupations).weight
-        source_weight = source_transition.symbolic_action(self.coordinate_symbols).weight
         shifted = {q: q - p for q, p in zip(self.coordinate_symbols, powers)}
         # The phase has unit modulus on the retained domain. Its ratio cancels
         # unchanged factors without expanding binary occupation identities.
         amplitude = (
-            target_weight / source_weight * self.phase / self.phase.xreplace(shifted)
+            target_weight
+            / self._source_weight(powers)
+            * self.phase
+            / self.phase.xreplace(shifted)
         )
         # NOF coefficients sit between creation and annihilation operators.
         # A binary transition fixes its input occupation; spectators stay symbolic.
@@ -699,8 +695,8 @@ class _GeneratorBasis(_TargetBasis):
     def _compress(self, target: NumberOrderedForm) -> NumberOrderedForm:
         """Return ``W† target W`` by translating each term to the source algebra."""
         result = self._source_zero
-        for transition in _NOFTransition.from_form(target):
-            result += self._project_transition(transition)
+        for shift, (_, weight) in target.act(self.target_occupations).items():
+            result += self._project_term(shift, weight)
         return result
 
 
@@ -753,17 +749,24 @@ class _ReferenceBasis(_TargetBasis):
         """Evaluate matrix elements between the listed reference states, in list order."""
         entries = {}
         for (row, col), entry in target.todok().items():
-            for transition in _NOFTransition.from_form(entry):
-                for j, (component, state) in enumerate(self._references):
-                    if component != col or (action := transition.apply(state)) is None:
-                        continue
-                    if (
-                        i := self._reference_indices.get((row, action.output_state))
-                    ) is not None:
-                        entries[i, j] = entries.get((i, j), 0) + action.weight
+            for j, (component, state) in enumerate(self._references):
+                if component != col:
+                    continue
+                for output, weight in entry.act(state).values():
+                    if (i := self._reference_indices.get((row, output))) is not None:
+                        entries[i, j] = entries.get((i, j), 0) + weight
         return sympy.ImmutableSparseMatrix(
             len(self._references), len(self._references), entries
         )
+
+
+def _matrix_element(term: NumberOrderedForm, occupations: Sequence) -> sympy.Expr:
+    """Return the matrix element of a single-term NOF, or zero if it annihilates."""
+    actions = term.act(occupations)
+    if not actions:
+        return sympy.S.Zero
+    ((_, matrix_element),) = actions.values()
+    return matrix_element
 
 
 def _ordered_reference_state(

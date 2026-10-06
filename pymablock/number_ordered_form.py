@@ -7,7 +7,6 @@ and number operators in the middle.
 
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
 from functools import cache, cached_property, lru_cache
 from typing import TYPE_CHECKING
 
@@ -1106,6 +1105,89 @@ class NumberOrderedForm(Operator):
         # Convert tuple of tuples to dictionary
         return {k: v for k, v in self.args[1]}
 
+    def act(
+        self, occupations: Sequence[int | sympy.Expr]
+    ) -> dict[tuple[int, ...], tuple[tuple[sympy.Expr, ...], sympy.Expr]]:
+        """Apply each term to the Fock state with the given occupations.
+
+        Occupations follow the order of ``operators`` and may be symbolic. Positive
+        powers annihilate particles; negative powers create them. Each term applies
+        its annihilation operators, evaluates its coefficient at the intermediate
+        occupations, then applies its creation operators in reverse mode order.
+        Fermion signs follow the order of ``operators``. All ladder factors are
+        checked for zero before the coefficient is evaluated, so forbidden
+        transitions never evaluate coefficient poles.
+
+        Parameters
+        ----------
+        occupations :
+            Occupation of each mode in the input state.
+
+        Returns
+        -------
+        dict
+            ``powers: (output_occupations, matrix_element)``, keyed as in
+            ``terms``. The matrix element includes the evaluated coefficient,
+            ladder amplitudes, and fermion signs. Terms with a literally zero
+            matrix element are omitted; symbolic zeros are not inferred.
+
+        Examples
+        --------
+        >>> a = BosonOp("a")
+        >>> NumberOrderedForm.from_expr(Dagger(a) ** 2 * a).act((3,))
+        {(-1,): ((4,), 6)}
+
+        """
+        is_fermion = [isinstance(op, FermionOp) for op in self.operators]
+        numbers = _number_symbols(tuple(self.operators))
+
+        def apply_ladder(
+            state: list[sympy.Expr], index: int, annihilate: bool
+        ) -> sympy.Expr:
+            """Apply one ladder operator to ``state`` in place; return its amplitude."""
+            operator, n = self.operators[index], state[index]
+            state[index] += -1 if annihilate else 1
+            if isinstance(operator, BosonOp):
+                return sympy.sqrt(n if annihilate else n + 1)
+            if isinstance(operator, LadderOp):
+                return sympy.S.One
+            factor = n if annihilate else 1 - n
+            if isinstance(operator, FermionOp):
+                factor *= (-1) ** sum(
+                    m for m, odd in zip(state[:index], is_fermion) if odd
+                )
+            return factor
+
+        def apply_term(
+            powers: tuple[int, ...], coefficient: sympy.Expr
+        ) -> tuple[tuple[sympy.Expr, ...], sympy.Expr] | None:
+            """Return the output occupations and matrix element, or None if zero."""
+            state = list(map(sympy.sympify, occupations))
+            factors = []
+            for index, power in enumerate(powers):
+                for _ in range(power):
+                    factors.append(apply_ladder(state, index, annihilate=True))
+            middle_occupations = tuple(state)
+            for index, power in reversed(list(enumerate(powers))):
+                for _ in range(-power):
+                    factors.append(apply_ladder(state, index, annihilate=False))
+            # Check the ladder factors first: the coefficient may be singular
+            # where one of them vanishes.
+            if any(factor == 0 for factor in factors):
+                return None
+            coefficient = coefficient.xreplace(
+                dict(zip(numbers, middle_occupations, strict=True))
+            )
+            matrix_element = sympy.Mul(*factors) * coefficient
+            return None if matrix_element == 0 else (tuple(state), matrix_element)
+
+        result = {}
+        for powers, coefficient in self.args[1]:
+            powers = tuple(map(int, powers))
+            if (action := apply_term(powers, coefficient)) is not None:
+                result[powers] = action
+        return result
+
     def _sympystr(self, printer):
         """Print the expression in a string format.
 
@@ -2030,103 +2112,3 @@ def _number_symbols(operators: tuple[OperatorType, ...]) -> tuple[sympy.Symbol, 
         NumberOrderedForm.from_expr(NumberOperator(op), operators=operators).terms[powers]
         for op in operators
     )
-
-
-@dataclass(frozen=True, slots=True)
-class _WeightedTransition:
-    """Result of applying a term: final occupations and its matrix element.
-
-    ``weight`` includes the coefficient, ladder amplitudes and fermionic signs.
-    A zero weight marks an inactive transition; no normalized state is implied.
-    """
-
-    output_state: tuple[sympy.Expr, ...]
-    weight: sympy.Expr
-
-
-@dataclass(frozen=True)
-class _NOFTransition:
-    """One number-ordered term, before evaluating its ladder amplitudes.
-
-    Positive ``powers`` annihilate particles and negative powers create them.
-    ``coefficient`` is evaluated between the annihilation and creation steps.
-    The operator order determines the fermionic sign convention.
-    """
-
-    operators: tuple[OperatorType, ...]
-    powers: tuple[int, ...]
-    coefficient: sympy.Expr
-
-    @classmethod
-    def from_form(cls, form: "NumberOrderedForm") -> Iterable["_NOFTransition"]:
-        """Read each term directly, without constructing intermediate NOFs."""
-        for powers, coefficient in form.terms.items():
-            yield cls(tuple(form.operators), tuple(map(int, powers)), coefficient)
-
-    @cached_property
-    def fermion_indices(self) -> tuple[int, ...]:
-        """Return mode indices that contribute fermionic parity."""
-        return tuple(
-            index
-            for index, operator in enumerate(self.operators)
-            if isinstance(operator, FermionOp)
-        )
-
-    def apply(self, state: Sequence[int]) -> _WeightedTransition | None:
-        """Return the final state and matrix element, or None for zero amplitude."""
-        action = self.symbolic_action(state)
-        return None if action.weight == 0 else action
-
-    def symbolic_action(self, occupations: Sequence[sympy.Expr]) -> _WeightedTransition:
-        """Compute the final occupations and full matrix element symbolically.
-
-        Apply annihilation operators first, evaluate the middle coefficient, then
-        apply creation operators in reverse mode order. The input is not mutated.
-        """
-        current = list(map(sympy.sympify, occupations))
-        amplitude = sympy.S.One
-
-        for index, power in enumerate(self.powers):
-            for _ in range(max(power, 0)):
-                factor = self._symbolic_generator(current, index, annihilate=True)
-                if factor == 0:
-                    return _WeightedTransition(tuple(current), sympy.S.Zero)
-                amplitude *= factor
-
-        amplitude *= self.coefficient.xreplace(
-            dict(zip(_number_symbols(self.operators), current, strict=True))
-        )
-
-        for index in reversed(range(len(self.powers))):
-            for _ in range(max(-self.powers[index], 0)):
-                factor = self._symbolic_generator(current, index, annihilate=False)
-                if factor == 0:
-                    return _WeightedTransition(tuple(current), sympy.S.Zero)
-                amplitude *= factor
-
-        return _WeightedTransition(tuple(current), amplitude)
-
-    def _symbolic_generator(
-        self,
-        state: list[sympy.Expr],
-        index: int,
-        *,
-        annihilate: bool,
-    ) -> sympy.Expr:
-        """Apply one ladder step in place and return its amplitude, including parity."""
-        operator = self.operators[index]
-        occupation = state[index]
-        if isinstance(operator, BosonOp):
-            factor = sympy.sqrt(occupation if annihilate else occupation + 1)
-        elif isinstance(operator, LadderOp):
-            factor = sympy.S.One
-        elif isinstance(operator, pauli.SigmaMinus):
-            factor = occupation if annihilate else 1 - occupation
-        elif isinstance(operator, FermionOp):
-            factor = (occupation if annihilate else 1 - occupation) * (-1) ** sum(
-                state[earlier] for earlier in self.fermion_indices if earlier < index
-            )
-        else:  # pragma: no cover - guarded by NumberOrderedForm
-            raise TypeError(f"Unsupported operator: {operator!r}")
-        state[index] += -1 if annihilate else 1
-        return sympy.sympify(factor)

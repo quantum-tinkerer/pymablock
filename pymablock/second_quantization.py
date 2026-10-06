@@ -12,7 +12,6 @@ from pymablock.number_ordered_form import (
     NumberOperator,
     NumberOrderedForm,
     _iter_fixed_number_indicators,
-    _NOFTransition,
     _number_operator_to_placeholder,
 )
 from pymablock.operator_embedding import Embedding
@@ -184,17 +183,14 @@ def _make_embedding_sylvester_solver(
         if value == 0 or value.is_zero:
             return sympy.S.Zero
         value = basis._convert_operator(value.target)
-        terms = {}
-        for transition in _NOFTransition.from_form(value):
-            powers = transition.powers
-            action = transition.symbolic_action(occupations)
-            if action.weight == 0:
-                continue
-            middle = [n - max(p, 0) for n, p in zip(occupations, powers)]
-            coefficient = basis._at_occupations(transition.coefficient, middle)
+        terms, coefficients = {}, value.terms
+        for powers, (output, matrix_element) in value.act(occupations).items():
+            # Divide the coefficient, not the full matrix element; ladder factors
+            # only determine whether the transition is active.
+            middle_occupations = [n - max(p, 0) for n, p in zip(occupations, powers)]
+            coefficient = basis._at_occupations(coefficients[powers], middle_occupations)
             denominator = sympy.expand(
-                basis._at_occupations(energies[row], action.output_state)
-                - incoming_energies[col]
+                basis._at_occupations(energies[row], output) - incoming_energies[col]
             )
             # A literal zero gap still needs the amplitude interpreted in the
             # source algebra: binary numbers obey n² = n, including indicators.
@@ -202,7 +198,7 @@ def _make_embedding_sylvester_solver(
                 amplitude = NumberOrderedForm(
                     basis._source_operators,
                     {
-                        (0,) * len(coordinates): action.weight.xreplace(
+                        (0,) * len(coordinates): matrix_element.xreplace(
                             dict(zip(coordinates, basis._source_placeholders))
                         )
                     },
@@ -215,7 +211,7 @@ def _make_embedding_sylvester_solver(
                     coefficient,
                     denominator,
                     coordinates,
-                    action.weight,
+                    matrix_element,
                     nonnegative,
                 )
             except ValueError as error:
