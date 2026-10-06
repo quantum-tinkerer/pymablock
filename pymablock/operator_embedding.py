@@ -57,9 +57,9 @@ class Embedding(sympy.Expr):
 
     Below, *source* refers to the effective model, and *target* refers to the
     Hamiltonian passed to `~pymablock.block_diagonalize`. The embedding maps
-    source states to target states. It either describes how each source operator
-    acts on the target states, or lists target states that form a finite matrix
-    basis.
+    source states to target states. It either maps each source operator to an
+    expression in the target operators, or lists target states that form a finite
+    matrix basis.
 
     Pass the embedding as ``subspace_eigenvectors`` to
     `~pymablock.block_diagonalize` or `~pymablock.operator_to_BlockSeries`.
@@ -119,8 +119,8 @@ class Embedding(sympy.Expr):
     - For matrix Hamiltonians, an unperturbed Hamiltonian that is also diagonal
       in the matrix index, with all perturbative orders of the same shape.
     - For each bosonic source operator, an occupation that is nonnegative for
-      every target state. For example, a boson defined in terms of a ``LadderOp`` is not
-      supported.
+      every target state. For example, a boson defined in terms of a ``LadderOp``
+      is not supported.
 
     The solver uses exact symbolic arithmetic. It treats a floating-point number
     as the exact fraction that the computer stores, so ``0.1`` differs slightly

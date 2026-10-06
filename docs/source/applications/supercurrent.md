@@ -89,10 +89,10 @@ at order $(2,2)$.
 ```{code-cell} ipython3
 dot = tuple(sorted((d_up, d_down), key=lambda op: str(op.name)))
 quasiparticles = tuple(op for pair in gamma.values() for op in pair)
-target = tuple(sorted(dot + quasiparticles, key=lambda op: str(op.name)))
+modes = tuple(sorted(dot + quasiparticles, key=lambda op: str(op.name)))
 embedding = Embedding(
     {op: op for op in dot},
-    reference=dict.fromkeys(target, 0),
+    reference=dict.fromkeys(modes, 0),
 )
 H, *_ = block_diagonalize(
     {(0, 0): H0, (1, 0): couplings["L"], (0, 1): couplings["R"]},
