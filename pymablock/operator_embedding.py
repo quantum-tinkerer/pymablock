@@ -67,7 +67,7 @@ class Embedding(sympy.Expr):
 
     Parameters
     ----------
-    generators : collections.abc.Mapping, optional
+    generators : collections.abc.Mapping
         Maps each target lowering operator to a source expression. The keys may be
         ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` operators. A
         ``LadderOp`` target also needs an entry mapping its ``NumberOperator`` to a
