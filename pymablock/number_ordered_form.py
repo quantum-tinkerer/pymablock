@@ -5,9 +5,8 @@ which represents operators with creation operators on the left, annihilation ope
 and number operators in the middle.
 """
 
-from __future__ import annotations
-
 from collections import defaultdict
+from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cache, cached_property, lru_cache
 from typing import TYPE_CHECKING
@@ -23,16 +22,7 @@ from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.operatorordering import normal_ordered_form
 
 if TYPE_CHECKING:
-    from collections.abc import (
-        Callable,
-        Collection,
-        Iterable,
-        Iterator,
-        Mapping,
-        Sequence,
-    )
-
-    from pymablock.operator_embedding import Embedding
+    import pymablock.operator_embedding
 
 __all__ = [
     "NumberOperator",
@@ -103,7 +93,8 @@ _install_piecewise_patch()
 # TODO: reimplement once https://github.com/sympy/sympy/issues/27385 is fixed.
 # Monkey patch sympy to override the sum method to ExpressionRawDomain.
 def _sum_sequentially(
-    _domain: sympy.polys.domains.ExpressionRawDomain, items: Sequence[sympy.Expr]
+    _domain: sympy.polys.domains.expressionrawdomain.ExpressionRawDomain,
+    items: Sequence[sympy.Expr],
 ) -> sympy.Expr:
     """Sum from left to right so operator subclasses can handle each addition."""
     if not items:
@@ -643,7 +634,7 @@ class NumberOrderedForm(Operator):
         return result
 
     @property
-    def embedding(self) -> Embedding | None:
+    def embedding(self) -> "pymablock.operator_embedding.Embedding | None":
         """Return the attached embedding, or None for an ordinary operator."""
         return self.args[2] if len(self.args) == 4 else None
 
@@ -653,13 +644,13 @@ class NumberOrderedForm(Operator):
         return int(self.args[3]) if self.embedding is not None else 0
 
     @cached_property
-    def source(self) -> NumberOrderedForm:
+    def source(self) -> "NumberOrderedForm":
         """The source operator without its embedding attachment."""
         return NumberOrderedForm(self.operators, self.args[1], validate=False)
 
     def _rebuild(
         self, terms: TermDict, operators: Sequence[OperatorType] | None = None
-    ) -> NumberOrderedForm:
+    ) -> "NumberOrderedForm":
         """Replace source terms while preserving the map's domain and codomain."""
         return type(self)(
             self.operators if operators is None else operators,
@@ -1547,8 +1538,8 @@ class NumberOrderedForm(Operator):
         return result
 
     def _multiply_attached(
-        self, other: NumberOrderedForm
-    ) -> NumberOrderedForm | sympy.Expr:
+        self, other: "NumberOrderedForm"
+    ) -> "NumberOrderedForm | sympy.Expr":
         """Compose operators when at least one factor carries an embedding.
 
         Matching opposite attachments give ``W† X Y W`` in target space or
@@ -1719,7 +1710,7 @@ class NumberOrderedForm(Operator):
 
         return self._rebuild(new_terms)
 
-    def _linearize_binary_operators(self) -> NumberOrderedForm:
+    def _linearize_binary_operators(self) -> "NumberOrderedForm":
         """Reduce binary-number dependence while preserving unresolved poles.
 
         Interpolate each fermion or spin number with ``f(n) = (1-n) f(0) + n f(1)``.
@@ -1872,7 +1863,7 @@ class NumberOrderedForm(Operator):
         """
         return all(not any(powers) for powers, _ in self.args[1])
 
-    def _eval_subs(self, old: sympy.Basic, new: sympy.Basic) -> NumberOrderedForm:
+    def _eval_subs(self, old: sympy.Basic, new: sympy.Basic) -> "NumberOrderedForm":
         """Substitute coefficients, reconstructing attachments in declared source modes.
 
         Bare operators retain their basis; direct mode replacement is rejected.
@@ -2057,7 +2048,7 @@ class _NOFTransition:
     coefficient: sympy.Expr
 
     @classmethod
-    def from_form(cls, form: NumberOrderedForm) -> Iterable["_NOFTransition"]:
+    def from_form(cls, form: "NumberOrderedForm") -> Iterable["_NOFTransition"]:
         """Read each term directly, without constructing intermediate NOFs."""
         for powers, coefficient in form.terms.items():
             yield cls(tuple(form.operators), tuple(map(int, powers)), coefficient)
