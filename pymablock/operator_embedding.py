@@ -64,7 +64,9 @@ class Embedding(sympy.Expr):
     Pass the embedding as ``subspace_eigenvectors`` to
     `~pymablock.block_diagonalize` or `~pymablock.operator_to_BlockSeries`.
     Block 0 contains the embedded states and block 1 contains all other target
-    states, which remain available for virtual transitions.
+    states, which remain available for virtual transitions. See the
+    :doc:`structured embeddings documentation <../structured_embeddings>` for
+    requirements and examples with physical models.
 
     Parameters
     ----------
@@ -88,34 +90,6 @@ class Embedding(sympy.Expr):
         ``(matrix_index, occupations)`` pairs; a mapping without an index refers to
         index 0. For a matrix Hamiltonian without operators, use pairs with empty
         mappings, such as ``[(0, {}), (2, {})]``.
-
-    Notes
-    -----
-    With ``generators``, the block 0 entries are
-    `~pymablock.number_ordered_form.NumberOrderedForm` objects in the source
-    operators. This includes bosonic or ``LadderOp`` source operators with
-    infinitely many states. With a list of states, block 0 entries are SymPy
-    matrices in the order of the list. Block 1 uses the target operators. Blocks
-    (0, 1) and (1, 0) map between source and target states.
-
-    Perturbation theory with an embedding requires:
-
-    - A Hermitian Hamiltonian.
-    - An unperturbed Hamiltonian that is diagonal in the target occupations.
-    - For matrix Hamiltonians, an unperturbed Hamiltonian that is also diagonal
-      in the matrix index, with all perturbative orders of the same shape.
-    - For each bosonic source operator, an occupation that is nonnegative for
-      every target state. For example, a boson defined in terms of a ``LadderOp``
-      is not supported.
-
-    The solver uses exact symbolic arithmetic. It treats a floating-point number
-    as the exact fraction that the computer stores, so ``0.1`` differs slightly
-    from ``sympy.Rational(1, 10)``. Use rational numbers when exact decimal
-    values matter. The numerical options ``atol``, ``direct_solver``, and
-    ``solver_options`` are not supported.
-
-    See the :doc:`structured embeddings documentation <../structured_embeddings>`
-    for examples with physical models.
 
     Examples
     --------
