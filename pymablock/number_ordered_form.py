@@ -581,7 +581,7 @@ class NumberOrderedForm(Operator):
         if not isinstance(operators, Tuple):
             operators = Tuple(*operators)
 
-        if embedding is not None and tuple(operators) != embedding._target_operators:
+        if embedding is not None and tuple(operators) != embedding.operators:
             # Rebuilding after a mode rename can change the embedding's mode order.
             return embedding._attach(cls(operators, terms, validate=validate), side)
 

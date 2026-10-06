@@ -7,14 +7,16 @@ As in the user documentation, the *source* is the effective model and the
 *target* is the Hamiltonian passed to `block_diagonalize`. The embedding is an
 isometry $W$ from source states to target states.
 
-`Embedding` is a structural SymPy expression: its arguments specify the target
-images and references, while private compiled bases implement them. Reconstructing
-or unpickling equal arguments produces the same target modes. The generator and
-reference-list representations share target normalization and compression.
+`Embedding` is a structural SymPy expression whose constructor selects one of two subclasses.
+`_GeneratorEmbedding` compiles generator images and the affine occupation map.
+`_ReferenceEmbedding` compiles an ordered list of target states.
+Both store compiled data directly and recompile when reconstructed or unpickled.
+Shared target normalization, attachments, and block conversion live on `Embedding`.
+The subclasses implement compression, projectors, lifting, and frame columns.
 
 The implementation separates three operations:
 
-- `operator_embedding._EmbeddingBlocks` constructs the retained/complement frames
+- `Embedding.convert` constructs the retained/complement frames
   and converts general operators. It preserves zeroth-order cross blocks.
 - `second_quantization._make_embedding_sylvester_solver` validates diagonal H0
   and divides transitions by their actual energy differences. The driver can then omit
@@ -32,7 +34,7 @@ ordinary second-quantized Sylvester solver, with retained or target energies.
 Transitions between the blocks use the embedding-aware solver.
 
 Method caches belong to their compiled instance, so discarding an embedding
-also discards its basis caches. The scalar projector cache has a fixed size.
+also discards its conversion caches. The scalar projector cache has a fixed size.
 SymPy compatibility patches live in `number_ordered_form`; the condition
 workaround is feature-detected and installed once, including across reloads.
 
@@ -114,6 +116,14 @@ in $L(n-r)$. Using independent nullspace constraints avoids redundant
 occupation equations. A reference state is the special case that selects one
 eigenvalue of every target number operator. Finite spectral selections are sums
 of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
+
+The solver reads `energy_states`, `target_occupations`, `coordinate_symbols`,
+`coordinate_map`, and `source_operators` from the embedding.
+Generator embeddings compute `source_coordinates`, $L(n-r)$, once and reuse them
+in the projector, lifting, and the solver's coordinate map.
+Reference-list frame entries share an internal vacuum embedding.
+Matrix shape consistency belongs to each block conversion, so one embedding can
+be reused for operators of different target matrix sizes.
 
 The Sylvester solver evaluates each target transition on the incoming occupations
 $n=r+Mm$, then divides by the difference between its outgoing and incoming
