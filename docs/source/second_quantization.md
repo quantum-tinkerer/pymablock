@@ -6,10 +6,11 @@ We illustrate how our approach works with all common types of second-quantized o
 
 ## Resonances in effective models
 
-Second-quantized Sylvester solutions use partial symbolic division. An exposed
-zero energy gap with a nonzero coupling raises `ValueError`, but other
-occupation-dependent resonances can remain as symbolic poles. A result without
-an exception therefore does not guarantee that all occupation sectors are
+Second-quantized Sylvester solutions divide on the transition's support. A zero
+energy gap made explicit by the input or an occupation-selection indicator raises
+`ValueError` when the coupling is nonzero. The solver does not search binary
+occupation sectors or integer roots; other resonances remain symbolic poles.
+A result without an exception therefore does not guarantee that all occupation sectors are
 nonresonant. Substitute the occupations of interest into the coefficients before
 using the effective model in those sectors. A zero right-hand side selects the
 zero solution, including where the gap also vanishes.

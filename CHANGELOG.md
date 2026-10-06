@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Second-quantized energy-gap division uses local support checks and preserves unresolved resonances as symbolic poles, rather than enumerating all binary occupation sectors. Exposed nonzero couplings at zero gaps still raise an error.
+- Second-quantized energy-gap division evaluates explicit occupation selections and preserves unresolved resonances as symbolic poles. It does not search binary occupation sectors. Explicit nonzero couplings at zero gaps still raise an error.
 - Raised minimum versions to Python 3.12, NumPy 2.2, SciPy 1.15, and SymPy 1.14 following the September 2026 SPEC 0 support window.
 - Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
 - Reduced the number of matrix products in selective Hermitian diagonalization by evaluating the selected auxiliary directly, and in non-Hermitian diagonalization by exploiting the selected structure of the transformed residual.

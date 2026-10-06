@@ -836,12 +836,13 @@ def test_sylvester_keeps_generic_binary_gap_compact(size, spectators):
 
 
 @pytest.mark.parametrize("offset", [1, 1.0])
-def test_sylvester_binary_resonant_source(offset):
-    """Reject a matrix equation requiring 0 * X = 1 at occupation 1."""
+def test_sylvester_binary_resonance_remains_a_pole(offset):
+    """A binary gap is not searched; valid sectors remain usable."""
     f = FermionOp("f")
     solve = solve_sylvester_2nd_quant(((offset - NumberOperator(f),), (sympy.S.Zero,)))
-    with pytest.raises(ValueError, match="right-hand side is nonzero"):
-        solve(sympy.Matrix([[1]]), (0, 1, 1))
+    expression = solve(sympy.Matrix([[1]]), (0, 1, 1))[0, 0].as_expr()
+    assert expression.subs(NumberOperator(f), 0) == 1 / sympy.sympify(offset)
+    assert expression.subs(NumberOperator(f), 1).has(sympy.zoo)
 
 
 def test_sylvester_leaves_unresolved_resonances_symbolic():

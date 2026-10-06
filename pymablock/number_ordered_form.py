@@ -445,7 +445,8 @@ def _simplify_on_fixed_numbers(
     Discard indicators selecting noninteger values or negative values for symbols
     listed in ``nonnegative``. For each remaining numeric selection ``n == v``,
     evaluate the coefficient at ``n = v`` while preserving its value elsewhere.
-    The inputs are scalar symbols, so the bounded cache does not retain embeddings.
+    Leave it unsplit if a selected value is a pole, so undefined values cannot
+    corrupt other sectors. The bounded cache stores scalar expressions only.
     """
     replacements, points = {}, {}
     for delta, n, value in _iter_fixed_number_indicators(coefficient, number_symbols):
@@ -463,6 +464,14 @@ def _simplify_on_fixed_numbers(
         background = coefficient.xreplace(
             {_equal_value_indicator(n, v): sympy.S.Zero for v in values}
         )
+        # Keep a pole inside its original coefficient rather than spreading
+        # undefined point values to the other occupation sectors.
+        if any(
+            expression.xreplace({n: v}).has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
+            for expression in (coefficient, background)
+            for v in values
+        ):
+            continue
         coefficient = background + sum(
             _equal_value_indicator(n, v)
             * (coefficient.xreplace({n: v}) - background.xreplace({n: v}))

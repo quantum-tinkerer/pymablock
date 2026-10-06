@@ -125,18 +125,15 @@ $n=r+Mm$, then divides by the difference between its outgoing and incoming
 energies. The embedding already fixes the incoming support, so the solver does
 not multiply by the source projector. Reference-list columns use their vacuum
 attachment and creation monomial in the same transition calculation.
-Coefficient division is shared with regular second quantization. It resolves
-binary occupations when substitution immediately exposes a zero amplitude or
-gap, and otherwise keeps generic quotients factored. Point selections and
-unresolved inactive occupation sets use diagonal conditional expressions,
-preserving zero on inactive channels without expanding every binary sector.
-Simple structural nonzero checks avoid unnecessary conditions; the fallback
-keeps zero conditions unevaluated rather than asking SymPy to decide them.
-An exposed zero gap with nonzero
-amplitude raises a degeneracy error; other resonances can remain as symbolic
-poles. This is not an exhaustive resonance check. Resolving an identically zero
-gap can still require checking several binary occupations, and symbolic
-expression growth remains possible.
+Coefficient division is shared with regular second quantization. It evaluates
+occupations already fixed by explicit indicators, then divides the coefficient
+by the energy gap. Where the full transition amplitude is defined and zero,
+it chooses zero even if the gap also vanishes. An explicit zero gap with a
+nonzero amplitude raises an error; unresolved gaps remain symbolic poles.
+The helper does not search binary occupation sectors or solve for integer roots.
+Scalar parameters are treated as generic, and arithmetic shortcuts avoid
+conditional expressions when the gap cannot vanish as occupations change.
+A returned expression therefore does not certify nonresonance in every sector.
 
 For infinite bosonic targets, the solver currently requires that nonnegative
 target occupations follow from the physical source occupations. Other selections

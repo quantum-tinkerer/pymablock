@@ -31,25 +31,30 @@ __all__ = [
 def _divide_by_energy_gap(
     coefficient: sympy.Expr,
     energy_gap: sympy.Expr,
-    binary_numbers: Sequence[sympy.Symbol] = (),
     number_symbols: Sequence[sympy.Symbol] = (),
     amplitude: sympy.Expr | None = None,
     nonnegative_numbers: Sequence[sympy.Symbol] = (),
 ) -> sympy.Expr:
-    """Divide a term's coefficient by its gap, choosing zero on inactive channels.
+    """Return coefficient / energy_gap, choosing zero for inactive 0/0 channels.
 
-    ``number_symbols`` are scalar occupation coordinates; other free symbols are
-    generic parameters. ``binary_numbers`` range over 0 and 1, while
-    ``nonnegative_numbers`` exclude negative occupations (unlike bilateral ladders).
+    Perturbation theory obtains a virtual-transition coefficient by dividing the
+    Sylvester right-hand side by the final minus initial unperturbed energy.
+    Both can depend on particle numbers. Ordinary cancellation can lose an
+    inactive transition: n/n must be zero at n=0, rather than one everywhere.
 
-    ``amplitude`` determines where the transition is inactive. It defaults to the
-    coefficient; embedding solves also include ladder amplitudes and fermionic
-    signs. The returned coefficient is not multiplied by those factors again.
+    First evaluate occupations fixed by explicit occupation-selection indicators.
+    Otherwise keep the quotient conditional on the transition being active.
+    ``amplitude`` includes the coefficient, ladder factors and fermionic signs;
+    it defaults to the coefficient. Those factors determine inactivity but are
+    not multiplied into the returned coefficient again. Equality tests are exact.
 
-    Resolve immediately exposed zero gaps and fixed-number indicators locally.
-    A nonzero amplitude at an exposed zero gap raises ValueError. Unresolved gaps
-    remain symbolic poles; this does not certify nonresonance in every sector.
-    The result is zero where the amplitude vanishes, including at a zero gap.
+    An explicit zero gap with a nonzero amplitude raises ValueError. Unresolved
+    gaps remain symbolic poles: this helper does not search binary sectors or
+    integer roots, and returning a result does not establish nonresonance.
+
+    ``number_symbols`` identifies occupation coordinates; other symbols are
+    generic scalar parameters. ``nonnegative_numbers`` supplies known occupation
+    bounds, used only to avoid unnecessary conditional expressions.
     """
     amplitude = coefficient if amplitude is None else amplitude
     if amplitude == 0:
@@ -66,33 +71,12 @@ def _divide_by_energy_gap(
         return _divide_by_energy_gap(
             selected_coefficient,
             selected_gap,
-            binary_numbers,
             number_symbols,
             selected_amplitude,
             nonnegative_numbers,
         )
 
-    variables = set(number_symbols) | set(binary_numbers)
-    gap = energy_gap.as_numer_denom()[0]
-    for parameter in gap.free_symbols - variables:
-        parameter_coefficient = gap.coeff(parameter)
-        if (
-            parameter_coefficient.is_Atom
-            and parameter_coefficient.is_zero is False
-            and not parameter_coefficient.free_symbols & variables
-        ):
-            return coefficient / energy_gap
-    for n in binary_numbers:
-        if n not in amplitude.free_symbols | energy_gap.free_symbols:
-            continue
-        if energy_gap == 0 or any(
-            x.xreplace({n: v}) == 0
-            for x in (amplitude, energy_gap)
-            for v in (sympy.S.Zero, sympy.S.One)
-        ):
-            return (1 - n) * divide_after_substitution(
-                {n: sympy.S.Zero}
-            ) + n * divide_after_substitution({n: sympy.S.One})
+    variables = set(number_symbols)
     point = next(
         _iter_fixed_number_indicators(coefficient, variables & energy_gap.free_symbols),
         None,
@@ -108,6 +92,17 @@ def _divide_by_energy_gap(
             "Cannot solve the Sylvester equation: the right-hand side is nonzero "
             "but the energy difference is zero (degenerate channel)."
         )
+    # Generic scalar parameters are not tuned to occupation resonances. Keep
+    # their quotients compact rather than expanding conditional expressions.
+    gap = energy_gap.as_numer_denom()[0]
+    for parameter in gap.free_symbols - variables:
+        parameter_coefficient = gap.coeff(parameter)
+        if (
+            parameter_coefficient.is_Atom
+            and parameter_coefficient.is_zero is False
+            and not parameter_coefficient.free_symbols & variables
+        ):
+            return coefficient / energy_gap
     quotient = coefficient / energy_gap
     if not energy_gap.free_symbols & variables:
         return quotient
@@ -116,7 +111,7 @@ def _divide_by_energy_gap(
     # prove a general expression nonzero.
     constant, rest = energy_gap.as_coeff_Add()
     if constant and all(
-        factor in set(nonnegative_numbers) | set(binary_numbers)
+        factor in set(nonnegative_numbers)
         and (coefficient * constant).is_positive is True
         for coefficient, factor in (
             term.as_coeff_Mul() for term in sympy.Add.make_args(rest)
@@ -159,22 +154,13 @@ def _make_embedding_sylvester_solver(
         for x in h0.diagonal()
     ]
     if finite:
-        occupations, coordinates, binary, coordinate_map, nonnegative = (
-            vacuum,
-            (),
-            (),
-            {},
-            (),
-        )
+        occupations, coordinates, coordinate_map, nonnegative = vacuum, (), {}, ()
         incoming_energies = [
             basis._at_occupations(energies[row], state)
             for row, state in basis._references
         ]
     else:
         occupations, coordinates = basis.source_occupations, basis.coordinate_symbols
-        binary = tuple(
-            q for q, size in zip(coordinates, basis._target_dimensions) if size == 2
-        )
         nonnegative = tuple(
             q
             for q, op in zip(coordinates, basis._target_operators)
@@ -210,11 +196,24 @@ def _make_embedding_sylvester_solver(
                 basis._at_occupations(energies[row], action.output_state)
                 - incoming_energies[col]
             )
+            # A literal zero gap still needs the amplitude interpreted in the
+            # target algebra: binary numbers obey n² = n, including indicators.
+            if denominator == 0 and not finite:
+                amplitude = NumberOrderedForm(
+                    basis._target_operators,
+                    {
+                        (0,) * len(coordinates): action.weight.xreplace(
+                            dict(zip(coordinates, basis._target_placeholders))
+                        )
+                    },
+                    validate=False,
+                )._linearize_binary_operators()
+                if amplitude.is_zero:
+                    continue
             try:
                 result = _divide_by_energy_gap(
                     coefficient,
                     denominator,
-                    binary,
                     coordinates,
                     action.weight,
                     nonnegative,
@@ -371,7 +370,6 @@ def solve_scalar(
         new_shifts[shift] = _divide_by_energy_gap(
             sign * coeff.xreplace(fixed),
             denominator.xreplace(fixed),
-            tuple(number for number in binary_numbers if number not in fixed),
             tuple(Y._number_operator_placeholders),
             nonnegative_numbers=tuple(
                 n
@@ -414,8 +412,10 @@ def solve_sylvester_2nd_quant(
         diagonal Hamiltonian blocks. Each entry is computed by ``solve_scalar``,
         including its choice of zero for undetermined fermion and spin matrix
         elements. An exposed zero energy difference for a nonzero right-hand
-        side raises ``ValueError``. Other occupation-dependent resonances may
-        remain as symbolic poles; the result is valid only away from them.
+        side raises ``ValueError``. Explicit occupation selections can expose
+        such a gap, but binary sectors and integer roots are not searched.
+        Other resonances remain symbolic poles; the result is valid only away
+        from them.
 
     """
     eigs = [
