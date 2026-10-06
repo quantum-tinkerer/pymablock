@@ -93,7 +93,7 @@ def nof_matrix(form, occupations=None):
     """
     if form.embedding is not None:
         raise ValueError(
-            "Convert .source to a matrix and apply the embedding basis explicitly"
+            "Convert .target to a matrix and apply the embedding basis explicitly"
         )
     if occupations is None:
         dimensions = tuple(map(_occupation_dimension, form.operators))

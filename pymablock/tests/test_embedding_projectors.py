@@ -12,7 +12,7 @@ from pymablock.tests.second_quantization_helpers import nof_matrix
 
 
 def test_correlated_boson_projector():
-    """The conserved number difference selects equal source occupations."""
+    """The conserved number difference selects equal target occupations."""
     from sympy.physics.quantum.boson import BosonOp
 
     from pymablock.number_ordered_form import NumberOperator as N
@@ -28,9 +28,9 @@ def test_floquet_projector_selects_integer_sublattice():
     from pymablock.number_ordered_form import LadderOp
     from pymablock.number_ordered_form import NumberOperator as N
 
-    source, target = LadderOp("source"), LadderOp("target")
+    target, source = LadderOp("target"), LadderOp("source")
     embedding = Embedding(
-        {target: source**2, N(target): N(source) / 2}, reference={source: 0}
+        {source: target**2, N(source): N(target) / 2}, reference={target: 0}
     )
     assert nof_matrix(embedding._projector, [range(-3, 4)]) == s.diag(0, 1, 0, 1, 0, 1, 0)
 
@@ -166,14 +166,14 @@ def test_complete_rotation(dimensions):
             return s.eye(2)
         if i == j == 0:
             return value
-        source = value.applyfunc(
-            lambda x: x.source.as_expr() if hasattr(x, "source") else x
+        target = value.applyfunc(
+            lambda x: x.target.as_expr() if hasattr(x, "target") else x
         )
         if i == 1:
-            source = q.adjoint() * source
+            target = q.adjoint() * target
         if j == 1:
-            source = source * q
-        return source
+            target = target * q
+        return target
 
     orders = sorted(
         (n for n in product(range(5), repeat=dimensions) if sum(n) <= 4),
@@ -220,9 +220,9 @@ def test_fermion_result_after_cancellation():
     from pymablock.number_ordered_form import NumberOperator as N
     from pymablock.number_ordered_form import NumberOrderedForm
 
-    a, b, f = map(FermionOp, ("source", "virtual", "target"))
+    a, b, f = map(FermionOp, ("target", "virtual", "source"))
     ea, eb, g = s.symbols(
-        "source_energy virtual_energy coupling", real=True, nonzero=True
+        "target_energy virtual_energy coupling", real=True, nonzero=True
     )
     h = BlockSeries(
         data={(0,): ea * N(a) + eb * N(b), (1,): g * (Dagger(b) * a + Dagger(a) * b)}
@@ -244,10 +244,10 @@ def test_bosonic_projector_output_blocks():
     lowering = s.zeros(cutoff)
     for n in range(1, cutoff):
         lowering[n - 1, n] = s.sqrt(n)
-    source = [3 * N(a) + N(a) * (N(a) - 1) / 5, (1 + s.I) * a + (1 - s.I) * a.adjoint()]
+    target = [3 * N(a) + N(a) * (N(a) - 1) / 5, (1 + s.I) * a + (1 - s.I) * a.adjoint()]
     e = Embedding({q: a**2 / s.sqrt(2)}, reference={a: 0})
     actual = block_diagonalize(
-        BlockSeries(data={(0,): source[0], (1,): source[1]}), subspace_eigenvectors=e
+        BlockSeries(data={(0,): target[0], (1,): target[1]}), subspace_eigenvectors=e
     )
     h0 = s.diag(*(3 * n + s.Rational(n * (n - 1), 5) for n in range(cutoff)))
     v = (1 + s.I) * lowering + (1 - s.I) * lowering.T
@@ -263,7 +263,7 @@ def test_bosonic_projector_output_blocks():
         elif i == j == 0:
             matrix = nof_matrix(entry)
         else:
-            matrix = nof_matrix(entry.source, [range(cutoff)]).extract(
+            matrix = nof_matrix(entry.target, [range(cutoff)]).extract(
                 selected[i], selected[j]
             )
         expected = reference[k][i, j, n]

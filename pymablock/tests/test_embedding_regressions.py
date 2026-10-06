@@ -64,10 +64,10 @@ def test_binary_poles_preserve_nondegenerate_sectors():
 
 
 def test_embedding_binary_poles_against_two_level_spectrum():
-    f, g, target_f, target_g = map(FermionOp, ("f", "g", "F", "G"))
+    f, g, source_f, source_g = map(FermionOp, ("f", "g", "F", "G"))
     q = SigmaMinus("q")
     u = s.Symbol("U", positive=True)
-    embedding = Embedding({target_f: f, target_g: g}, reference={q: 0, f: 0, g: 0})
+    embedding = Embedding({source_f: f, source_g: g}, reference={q: 0, f: 0, g: 0})
     h, *_ = block_diagonalize(
         [u * N(f) * (1 - N(q)) + u * N(g) * N(q), q + q.adjoint()],
         subspace_eigenvectors=embedding,
@@ -75,7 +75,7 @@ def test_embedding_binary_poles_against_two_level_spectrum():
     for order, coefficient in ((2, 1 / u), (4, -1 / u**3), (6, 2 / u**5)):
         correction = h[0, 0, order].as_expr()
         for nf, ng, sign in ((1, 0, 1), (0, 1, -1)):
-            value = correction.subs({N(target_f): nf, N(target_g): ng})
+            value = correction.subs({N(source_f): nf, N(source_g): ng})
             assert s.cancel(value - sign * coefficient) == 0
 
 
@@ -111,10 +111,10 @@ def test_diagonalize_retained_oscillator_levels(finite, selective):
     # Four oscillator levels include every path of length four from levels 0,1.
     # Construct their Hamiltonian directly, without NOF or embedding conversion.
     g, energy = s.symbols("g energy")
-    source = s.diag(0, 3, 8, 15)
+    target = s.diag(0, 3, 8, 15)
     for n in range(3):
-        source[n, n + 1] = source[n + 1, n] = g * s.sqrt(n + 1)
-    characteristic = source.charpoly(energy).as_expr()
+        target[n, n + 1] = target[n + 1, n] = g * s.sqrt(n + 1)
+    characteristic = target.charpoly(energy).as_expr()
     for row in range(2):
         effective_energy = sum(
             c[row, row] * g**order for order, c in enumerate(coefficients)
@@ -233,13 +233,13 @@ def test_attached_blocks_substitute_parameters(method):
         value = getattr(u[index], method)(values)
         assert value.embedding == embedding
         assert value.side == expected[index].side
-        assert nof_matrix(value.source, [range(4)]) == nof_matrix(
-            expected[index].source, [range(4)]
+        assert nof_matrix(value.target, [range(4)]) == nof_matrix(
+            expected[index].target, [range(4)]
         )
 
 
-def test_attached_xreplace_renames_source_modes():
-    """Renaming a source mode also renames its number operator."""
+def test_attached_xreplace_renames_target_modes():
+    """Renaming a target mode also renames its number operator."""
     a, b, q = BosonOp("a"), BosonOp("b"), SigmaMinus("q")
     renamed = Embedding({q: b}, reference={b: 0})
     attached = NumberOrderedForm.from_expr(N(a)) * NumberOrderedForm.from_expr(
