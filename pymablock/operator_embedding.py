@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from functools import cached_property, wraps
-from hashlib import sha256
 from typing import TYPE_CHECKING, Self
 
 import sympy
@@ -54,55 +53,98 @@ def _operator_sort_key(operator: OperatorType) -> tuple[int, str]:
 
 
 class Embedding(sympy.Expr):
-    r"""Define an effective operator algebra or a finite retained basis.
+    r"""Select the states of an effective model inside a second-quantized Hamiltonian.
 
-    Pass this object as ``subspace_eigenvectors`` to ``block_diagonalize``.
-    Source states outside the embedding remain available for virtual transitions.
+    Below, *source* refers to the operators of the Hamiltonian passed to
+    `~pymablock.block_diagonalize`, and *target* refers to the operators of the
+    effective model. An embedding either describes how each target operator acts
+    on the source states, or lists source states that form a finite matrix basis.
+
+    Pass the embedding as ``subspace_eigenvectors`` to
+    `~pymablock.block_diagonalize` or `~pymablock.operator_to_BlockSeries`.
+    Block 0 contains the embedded states and block 1 contains all other source
+    states, which remain available for virtual transitions.
 
     Parameters
     ----------
-    generators : collections.abc.Mapping
-        Target lowering operators mapped to source expressions. Supported targets
-        are ``SigmaMinus``, ``FermionOp``, ``BosonOp``, and ``LadderOp``. For each
-        ``LadderOp``, also give its independent ``NumberOperator`` image. Omit
-        this argument to obtain finite matrices from an ordered reference list.
+    generators : collections.abc.Mapping, optional
+        Maps each target lowering operator to a source expression. The keys may be
+        ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` operators. A
+        ``LadderOp`` target also needs an entry mapping its ``NumberOperator`` to a
+        source expression, because its lowering operator does not determine it.
+        Omit ``generators`` to select a finite list of states instead.
     reference : collections.abc.Mapping or collections.abc.Sequence
-        With generators, map every source mode to its integer occupation in the
-        target vacuum (index zero for a bilateral ladder). Applying the generator
-        adjoints defines the other target states, including their phases.
+        If ``generators`` is given, maps every source operator to its occupation in
+        the source state that represents the target state with all occupations and
+        ``LadderOp`` indices equal to zero. Applying the adjoints of the source
+        expressions to this state defines all other embedded states and their
+        phases. ``LadderOp`` targets also use the source expressions themselves to
+        reach negative indices.
 
-        Without generators, list distinct occupation dictionaries in matrix-basis
-        order. For a matrix source, use ``(matrix_index, occupations)`` pairs;
-        a dictionary alone means component zero. All states must declare the same
-        modes. Empty dictionaries support ordinary finite matrices.
+        Otherwise, lists the embedded states in the order of the matrix rows and
+        columns. Each state maps every source operator to its occupation, and all
+        states must use the same operators. If the Hamiltonian is a matrix, give
+        ``(matrix_index, occupations)`` pairs; a mapping without an index refers to
+        index 0. For a matrix Hamiltonian without operators, use pairs with empty
+        mappings, such as ``[(0, {}), (2, {})]``.
 
     Notes
     -----
-    Boson occupations are nonnegative, fermion and Pauli occupations are zero or
-    one, and bilateral ladder indices may be any integer. Generator images must
-    have one independent occupation shift per target and obey its ladder amplitudes.
-    Orthonormal linear mode mixing is supported for initially empty modes.
+    Boson occupations are nonnegative, fermion and spin occupations are 0 or 1,
+    and ``LadderOp`` indices may be any integer. Each source expression must
+    change every source occupation by a fixed amount, possibly zero, as a
+    product of creation and annihilation operators does. Embedded states are
+    therefore Fock states of the source operators. To embed a combination such
+    as ``(c1 + c2) / sqrt(2)``, first rewrite the Hamiltonian in terms of new
+    operators for that combination and those orthogonal to it.
 
-    The perturbative solver requires Hermitian input and H0 diagonal in source
-    occupations, including after mode rotation. Matrix sources also require H0
-    diagonal in matrix indices and equal source shapes at every order. Reference
-    lists produce finite SymPy matrices; generator mappings produce
-    ``NumberOrderedForm`` objects, including for infinite targets. These types
-    describe the retained block. Off-diagonal NOFs carry the embedding on their
-    left or right; the complement block uses source operators. The solver rejects
-    bosonic selections requiring occupation inequalities. Floating coefficients
-    are interpreted as their exact stored binary rational values. Use rational
-    inputs for intended decimal values; numerical ``atol`` and iterative solver
-    options do not apply to this algebraic solver.
+    The matrix elements of each source expression between embedded states must
+    equal those of the target operator, up to a phase factor. For example,
+    ``{s: 2 * a}`` raises an error instead of being normalized. Phases may depend
+    on occupations, such as fermion signs, only for spin and fermion targets.
+
+    With ``generators``, the block 0 entries are
+    `~pymablock.number_ordered_form.NumberOrderedForm` objects in the target
+    operators. This includes bosonic or ``LadderOp`` targets with infinitely many
+    states. With a list of states, block 0 entries are SymPy matrices in the
+    order of the list. Block 1 uses the source operators. Blocks (0, 1) and
+    (1, 0) map between target and source states.
+
+    Perturbation theory with an embedding requires:
+
+    - A Hermitian Hamiltonian.
+    - An unperturbed Hamiltonian that is diagonal in the source occupations.
+    - For matrix Hamiltonians, an unperturbed Hamiltonian that is also diagonal
+      in the matrix index, with all perturbative orders of the same shape.
+    - For each bosonic target, an occupation that is nonnegative for every source
+      state. For example, a boson defined in terms of a ``LadderOp`` is not
+      supported.
+
+    The solver uses exact symbolic arithmetic. It treats a floating-point number
+    as the exact fraction that the computer stores, so ``0.1`` differs slightly
+    from ``sympy.Rational(1, 10)``. Use rational numbers when exact decimal
+    values matter. The numerical options ``atol``, ``direct_solver``, and
+    ``solver_options`` are not supported.
+
+    See the :doc:`structured embeddings documentation <../structured_embeddings>`
+    for examples with physical models.
 
     Examples
     --------
+    >>> import sympy
     >>> from sympy.physics.quantum.boson import BosonOp
     >>> from sympy.physics.quantum.pauli import SigmaMinus
+    >>> from pymablock.number_ordered_form import NumberOperator
     >>> a, s = BosonOp("a"), SigmaMinus("s")
+
+    Represent a spin by the two lowest levels of the oscillator ``a``:
+
     >>> embedding = Embedding({s: a}, reference={a: 0})
     >>> embedding.restrict(a).as_expr() == s
     True
+
+    Select the three lowest levels as a finite matrix basis:
+
     >>> embedding = Embedding(reference=[{a: 0}, {a: 1}, {a: 2}])
     >>> embedding.restrict(NumberOperator(a)) == sympy.diag(0, 1, 2)
     True
@@ -184,27 +226,6 @@ class Embedding(sympy.Expr):
         """Normalize one source operator in the compiled mode basis."""
         return self._basis._convert_operator(value)
 
-    def _as_declared_source_expression(self, value: NumberOrderedForm) -> sympy.Expr:
-        """Express a compiled source operator in the originally declared modes.
-
-        Undo linear mode mixing before parameter substitution so a reconstructed
-        embedding can choose a different compiled rotation or mode order.
-        """
-        expression = value.as_expr()
-        rotation = self._basis._rotation
-        inverse = {}
-        for source, image in rotation.items():
-            if not source.is_annihilation:
-                continue
-            for mode in find_operators(image):
-                inverse[mode] = (
-                    inverse.get(mode, 0) + image.coeff(mode).conjugate() * source
-                )
-        inverse.update(
-            {mode.adjoint(): image.adjoint() for mode, image in list(inverse.items())}
-        )
-        return expression.doit().xreplace(inverse)
-
     def _contract(self, value: NumberOrderedForm) -> NumberOrderedForm | sympy.Expr:
         """Compute ``W† value W``, unwrapping a single-reference 1x1 result."""
         result = self.restrict(value)
@@ -259,13 +280,21 @@ class Embedding(sympy.Expr):
     def restrict(
         self, expression: sympy.Expr | sympy.MatrixBase
     ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Return ``W† expression W`` in the retained representation.
+        """Express a source operator in terms of the embedded states.
 
-        Source products are evaluated before compression, including intermediate
-        states outside the retained space. Generator mappings return
-        ``NumberOrderedForm``; reference lists return a SymPy matrix in list order.
-        Generator coefficients retain symbolic spectator occupations. Call
-        ``simplify()`` on the result when explicit binary reduction is needed.
+        The result contains the matrix elements of ``expression`` between embedded
+        states, without perturbative corrections. Products are evaluated in the full
+        source space before taking these matrix elements, so intermediate states
+        outside the embedding contribute. For example, with ``{s: a}``,
+        ``restrict(a * Dagger(a))`` is ``1 + N_s``, while
+        ``restrict(a) * restrict(Dagger(a))`` is ``1 - N_s``.
+
+        With ``generators``, the result is a
+        `~pymablock.number_ordered_form.NumberOrderedForm` in the target operators.
+        It may contain products such as ``N_s * (1 - N_s)`` that vanish because
+        fermion and spin occupations are 0 or 1; call ``simplify()`` to remove
+        them. With a list of states, the result is a SymPy matrix in the order of
+        the list.
         """
         return self._basis._compress(self._basis._convert_source(expression))
 
@@ -362,7 +391,6 @@ class _SourceBasis:
     """Shared normalization of source expressions and occupation symbols."""
 
     operators: tuple[OperatorType, ...]
-    _rotation: dict[sympy.Expr, sympy.Expr]
 
     @cached_property
     def _source_placeholders(self) -> tuple[sympy.Symbol, ...]:
@@ -380,8 +408,8 @@ class _SourceBasis:
     def _convert_operator(self, expression: sympy.Expr) -> NumberOrderedForm:
         """Convert an expression to NOF in the compiled source mode order.
 
-        Rationalize stored floating coefficients before cancellation, apply any
-        source rotation, and reject modes missing from the reference declaration.
+        Rationalize stored floating coefficients before cancellation and reject
+        modes missing from the reference declaration.
         """
         if isinstance(expression, NumberOrderedForm):
             if expression.operators == self.operators:
@@ -397,12 +425,9 @@ class _SourceBasis:
         expression = expression.xreplace(
             {v: sympy.Rational(v) for v in expression.atoms(sympy.Float)}
         )
-        if self._rotation:
-            expression = expression.doit().xreplace(self._rotation)
         if set(find_operators(expression)) - set(self.operators):
             raise ValueError("Every source mode must be declared in the reference")
-        result = NumberOrderedForm.from_expr(expression, operators=self.operators)
-        return result.applyfunc(sympy.simplify) if self._rotation else result
+        return NumberOrderedForm.from_expr(expression, operators=self.operators)
 
 
 class _GeneratorBasis(_SourceBasis):
@@ -424,9 +449,6 @@ class _GeneratorBasis(_SourceBasis):
             for target, image in generators.items()
         ):
             raise ValueError("Target modes must not shadow distinct source modes")
-        self._rotation, generators, reference = _rotate_linear_modes(
-            generators, reference
-        )
         self.operators, self.reference = _ordered_reference_state(reference)
         numbers = {
             op: value
@@ -454,9 +476,8 @@ class _GeneratorBasis(_SourceBasis):
             form = self._convert_source(generators[op])
             terms = tuple(_NOFTransition.from_form(form))
             if len(terms) != 1 or not any(terms[0].powers):
-                raise NotImplementedError(
-                    f"Image of {op} must have one nonzero source occupation shift "
-                    "after resolving linear mode mixing"
+                raise ValueError(
+                    f"Image of {op} must change source occupations by one nonzero shift"
                 )
             transition = terms[0]
             parity = (
@@ -748,7 +769,6 @@ class _ReferenceBasis(_SourceBasis):
             raise ValueError("Reference states must be distinct")
         self._references = tuple(states)
         self._reference_indices = {state: i for i, state in enumerate(states)}
-        self._rotation = {}
 
     def _convert_source(
         self, expression: sympy.Expr | sympy.MatrixBase
@@ -807,133 +827,6 @@ def _ordered_reference_state(
         ):
             raise ValueError("Reference occupations lie outside the source algebra")
     return operators, state
-
-
-def _complete_orthonormal_rows(rows: sympy.MatrixBase) -> sympy.MatrixBase:
-    """Extend orthonormal rows to a square unitary matrix without changing them.
-
-    Reject nonorthonormal input. Complete with coordinate vectors by Gram-Schmidt;
-    raise NotImplementedError when a remaining vector's norm cannot be proven nonzero.
-    A direct two-mode completion avoids symbolic singularities at rotation angles.
-    """
-    gram = rows * rows.adjoint() - sympy.eye(rows.rows)
-    for i in range(rows.rows):
-        for j in range(i + 1):
-            requirement = "normalized" if i == j else "orthogonal"
-            _require_zero(gram[i, j], f"Linear images must be {requirement}")
-    # This completion stays nonsingular for all symbolic two-mode angles.
-    if rows.shape == (1, 2):
-        a, b = rows
-        return rows.col_join(sympy.Matrix([[-sympy.conjugate(b), sympy.conjugate(a)]]))
-    for candidate in sympy.eye(rows.cols).columnspace():
-        if rows.rows == rows.cols:
-            break
-        row = candidate.T
-        row = (row - row * rows.adjoint() * rows).applyfunc(sympy.simplify)
-        norm = sympy.simplify((row * row.adjoint())[0])
-        if norm == 0:
-            continue
-        if norm.is_zero is None and norm.is_positive is not True:
-            raise NotImplementedError(
-                "Cannot prove a nonzero norm while completing the source rotation"
-            )
-        rows = rows.col_join((row / sympy.sqrt(norm)).applyfunc(sympy.simplify))
-    return rows
-
-
-def _rotate_linear_modes(
-    generators: Mapping[sympy.Expr, sympy.Expr], reference: Mapping[OperatorType, int]
-) -> tuple[
-    dict[sympy.Expr, sympy.Expr],
-    Mapping[sympy.Expr, sympy.Expr],
-    Mapping[OperatorType, int],
-]:
-    """Return a source substitution, rewritten generators, and rotated reference.
-
-    Groups must start in their vacuum. Keeping disconnected groups separate
-    preserves unmixed modes and allows independent bosonic and fermionic rotations.
-    """
-    expressions = {
-        target: image.as_expr()
-        if isinstance(image, NumberOrderedForm)
-        else sympy.sympify(image)
-        for target, image in generators.items()
-    }
-    linear = {}
-    for target, expression in expressions.items():
-        modes = tuple(find_operators(expression))
-        if len(modes) < 2 or not isinstance(modes[0], (BosonOp, FermionOp)):
-            continue
-        if not all(type(op) is type(modes[0]) for op in modes):
-            continue
-        expression = sympy.expand(expression)
-        coefficients = {op: expression.coeff(op) for op in modes}
-        if any(not c.is_commutative for c in coefficients.values()):
-            continue
-        if sympy.expand(expression - sum(c * op for op, c in coefficients.items())) != 0:
-            continue
-        if not coefficients.keys() <= reference.keys():
-            raise ValueError("Every source mode must be declared in the reference")
-        linear[target] = coefficients
-    if not linear:
-        return {}, generators, reference
-
-    groups = []
-    for coefficients in linear.values():
-        group = set(coefficients)
-        for other in groups[:]:
-            if group & other:
-                group |= other
-                groups.remove(other)
-        groups.append(group)
-
-    rotation, compiled, reference = {}, {}, dict(reference)
-    for group in groups:
-        modes = tuple(sorted(group, key=_operator_sort_key))
-        if any(reference[op] != 0 for op in modes):
-            raise NotImplementedError(
-                "Linear mode mixing requires an empty reference in the mixed modes"
-            )
-        targets = sorted(
-            (
-                target
-                for target, coefficients in linear.items()
-                if coefficients.keys() <= group
-            ),
-            key=_operator_sort_key,
-        )
-        rows = _complete_orthonormal_rows(
-            sympy.Matrix(
-                [[linear[target].get(op, 0) for op in modes] for target in targets]
-            )
-        )
-        # A structural label survives reconstruction, pickle, and parameter
-        # substitution. Include the source group and rotation to avoid collisions.
-        label = sympy.Tuple(
-            sympy.Symbol("__embedding_mode"),
-            sympy.Tuple(*(op.name for op in modes)),
-            sympy.Tuple(*(op.name for op in targets)),
-            sympy.Tuple(*rows),
-        )
-        digest = sha256(sympy.srepr(label).encode()).hexdigest()
-        rotated = tuple(
-            type(modes[0])(f"__embedding_{digest}_{i}") for i in range(len(modes))
-        )
-        if set(rotated) & set(reference):
-            raise ValueError("Source names collide with the compiled rotation")
-        for op, image in zip(modes, rows.adjoint() * sympy.Matrix(rotated), strict=True):
-            rotation[op], rotation[op.adjoint()] = image, image.adjoint()
-            del reference[op]
-        reference.update(dict.fromkeys(rotated, 0))
-        compiled.update(zip(targets, rotated, strict=False))
-    compiled.update(
-        {
-            target: expression.doit().xreplace(rotation)
-            for target, expression in expressions.items()
-            if target not in linear
-        }
-    )
-    return rotation, compiled, reference
 
 
 def _require_zero(expression: sympy.Expr, context: str) -> None:

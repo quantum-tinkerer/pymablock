@@ -182,7 +182,7 @@ def test_invalid_generator_definitions():
         Embedding({s: a, t: a}, reference={a: 0})
     with pytest.raises(ValueError, match="parity"):
         Embedding({f: a}, reference={a: 0})
-    with pytest.raises(ValueError, match="normalized"):
+    with pytest.raises(ValueError, match="one nonzero shift"):
         Embedding({s: a + b}, reference={a: 0, b: 0})
 
 
@@ -602,109 +602,14 @@ def test_retained_boson_with_drive_through_fourth_order():
         )
 
 
-@pytest.mark.parametrize("kind", [BosonOp, FermionOp])
-@pytest.mark.parametrize("complex_mixing", [False, True])
-def test_linear_mode_mixing_against_fock_matrices(kind, complex_mixing):
-    """Build the retained columns directly from the supplied creation operator."""
-    a, b, c = (kind(name) for name in ("a", "b", "c"))
-    f = kind("f")
-    phase = sympy.I if complex_mixing else sympy.S.One
-    image = (a + phase * b) / sympy.sqrt(2)
-    embedding = Embedding({f: image}, reference={a: 0, b: 0, c: 0})
-    size = 4 if kind is BosonOp else 2
-    matrices = occupation_matrices((a, b, c), [range(size)] * 3)
-    creator = operator_matrix(Dagger(image).expand(), matrices).toarray()
-    column = np.eye(size**3)[:, 0]
-    columns = [column]
-    for n in range(1, size):
-        column = creator @ column / np.sqrt(n)
-        columns.append(column)
-    w = np.column_stack(columns)
-    np.testing.assert_allclose(w.conj().T @ w, np.eye(size), atol=1e-14)
-    target_matrices = occupation_matrices((f,), [range(size)])
-    for expression in (a, b, Dagger(a) * b, N(a) * N(b), a * Dagger(b)):
-        actual = operator_matrix(
-            embedding.restrict(expression), target_matrices
-        ).toarray()
-        expected = w.conj().T @ operator_matrix(expression, matrices) @ w
-        np.testing.assert_allclose(actual, expected, atol=1e-13)
-    h, *_ = block_diagonalize(
-        [2 * (N(a) + N(b)) + 7 * N(c), Dagger(c) * image + Dagger(image) * c],
-        subspace_eigenvectors=embedding,
-    )
-    assert (h[0, 0, 2] + N(f) / 5).applyfunc(sympy.simplify).is_zero
-
-
-def test_symbolic_rotation_and_cross_relations():
-    a, b, f, g = (FermionOp(name) for name in ("a", "b", "f", "g"))
-    angle = sympy.Symbol("theta", real=True)
-    first = sympy.cos(angle) * a + sympy.sin(angle) * b
-    second = -sympy.sin(angle) * a + sympy.cos(angle) * b
-    for generators in ({f: first}, {f: first, g: second}):
-        embedding = Embedding(generators, reference={a: 0, b: 0})
-        for target, expression in generators.items():
-            assert (
-                (embedding.restrict(expression) - target)
-                .applyfunc(sympy.simplify)
-                .is_zero
-            )
-    with pytest.raises(ValueError, match="orthogonal"):
-        Embedding({f: first, g: first}, reference={a: 0, b: 0})
-    with pytest.raises(NotImplementedError, match="empty reference"):
-        Embedding({f: first}, reference={a: 1, b: 0})
+def test_generator_images_are_single_shifts():
+    """Linear combinations of source modes are rejected, not rotated."""
+    a, b, f = (FermionOp(name) for name in ("a", "b", "f"))
+    with pytest.raises(ValueError, match="one nonzero shift"):
+        Embedding({f: (a + b) / sympy.sqrt(2)}, reference={a: 0, b: 0})
     amplitude = sympy.Symbol("z")
     with pytest.raises(NotImplementedError, match=r"Cannot establish.*normalized"):
         Embedding({f: amplitude * a}, reference={a: 0})
-
-
-def test_disconnected_boson_and_fermion_rotations():
-    a, b, q = map(BosonOp, ("a", "b", "q"))
-    c, d, f = map(FermionOp, ("c", "d", "f"))
-    theta = sympy.Symbol("theta", real=True)
-    embedding = Embedding(
-        {
-            q: sympy.cos(theta) * a + sympy.sin(theta) * b,
-            f: (c + sympy.I * d) / sympy.sqrt(2),
-        },
-        reference={a: 0, b: 0, c: 0, d: 0},
-    )
-    for source, expected in (
-        (a, sympy.cos(theta) * q),
-        (b, sympy.sin(theta) * q),
-        (c, f / sympy.sqrt(2)),
-        (d, -sympy.I * f / sympy.sqrt(2)),
-        (N(a) + N(b) + N(c) + N(d), N(q) + N(f)),
-    ):
-        result = embedding.restrict(source)
-        for angle in (0, sympy.pi / 2, theta):
-            assert (
-                (result - expected).subs(theta, angle).applyfunc(sympy.simplify).is_zero
-            )
-
-
-def test_three_mode_rotation_with_frozen_fermionic_spectator():
-    a, b, c, fixed = (FermionOp(name) for name in ("a", "b", "c", "0_fixed"))
-    f, g = FermionOp("f"), FermionOp("g")
-    images = {f: (a + b + c) / sympy.sqrt(3), g: (a - b) / sympy.sqrt(2)}
-    embedding = Embedding(images, reference={a: 0, b: 0, c: 0, fixed: 1})
-    matrices = occupation_matrices((fixed, a, b, c), [range(2)] * 4)
-    vacuum = np.eye(16)[:, 8]
-    columns = []
-    for occupations in product(range(2), repeat=2):
-        column = vacuum
-        for mode, n in reversed(tuple(zip((f, g), occupations, strict=True))):
-            if n:
-                column = operator_matrix(Dagger(images[mode]).expand(), matrices) @ column
-        columns.append(column)
-    w = np.column_stack(columns)
-    np.testing.assert_allclose(w.conj().T @ w, np.eye(4), atol=1e-14)
-    target_matrices = occupation_matrices((f, g), [range(2)] * 2)
-    for expression in (a, c, Dagger(b) * a, N(a) * N(c), fixed * Dagger(fixed)):
-        actual = operator_matrix(
-            embedding.restrict(expression), target_matrices
-        ).toarray()
-        expected = w.conj().T @ operator_matrix(expression, matrices) @ w
-        np.testing.assert_allclose(actual, expected, atol=1e-14)
 
 
 @pytest.mark.parametrize("reverse", [False, True])
