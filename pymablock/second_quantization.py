@@ -274,7 +274,9 @@ def solve_sylvester_2nd_quant(
         computes the element-wise solution to the Sylvester equation for those
         diagonal Hamiltonian blocks. Each entry is computed by ``solve_scalar``,
         including its choice of zero for undetermined fermion and spin matrix
-        elements and its ``ValueError`` when the equation has no solution.
+        elements. An exposed zero energy difference for a nonzero right-hand
+        side raises ``ValueError``. Other occupation-dependent resonances may
+        remain as symbolic poles; the result is valid only away from them.
 
     """
     eigs = [
