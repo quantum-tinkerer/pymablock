@@ -80,6 +80,85 @@ def test_embedding_binary_poles_against_two_level_spectrum():
             assert s.cancel(value - sign * coefficient) == 0
 
 
+@pytest.mark.parametrize("finite", [False, True])
+@pytest.mark.parametrize("selective", [False, True])
+def test_diagonalize_retained_oscillator_levels(finite, selective):
+    """Both retained levels obey the independent oscillator characteristic equation."""
+    a, q = BosonOp("a"), SigmaMinus("q")
+    embedding = (
+        Embedding(reference=[{a: 0}, {a: 1}])
+        if finite
+        else Embedding({q: a}, reference={a: 0})
+    )
+    mask = s.Matrix([[0, 1], [1, 0]]) if finite else q + q.adjoint()
+    h, *_ = block_diagonalize(
+        [3 * N(a) + N(a) * (N(a) - 1), a + a.adjoint()],
+        subspace_eigenvectors=embedding,
+        fully_diagonalize={0: mask} if selective else (0,),
+    )
+    coefficients = []
+    for order in range(5):
+        value = h[0, 0, order]
+        if value is zero or value == 0:
+            matrix = s.zeros(2)
+        elif isinstance(value, NumberOrderedForm):
+            matrix = nof_matrix(value)
+        else:
+            matrix = value
+        assert matrix.is_diagonal()
+        coefficients.append(matrix)
+    assert coefficients[2] == s.diag(-s.Rational(1, 3), -s.Rational(1, 15))
+
+    # Four oscillator levels include every path of length four from levels 0,1.
+    # Construct their Hamiltonian directly, without NOF or embedding conversion.
+    g, energy = s.symbols("g energy")
+    source = s.diag(0, 3, 8, 15)
+    for n in range(3):
+        source[n, n + 1] = source[n + 1, n] = g * s.sqrt(n + 1)
+    characteristic = source.charpoly(energy).as_expr()
+    for row in range(2):
+        effective_energy = sum(
+            c[row, row] * g**order for order, c in enumerate(coefficients)
+        )
+        residual = s.Poly(characteristic.subs(energy, effective_energy), g)
+        assert all(residual.nth(order) == 0 for order in range(5))
+
+
+def test_diagonalize_finite_matrix_embedding():
+    """A retained matrix block includes internal and virtual energy corrections."""
+    h, *_ = block_diagonalize(
+        [s.diag(0, 2, 5), s.Matrix([[0, 1, 1], [1, 0, 2], [1, 2, 0]])],
+        subspace_eigenvectors=Embedding(reference=[(0, {}), (1, {})]),
+        fully_diagonalize=(0,),
+    )
+    assert h[0, 0, 1].is_zero_matrix
+    # Ordinary second-order perturbation theory sums over both other levels.
+    assert h[0, 0, 2] == s.diag(-s.Rational(7, 10), -s.Rational(5, 6))
+    assert h[0, 0, 3] == s.diag(s.Rational(2, 5), -s.Rational(2, 3))
+
+
+@pytest.mark.parametrize("selective", [False, True])
+def test_diagonalize_embedded_infinite_oscillators(selective):
+    """Displacing independent oscillators gives their exact energy corrections."""
+    a, b, c, f, g = map(BosonOp, ("a", "b", "c", "f", "g"))
+    h, *_ = block_diagonalize(
+        [3 * N(a) + 5 * N(b) + 11 * N(c), sum(op + op.adjoint() for op in (a, b, c))],
+        subspace_eigenvectors=Embedding({f: a, g: b}, reference={a: 0, b: 0, c: 0}),
+        fully_diagonalize={0: f + f.adjoint()} if selective else (0, 1),
+    )
+    if selective:
+        assert h[0, 0, 1] == NumberOrderedForm.from_expr(g + g.adjoint())
+    else:
+        assert h[0, 0, 1] is zero or h[0, 0, 1] == 0
+    expected = -s.Rational(1, 3) - s.Rational(1, 11)
+    if not selective:
+        expected -= s.Rational(1, 5)
+        assert h[1, 1, 1] is zero or h[1, 1, 1] == 0
+        complement = nof_matrix(h[1, 1, 2], [range(2)] * 3)
+        assert complement == s.diag(0, expected, 0, expected, 0, expected, 0, expected)
+    assert h[0, 0, 2] == expected
+
+
 @pytest.mark.parametrize("angle", [0, s.pi / 2, s.pi / 4])
 @pytest.mark.parametrize("method", ["subs", "xreplace"])
 def test_substitution_preserves_independent_rotation_groups(angle, method):

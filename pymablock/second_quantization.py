@@ -6,7 +6,7 @@ import numpy as np
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 
-from pymablock._occupation import _divide_coefficients
+from pymablock._occupation import _projectors
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
@@ -22,6 +22,87 @@ __all__ = [
     "apply_mask_to_operator",
     "solve_sylvester_2nd_quant",
 ]
+
+
+def _divide_coefficients(
+    numerator, denominator, binary=(), coordinates=(), weight=None, nonnegative=()
+):
+    """Divide using local support checks and a symbolic fallback.
+
+    Choose zero where ``weight`` vanishes, including at zero gaps. The weight
+    defaults to the numerator; embeddings include ladder amplitudes in it.
+    Resolve exposed zero gaps and explicit point support, but leave unresolved
+    resonances as poles. Parameters other than occupation coordinates are generic.
+    This is a partial symbolic solver, not an exhaustive nonresonance check.
+    """
+    weight = numerator if weight is None else weight
+    if weight == 0:
+        return sympy.S.Zero
+    denominator = sympy.cancel(denominator)
+    arguments = numerator, denominator, weight
+
+    def at(substitution):
+        c, d, w = (x.xreplace(substitution) for x in arguments)
+        return _divide_coefficients(c, d, binary, coordinates, w, nonnegative)
+
+    variables = set(coordinates) | set(binary)
+    gap = denominator.as_numer_denom()[0]
+    for parameter in gap.free_symbols - variables:
+        coefficient = gap.coeff(parameter)
+        if (
+            coefficient.is_Atom
+            and coefficient.is_zero is False
+            and not coefficient.free_symbols & variables
+        ):
+            return numerator / denominator
+    for n in binary:
+        if n not in weight.free_symbols | denominator.free_symbols:
+            continue
+        if denominator == 0 or any(
+            x.xreplace({n: v}) == 0
+            for x in (weight, denominator)
+            for v in (sympy.S.Zero, sympy.S.One)
+        ):
+            return (1 - n) * at({n: sympy.S.Zero}) + n * at({n: sympy.S.One})
+    point = next(_projectors(numerator, variables & denominator.free_symbols), None)
+    if point is not None:
+        delta, n, v = point
+        return sympy.Piecewise(
+            (at({n: v}), sympy.Eq(n, v)), (at({delta: sympy.S.Zero}), True)
+        )
+    if denominator == 0:
+        raise ValueError(
+            "Cannot solve the Sylvester equation: the right-hand side is nonzero "
+            "but the energy difference is zero (degenerate channel)."
+        )
+    quotient = numerator / denominator
+    if not denominator.free_symbols & variables:
+        return quotient
+    # A constant plus occupations with the same sign cannot vanish. Inspect
+    # numeric coefficients only, rather than asking the assumptions engine to
+    # prove a general expression nonzero.
+    constant, rest = denominator.as_coeff_Add()
+    if constant and all(
+        factor in set(nonnegative) | set(binary)
+        and (coefficient * constant).is_positive is True
+        for coefficient, factor in (
+            term.as_coeff_Mul() for term in sympy.Add.make_args(rest)
+        )
+    ):
+        return quotient
+    factors = (factor.as_numer_denom()[0] for factor in sympy.Mul.make_args(weight))
+    inactive = sympy.Or(
+        *(
+            sympy.Eq(factor, 0, evaluate=False)
+            for factor in factors
+            if factor.free_symbols & variables
+        )
+    )
+    # A meromorphic weight has no defined zero at its poles. Its numerator
+    # can vanish there without making the virtual channel inactive.
+    weight_denominator = sympy.together(weight).as_numer_denom()[1]
+    inactive = sympy.And(inactive, sympy.Ne(weight_denominator, 0))
+    return sympy.Piecewise((0, inactive), (quotient, True), evaluate=False)
 
 
 def _embedding_sylvester(blocks, h0):
@@ -62,6 +143,11 @@ def _embedding_sylvester(blocks, h0):
         )
         coordinate_map = dict(zip(coordinates, target_numbers))
         incoming_energies = [basis._at_occupations(energies[0], occupations)]
+
+    # Within each diagonal block the operators already use target or source
+    # coordinates. Only rectangular blocks require embedding-aware division.
+    retained_energies = incoming_energies if finite else [basis._compress(h0[0, 0])]
+    diagonal_solver = solve_sylvester_2nd_quant([retained_energies, h0.diagonal()])
 
     def divide_scalar(value, row, col):
         if value == 0 or value.is_zero:
@@ -104,6 +190,8 @@ def _embedding_sylvester(blocks, h0):
     def solve(value, index):
         if value is zero:
             return zero
+        if index[0] == index[1]:
+            return diagonal_solver(value, index)
         reverse = index[:2] == (0, 1)
         source = value.adjoint() if reverse else value
         result = sympy.ImmutableMatrix(

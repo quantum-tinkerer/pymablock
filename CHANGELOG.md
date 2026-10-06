@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `Embedding` for generator-defined target operators and ordered finite reference bases, with virtual transitions outside the retained space. The same embedding converts observables through `operator_to_BlockSeries`.
+- Added `Embedding` for generator-defined target operators and ordered finite reference bases, with virtual transitions outside the retained space. The same embedding converts observables through `operator_to_BlockSeries` and supports `fully_diagonalize` for full or selective diagonalization within blocks.
 - Added a non-Hermitian similarity-transform algorithm via `block_diagonalize(..., hermitian=False)`, including support for asymmetric selective masks, symbolic inputs, and biorthogonal `subspace_eigenvectors=[(right, left), ...]` in the explicit and implicit direct paths. The implicit KPM solver remains unsupported in the non-Hermitian path.
 
 ## [2.2.1] - 2026-03-09

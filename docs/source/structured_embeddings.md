@@ -141,6 +141,26 @@ The fixed embedding defines the target operators. The perturbative unitary
 $\mathcal U$ subsequently accounts for virtual dressing:
 $H_{\mathrm{eff}}=W^\dagger\mathcal U^\dagger H\mathcal U W$.
 
+## Diagonalizing the retained block
+
+The usual `fully_diagonalize` options also apply to embedded blocks. For example,
+diagonalizing retained block zero includes transitions between the two target
+spin states as well as the virtual transitions to higher oscillator levels:
+
+```{code-cell} ipython3
+H_diag, *_ = block_diagonalize(
+    [H0, V], subspace_eigenvectors=embedding, fully_diagonalize=(0,)
+)
+expected = NumberOrderedForm.from_expr(
+    -g**2 / omega + 2 * g**2 * N(s) * (1 / omega - 1 / (omega + alpha))
+)
+assert (H_diag[0, 0, 2] - expected).applyfunc(sympy.cancel).is_zero
+```
+
+Use `fully_diagonalize={0: s + Dagger(s)}` to select target operator powers
+to eliminate. For a finite reference list, the mask instead selects entries
+of the retained matrix. Block one uses the source operators on the complement.
+
 ## Dressed observables
 
 `restrict(A)` gives the observable in the fixed reference representation.

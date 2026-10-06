@@ -17,12 +17,16 @@ The implementation separates three operations:
   zeroth-order cross blocks of that validated Hamiltonian.
 - `number_ordered_form` composes rectangular operators through the private
   `_Isometry` interface, without importing the embedding compiler or solver.
-  `_occupation` supplies scalar projectors and partial division to both solvers.
+  `_occupation` supplies scalar projectors and support reduction. Both Sylvester
+  solvers share coefficient division in `second_quantization`.
 
 `_NOFTransition` describes a term's shift, destination, and ladder amplitude.
 Compression and division share this action. Division uses the amplitude to
 identify inactive transitions, without multiplying it into the NOF coefficient
 again. The zero series sentinel is handled before attempting matrix operations.
+For `fully_diagonalize`, transitions within either diagonal block use the
+ordinary second-quantized Sylvester solver, with retained or source energies.
+Transitions between the blocks use the embedding-aware solver.
 
 Method caches belong to their compiled instance, so discarding an embedding
 also discards its basis caches. The scalar projector cache has a fixed size.
