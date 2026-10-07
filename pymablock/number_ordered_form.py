@@ -388,6 +388,11 @@ def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     )
 
 
+def _is_singular(expression: sympy.Expr) -> bool:
+    """Return whether an evaluated expression contains an infinity or NaN."""
+    return expression.has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
+
+
 def _equal_value_indicator(left: sympy.Expr, right: sympy.Expr | int) -> sympy.Expr:
     """Return the scalar indicator of ``left == right`` (1 if equal, else 0).
 
@@ -473,7 +478,7 @@ def _simplify_on_fixed_numbers(
         # Keep a pole inside its original coefficient rather than spreading
         # undefined point values to the other occupation sectors.
         if any(
-            expression.xreplace({n: v}).has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
+            _is_singular(expression.xreplace({n: v}))
             for expression in (coefficient, background)
             for v in values
         ):
@@ -1839,16 +1844,10 @@ class NumberOrderedForm(Operator):
                 values = tuple(coeff.xreplace({number: n}) for n in (Zero, One))
                 # An unresolved pole must remain meromorphic. Evaluating at its
                 # singular binary point would corrupt every other sector too.
-                if any(
-                    value.has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
-                    for value in values
-                ):
+                if any(map(_is_singular, values)):
                     reduced = sympy.cancel(coeff)
                     values = tuple(reduced.xreplace({number: n}) for n in (Zero, One))
-                    if any(
-                        value.has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
-                        for value in values
-                    ):
+                    if any(map(_is_singular, values)):
                         continue
                 coeff = sympy.expand_mul(
                     (One - number) * values[0] + number * values[1], deep=False
