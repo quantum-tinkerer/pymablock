@@ -138,8 +138,9 @@ be reused for operators of different target matrix sizes.
 
 Every reference lattice independently passes domain, generator-algebra, phase,
 and ladder-number validation. These bounds also ensure the transfer monomial
-never annihilates a state of the first lattice. Normalization may depend on
-occupations, and phase ratios include fermion ordering signs.
+never annihilates a state of the first lattice. Translations along modes moved
+by a generator are currently rejected. Spectator boson normalizations are
+constant, while phase ratios include occupation-dependent fermion ordering signs.
 For references in the same target row, independent columns of $M$ give a unique
 candidate displacement $d=L(r_i-r_j)$. The lattices overlap exactly when
 $Md=r_i-r_j$, $d$ is integral, and $|d_a|<D_a$ for every finite source mode of

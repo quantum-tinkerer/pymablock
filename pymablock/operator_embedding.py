@@ -564,22 +564,24 @@ class Embedding(sympy.Expr):
 
     def _transfer(self, reference: Mapping) -> NumberOrderedForm:
         """Build T with T W₁ = W at this reference, including ladder norms and phases."""
-        if reference == dict(zip(self._target_operators, self._reference_state)):
+        powers = tuple(
+            start - reference[op]
+            for op, start in zip(self._target_operators, self._reference_state)
+        )
+        if not any(powers):
             return self._convert_operator(sympy.S.One)
+        if any(p and any(self._occupation_matrix.row(i)) for i, p in enumerate(powers)):
+            raise NotImplementedError(
+                "Reference translations along generator-moving modes are not supported"
+            )
         # Compile each lattice independently to check domains, algebra and phase.
         try:
             lattice = Embedding(dict(self.args[0]), reference=reference)
         except (ValueError, NotImplementedError) as error:
             raise type(error)(f"Reference translation is invalid: {error}") from error
-        powers = tuple(
-            a - b for a, b in zip(self._reference_state, lattice._reference_state)
-        )
         monomial = NumberOrderedForm(self._target_operators, {powers: sympy.S.One})
         weight = _matrix_element(monomial, self._target_occupations)
-        if weight == 0:
-            raise ValueError(
-                "Reference translation is not valid on the whole first lattice"
-            )
+        # Physical domains at both references ensure this shift never annihilates.
         phase = lattice._phase.xreplace(
             dict(zip(lattice._coordinate_symbols, self._coordinate_symbols))
         )

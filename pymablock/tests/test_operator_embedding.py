@@ -731,30 +731,14 @@ def test_lattices_separated_by_spectator_offset():
     assert embedding.restrict(b * Dagger(b)) == sympy.diag(3 * identity, 2 * identity)
 
 
-def test_transfers_along_moving_boson_mode():
-    """Even and odd binary lattices need occupation-dependent normalization."""
+def test_transfers_along_moving_modes_are_rejected():
+    """Disjoint even/odd lattices would require occupation-dependent boson norms."""
     a, s = BosonOp("a"), SigmaMinus("s")
     generator = a**2 / sympy.sqrt(N(a) * (N(a) - 1))
-    embedding = Embedding({s: generator}, reference=[{a: 0}, {a: 1}])
-    result = embedding.restrict(a + Dagger(a))
-    actual = np.array(
-        sympy.BlockMatrix(
-            [
-                [
-                    nof_matrix(result[i, j])
-                    if isinstance(result[i, j], NumberOrderedForm)
-                    else result[i, j] * sympy.eye(2)
-                    for j in range(2)
-                ]
-                for i in range(2)
-            ]
-        ).as_explicit(),
-        dtype=complex,
-    )
-    matrices = occupation_matrices((a,), [range(5)])
-    full = operator_matrix(a + Dagger(a), matrices).toarray()
-    kept = [0, 2, 1, 3]
-    np.testing.assert_allclose(actual, full[np.ix_(kept, kept)], atol=1e-14)
+    with pytest.raises(
+        NotImplementedError, match="translations along generator-moving modes"
+    ):
+        Embedding({s: generator}, reference=[{a: 0}, {a: 1}])
 
 
 def test_transfer_fermion_sign_and_generator_phase():
@@ -782,11 +766,11 @@ def test_reference_lattices_must_be_disjoint():
 
 
 def test_invalid_transfer_checks_every_lattice():
-    a, s = BosonOp("a"), SigmaMinus("s")
+    a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
     with pytest.raises(
         ValueError, match="Reference translation.*normalized source states"
     ):
-        Embedding({s: a}, reference=[(0, {a: 0}), (1, {a: 2})])
+        Embedding({s: (1 + N(b)) * a}, reference=[{a: 0, b: 0}, {a: 0, b: 1}])
 
 
 @pytest.mark.parametrize("source_type", [BosonOp, FermionOp])
