@@ -126,13 +126,17 @@ class Embedding(sympy.Expr):
             return _ReferenceEmbedding(generators, reference)
         return _GeneratorEmbedding(generators, reference)
 
+    def _printed_arguments(self, printer) -> list[str]:
+        """Print the constructor arguments."""
+        return [printer._print(arg) for arg in self.args]
+
     def _sympystr(self, printer) -> str:
         """Keep the public expression name when printing either subclass."""
-        return f"Embedding({printer.stringify(self.args, ', ')})"
+        return f"Embedding({', '.join(self._printed_arguments(printer))})"
 
     def _latex(self, printer) -> str:
         """Keep the public expression name in rendered equations."""
-        arguments = ", ".join(printer._print(arg) for arg in self.args)
+        arguments = ", ".join(self._printed_arguments(printer))
         return rf"\operatorname{{Embedding}}\left({arguments}\right)"
 
     @cached_property
@@ -814,6 +818,12 @@ class _ReferenceEmbedding(Embedding):
         self._coordinate_map = {}
         self._compile(args)
         return self
+
+    def _printed_arguments(self, printer) -> list[str]:
+        """Print the reference list as passed, without the generators sentinel."""
+        states = [state if i == 0 else (i, state) for i, state in self.args[1]]
+        keyword = r"\text{reference}" if printer.printmethod == "_latex" else "reference"
+        return [f"{keyword}={printer._print(states)}"]
 
     def _compile(self, reference: sympy.Tuple) -> None:
         """Validate an ordered list of orthonormal target product states."""
