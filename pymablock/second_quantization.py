@@ -118,13 +118,11 @@ def _divide_by_energy_gap(
     return sympy.Piecewise((0, inactive), (quotient, True), evaluate=False)
 
 
-def _diagonal_coefficient(expression: NumberOrderedForm | sympy.Expr) -> sympy.Expr:
-    """Extract a diagonal NOF's scalar number coefficient, or pass a scalar through.
+def _diagonal_coefficient(expression: NumberOrderedForm) -> sympy.Expr:
+    """Extract a diagonal NOF's scalar number coefficient.
 
     Reject ladder shifts: the zero-shift coefficient is the only allowed term.
     """
-    if not isinstance(expression, NumberOrderedForm):
-        return sympy.sympify(expression)
     if not expression.is_particle_conserving():
         raise ValueError(
             "Diagonal second-quantized Hamiltonians must contain only number operators."
