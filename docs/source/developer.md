@@ -122,7 +122,8 @@ The solver reads `energy_states`, `target_occupations`, `coordinate_symbols`,
 and `source_coordinates` from the embedding; reference lists have no coordinates.
 Generator embeddings compute `source_coordinates`, $L(n-r)$, once and reuse them
 in the projector, lifting, and the solver's coordinate substitution.
-Reference-list frame entries share an internal vacuum embedding.
+Reference-list frame entries attach to one generator embedding without
+generators, which retains only the target vacuum.
 Matrix shape consistency belongs to each block conversion, so one embedding can
 be reused for operators of different target matrix sizes.
 

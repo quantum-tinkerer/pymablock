@@ -1658,7 +1658,7 @@ class NumberOrderedForm(Operator):
             if left != right or self.side == other.side:
                 raise ValueError("Composition requires opposite matching attachments")
             if self.side == -1:
-                return left._contract(self.target * other.target)
+                return left.restrict(self.target * other.target)
             return self.target * left._projector * other.target
         if left is not None:
             value = left._lift(other) if self.side == 1 else left._convert_operator(other)
