@@ -319,12 +319,7 @@ class Embedding(sympy.Expr):
             self._target_occupations,
             self._coordinate_symbols,
         )
-        coordinate_map = self._coordinate_map
-        nonnegative = tuple(
-            q
-            for q, op in zip(coordinates, self._source_operators)
-            if not isinstance(op, LadderOp)
-        )
+        nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
         incoming_energies = [
             self._evaluate_numbers(energies[row], state)
             for row, state in self._energy_states
@@ -386,7 +381,7 @@ class Embedding(sympy.Expr):
                 terms[powers] = result.xreplace(
                     {
                         q: expression.xreplace(incoming)
-                        for q, expression in coordinate_map.items()
+                        for q, expression in zip(coordinates, self._source_coordinates)
                     }
                 )
             return NumberOrderedForm(
@@ -486,9 +481,6 @@ class _GeneratorEmbedding(Embedding):
         self._source_coordinates = tuple(
             self._occupation_left_inverse
             * (sympy.Matrix(self._target_numbers) - sympy.Matrix(self._reference_state))
-        )
-        self._coordinate_map = dict(
-            zip(self._coordinate_symbols, self._source_coordinates)
         )
         self._target_occupations = tuple(
             origin + sum(matrix[i, j] * q for j, q in enumerate(self._coordinate_symbols))
@@ -811,9 +803,8 @@ class _GeneratorEmbedding(Embedding):
 class _ReferenceEmbedding(Embedding):
     """Finite source matrix in an ordered target occupation basis."""
 
-    _coordinate_symbols = ()
-    _source_operators = ()
-    _source_placeholders = ()
+    # A finite matrix has no source coordinates; the shared solver reads these.
+    _coordinate_symbols = _source_coordinates = ()
 
     def __new__(cls, generators=None, reference=None) -> Self:  # noqa: ARG004
         """Recompile the listed states from their SymPy arguments."""
@@ -827,7 +818,6 @@ class _ReferenceEmbedding(Embedding):
         )
         args = sympy.Tuple(*(sympy.Tuple(i, sympy.Dict(state)) for i, state in reference))
         self = sympy.Expr.__new__(cls, sympy.S.NaN, args)
-        self._coordinate_map = {}
         self._compile(args)
         return self
 
