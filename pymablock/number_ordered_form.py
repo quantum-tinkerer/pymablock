@@ -621,26 +621,19 @@ class NumberOrderedForm(Operator):
             # Validate only after conversion
             cls._validate_terms(terms, operators)
 
-        terms = Tuple(
-            *(
-                Tuple(
-                    powers,
-                    _simplify_on_fixed_numbers(
-                        coeff,
-                        _number_symbols(tuple(operators)),
-                        tuple(
-                            n
-                            for op, n in zip(operators, _number_symbols(tuple(operators)))
-                            if not isinstance(op, LadderOp)
-                        ),
-                    ),
-                )
-                if coeff.has(Piecewise)
-                else Tuple(powers, coeff)
-                for powers, coeff in terms
-            )
+        numbers = tuple(number_operator_placeholders)
+        nonnegative = tuple(
+            n for op, n in zip(operators, numbers) if not isinstance(op, LadderOp)
         )
-        terms = Tuple(*(term for term in terms if term[1] != 0))
+        simplified = (
+            (powers, _simplify_on_fixed_numbers(coeff, numbers, nonnegative))
+            if coeff.has(Piecewise)
+            else (powers, coeff)
+            for powers, coeff in terms
+        )
+        terms = Tuple(
+            *(Tuple(powers, coeff) for powers, coeff in simplified if coeff != 0)
+        )
         attachment = ()
         if embedding is not None and terms:
             if side not in (-1, 1):
