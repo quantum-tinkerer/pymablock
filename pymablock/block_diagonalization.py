@@ -262,9 +262,7 @@ def block_diagonalize(
             )
         embedding = subspace_eigenvectors
         h0 = embedding._target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
-        solve_sylvester = second_quantization._make_embedding_sylvester_solver(
-            embedding, h0
-        )
+        solve_sylvester = embedding._sylvester_solver(h0)
         # Validate the projector before lazy series evaluation.
         embedding._frames(h0.rows)
         hamiltonian = embedding._convert(hamiltonian, diagonal_origin=True)
