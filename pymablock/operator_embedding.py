@@ -154,20 +154,15 @@ class Embedding(sympy.Expr):
         Rationalize stored floating coefficients before cancellation and reject
         modes missing from the reference declaration.
         """
+        expression = sympy.sympify(expression)
+        if expression.has(sympy.Float):
+            expression = expression.xreplace(
+                {v: sympy.Rational(v) for v in expression.atoms(sympy.Float)}
+            )
         if isinstance(expression, NumberOrderedForm):
             if expression.operators == self._target_operators:
-                if expression.has(sympy.Float):
-                    return expression.applyfunc(
-                        lambda c: c.xreplace(
-                            {v: sympy.Rational(v) for v in c.atoms(sympy.Float)}
-                        )
-                    )
                 return expression
             expression = expression.as_expr()
-        expression = sympy.sympify(expression)
-        expression = expression.xreplace(
-            {v: sympy.Rational(v) for v in expression.atoms(sympy.Float)}
-        )
         if set(find_operators(expression)) - set(self._target_operators):
             raise ValueError("Every target mode must be declared in the reference")
         return NumberOrderedForm.from_expr(expression, operators=self._target_operators)
