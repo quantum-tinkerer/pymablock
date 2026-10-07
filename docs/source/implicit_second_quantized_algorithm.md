@@ -319,8 +319,8 @@ effective Hamiltonian is then valid away from those parameter values.
 ## Requirements
 
 The implicit algorithm currently requires a Hermitian Hamiltonian whose
-unperturbed part $H_0$ is diagonal in the occupations. It uses exact symbolic
-arithmetic, so the numerical options `atol`, `direct_solver`, and
-`solver_options` are not supported. See
+unperturbed part $H_0$ is diagonal in the occupations. Like other symbolic
+second-quantized inputs, it ignores the numerical options `atol`,
+`direct_solver`, and `solver_options`. See
 [structured embeddings](structured_embeddings.md) for the supported source
 algebras and for embeddings given by an explicit list of states.

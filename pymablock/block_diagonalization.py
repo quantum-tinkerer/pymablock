@@ -247,18 +247,6 @@ def block_diagonalize(
             raise NotImplementedError(
                 "Structured embeddings select their algebraic Sylvester solver."
             )
-        if solver_options:
-            raise NotImplementedError(
-                "Structured embeddings do not accept solver_options."
-            )
-        if not direct_solver:
-            raise NotImplementedError(
-                "Structured embeddings use an exact algebraic solver; direct_solver=False is unsupported."
-            )
-        if atol != _DEFAULT_ATOL:
-            raise NotImplementedError(
-                "Structured embeddings use exact coefficients and do not accept a numerical atol."
-            )
         hamiltonian, solve_sylvester = subspace_eigenvectors._prepare(hamiltonian)
         subspace_eigenvectors = None
 
@@ -752,8 +740,7 @@ def operator_to_BlockSeries(
         observable into retained/complement blocks, including zeroth-order cross
         blocks. Its references need not be eigenstates of the observable.
         Generator embeddings produce source operators; reference lists produce
-        finite matrices. Floating coefficients are treated as their exact stored
-        rational values.
+        finite matrices.
 
         Alternatively, a tuple describing the subspaces onto which the operator is projected
         and separated into blocks. Each entry may be either a single basis

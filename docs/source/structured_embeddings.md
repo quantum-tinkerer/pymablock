@@ -351,12 +351,5 @@ Unresolved occupation-dependent resonances remain symbolic poles: evaluate
 the effective model only in nonresonant sectors. Binary simplification preserves
 such coefficients rather than evaluating their singular points.
 
-The algebraic solver treats a floating coefficient as the exact rational value
-stored by SymPy. This prevents roundoff during symbolic cancellation from
-creating false resonances. A stored `0.1` differs from `sympy.Rational("0.1")`;
-use rational input when exact decimal values or exact decimal resonances are
-intended. The solver rejects nondefault `atol`, `direct_solver=False`, and
-`solver_options`; those numerical settings do not apply to symbolic division.
-
 [The developer documentation](developer.md) describes validation,
 projectors, and the rectangular blocks returned outside the retained subspace.
