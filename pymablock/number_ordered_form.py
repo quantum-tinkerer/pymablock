@@ -2109,13 +2109,5 @@ def _occupation_dimension(operator: OperatorType) -> int | None:
 
 @cache
 def _number_symbols(operators: tuple[OperatorType, ...]) -> tuple[sympy.Symbol, ...]:
-    """Return scalar occupation symbols in the supplied mode order.
-
-    Read each number operator's zero-shift coefficient instead of constructing
-    placeholder names independently of NumberOrderedForm's representation.
-    """
-    powers = (0,) * len(operators)
-    return tuple(
-        NumberOrderedForm.from_expr(NumberOperator(op), operators=operators).terms[powers]
-        for op in operators
-    )
+    """Return scalar occupation symbols in the supplied mode order."""
+    return tuple(_number_operator_to_placeholder(NumberOperator(op)) for op in operators)
