@@ -228,12 +228,10 @@ def test_conversion_preserves_factored_spectators(annihilate):
 
 
 def test_binary_validation_does_not_enumerate_source(monkeypatch) -> None:
-    from pymablock.operator_embedding import _ReferenceEmbedding
-
     def forbidden(_self, _target):
         raise AssertionError("Source enumeration is not needed")
 
-    monkeypatch.setattr(_ReferenceEmbedding, "_compress", forbidden)
+    monkeypatch.setattr(Embedding, "_frame_columns", forbidden)
     spins = tuple(SigmaMinus(f"s{i}") for i in range(20))
     embedding = Embedding(
         {s: BosonOp(f"a{i}") for i, s in enumerate(spins)},
@@ -671,3 +669,161 @@ def test_matrix_target_validation():
     )
     with pytest.raises(ValueError, match="same target matrix shape"):
         _ = h[0, 0, 1]
+
+
+def test_generator_lattices_in_matrix_rows_through_fourth_order():
+    """Two ancilla branches each retain a qubit, with virtual oscillator levels."""
+    a, s = BosonOp("a"), SigmaMinus("s")
+    energy = 5 * N(a) + N(a) * (N(a) - 1)
+    h0 = sympy.diag(energy, 2 + energy)
+    v = sympy.Matrix(
+        [
+            [a + Dagger(a), 1 + 2 * a + Dagger(a)],
+            [1 + 2 * Dagger(a) + a, 2 * (a + Dagger(a))],
+        ]
+    )
+    embedding = Embedding({s: a}, reference=[(0, {a: 0}), (1, {a: 0})])
+    effective, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
+    source_matrices = occupation_matrices((s,), [(0, 1)])
+    coefficients = [
+        operator_matrix(effective[0, 0, order], source_matrices).toarray()
+        for order in range(5)
+    ]
+    for cutoff in (4, 5):
+        target_matrices = occupation_matrices((a,), [range(cutoff)])
+        full_h0, full_v = (operator_matrix(x, target_matrices).toarray() for x in (h0, v))
+        kept = [0, 1, cutoff, cutoff + 1]
+        complement = [i for i in range(2 * cutoff) if i not in kept]
+        basis = np.eye(2 * cutoff)
+        reference, *_ = block_diagonalize(
+            [full_h0, full_v],
+            subspace_eigenvectors=[basis[:, kept], basis[:, complement]],
+        )
+        for order, coefficient in enumerate(coefficients):
+            np.testing.assert_allclose(coefficient, reference[0, 0, order], atol=1e-11)
+        errors = []
+        for coupling in (0.02, 0.04):
+            approximation = sum(coupling**n * x for n, x in enumerate(coefficients))
+            exact = np.linalg.eigvalsh(full_h0 + coupling * full_v)[:4]
+            errors.append(np.max(np.abs(np.linalg.eigvalsh(approximation) - exact)))
+        assert errors[1] < 1e-6
+        assert errors[1] > 20 * errors[0]
+
+
+def test_lattices_separated_by_spectator_offset():
+    a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
+    embedding = Embedding({s: a}, reference=[{a: 0, b: 2}, {a: 0, b: 1}])
+    actual = embedding.restrict(b + Dagger(b))
+    identity = NumberOrderedForm.from_expr(1, operators=(s,))
+    assert actual == sympy.Matrix(
+        [[0, sympy.sqrt(2) * identity], [sympy.sqrt(2) * identity, 0]]
+    )
+    assert embedding.restrict(N(a)) == sympy.diag(
+        *(embedding._first_lattice.restrict(N(a)),) * 2
+    )
+    w, q = embedding._frames(1)
+    assert (
+        (w.adjoint() * w - sympy.eye(2))
+        .applyfunc(lambda x: x.simplify() if isinstance(x, NumberOrderedForm) else x)
+        .is_zero_matrix
+    )
+    # Full target products include excursions beyond either spectator level.
+    assert embedding.restrict(b * Dagger(b)) == sympy.diag(3 * identity, 2 * identity)
+
+
+def test_transfers_along_moving_boson_mode():
+    """Even and odd binary lattices need occupation-dependent normalization."""
+    a, s = BosonOp("a"), SigmaMinus("s")
+    generator = a**2 / sympy.sqrt(N(a) * (N(a) - 1))
+    embedding = Embedding({s: generator}, reference=[{a: 0}, {a: 1}])
+    result = embedding.restrict(a + Dagger(a))
+    actual = np.array(
+        sympy.BlockMatrix(
+            [
+                [
+                    nof_matrix(result[i, j])
+                    if isinstance(result[i, j], NumberOrderedForm)
+                    else result[i, j] * sympy.eye(2)
+                    for j in range(2)
+                ]
+                for i in range(2)
+            ]
+        ).as_explicit(),
+        dtype=complex,
+    )
+    matrices = occupation_matrices((a,), [range(5)])
+    full = operator_matrix(a + Dagger(a), matrices).toarray()
+    kept = [0, 2, 1, 3]
+    np.testing.assert_allclose(actual, full[np.ix_(kept, kept)], atol=1e-14)
+
+
+def test_transfer_fermion_sign_and_generator_phase():
+    """A spectator before the moving fermion changes its generator-defined phase."""
+    spectator, target, source = map(FermionOp, ("a", "b", "f"))
+    embedding = Embedding(
+        {source: sympy.I * target},
+        reference=[{spectator: 0, target: 0}, {spectator: 1, target: 0}],
+    )
+    source_matrices = occupation_matrices((source,), [(0, 1)])
+    matrices = occupation_matrices((spectator, target), [(0, 1)] * 2)
+    w = np.diag([1, -1j, 1, 1j])
+    for expression in (spectator, target, Dagger(spectator) * target):
+        actual = operator_matrix(
+            embedding.restrict(expression), source_matrices
+        ).toarray()
+        full = operator_matrix(expression, matrices).toarray()
+        np.testing.assert_allclose(actual, w.conj().T @ full @ w, atol=1e-14)
+
+
+def test_reference_lattices_must_be_disjoint():
+    a, s = BosonOp("a"), SigmaMinus("s")
+    with pytest.raises(ValueError, match="Reference lattices overlap"):
+        Embedding({s: a / sympy.sqrt(N(a))}, reference=[{a: 0}, {a: 1}])
+
+
+def test_invalid_transfer_checks_every_lattice():
+    a, s = BosonOp("a"), SigmaMinus("s")
+    with pytest.raises(
+        ValueError, match="Reference translation.*normalized source states"
+    ):
+        Embedding({s: a}, reference=[(0, {a: 0}), (1, {a: 2})])
+
+
+@pytest.mark.parametrize("source_type", [BosonOp, FermionOp])
+def test_list_reconstruction_substitution_and_printing(source_type):
+    import pickle
+
+    a, z = map(BosonOp, ("a", "z"))
+    f, target = source_type("f"), source_type("target")
+    embedding = Embedding(
+        {f: target}, reference=[(0, {target: 0, a: 1}), (1, {target: 0, a: 2})]
+    )
+    assert embedding.func(*embedding.args) == embedding
+    assert pickle.loads(pickle.dumps(embedding)) == embedding
+    assert (
+        eval(str(embedding), {"Embedding": Embedding, "f": f, "target": target, "a": a})
+        == embedding
+    )
+    renamed = Embedding(
+        {f: target}, reference=[(0, {target: 0, z: 1}), (1, {target: 0, z: 2})]
+    )
+    w, _ = embedding._frames(2)
+    expected, _ = renamed._frames(2)
+    for method in ("subs", "xreplace"):
+        assert getattr(embedding, method)({a: z}) == renamed
+    assert w.xreplace({a: z}) == expected
+    phase = sympy.Symbol("phase", real=True)
+    phased = Embedding(
+        {f: sympy.exp(sympy.I * phase) * target}, reference=embedding.args[1]
+    )
+    for method in ("subs", "xreplace"):
+        assert getattr(phased._frames(2)[0], method)({phase: 0}) == w
+
+
+def test_bilateral_reference_transfers_have_no_vacuum():
+    from pymablock.number_ordered_form import LadderOp
+
+    ell = LadderOp("ell")
+    embedding = Embedding(reference=[{ell: -2}, {ell: 3}])
+    assert embedding.restrict(ell**5) == sympy.Matrix([[0, 1], [0, 0]])
+    assert embedding.restrict(N(ell)) == sympy.diag(-2, 3)

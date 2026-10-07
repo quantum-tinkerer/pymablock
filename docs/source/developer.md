@@ -7,12 +7,21 @@ As in the user documentation, the *source* is the effective model and the
 *target* is the Hamiltonian passed to `block_diagonalize`. The embedding is an
 isometry $W$ from source states to target states.
 
-`Embedding` is a structural SymPy expression whose constructor selects one of two subclasses.
-`_GeneratorEmbedding` compiles generator images and the affine occupation map.
-`_ReferenceEmbedding` compiles an ordered list of target states.
-Both store compiled data directly and recompile when reconstructed or unpickled.
-Shared target normalization, attachments, and block conversion live on `Embedding`.
-The subclasses implement compression, projectors, lifting, and frame columns.
+`Embedding` is one structural SymPy expression. It compiles generator images
+and the affine occupation map, and recompiles when reconstructed or unpickled.
+A reference mapping defines one lattice. A list adds a source matrix index:
+column $j$ maps $q$ to target row $i_j$ and occupations $r_j+Mq$.
+
+Every frame entry uses the same scalar isometry $W_1$ at the first reference.
+The constructor builds target operators $T_j$ such that $W_j=T_jW_1$.
+Their occupation shifts are $r_j-r_1$. If the bare shift monomial has
+matrix element $t_j(q)$, its coefficient is
+$\phi_j(q)/(\phi_1(q)t_j(q))$, expressed at the intermediate NOF occupations.
+`NumberOrderedForm.act` supplies the ladder factors and fermion signs;
+the generator validation supplies each phase $\phi_j$.
+Compression of entry $(i,j)$ is therefore ordinary single-lattice compression
+of $T_i^\dagger X_{i_i,i_j}T_j$. Frame products also give
+$T_iP_1T_j^\dagger$ without a separate list projector or compression algorithm.
 
 The implementation separates three operations:
 
@@ -93,10 +102,11 @@ rectangular = X * W
 compressed = W.adjoint() * rectangular  # embedding.restrict(X)
 ```
 
-A reference-list embedding is prepared
-as a matrix of NOFs sharing one vacuum attachment. Matrix indices select the
-target components, and normalized creation monomials prepare the listed
-occupations. There is no separate embedding wrapper around the matrix.
+A reference-list frame is a matrix of NOFs attached to $W_1$.
+The zero-generator case uses the same transfer construction: a shift monomial
+maps the first listed occupation state to each other state, including negative
+bilateral ladder indices. A vacuum first reference gives normalized creation
+monomials as a special case.
 
 The usual `zero` and `one` series sentinels represent zero and the identity on
 the block's space. Embedding attachments occur only on rectangular blocks;
@@ -118,20 +128,24 @@ occupation equations. A reference state is the special case that selects one
 eigenvalue of every target number operator. Finite spectral selections are sums
 of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
 
-The solver reads `energy_states`, `target_occupations`, `coordinate_symbols`,
-and `source_coordinates` from the embedding; reference lists have no coordinates.
-Generator embeddings compute `source_coordinates`, $L(n-r)$, once and reuse them
-in the projector, lifting, and the solver's coordinate substitution.
-Reference-list frame entries attach to one generator embedding without
-generators, which retains only the target vacuum.
-Matrix shape consistency belongs to each block conversion, so one embedding can
+The solver reads `_energy_states`, `_target_occupations`, `_coordinate_symbols`,
+and `_source_coordinates` from the embedding. The incoming energy of column
+$j$ is evaluated at $r_j+Mq$. The attached target operator already includes
+$T_j$, so its outgoing energy is evaluated by acting on the first lattice's
+occupations $r_1+Mq$. Coordinate substitution uses $L(n-r_1)$ throughout.
+Matrix shape consistency belongs to each block conversion, so an embedding can
 be reused for operators of different target matrix sizes.
 
-The Sylvester solver evaluates each target transition on the incoming occupations
-$n=r+Mm$, then divides by the difference between its outgoing and incoming
-energies. The embedding already fixes the incoming support, so the solver does
-not multiply by the target projector. Reference-list columns use their vacuum
-attachment and creation monomial in the same transition calculation.
+Every reference lattice independently passes domain, generator-algebra, phase,
+and ladder-number validation. These bounds also ensure the transfer monomial
+never annihilates a state of the first lattice. Normalization may depend on
+occupations, and phase ratios include fermion ordering signs.
+For references in the same target row, independent columns of $M$ give a unique
+candidate displacement $d=L(r_i-r_j)$. The lattices overlap exactly when
+$Md=r_i-r_j$, $d$ is integral, and $|d_a|<D_a$ for every finite source mode of
+size $D_a$. Infinite bosonic and bilateral domains have all integers as their
+difference set. Different target rows are disjoint automatically.
+
 Coefficient division is shared with regular second quantization. It evaluates
 occupations already fixed by explicit indicators, then divides the coefficient
 by the energy gap. Where the full transition amplitude is defined and zero,

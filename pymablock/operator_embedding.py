@@ -52,9 +52,8 @@ class Embedding(sympy.Expr):
 
     Below, *source* refers to the effective model, and *target* refers to the
     Hamiltonian passed to `~pymablock.block_diagonalize`. The embedding maps
-    source states to target states. It either maps each source operator to an
-    expression in the target operators, or lists target states that form a finite
-    matrix basis.
+    source states to target states. A generator mapping defines the source algebra;
+    a reference list adds a matrix index labeling disjoint copies of that algebra.
 
     Pass the embedding as ``subspace_eigenvectors`` to
     `~pymablock.block_diagonalize` or `~pymablock.operator_to_BlockSeries`.
@@ -72,16 +71,17 @@ class Embedding(sympy.Expr):
         target expression, because its lowering operator does not determine it.
         Omit ``generators`` to select a finite list of states instead.
     reference : collections.abc.Mapping or collections.abc.Sequence
-        If ``generators`` is given, maps every target operator to its occupation in
+        A mapping declares every target operator and its occupation in
         the target state that represents the source state with all occupations and
         ``LadderOp`` indices equal to zero. Applying the adjoints of the target
         expressions to this state defines all other embedded states and their
         phases. ``LadderOp`` source operators also use the target expressions
         themselves to reach negative indices.
 
-        Otherwise, lists the embedded states in the order of the matrix rows and
-        columns. Each state maps every target operator to its occupation, and all
-        states must use the same operators. If the Hamiltonian is a matrix, give
+        A list declares one such reference per source matrix index. Each reference
+        generates a copy of the source algebra; these lattices must be disjoint.
+        With no generators, each copy is a single state. All references must use
+        the same target operators. If the Hamiltonian is a matrix, give
         ``(matrix_index, occupations)`` pairs; a mapping without an index refers to
         index 0. For a matrix Hamiltonian without operators, use pairs with empty
         mappings, such as ``[(0, {}), (2, {})]``.
@@ -115,19 +115,59 @@ class Embedding(sympy.Expr):
         generators: Mapping | None = None,
         reference: Mapping | Sequence | None = None,
     ) -> Self:
-        """Dispatch to the representation specified by the structural arguments."""
+        """Compile the generator lattice and its translated frame columns."""
         if reference is None:
             raise TypeError("Specify reference occupations for the embedding")
         if generators is None:
-            return _ReferenceEmbedding(reference)
-        return _GeneratorEmbedding(generators, reference)
+            if isinstance(reference, (Mapping, sympy.Dict)):
+                raise TypeError("A matrix source requires a list of reference states")
+            generators = {}
+        if not isinstance(generators, (Mapping, sympy.Dict)):
+            raise TypeError("Generators must be a mapping")
+        matrix_source = not isinstance(reference, (Mapping, sympy.Dict))
+        if matrix_source:
+            reference = sympy.Tuple(
+                *(
+                    sympy.Tuple(0, sympy.Dict(state))
+                    if isinstance(state, (Mapping, sympy.Dict))
+                    else sympy.Tuple(state[0], sympy.Dict(state[1]))
+                    for state in reference
+                )
+            )
+            if not reference:
+                raise ValueError("Specify at least one reference state")
+        else:
+            reference = sympy.Dict(reference)
+        self = sympy.Expr.__new__(cls, sympy.Dict(generators), reference)
+        self._matrix_source = matrix_source
+        references = reference if matrix_source else ((sympy.S.Zero, reference),)
+        states = []
+        for row, occupations in references:
+            if not row.is_Integer or row < 0:
+                raise ValueError("Matrix basis indices must be nonnegative integers")
+            modes, state = _ordered_reference_state(dict(occupations))
+            if states and modes != self._target_operators:
+                raise ValueError("Every reference must declare the same target modes")
+            self._target_operators = modes
+            states.append((int(row), state))
+        self._references = tuple(states)
+        self._compile(dict(generators), dict(references[0][1]))
+        self._validate_disjointness()
+        self._transfers = tuple(
+            self._transfer(dict(occupations)) for _, occupations in references
+        )
+        return self
 
     def _printed_arguments(self, printer) -> list[str]:
-        """Print the constructor arguments."""
-        return [printer._print(arg) for arg in self.args]
+        """Print reconstructible public constructor arguments."""
+        generators, reference = self.args
+        if self._matrix_source:
+            reference = [state if i == 0 else (i, state) for i, state in reference]
+        keyword = r"\text{reference}" if printer.printmethod == "_latex" else "reference"
+        return [printer._print(generators), f"{keyword}={printer._print(reference)}"]
 
     def _sympystr(self, printer) -> str:
-        """Keep the public expression name when printing either subclass."""
+        """Print the public constructor name."""
         return f"Embedding({', '.join(self._printed_arguments(printer))})"
 
     def _latex(self, printer) -> str:
@@ -169,7 +209,7 @@ class Embedding(sympy.Expr):
         """Represent ``value W`` for side +1, or ``W† value`` for side -1.
 
         Normalize the target expression but retain the attachment until arithmetic
-        contracts it. Reference-list frames attach entries to a vacuum embedding.
+        contracts it. All frame entries attach to the first reference lattice.
         """
         value = self._convert_operator(value)
         return NumberOrderedForm(
@@ -188,14 +228,18 @@ class Embedding(sympy.Expr):
         ``restrict(a * Dagger(a))`` is ``1 + N_s``, while
         ``restrict(a) * restrict(Dagger(a))`` is ``1 - N_s``.
 
-        With ``generators``, the result is a
+        With a mapping reference, the result is a
         `~pymablock.number_ordered_form.NumberOrderedForm` in the source operators.
         It may contain products such as ``N_s * (1 - N_s)`` that vanish because
         fermion and spin occupations are 0 or 1; call ``simplify()`` to remove
         them. With a list of states, the result is a SymPy matrix in the order of
-        the list.
+        the list, with source NOFs as entries when generators are supplied.
         """
-        return self._compress(self._convert_target(expression))
+        if not self._matrix_source:
+            return self._compress(self._convert_target(expression))
+        target = self._target_matrix(expression)
+        w, _ = self._frames(target.rows)
+        return self._block_result(w.adjoint() * target * w)
 
     def _target_matrix(
         self, expression: sympy.Expr | sympy.MatrixBase
@@ -373,7 +417,7 @@ class Embedding(sympy.Expr):
             return NumberOrderedForm(
                 self._target_operators,
                 terms,
-                self._entry_embedding,
+                self._first_lattice,
                 1,
                 validate=False,
             )
@@ -394,18 +438,6 @@ class Embedding(sympy.Expr):
             return -result.adjoint() if reverse else result
 
         return solve
-
-
-class _GeneratorEmbedding(Embedding):
-    """Symbolic source algebra generated from one reference state."""
-
-    def __new__(cls, generators: Mapping, reference: Mapping) -> Self:
-        """Recompile the generator map from its SymPy arguments."""
-        if not all(isinstance(x, (Mapping, sympy.Dict)) for x in (generators, reference)):
-            raise TypeError("Generators and reference must be mappings")
-        self = sympy.Expr.__new__(cls, sympy.Dict(generators), sympy.Dict(reference))
-        self._compile(dict(generators), dict(reference))
-        return self
 
     def _compile(self, generators: Mapping, reference: Mapping) -> None:
         """Compile and validate the affine occupation map."""
@@ -440,7 +472,7 @@ class _GeneratorEmbedding(Embedding):
         )
         images, shifts = [], []
         for op in operators:
-            image = self._convert_target(generators[op])
+            image = self._convert_operator(generators[op])
             if len(image.terms) != 1 or not any(shift := next(iter(image.terms))):
                 raise ValueError(
                     f"Image of {op} must change target occupations by one nonzero shift"
@@ -484,7 +516,7 @@ class _GeneratorEmbedding(Embedding):
             index = next(
                 i for i, source in enumerate(operators) if NumberOperator(source) == op
             )
-            form = self._convert_target(number)
+            form = self._convert_operator(number)
             if any(any(powers) for powers in form.terms):
                 raise ValueError("A ladder number image must be occupation diagonal")
             expression = form.terms.get((0,) * len(self._target_operators), sympy.S.Zero)
@@ -494,11 +526,84 @@ class _GeneratorEmbedding(Embedding):
                 f"Ladder number image {op} must count from the source reference index zero",
             )
 
-    def _convert_target(self, expression: sympy.Expr) -> NumberOrderedForm:
-        """Normalize a scalar target; matrix targets require reference lists."""
-        if isinstance(expression, sympy.MatrixBase):
+    def _convert_target(
+        self, expression: sympy.Expr | sympy.MatrixBase
+    ) -> NumberOrderedForm | sympy.MatrixBase:
+        """Normalize scalar targets or square matrices with declared row indices."""
+        if not isinstance(expression, sympy.MatrixBase):
+            if any(row for row, _ in self._references):
+                raise ValueError(
+                    "Nonzero reference matrix indices require a matrix target"
+                )
+            return self._convert_operator(expression)
+        if not self._matrix_source:
             raise TypeError("Matrix targets require a list of reference states")
-        return self._convert_operator(expression)
+        if expression.rows != expression.cols:
+            raise ValueError("Target matrices must be square")
+        if any(row >= expression.rows for row, _ in self._references):
+            raise ValueError("Reference matrix index lies outside the target matrix")
+        return sympy.ImmutableSparseMatrix(expression.applyfunc(self._convert_operator))
+
+    def _validate_disjointness(self) -> None:
+        """Independent shifts give a unique candidate displacement between lattices."""
+        for i, (row, state) in enumerate(self._references):
+            for other_row, other_state in self._references[:i]:
+                if row != other_row:
+                    continue
+                delta = sympy.Matrix(state) - sympy.Matrix(other_state)
+                displacement = self._occupation_left_inverse * delta
+                if self._occupation_matrix * displacement != delta:
+                    continue
+                if all(
+                    d.is_Integer and (size is None or abs(d) < size)
+                    for d, size in zip(displacement, self._source_dimensions)
+                ):
+                    raise ValueError(
+                        "Reference lattices overlap; states must be distinct"
+                    )
+
+    def _transfer(self, reference: Mapping) -> NumberOrderedForm:
+        """Build T with T W₁ = W at this reference, including ladder norms and phases."""
+        if reference == dict(zip(self._target_operators, self._reference_state)):
+            return self._convert_operator(sympy.S.One)
+        # Compile each lattice independently to check domains, algebra and phase.
+        try:
+            lattice = Embedding(dict(self.args[0]), reference=reference)
+        except (ValueError, NotImplementedError) as error:
+            raise type(error)(f"Reference translation is invalid: {error}") from error
+        powers = tuple(
+            a - b for a, b in zip(self._reference_state, lattice._reference_state)
+        )
+        monomial = NumberOrderedForm(self._target_operators, {powers: sympy.S.One})
+        weight = _matrix_element(monomial, self._target_occupations)
+        if weight == 0:
+            raise ValueError(
+                "Reference translation is not valid on the whole first lattice"
+            )
+        phase = lattice._phase.xreplace(
+            dict(zip(lattice._coordinate_symbols, self._coordinate_symbols))
+        )
+        coefficient = sympy.simplify(phase / self._phase / weight)
+        # The coefficient sits after annihilation: recover incoming occupations.
+        incoming = {n: n + max(p, 0) for n, p in zip(self._target_numbers, powers)}
+        coefficient = coefficient.xreplace(
+            {
+                q: coordinate.xreplace(incoming)
+                for q, coordinate in zip(
+                    self._coordinate_symbols, self._source_coordinates
+                )
+            }
+        )
+        return NumberOrderedForm(
+            self._target_operators, {powers: coefficient}, validate=False
+        )
+
+    @cached_property
+    def _first_lattice(self) -> Embedding:
+        """Scalar isometry shared by every frame entry."""
+        if not self._matrix_source:
+            return self
+        return Embedding(dict(self.args[0]), reference=dict(self.args[1][0][1]))
 
     def _validate_domains(self) -> None:
         """Check target occupation bounds over the full source occupation domain.
@@ -776,127 +881,42 @@ class _GeneratorEmbedding(Embedding):
 
     @property
     def _energy_states(self) -> tuple:
-        """Target occupations at which each retained energy is evaluated."""
-        return ((0, self._target_occupations),)
-
-    @property
-    def _entry_embedding(self) -> Embedding:
-        """Attachment used by scalar entries of the retained frame."""
-        return self
-
-    def _frame_columns(self, _rows: int) -> sympy.MatrixBase:
-        """Represent the generator isometry as one attached scalar."""
-        return sympy.ImmutableMatrix([[self._attach(sympy.S.One, 1)]])
-
-    def _block_result(self, result: sympy.MatrixBase) -> NumberOrderedForm:
-        """Unwrap the scalar block used by a generator embedding."""
-        return result[0, 0]
-
-
-class _ReferenceEmbedding(Embedding):
-    """Finite source matrix in an ordered target occupation basis."""
-
-    # A finite matrix has no source coordinates; the shared solver reads these.
-    _coordinate_symbols = _source_coordinates = ()
-
-    def __new__(cls, reference: Sequence) -> Self:
-        """Recompile the listed states from their SymPy arguments."""
-        if isinstance(reference, Mapping):
-            raise TypeError("A matrix source requires a list of reference states")
-        reference = tuple(
-            (0, state) if isinstance(state, (Mapping, sympy.Dict)) else state
-            for state in reference
+        """Incoming energies use the occupations of each translated column."""
+        return tuple(
+            (
+                row,
+                tuple(
+                    n + r - r1
+                    for n, r, r1 in zip(
+                        self._target_occupations, state, self._reference_state
+                    )
+                ),
+            )
+            for row, state in self._references
         )
-        args = sympy.Tuple(*(sympy.Tuple(i, sympy.Dict(state)) for i, state in reference))
-        self = sympy.Expr.__new__(cls, args)
-        self._compile(args)
-        return self
-
-    def _printed_arguments(self, printer) -> list[str]:
-        """Print the reference list as passed, omitting zero matrix indices."""
-        states = [state if i == 0 else (i, state) for i, state in self.args[0]]
-        keyword = r"\text{reference}" if printer.printmethod == "_latex" else "reference"
-        return [f"{keyword}={printer._print(states)}"]
-
-    def _compile(self, reference: sympy.Tuple) -> None:
-        """Validate an ordered list of orthonormal target product states."""
-        if not reference:
-            raise ValueError("Specify at least one reference state")
-        states = []
-        for component, occupations in reference:
-            if not component.is_Integer or component < 0:
-                raise ValueError("Matrix basis indices must be nonnegative integers")
-            operators, state = _ordered_reference_state(dict(occupations))
-            if states and operators != self._target_operators:
-                raise ValueError("Every reference must declare the same target modes")
-            self._target_operators = operators
-            states.append((int(component), state))
-        if len(set(states)) != len(states):
-            raise ValueError("Reference states must be distinct")
-        self._references = tuple(states)
-        self._reference_indices = {state: i for i, state in enumerate(states)}
-
-    def _convert_target(
-        self, expression: sympy.Expr | sympy.MatrixBase
-    ) -> sympy.MatrixBase:
-        """Normalize square matrix entries, promoting scalar targets to 1x1 matrices."""
-        if not isinstance(expression, sympy.MatrixBase):
-            if any(c for c, _ in self._references):
-                raise ValueError(
-                    "Nonzero reference matrix indices require a matrix target"
-                )
-            expression = sympy.ImmutableSparseMatrix([[expression]])
-        if expression.rows != expression.cols:
-            raise ValueError("Target matrices must be square")
-        if any(component >= expression.rows for component, _ in self._references):
-            raise ValueError("Reference matrix index lies outside the target matrix")
-        return sympy.ImmutableSparseMatrix(expression.applyfunc(self._convert_operator))
-
-    @_cache_on_instance
-    def _compress(self, target: sympy.MatrixBase) -> sympy.MatrixBase:
-        """Evaluate matrix elements between the listed reference states, in list order."""
-        entries = {}
-        for (row, col), entry in target.todok().items():
-            for j, (component, state) in enumerate(self._references):
-                if component != col:
-                    continue
-                for output, weight in entry.act(state).values():
-                    if (i := self._reference_indices.get((row, output))) is not None:
-                        entries[i, j] = entries.get((i, j), 0) + weight
-        return sympy.ImmutableSparseMatrix(
-            len(self._references), len(self._references), entries
-        )
-
-    @cached_property
-    def _target_occupations(self) -> tuple:
-        """Entry attachments act on the target vacuum."""
-        return (0,) * len(self._target_operators)
-
-    @property
-    def _energy_states(self) -> tuple:
-        """Matrix components and occupations of the listed retained states."""
-        return self._references
-
-    @cached_property
-    def _entry_embedding(self) -> Embedding:
-        """Embedding without generators that retains only the target vacuum."""
-        return Embedding({}, reference=dict.fromkeys(self._target_operators, 0))
 
     def _frame_columns(self, rows: int) -> sympy.MatrixBase:
-        """Prepare each listed state with a normalized creation monomial."""
+        """Column j is T_j W₁ in its declared target row."""
         w = sympy.zeros(rows, len(self._references))
-        for col, (row, state) in enumerate(self._references):
-            monomial = NumberOrderedForm(
-                self._target_operators, {tuple(-n for n in state): sympy.S.One}
-            )
-            w[row, col] = self._entry_embedding._attach(
-                monomial / _matrix_element(monomial, self._target_occupations), 1
-            )
+        for col, ((row, _), transfer) in enumerate(
+            zip(self._references, self._transfers)
+        ):
+            w[row, col] = self._first_lattice._attach(transfer, 1)
         return sympy.ImmutableMatrix(w)
 
-    def _block_result(self, result: sympy.MatrixBase) -> sympy.MatrixBase:
-        """Reference-list blocks retain their matrix indices."""
-        return result
+    def _block_result(
+        self, result: sympy.MatrixBase
+    ) -> NumberOrderedForm | sympy.MatrixBase:
+        """Unwrap mapping results and keep list results as matrices."""
+        if not self._matrix_source:
+            return result[0, 0]
+        return result.applyfunc(
+            lambda entry: entry.as_expr()
+            if isinstance(entry, NumberOrderedForm)
+            and entry.embedding is None
+            and not entry.operators
+            else entry
+        )
 
 
 def _matrix_element(term: NumberOrderedForm, occupations: Sequence) -> sympy.Expr:

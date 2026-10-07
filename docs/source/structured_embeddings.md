@@ -298,15 +298,61 @@ The [cavity application](applications/cavity_spin.md) uses this construction wit
 a two-by-two dressed-ancilla matrix and cavity/Floquet operator entries. Its
 three- or four-state reference list returns the artificial-spin matrix directly.
 
+## Generator lattices with a matrix index
+
+A reference list may also accompany generators. The source then has a matrix
+index labeling disjoint copies of the source algebra. For example, retain the
+two lowest oscillator levels in both ancilla branches:
+
+```{code-cell} ipython3
+embedding = Embedding({s: b}, reference=[(0, {b: 0}), (1, {b: 0})])
+H_eff, *_ = block_diagonalize(
+    [H0_matrix, V_matrix], subspace_eigenvectors=embedding
+)
+assert H_eff[0, 0, 0] == sympy.diag(
+    NumberOrderedForm.from_expr(5 * N(s)),
+    NumberOrderedForm.from_expr(2 + 5 * N(s)),
+)
+fourth_order = H_eff[0, 0, 4]
+```
+
+Each coefficient is a two-by-two matrix of source `NumberOrderedForm` entries.
+A mapping reference still returns one NOF; a list of one reference returns a
+one-by-one matrix. Omitting generators gives the finite matrices above.
+
+References in one target row must generate disjoint occupation lattices.
+A spectator offset gives a simple example:
+
+```{code-cell} ipython3
+spectator = BosonOp("spectator")
+embedding = Embedding(
+    {s: b}, reference=[{b: 0, spectator: 0}, {b: 0, spectator: 1}]
+)
+assert embedding.restrict(N(spectator)) == sympy.diag(
+    0, NumberOrderedForm.from_expr(1, operators=(s,))
+)
+```
+
+Offsets along moving target modes are supported, including occupation-dependent
+bosonic normalization. Every reference must still satisfy the same generator
+norms, phase convention, occupation bounds, and independent ladder-number
+images. For example, `{s: b}` cannot also start at occupation two: its raising
+amplitude there is $\sqrt{3}$ rather than one. A normalized two-step generator
+can retain separate even and odd binary lattices. Invalid translations and
+overlapping lattices raise clear errors during construction. Fermion ordering
+signs and bilateral `LadderOp` shifts are included; no vacuum is assumed for a
+bilateral ladder. The overlap test is exact for all supported independent
+integer generator shifts and product source domains.
+
 ## Supported representations and perturbation theory
 
 Generator mappings return `NumberOrderedForm`, including when the source
 contains infinite bosonic or Floquet modes. The effective Hamiltonian is an
 ordinary source operator with no embedding attachment; `as_expr()` returns its
 SymPy expression. Use `filter_terms(..., keep=True)` to select occupation shifts,
-then inspect or display their `as_expr()` expressions. Reference-list embeddings
-return finite matrices directly; they do not provide matrices with symbolic
-source-operator entries.
+then inspect or display their `as_expr()` expressions. Reference lists return
+matrices whose entries use that same source algebra; without generators their
+entries are ordinary scalar expressions.
 
 An embedding maps Fock states of the source to Fock states of the target. To
 embed a linear combination of target modes, such as a bonding orbital, first
