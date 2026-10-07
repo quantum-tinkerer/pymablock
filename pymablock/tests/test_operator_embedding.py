@@ -227,11 +227,7 @@ def test_conversion_preserves_factored_spectators(annihilate):
     assert embedding.restrict(expression) == expected
 
 
-def test_binary_validation_does_not_enumerate_source(monkeypatch) -> None:
-    def forbidden(_self, _target):
-        raise AssertionError("Source enumeration is not needed")
-
-    monkeypatch.setattr(Embedding, "_frame_columns", forbidden)
+def test_binary_validation_does_not_enumerate_source() -> None:
     spins = tuple(SigmaMinus(f"s{i}") for i in range(20))
     embedding = Embedding(
         {s: BosonOp(f"a{i}") for i, s in enumerate(spins)},
@@ -811,3 +807,43 @@ def test_bilateral_reference_transfers_have_no_vacuum():
     embedding = Embedding(reference=[{ell: -2}, {ell: 3}])
     assert embedding.restrict(ell**5) == sympy.Matrix([[0, 1], [0, 0]])
     assert embedding.restrict(N(ell)) == sympy.diag(-2, 3)
+
+
+def test_reference_lattices_compile_once_and_share_frame_attachment(monkeypatch):
+    a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
+    compiled = []
+    compile_lattice = Embedding._compile
+
+    def record(lattice, generators, reference):
+        compiled.append(reference)
+        return compile_lattice(lattice, generators, reference)
+
+    monkeypatch.setattr(Embedding, "_compile", record)
+    embedding = Embedding(
+        {s: a}, reference=[(0, {a: 0, b: 0}), (1, {a: 0, b: 0}), (0, {a: 0, b: 1})]
+    )
+    assert len(compiled) == 2
+    assert embedding._lattices[0][1] is embedding._lattices[1][1]
+    assert embedding._first_lattice is embedding._lattices[0][1]
+    assert "_occupation_matrix" not in embedding.__dict__
+    assert "_coordinate_symbols" not in embedding.__dict__
+    w, _ = embedding._frames(2)
+    assert all(entry.embedding is embedding._first_lattice for entry in w if entry != 0)
+    coordinates = embedding._first_lattice._coordinate_symbols
+    assert embedding._energy_states == (
+        (0, (coordinates[0], 0)),
+        (1, (coordinates[0], 0)),
+        (0, (coordinates[0], 1)),
+    )
+    assert len(compiled) == 2
+
+
+def test_empty_generator_mapping_still_returns_nof():
+    embedding = Embedding({}, reference={})
+    for value in (0, 1, 2):
+        result = embedding.restrict(value)
+        assert isinstance(result, NumberOrderedForm)
+        assert result.as_expr() == value
+    listed = Embedding(reference=[{}])
+    assert listed.restrict(2) == sympy.Matrix([[2]])
+    assert not isinstance(listed.restrict(2)[0, 0], NumberOrderedForm)

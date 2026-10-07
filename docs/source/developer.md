@@ -12,6 +12,13 @@ and the affine occupation map, and recompiles when reconstructed or unpickled.
 A reference mapping defines one lattice. A list adds a source matrix index:
 column $j$ maps $q$ to target row $i_j$ and occupations $r_j+Mq$.
 
+A single factory compiles each distinct reference into a scalar `Embedding`
+once. Matrix rows with identical occupations share that scalar lattice.
+A mapping constructor returns its scalar lattice. A list constructor stores
+only the ordered `(row, lattice)` collection and its transfer operators; it
+has no duplicate compiled occupation map. The solver reads the first lattice
+explicitly, rather than through forwarding properties.
+
 Every frame entry uses the same scalar isometry $W_1$ at the first reference.
 The constructor builds target operators $T_j$ such that $W_j=T_jW_1$.
 Their occupation shifts are $r_j-r_1$. If the bare shift monomial has
@@ -19,8 +26,13 @@ matrix element $t_j(q)$, its coefficient is
 $\phi_j(q)/(\phi_1(q)t_j(q))$, expressed at the intermediate NOF occupations.
 `NumberOrderedForm.act` supplies the ladder factors and fermion signs;
 the generator validation supplies each phase $\phi_j$.
-Compression of entry $(i,j)$ is therefore ordinary single-lattice compression
-of $T_i^\dagger X_{i_i,i_j}T_j$. Frame products also give
+`restrict` always multiplies the frames $W^\dagger XW$, then unwraps a mapping
+reference's one-by-one result. Attached scalar contractions call `_compress`
+directly, avoiding recursion through `restrict`. With no source operators,
+compression returns a scalar coefficient where it is produced; there is no
+matrix-entry cleanup pass. Compression of source entry $(i,j)$ acts on
+$T_i^\dagger X_{\rho_i,\rho_j}T_j$, with $\rho_j$ the declared target row.
+Frame products also give
 $T_iP_1T_j^\dagger$ without a separate list projector or compression algorithm.
 
 The implementation separates three operations:

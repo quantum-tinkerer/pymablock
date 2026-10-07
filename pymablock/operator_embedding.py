@@ -115,53 +115,53 @@ class Embedding(sympy.Expr):
         generators: Mapping | None = None,
         reference: Mapping | Sequence | None = None,
     ) -> Self:
-        """Compile the generator lattice and its translated frame columns."""
-        if reference is None:
-            raise TypeError("Specify reference occupations for the embedding")
-        if generators is None:
-            if isinstance(reference, (Mapping, sympy.Dict)):
-                raise TypeError("A matrix source requires a list of reference states")
-            generators = {}
-        if not isinstance(generators, (Mapping, sympy.Dict)):
+        """Parse references, build their lattices, and prepare translated columns."""
+        references = _parse_references(reference)
+        if generators is None and isinstance(reference, (Mapping, sympy.Dict)):
+            raise TypeError("A matrix source requires a list of reference states")
+        if generators is not None and not isinstance(generators, (Mapping, sympy.Dict)):
             raise TypeError("Generators must be a mapping")
-        matrix_source = not isinstance(reference, (Mapping, sympy.Dict))
-        if matrix_source:
-            reference = sympy.Tuple(
-                *(
-                    sympy.Tuple(0, sympy.Dict(state))
-                    if isinstance(state, (Mapping, sympy.Dict))
-                    else sympy.Tuple(state[0], sympy.Dict(state[1]))
-                    for state in reference
-                )
-            )
-            if not reference:
-                raise ValueError("Specify at least one reference state")
-        else:
-            reference = sympy.Dict(reference)
-        self = sympy.Expr.__new__(cls, sympy.Dict(generators), reference)
-        self._matrix_source = matrix_source
-        references = reference if matrix_source else ((sympy.S.Zero, reference),)
-        states = []
-        for row, occupations in references:
-            if not row.is_Integer or row < 0:
-                raise ValueError("Matrix basis indices must be nonnegative integers")
-            modes, state = _ordered_reference_state(dict(occupations))
-            if states and modes != self._target_operators:
-                raise ValueError("Every reference must declare the same target modes")
-            self._target_operators = modes
-            states.append((int(row), state))
-        self._references = tuple(states)
-        self._compile(dict(generators), dict(references[0][1]))
+        generators = sympy.Dict({} if generators is None else generators)
+        lattices = cls._build_lattices(generators, references)
+        self = (
+            lattices[0][1]
+            if isinstance(reference, (Mapping, sympy.Dict))
+            else sympy.Expr.__new__(cls, generators, references)
+        )
+        self._lattices = lattices
         self._validate_disjointness()
         self._transfers = tuple(
-            self._transfer(dict(occupations)) for _, occupations in references
+            self._first_lattice._transfer(lattice) for _, lattice in lattices
         )
         return self
+
+    @classmethod
+    def _build_lattices(cls, generators: sympy.Dict, references: sympy.Tuple) -> tuple:
+        """Compile each distinct reference once, preserving its target row."""
+        lattices, compiled = [], {}
+        for row, reference in references:
+            if lattices and set(reference) != set(lattices[0][1].args[1]):
+                raise ValueError("Every reference must declare the same target modes")
+            if reference not in compiled:
+                lattice = sympy.Expr.__new__(cls, generators, reference)
+                lattice._lattices = ((0, lattice),)
+                try:
+                    lattice._compile(dict(generators), dict(reference))
+                except (ValueError, NotImplementedError) as error:
+                    if not lattices:
+                        raise
+                    raise type(error)(
+                        f"Reference translation is invalid: {error}"
+                    ) from error
+                lattice._transfers = (lattice._convert_operator(sympy.S.One),)
+                compiled[reference] = lattice
+            lattices.append((int(row), compiled[reference]))
+        return tuple(lattices)
 
     def _printed_arguments(self, printer) -> list[str]:
         """Print reconstructible public constructor arguments."""
         generators, reference = self.args
-        if self._matrix_source:
+        if isinstance(reference, sympy.Tuple):
             reference = [state if i == 0 else (i, state) for i, state in reference]
         keyword = r"\text{reference}" if printer.printmethod == "_latex" else "reference"
         return [printer._print(generators), f"{keyword}={printer._print(reference)}"]
@@ -180,7 +180,7 @@ class Embedding(sympy.Expr):
         """Return scalar number symbols in target mode order."""
         return tuple(
             _number_operator_to_placeholder(NumberOperator(op))
-            for op in self._target_operators
+            for op in self._first_lattice._target_operators
         )
 
     def _evaluate_numbers(
@@ -196,14 +196,15 @@ class Embedding(sympy.Expr):
 
         Reject modes missing from the reference declaration.
         """
+        modes = self._first_lattice._target_operators
         if isinstance(expression, NumberOrderedForm):
-            if expression.operators == self._target_operators:
+            if expression.operators == modes:
                 return expression
             expression = expression.as_expr()
         expression = sympy.sympify(expression)
-        if set(find_operators(expression)) - set(self._target_operators):
+        if set(find_operators(expression)) - set(modes):
             raise ValueError("Every target mode must be declared in the reference")
-        return NumberOrderedForm.from_expr(expression, operators=self._target_operators)
+        return NumberOrderedForm.from_expr(expression, operators=modes)
 
     def _attach(self, value: sympy.Expr, side: int) -> NumberOrderedForm:
         """Represent ``value W`` for side +1, or ``W† value`` for side -1.
@@ -235,8 +236,6 @@ class Embedding(sympy.Expr):
         them. With a list of states, the result is a SymPy matrix in the order of
         the list, with source NOFs as entries when generators are supplied.
         """
-        if not self._matrix_source:
-            return self._compress(self._convert_target(expression))
         target = self._target_matrix(expression)
         w, _ = self._frames(target.rows)
         return self._block_result(w.adjoint() * target * w)
@@ -338,7 +337,8 @@ class Embedding(sympy.Expr):
             solve_sylvester_2nd_quant,
         )
 
-        modes, numbers = self._target_operators, self._target_numbers
+        lattice = self._first_lattice
+        modes, numbers = lattice._target_operators, lattice._target_numbers
         if any(
             i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()
         ):
@@ -348,10 +348,13 @@ class Embedding(sympy.Expr):
             x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
             for x in h0.diagonal()
         ]
-        occupations, coordinates = self._target_occupations, self._coordinate_symbols
+        occupations, coordinates = (
+            lattice._target_occupations,
+            lattice._coordinate_symbols,
+        )
         nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
         incoming_energies = [
-            self._evaluate_numbers(energies[row], state)
+            lattice._evaluate_numbers(energies[row], state)
             for row, state in self._energy_states
         ]
 
@@ -371,26 +374,27 @@ class Embedding(sympy.Expr):
             """Solve one retained-to-target matrix entry using its actual transition gap."""
             if value == 0 or value.is_zero:
                 return sympy.S.Zero
-            value = self._convert_operator(value.target)
+            value = lattice._convert_operator(value.target)
             terms, coefficients = {}, value.terms
             for powers, (output, matrix_element) in value.act(occupations).items():
                 # Divide the coefficient, not the full matrix element; ladder factors
                 # only determine whether the transition is active.
                 middle_occupations = [n - max(p, 0) for n, p in zip(occupations, powers)]
-                coefficient = self._evaluate_numbers(
+                coefficient = lattice._evaluate_numbers(
                     coefficients[powers], middle_occupations
                 )
                 denominator = sympy.expand(
-                    self._evaluate_numbers(energies[row], output) - incoming_energies[col]
+                    lattice._evaluate_numbers(energies[row], output)
+                    - incoming_energies[col]
                 )
                 # A literal zero gap still needs the amplitude interpreted in the
                 # source algebra: binary numbers obey n² = n, including indicators.
                 if denominator == 0 and coordinates:
                     amplitude = NumberOrderedForm(
-                        self._source_operators,
+                        lattice._source_operators,
                         {
                             (0,) * len(coordinates): matrix_element.xreplace(
-                                dict(zip(coordinates, self._source_placeholders))
+                                dict(zip(coordinates, lattice._source_placeholders))
                             )
                         },
                         validate=False,
@@ -411,11 +415,11 @@ class Embedding(sympy.Expr):
                 terms[powers] = result.xreplace(
                     {
                         q: expression.xreplace(incoming)
-                        for q, expression in zip(coordinates, self._source_coordinates)
+                        for q, expression in zip(coordinates, lattice._source_coordinates)
                     }
                 )
             return NumberOrderedForm(
-                self._target_operators,
+                lattice._target_operators,
                 terms,
                 self._first_lattice,
                 1,
@@ -531,42 +535,44 @@ class Embedding(sympy.Expr):
     ) -> NumberOrderedForm | sympy.MatrixBase:
         """Normalize scalar targets or square matrices with declared row indices."""
         if not isinstance(expression, sympy.MatrixBase):
-            if any(row for row, _ in self._references):
+            if any(row for row, _ in self._lattices):
                 raise ValueError(
                     "Nonzero reference matrix indices require a matrix target"
                 )
             return self._convert_operator(expression)
-        if not self._matrix_source:
+        if isinstance(self.args[1], sympy.Dict):
             raise TypeError("Matrix targets require a list of reference states")
         if expression.rows != expression.cols:
             raise ValueError("Target matrices must be square")
-        if any(row >= expression.rows for row, _ in self._references):
+        if any(row >= expression.rows for row, _ in self._lattices):
             raise ValueError("Reference matrix index lies outside the target matrix")
         return sympy.ImmutableSparseMatrix(expression.applyfunc(self._convert_operator))
 
     def _validate_disjointness(self) -> None:
-        """Independent shifts give a unique candidate displacement between lattices."""
-        for i, (row, state) in enumerate(self._references):
-            for other_row, other_state in self._references[:i]:
+        """Test the unique possible source displacement between same-row lattices."""
+        first = self._first_lattice
+        for i, (row, lattice) in enumerate(self._lattices):
+            for other_row, other in self._lattices[:i]:
                 if row != other_row:
                     continue
-                delta = sympy.Matrix(state) - sympy.Matrix(other_state)
-                displacement = self._occupation_left_inverse * delta
-                if self._occupation_matrix * displacement != delta:
+                delta = sympy.Matrix(lattice._reference_state) - sympy.Matrix(
+                    other._reference_state
+                )
+                displacement = first._occupation_left_inverse * delta
+                if first._occupation_matrix * displacement != delta:
                     continue
                 if all(
                     d.is_Integer and (size is None or abs(d) < size)
-                    for d, size in zip(displacement, self._source_dimensions)
+                    for d, size in zip(displacement, first._source_dimensions)
                 ):
                     raise ValueError(
                         "Reference lattices overlap; states must be distinct"
                     )
 
-    def _transfer(self, reference: Mapping) -> NumberOrderedForm:
-        """Build T with T W₁ = W at this reference, including ladder norms and phases."""
+    def _transfer(self, lattice: Embedding) -> NumberOrderedForm:
+        """Translate this scalar lattice onto another, including norms and phases."""
         powers = tuple(
-            start - reference[op]
-            for op, start in zip(self._target_operators, self._reference_state)
+            a - b for a, b in zip(self._reference_state, lattice._reference_state)
         )
         if not any(powers):
             return self._convert_operator(sympy.S.One)
@@ -574,11 +580,6 @@ class Embedding(sympy.Expr):
             raise NotImplementedError(
                 "Reference translations along generator-moving modes are not supported"
             )
-        # Compile each lattice independently to check domains, algebra and phase.
-        try:
-            lattice = Embedding(dict(self.args[0]), reference=reference)
-        except (ValueError, NotImplementedError) as error:
-            raise type(error)(f"Reference translation is invalid: {error}") from error
         monomial = NumberOrderedForm(self._target_operators, {powers: sympy.S.One})
         weight = _matrix_element(monomial, self._target_occupations)
         # Physical domains at both references ensure this shift never annihilates.
@@ -600,12 +601,10 @@ class Embedding(sympy.Expr):
             self._target_operators, {powers: coefficient}, validate=False
         )
 
-    @cached_property
+    @property
     def _first_lattice(self) -> Embedding:
         """Scalar isometry shared by every frame entry."""
-        if not self._matrix_source:
-            return self
-        return Embedding(dict(self.args[0]), reference=dict(self.args[1][0][1]))
+        return self._lattices[0][1]
 
     def _validate_domains(self) -> None:
         """Check target occupation bounds over the full source occupation domain.
@@ -824,12 +823,12 @@ class Embedding(sympy.Expr):
         )
 
     @_cache_on_instance
-    def _compress(self, target: NumberOrderedForm) -> NumberOrderedForm:
+    def _compress(self, target: NumberOrderedForm) -> NumberOrderedForm | sympy.Expr:
         """Return ``W† target W`` by translating each term to the source algebra."""
         result = self._source_zero
         for shift, (_, weight) in target.act(self._target_occupations).items():
             result += self._project_term(shift, weight)
-        return result
+        return result if self._source_operators else result.as_expr()
 
     @cached_property
     def _projector(self) -> NumberOrderedForm:
@@ -883,42 +882,52 @@ class Embedding(sympy.Expr):
 
     @property
     def _energy_states(self) -> tuple:
-        """Incoming energies use the occupations of each translated column."""
-        return tuple(
-            (
-                row,
-                tuple(
-                    n + r - r1
-                    for n, r, r1 in zip(
-                        self._target_occupations, state, self._reference_state
-                    )
-                ),
+        """Return each column's occupations in the first lattice's coordinates."""
+        coordinates = self._first_lattice._coordinate_symbols
+        states = []
+        for row, lattice in self._lattices:
+            renames = dict(zip(lattice._coordinate_symbols, coordinates))
+            states.append(
+                (row, tuple(n.xreplace(renames) for n in lattice._target_occupations))
             )
-            for row, state in self._references
-        )
+        return tuple(states)
 
     def _frame_columns(self, rows: int) -> sympy.MatrixBase:
         """Column j is T_j W₁ in its declared target row."""
-        w = sympy.zeros(rows, len(self._references))
-        for col, ((row, _), transfer) in enumerate(
-            zip(self._references, self._transfers)
-        ):
+        w = sympy.zeros(rows, len(self._lattices))
+        for col, ((row, _), transfer) in enumerate(zip(self._lattices, self._transfers)):
             w[row, col] = self._first_lattice._attach(transfer, 1)
         return sympy.ImmutableMatrix(w)
 
     def _block_result(
         self, result: sympy.MatrixBase
     ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Unwrap mapping results and keep list results as matrices."""
-        if not self._matrix_source:
-            return result[0, 0]
-        return result.applyfunc(
-            lambda entry: entry.as_expr()
-            if isinstance(entry, NumberOrderedForm)
-            and entry.embedding is None
-            and not entry.operators
-            else entry
+        """Keep list results as matrices and mapping results as NOFs."""
+        if isinstance(self.args[1], sympy.Dict):
+            return NumberOrderedForm.from_expr(
+                result[0, 0], operators=self._first_lattice._source_operators
+            )
+        return result
+
+
+def _parse_references(reference: Mapping | Sequence | None) -> sympy.Tuple:
+    """Normalize reference declarations to target-row/occupation pairs."""
+    if reference is None:
+        raise TypeError("Specify reference occupations for the embedding")
+    if isinstance(reference, (Mapping, sympy.Dict)):
+        reference = ((0, reference),)
+    states = []
+    for state in reference:
+        row, occupations = (
+            (0, state) if isinstance(state, (Mapping, sympy.Dict)) else state
         )
+        row = sympy.sympify(row)
+        if not row.is_Integer or row < 0:
+            raise ValueError("Matrix basis indices must be nonnegative integers")
+        states.append(sympy.Tuple(row, sympy.Dict(occupations)))
+    if not states:
+        raise ValueError("Specify at least one reference state")
+    return sympy.Tuple(*states)
 
 
 def _matrix_element(term: NumberOrderedForm, occupations: Sequence) -> sympy.Expr:
