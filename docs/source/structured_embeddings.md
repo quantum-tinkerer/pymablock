@@ -333,16 +333,16 @@ assert embedding.restrict(N(spectator)) == sympy.diag(
 )
 ```
 
-Offsets along moving target modes are supported, including occupation-dependent
-bosonic normalization. Every reference must still satisfy the same generator
-norms, phase convention, occupation bounds, and independent ladder-number
-images. For example, `{s: b}` cannot also start at occupation two: its raising
-amplitude there is $\sqrt{3}$ rather than one. A normalized two-step generator
-can retain separate even and odd binary lattices. Invalid translations and
-overlapping lattices raise clear errors during construction. Fermion ordering
-signs and bilateral `LadderOp` shifts are included; no vacuum is assumed for a
-bilateral ladder. The overlap test is exact for all supported independent
-integer generator shifts and product source domains.
+Offsets along modes moved by the generators are currently rejected with
+`NotImplementedError`, even if the lattices are disjoint. Such translations can
+require occupation-dependent bosonic normalization; their integration with
+source lifting needs further work. Spectator offsets and different matrix rows
+are supported. Every reference must still satisfy the same generator norms,
+phase convention, occupation bounds, and independent ladder-number images.
+Invalid translations and overlapping lattices raise clear errors during
+construction. Fermion ordering signs and spectator `LadderOp` shifts are
+included; no vacuum is assumed for a bilateral ladder. The overlap test is exact
+for all supported independent integer generator shifts and product source domains.
 
 ## Supported representations and perturbation theory
 
