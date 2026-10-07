@@ -220,6 +220,18 @@ class Embedding(sympy.Expr):
             else target
         )
 
+    def _occupation_projector(self, spectra: Sequence) -> NumberOrderedForm:
+        """Return the diagonal target operator selecting ``(expression, spectrum)`` pairs.
+
+        Linearizing turns indicators of fermion and spin numbers into polynomials.
+        """
+        indicator = sympy.prod(
+            _allowed_values_indicator(q, spectrum) for q, spectrum in spectra
+        )
+        return NumberOrderedForm(
+            self._target_operators, {(0,) * len(self._target_operators): indicator}
+        )._linearize_binary_operators()
+
     @_cache_on_instance
     def _frames(self, rows: int) -> tuple[sympy.MatrixBase, sympy.MatrixBase]:
         """Return retained frame W and complement Q for a target matrix size."""
@@ -744,13 +756,7 @@ class _GeneratorEmbedding(Embedding):
                     "This bosonic embedding requires an occupation inequality"
                 )
             spectra.append((q, range(size) if size is not None else sympy.S.Integers))
-        indicator = sympy.prod(
-            _allowed_values_indicator(q, spectrum) for q, spectrum in spectra
-        )
-        return (
-            NumberOrderedForm(self._target_operators, {(0,) * len(numbers): indicator})
-            * 1
-        )
+        return self._occupation_projector(spectra)
 
     @_cache_on_instance
     def _lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
@@ -897,15 +903,8 @@ class _ReferenceEmbedding(Embedding):
     @cached_property
     def _projector(self) -> NumberOrderedForm:
         """Project an entry attachment onto its single reference state."""
-        indicator = sympy.prod(
-            _allowed_values_indicator(q, (n,))
-            for q, n in zip(self._target_numbers, self._references[0][1])
-        )
-        return (
-            NumberOrderedForm(
-                self._target_operators, {(0,) * len(self._target_operators): indicator}
-            )
-            * 1
+        return self._occupation_projector(
+            [(q, (n,)) for q, n in zip(self._target_numbers, self._references[0][1])]
         )
 
     @_cache_on_instance
