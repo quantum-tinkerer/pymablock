@@ -276,6 +276,18 @@ class Embedding(sympy.Expr):
             name=operator.name,
         )
 
+    def _prepare(self, hamiltonian: BlockSeries) -> tuple[BlockSeries, Callable]:
+        """Return the 2x2 retained/complement Hamiltonian and its Sylvester solver.
+
+        Check H0 and build the frames W and 1 - W W† now, so an off-diagonal H0 or
+        an unsupported projector raises here instead of during lazy evaluation.
+        The validated H0 has no zeroth-order cross blocks, so they are omitted.
+        """
+        h0 = self._target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
+        solve_sylvester = self._sylvester_solver(h0)
+        self._frames(h0.rows)
+        return self._convert(hamiltonian, diagonal_origin=True), solve_sylvester
+
     def _sylvester_solver(
         self, h0: sympy.MatrixBase
     ) -> Callable[[Any, tuple[int, ...]], Any]:
