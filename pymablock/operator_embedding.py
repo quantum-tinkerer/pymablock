@@ -811,23 +811,18 @@ class _ReferenceEmbedding(Embedding):
         args = sympy.Tuple(*(sympy.Tuple(i, sympy.Dict(state)) for i, state in reference))
         self = sympy.Expr.__new__(cls, sympy.S.NaN, args)
         self._coordinate_map = {}
-        self._compile([(i, dict(state)) for i, state in reference])
+        self._compile(args)
         return self
 
-    def _compile(self, reference: Sequence) -> None:
+    def _compile(self, reference: sympy.Tuple) -> None:
         """Validate an ordered list of orthonormal target product states."""
-        if isinstance(reference, Mapping):
-            raise TypeError("A matrix source requires a list of reference states")
-        references = list(reference)
-        if not references:
+        if not reference:
             raise ValueError("Specify at least one reference state")
         states = []
-        for entry in references:
-            component, occupations = (0, entry) if isinstance(entry, Mapping) else entry
-            component = sympy.sympify(component)
+        for component, occupations in reference:
             if not component.is_Integer or component < 0:
                 raise ValueError("Matrix basis indices must be nonnegative integers")
-            operators, state = _ordered_reference_state(occupations)
+            operators, state = _ordered_reference_state(dict(occupations))
             if states and operators != self._target_operators:
                 raise ValueError("Every reference must declare the same target modes")
             self._target_operators = operators
