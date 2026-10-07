@@ -32,24 +32,14 @@ def _divide_by_energy_gap(
 ) -> sympy.Expr:
     """Return coefficient / energy_gap, choosing zero for inactive 0/0 channels.
 
-    Perturbation theory obtains a virtual-transition coefficient by dividing the
-    Sylvester right-hand side by the final minus initial unperturbed energy.
-    Both can depend on particle numbers. Ordinary cancellation can lose an
-    inactive transition: n/n must be zero at n=0, rather than one everywhere.
-
-    First evaluate occupations fixed by explicit occupation-selection indicators.
-    Otherwise keep the quotient conditional on the transition being active.
-    ``amplitude`` includes the coefficient, ladder factors and fermionic signs;
-    it defaults to the coefficient. Those factors determine inactivity but are
-    not multiplied into the returned coefficient again. Equality tests are exact.
-
-    An explicit zero gap with a nonzero amplitude raises ValueError. Unresolved
-    gaps remain symbolic poles: this helper does not search binary sectors or
-    integer roots, and returning a result does not establish nonresonance.
-
-    ``number_symbols`` identifies occupation coordinates; other symbols are
-    generic scalar parameters. ``nonnegative_numbers`` supplies known occupation
-    bounds, used only to avoid unnecessary conditional expressions.
+    Ordinary cancellation can lose an inactive transition: n/n must be zero at
+    n=0, not one everywhere. Occupations fixed by indicators are evaluated
+    directly; otherwise the quotient is conditional on the transition being active.
+    ``amplitude`` (default: ``coefficient``) also contains ladder factors and fermion
+    signs and only decides inactivity. ``number_symbols`` are occupation coordinates
+    and other symbols are generic parameters; ``nonnegative_numbers`` only avoids
+    unnecessary conditionals. A literal zero gap with a nonzero amplitude raises
+    ValueError; other resonances remain symbolic poles and are not searched for.
     """
     amplitude = coefficient if amplitude is None else amplitude
     if amplitude == 0:
