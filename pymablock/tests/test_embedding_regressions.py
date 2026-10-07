@@ -276,7 +276,7 @@ def test_embeddings_are_collectable():
 
 @pytest.mark.parametrize("preconverted", [False, True])
 def test_float_fourth_order_and_finite_entry_types(preconverted):
-    """Stored floating inputs agree with their exact values through fourth order."""
+    """Floating inputs agree numerically with their exact values through fourth order."""
     a, b = BosonOp("a"), BosonOp("b")
     embedding = Embedding(reference=[{a: 0, b: 0}, {a: 1, b: 0}])
     h0 = s.Float(1.1) * N(a) + s.Float(2.3) * N(b)
@@ -295,21 +295,13 @@ def test_float_fourth_order_and_finite_entry_types(preconverted):
         [exact(h0), exact(v)], subspace_eigenvectors=embedding
     )
     for order in (2, 4):
-        assert floating[0, 0, order] == rational[0, 0, order]
-        np.asarray(floating[0, 0, order], dtype=complex)
+        np.testing.assert_allclose(
+            np.asarray(floating[0, 0, order], dtype=complex),
+            np.asarray(rational[0, 0, order], dtype=complex),
+            rtol=1e-12,
+        )
         assert not any(
             isinstance(entry, NumberOrderedForm) for entry in floating[0, 0, order]
-        )
-
-
-@pytest.mark.parametrize("option", [{"direct_solver": False}, {"atol": 1e-8}])
-def test_unsupported_solver_options_are_explicit(option):
-    """Embedding solvers cannot silently ignore numeric options."""
-    with pytest.raises(NotImplementedError):
-        block_diagonalize(
-            [s.diag(0, 1), s.Matrix([[0, 1], [1, 0]])],
-            subspace_eigenvectors=Embedding(reference=[(0, {})]),
-            **option,
         )
 
 

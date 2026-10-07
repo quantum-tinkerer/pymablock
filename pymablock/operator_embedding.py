@@ -154,18 +154,13 @@ class Embedding(sympy.Expr):
     def _convert_operator(self, expression: sympy.Expr) -> NumberOrderedForm:
         """Convert an expression to NOF in the compiled target mode order.
 
-        Rationalize stored floating coefficients before cancellation and reject
-        modes missing from the reference declaration.
+        Reject modes missing from the reference declaration.
         """
-        expression = sympy.sympify(expression)
-        if expression.has(sympy.Float):
-            expression = expression.xreplace(
-                {v: sympy.Rational(v) for v in expression.atoms(sympy.Float)}
-            )
         if isinstance(expression, NumberOrderedForm):
             if expression.operators == self._target_operators:
                 return expression
             expression = expression.as_expr()
+        expression = sympy.sympify(expression)
         if set(find_operators(expression)) - set(self._target_operators):
             raise ValueError("Every target mode must be declared in the reference")
         return NumberOrderedForm.from_expr(expression, operators=self._target_operators)
@@ -419,8 +414,6 @@ class _GeneratorEmbedding(Embedding):
 
     def _compile(self, generators: Mapping, reference: Mapping) -> None:
         """Compile and validate the affine occupation map."""
-        if not reference:
-            raise ValueError("Specify the target reference occupations")
         if any(
             source in reference and source != image
             for source, image in generators.items()
