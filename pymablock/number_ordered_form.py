@@ -688,9 +688,6 @@ class NumberOrderedForm(Operator):
             validate=False,
         )
 
-    def _eval_is_commutative(self):
-        return False if self.embedding is not None else None
-
     @staticmethod
     def _validate_operators(operators: Sequence[OperatorType]) -> None:
         """Validate the operators list.
@@ -1995,8 +1992,6 @@ class NumberOrderedForm(Operator):
         modes, so renaming a mode also renames its placeholder. The constructor
         normalizes attached operators for the replaced embedding.
         """
-        if self in rule:
-            return rule[self], True
         renames = {
             placeholder: _number_operator_to_placeholder(NumberOperator(new))
             for op, placeholder in zip(
