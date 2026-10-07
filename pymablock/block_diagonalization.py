@@ -234,7 +234,6 @@ def block_diagonalize(
     )
     solver_options = {} if solver_options is None else dict(solver_options)
 
-    embedding_blocks = None
     if isinstance(subspace_eigenvectors, Embedding):
         if subspace_indices is not None:
             raise ValueError(
@@ -656,7 +655,7 @@ def block_diagonalize(
 
     # Simplify the results and unwrap them for scalar inputs - convert 1x1 matrices back
     # to scalars
-    if operators or embedding_blocks is not None:
+    if operators:
 
         def create_postprocessing_eval(block_series):
             """Create an eval function that unwraps 1x1 matrices to scalars."""
