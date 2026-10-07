@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Hashable, Mapping, Sequence
+from collections.abc import Callable, Hashable, Iterator, Mapping, Sequence
 from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Self
 
@@ -237,7 +237,7 @@ class Embedding(sympy.Expr):
         the list, with source NOFs as entries when generators are supplied.
         """
         target = self._target_matrix(expression)
-        w, _ = self._frames(target.rows)
+        w = next(self._frames(target.rows))
         return self._block_result(w.adjoint() * target * w)
 
     def _target_matrix(
@@ -263,11 +263,16 @@ class Embedding(sympy.Expr):
             self._target_operators, {(0,) * len(self._target_operators): indicator}
         )._linearize_binary_operators()
 
+    def _frames(self, rows: int) -> Iterator[sympy.MatrixBase]:
+        """Yield W, then Q; restriction needs only W."""
+        yield self._frame_columns(rows)
+        yield self._complement_frame(rows)
+
     @_cache_on_instance
-    def _frames(self, rows: int) -> tuple[sympy.MatrixBase, sympy.MatrixBase]:
-        """Return retained frame W and complement Q for a target matrix size."""
+    def _complement_frame(self, rows: int) -> sympy.MatrixBase:
+        """Return Q = 1 - W W† when a complement block is needed."""
         w = self._frame_columns(rows)
-        return w, sympy.eye(rows) - w * w.adjoint()
+        return sympy.eye(rows) - w * w.adjoint()
 
     def _convert(
         self, operator: BlockSeries, *, diagonal_origin: bool = False
@@ -292,7 +297,7 @@ class Embedding(sympy.Expr):
             target = self._target_matrix(target)
             if target_shape is None:
                 target_shape = target.shape
-                frames = self._frames(target.rows)
+                frames = tuple(self._frames(target.rows))
             elif target.shape != target_shape:
                 raise ValueError(
                     "All operator coefficients must have the same target matrix shape"
@@ -317,7 +322,7 @@ class Embedding(sympy.Expr):
         """
         h0 = self._target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
         solve_sylvester = self._sylvester_solver(h0)
-        self._frames(h0.rows)
+        tuple(self._frames(h0.rows))
         return self._convert(hamiltonian, diagonal_origin=True), solve_sylvester
 
     def _sylvester_solver(
@@ -867,6 +872,8 @@ class Embedding(sympy.Expr):
         Replace source generators and numbers by their target images, then project
         both sides onto the retained space.
         """
+        if value.is_zero:
+            return self._convert_operator(sympy.S.Zero)
         target_numbers = dict(
             zip(self._target_numbers, map(NumberOperator, self._target_operators))
         )
@@ -892,6 +899,7 @@ class Embedding(sympy.Expr):
             )
         return tuple(states)
 
+    @_cache_on_instance
     def _frame_columns(self, rows: int) -> sympy.MatrixBase:
         """Column j is T_j W₁ in its declared target row."""
         w = sympy.zeros(rows, len(self._lattices))

@@ -267,7 +267,7 @@ def test_embeddings_are_collectable(reference_list):
     for _ in range(5):
         embedding = Embedding({q: a}, reference=[{a: 0}] if reference_list else {a: 0})
         embedding.restrict(a)
-        w = embedding._frames(1)[0][0, 0]
+        w = next(embedding._frames(1))[0, 0]
         w * NumberOrderedForm.from_expr(q)
         bases.append(weakref.ref(embedding))
     del embedding, w
