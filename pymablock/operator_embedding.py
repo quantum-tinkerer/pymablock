@@ -397,14 +397,14 @@ class _GeneratorEmbedding(Embedding):
 
     def __new__(cls, generators: Mapping, reference: Mapping) -> Self:
         """Recompile the generator map from its SymPy arguments."""
+        if not all(isinstance(x, (Mapping, sympy.Dict)) for x in (generators, reference)):
+            raise TypeError("Generators and reference must be mappings")
         self = sympy.Expr.__new__(cls, sympy.Dict(generators), sympy.Dict(reference))
         self._compile(dict(generators), dict(reference))
         return self
 
     def _compile(self, generators: Mapping, reference: Mapping) -> None:
         """Compile and validate the affine occupation map."""
-        if not isinstance(generators, Mapping) or not isinstance(reference, Mapping):
-            raise TypeError("Generators and reference must be mappings")
         if not reference:
             raise ValueError("Specify the target reference occupations")
         if any(
