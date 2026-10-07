@@ -112,14 +112,14 @@ class Embedding(sympy.Expr):
 
     def __new__(
         cls,
-        generators: Mapping | sympy.Expr | None = None,
+        generators: Mapping | None = None,
         reference: Mapping | Sequence | None = None,
     ) -> Self:
         """Dispatch to the representation specified by the structural arguments."""
         if reference is None:
             raise TypeError("Specify reference occupations for the embedding")
-        if generators is None or generators is sympy.S.NaN:
-            return _ReferenceEmbedding(generators, reference)
+        if generators is None:
+            return _ReferenceEmbedding(reference)
         return _GeneratorEmbedding(generators, reference)
 
     def _printed_arguments(self, printer) -> list[str]:
@@ -804,10 +804,8 @@ class _ReferenceEmbedding(Embedding):
     # A finite matrix has no source coordinates; the shared solver reads these.
     _coordinate_symbols = _source_coordinates = ()
 
-    def __new__(cls, generators=None, reference=None) -> Self:  # noqa: ARG004
+    def __new__(cls, reference: Sequence) -> Self:
         """Recompile the listed states from their SymPy arguments."""
-        # SymPy rebuilds expressions as type(self)(*args), which also passes the
-        # unused generators argument (NaN for reference lists).
         if isinstance(reference, Mapping):
             raise TypeError("A matrix source requires a list of reference states")
         reference = tuple(
@@ -815,13 +813,13 @@ class _ReferenceEmbedding(Embedding):
             for state in reference
         )
         args = sympy.Tuple(*(sympy.Tuple(i, sympy.Dict(state)) for i, state in reference))
-        self = sympy.Expr.__new__(cls, sympy.S.NaN, args)
+        self = sympy.Expr.__new__(cls, args)
         self._compile(args)
         return self
 
     def _printed_arguments(self, printer) -> list[str]:
-        """Print the reference list as passed, without the generators sentinel."""
-        states = [state if i == 0 else (i, state) for i, state in self.args[1]]
+        """Print the reference list as passed, omitting zero matrix indices."""
+        states = [state if i == 0 else (i, state) for i, state in self.args[0]]
         keyword = r"\text{reference}" if printer.printmethod == "_latex" else "reference"
         return [f"{keyword}={printer._print(states)}"]
 
