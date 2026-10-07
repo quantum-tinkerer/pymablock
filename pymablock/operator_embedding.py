@@ -314,10 +314,7 @@ class Embedding(sympy.Expr):
             x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
             for x in h0.diagonal()
         ]
-        occupations, coordinates = (
-            self._target_occupations,
-            self._coordinate_symbols,
-        )
+        occupations, coordinates = self._target_occupations, self._coordinate_symbols
         nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
         incoming_energies = [
             self._evaluate_numbers(energies[row], state)
