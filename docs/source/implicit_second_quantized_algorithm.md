@@ -15,112 +15,52 @@ mystnb:
 
 # The implicit second-quantized algorithm
 
-This page explains how Pymablock block-diagonalizes a second-quantized
-Hamiltonian when the subspace is given by an {class}`~pymablock.operator_embedding.Embedding`.
-It follows one small example through every step, using the code itself to
-produce each intermediate object.
+This page explains what happens inside {func}`~pymablock.block_diagonalize` when
+the subspace is an {class}`~pymablock.operator_embedding.Embedding`, and follows
+one example through every step. See [structured embeddings](structured_embeddings.md)
+for how to define and use an embedding.
 
-The [structured embeddings](structured_embeddings.md) page explains how to
-*define* and *use* an embedding. Here we describe what happens inside.
-Familiarity with the [block diagonalization algorithm](algorithms.md) and with
-[number-ordered forms](second_quantization.md) helps, but the main ideas are
-repeated below.
+## How it works
 
-## The problem
-
-The Hamiltonian $H = H_0 + V$ acts on a Fock space, the **target**.
-The states we want an effective model for are described by a smaller
-**source** algebra, for example a spin. The embedding gives a target expression
-$G_j$ for each source lowering operator $g_j$, together with a reference target
-state $|r\rangle$. It defines the isometry $W$ from source states to target
-states by
+The Hamiltonian $H = H_0 + V$ acts on a Fock space, the **target**, while the
+effective model lives in a smaller **source** algebra. The embedding maps each
+source lowering operator $g_j$ to a target expression $G_j$ and fixes a
+reference target state $|r\rangle$. This defines the isometry
 
 $$
-W \prod_j (g_j^\dagger)^{q_j} |0\rangle = \prod_j (G_j^\dagger)^{q_j} |r\rangle
+W \prod_j (g_j^\dagger)^{q_j} |0\rangle = \prod_j (G_j^\dagger)^{q_j} |r\rangle ,
 $$
 
-for every allowed source occupation $q$; a ladder source uses $G_j$ itself for
-negative $q_j$. The constructor checks that the states
-on the right are orthonormal and have the norms of the states on the left, so
-that $W^\dagger W = 1$. We write
+where a ladder source uses $G_j$ itself for negative $q_j$. The retained states
+have projector $P = WW^\dagger$, and $Q = 1 - P$. Block diagonalization removes
+the $P$–$Q$ blocks of $H$ and returns $W^\dagger \tilde{H} W$ in source operators.
 
-$$
-P = WW^\dagger, \qquad Q = 1 - P,
-$$
+Both subspaces are usually infinite, so the algorithm never lists states: every
+operator stays a [number-ordered form](second_quantization.md), and all the work
+reduces to compression $R(A) = W^\dagger A W$, projection $P$, and lifting
+$L(a) = W a W^\dagger$.
 
-for the projectors onto the retained states and onto everything else.
-Perturbation theory then finds a unitary $\mathcal{U}$ such that
-$\tilde{H} = \mathcal{U}^\dagger H \mathcal{U}$ has no $P$–$Q$ blocks, and
-reports the retained block as a source operator,
+`block_diagonalize` proceeds in four steps:
 
-$$
-\tilde{H}_{\text{eff}} = W^\dagger \tilde{H} W .
-$$
-
-Both subspaces are typically infinite: an oscillator has infinitely many
-levels, and the retained states can be a whole sublattice of occupations.
-The algorithm is **implicit** because it never lists states. Every operator
-stays a number-ordered form, a sum of terms
-
-$$
-c(N_1, N_2, \dots)\,
-(a_1^\dagger)^{k_1}\cdots\, a_1^{p_1}\cdots,
-$$
-
-whose coefficient $c$ is a function of the number operators. All the work
-reduces to three operations on such forms:
-
-- **compression** $R(A) = W^\dagger A W$, from target to source;
-- **projection** $P = WW^\dagger$, an occupation-dependent indicator;
-- **lifting** $L(a) = W a W^\dagger$, from source to target.
-
-## Workflow
-
-```{figure} implicit_algorithm_workflow.svg
-:alt: Call flow of block_diagonalize with an Embedding
-
-The call flow. Construction happens once per embedding. `_prepare` performs
-every check that can fail before the lazy series starts. After that, the usual
-block diagonalization runs unchanged: the embedding supplies the Hamiltonian
-blocks and the Sylvester solver, and operators attached to $W$ handle the
-products.
-```
-
-1. **Construction** compiles the embedding. Each source lowering operator $g$
-   is given by a target expression $G$ that changes every target occupation by
-   a fixed amount. Collecting these shifts as the columns of an integer matrix
-   $M$, the retained states are
-
-   $$
-   n(q) = r + M q,
-   $$
-
-   where $r$ is the reference state and $q$ are the source occupations. A left
-   inverse $L$ reads $q = L(n - r)$ back from target occupations. The
-   constructor checks the occupation ranges, fermionic parity, normalization,
-   and that the images obey the source algebra.
+1. **Construction.** Each $G_j$ shifts the target occupations by a fixed integer
+   vector, the $j$-th column of a matrix $M$. The retained states are
+   $n(q) = r + Mq$, and a left inverse recovers $q = L(n - r)$. The constructor
+   also checks occupation ranges, fermionic parity, normalization, and the
+   source algebra.
 
    ```{figure} implicit_algorithm_lattice.svg
    :alt: Retained states of a correlated boson embedding on the occupation grid
 
-   The retained states are points on the grid of target occupations. Here a
-   source boson $q$ is represented by two target bosons with equal occupation,
-   $W|q\rangle = |q_a q_b\rangle$.
-   Its image lowers both modes by one (orange), so $M$ has the single column
-   $(1, 1)$ and the retained states lie on the diagonal (large dots). The
-   projector selects exactly these points: $n - r$ must be orthogonal to the
-   nullspace of $M^T$, and $q$ must lie in the spectrum of the source mode.
+   Retained states (large dots) of a source boson stored in two target bosons,
+   $W|q\rangle = |q_a q_b\rangle$. The image of $q$ (orange) lowers both
+   occupations, so $M$ has the single column $(1, 1)$ and the projector selects
+   $n_a = n_b$.
    ```
-2. **Preparation** builds the frames $F_0 = W$ and $F_1 = Q$ and wraps the
-   Hamiltonian in the $2\times 2$ block series $H_{ij} = F_i^\dagger H F_j$.
-   It also checks that $H_0$ is diagonal in the occupations and builds the
-   Sylvester solver.
-3. **Perturbation theory** proceeds order by order as in the
-   [general algorithm](algorithms.md). It requests blocks of $H$, solves
-   Sylvester equations, and multiplies blocks. The off-diagonal blocks are
-   rectangular: their entries are forms attached to $W$ on one side, such as
-   $XW$ or $W^\dagger X$. Products of attached forms reduce to the three
-   operations above:
+2. **Preparation.** The frames $F_0 = W$ and $F_1 = Q$ give the $2\times 2$ block
+   Hamiltonian $H_{ij} = F_i^\dagger H F_j$. $H_0$ must be diagonal in the
+   occupations.
+3. **Products.** The off-diagonal blocks contain forms attached to $W$, such as
+   $XW$ or $W^\dagger X$. Their products reduce to the three operations:
 
    | product | result | operation |
    |---|---|---|
@@ -128,14 +68,10 @@ products.
    | $(XW)(W^\dagger Y)$ | $XPY$ | projection |
    | $(XW)\,z$, $z$ a source operator | $X\,L(z)\,W$ | lifting |
 
-4. **Sylvester equations.** The diagonal blocks use the ordinary
-   second-quantized solver. The retained–complement block divides each
-   transition by its *actual* energy difference: the term is applied to the
-   symbolic retained occupations $n(q)$, the energies of the incoming and
-   outgoing states are evaluated, and the coefficient is divided by their
-   difference. The division is exact. When the coefficient and the energy
-   difference vanish together, the transition is inactive and its contribution
-   is zero, rather than the value $1$ that cancelling $n/n$ would give.
+4. **Sylvester equations.** The off-diagonal block divides each term by its
+   actual energy difference, evaluated on $n(q)$. A transition whose amplitude
+   vanishes contributes zero, rather than the $1$ that cancelling $n/n$ would
+   give; see [exact division](#exact-division-by-energy-differences).
 
 ## A worked example
 
