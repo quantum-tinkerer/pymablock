@@ -13,9 +13,12 @@ from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.pauli import SigmaMinus
 
 from pymablock import block_diagonalize
-from pymablock.number_ordered_form import NumberOperator, NumberOrderedForm
+from pymablock.number_ordered_form import (
+    NumberOperator,
+    NumberOrderedForm,
+    _number_operator_to_placeholder,
+)
 from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.operator_embedding import _number_symbols
 from pymablock.second_quantization import Embedding
 from pymablock.tests.second_quantization_helpers import (
     nof_matrix,
@@ -513,9 +516,7 @@ def test_retained_boson_virtual_ancilla_against_matrix_formula():
     actual = np.zeros((6, 6), dtype=complex)
     n = N(b)
     for powers, coefficient in second.terms.items():
-        coefficient = coefficient.xreplace(
-            dict(zip(_number_symbols((b,)), (n,), strict=True))
-        )
+        coefficient = coefficient.xreplace({_number_operator_to_placeholder(n): n})
         p = int(powers[0])
         for column in range(6):
             row = column - p
@@ -543,7 +544,7 @@ def test_retained_boson_with_drive_through_fourth_order():
     reference = block_diagonalize(
         [h0_matrix, v_matrix], subspace_indices=np.tile([0, 1], 10)
     )[0]
-    (n,) = _number_symbols((b,))
+    n = _number_operator_to_placeholder(N(b))
     for order in (3, 4):
         actual = np.zeros((4, 4), dtype=complex)
         for powers, coefficient in effective[0, 0, order].terms.items():

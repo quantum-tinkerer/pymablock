@@ -7,7 +7,7 @@ and number operators in the middle.
 
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
-from functools import cache, cached_property, lru_cache
+from functools import cached_property, lru_cache
 from typing import TYPE_CHECKING
 
 import sympy
@@ -1146,7 +1146,7 @@ class NumberOrderedForm(Operator):
 
         """
         is_fermion = [isinstance(op, FermionOp) for op in self.operators]
-        numbers = _number_symbols(tuple(self.operators))
+        numbers = self._number_operator_placeholders
 
         def apply_ladder(
             state: list[sympy.Expr], index: int, annihilate: bool
@@ -2105,9 +2105,3 @@ def _occupation_dimension(operator: OperatorType) -> int | None:
     range over all integers. Both therefore have infinite-dimensional spaces.
     """
     return 2 if isinstance(operator, (FermionOp, pauli.SigmaMinus)) else None
-
-
-@cache
-def _number_symbols(operators: tuple[OperatorType, ...]) -> tuple[sympy.Symbol, ...]:
-    """Return scalar occupation symbols in the supplied mode order."""
-    return tuple(_number_operator_to_placeholder(NumberOperator(op)) for op in operators)
