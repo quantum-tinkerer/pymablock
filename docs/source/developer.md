@@ -18,7 +18,7 @@ The implementation separates three operations:
 
 - `Embedding._convert` constructs the retained/complement frames
   and converts general operators. It preserves zeroth-order cross blocks.
-- `second_quantization._make_embedding_sylvester_solver` validates diagonal H0
+- `Embedding._sylvester_solver` validates diagonal H0
   and divides transitions by their actual energy differences. The driver can then omit
   zeroth-order cross blocks of that validated Hamiltonian.
 - `number_ordered_form` composes rectangular operators attached to an
