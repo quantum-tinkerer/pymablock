@@ -26,8 +26,8 @@ from pymablock.linalg import (
 )
 from pymablock.number_ordered_form import (
     NumberOrderedForm,
+    _operator_sort_key,
     find_operators,
-    generator_types,
 )
 from pymablock.operator_embedding import Embedding
 from pymablock.series import (
@@ -414,11 +414,7 @@ def block_diagonalize(
         operators = list(
             set().union(*(find_operators(block) for block in nonzero_blocks))
         )
-        operators = tuple(
-            sorted(
-                operators, key=lambda op: (generator_types.index(type(op)), str(op.name))
-            )
-        )
+        operators = tuple(sorted(operators, key=_operator_sort_key))
     else:
         operators = ()
 
