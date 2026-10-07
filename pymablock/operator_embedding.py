@@ -601,22 +601,28 @@ class _GeneratorEmbedding(Embedding):
         Reduce binary polynomials modulo n² - n before testing zero. A disproved
         identity raises ValueError; an undecidable identity raises NotImplementedError.
         """
-        expression = sympy.expand(expression)
-        for q, size in zip(self._coordinate_symbols, self._source_dimensions):
-            if size == 2 and q in expression.free_symbols and expression.is_polynomial(q):
-                expression = sympy.rem(expression, q**2 - q, q)
-        binary = {
+        binary = tuple(
             q
             for q, size in zip(self._coordinate_symbols, self._source_dimensions)
             if size == 2
-        }
+        )
+        expression = sympy.expand(expression)
+        for q in binary:
+            if q in expression.free_symbols and expression.is_polynomial(q):
+                expression = sympy.rem(expression, q**2 - q, q)
         if (
             expression != 0
-            and expression.free_symbols <= binary
+            and expression.free_symbols <= set(binary)
             and expression.is_polynomial(*binary)
         ):
             raise ValueError(f"{context}; residual: {expression}")
-        _require_zero(expression, context)
+        residual = sympy.simplify(expression)
+        if residual == 0:
+            return
+        message = f"{context}; residual: {residual}"
+        if residual.is_zero is False:
+            raise ValueError(message)
+        raise NotImplementedError(f"Cannot establish {message}")
 
     def _validate_generator_algebra(self) -> None:
         """Check local norms and graded commutation on the retained lattice.
@@ -962,18 +968,3 @@ def _ordered_reference_state(
         ):
             raise ValueError("Reference occupations lie outside the target algebra")
     return operators, state
-
-
-def _require_zero(expression: sympy.Expr, context: str) -> None:
-    """Require a simplified residual to be zero, reporting ``context`` on failure.
-
-    Raise ValueError when the residual is known nonzero, or NotImplementedError
-    when SymPy cannot decide. Unknown identities are never accepted silently.
-    """
-    residual = sympy.simplify(expression)
-    if residual == 0:
-        return
-    message = f"{context}; residual: {residual}"
-    if residual.is_zero is False:
-        raise ValueError(message)
-    raise NotImplementedError(f"Cannot establish {message}")
