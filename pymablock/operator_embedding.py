@@ -165,16 +165,11 @@ class Embedding(sympy.Expr):
             raise ValueError("Every target mode must be declared in the reference")
         return NumberOrderedForm.from_expr(expression, operators=self._target_operators)
 
-    def _contract(self, value: NumberOrderedForm) -> NumberOrderedForm | sympy.Expr:
-        """Compute ``W† value W``, unwrapping a single-reference 1x1 result."""
-        result = self.restrict(value)
-        return result[0, 0] if isinstance(result, sympy.MatrixBase) else result
-
     def _attach(self, value: sympy.Expr, side: int) -> NumberOrderedForm:
         """Represent ``value W`` for side +1, or ``W† value`` for side -1.
 
         Normalize the target expression but retain the attachment until arithmetic
-        contracts it. Reference lists use matrices of single-reference attachments.
+        contracts it. Reference-list frames attach entries to a vacuum embedding.
         """
         value = self._convert_operator(value)
         return NumberOrderedForm(
@@ -884,8 +879,8 @@ class _ReferenceEmbedding(Embedding):
 
     @cached_property
     def _entry_embedding(self) -> Embedding:
-        """Vacuum attachment shared by entries of the retained frame."""
-        return Embedding(reference=[dict.fromkeys(self._target_operators, 0)])
+        """Embedding without generators that retains only the target vacuum."""
+        return Embedding({}, reference=dict.fromkeys(self._target_operators, 0))
 
     def _frame_columns(self, rows: int) -> sympy.MatrixBase:
         """Prepare each listed state with a normalized creation monomial."""
@@ -902,26 +897,6 @@ class _ReferenceEmbedding(Embedding):
     def _block_result(self, result: sympy.MatrixBase) -> sympy.MatrixBase:
         """Reference-list blocks retain their matrix indices."""
         return result
-
-    @cached_property
-    def _projector(self) -> NumberOrderedForm:
-        """Project an entry attachment onto its single reference state."""
-        return self._occupation_projector(
-            [(q, (n,)) for q, n in zip(self._target_numbers, self._references[0][1])]
-        )
-
-    @_cache_on_instance
-    def _lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
-        """Normalize a reference entry, which already uses target operators."""
-        return self._convert_operator(value)
-
-    def _attach(self, value: sympy.Expr, side: int) -> NumberOrderedForm:
-        """Attach one reference; lists use matrices of vacuum attachments."""
-        if len(self._references) != 1 or self._references[0][0] != 0:
-            raise ValueError(
-                "Reference lists use matrices of single-reference attachments"
-            )
-        return super()._attach(value, side)
 
 
 def _matrix_element(term: NumberOrderedForm, occupations: Sequence) -> sympy.Expr:

@@ -20,7 +20,7 @@ def attach(value, e, side):
 
 def test_attachment_is_structural():
     a = BosonOp("a")
-    e = Embedding(reference=[{a: 0}])
+    e = Embedding({}, reference={a: 0})
     ket = attach(1, e, 1)
     bra = ket.adjoint()
     plain = NumberOrderedForm.from_expr(1, [a])
@@ -36,7 +36,7 @@ def test_attachment_is_structural():
 
 def test_common_reference_matrix():
     a = BosonOp("a")
-    e = Embedding(reference=[{a: 0}])
+    e = Embedding({}, reference={a: 0})
     w = s.ImmutableMatrix(
         [
             [attach(1, e, 1), 0, attach(a.adjoint() ** 3 / s.sqrt(6), e, 1)],
@@ -55,7 +55,7 @@ def test_common_reference_matrix():
 def test_coefficients_survive_substitution():
     a = BosonOp("a")
     g = s.Symbol("g")
-    e = Embedding(reference=[{a: 0}])
+    e = Embedding({}, reference={a: 0})
     ket = attach(g * a.adjoint(), e, 1)
     assert ket.subs(g, 2) == attach(2 * a.adjoint(), e, 1)
     assert ket.xreplace({g: 2}) == attach(2 * a.adjoint(), e, 1)
