@@ -16,7 +16,7 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
     OperatorType,
     _allowed_values_indicator,
-    _number_symbols,
+    _number_operator_to_placeholder,
     _occupation_dimension,
     find_operators,
     generator_types,
@@ -142,7 +142,10 @@ class Embedding(sympy.Expr):
     @cached_property
     def _target_numbers(self) -> tuple[sympy.Symbol, ...]:
         """Return scalar number symbols in target mode order."""
-        return _number_symbols(self._target_operators)
+        return tuple(
+            _number_operator_to_placeholder(NumberOperator(op))
+            for op in self._target_operators
+        )
 
     def _evaluate_numbers(
         self, expression: sympy.Expr, occupations: Sequence[int | sympy.Expr]
@@ -661,7 +664,10 @@ class _GeneratorEmbedding(Embedding):
     @cached_property
     def _source_placeholders(self) -> tuple[sympy.Symbol, ...]:
         """Return scalar number symbols in source mode order."""
-        return _number_symbols(self._source_operators)
+        return tuple(
+            _number_operator_to_placeholder(NumberOperator(op))
+            for op in self._source_operators
+        )
 
     @cached_property
     def _source_zero(self) -> NumberOrderedForm:
