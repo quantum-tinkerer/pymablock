@@ -251,6 +251,14 @@ def test_attached_xreplace_renames_target_modes():
     assert contracted == renamed.restrict(N(b))
 
 
+def test_attached_xreplace_reorders_target_modes():
+    """A rename that changes the mode order keeps fermion signs consistent."""
+    c, d, q, z = map(FermionOp, ("c", "d", "q", "0z"))
+    attached = Embedding({q: c}, reference={c: 0, d: 1})._attach(c.adjoint() * d, 1)
+    renamed = Embedding({q: c}, reference={c: 0, z: 1})
+    assert attached.xreplace({d: z}) == renamed._attach(c.adjoint() * z, 1)
+
+
 def test_embeddings_are_collectable():
     """Caching useful conversions cannot keep dropped embeddings alive."""
     a, q = BosonOp("a"), SigmaMinus("q")

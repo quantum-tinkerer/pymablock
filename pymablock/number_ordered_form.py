@@ -582,8 +582,9 @@ class NumberOrderedForm(Operator):
             operators = Tuple(*operators)
 
         if embedding is not None and tuple(operators) != embedding._target_operators:
-            # Rebuilding after a mode rename can change the embedding's mode order.
-            return embedding._attach(cls(operators, terms, validate=validate), side)
+            # Rebuilding after a mode rename can change the embedding's mode order;
+            # _attach reorders the unvalidated form into the embedding's order.
+            return embedding._attach(cls(operators, terms, validate=False), side)
 
         if validate:
             cls._validate_operators(operators)
