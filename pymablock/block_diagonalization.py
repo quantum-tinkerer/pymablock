@@ -260,12 +260,7 @@ def block_diagonalize(
             raise NotImplementedError(
                 "Structured embeddings use exact coefficients and do not accept a numerical atol."
             )
-        embedding = subspace_eigenvectors
-        h0 = embedding._target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
-        solve_sylvester = embedding._sylvester_solver(h0)
-        # Validate the projector before lazy series evaluation.
-        embedding._frames(h0.rows)
-        hamiltonian = embedding._convert(hamiltonian, diagonal_origin=True)
+        hamiltonian, solve_sylvester = subspace_eigenvectors._prepare(hamiltonian)
         subspace_eigenvectors = None
 
     use_implicit = False
