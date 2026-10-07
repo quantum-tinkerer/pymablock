@@ -856,3 +856,23 @@ def test_restriction_does_not_require_a_complement_projector():
     assert embedding.restrict(N(a)) == NumberOrderedForm.from_expr(3 + N(b))
     with pytest.raises(NotImplementedError, match="occupation inequality"):
         block_diagonalize([N(a)], subspace_eigenvectors=embedding)
+
+
+@pytest.mark.parametrize("generators", [False, True])
+def test_matrix_index_in_reference_dictionary(generators):
+    from pymablock.second_quantization import matrix_index
+
+    a, f = BosonOp("a"), BosonOp("f")
+    mapping = {f: a} if generators else {}
+    embedding = Embedding(mapping, reference=[{matrix_index: 1, a: 0}, {a: 0}])
+    expected = Embedding(mapping, reference=[(1, {a: 0}), (0, {a: 0})])
+    assert embedding == expected
+    assert embedding.func(*embedding.args) == embedding
+    assert embedding.restrict(sympy.diag(N(a), 3 + N(a))) == expected.restrict(
+        sympy.diag(N(a), 3 + N(a))
+    )
+    assert eval(str(embedding), {"Embedding": Embedding, "a": a, "f": f}) == embedding
+    with pytest.raises(ValueError, match="indices"):
+        Embedding(reference=[{matrix_index: -1}])
+    with pytest.raises(ValueError, match="indices"):
+        Embedding(reference=[{matrix_index: sympy.Rational(1, 2)}])
