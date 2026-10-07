@@ -27,7 +27,10 @@ from pymablock.series import BlockSeries, zero
 if TYPE_CHECKING:
     from typing import Any
 
-__all__ = ["Embedding"]
+__all__ = ["Embedding", "matrix_index"]
+
+# Provisional reference-dictionary key for the target matrix component.
+matrix_index = sympy.Symbol("matrix_index")
 
 
 def _cache_on_instance[Result](method: Callable[..., Result]) -> Callable[..., Result]:
@@ -84,7 +87,9 @@ class Embedding(sympy.Expr):
         the same target operators. If the Hamiltonian is a matrix, give
         ``(matrix_index, occupations)`` pairs; a mapping without an index refers to
         index 0. For a matrix Hamiltonian without operators, use pairs with empty
-        mappings, such as ``[(0, {}), (2, {})]``.
+        mappings, such as ``[(0, {}), (2, {})]``. In a reference list, the
+        provisional ``matrix_index`` symbol may instead be a dictionary key:
+        ``[{matrix_index: 0}, {matrix_index: 2}]``.
 
     Examples
     --------
@@ -926,9 +931,11 @@ def _parse_references(reference: Mapping | Sequence | None) -> sympy.Tuple:
         reference = ((0, reference),)
     states = []
     for state in reference:
-        row, occupations = (
-            (0, state) if isinstance(state, (Mapping, sympy.Dict)) else state
-        )
+        if isinstance(state, (Mapping, sympy.Dict)):
+            occupations = dict(sympy.Dict(state))
+            row = occupations.pop(matrix_index, 0)
+        else:
+            row, occupations = state
         row = sympy.sympify(row)
         if not row.is_Integer or row < 0:
             raise ValueError("Matrix basis indices must be nonnegative integers")

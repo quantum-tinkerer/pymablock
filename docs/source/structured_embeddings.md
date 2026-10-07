@@ -294,6 +294,19 @@ The matrix index is zero-based. A dictionary without an index means component
 zero, and an empty dictionary selects a component of an ordinary finite matrix.
 All perturbative coefficients must have the same square target shape.
 
+The provisional `matrix_index` symbol can instead put the target component
+inside each reference dictionary. The constructor normalizes this spelling to
+the same tuple representation:
+
+```{code-cell} ipython3
+from pymablock.second_quantization import matrix_index
+
+assert Embedding(reference=[{matrix_index: 0, b: 0}, {matrix_index: 1, b: 0}]) == (
+    Embedding(reference=[(0, {b: 0}), (1, {b: 0})])
+)
+```
+
+
 The [cavity application](applications/cavity_spin.md) uses this construction with
 a two-by-two dressed-ancilla matrix and cavity/Floquet operator entries. Its
 three- or four-state reference list returns the artificial-spin matrix directly.
