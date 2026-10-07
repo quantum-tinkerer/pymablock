@@ -119,9 +119,9 @@ eigenvalue of every target number operator. Finite spectral selections are sums
 of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
 
 The solver reads `energy_states`, `target_occupations`, `coordinate_symbols`,
-`coordinate_map`, and `source_operators` from the embedding.
+and `source_coordinates` from the embedding; reference lists have no coordinates.
 Generator embeddings compute `source_coordinates`, $L(n-r)$, once and reuse them
-in the projector, lifting, and the solver's coordinate map.
+in the projector, lifting, and the solver's coordinate substitution.
 Reference-list frame entries share an internal vacuum embedding.
 Matrix shape consistency belongs to each block conversion, so one embedding can
 be reused for operators of different target matrix sizes.
