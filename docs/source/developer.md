@@ -27,7 +27,10 @@ $\phi_j(q)/(\phi_1(q)t_j(q))$, expressed at the intermediate NOF occupations.
 `NumberOrderedForm.act` supplies the ladder factors and fermion signs;
 the generator validation supplies each phase $\phi_j$.
 `restrict` always multiplies the frames $W^\dagger XW$, then unwraps a mapping
-reference's one-by-one result. Attached scalar contractions call `_compress`
+reference's one-by-one result. `_frames` yields the retained frame first and
+builds the complement only when it is consumed. Hamiltonian preparation and
+block conversion consume both frames; restriction consumes only the first.
+Both frames are cached on the owning instance. Attached scalar contractions call `_compress`
 directly, avoiding recursion through `restrict`. With no source operators,
 compression returns a scalar coefficient where it is produced; there is no
 matrix-entry cleanup pass. Compression of source entry $(i,j)$ acts on

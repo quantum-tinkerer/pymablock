@@ -1662,19 +1662,24 @@ class NumberOrderedForm(Operator):
         ``X W W† Y`` in target space. With one attachment, interpret the adjacent
         factor in the appropriate target or source basis and preserve the map.
         """
+
+        def target_product(a, b):
+            # Unit frame entries must not expand factored spectator coefficients.
+            return b if a == 1 else a if b == 1 else a * b
+
         left, right = self.embedding, other.embedding
         if left is not None and right is not None:
             if left != right or self.side == other.side:
                 raise ValueError("Composition requires opposite matching attachments")
             if self.side == -1:
-                return left._compress(self.target * other.target)
+                return left._compress(target_product(self.target, other.target))
             return self.target * left._projector * other.target
         if left is not None:
             value = left._lift(other) if self.side == 1 else left._convert_operator(other)
-            result = self.target * value
+            result = target_product(self.target, value)
             return self._rebuild(result.args[1], operators=result.operators)
         value = right._lift(self) if other.side == -1 else right._convert_operator(self)
-        result = value * other.target
+        result = target_product(value, other.target)
         return other._rebuild(result.args[1], operators=result.operators)
 
     def __rmul__(self, other) -> "NumberOrderedForm":

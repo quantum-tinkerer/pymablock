@@ -797,7 +797,7 @@ def test_list_reconstruction_substitution_and_printing(source_type):
         {f: sympy.exp(sympy.I * phase) * target}, reference=embedding.args[1]
     )
     for method in ("subs", "xreplace"):
-        assert getattr(phased._frames(2)[0], method)({phase: 0}) == w
+        assert getattr(next(phased._frames(2)), method)({phase: 0}) == w
 
 
 def test_bilateral_reference_transfers_have_no_vacuum():
@@ -847,3 +847,12 @@ def test_empty_generator_mapping_still_returns_nof():
     listed = Embedding(reference=[{}])
     assert listed.restrict(2) == sympy.Matrix([[2]])
     assert not isinstance(listed.restrict(2)[0, 0], NumberOrderedForm)
+
+
+def test_restriction_does_not_require_a_complement_projector():
+    """A shifted boson ladder can be compressed before inequality projectors exist."""
+    a, b = BosonOp("a"), BosonOp("b")
+    embedding = Embedding({b: a * sympy.sqrt((N(a) - 3) / N(a))}, reference={a: 3})
+    assert embedding.restrict(N(a)) == NumberOrderedForm.from_expr(3 + N(b))
+    with pytest.raises(NotImplementedError, match="occupation inequality"):
+        block_diagonalize([N(a)], subspace_eigenvectors=embedding)
