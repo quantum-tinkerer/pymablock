@@ -259,17 +259,20 @@ def test_attached_xreplace_reorders_target_modes():
     assert attached.xreplace({d: z}) == renamed._attach(c.adjoint() * z, 1)
 
 
-def test_embeddings_are_collectable():
+@pytest.mark.parametrize("reference_list", [False, True])
+def test_embeddings_are_collectable(reference_list):
     """Caching useful conversions cannot keep dropped embeddings alive."""
     a, q = BosonOp("a"), SigmaMinus("q")
     bases = []
     for _ in range(5):
-        embedding = Embedding({q: a}, reference={a: 0})
+        embedding = Embedding({q: a}, reference=[{a: 0}] if reference_list else {a: 0})
         embedding.restrict(a)
-        w = NumberOrderedForm.from_expr(embedding)
+        w = embedding._frames(1)[0][0, 0]
         w * NumberOrderedForm.from_expr(q)
         bases.append(weakref.ref(embedding))
     del embedding, w
+    # SymPy's bounded expression cache may retain equal frame expressions.
+    s.core.cache.clear_cache()
     gc.collect()
     assert all(basis() is None for basis in bases)
 
