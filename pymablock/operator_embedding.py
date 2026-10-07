@@ -18,6 +18,7 @@ from pymablock.number_ordered_form import (
     _allowed_values_indicator,
     _number_operator_to_placeholder,
     _occupation_dimension,
+    _operator_sort_key,
     find_operators,
     generator_types,
 )
@@ -44,11 +45,6 @@ def _cache_on_instance[Result](method: Callable[..., Result]) -> Callable[..., R
         return memo[args]
 
     return cached
-
-
-def _operator_sort_key(operator: OperatorType) -> tuple[int, str]:
-    """Order modes by algebra type, then name, matching NOF's fermionic convention."""
-    return generator_types.index(type(operator)), str(operator.name)
 
 
 class Embedding(sympy.Expr):

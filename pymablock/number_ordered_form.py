@@ -182,6 +182,11 @@ PowerKey = tuple[int | sympy.Integer, ...]
 TermDict = dict[PowerKey, sympy.Expr] | tuple[tuple[PowerKey, sympy.Expr], ...] | Tuple
 
 
+def _operator_sort_key(operator: OperatorType) -> tuple[int, str]:
+    """Order modes by algebra type, then name; fermion signs follow this order."""
+    return generator_types.index(type(operator)), str(operator.name)
+
+
 class NumberOperator(HermitianOperator):
     """Number operator for bosonic, fermionic, and spin operators.
 
@@ -367,7 +372,7 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
                 if atom.args[1].name == "LadderOp"
             ),
         ),
-        key=lambda op: (generator_types.index(type(op)), str(op.name)),
+        key=_operator_sort_key,
     )
 
 
@@ -708,9 +713,7 @@ class NumberOrderedForm(Operator):
             raise ValueError("Operators must be annihilation operators.")
 
         # Confirm operator sort order
-        if list(operators) != sorted(
-            operators, key=lambda op: (generator_types.index(type(op)), str(op.name))
-        ):
+        if list(operators) != sorted(operators, key=_operator_sort_key):
             raise ValueError("Operators must be sorted by type and name.")
 
     @staticmethod
@@ -1531,7 +1534,7 @@ class NumberOrderedForm(Operator):
         if other.operators != self.operators:
             new_operators = sorted(
                 set(self.operators).union(other.operators),
-                key=lambda op: (generator_types.index(type(op)), str(op.name)),
+                key=_operator_sort_key,
             )
             self_expanded = self._expand_operators(new_operators)
             other_expanded = other._expand_operators(new_operators)
