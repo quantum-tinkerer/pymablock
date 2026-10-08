@@ -1795,3 +1795,27 @@ def test_export_elementary_adjoints_evaluate():
         form = NumberOrderedForm.from_expr(expression).adjoint()
         assert form.as_expr() == expected
         assert NumberOrderedForm.from_expr(expected) == form
+
+
+@pytest.mark.parametrize("operator", [fermion.FermionOp("c"), pauli.SigmaMinus("s")])
+@pytest.mark.parametrize("power", [-1, 1])
+def test_binary_linearization_only_samples_acting_occupations(operator, power):
+    form = NumberOrderedForm([operator], {(power,): 1 / (1 - NumberOperator(operator))})
+    # The matrix element of c† f(N) or f(N) c is f(0) = 1.
+    expected = NumberOrderedForm([operator], {(power,): 1})
+    assert form._linearize_binary_operators() == expected
+    assert form.simplify() == expected
+    assert form * NumberOrderedForm.from_expr(1) == expected
+
+
+@pytest.mark.parametrize("operator", [fermion.FermionOp("c"), pauli.SigmaMinus("s")])
+def test_binary_product_restricts_coefficients_before_cancellation(operator):
+    number = NumberOperator(operator)
+    raising = NumberOrderedForm([operator], {(-1,): 1 / (1 - number)})
+    lowering = raising.adjoint()
+    # Both nonzero matrix elements have amplitude one. Their products are
+    # the projectors onto the empty and occupied states, respectively.
+    assert (lowering * raising).simplify() == NumberOrderedForm.from_expr(1 - number)
+    assert (raising * lowering).simplify() == NumberOrderedForm.from_expr(number)
+    assert (lowering * lowering).is_zero
+    assert (raising * raising).is_zero

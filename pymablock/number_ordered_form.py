@@ -1298,6 +1298,11 @@ class NumberOrderedForm(Operator):
 
         self_expanded, other_expanded = self._combine_operators(other)
 
+        # Binary ladder terms act only at middle occupation zero. Restrict their
+        # coefficients before multiplication can cancel factors outside that domain.
+        self_expanded = self_expanded._cancel_binary_operator_numbers()
+        other_expanded = other_expanded._cancel_binary_operator_numbers()
+
         result = type(self)(self_expanded.operators, {}, validate=False)
         for powers, coeff in other_expanded.args[1]:
             # First multiply by creation operators, those are with negative powers
@@ -1482,7 +1487,12 @@ class NumberOrderedForm(Operator):
 
         new_terms = {}
         for powers, coeff in self.args[1]:
-            for number in binary_numbers:
+            for power, number in zip(powers[self._n_inf_order :], binary_numbers):
+                if power:
+                    # Between binary creation and annihilation operators only
+                    # occupation zero acts; do not sample a possible pole at one.
+                    coeff = coeff.xreplace({number: Zero})
+                    continue
                 coeff = (One - number) * coeff.xreplace(
                     {number: Zero}
                 ) + number * coeff.xreplace({number: One})
