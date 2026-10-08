@@ -936,9 +936,7 @@ class Embedding(sympy.Expr):
     ) -> NumberOrderedForm | sympy.MatrixBase:
         """Keep list results as matrices and mapping results as NOFs."""
         if isinstance(self.args[1], sympy.Dict):
-            return NumberOrderedForm.from_expr(
-                result[0, 0], operators=self._first_lattice._source_operators
-            )
+            return result[0, 0]
         return result
 
 
