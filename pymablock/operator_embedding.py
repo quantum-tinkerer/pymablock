@@ -203,9 +203,20 @@ class Embedding(sympy.Expr):
         """
         modes = self._first_lattice._target_operators
         if isinstance(expression, NumberOrderedForm):
-            if expression.operators == modes:
-                return expression
-            expression = expression.as_expr()
+            for i, op in enumerate(expression.operators):
+                if op not in modes and any(
+                    powers[i]
+                    or coefficient.has(expression._number_operator_placeholders[i])
+                    for powers, coefficient in expression.terms.items()
+                ):
+                    raise ValueError(
+                        "Every target mode must be declared in the reference"
+                    )
+            return (
+                expression
+                if expression.operators == modes
+                else expression._expand_operators(modes)
+            )
         expression = sympy.sympify(expression)
         if set(find_operators(expression)) - set(modes):
             raise ValueError("Every target mode must be declared in the reference")
@@ -838,7 +849,7 @@ class Embedding(sympy.Expr):
         result = self._source_zero
         for shift, (_, weight) in target.act(self._target_occupations).items():
             result += self._project_term(shift, weight)
-        return result if self._source_operators else result.as_expr()
+        return result if self._source_operators else result.terms.get((), sympy.S.Zero)
 
     @cached_property
     def _projector(self) -> NumberOrderedForm:
@@ -879,17 +890,28 @@ class Embedding(sympy.Expr):
         """
         if value.is_zero:
             return self._convert_operator(sympy.S.Zero)
-        target_numbers = dict(
-            zip(self._target_numbers, map(NumberOperator, self._target_operators))
+        if set(value.operators) - set(self._source_operators):
+            raise ValueError("Lifted operators must belong to the source algebra")
+        value = value._expand_operators(self._source_operators)
+        coordinates = dict(
+            zip(value._number_operator_placeholders, self._source_coordinates)
         )
-        coordinates = [q.xreplace(target_numbers) for q in self._source_coordinates]
-        images = dict(zip(map(NumberOperator, self._source_operators), coordinates))
-        for op, image in zip(self._source_operators, self._generators):
-            images[op] = image.as_expr()
-            images[op.adjoint()] = image.adjoint().as_expr()
-        result = NumberOrderedForm.from_expr(
-            value.as_expr().xreplace(images), self._target_operators
-        )
+        result = self._convert_operator(sympy.S.Zero)
+        for powers, coefficient in value.terms.items():
+            term = NumberOrderedForm(
+                self._target_operators,
+                {(0,) * len(self._target_operators): coefficient.xreplace(coordinates)},
+                validate=False,
+            )
+            # Match NOF ordering: creations, coefficient, reversed annihilations.
+            # NOF multiplication supplies the graded signs of fermion images.
+            for image, power in reversed(list(zip(self._generators, powers))):
+                if power > 0:
+                    term = term * image**power
+            for image, power in reversed(list(zip(self._generators, powers))):
+                if power < 0:
+                    term = image.adjoint() ** (-power) * term
+            result += term
         return self._projector * result * self._projector
 
     @property
