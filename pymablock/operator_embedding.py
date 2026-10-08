@@ -87,11 +87,8 @@ class Embedding(sympy.Expr):
         generates a copy of the source algebra; these lattices must be disjoint.
         With no generators, each copy is a single state. All references must use
         the same target operators. If the Hamiltonian is a matrix, give
-        ``(matrix_index, occupations)`` pairs; a mapping without an index refers to
-        index 0. For a matrix Hamiltonian without operators, use pairs with empty
-        mappings, such as ``[(0, {}), (2, {})]``. In a reference list, the
-        provisional ``matrix_index`` symbol may instead be a dictionary key:
-        ``[{matrix_index: 0}, {matrix_index: 2}]``.
+        the ``matrix_index`` dictionary key. For a matrix Hamiltonian without
+        operators, use ``[{matrix_index: 0}, {matrix_index: 2}]``.
 
     Examples
     --------
@@ -136,7 +133,10 @@ class Embedding(sympy.Expr):
             self._compile(dict(generators), dict(reference))
             self._transfers = (self._convert_operator(sympy.S.One),)
             return self
-        self = sympy.Expr.__new__(cls, generators, references)
+        states = sympy.Tuple(
+            *(sympy.Dict({matrix_index: row, **dict(state)}) for row, state in references)
+        )
+        self = sympy.Expr.__new__(cls, generators, states)
         self._lattices = cls._build_lattices(generators, references)
         self._validate_disjointness()
         self._transfers = tuple(
@@ -168,7 +168,7 @@ class Embedding(sympy.Expr):
         """Print reconstructible public constructor arguments."""
         generators, reference = self.args
         if isinstance(reference, sympy.Tuple):
-            reference = [state if i == 0 else (i, state) for i, state in reference]
+            reference = list(reference)
         keyword = r"\text{reference}" if printer.printmethod == "_latex" else "reference"
         return [printer._print(generators), f"{keyword}={printer._print(reference)}"]
 
@@ -949,14 +949,13 @@ def _parse_references(reference: Mapping | Sequence | None) -> sympy.Tuple:
     if reference is None:
         raise TypeError("Specify reference occupations for the embedding")
     if isinstance(reference, (Mapping, sympy.Dict)):
-        reference = ((0, reference),)
+        reference = (reference,)
     states = []
     for state in reference:
-        if isinstance(state, (Mapping, sympy.Dict)):
-            occupations = dict(sympy.Dict(state))
-            row = occupations.pop(matrix_index, 0)
-        else:
-            row, occupations = state
+        if not isinstance(state, (Mapping, sympy.Dict)):
+            raise TypeError("References must be occupation mappings")
+        occupations = dict(state)
+        row = occupations.pop(matrix_index, 0)
         row = sympy.sympify(row)
         if not row.is_Integer or row < 0:
             raise ValueError("Matrix basis indices must be nonnegative integers")

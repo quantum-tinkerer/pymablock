@@ -14,7 +14,7 @@ from sympy.physics.quantum.pauli import SigmaMinus
 from pymablock import block_diagonalize, operator_to_BlockSeries
 from pymablock.number_ordered_form import LadderOp, NumberOrderedForm
 from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.operator_embedding import Embedding
+from pymablock.operator_embedding import Embedding, matrix_index
 from pymablock.second_quantization import solve_scalar
 from pymablock.series import cauchy_dot_product, zero
 from pymablock.tests.second_quantization_helpers import nof_matrix
@@ -127,7 +127,7 @@ def test_diagonalize_finite_matrix_embedding():
     """A retained matrix block includes internal and virtual energy corrections."""
     h, *_ = block_diagonalize(
         [s.diag(0, 2, 5), s.Matrix([[0, 1, 1], [1, 0, 2], [1, 2, 0]])],
-        subspace_eigenvectors=Embedding(reference=[(0, {}), (1, {})]),
+        subspace_eigenvectors=Embedding(reference=[{matrix_index: 0}, {matrix_index: 1}]),
         fully_diagonalize=(0,),
     )
     assert h[0, 0, 1].is_zero_matrix
