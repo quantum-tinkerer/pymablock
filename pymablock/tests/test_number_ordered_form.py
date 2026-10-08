@@ -173,6 +173,20 @@ def test_find_operators():
     assert set(result11) == {ladder_1, ladder_2, a}
 
 
+def test_find_operators_uses_nof_declarations(monkeypatch):
+    a, b = [boson.BosonOp(name) for name in "ab"]
+    f = fermion.FermionOp("f")
+    form = NumberOrderedForm.from_expr(NumberOperator(a), operators=[a, b])
+    nested = sympy.Add(form, NumberOperator(f), evaluate=False)
+
+    def fail_export(_self):
+        pytest.fail("Operator discovery must not export a NumberOrderedForm")
+
+    monkeypatch.setattr(NumberOrderedForm, "as_expr", fail_export)
+    assert find_operators(form) == [a, b]
+    assert find_operators(nested) == [a, b, f]
+
+
 def test_number_ordered_form_init():
     """Test basic initialization of NumberOrderedForm."""
     # Create operators
@@ -1702,3 +1716,82 @@ def test_number_ordered_form_hash_reuses_cached_expression_hash(monkeypatch):
     assert form in {form}
     assert hash(form) == expected
     assert conversions == [id(form)]
+
+
+@pytest.mark.parametrize(
+    "operator",
+    [boson.BosonOp("a"), fermion.FermionOp("c"), pauli.SigmaMinus("s"), LadderOp("l")],
+)
+def test_occupation_placeholder_domain(operator):
+    number = NumberOperator(operator)
+    placeholder = _number_operator_to_placeholder(number)
+    form = NumberOrderedForm.from_expr(number)
+    assert placeholder is form._number_operator_placeholders[0]
+    assert placeholder.is_integer
+    assert placeholder.is_nonnegative is None
+    assert form.terms == {(0,): placeholder}
+
+
+def test_adjoint_physical_radicals():
+    a = boson.BosonOp("a")
+    n = _number_operator_to_placeholder(NumberOperator(a))
+    for expression in [
+        1 / sympy.sqrt(NumberOperator(a) + 1),
+        a.adjoint() * sympy.sqrt(NumberOperator(a)),
+    ]:
+        form = NumberOrderedForm.from_expr(expression).adjoint()
+        assert NumberOrderedForm.from_expr(form.as_expr()) == form
+        assert NumberOrderedForm.from_expr(form.as_expr(), operators=(a,)) == form
+    assert form.terms == {(1,): sympy.conjugate(sympy.sqrt(n))}
+    for occupation in range(4):
+        assert form.terms[(1,)].subs(n, occupation) == sympy.sqrt(occupation)
+
+
+def test_ladder_negative_occupation_adjoint():
+    a = LadderOp("a")
+    form = NumberOrderedForm.from_expr(sympy.sqrt(NumberOperator(a))).adjoint()
+    n = form._number_operator_placeholders[0]
+    assert form.terms[(0,)].subs(n, -4) == -2 * sympy.I
+
+
+@pytest.mark.parametrize("operator", [boson.BosonOp("a"), LadderOp("l")])
+def test_export_unresolved_conjugate(operator):
+    number = NumberOperator(operator)
+    for expression in [
+        1 / sympy.sqrt(number + 1),
+        sympy.sqrt(number - 1),
+        sympy.Function("f")(number),
+    ]:
+        form = NumberOrderedForm.from_expr(expression).adjoint()
+        exported = form.as_expr()
+        assert exported == sympy.adjoint(expression, evaluate=False)
+        assert exported.atoms(NumberOperator) == {number}
+        assert not any(
+            conjugate.has(NumberOperator) for conjugate in exported.atoms(sympy.conjugate)
+        )
+        assert not exported.has(sympy.re, sympy.im, sympy.atan2)
+        assert NumberOrderedForm.from_expr(exported) == form
+        assert NumberOrderedForm.from_expr(exported, operators=[operator]) == form
+
+
+def test_export_adjoint_preserves_scalar_conjugates():
+    a = boson.BosonOp("a")
+    z = sympy.Symbol("z")
+    radical = sympy.sqrt(NumberOperator(a) - 1)
+    form = NumberOrderedForm.from_expr(z * radical).adjoint()
+    exported = form.as_expr()
+    assert exported == sympy.conjugate(z) * sympy.adjoint(radical, evaluate=False)
+    assert NumberOrderedForm.from_expr(exported) == form
+
+
+def test_export_elementary_adjoints_evaluate():
+    a = boson.BosonOp("a")
+    number = NumberOperator(a)
+    for expression, expected in [
+        (sympy.I * number, -sympy.I * number),
+        (sympy.exp(sympy.I * number), sympy.exp(-sympy.I * number)),
+        (3 + number**2, 3 + number**2),
+    ]:
+        form = NumberOrderedForm.from_expr(expression).adjoint()
+        assert form.as_expr() == expected
+        assert NumberOrderedForm.from_expr(expected) == form

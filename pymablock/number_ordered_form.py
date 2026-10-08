@@ -316,23 +316,22 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
     operators : `list[OperatorType]`
         A list of unique quantum operators found in the expression. Boson and spin
         operators are listed before fermion operators and both are sorted by their
-        names.
+        names. For number-ordered forms, this includes unused declared modes.
 
     """
-    # replace n -> a† * a and convert number ordered forms to expressions.
-    # Number operator of ladder operators need to be included separately.
-    expr = expr.doit()
+    # NOFs already include their declared operators in their SymPy arguments.
     return sorted(
         set().union(
             (
-                op
+                generator(atom.name)
                 for particle, generator in zip(operator_types, generator_types)
-                for op in (generator(atom.name) for atom in expr.atoms(particle))
+                for atom in expr.atoms(particle)
             ),
             (
-                LadderOp(atom.name)
+                generator_types[
+                    operator_types.index(operator_type_by_name[atom.args[1]])
+                ](atom.name)
                 for atom in expr.atoms(NumberOperator)
-                if atom.args[1].name == "LadderOp"
             ),
         ),
         key=lambda op: (generator_types.index(type(op)), str(op.name)),
@@ -341,6 +340,10 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
 
 def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     """Convert a NumberOperator to its placeholder symbol."""
+    # Do not assume nonnegative: normal ordering replaces n by n-k. For example,
+    # a guard at n=-1 in f(n) becomes a vacuum guard in a† f(N) a = N f(N-1).
+    # A nonnegative assumption would discard the original guard before shifting,
+    # allowing a pole in f(N-1) to cancel the zero ladder factor at the vacuum.
     return sympy.Symbol(
         f"number_operator_placeholder_{op.args[0]}_{op.args[1]}",
         integer=True,
@@ -612,6 +615,12 @@ class NumberOrderedForm(Operator):
         if not operators:
             operators = find_operators(expr)
 
+        # Pure number expressions are scalar coefficients, including Piecewise
+        # conditions. Substitution also turns operator adjoints into scalar
+        # conjugates before any function is evaluated on a number operator.
+        if not expr.has(*operator_types):
+            return cls(operators, {(Zero,) * len(operators): expr})
+
         # Handle Add expressions by converting each term and summing
         if isinstance(expr, sympy.Add):
             terms = [
@@ -804,13 +813,23 @@ class NumberOrderedForm(Operator):
             # If there are no operators, just return the constant term
             return next(iter(self.terms.values())) if self.terms else Zero
 
+        def export_coefficient(coeff):
+            if coeff in self._placeholder_to_number_operator:
+                return self._placeholder_to_number_operator[coeff]
+            if not coeff.has(*self._number_operator_placeholders):
+                return coeff
+            args = tuple(export_coefficient(arg) for arg in coeff.args)
+            if coeff.func == sympy.conjugate:
+                # Scalar conjugation becomes operator adjunction. Evaluating a
+                # radical's adjoint here can trigger invalid complex expansion.
+                return sympy.adjoint(*args, evaluate=False)
+            return coeff.func(*args)
+
         terms = []
         reversed_operators = list(reversed(self.operators))
 
         for powers, coeff in self.args[1]:
-            # Replace any placeholders with NumberOperator instances
-            coeff = coeff.xreplace(self._placeholder_to_number_operator)
-            term = coeff
+            term = export_coefficient(coeff)
             for op, power in zip(reversed_operators, reversed(powers)):
                 if not power > Zero:
                     continue
