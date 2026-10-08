@@ -27,10 +27,14 @@ from pymablock.series import BlockSeries, zero
 if TYPE_CHECKING:
     from typing import Any
 
-__all__ = ["Embedding", "matrix_index"]
+__all__ = ["Embedding"]
 
-# Reference-dictionary key for the target matrix component.
-matrix_index = sympy.Symbol("matrix_index")
+
+class _ReferenceRow(sympy.AtomicExpr):
+    """A reference key distinct from every user symbol, including after pickling."""
+
+    def _sympystr(self, _printer):
+        return "Embedding.row"
 
 
 def _cache_on_instance[Result](method: Callable[..., Result]) -> Callable[..., Result]:
@@ -86,9 +90,9 @@ class Embedding(sympy.Expr):
         A list declares one such reference per source matrix index. Each reference
         generates a copy of the source algebra; these lattices must be disjoint.
         With no generators, each copy is a single state. All references must use
-        the same target operators. Every list entry includes the ``matrix_index``
-        dictionary key; use zero for a scalar target. For a matrix Hamiltonian without
-        operators, use ``[{matrix_index: 0}, {matrix_index: 2}]``.
+        the same target operators. The optional ``Embedding.row`` dictionary key
+        selects the target matrix row and defaults to zero. For a matrix Hamiltonian
+        without operators, use ``[{}, {Embedding.row: 2}]``.
 
     Examples
     --------
@@ -106,11 +110,13 @@ class Embedding(sympy.Expr):
 
     Select the three lowest levels as a finite matrix basis:
 
-    >>> embedding = Embedding({}, reference=[{matrix_index: 0, a: n} for n in range(3)])
+    >>> embedding = Embedding({}, reference=[{a: n} for n in range(3)])
     >>> embedding.restrict(NumberOperator(a)) == sympy.diag(0, 1, 2)
     True
 
     """
+
+    row = _ReferenceRow()
 
     is_commutative = False
 
@@ -132,7 +138,10 @@ class Embedding(sympy.Expr):
             self._transfers = (self._convert_operator(sympy.S.One),)
             return self
         states = sympy.Tuple(
-            *(sympy.Dict({matrix_index: row, **dict(state)}) for row, state in references)
+            *(
+                sympy.Dict({Embedding.row: row, **dict(state)})
+                for row, state in references
+            )
         )
         self = sympy.Expr.__new__(cls, generators, states)
         self._lattices = cls._build_lattices(generators, references)
@@ -929,13 +938,13 @@ def _parse_references(reference: Mapping | Sequence | None) -> sympy.Tuple:
     if reference is None:
         raise TypeError("Specify reference occupations for the embedding")
     if isinstance(reference, (Mapping, sympy.Dict)):
-        reference = ({matrix_index: 0, **dict(reference)},)
+        reference = (reference,)
     states = []
     for state in reference:
         if not isinstance(state, (Mapping, sympy.Dict)):
             raise TypeError("References must be occupation mappings")
         occupations = dict(state)
-        row = occupations.pop(matrix_index)
+        row = occupations.pop(Embedding.row, 0)
         row = sympy.sympify(row)
         if not row.is_Integer or row < 0:
             raise ValueError("Matrix basis indices must be nonnegative integers")

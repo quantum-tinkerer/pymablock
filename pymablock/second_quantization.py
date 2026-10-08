@@ -13,13 +13,12 @@ from pymablock.number_ordered_form import (
     _iter_fixed_number_indicators,
     _number_operator_to_placeholder,
 )
-from pymablock.operator_embedding import Embedding, matrix_index
+from pymablock.operator_embedding import Embedding
 from pymablock.series import zero
 
 __all__ = [
     "Embedding",
     "apply_mask_to_operator",
-    "matrix_index",
     "solve_sylvester_2nd_quant",
 ]
 

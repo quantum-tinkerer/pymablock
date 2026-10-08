@@ -39,7 +39,7 @@ from sympy.physics.quantum.boson import BosonOp
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import LadderOp
 from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.second_quantization import Embedding, matrix_index
+from pymablock.second_quantization import Embedding
 
 chi, Omega, epsilon = sp.symbols("chi Omega epsilon", nonzero=True, real=True)
 varphi = sp.Symbol("varphi", real=True)
@@ -89,7 +89,7 @@ def cavity_model(spin, virtual_shells=1):
         terms.extend((term, Dagger(term)))
     embedding = Embedding(
         {},
-        reference=[{matrix_index: 0, c: n, ell: 0} for n in range(maximum + 1)]
+        reference=[{c: n, ell: 0} for n in range(maximum + 1)]
     )
     return dict(H0=H0, V=sum(terms, sp.zeros(2)), embedding=embedding,
                 operators=(c, ell), phases=phases, spin=spin)

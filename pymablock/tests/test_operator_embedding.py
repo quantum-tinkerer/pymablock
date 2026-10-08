@@ -19,7 +19,7 @@ from pymablock.number_ordered_form import (
     _number_operator_to_placeholder,
 )
 from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.second_quantization import Embedding, matrix_index
+from pymablock.second_quantization import Embedding
 from pymablock.tests.second_quantization_helpers import (
     nof_matrix,
     occupation_matrices,
@@ -104,7 +104,7 @@ def test_reference_list_returns_matrix() -> None:
         nonzero=True,
         real=True,
     )
-    embedding = Embedding({}, reference=[{matrix_index: 0, target: n} for n in range(3)])
+    embedding = Embedding({}, reference=[{target: n} for n in range(3)])
 
     effective, *_ = block_diagonalize(
         [
@@ -238,7 +238,7 @@ def test_finite_virtual_resonance_still_raises() -> None:
     """Dropping transitions within P must not hide a resonant state in Q."""
     a = BosonOp("a")
     n = NumberOperator(a)
-    embedding = Embedding({}, reference=[{matrix_index: 0, a: n} for n in range(3)])
+    embedding = Embedding({}, reference=[{a: n} for n in range(3)])
     # Retained n=2 and excluded n=3 both have energy -6.
     effective, *_ = block_diagonalize(
         [n * (n - 5), a + Dagger(a)], subspace_eigenvectors=embedding
@@ -259,7 +259,7 @@ def test_boson_annihilation_preserves_occupation_dependent_denominator(finite):
             reference={a: 1, b: 0},
         )
         if not finite
-        else Embedding({}, reference=[{matrix_index: 0, a: n, b: 0} for n in (1, 2)])
+        else Embedding({}, reference=[{a: n, b: 0} for n in (1, 2)])
     )
     effective, *_ = block_diagonalize(
         [NumberOperator(a) ** 2 + 10 * NumberOperator(b), Dagger(b) * a + Dagger(a) * b],
@@ -335,7 +335,7 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     w = np.column_stack(columns)
     np.testing.assert_allclose(w.T @ w, np.eye(8))
     references = [
-        {matrix_index: 0, **dict(zip(modes, state, strict=True))}
+        dict(zip(modes, state, strict=True))
         for state in target_states
         if state[modes.index(up)] + state[modes.index(down)] == 1
     ]
@@ -386,9 +386,7 @@ def test_mixed_source_second_order(finite):
         if not finite
         else Embedding(
             {},
-            reference=[
-                {matrix_index: 0, a: n, b: k, v: 0} for n in range(2) for k in range(3)
-            ],
+            reference=[{a: n, b: k, v: 0} for n in range(2) for k in range(3)],
         )
     )
     h, *_ = block_diagonalize(
@@ -585,7 +583,7 @@ def test_matrix_with_operator_entries_against_full_matrix(reverse, occupations):
     )
     components = (1, 0) if reverse else (0, 1)
     embedding = Embedding(
-        {}, reference=[{matrix_index: i, b: occupations[i]} for i in components]
+        {}, reference=[{Embedding.row: i, b: occupations[i]} for i in components]
     )
     effective, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
     # A returning four-step path rises by at most two levels. Both cutoffs close it.
@@ -622,16 +620,14 @@ def test_matrix_with_operator_entries_against_full_matrix(reverse, occupations):
 
 def test_reference_list_compresses_products_before_selecting_states():
     b = BosonOp("b")
-    embedding = Embedding(
-        {}, reference=[{matrix_index: 0, b: 2}, {matrix_index: 0, b: 0}]
-    )
+    embedding = Embedding({}, reference=[{b: 2}, {b: 0}])
     assert embedding.restrict(b) == sympy.zeros(2)
     assert embedding.restrict(b * Dagger(b)) == sympy.diag(3, 1)
     assert embedding.restrict(b**2) == sympy.Matrix([[0, 0], [sympy.sqrt(2), 0]])
 
 
 def test_pure_matrix_target_retains_degenerate_internal_transitions():
-    embedding = Embedding({}, reference=[{matrix_index: 1}, {matrix_index: 0}])
+    embedding = Embedding({}, reference=[{Embedding.row: 1}, {}])
     h0 = sympy.diag(0, 0, 7)
     v = sympy.Matrix([[0, 2, 1], [2, 0, sympy.I], [1, -sympy.I, 0]])
     h, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
@@ -643,12 +639,12 @@ def test_pure_matrix_target_retains_degenerate_internal_transitions():
     "reference",
     [
         [],
-        [{matrix_index: 0}, {matrix_index: 0}],
-        [{matrix_index: 1.5}],
-        [{matrix_index: -1}],
-        [{matrix_index: 0, BosonOp("b"): -1}],
-        [{matrix_index: 0, FermionOp("f"): 2}],
-        [{matrix_index: 0}, {matrix_index: 0, BosonOp("b"): 0}],
+        [{}, {}],
+        [{Embedding.row: 1.5}],
+        [{Embedding.row: -1}],
+        [{BosonOp("b"): -1}],
+        [{FermionOp("f"): 2}],
+        [{}, {BosonOp("b"): 0}],
     ],
 )
 def test_invalid_reference_lists(reference):
@@ -657,7 +653,7 @@ def test_invalid_reference_lists(reference):
 
 
 def test_matrix_target_validation():
-    embedding = Embedding({}, reference=[{matrix_index: 1}])
+    embedding = Embedding({}, reference=[{Embedding.row: 1}])
     with pytest.raises(ValueError):
         embedding.restrict(1)
     with pytest.raises(ValueError):
@@ -686,9 +682,7 @@ def test_generator_lattices_in_matrix_rows_through_fourth_order():
             [1 + 2 * Dagger(a) + a, 2 * (a + Dagger(a))],
         ]
     )
-    embedding = Embedding(
-        {s: a}, reference=[{matrix_index: 0, a: 0}, {matrix_index: 1, a: 0}]
-    )
+    embedding = Embedding({s: a}, reference=[{a: 0}, {Embedding.row: 1, a: 0}])
     effective, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
     source_matrices = occupation_matrices((s,), [(0, 1)])
     coefficients = [
@@ -718,9 +712,7 @@ def test_generator_lattices_in_matrix_rows_through_fourth_order():
 
 def test_lattices_separated_by_spectator_offset():
     a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
-    embedding = Embedding(
-        {s: a}, reference=[{matrix_index: 0, a: 0, b: 2}, {matrix_index: 0, a: 0, b: 1}]
-    )
+    embedding = Embedding({s: a}, reference=[{a: 0, b: 2}, {a: 0, b: 1}])
     actual = embedding.restrict(b + Dagger(b))
     identity = NumberOrderedForm.from_expr(1, operators=(s,))
     assert actual == sympy.Matrix(
@@ -744,9 +736,7 @@ def test_transfers_along_moving_modes_are_rejected():
     a, s = BosonOp("a"), SigmaMinus("s")
     generator = a**2 / sympy.sqrt(N(a) * (N(a) - 1))
     with pytest.raises(NotImplementedError):
-        Embedding(
-            {s: generator}, reference=[{matrix_index: 0, a: 0}, {matrix_index: 0, a: 1}]
-        )
+        Embedding({s: generator}, reference=[{a: 0}, {a: 1}])
 
 
 def test_transfer_fermion_sign_and_generator_phase():
@@ -755,8 +745,8 @@ def test_transfer_fermion_sign_and_generator_phase():
     embedding = Embedding(
         {source: sympy.I * target},
         reference=[
-            {matrix_index: 0, spectator: 0, target: 0},
-            {matrix_index: 0, spectator: 1, target: 0},
+            {spectator: 0, target: 0},
+            {spectator: 1, target: 0},
         ],
     )
     source_matrices = occupation_matrices((source,), [(0, 1)])
@@ -775,7 +765,7 @@ def test_reference_lattices_must_be_disjoint():
     with pytest.raises(ValueError):
         Embedding(
             {s: a / sympy.sqrt(N(a))},
-            reference=[{matrix_index: 0, a: 0}, {matrix_index: 0, a: 1}],
+            reference=[{a: 0}, {a: 1}],
         )
 
 
@@ -784,7 +774,7 @@ def test_invalid_transfer_checks_every_lattice():
     with pytest.raises(ValueError):
         Embedding(
             {s: (1 + N(b)) * a},
-            reference=[{matrix_index: 0, a: 0, b: 0}, {matrix_index: 0, a: 0, b: 1}],
+            reference=[{a: 0, b: 0}, {a: 0, b: 1}],
         )
 
 
@@ -797,10 +787,13 @@ def test_list_reconstruction_substitution_and_printing(source_type):
     embedding = Embedding(
         {f: target},
         reference=[
-            {matrix_index: 0, target: 0, a: 1},
-            {matrix_index: 1, target: 0, a: 2},
+            {target: 0, a: 1},
+            {Embedding.row: 1, target: 0, a: 2},
         ],
     )
+    assert Embedding.row != sympy.Symbol("matrix_index")
+    assert Embedding.row.func(*Embedding.row.args) == Embedding.row
+    assert Embedding({}, reference=[{}]) == Embedding({}, reference=[{Embedding.row: 0}])
     assert embedding.func(*embedding.args) == embedding
     assert pickle.loads(pickle.dumps(embedding)) == embedding
     assert (
@@ -808,7 +801,6 @@ def test_list_reconstruction_substitution_and_printing(source_type):
             str(embedding),
             {
                 "Embedding": Embedding,
-                "matrix_index": matrix_index,
                 "f": f,
                 "target": target,
                 "a": a,
@@ -819,8 +811,8 @@ def test_list_reconstruction_substitution_and_printing(source_type):
     renamed = Embedding(
         {f: target},
         reference=[
-            {matrix_index: 0, target: 0, z: 1},
-            {matrix_index: 1, target: 0, z: 2},
+            {target: 0, z: 1},
+            {Embedding.row: 1, target: 0, z: 2},
         ],
     )
     w = embedding._frame_columns(2)
@@ -840,9 +832,7 @@ def test_bilateral_reference_transfers_have_no_vacuum():
     from pymablock.number_ordered_form import LadderOp
 
     ell = LadderOp("ell")
-    embedding = Embedding(
-        {}, reference=[{matrix_index: 0, ell: -2}, {matrix_index: 0, ell: 3}]
-    )
+    embedding = Embedding({}, reference=[{ell: -2}, {ell: 3}])
     assert embedding.restrict(ell**5) == sympy.Matrix([[0, 1], [0, 0]])
     assert embedding.restrict(N(ell)) == sympy.diag(-2, 3)
 
@@ -867,7 +857,7 @@ def test_indexed_reference_values(generators):
     a, f = BosonOp("a"), BosonOp("f")
     embedding = Embedding(
         {f: a} if generators else {},
-        reference=[{matrix_index: 1, a: 0}, {matrix_index: 0, a: 0}],
+        reference=[{Embedding.row: 1, a: 0}, {a: 0}],
     )
     actual = embedding.restrict(sympy.diag(N(a), 3 + N(a)))
     if generators:
