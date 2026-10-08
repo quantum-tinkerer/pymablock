@@ -96,7 +96,7 @@ def test_cancellation_before_resonance_check(generator):
     else:
         h0 = s.diag(0, 0, 1, 1)
         v = s.Matrix([[0, 0, 1, 1], [0, 0, 1, -1], [1, 1, 0, 0], [1, -1, 0, 0]])
-        e = Embedding(reference=[{matrix_index: 0}])
+        e = Embedding({}, reference=[{matrix_index: 0}])
     eff, *_ = block_diagonalize([h0, v], subspace_eigenvectors=e)
     for order, expected in ((2, -2), (3, 0), (4, 4)):
         value = eff[0, 0, order]

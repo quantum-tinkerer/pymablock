@@ -252,7 +252,7 @@ Omit the generator mapping and list the retained target states in the desired
 matrix order. Selecting the first three oscillator levels gives
 
 ```{code-cell} ipython3
-embedding = Embedding(reference=[{a: 0}, {a: 1}, {a: 2}])
+embedding = Embedding({}, reference=[{a: 0}, {a: 1}, {a: 2}])
 assert embedding.restrict(N(a)) == sympy.diag(0, 1, 2)
 H_eff, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
 second_order_matrix = H_eff[0, 0, 2]
@@ -279,7 +279,7 @@ b = BosonOp("b")
 H0_matrix = sympy.diag(5 * N(b), 2 + 5 * N(b))
 V_matrix = sympy.Matrix([[b + Dagger(b), 2 * b + 3 * Dagger(b)],
                         [3 * b + 2 * Dagger(b), 0]])
-embedding = Embedding(reference=[{matrix_index: 0, b: 0}, {matrix_index: 1, b: 0}])
+embedding = Embedding({}, reference=[{matrix_index: 0, b: 0}, {matrix_index: 1, b: 0}])
 H_eff, *_ = block_diagonalize(
     [H0_matrix, V_matrix], subspace_eigenvectors=embedding
 )

@@ -88,6 +88,7 @@ def cavity_model(spin, virtual_shells=1):
         term = epsilon * sp.exp(sp.I * varphi) * c * projectors[n] * paths / 2
         terms.extend((term, Dagger(term)))
     embedding = Embedding(
+        {},
         reference=[{matrix_index: 0, c: n, ell: 0} for n in range(maximum + 1)]
     )
     return dict(H0=H0, V=sum(terms, sp.zeros(2)), embedding=embedding,

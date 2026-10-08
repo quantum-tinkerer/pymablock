@@ -74,7 +74,7 @@ class Embedding(sympy.Expr):
         ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` operators. A
         ``LadderOp`` key also needs an entry mapping its ``NumberOperator`` to a
         target expression, because its lowering operator does not determine it.
-        Omit ``generators`` to select a finite list of states instead.
+        Use an empty mapping to select finite reference states.
     reference : collections.abc.Mapping or collections.abc.Sequence
         A mapping declares every target operator and its occupation in
         the target state that represents the source state with all occupations and
@@ -106,7 +106,7 @@ class Embedding(sympy.Expr):
 
     Select the three lowest levels as a finite matrix basis:
 
-    >>> embedding = Embedding(reference=[{a: 0}, {a: 1}, {a: 2}])
+    >>> embedding = Embedding({}, reference=[{a: 0}, {a: 1}, {a: 2}])
     >>> embedding.restrict(NumberOperator(a)) == sympy.diag(0, 1, 2)
     True
 
@@ -116,16 +116,14 @@ class Embedding(sympy.Expr):
 
     def __new__(
         cls,
-        generators: Mapping | None = None,
+        generators: Mapping,
         reference: Mapping | Sequence | None = None,
     ) -> Self:
         """Parse references, build their lattices, and prepare translated columns."""
         references = _parse_references(reference)
-        if generators is None and isinstance(reference, (Mapping, sympy.Dict)):
-            raise TypeError("A matrix source requires a list of reference states")
-        if generators is not None and not isinstance(generators, (Mapping, sympy.Dict)):
+        if not isinstance(generators, (Mapping, sympy.Dict)):
             raise TypeError("Generators must be a mapping")
-        generators = sympy.Dict({} if generators is None else generators)
+        generators = sympy.Dict(generators)
         if isinstance(reference, (Mapping, sympy.Dict)):
             reference = references[0][1]
             self = sympy.Expr.__new__(cls, generators, reference)
