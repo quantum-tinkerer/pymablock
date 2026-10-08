@@ -12,12 +12,19 @@ and the affine occupation map, and recompiles when reconstructed or unpickled.
 A reference mapping defines one lattice. A list adds a source matrix index:
 column $j$ maps $q$ to target row $i_j$ and occupations $r_j+Mq$.
 
-A single factory compiles each distinct reference into a scalar `Embedding`
-once. Matrix rows with identical occupations share that scalar lattice.
-A mapping constructor returns its scalar lattice. A list constructor stores
+A mapping-reference embedding is a lattice; a list embedding is a tuple of
+such lattices. The mapping constructor compiles its lattice directly. Lists
+construct each distinct occupation reference through that same constructor
+once, sharing the lattice when matrix rows have identical occupations. A list constructor stores
 only the ordered `(row, lattice)` collection and its transfer operators; it
 has no duplicate compiled occupation map. The solver reads the first lattice
 explicitly, rather than through forwarding properties.
+
+Lifting substitutes source NOF terms into target NOFs. Scalar number
+placeholders map directly to the compiled source coordinates; generator NOFs
+and their adjoints supply the ladder factors and graded signs. Existing NOFs
+are extended to the target mode order structurally. Embedding arithmetic never
+converts NOFs to expressions and back.
 
 Every frame entry uses the same scalar isometry $W_1$ at the first reference.
 The constructor builds target operators $T_j$ such that $W_j=T_jW_1$.
@@ -27,9 +34,8 @@ $\phi_j(q)/(\phi_1(q)t_j(q))$, expressed at the intermediate NOF occupations.
 `NumberOrderedForm.act` supplies the ladder factors and fermion signs;
 the generator validation supplies each phase $\phi_j$.
 `restrict` always multiplies the frames $W^\dagger XW$, then unwraps a mapping
-reference's one-by-one result. `_frames` yields the retained frame first and
-builds the complement only when it is consumed. Hamiltonian preparation and
-block conversion consume both frames; restriction consumes only the first.
+reference's one-by-one result. Restriction calls `_frame_columns` directly;
+Hamiltonian preparation and block conversion also call `_complement_frame`.
 Both frames are cached on the owning instance. Attached scalar contractions call `_compress`
 directly, avoiding recursion through `restrict`. With no source operators,
 compression returns a scalar coefficient where it is produced; there is no
