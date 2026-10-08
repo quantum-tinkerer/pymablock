@@ -42,7 +42,7 @@ projector.
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.pauli import SigmaMinus
-from pymablock.second_quantization import Embedding, matrix_index
+from pymablock.second_quantization import Embedding
 
 up, down = FermionOp("up"), FermionOp("down")
 s = SigmaMinus("s")
@@ -252,7 +252,7 @@ Pass an empty generator mapping and list the retained target states in the desir
 matrix order. Selecting the first three oscillator levels gives
 
 ```{code-cell} ipython3
-embedding = Embedding({}, reference=[{matrix_index: 0, a: 0}, {matrix_index: 0, a: 1}, {matrix_index: 0, a: 2}])
+embedding = Embedding({}, reference=[{a: 0}, {a: 1}, {a: 2}])
 assert embedding.restrict(N(a)) == sympy.diag(0, 1, 2)
 H_eff, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
 second_order_matrix = H_eff[0, 0, 2]
@@ -272,14 +272,14 @@ one retained subspace, including its internal transitions and degeneracies.
 ### Matrix Hamiltonians with operator entries
 
 The target Hamiltonian may itself be a square SymPy matrix whose entries contain
-second-quantized operators. Each reference dictionary includes its matrix-basis index as `matrix_index`:
+second-quantized operators. Each reference dictionary can specify its matrix-basis index with `Embedding.row`:
 
 ```{code-cell} ipython3
 b = BosonOp("b")
 H0_matrix = sympy.diag(5 * N(b), 2 + 5 * N(b))
 V_matrix = sympy.Matrix([[b + Dagger(b), 2 * b + 3 * Dagger(b)],
                         [3 * b + 2 * Dagger(b), 0]])
-embedding = Embedding({}, reference=[{matrix_index: 0, b: 0}, {matrix_index: 1, b: 0}])
+embedding = Embedding({}, reference=[{b: 0}, {Embedding.row: 1, b: 0}])
 H_eff, *_ = block_diagonalize(
     [H0_matrix, V_matrix], subspace_eigenvectors=embedding
 )
@@ -289,8 +289,8 @@ assert H_eff[0, 0, 2] == sympy.Matrix([[-sympy.Rational(27, 35), -sympy.Rational
 
 Both matrix components are retained at boson occupation zero. Virtual processes
 can change the component and excite the boson; their denominators use both.
-The required matrix index is zero-based. A dictionary containing only
-`matrix_index` selects a component of an ordinary finite matrix.
+The optional matrix index is zero-based and defaults to zero. A dictionary containing only
+`Embedding.row` selects a component of an ordinary finite matrix.
 All perturbative coefficients must have the same square target shape.
 
 The [cavity application](applications/cavity_spin.md) uses this construction with
@@ -304,7 +304,7 @@ index labeling disjoint copies of the source algebra. For example, retain the
 two lowest oscillator levels in both ancilla branches:
 
 ```{code-cell} ipython3
-embedding = Embedding({s: b}, reference=[{matrix_index: 0, b: 0}, {matrix_index: 1, b: 0}])
+embedding = Embedding({s: b}, reference=[{b: 0}, {Embedding.row: 1, b: 0}])
 H_eff, *_ = block_diagonalize(
     [H0_matrix, V_matrix], subspace_eigenvectors=embedding
 )
@@ -325,7 +325,7 @@ A spectator offset gives a simple example:
 ```{code-cell} ipython3
 spectator = BosonOp("spectator")
 embedding = Embedding(
-    {s: b}, reference=[{matrix_index: 0, b: 0, spectator: 0}, {matrix_index: 0, b: 0, spectator: 1}]
+    {s: b}, reference=[{b: 0, spectator: 0}, {b: 0, spectator: 1}]
 )
 assert embedding.restrict(N(spectator)) == sympy.diag(
     0, NumberOrderedForm.from_expr(1, operators=(s,))

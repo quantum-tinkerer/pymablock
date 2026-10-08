@@ -14,7 +14,7 @@ from sympy.physics.quantum.pauli import SigmaMinus
 from pymablock import block_diagonalize, operator_to_BlockSeries
 from pymablock.number_ordered_form import LadderOp, NumberOrderedForm
 from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.operator_embedding import Embedding, matrix_index
+from pymablock.operator_embedding import Embedding
 from pymablock.second_quantization import solve_scalar
 from pymablock.series import cauchy_dot_product, zero
 from pymablock.tests.second_quantization_helpers import nof_matrix
@@ -25,7 +25,7 @@ def test_vanishing_offdiagonal_order(selection):
     """A two-level avoided crossing has no third-order energy shift."""
     a, b, f = map(FermionOp, ("a", "b", "f"))
     if selection == "references":
-        embedding = Embedding({}, reference=[{matrix_index: 0, a: 1, b: 0}])
+        embedding = Embedding({}, reference=[{a: 1, b: 0}])
     else:
         image, filled = (a, 0) if selection == "particle" else (a.adjoint(), 1)
         embedding = Embedding({f: image}, reference={a: filled, b: 0})
@@ -85,7 +85,7 @@ def test_diagonalize_retained_oscillator_levels(finite, selective):
     """Both retained levels obey the independent oscillator characteristic equation."""
     a, q = BosonOp("a"), SigmaMinus("q")
     embedding = (
-        Embedding({}, reference=[{matrix_index: 0, a: 0}, {matrix_index: 0, a: 1}])
+        Embedding({}, reference=[{a: 0}, {a: 1}])
         if finite
         else Embedding({q: a}, reference={a: 0})
     )
@@ -127,9 +127,7 @@ def test_diagonalize_finite_matrix_embedding():
     """A retained matrix block includes internal and virtual energy corrections."""
     h, *_ = block_diagonalize(
         [s.diag(0, 2, 5), s.Matrix([[0, 1, 1], [1, 0, 2], [1, 2, 0]])],
-        subspace_eigenvectors=Embedding(
-            {}, reference=[{matrix_index: 0}, {matrix_index: 1}]
-        ),
+        subspace_eigenvectors=Embedding({}, reference=[{}, {Embedding.row: 1}]),
         fully_diagonalize=(0,),
     )
     assert h[0, 0, 1].is_zero_matrix
@@ -181,7 +179,7 @@ def test_dressed_observable_conversion(finite):
     """Dressing N in a driven oscillator adds the vacuum population g²/omega²."""
     a, q = BosonOp("a"), SigmaMinus("q")
     embedding = (
-        Embedding({}, reference=[{matrix_index: 0, a: 0}])
+        Embedding({}, reference=[{a: 0}])
         if finite
         else Embedding({q: a}, reference={a: 0})
     )
@@ -267,9 +265,7 @@ def test_embeddings_are_collectable(reference_list):
     a, q = BosonOp("a"), SigmaMinus("q")
     bases = []
     for _ in range(5):
-        embedding = Embedding(
-            {q: a}, reference=[{matrix_index: 0, a: 0}] if reference_list else {a: 0}
-        )
+        embedding = Embedding({q: a}, reference=[{a: 0}] if reference_list else {a: 0})
         embedding.restrict(a)
         w = embedding._frame_columns(1)[0, 0]
         w * NumberOrderedForm.from_expr(q)
@@ -285,9 +281,7 @@ def test_embeddings_are_collectable(reference_list):
 def test_float_fourth_order_matches_exact_values(preconverted):
     """Floating inputs agree numerically with their exact values through fourth order."""
     a, b = BosonOp("a"), BosonOp("b")
-    embedding = Embedding(
-        {}, reference=[{matrix_index: 0, a: 0, b: 0}, {matrix_index: 0, a: 1, b: 0}]
-    )
+    embedding = Embedding({}, reference=[{a: 0, b: 0}, {a: 1, b: 0}])
     h0 = s.Float(1.1) * N(a) + s.Float(2.3) * N(b)
     v = s.Float(0.2) * (a + a.adjoint()) + s.Float(0.3) * (
         a.adjoint() * b + b.adjoint() * a

@@ -6,7 +6,7 @@ import pytest
 import sympy as s
 
 from pymablock import block_diagonalize
-from pymablock.operator_embedding import Embedding, matrix_index
+from pymablock.operator_embedding import Embedding
 from pymablock.series import BlockSeries, one, zero
 from pymablock.tests.second_quantization_helpers import nof_matrix
 
@@ -64,7 +64,7 @@ def test_sylvester_recognizes_algebraically_zero_gap():
     gap = (x**2 - 1) / (x - 1) - x - 1
     h, *_ = block_diagonalize(
         [s.diag(0, gap), s.Matrix([[0, 1], [1, 0]])],
-        subspace_eigenvectors=Embedding({}, reference=[{matrix_index: 0}]),
+        subspace_eigenvectors=Embedding({}, reference=[{}]),
     )
     with pytest.raises(ZeroDivisionError):
         _ = h[0, 0, 2]
@@ -154,7 +154,7 @@ def test_complete_rotation(dimensions):
         )
         data[(1, 1)] = s.diag(1, -1, 2, 0)
     h = BlockSeries(data=data, n_infinite=dimensions)
-    embedding = Embedding({}, reference=[{matrix_index: 0}, {matrix_index: 1}])
+    embedding = Embedding({}, reference=[{}, {Embedding.row: 1}])
     outputs = block_diagonalize(h, subspace_eigenvectors=embedding)
     reference = block_diagonalize(h, subspace_indices=[0, 0, 1, 1])
     q = s.eye(4)[:, 2:]
@@ -179,7 +179,7 @@ def test_complete_rotation(dimensions):
         (n for n in product(range(5), repeat=dimensions) if sum(n) <= 4),
         key=lambda n: (sum(n), n),
     )
-    full = [{matrix_index: 0}, {matrix_index: 0}, {matrix_index: 0}]
+    full = [{}, {}, {}]
     for n in orders:
         for k in range(3):
             blocks = [
