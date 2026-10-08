@@ -248,7 +248,7 @@ embedding = Embedding(
 
 ## Finite matrices from a reference list
 
-Omit the generator mapping and list the retained target states in the desired
+Pass an empty generator mapping and list the retained target states in the desired
 matrix order. Selecting the first three oscillator levels gives
 
 ```{code-cell} ipython3
@@ -317,7 +317,7 @@ fourth_order = H_eff[0, 0, 4]
 
 Each coefficient is a two-by-two matrix of source `NumberOrderedForm` entries.
 A mapping reference still returns one NOF; a list of one reference returns a
-one-by-one matrix. Omitting generators gives the finite matrices above.
+one-by-one matrix. An empty generator mapping gives the finite matrices above.
 
 References in one target row must generate disjoint occupation lattices.
 A spectator offset gives a simple example:
