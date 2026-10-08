@@ -252,7 +252,7 @@ Omit the generator mapping and list the retained target states in the desired
 matrix order. Selecting the first three oscillator levels gives
 
 ```{code-cell} ipython3
-embedding = Embedding({}, reference=[{a: 0}, {a: 1}, {a: 2}])
+embedding = Embedding({}, reference=[{matrix_index: 0, a: 0}, {matrix_index: 0, a: 1}, {matrix_index: 0, a: 2}])
 assert embedding.restrict(N(a)) == sympy.diag(0, 1, 2)
 H_eff, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
 second_order_matrix = H_eff[0, 0, 2]
@@ -289,8 +289,8 @@ assert H_eff[0, 0, 2] == sympy.Matrix([[-sympy.Rational(27, 35), -sympy.Rational
 
 Both matrix components are retained at boson occupation zero. Virtual processes
 can change the component and excite the boson; their denominators use both.
-The matrix index is zero-based. A dictionary without an index means component
-zero, and an empty dictionary selects a component of an ordinary finite matrix.
+The required matrix index is zero-based. A dictionary containing only
+`matrix_index` selects a component of an ordinary finite matrix.
 All perturbative coefficients must have the same square target shape.
 
 The [cavity application](applications/cavity_spin.md) uses this construction with
@@ -325,7 +325,7 @@ A spectator offset gives a simple example:
 ```{code-cell} ipython3
 spectator = BosonOp("spectator")
 embedding = Embedding(
-    {s: b}, reference=[{b: 0, spectator: 0}, {b: 0, spectator: 1}]
+    {s: b}, reference=[{matrix_index: 0, b: 0, spectator: 0}, {matrix_index: 0, b: 0, spectator: 1}]
 )
 assert embedding.restrict(N(spectator)) == sympy.diag(
     0, NumberOrderedForm.from_expr(1, operators=(s,))

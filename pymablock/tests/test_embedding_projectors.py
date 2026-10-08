@@ -179,7 +179,7 @@ def test_complete_rotation(dimensions):
         (n for n in product(range(5), repeat=dimensions) if sum(n) <= 4),
         key=lambda n: (sum(n), n),
     )
-    full = [{}, {}, {}]
+    full = [{matrix_index: 0}, {matrix_index: 0}, {matrix_index: 0}]
     for n in orders:
         for k in range(3):
             blocks = [
