@@ -350,6 +350,11 @@ def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     )
 
 
+def _is_singular(expression: sympy.Expr) -> bool:
+    """Return whether an evaluated expression contains an infinity or NaN."""
+    return expression.has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
+
+
 class NumberOrderedForm(Operator):
     """Number ordered form of quantum operators.
 
@@ -983,9 +988,20 @@ class NumberOrderedForm(Operator):
                     to_pair = min(op_power, max(-orig_power, 0))
                     coeff = coeff.xreplace({n_operator: n_operator - to_pair})
                     if op_index < self._n_bosons:  # Bosons
+                        # Test before multiplication can cancel a pole against a
+                        # vanishing ladder factor. Those boundary states do not act.
+                        inactive_poles = [
+                            sympy.Eq(n_operator, i)
+                            for i in range(to_pair)
+                            if _is_singular(coeff.xreplace({n_operator: sympy.S(i)}))
+                        ]
                         coeff = sympy.Mul(
                             coeff, *(n_operator - i for i in range(to_pair))
                         )
+                        if inactive_poles:
+                            coeff = sympy.Piecewise(
+                                (Zero, sympy.Or(*inactive_poles)), (coeff, True)
+                            )
                 else:
                     to_pair = min(-op_power, max(orig_power, 0))
                     # Move unmatched creation operators to the left of the coefficient.

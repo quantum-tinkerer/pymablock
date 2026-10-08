@@ -1819,3 +1819,47 @@ def test_binary_product_restricts_coefficients_before_cancellation(operator):
     assert (raising * lowering).simplify() == NumberOrderedForm.from_expr(number)
     assert (lowering * lowering).is_zero
     assert (raising * raising).is_zero
+
+
+@pytest.mark.parametrize("power", [1, 2])
+@pytest.mark.parametrize("guarded", [False, True])
+def test_bosonic_downward_shift_preserves_inactive_sectors(power, guarded):
+    a = boson.BosonOp("a")
+    number = _number_operator_to_placeholder(NumberOperator(a))
+    denominator = sympy.prod(number + i for i in range(1, power + 1))
+    coefficient = 1 / denominator
+    if guarded:
+        coefficient = sympy.Piecewise(
+            (0, sympy.Eq(sympy.sqrt(denominator), 0)), (coefficient, True)
+        )
+    # a†^k f(N) a^k: the right ladder kills states below k; above it,
+    # the two ladder amplitudes exactly cancel this denominator.
+    raising = NumberOrderedForm([a], {(-power,): coefficient})
+    result = raising * NumberOrderedForm.from_expr(a**power)
+    for occupation in range(power + 4):
+        expected = sympy.S.One if occupation >= power else sympy.S.Zero
+        assert result.terms[(0,)].subs(number, occupation) == expected
+        assert result.simplify().terms[(0,)].subs(number, occupation) == expected
+    assert NumberOrderedForm.from_expr(result.as_expr()) == result
+
+
+def test_bosonic_downward_shift_boundary_pole_from_expression():
+    a = boson.BosonOp("a")
+    form = NumberOrderedForm.from_expr(a.adjoint() * (1 / (NumberOperator(a) + 1)) * a)
+    number = form._number_operator_placeholders[0]
+    assert form.terms == {(0,): sympy.Piecewise((0, sympy.Eq(number, 0)), (1, True))}
+
+
+def test_regular_downward_shift_keeps_plain_product():
+    a = boson.BosonOp("a")
+    form = NumberOrderedForm.from_expr(a.adjoint() * (NumberOperator(a) + 1) * a)
+    number = form._number_operator_placeholders[0]
+    assert form.terms == {(0,): number**2}
+
+
+def test_bilateral_downward_shift_has_no_boundary_guard():
+    a = LadderOp("a")
+    form = NumberOrderedForm.from_expr(a.adjoint() * (1 / (NumberOperator(a) + 1)) * a)
+    number = form._number_operator_placeholders[0]
+    assert form.terms == {(0,): 1 / number}
+    assert form.terms[(0,)].subs(number, -2) == -sympy.Rational(1, 2)
