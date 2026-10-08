@@ -19,7 +19,7 @@ from pymablock.number_ordered_form import (
     _number_operator_to_placeholder,
 )
 from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.second_quantization import Embedding
+from pymablock.second_quantization import Embedding, matrix_index
 from pymablock.tests.second_quantization_helpers import (
     nof_matrix,
     occupation_matrices,
@@ -581,7 +581,9 @@ def test_matrix_with_operator_entries_against_full_matrix(reverse, occupations):
         ]
     )
     components = (1, 0) if reverse else (0, 1)
-    embedding = Embedding(reference=[(i, {b: occupations[i]}) for i in components])
+    embedding = Embedding(
+        reference=[{matrix_index: i, b: occupations[i]} for i in components]
+    )
     effective, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
     # A returning four-step path rises by at most two levels. Both cutoffs close it.
     for cutoff in (5, 6):
@@ -624,7 +626,7 @@ def test_reference_list_compresses_products_before_selecting_states():
 
 
 def test_pure_matrix_target_retains_degenerate_internal_transitions():
-    embedding = Embedding(reference=[(1, {}), (0, {})])
+    embedding = Embedding(reference=[{matrix_index: 1}, {matrix_index: 0}])
     h0 = sympy.diag(0, 0, 7)
     v = sympy.Matrix([[0, 2, 1], [2, 0, sympy.I], [1, -sympy.I, 0]])
     h, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
@@ -637,7 +639,7 @@ def test_pure_matrix_target_retains_degenerate_internal_transitions():
     [
         ([], "at least one"),
         ([{}, {}], "distinct"),
-        ([(1.5, {})], "indices"),
+        ([{matrix_index: 1.5}], "indices"),
         ([{BosonOp("b"): -1}], "occupations"),
         ([{FermionOp("f"): 2}], "occupations"),
         ([{}, {BosonOp("b"): 0}], "same target"),
@@ -649,7 +651,7 @@ def test_invalid_reference_lists(reference, message):
 
 
 def test_matrix_target_validation():
-    embedding = Embedding(reference=[(1, {})])
+    embedding = Embedding(reference=[{matrix_index: 1}])
     with pytest.raises(ValueError, match="matrix target"):
         embedding.restrict(1)
     with pytest.raises(ValueError, match="outside"):
@@ -678,7 +680,9 @@ def test_generator_lattices_in_matrix_rows_through_fourth_order():
             [1 + 2 * Dagger(a) + a, 2 * (a + Dagger(a))],
         ]
     )
-    embedding = Embedding({s: a}, reference=[(0, {a: 0}), (1, {a: 0})])
+    embedding = Embedding(
+        {s: a}, reference=[{matrix_index: 0, a: 0}, {matrix_index: 1, a: 0}]
+    )
     effective, *_ = block_diagonalize([h0, v], subspace_eigenvectors=embedding)
     source_matrices = occupation_matrices((s,), [(0, 1)])
     coefficients = [
@@ -776,16 +780,33 @@ def test_list_reconstruction_substitution_and_printing(source_type):
     a, z = map(BosonOp, ("a", "z"))
     f, target = source_type("f"), source_type("target")
     embedding = Embedding(
-        {f: target}, reference=[(0, {target: 0, a: 1}), (1, {target: 0, a: 2})]
+        {f: target},
+        reference=[
+            {matrix_index: 0, target: 0, a: 1},
+            {matrix_index: 1, target: 0, a: 2},
+        ],
     )
     assert embedding.func(*embedding.args) == embedding
     assert pickle.loads(pickle.dumps(embedding)) == embedding
     assert (
-        eval(str(embedding), {"Embedding": Embedding, "f": f, "target": target, "a": a})
+        eval(
+            str(embedding),
+            {
+                "Embedding": Embedding,
+                "matrix_index": matrix_index,
+                "f": f,
+                "target": target,
+                "a": a,
+            },
+        )
         == embedding
     )
     renamed = Embedding(
-        {f: target}, reference=[(0, {target: 0, z: 1}), (1, {target: 0, z: 2})]
+        {f: target},
+        reference=[
+            {matrix_index: 0, target: 0, z: 1},
+            {matrix_index: 1, target: 0, z: 2},
+        ],
     )
     w = embedding._frame_columns(2)
     expected = renamed._frame_columns(2)
@@ -820,7 +841,12 @@ def test_reference_lattices_compile_once_and_share_frame_attachment(monkeypatch)
 
     monkeypatch.setattr(Embedding, "_compile", record)
     embedding = Embedding(
-        {s: a}, reference=[(0, {a: 0, b: 0}), (1, {a: 0, b: 0}), (0, {a: 0, b: 1})]
+        {s: a},
+        reference=[
+            {matrix_index: 0, a: 0, b: 0},
+            {matrix_index: 1, a: 0, b: 0},
+            {matrix_index: 0, a: 0, b: 1},
+        ],
     )
     assert len(compiled) == 2
     assert embedding._lattices[0][1] is embedding._lattices[1][1]
@@ -865,13 +891,21 @@ def test_matrix_index_in_reference_dictionary(generators):
     a, f = BosonOp("a"), BosonOp("f")
     mapping = {f: a} if generators else {}
     embedding = Embedding(mapping, reference=[{matrix_index: 1, a: 0}, {a: 0}])
-    expected = Embedding(mapping, reference=[(1, {a: 0}), (0, {a: 0})])
+    expected = Embedding(
+        mapping, reference=[{matrix_index: 1, a: 0}, {matrix_index: 0, a: 0}]
+    )
     assert embedding == expected
     assert embedding.func(*embedding.args) == embedding
     assert embedding.restrict(sympy.diag(N(a), 3 + N(a))) == expected.restrict(
         sympy.diag(N(a), 3 + N(a))
     )
-    assert eval(str(embedding), {"Embedding": Embedding, "a": a, "f": f}) == embedding
+    assert (
+        eval(
+            str(embedding),
+            {"Embedding": Embedding, "matrix_index": matrix_index, "a": a, "f": f},
+        )
+        == embedding
+    )
     with pytest.raises(ValueError, match="indices"):
         Embedding(reference=[{matrix_index: -1}])
     with pytest.raises(ValueError, match="indices"):

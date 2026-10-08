@@ -42,7 +42,7 @@ projector.
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.pauli import SigmaMinus
-from pymablock.second_quantization import Embedding
+from pymablock.second_quantization import Embedding, matrix_index
 
 up, down = FermionOp("up"), FermionOp("down")
 s = SigmaMinus("s")
@@ -272,15 +272,14 @@ one retained subspace, including its internal transitions and degeneracies.
 ### Matrix Hamiltonians with operator entries
 
 The target Hamiltonian may itself be a square SymPy matrix whose entries contain
-second-quantized operators. Each reference then pairs a matrix-basis index with
-an occupation dictionary:
+second-quantized operators. Each reference dictionary includes its matrix-basis index as `matrix_index`:
 
 ```{code-cell} ipython3
 b = BosonOp("b")
 H0_matrix = sympy.diag(5 * N(b), 2 + 5 * N(b))
 V_matrix = sympy.Matrix([[b + Dagger(b), 2 * b + 3 * Dagger(b)],
                         [3 * b + 2 * Dagger(b), 0]])
-embedding = Embedding(reference=[(0, {b: 0}), (1, {b: 0})])
+embedding = Embedding(reference=[{matrix_index: 0, b: 0}, {matrix_index: 1, b: 0}])
 H_eff, *_ = block_diagonalize(
     [H0_matrix, V_matrix], subspace_eigenvectors=embedding
 )
@@ -294,19 +293,6 @@ The matrix index is zero-based. A dictionary without an index means component
 zero, and an empty dictionary selects a component of an ordinary finite matrix.
 All perturbative coefficients must have the same square target shape.
 
-The provisional `matrix_index` symbol can instead put the target component
-inside each reference dictionary. The constructor normalizes this spelling to
-the same tuple representation:
-
-```{code-cell} ipython3
-from pymablock.second_quantization import matrix_index
-
-assert Embedding(reference=[{matrix_index: 0, b: 0}, {matrix_index: 1, b: 0}]) == (
-    Embedding(reference=[(0, {b: 0}), (1, {b: 0})])
-)
-```
-
-
 The [cavity application](applications/cavity_spin.md) uses this construction with
 a two-by-two dressed-ancilla matrix and cavity/Floquet operator entries. Its
 three- or four-state reference list returns the artificial-spin matrix directly.
@@ -318,7 +304,7 @@ index labeling disjoint copies of the source algebra. For example, retain the
 two lowest oscillator levels in both ancilla branches:
 
 ```{code-cell} ipython3
-embedding = Embedding({s: b}, reference=[(0, {b: 0}), (1, {b: 0})])
+embedding = Embedding({s: b}, reference=[{matrix_index: 0, b: 0}, {matrix_index: 1, b: 0}])
 H_eff, *_ = block_diagonalize(
     [H0_matrix, V_matrix], subspace_eigenvectors=embedding
 )
