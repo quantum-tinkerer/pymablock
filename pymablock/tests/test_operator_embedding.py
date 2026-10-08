@@ -717,7 +717,7 @@ def test_lattices_separated_by_spectator_offset():
     assert embedding.restrict(N(a)) == sympy.diag(
         *(embedding._first_lattice.restrict(N(a)),) * 2
     )
-    w, q = embedding._frames(1)
+    w = embedding._frame_columns(1)
     assert (
         (w.adjoint() * w - sympy.eye(2))
         .applyfunc(lambda x: x.simplify() if isinstance(x, NumberOrderedForm) else x)
@@ -787,8 +787,8 @@ def test_list_reconstruction_substitution_and_printing(source_type):
     renamed = Embedding(
         {f: target}, reference=[(0, {target: 0, z: 1}), (1, {target: 0, z: 2})]
     )
-    w, _ = embedding._frames(2)
-    expected, _ = renamed._frames(2)
+    w = embedding._frame_columns(2)
+    expected = renamed._frame_columns(2)
     for method in ("subs", "xreplace"):
         assert getattr(embedding, method)({a: z}) == renamed
     assert w.xreplace({a: z}) == expected
@@ -797,7 +797,7 @@ def test_list_reconstruction_substitution_and_printing(source_type):
         {f: sympy.exp(sympy.I * phase) * target}, reference=embedding.args[1]
     )
     for method in ("subs", "xreplace"):
-        assert getattr(next(phased._frames(2)), method)({phase: 0}) == w
+        assert getattr(phased._frame_columns(2), method)({phase: 0}) == w
 
 
 def test_bilateral_reference_transfers_have_no_vacuum():
@@ -827,7 +827,7 @@ def test_reference_lattices_compile_once_and_share_frame_attachment(monkeypatch)
     assert embedding._first_lattice is embedding._lattices[0][1]
     assert "_occupation_matrix" not in embedding.__dict__
     assert "_coordinate_symbols" not in embedding.__dict__
-    w, _ = embedding._frames(2)
+    w = embedding._frame_columns(2)
     assert all(entry.embedding is embedding._first_lattice for entry in w if entry != 0)
     coordinates = embedding._first_lattice._coordinate_symbols
     assert embedding._energy_states == (

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Hashable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Hashable, Mapping, Sequence
 from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Self
 
@@ -57,6 +57,8 @@ class Embedding(sympy.Expr):
     Hamiltonian passed to `~pymablock.block_diagonalize`. The embedding maps
     source states to target states. A generator mapping defines the source algebra;
     a reference list adds a matrix index labeling disjoint copies of that algebra.
+    A mapping-reference embedding is one lattice; a list embedding is a tuple of
+    such lattices.
 
     Pass the embedding as ``subspace_eigenvectors`` to
     `~pymablock.block_diagonalize` or `~pymablock.operator_to_BlockSeries`.
@@ -127,16 +129,18 @@ class Embedding(sympy.Expr):
         if generators is not None and not isinstance(generators, (Mapping, sympy.Dict)):
             raise TypeError("Generators must be a mapping")
         generators = sympy.Dict({} if generators is None else generators)
-        lattices = cls._build_lattices(generators, references)
-        self = (
-            lattices[0][1]
-            if isinstance(reference, (Mapping, sympy.Dict))
-            else sympy.Expr.__new__(cls, generators, references)
-        )
-        self._lattices = lattices
+        if isinstance(reference, (Mapping, sympy.Dict)):
+            reference = references[0][1]
+            self = sympy.Expr.__new__(cls, generators, reference)
+            self._lattices = ((0, self),)
+            self._compile(dict(generators), dict(reference))
+            self._transfers = (self._convert_operator(sympy.S.One),)
+            return self
+        self = sympy.Expr.__new__(cls, generators, references)
+        self._lattices = cls._build_lattices(generators, references)
         self._validate_disjointness()
         self._transfers = tuple(
-            self._first_lattice._transfer(lattice) for _, lattice in lattices
+            self._first_lattice._transfer(lattice) for _, lattice in self._lattices
         )
         return self
 
@@ -148,17 +152,14 @@ class Embedding(sympy.Expr):
             if lattices and set(reference) != set(lattices[0][1].args[1]):
                 raise ValueError("Every reference must declare the same target modes")
             if reference not in compiled:
-                lattice = sympy.Expr.__new__(cls, generators, reference)
-                lattice._lattices = ((0, lattice),)
                 try:
-                    lattice._compile(dict(generators), dict(reference))
+                    lattice = cls(generators, reference=reference)
                 except (ValueError, NotImplementedError) as error:
                     if not lattices:
                         raise
                     raise type(error)(
                         f"Reference translation is invalid: {error}"
                     ) from error
-                lattice._transfers = (lattice._convert_operator(sympy.S.One),)
                 compiled[reference] = lattice
             lattices.append((int(row), compiled[reference]))
         return tuple(lattices)
@@ -253,7 +254,7 @@ class Embedding(sympy.Expr):
         the list, with source NOFs as entries when generators are supplied.
         """
         target = self._target_matrix(expression)
-        w = next(self._frames(target.rows))
+        w = self._frame_columns(target.rows)
         return self._block_result(w.adjoint() * target * w)
 
     def _target_matrix(
@@ -278,11 +279,6 @@ class Embedding(sympy.Expr):
         return NumberOrderedForm(
             self._target_operators, {(0,) * len(self._target_operators): indicator}
         )._linearize_binary_operators()
-
-    def _frames(self, rows: int) -> Iterator[sympy.MatrixBase]:
-        """Yield W, then Q; restriction needs only W."""
-        yield self._frame_columns(rows)
-        yield self._complement_frame(rows)
 
     @_cache_on_instance
     def _complement_frame(self, rows: int) -> sympy.MatrixBase:
@@ -313,7 +309,10 @@ class Embedding(sympy.Expr):
             target = self._target_matrix(target)
             if target_shape is None:
                 target_shape = target.shape
-                frames = tuple(self._frames(target.rows))
+                frames = (
+                    self._frame_columns(target.rows),
+                    self._complement_frame(target.rows),
+                )
             elif target.shape != target_shape:
                 raise ValueError(
                     "All operator coefficients must have the same target matrix shape"
@@ -338,7 +337,7 @@ class Embedding(sympy.Expr):
         """
         h0 = self._target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
         solve_sylvester = self._sylvester_solver(h0)
-        tuple(self._frames(h0.rows))
+        self._complement_frame(h0.rows)
         return self._convert(hamiltonian, diagonal_origin=True), solve_sylvester
 
     def _sylvester_solver(
