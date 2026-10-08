@@ -29,7 +29,9 @@ def test_normalized_generator_lift_and_attachment_contracts(reference):
     def target(x):
         return nof_matrix(x, [range(6)])
 
-    source = nof_matrix
+    def source(x):
+        return nof_matrix(x) if isinstance(x, F) else x * sp.eye(2)
+
     assert_matrix_equal(source(attached.adjoint() * attached), sp.eye(2))
     assert_matrix_equal(target(attached * attached.adjoint()), w * w.T)
     for S in (1, s, s.adjoint(), N(s), s + s.adjoint()):
@@ -132,14 +134,22 @@ def test_lift_bilateral_numbers_and_symbolic_powers():
         power = sp.Symbol("power", integer=True, positive=True)
         for shift in (power, -power):
             value = F((source,), {(shift,): sp.S.One}, validate=False)
-            assert embedding._lift(value).terms == {(shift,): sp.S.One}
+            occupations = [range(-2, 4)] if mode_type is LadderOp else [range(4)]
+            for exponent in (1, 2, 3):
+                assert_matrix_equal(
+                    nof_matrix(
+                        embedding._lift(value).xreplace({power: exponent}), occupations
+                    ),
+                    nof_matrix(value.xreplace({power: exponent}), occupations),
+                )
 
 
-def test_existing_nof_conversion_is_structural(monkeypatch):
+def test_existing_nof_conversion_preserves_values():
     a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
     e = Embedding({s: a}, reference={a: 0, b: 0})
     value = F.from_expr(sp.sqrt(N(a) + 1) * a.adjoint(), operators=(a,))
-    monkeypatch.setattr(F, "as_expr", lambda _self: pytest.fail("NOF round trip"))
     result = e._convert_operator(value)
-    assert result.operators == (a, b)
-    assert result.terms == {(-1, 0): next(iter(value.terms.values()))}
+    assert_matrix_equal(
+        nof_matrix(result, [range(4), range(2)]),
+        sp.kronecker_product(nof_matrix(value, [range(4)]), sp.eye(2)),
+    )

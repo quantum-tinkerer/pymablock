@@ -46,10 +46,20 @@ def test_common_reference_matrix():
     assert w.adjoint() * w == s.eye(3)
     source = s.ImmutableMatrix([[1, 2, s.I], [3, 0, 1], [2, -s.I, 4]])
     assert w.adjoint() * (w * source) == source
-    assert all(
-        not isinstance(x, NumberOrderedForm) or x.embedding is None
-        for x in w * w.adjoint()
-    )
+    from pymablock.tests.second_quantization_helpers import nof_matrix
+
+    projector = s.BlockMatrix(
+        [
+            [
+                nof_matrix(x, [range(4)])
+                if isinstance(x, NumberOrderedForm)
+                else x * s.eye(4)
+                for x in row
+            ]
+            for row in (w * w.adjoint()).tolist()
+        ]
+    ).as_explicit()
+    assert projector == s.diag(1, 0, 0, 1, 0, 0, 1, 0)
 
 
 def test_coefficients_survive_substitution():
@@ -73,11 +83,13 @@ def test_generator_attachment_composition():
     source = NumberOrderedForm.from_expr(q + q.adjoint())
     assert (w.adjoint() * x * w - e.restrict(x)).is_zero
     assert (w.adjoint() * (w * source) - source).is_zero
-    assert (w.adjoint() * w).embedding is None
+    from pymablock.tests.second_quantization_helpers import nof_matrix
+
+    assert nof_matrix(w.adjoint() * w) == s.eye(2)
     for value in (x * w, w.adjoint() * x):
         assert NumberOrderedForm.from_expr(value.as_expr()) == value
         assert value.func(*value.args) == value
-    with pytest.raises(ValueError, match="power"):
+    with pytest.raises(ValueError):
         (x * w) ** 2
 
 

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 __all__ = ["Embedding", "matrix_index"]
 
-# Provisional reference-dictionary key for the target matrix component.
+# Reference-dictionary key for the target matrix component.
 matrix_index = sympy.Symbol("matrix_index")
 
 
@@ -86,8 +86,8 @@ class Embedding(sympy.Expr):
         A list declares one such reference per source matrix index. Each reference
         generates a copy of the source algebra; these lattices must be disjoint.
         With no generators, each copy is a single state. All references must use
-        the same target operators. If the Hamiltonian is a matrix, give
-        the ``matrix_index`` dictionary key. For a matrix Hamiltonian without
+        the same target operators. Every list entry includes the ``matrix_index``
+        dictionary key; use zero for a scalar target. For a matrix Hamiltonian without
         operators, use ``[{matrix_index: 0}, {matrix_index: 2}]``.
 
     Examples
@@ -144,22 +144,13 @@ class Embedding(sympy.Expr):
 
     @classmethod
     def _build_lattices(cls, generators: sympy.Dict, references: sympy.Tuple) -> tuple:
-        """Compile each distinct reference once, preserving its target row."""
-        lattices, compiled = [], {}
+        """Build one scalar lattice per reference, preserving its target row."""
+        lattices = []
         for row, reference in references:
-            if lattices and set(reference) != set(lattices[0][1].args[1]):
+            if lattices and set(reference) != set(lattices[0][1]._target_operators):
                 raise ValueError("Every reference must declare the same target modes")
-            if reference not in compiled:
-                try:
-                    lattice = cls(generators, reference=reference)
-                except (ValueError, NotImplementedError) as error:
-                    if not lattices:
-                        raise
-                    raise type(error)(
-                        f"Reference translation is invalid: {error}"
-                    ) from error
-                compiled[reference] = lattice
-            lattices.append((int(row), compiled[reference]))
+            lattice = cls(generators, reference=reference)
+            lattices.append((int(row), lattice))
         return tuple(lattices)
 
     def _printed_arguments(self, printer) -> list[str]:
@@ -463,11 +454,6 @@ class Embedding(sympy.Expr):
 
     def _compile(self, generators: Mapping, reference: Mapping) -> None:
         """Compile and validate the affine occupation map."""
-        if any(
-            source in reference and source != image
-            for source, image in generators.items()
-        ):
-            raise ValueError("Source modes must not shadow distinct target modes")
         self._target_operators, self._reference_state = _ordered_reference_state(
             reference
         )
@@ -583,9 +569,7 @@ class Embedding(sympy.Expr):
                     d.is_Integer and (size is None or abs(d) < size)
                     for d, size in zip(displacement, first._source_dimensions)
                 ):
-                    raise ValueError(
-                        "Reference lattices overlap; states must be distinct"
-                    )
+                    raise ValueError("Reference lattices overlap")
 
     def _transfer(self, lattice: Embedding) -> NumberOrderedForm:
         """Translate this scalar lattice onto another, including norms and phases."""

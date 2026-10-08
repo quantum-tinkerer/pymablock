@@ -14,9 +14,8 @@ column $j$ maps $q$ to target row $i_j$ and occupations $r_j+Mq$.
 
 A mapping-reference embedding is a lattice; a list embedding is a tuple of
 such lattices. The mapping constructor compiles its lattice directly. Lists
-construct each distinct occupation reference through that same constructor
-once, sharing the lattice when matrix rows have identical occupations. A list constructor stores
-only the ordered `(row, lattice)` collection and its transfer operators; it
+construct one lattice per indexed reference through that same constructor.
+A list constructor stores only the ordered `(row, lattice)` collection and its transfer operators; it
 has no duplicate compiled occupation map. The solver reads the first lattice
 explicitly, rather than through forwarding properties.
 
