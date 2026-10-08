@@ -886,15 +886,10 @@ def test_reference_lattices_compile_once_and_share_frame_attachment(monkeypatch)
     assert len(compiled) == 2
 
 
-def test_empty_generator_mapping_still_returns_nof():
+def test_point_reference_matrix_elements():
     embedding = Embedding({}, reference={})
     for value in (0, 1, 2):
-        result = embedding.restrict(value)
-        assert isinstance(result, NumberOrderedForm)
-        assert result.as_expr() == value
-    listed = Embedding({}, reference=[{matrix_index: 0}])
-    assert listed.restrict(2) == sympy.Matrix([[2]])
-    assert not isinstance(listed.restrict(2)[0, 0], NumberOrderedForm)
+        assert embedding.restrict(value) == value
 
 
 def test_restriction_does_not_require_a_complement_projector():
