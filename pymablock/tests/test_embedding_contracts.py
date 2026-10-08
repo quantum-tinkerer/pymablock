@@ -11,7 +11,7 @@ from sympy.physics.quantum.pauli import SigmaMinus
 from pymablock.number_ordered_form import LadderOp
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.number_ordered_form import NumberOrderedForm as F
-from pymablock.operator_embedding import Embedding
+from pymablock.operator_embedding import Embedding, matrix_index
 from pymablock.tests.second_quantization_helpers import nof_matrix
 
 
@@ -53,7 +53,9 @@ def test_normalized_generator_lift_and_attachment_contracts(reference):
 
 def test_spectator_transfer_and_matrix_source_contracts():
     a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
-    e = Embedding({s: a}, reference=[{a: 0, b: 0}, {a: 0, b: 1}])
+    e = Embedding(
+        {s: a}, reference=[{matrix_index: 0, a: 0, b: 0}, {matrix_index: 0, a: 0, b: 1}]
+    )
     states = list(product(range(4), range(3)))
     basis = sp.eye(len(states))
     columns = [basis[:, [states.index((q, r)) for q in (0, 1)]] for r in (0, 1)]

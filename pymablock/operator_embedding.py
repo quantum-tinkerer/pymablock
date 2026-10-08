@@ -106,7 +106,7 @@ class Embedding(sympy.Expr):
 
     Select the three lowest levels as a finite matrix basis:
 
-    >>> embedding = Embedding({}, reference=[{a: 0}, {a: 1}, {a: 2}])
+    >>> embedding = Embedding({}, reference=[{matrix_index: 0, a: n} for n in range(3)])
     >>> embedding.restrict(NumberOperator(a)) == sympy.diag(0, 1, 2)
     True
 
@@ -947,13 +947,13 @@ def _parse_references(reference: Mapping | Sequence | None) -> sympy.Tuple:
     if reference is None:
         raise TypeError("Specify reference occupations for the embedding")
     if isinstance(reference, (Mapping, sympy.Dict)):
-        reference = (reference,)
+        reference = ({matrix_index: 0, **dict(reference)},)
     states = []
     for state in reference:
         if not isinstance(state, (Mapping, sympy.Dict)):
             raise TypeError("References must be occupation mappings")
         occupations = dict(state)
-        row = occupations.pop(matrix_index, 0)
+        row = occupations.pop(matrix_index)
         row = sympy.sympify(row)
         if not row.is_Integer or row < 0:
             raise ValueError("Matrix basis indices must be nonnegative integers")

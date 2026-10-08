@@ -104,7 +104,7 @@ def test_reference_list_returns_matrix() -> None:
         nonzero=True,
         real=True,
     )
-    embedding = Embedding({}, reference=[{target: n} for n in range(3)])
+    embedding = Embedding({}, reference=[{matrix_index: 0, target: n} for n in range(3)])
 
     effective, *_ = block_diagonalize(
         [
@@ -240,7 +240,7 @@ def test_finite_virtual_resonance_still_raises() -> None:
     """Dropping transitions within P must not hide a resonant state in Q."""
     a = BosonOp("a")
     n = NumberOperator(a)
-    embedding = Embedding({}, reference=[{a: n} for n in range(3)])
+    embedding = Embedding({}, reference=[{matrix_index: 0, a: n} for n in range(3)])
     # Retained n=2 and excluded n=3 both have energy -6.
     effective, *_ = block_diagonalize(
         [n * (n - 5), a + Dagger(a)], subspace_eigenvectors=embedding
@@ -261,7 +261,7 @@ def test_boson_annihilation_preserves_occupation_dependent_denominator(finite):
             reference={a: 1, b: 0},
         )
         if not finite
-        else Embedding({}, reference=[{a: n, b: 0} for n in (1, 2)])
+        else Embedding({}, reference=[{matrix_index: 0, a: n, b: 0} for n in (1, 2)])
     )
     effective, *_ = block_diagonalize(
         [NumberOperator(a) ** 2 + 10 * NumberOperator(b), Dagger(b) * a + Dagger(a) * b],
@@ -337,7 +337,7 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     w = np.column_stack(columns)
     np.testing.assert_allclose(w.T @ w, np.eye(8))
     references = [
-        dict(zip(modes, state, strict=True))
+        {matrix_index: 0, **dict(zip(modes, state, strict=True))}
         for state in target_states
         if state[modes.index(up)] + state[modes.index(down)] == 1
     ]
@@ -387,7 +387,10 @@ def test_mixed_source_second_order(finite):
         )
         if not finite
         else Embedding(
-            {}, reference=[{a: n, b: k, v: 0} for n in range(2) for k in range(3)]
+            {},
+            reference=[
+                {matrix_index: 0, a: n, b: k, v: 0} for n in range(2) for k in range(3)
+            ],
         )
     )
     h, *_ = block_diagonalize(
@@ -621,7 +624,9 @@ def test_matrix_with_operator_entries_against_full_matrix(reverse, occupations):
 
 def test_reference_list_compresses_products_before_selecting_states():
     b = BosonOp("b")
-    embedding = Embedding({}, reference=[{b: 2}, {b: 0}])
+    embedding = Embedding(
+        {}, reference=[{matrix_index: 0, b: 2}, {matrix_index: 0, b: 0}]
+    )
     assert embedding.restrict(b) == sympy.zeros(2)
     assert embedding.restrict(b * Dagger(b)) == sympy.diag(3, 1)
     assert embedding.restrict(b**2) == sympy.Matrix([[0, 0], [sympy.sqrt(2), 0]])
@@ -640,11 +645,11 @@ def test_pure_matrix_target_retains_degenerate_internal_transitions():
     "reference, message",
     [
         ([], "at least one"),
-        ([{}, {}], "distinct"),
+        ([{matrix_index: 0}, {matrix_index: 0}], "distinct"),
         ([{matrix_index: 1.5}], "indices"),
-        ([{BosonOp("b"): -1}], "occupations"),
-        ([{FermionOp("f"): 2}], "occupations"),
-        ([{}, {BosonOp("b"): 0}], "same target"),
+        ([{matrix_index: 0, BosonOp("b"): -1}], "occupations"),
+        ([{matrix_index: 0, FermionOp("f"): 2}], "occupations"),
+        ([{matrix_index: 0}, {matrix_index: 0, BosonOp("b"): 0}], "same target"),
     ],
 )
 def test_invalid_reference_lists(reference, message):
@@ -714,7 +719,9 @@ def test_generator_lattices_in_matrix_rows_through_fourth_order():
 
 def test_lattices_separated_by_spectator_offset():
     a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
-    embedding = Embedding({s: a}, reference=[{a: 0, b: 2}, {a: 0, b: 1}])
+    embedding = Embedding(
+        {s: a}, reference=[{matrix_index: 0, a: 0, b: 2}, {matrix_index: 0, a: 0, b: 1}]
+    )
     actual = embedding.restrict(b + Dagger(b))
     identity = NumberOrderedForm.from_expr(1, operators=(s,))
     assert actual == sympy.Matrix(
@@ -740,7 +747,9 @@ def test_transfers_along_moving_modes_are_rejected():
     with pytest.raises(
         NotImplementedError, match="translations along generator-moving modes"
     ):
-        Embedding({s: generator}, reference=[{a: 0}, {a: 1}])
+        Embedding(
+            {s: generator}, reference=[{matrix_index: 0, a: 0}, {matrix_index: 0, a: 1}]
+        )
 
 
 def test_transfer_fermion_sign_and_generator_phase():
@@ -748,7 +757,10 @@ def test_transfer_fermion_sign_and_generator_phase():
     spectator, target, source = map(FermionOp, ("a", "b", "f"))
     embedding = Embedding(
         {source: sympy.I * target},
-        reference=[{spectator: 0, target: 0}, {spectator: 1, target: 0}],
+        reference=[
+            {matrix_index: 0, spectator: 0, target: 0},
+            {matrix_index: 0, spectator: 1, target: 0},
+        ],
     )
     source_matrices = occupation_matrices((source,), [(0, 1)])
     matrices = occupation_matrices((spectator, target), [(0, 1)] * 2)
@@ -764,7 +776,10 @@ def test_transfer_fermion_sign_and_generator_phase():
 def test_reference_lattices_must_be_disjoint():
     a, s = BosonOp("a"), SigmaMinus("s")
     with pytest.raises(ValueError, match="Reference lattices overlap"):
-        Embedding({s: a / sympy.sqrt(N(a))}, reference=[{a: 0}, {a: 1}])
+        Embedding(
+            {s: a / sympy.sqrt(N(a))},
+            reference=[{matrix_index: 0, a: 0}, {matrix_index: 0, a: 1}],
+        )
 
 
 def test_invalid_transfer_checks_every_lattice():
@@ -772,7 +787,10 @@ def test_invalid_transfer_checks_every_lattice():
     with pytest.raises(
         ValueError, match="Reference translation.*normalized source states"
     ):
-        Embedding({s: (1 + N(b)) * a}, reference=[{a: 0, b: 0}, {a: 0, b: 1}])
+        Embedding(
+            {s: (1 + N(b)) * a},
+            reference=[{matrix_index: 0, a: 0, b: 0}, {matrix_index: 0, a: 0, b: 1}],
+        )
 
 
 @pytest.mark.parametrize("source_type", [BosonOp, FermionOp])
@@ -827,7 +845,9 @@ def test_bilateral_reference_transfers_have_no_vacuum():
     from pymablock.number_ordered_form import LadderOp
 
     ell = LadderOp("ell")
-    embedding = Embedding({}, reference=[{ell: -2}, {ell: 3}])
+    embedding = Embedding(
+        {}, reference=[{matrix_index: 0, ell: -2}, {matrix_index: 0, ell: 3}]
+    )
     assert embedding.restrict(ell**5) == sympy.Matrix([[0, 1], [0, 0]])
     assert embedding.restrict(N(ell)) == sympy.diag(-2, 3)
 
@@ -872,7 +892,7 @@ def test_empty_generator_mapping_still_returns_nof():
         result = embedding.restrict(value)
         assert isinstance(result, NumberOrderedForm)
         assert result.as_expr() == value
-    listed = Embedding({}, reference=[{}])
+    listed = Embedding({}, reference=[{matrix_index: 0}])
     assert listed.restrict(2) == sympy.Matrix([[2]])
     assert not isinstance(listed.restrict(2)[0, 0], NumberOrderedForm)
 
@@ -892,7 +912,9 @@ def test_matrix_index_in_reference_dictionary(generators):
 
     a, f = BosonOp("a"), BosonOp("f")
     mapping = {f: a} if generators else {}
-    embedding = Embedding(mapping, reference=[{matrix_index: 1, a: 0}, {a: 0}])
+    embedding = Embedding(
+        mapping, reference=[{matrix_index: 1, a: 0}, {matrix_index: 0, a: 0}]
+    )
     expected = Embedding(
         mapping, reference=[{matrix_index: 1, a: 0}, {matrix_index: 0, a: 0}]
     )
