@@ -56,10 +56,11 @@ The implementation separates three operations:
 
 - `Embedding._split_series` constructs the retained/complement frames
   and converts general operators. It preserves zeroth-order cross blocks.
-- `second_quantization.solve_sylvester_embedding(h0, embedding)` validates diagonal H0, reads retained energies
-  directly from $W^\dagger H_0W$, and dispatches matrix blocks. The lattice method
-  `_divide_transitions` takes a target NOF and outgoing/incoming energy expressions
-  and returns a target NOF divided by its transition gaps. `block_diagonalize`
+- `second_quantization.solve_sylvester_embedding(h0, embedding)` validates diagonal
+  H0, reads retained energies directly from $W^\dagger H_0W$, and dispatches matrix
+  blocks. Its helper `_divide_transitions` takes a lattice, a target NOF, and
+  outgoing/incoming energy expressions and returns a target NOF divided by its
+  transition gaps. `block_diagonalize`
   constructs the solver, validates the complement projector, and splits the
   Hamiltonian into blocks, omitting the validated zeroth-order cross blocks.
 - `number_ordered_form` composes rectangular operators attached to an
