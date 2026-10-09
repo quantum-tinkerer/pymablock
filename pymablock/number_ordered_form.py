@@ -356,20 +356,19 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
         names. For number-ordered forms, this includes unused declared modes.
 
     """
-    # replace n -> a† * a and convert number ordered forms to expressions.
-    # Number operator of ladder operators need to be included separately.
-    expr = expr.doit()
+    # NOFs already include their declared operators in their SymPy arguments.
     return sorted(
         set().union(
             (
-                op
+                generator(atom.name)
                 for particle, generator in zip(operator_types, generator_types)
-                for op in (generator(atom.name) for atom in expr.atoms(particle))
+                for atom in expr.atoms(particle)
             ),
             (
-                LadderOp(atom.name)
+                generator_types[
+                    operator_types.index(operator_type_by_name[atom.args[1]])
+                ](atom.name)
                 for atom in expr.atoms(NumberOperator)
-                if atom.args[1].name == "LadderOp"
             ),
         ),
         key=_operator_sort_key,
@@ -827,12 +826,6 @@ class NumberOrderedForm(Operator):
 
         if not operators:
             operators = find_operators(expr)
-
-        # Pure number expressions are scalar coefficients, including Piecewise
-        # conditions. Substitution also turns operator adjoints into scalar
-        # conjugates before any function is evaluated on a number operator.
-        if not expr.has(*operator_types):
-            return cls(operators, {(Zero,) * len(operators): expr})
 
         # Handle Add expressions by converting each term and summing
         if isinstance(expr, sympy.Add):
@@ -1301,9 +1294,20 @@ class NumberOrderedForm(Operator):
                     to_pair = min(op_power, max(-orig_power, 0))
                     coeff = coeff.xreplace({n_operator: n_operator - to_pair})
                     if op_index < self._n_bosons:  # Bosons
+                        # Test before multiplication can cancel a pole against a
+                        # vanishing ladder factor. Those boundary states do not act.
+                        inactive_poles = [
+                            sympy.Eq(n_operator, i)
+                            for i in range(to_pair)
+                            if _is_singular(coeff.xreplace({n_operator: sympy.S(i)}))
+                        ]
                         coeff = sympy.Mul(
                             coeff, *(n_operator - i for i in range(to_pair))
                         )
+                        if inactive_poles:
+                            coeff = sympy.Piecewise(
+                                (Zero, sympy.Or(*inactive_poles)), (coeff, True)
+                            )
                 else:
                     to_pair = min(-op_power, max(orig_power, 0))
                     # Move unmatched creation operators to the left of the coefficient.
@@ -1622,6 +1626,11 @@ class NumberOrderedForm(Operator):
 
         self_expanded, other_expanded = self._combine_operators(other)
 
+        # Binary ladder terms act only at middle occupation zero. Restrict their
+        # coefficients before multiplication can cancel factors outside that domain.
+        self_expanded = self_expanded._cancel_binary_operator_numbers()
+        other_expanded = other_expanded._cancel_binary_operator_numbers()
+
         result = self._rebuild({}, operators=self_expanded.operators)
         for powers, coeff in other_expanded.args[1]:
             # First multiply by creation operators, those are with negative powers
@@ -1835,7 +1844,12 @@ class NumberOrderedForm(Operator):
 
         new_terms = {}
         for powers, coeff in self.args[1]:
-            for number in binary_numbers:
+            for power, number in zip(powers[self._n_inf_order :], binary_numbers):
+                if power:
+                    # Between binary creation and annihilation operators only
+                    # occupation zero acts; do not sample a possible pole at one.
+                    coeff = coeff.xreplace({number: Zero})
+                    continue
                 if number not in coeff.free_symbols:
                     continue
                 values = tuple(coeff.xreplace({number: n}) for n in (Zero, One))
