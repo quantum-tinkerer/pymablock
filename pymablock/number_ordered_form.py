@@ -1460,6 +1460,16 @@ class NumberOrderedForm(Operator):
 
         return self._rebuild(new_terms)
 
+    def _rebase_operators(self, operators: Sequence[OperatorType]) -> "NumberOrderedForm":
+        """Reorder or extend the mode basis; only unused modes may be dropped."""
+        for i, op in enumerate(self.operators):
+            if op not in operators and any(
+                powers[i] or coefficient.has(self._number_operator_placeholders[i])
+                for powers, coefficient in self.terms.items()
+            ):
+                raise ValueError("Operator contains modes outside the declared algebra")
+        return self if self.operators == operators else self._expand_operators(operators)
+
     def _expand_operators(
         self, new_operators: Sequence[OperatorType]
     ) -> "NumberOrderedForm":
@@ -1674,10 +1684,18 @@ class NumberOrderedForm(Operator):
                 return left._compress(self.target * other.target)
             return self.target * left._projector * other.target
         if left is not None:
-            value = left._lift(other) if self.side == 1 else left._rebase_target(other)
+            value = (
+                left._lift(other)
+                if self.side == 1
+                else other._rebase_operators(left._target_operators)
+            )
             result = self.target * value
             return self._rebuild(result.args[1], operators=result.operators)
-        value = right._lift(self) if other.side == -1 else right._rebase_target(self)
+        value = (
+            right._lift(self)
+            if other.side == -1
+            else self._rebase_operators(right._target_operators)
+        )
         result = value * other.target
         return other._rebuild(result.args[1], operators=result.operators)
 
