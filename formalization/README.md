@@ -19,7 +19,7 @@ diag(skew(U - I)) = 0
 Degeneracy within a block is permitted.
 `solution_unique` proves uniqueness of the recursive coefficient construction.
 `truncated_correct` proves the identities through any total degree `N`, including mixed terms, when the series are truncated.
-These statements concern formal series and do not assume or establish analytic convergence.
+These algebraic statements concern formal series. The separate convergence theorem below proves a positive radius for analytic finite-matrix inputs.
 
 ## Selective diagonalization
 
@@ -119,6 +119,8 @@ The organization follows [qt/rmt_nlin](https://gitlab.kwant-project.org/qt/rmt_n
 | `Optimized`, `Library/Vanishing`, `Invariants` | Unitarity, gauge, and the identity `X = [U', H_S]`. |
 | `Correctness`, `Hamiltonian`, `FiniteOrder` | End-to-end theorems for the constructed outputs and their truncations. |
 | `Sylvester`, `SpectralSolver`, `MatrixTheorem`, `Selective` | Solver contract and its concrete realization from separated energies. |
+| `LeastAction/*` | Positive-block Frobenius minimality and local positivity. |
+| `Convergence/*` | Absolute coefficient bounds, positive output radius, summation identities, and realized least action. |
 | `NonHermitian/*` | Explicit inverse construction, non-Hermitian correctness, complex spectral solver, and truncations. |
 | `Manuscript/Registry`, `Manuscript/Exports` | Links to manuscript labels and exports of checked types, hypotheses, definitions, and axioms. |
 | `FirstOrder`, `Tests/TwoLevel` | Leading coefficient of the constructed unitary, with an explicit two-level Hamiltonian. |
@@ -177,6 +179,45 @@ The checked equation is
 The report records this as an unverified manuscript equation and explains the discrepancy.
 This MR leaves the manuscript text unchanged.
 
+## Convergence and actual sums
+
+`Convergence.matrix_convergent` proves that both returned series `U` and `H_tilde` converge absolutely on a polydisc of some positive radius `r <= R`.
+It uses the same finite complex-matrix basis, arbitrary block partition, Hermitian input, diagonal `H₀`, and cross-block energy separation as `matrix_block_diagonalization`.
+The additional **input** assumption is
+
+```text
+R > 0,  sum_n ||H_n||_F R^|n| < infinity.
+```
+
+Here `n` is a multi-index and `|n|` its total degree; all mixed terms are included.
+Polynomial inputs satisfy this automatically, as checked by `absolute_C`, `absolute_monomial`, and the example with two perturbations and three blocks.
+An arbitrary formal series need not satisfy it.
+Convergence of the output is a conclusion, not an assumption.
+
+The proof uses absolute coefficient sums and the existing finite-iteration construction.
+Let `K >= 1` bound the retained projection, its complement, and the Sylvester solver in Frobenius norm.
+`matrix_controls` constructs such a finite bound for the concrete entrywise maps; it does not assume boundedness of the output.
+If the positive-degree input parts each have weighted mass at most `epsilon`, and the iterated `q = U-I` and `B` each have mass at most `t`, one update obeys
+
+```text
+mass(B_new) <= 2 K t^2 + 3 K epsilon t
+mass(q_new) <= t^2/2 + K (2 K t^2 + 3 K epsilon t + epsilon + 3 epsilon t).
+```
+
+Choosing `t = 1/(16 K^2)` and `epsilon = t^2` makes these bounds invariant.
+Shrinking the input radius makes its positive-degree mass sufficiently small; this follows by dominated convergence.
+Every finite set of output coefficients agrees with a sufficiently advanced finite iteration, so the uniform bounds pass to the actual constructed formal solution.
+The result proves existence of a positive radius, not the optimal radius or convergence at all perturbation strengths.
+
+`evaluate` sums the multivariate series at real parameter values.
+The proof checks absolute summability, continuity on the closed polydisc, the Cauchy-product identity, and compatibility with adjoints.
+`realized_unitary`, `realized_gauge`, and `realized_hamiltonian` transfer the formal identities to these sums, including both unitary identities, conjugation, and block elimination.
+For any finite number of parameters, `matrix_least_action` then proves local closest-to-identity minimality directly from the analytic input assumptions; no separate continuous-realization or realized-unitarity assumption is needed.
+
+The abstract convergence theorem applies to the Hermitian/selective recurrence whenever its linear maps satisfy the explicit norm bounds.
+The concrete end-to-end theorem specializes to ordinary block partitions.
+The non-Hermitian recurrence has additional terms and is not covered by this convergence proof.
+
 ## Least-action minimality
 
 `LeastAction.closest_to_identity_norm` proves a unique global minimum in the **Frobenius norm** for any finite block partition and fixed assignment of invariant subspaces.
@@ -211,9 +252,8 @@ The parameter space is arbitrary, including any finite number of real perturbati
 The gauge implies Hermitian retained blocks; continuity puts them on the positive branch near the origin.
 The proof uses the sufficient condition `||A - I||_op < 1`, where this auxiliary norm is the operator norm, not the minimization objective.
 
-**Analytic boundary:** existence of such a continuous realization, and the passage from formal identities to exact identities of that realization, remain assumptions.
-The formal-series construction alone does not prove convergence, a radius of convergence, or preservation of the identities under summation.
-No algebra homomorphism evaluating all formal series at a nonzero parameter is assumed.
+For the finite Hermitian block problem with the analytic input assumption above, `Convergence.matrix_least_action` now discharges the realization assumptions: it proves convergence, continuity, and passage of the formal unitary and gauge identities through summation.
+The original conditional local theorem remains available for other independently constructed families.
 The exact finite-matrix certificate avoids the manuscript's order-by-order norm argument, whose cross-order terms require separate justification.
 This proves minimality for block partitions on the positive branch; it does not assert it for arbitrary selective entry masks, non-Hermitian transformations, or every matrix norm.
 
