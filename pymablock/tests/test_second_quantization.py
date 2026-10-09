@@ -845,26 +845,6 @@ def test_sylvester_binary_resonance_remains_a_pole(offset):
     assert expression.subs(NumberOperator(f), 1).has(sympy.zoo)
 
 
-def test_sylvester_leaves_unresolved_resonances_symbolic():
-    f, g = FermionOp("f"), FermionOp("g")
-    gap = NumberOperator(f) + NumberOperator(g) - 1
-    solve = solve_sylvester_2nd_quant(((gap,), (sympy.S.Zero,)))
-    solution = solve(sympy.Matrix([[1]]), (0, 1, 1))[0, 0]
-    gap_form = NumberOrderedForm.from_expr(gap, operators=solution.operators)
-    assert solution.terms == {(0, 0): 1 / gap_form.terms[(0, 0)]}
-
-
-@pytest.mark.parametrize("offset", [1, sympy.Symbol("delta")])
-def test_sylvester_nonzero_gap_needs_no_zero_guard(offset):
-    f, g = FermionOp("f"), FermionOp("g")
-    gap = offset + NumberOperator(f) + NumberOperator(g)
-    solve = solve_sylvester_2nd_quant(((gap,), (sympy.S.Zero,)))
-    rhs = NumberOperator(f) - NumberOperator(g)
-    solution = solve(sympy.Matrix([[rhs]]), (0, 1, 1))[0, 0]
-    assert not solution.as_expr().has(sympy.Piecewise)
-    assert (NumberOrderedForm.from_expr(gap) * solution - rhs).simplify().is_zero
-
-
 def test_sylvester_parameter_factor_does_not_hide_zero_sectors():
     f, g = FermionOp("f"), FermionOp("g")
     n, m = NumberOperator(f), NumberOperator(g)

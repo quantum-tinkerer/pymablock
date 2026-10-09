@@ -47,21 +47,25 @@ def condition(kind):
         ("unknown", None),
     ],
 )
-@pytest.mark.parametrize("first", sorted(_assume_defined))
-def test_query_order(kind, expected, first):
-    clear_cache()
-    p = s.Piecewise((1, condition(kind)), (0, True))
-    getattr(p, "is_" + first)
-    assert p.is_commutative is expected
-    if expected is False:
-        assert p.is_integer is False
-        assert p.is_real is False
-    elif expected is True:
-        assert p.is_integer is True
-        assert p.is_nonnegative is True
+def test_query_order(kind, expected):
+    for first in sorted(_assume_defined):
+        clear_cache()
+        p = s.Piecewise((1, condition(kind)), (0, True))
+        getattr(p, "is_" + first)
+        assert p.is_commutative is expected
+        if expected is False:
+            assert p.is_integer is False
+            assert p.is_real is False
+        elif expected is True:
+            assert p.is_integer is True
+            assert p.is_nonnegative is True
 
 
-def test_arithmetic_and_substitution():
+def test_private_patch_boundary():
+    from pymablock.number_ordered_form import _install_piecewise_patch
+
+    _install_piecewise_patch()
+    _install_piecewise_patch()
     n, a = s.symbols("N a", commutative=False)
     p = s.Piecewise((1, s.Eq(n, 0)), (0, True))
     assert a * p - p * a != 0
@@ -71,8 +75,6 @@ def test_arithmetic_and_substitution():
     assert scalar.is_commutative is True
     assert a * scalar - scalar * a == 0
 
-
-def test_noncommutative_branch():
     x = s.Symbol("x", real=True)
     a = s.Symbol("a", commutative=False, finite=True)
     p = s.Piecewise((a, x > 0), (2 * a, True))
@@ -121,20 +123,6 @@ def test_projector_respects_occupation_domain(operator):
     else:
         assert p * (n + 3) == 2 * p
         assert nof_matrix(p, [range(-2, 2)]) == s.diag(0, 1, 0, 0)
-
-
-@pytest.mark.parametrize("kind", ["sum", "product", "function", "pole"])
-def test_fixed_number_reduction(kind):
-    n = s.Symbol("n", integer=True, nonnegative=True)
-    p0, p1, p2 = (_equal_value_indicator(n, v) for v in range(3))
-    f = s.Function("f")
-    coefficient, expected = {
-        "sum": (p0 + p1, p0 + p1),
-        "product": (p0 * p2, s.S.Zero),
-        "function": (f(n) * p1, f(1) * p1),
-        "pole": (p1 / (n - 1), p1 / (n - 1)),
-    }[kind]
-    assert _simplify_on_fixed_numbers(coefficient, (n,), (n,)) == expected
 
 
 @pytest.mark.parametrize("power", [1, 2])

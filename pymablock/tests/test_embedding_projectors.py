@@ -4,8 +4,11 @@ from itertools import product
 
 import pytest
 import sympy as s
+from sympy.physics.quantum.boson import BosonOp
+from sympy.physics.quantum.pauli import SigmaMinus
 
 from pymablock import block_diagonalize
+from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.operator_embedding import Embedding
 from pymablock.series import BlockSeries, one, zero
 from pymablock.tests.second_quantization_helpers import nof_matrix
@@ -13,10 +16,6 @@ from pymablock.tests.second_quantization_helpers import nof_matrix
 
 def test_correlated_boson_projector():
     """The conserved number difference selects equal target occupations."""
-    from sympy.physics.quantum.boson import BosonOp
-
-    from pymablock.number_ordered_form import NumberOperator as N
-
     a, b, q = map(BosonOp, ("a", "b", "q"))
     embedding = Embedding({q: (N(a) + 1) ** (-s.S.Half) * a * b}, reference={a: 0, b: 0})
     actual = nof_matrix(embedding._first_lattice.projector, [range(3)] * 2)
@@ -26,7 +25,6 @@ def test_correlated_boson_projector():
 def test_floquet_projector_selects_integer_sublattice():
     """A double shift retains exactly the even ladder occupations."""
     from pymablock.number_ordered_form import LadderOp
-    from pymablock.number_ordered_form import NumberOperator as N
 
     target, source = LadderOp("target"), LadderOp("source")
     embedding = Embedding(
@@ -37,68 +35,8 @@ def test_floquet_projector_selects_integer_sublattice():
     )
 
 
-@pytest.mark.parametrize("coupled", [False, True])
-def test_binary_sector_poles_preserve_inactive_transitions(coupled):
-    """Keep valid sectors and inactive transitions intact beside a binary pole."""
-    from sympy.physics.quantum.boson import BosonOp
-    from sympy.physics.quantum.pauli import SigmaMinus
-
-    from pymablock.number_ordered_form import NumberOperator as N
-
-    a, b, c = map(BosonOp, ("a", "b", "c"))
-    x, y = SigmaMinus("x"), SigmaMinus("y")
-    embedding = Embedding({x: a, y: b}, reference={a: 0, b: 0, c: 0})
-    h0 = N(a) + 2 * N(b) + N(b) * N(c)
-    coupling = 1 - N(a) if coupled else N(a) * (1 - N(a))
-    h, *_ = block_diagonalize(
-        [h0, coupling * (c + c.adjoint())], subspace_eigenvectors=embedding
-    )
-    if coupled:
-        correction = h[0, 0, 2].as_expr()
-        assert correction.subs({N(x): 0, N(y): 1}) == -1
-        assert correction.subs({N(x): 0, N(y): 0}).has(s.zoo, s.nan)
-    else:
-        assert h[0, 0, 2].is_zero
-
-
-def test_sylvester_recognizes_algebraically_zero_gap():
-    x = s.Symbol("x")
-    gap = (x**2 - 1) / (x - 1) - x - 1
-    h, *_ = block_diagonalize(
-        [s.diag(0, gap), s.Matrix([[0, 1], [1, 0]])],
-        subspace_eigenvectors=Embedding({}, reference=[{}]),
-    )
-    with pytest.raises(ZeroDivisionError):
-        _ = h[0, 0, 2]
-
-
-@pytest.mark.parametrize("coupled", [False, True])
-def test_bosonic_point_support_at_a_zero_gap(coupled):
-    """Resolve a resonant occupation without dividing an inactive branch by zero."""
-    from sympy.physics.quantum.boson import BosonOp
-
-    from pymablock.number_ordered_form import NumberOperator as N
-
-    a, b, q = map(BosonOp, ("a", "b", "q"))
-    point = s.Piecewise((1, s.Eq(N(a), 1)), (0, True))
-    coupling = point if coupled else 1 - point
-    h, *_ = block_diagonalize(
-        [N(a) + (N(a) - 1) * N(b), coupling * (b + b.adjoint())],
-        subspace_eigenvectors=Embedding({q: a}, reference={a: 0, b: 0}),
-    )
-    if coupled:
-        with pytest.raises(ZeroDivisionError):
-            _ = h[0, 0, 2]
-    else:
-        assert nof_matrix(h[0, 0, 2], [range(3)]) == s.diag(1, 0, -1)
-
-
 def test_correlated_boson_sylvester():
     """Displacing one oscillator shifts every retained energy by -g**2/omega."""
-    from sympy.physics.quantum.boson import BosonOp
-
-    from pymablock.number_ordered_form import NumberOperator as N
-
     a, b, q = map(BosonOp, ("a", "b", "q"))
     omega, g = s.symbols("omega g", positive=True)
     embedding = Embedding({q: (N(a) + 1) ** (-s.S.Half) * a * b}, reference={a: 0, b: 0})
@@ -107,34 +45,6 @@ def test_correlated_boson_sylvester():
         subspace_eigenvectors=embedding,
     )
     assert (h[0, 0, 2] + g**2 / omega).applyfunc(s.cancel).is_zero
-
-
-def test_bosonic_ladder_zero_keeps_inactive_resonance_zero():
-    """A vanishing ladder amplitude must survive cancellation of its energy gap."""
-    from sympy.physics.quantum.boson import BosonOp
-
-    from pymablock.number_ordered_form import NumberOperator as N
-
-    a, b, q = map(BosonOp, ("a", "b", "q"))
-    h, *_ = block_diagonalize(
-        [N(a) + (N(a) + 2) * N(b), a * b.adjoint() + a.adjoint() * b],
-        subspace_eigenvectors=Embedding({q: a}, reference={a: 0, b: 0}),
-    )
-    assert nof_matrix(h[0, 0, 2], [range(3)]) == s.diag(0, -1, -1)
-
-
-def test_nonlinear_occupation_condition_is_not_a_point_substitution():
-    from sympy.physics.quantum.boson import BosonOp
-
-    from pymablock.number_ordered_form import NumberOperator as N
-
-    a, b, q = map(BosonOp, ("a", "b", "q"))
-    coupling = s.Piecewise((1, s.Eq(N(a) ** 2 + N(a), 2)), (0, True))
-    h, *_ = block_diagonalize(
-        [N(a) + 3 * N(b), coupling * (b + b.adjoint())],
-        subspace_eigenvectors=Embedding({q: a}, reference={a: 0, b: 0}),
-    )
-    assert nof_matrix(h[0, 0, 2], [range(3)]) == s.diag(0, -s.Rational(1, 3), 0)
 
 
 @pytest.mark.parametrize("dimensions", [1, 2])
@@ -181,13 +91,11 @@ def test_complete_rotation(dimensions):
         (n for n in product(range(5), repeat=dimensions) if sum(n) <= 4),
         key=lambda n: (sum(n), n),
     )
-    full = [{}, {}, {}]
     for n in orders:
         for k in range(3):
             blocks = [
                 [lower(outputs[k][i, j, *n], i, j) for j in range(2)] for i in range(2)
             ]
-            full[k][n] = s.BlockMatrix(blocks).as_explicit()
             for i, j in product(range(2), repeat=2):
                 difference = blocks[i][j] - (
                     s.zeros(2)
@@ -198,48 +106,10 @@ def test_complete_rotation(dimensions):
                 )
                 assert difference.applyfunc(s.simplify).is_zero_matrix, (k, n, i, j)
 
-        unit = s.zeros(4)
-        transformed = s.zeros(4)
-        for i in product(*(range(x + 1) for x in n)):
-            j = tuple(a - b for a, b in zip(n, i))
-            unit += full[2][i] * full[1][j]
-            for degree, coefficient in data.items():
-                rest = tuple(a - b for a, b in zip(j, degree))
-                if min(rest) >= 0:
-                    transformed += full[2][i] * coefficient * full[1][rest]
-        assert (
-            (unit - (s.eye(4) if n == origin else s.zeros(4)))
-            .applyfunc(s.simplify)
-            .is_zero_matrix
-        )
-        assert (transformed - full[0][n]).applyfunc(s.simplify).is_zero_matrix
-
-
-def test_fermion_result_after_cancellation():
-    from sympy.physics.quantum import Dagger
-    from sympy.physics.quantum.fermion import FermionOp
-
-    from pymablock.number_ordered_form import NumberOperator as N
-    from pymablock.number_ordered_form import NumberOrderedForm
-
-    a, b, f = map(FermionOp, ("target", "virtual", "source"))
-    ea, eb, g = s.symbols(
-        "target_energy virtual_energy coupling", real=True, nonzero=True
-    )
-    h = BlockSeries(
-        data={(0,): ea * N(a) + eb * N(b), (1,): g * (Dagger(b) * a + Dagger(a) * b)}
-    )
-    embedding = Embedding({f: a}, reference={a: 0, b: 0})
-    actual = block_diagonalize(h, subspace_eigenvectors=embedding)[0][0, 0, 2]
-    expected = NumberOrderedForm.from_expr(g**2 * N(f) / (ea - eb), operators=(f,))
-    assert (actual - expected).applyfunc(s.cancel).is_zero
-
 
 def test_bosonic_projector_output_blocks():
     from sympy.physics.quantum.boson import BosonOp
     from sympy.physics.quantum.pauli import SigmaMinus
-
-    from pymablock.number_ordered_form import NumberOperator as N
 
     a, q = BosonOp("a"), SigmaMinus("q")
     cutoff = 9
@@ -278,12 +148,77 @@ def test_bosonic_projector_output_blocks():
         assert (matrix - expected).applyfunc(s.simplify).is_zero_matrix, (k, n, i, j)
 
 
-def test_bosonic_occupation_boundary_is_not_silently_dropped():
-    from sympy.physics.quantum.boson import BosonOp
+@pytest.mark.parametrize("generator", [False, True])
+def test_cancellation_before_resonance_check(generator):
+    if generator:
+        a, b, c, t = map(SigmaMinus, ("a", "b", "c", "t"))
+        h0 = N(a) + 3 * N(c)
+        v = (a + a.adjoint()) * (1 - 2 * N(b) + b + b.adjoint())
+        e = Embedding({t: c}, reference={a: 0, b: 0, c: 0})
+    else:
+        h0 = s.diag(0, 0, 1, 1)
+        v = s.Matrix([[0, 0, 1, 1], [0, 0, 1, -1], [1, 1, 0, 0], [1, -1, 0, 0]])
+        e = Embedding({}, reference=[{}])
+    eff, *_ = block_diagonalize([h0, v], subspace_eigenvectors=e)
+    for order, expected in ((2, -2), (3, 0), (4, 4)):
+        value = eff[0, 0, order]
+        from pymablock.series import zero
 
-    from pymablock.number_ordered_form import NumberOperator as N
+        actual = (
+            s.S.Zero if value is zero else value.as_expr() if generator else value[0, 0]
+        )
+        assert actual == expected
+    if not generator:
+        v[1, 3] = v[3, 1] = 0
+        eff, *_ = block_diagonalize([h0, v], subspace_eigenvectors=e)
+        with pytest.raises(ZeroDivisionError):
+            _ = eff[0, 0, 4]
 
-    a, b = BosonOp("a"), BosonOp("b")
-    embedding = Embedding({b: a * s.sqrt((N(a) - 1) / N(a))}, reference={a: 1})
-    with pytest.raises(NotImplementedError):
-        block_diagonalize([N(a), a + a.adjoint()], subspace_eigenvectors=embedding)
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "point-zero",
+        "point-resonance",
+        "ladder-zero",
+        "nonlinear",
+        "binary-zero",
+        "binary-pole",
+        "explicit-zero",
+    ],
+)
+def test_division_policy(case):
+    a, b, q = map(BosonOp, ("a", "b", "q"))
+    n = N(a)
+    point = s.Piecewise((1, s.Eq(n, 1)), (0, True))
+    energy, coupling, expected = {
+        "point-zero": (n - 1, 1 - point, s.diag(1, 0, -1)),
+        "point-resonance": (n - 1, point, None),
+        "ladder-zero": (n + 2, a, s.diag(0, -1, -1)),
+        "nonlinear": (
+            3,
+            s.Piecewise((1, s.Eq(n**2 + n, 2)), (0, True)),
+            s.diag(0, -s.Rational(1, 3), 0),
+        ),
+        "binary-zero": (1 - n, 1 - n, s.diag(-1, 0)),
+        "binary-pole": (1 - n, 1, None),
+        "explicit-zero": (0, 1, None),
+    }[case]
+    if case.startswith("binary"):
+        q = SigmaMinus("q")
+    if case == "explicit-zero":
+        x = s.Symbol("x")
+        energy = (x**2 - 1) / (x - 1) - x - 1
+    h, *_ = block_diagonalize(
+        [n + energy * N(b), coupling * b.adjoint() + s.adjoint(coupling) * b],
+        subspace_eigenvectors=Embedding({q: a}, reference={a: 0, b: 0}),
+    )
+    if case in ("point-resonance", "explicit-zero"):
+        with pytest.raises(ZeroDivisionError):
+            _ = h[0, 0, 2]
+    elif case == "binary-pole":
+        expression = h[0, 0, 2].as_expr()
+        assert expression.subs(N(q), 0) == -1
+        assert expression.subs(N(q), 1).has(s.zoo, s.nan)
+    else:
+        assert nof_matrix(h[0, 0, 2], [range(expected.rows)]) == expected

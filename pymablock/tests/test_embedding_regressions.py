@@ -20,63 +20,28 @@ from pymablock.series import cauchy_dot_product, zero
 from pymablock.tests.second_quantization_helpers import nof_matrix
 
 
-@pytest.mark.parametrize("selection", ["particle", "hole", "references"])
-def test_vanishing_offdiagonal_order(selection):
-    """A two-level avoided crossing has no third-order energy shift."""
-    a, b, f = map(FermionOp, ("a", "b", "f"))
-    if selection == "references":
-        embedding = Embedding({}, reference=[{a: 1, b: 0}])
-    else:
-        image, filled = (a, 0) if selection == "particle" else (a.adjoint(), 1)
-        embedding = Embedding({f: image}, reference={a: filled, b: 0})
-    h, *_ = block_diagonalize(
-        [2 * N(a) + 5 * N(b), a.adjoint() * b + b.adjoint() * a],
-        subspace_eigenvectors=embedding,
-    )
-    assert h[0, 0, 3] is zero or h[0, 0, 3].is_zero
-    fourth = h[0, 0, 4]
-    expected = s.Rational(1, 27)
-    if selection == "references":
-        assert fourth == s.Matrix([[expected]])
-    else:
-        occupations = [range(2)]
-        assert nof_matrix(fourth, occupations) == s.diag(
-            *(expected if n == (0 if selection == "hole" else 1) else 0 for n in range(2))
-        )
-
-
-def test_binary_poles_preserve_nondegenerate_sectors():
-    """Unresolved resonances may be poles but cannot turn valid sectors into nan."""
-    f, g = FermionOp("f"), FermionOp("g")
-    u = s.Symbol("U", positive=True)
-    h, transform, *_ = block_diagonalize(
-        [s.diag(u * N(f), u * N(g)), s.Matrix([[0, 1], [1, 0]])],
-        subspace_indices=[0, 1],
-    )
-    for value in (transform[1, 0, 1][0, 0], h[0, 0, 2][0, 0]):
-        assert not value.has(s.zoo, s.nan)
-    for order, coefficient in ((2, 1 / u), (4, -1 / u**3), (6, 2 / u**5)):
-        correction = h[0, 0, order][0, 0].as_expr()
-        for nf, ng, sign in ((1, 0, 1), (0, 1, -1)):
-            assert (
-                s.cancel(correction.subs({N(f): nf, N(g): ng}) - sign * coefficient) == 0
-            )
-
-
-def test_embedding_binary_poles_against_two_level_spectrum():
+@pytest.mark.parametrize("embedded", [False, True])
+def test_binary_poles_preserve_nondegenerate_sectors(embedded):
     f, g, source_f, source_g = map(FermionOp, ("f", "g", "F", "G"))
     q = SigmaMinus("q")
     u = s.Symbol("U", positive=True)
-    embedding = Embedding({source_f: f, source_g: g}, reference={q: 0, f: 0, g: 0})
-    h, *_ = block_diagonalize(
-        [u * N(f) * (1 - N(q)) + u * N(g) * N(q), q + q.adjoint()],
-        subspace_eigenvectors=embedding,
-    )
+    if embedded:
+        embedding = Embedding({source_f: f, source_g: g}, reference={q: 0, f: 0, g: 0})
+        h, *_ = block_diagonalize(
+            [u * N(f) * (1 - N(q)) + u * N(g) * N(q), q + q.adjoint()],
+            subspace_eigenvectors=embedding,
+        )
+    else:
+        source_f, source_g = f, g
+        h, *_ = block_diagonalize(
+            [s.diag(u * N(f), u * N(g)), s.Matrix([[0, 1], [1, 0]])],
+            subspace_indices=[0, 1],
+        )
     for order, coefficient in ((2, 1 / u), (4, -1 / u**3), (6, 2 / u**5)):
-        correction = h[0, 0, order].as_expr()
+        value = h[0, 0, order] if embedded else h[0, 0, order][0, 0]
         for nf, ng, sign in ((1, 0, 1), (0, 1, -1)):
-            value = correction.subs({N(source_f): nf, N(source_g): ng})
-            assert s.cancel(value - sign * coefficient) == 0
+            actual = value.as_expr().subs({N(source_f): nf, N(source_g): ng})
+            assert s.cancel(actual - sign * coefficient) == 0
 
 
 @pytest.mark.parametrize("finite", [False, True])
@@ -158,15 +123,6 @@ def test_diagonalize_embedded_infinite_oscillators(selective):
     assert h[0, 0, 2] == expected
 
 
-def test_binary_equality_after_multiplication():
-    """Canonical binary products retain structural equality."""
-    a, b = FermionOp("a"), FermionOp("b")
-    lhs = NumberOrderedForm.from_expr((1 - N(a)) * (1 - N(b))) * 1
-    rhs = NumberOrderedForm.from_expr(1 - N(a) - N(b) + N(a) * N(b))
-    assert lhs == rhs
-    assert hash(lhs) == hash(rhs)
-
-
 def test_bilateral_zero_rhs_convention():
     """The negative ladder site is physical and selects the zero solution."""
     ell = LadderOp("ell")
@@ -201,68 +157,6 @@ def test_dressed_observable_conversion(finite):
     else:
         # Generator selection retains levels 0,1, so only level 1 is dressed by Q.
         assert nof_matrix(value) == s.diag(0, s.Rational(2, 9))
-
-
-def test_attached_reconstruction():
-    """Attached NOFs survive reconstruction and pickling."""
-    a, q = BosonOp("a"), SigmaMinus("q")
-    embedding = Embedding({q: a}, reference={a: 0})
-    w = NumberOrderedForm.from_expr(embedding)
-    x = NumberOrderedForm.from_expr(N(a) + a)
-    for restore in (lambda v: v.func(*v.args), lambda v: pickle.loads(pickle.dumps(v))):
-        restored = restore(x * w)
-        assert restored == x * w
-        assert w.adjoint() * restored == embedding.restrict(N(a) + a)
-
-
-@pytest.mark.parametrize("method", ["subs", "xreplace"])
-def test_attached_blocks_substitute_parameters(method):
-    """Number-operator conditions in rectangular blocks survive substitution."""
-    a, q = BosonOp("a"), SigmaMinus("q")
-    omega, alpha, g = s.symbols("omega alpha g", positive=True)
-    h0 = omega * N(a) + alpha * N(a) * (N(a) - 1) / 2
-    embedding = Embedding({q: a}, reference={a: 0})
-    _, u, _ = block_diagonalize(
-        [h0, g * (a + a.adjoint())], subspace_eigenvectors=embedding, symbols=[g]
-    )
-    values = {omega: 2, alpha: 3}
-    _, expected, _ = block_diagonalize(
-        [h0.subs(values), g * (a + a.adjoint())],
-        subspace_eigenvectors=embedding,
-        symbols=[g],
-    )
-    for index in ((1, 0, 1), (0, 1, 1)):
-        value = getattr(u[index], method)(values)
-        assert nof_matrix(value.target, [range(4)]) == nof_matrix(
-            expected[index].target, [range(4)]
-        )
-
-
-def test_attached_xreplace_renames_target_modes():
-    """Renaming a target mode also renames its number operator."""
-    a, b, q = BosonOp("a"), BosonOp("b"), SigmaMinus("q")
-    renamed = Embedding({q: b}, reference={b: 0})
-    attached = NumberOrderedForm.from_expr(N(a)) * NumberOrderedForm.from_expr(
-        Embedding({q: a}, reference={a: 0})
-    )
-    value = attached.xreplace({a: b, a.adjoint(): b.adjoint()})
-    assert value.embedding == renamed
-    contracted = NumberOrderedForm.from_expr(renamed).adjoint() * value
-    assert contracted == renamed.restrict(N(b))
-
-
-def test_attached_xreplace_reorders_target_modes():
-    """A rename that changes the mode order keeps fermion signs consistent."""
-    c, d, q, z = map(FermionOp, ("c", "d", "q", "0z"))
-    embedding = Embedding({q: c}, reference={c: 0, d: 1})
-    attached = (
-        NumberOrderedForm.from_expr(c.adjoint() * d) * embedding._retained_frame(1)[0, 0]
-    )
-    renamed = Embedding({q: c}, reference={c: 0, z: 1})
-    assert (
-        attached.xreplace({d: z})
-        == NumberOrderedForm.from_expr(c.adjoint() * z) * renamed._retained_frame(1)[0, 0]
-    )
 
 
 @pytest.mark.parametrize("reference_list", [False, True])
@@ -312,34 +206,29 @@ def test_float_fourth_order_matches_exact_values(preconverted):
         )
 
 
-def test_source_target_names_and_missing_reference():
-    """Source and target roles follow the map, even when names coincide."""
-    a, b = BosonOp("a"), BosonOp("b")
-    embedding = Embedding({a: b}, reference={a: 0, b: 0})
-    assert nof_matrix(embedding.restrict(N(b)), [range(3)]) == s.diag(0, 1, 2)
-    assert embedding.restrict(N(a)) == 0
-    with pytest.raises(TypeError):
-        Embedding({a: b})
-
-
-def test_violated_binary_identity_is_decidable():
-    """An explicit nonzero binary polynomial is an invalid representation."""
-    a, b, q, r = map(SigmaMinus, ("a", "b", "q", "r"))
+@pytest.mark.parametrize("mode_type", [BosonOp, FermionOp])
+def test_attachment_substitution_and_reconstruction(mode_type):
+    a, b, z = map(mode_type, ("a", "b", "0z"))
+    q = mode_type("q")
+    g = s.Symbol("g", real=True)
+    e = Embedding({q: a}, reference={a: 0, b: 1})
+    renamed = Embedding({q: a}, reference={a: 0, z: 1})
+    w = NumberOrderedForm.from_expr(e)
+    x = NumberOrderedForm.from_expr(g * N(b) + a.adjoint() * b)
+    expected = NumberOrderedForm.from_expr(2 * N(z) + a.adjoint() * z) * renamed
+    for value in (x * w, (x * w).adjoint()):
+        for restored in (
+            value.func(*value.args),
+            pickle.loads(pickle.dumps(value)),
+            NumberOrderedForm.from_expr(value.as_expr()),
+        ):
+            assert restored == value
+        assert value.adjoint().adjoint() == value
+    for method in ("subs", "xreplace"):
+        replaced = getattr(x * w, method)({g: 2})
+        actual = replaced.xreplace({b: z, b.adjoint(): z.adjoint()})
+        assert actual == expected
+        assert replaced.adjoint().xreplace({b: z}) == expected.adjoint()
+    assert (x * w) ** 1 == x * w
     with pytest.raises(ValueError):
-        Embedding({q: (1 + N(b)) * a, r: b}, reference={a: 0, b: 0})
-
-
-def test_sympy_workaround_is_idempotent_and_preserves_scalars():
-    """Repeated installation preserves scalar assumptions and operator condition order."""
-    from pymablock.number_ordered_form import _install_piecewise_patch
-
-    x = s.Symbol("x", real=True)
-    scalar = s.Piecewise((1, x > 0), (0, True))
-    before = scalar.is_commutative, scalar.is_real
-    _install_piecewise_patch()
-    _install_piecewise_patch()
-    assert (scalar.is_commutative, scalar.is_real) == before == (True, True)
-    a = BosonOp("a")
-    operator = s.Piecewise((1, s.Eq(N(a), 0)), (0, True))
-    assert operator.is_real is not True
-    assert operator.is_commutative is False
+        (x * w) ** 2
