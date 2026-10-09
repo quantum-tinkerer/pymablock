@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Hashable, Mapping, Sequence
 from functools import cached_property, wraps
-from typing import TYPE_CHECKING, Self
+from typing import Self
 
 import sympy
 from sympy.physics.quantum.boson import BosonOp
@@ -41,10 +41,6 @@ from pymablock.number_ordered_form import (
     find_operators,
     generator_types,
 )
-from pymablock.series import BlockSeries, zero
-
-if TYPE_CHECKING:
-    from typing import Any
 
 __all__ = ["Embedding"]
 
@@ -283,48 +279,6 @@ class Embedding(sympy.Expr):
         if isinstance(self.args[1], sympy.Dict):
             return result[0, 0]
         return result
-
-    def _split_series(
-        self, operator: BlockSeries, *, diagonal_origin: bool = False
-    ) -> BlockSeries:
-        """Convert an unseparated series to retained/complement operator blocks.
-
-        Preserve every block by default, including zeroth-order observable cross
-        blocks. ``diagonal_origin=True`` omits those cross blocks only for a
-        Hamiltonian whose H0 has already been validated by the solver.
-        """
-        if operator.shape:
-            raise ValueError("Structured embeddings require an unseparated operator.")
-        origin = (0,) * operator.n_infinite
-        target_shape = None
-        frames = None
-
-        def evaluate(i: int, j: int, *order: int) -> Any:
-            nonlocal target_shape, frames
-            target = operator[tuple(order)]
-            if target is zero or (diagonal_origin and i != j and tuple(order) == origin):
-                return zero
-            target = self._target_matrix(target)
-            if target_shape is None:
-                target_shape = target.shape
-                frames = (
-                    self._retained_frame(target.rows),
-                    self._complement_frame(target.rows),
-                )
-            elif target.shape != target_shape:
-                raise ValueError(
-                    "All operator coefficients must have the same target matrix shape"
-                )
-            result = frames[i].adjoint() * target * frames[j]
-            return zero if result.is_zero_matrix else self._format_output(result)
-
-        return BlockSeries(
-            eval=evaluate,
-            shape=(2, 2),
-            n_infinite=operator.n_infinite,
-            dimension_names=operator.dimension_names,
-            name=operator.name,
-        )
 
     # The full frame: indexed lattices and block matrices.
 
