@@ -66,7 +66,8 @@ def exportCatalog : MetaM Json := do
   for root in roots do seen ← visit root seen
   for occurrence in occurrences do seen ← visit occurrence.declaration seen
   let names := seen.toArray.qsort (fun a b => a.toString < b.toString)
-  let declarations ← names.mapM declarationJson
+  -- Each declaration gets the same bounded export budget as the catalog grows.
+  let declarations ← names.mapM fun name => withCurrHeartbeats (declarationJson name)
   return Json.mkObj [
     ("schema", toJson (2 : Nat)),
     ("roots", toJson (roots.map Name.toString)),
