@@ -1236,7 +1236,7 @@ def test_raise_if_substitution():
         nof.subs(a, a + 1)
 
 
-def test_act_boson_matrix_elements():
+def test_act_matrix_elements_and_zero_support():
     """Each term reports its output state and full matrix element."""
     a = boson.BosonOp("a")
     form = NumberOrderedForm.from_expr(a + Dagger(a))
@@ -1244,6 +1244,27 @@ def test_act_boson_matrix_elements():
     n = sympy.Symbol("n", integer=True, nonnegative=True)
     form = NumberOrderedForm.from_expr(Dagger(a) ** 2 * a)
     assert form.act((n,)) == {(-1,): ((n + 1,), n * sympy.sqrt(n + 1))}
+
+    # Annihilating the second fermion passes the first one.
+    first, second = fermion.FermionOp("first"), fermion.FermionOp("second")
+    form = NumberOrderedForm.from_expr(second, operators=[first, second])
+    assert form.act((0, 1)) == {(0, 1): ((0, 0), 1)}
+    assert form.act((1, 1)) == {(0, 1): ((1, 0), -1)}
+
+    # Vanishing amplitudes remove a term before its coefficient is used.
+    a = boson.BosonOp("a")
+    form = NumberOrderedForm.from_expr(a**2)
+    assert form.act((0,)) == form.act((1,)) == {}
+    assert form.act((3,)) == {(2,): ((1,), sympy.sqrt(6))}
+    # A coefficient that vanishes at the intermediate occupation also omits a term.
+    assert NumberOrderedForm.from_expr(NumberOperator(a)).act((0,)) == {}
+    assert NumberOrderedForm.from_expr((NumberOperator(a) - 2) * a).act((3,)) == {}
+    f = fermion.FermionOp("f")
+    n = _number_operator_to_placeholder(NumberOperator(f))
+    # The coefficient is singular exactly where creation is forbidden.
+    form = NumberOrderedForm((f,), {(-1,): 1 / (1 - n)}, validate=False)
+    assert form.act((1,)) == {}
+    assert form.act((0,)) == {(-1,): ((1,), 1)}
 
 
 @pytest.mark.parametrize("sign", [-1, 1])
@@ -1267,31 +1288,6 @@ def test_act_symbolic_boson_power(sign):
                 )
                 expected = (count - sign * exponent + 1) * sympy.sqrt(factor)
             assert sympy.simplify(amplitude.subs({n: count, k: exponent})) == expected
-
-
-def test_act_fermion_sign_follows_operator_order():
-    """Annihilating the second fermion passes the first one."""
-    first, second = fermion.FermionOp("first"), fermion.FermionOp("second")
-    form = NumberOrderedForm.from_expr(second, operators=[first, second])
-    assert form.act((0, 1)) == {(0, 1): ((0, 0), 1)}
-    assert form.act((1, 1)) == {(0, 1): ((1, 0), -1)}
-
-
-def test_act_omits_terms_that_annihilate_the_state():
-    """Vanishing ladder amplitudes remove a term before its coefficient is used."""
-    a = boson.BosonOp("a")
-    form = NumberOrderedForm.from_expr(a**2)
-    assert form.act((0,)) == form.act((1,)) == {}
-    assert form.act((3,)) == {(2,): ((1,), sympy.sqrt(6))}
-    # A coefficient that vanishes at the intermediate occupation also omits a term.
-    assert NumberOrderedForm.from_expr(NumberOperator(a)).act((0,)) == {}
-    assert NumberOrderedForm.from_expr((NumberOperator(a) - 2) * a).act((3,)) == {}
-    f = fermion.FermionOp("f")
-    n = _number_operator_to_placeholder(NumberOperator(f))
-    # The coefficient is singular exactly where creation is forbidden.
-    form = NumberOrderedForm((f,), {(-1,): 1 / (1 - n)}, validate=False)
-    assert form.act((1,)) == {}
-    assert form.act((0,)) == {(-1,): ((1,), 1)}
 
 
 def test_xreplace_renames_number_operators():
