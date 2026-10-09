@@ -139,7 +139,7 @@ the constraint $n_b = 0$, which comes from the nullspace of $M^T$, with the spin
 spectrum $q \in \{0, 1\}$:
 
 ```{code-cell} ipython3
-lattice._projector
+lattice.projector
 ```
 
 ### Step 2: compression
