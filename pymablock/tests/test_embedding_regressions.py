@@ -256,12 +256,12 @@ def test_attached_xreplace_reorders_target_modes():
     c, d, q, z = map(FermionOp, ("c", "d", "q", "0z"))
     embedding = Embedding({q: c}, reference={c: 0, d: 1})
     attached = (
-        NumberOrderedForm.from_expr(c.adjoint() * d) * embedding._frame_columns(1)[0, 0]
+        NumberOrderedForm.from_expr(c.adjoint() * d) * embedding._retained_frame(1)[0, 0]
     )
     renamed = Embedding({q: c}, reference={c: 0, z: 1})
     assert (
         attached.xreplace({d: z})
-        == NumberOrderedForm.from_expr(c.adjoint() * z) * renamed._frame_columns(1)[0, 0]
+        == NumberOrderedForm.from_expr(c.adjoint() * z) * renamed._retained_frame(1)[0, 0]
     )
 
 
@@ -273,7 +273,7 @@ def test_embeddings_are_collectable(reference_list):
     for _ in range(5):
         embedding = Embedding({q: a}, reference=[{a: 0}] if reference_list else {a: 0})
         embedding.restrict(a)
-        w = embedding._frame_columns(1)[0, 0]
+        w = embedding._retained_frame(1)[0, 0]
         w * NumberOrderedForm.from_expr(q)
         bases.append(weakref.ref(embedding))
     del embedding, w

@@ -247,7 +247,9 @@ def block_diagonalize(
             raise NotImplementedError(
                 "Structured embeddings select their algebraic Sylvester solver."
             )
-        hamiltonian, solve_sylvester = subspace_eigenvectors._prepare(hamiltonian)
+        hamiltonian, solve_sylvester = (
+            subspace_eigenvectors._block_hamiltonian_and_solver(hamiltonian)
+        )
         subspace_eigenvectors = None
 
     use_implicit = False
@@ -813,7 +815,7 @@ def operator_to_BlockSeries(
     if isinstance(subspace_eigenvectors, Embedding):
         if implicit:
             raise ValueError("Structured embedding conversion does not use implicit mode")
-        return subspace_eigenvectors._convert(operator)
+        return subspace_eigenvectors._split_series(operator)
 
     # Separation into subspace_eigenvectors
     if not to_split:

@@ -26,7 +26,7 @@ Lifting substitutes source NOF terms into target NOFs. Scalar number
 placeholders map directly to the compiled source coordinates; generator NOFs
 and their adjoints supply the ladder factors and graded signs. Existing NOFs
 are extended to the target mode order structurally. Embedding arithmetic never
-converts NOFs to expressions and back. `_convert_operator` parses expressions
+converts NOFs to expressions and back. `_parse_target` parses expressions
 at the input boundary; `NumberOrderedForm._expand_operators` changes the operator
 list of an existing NOF structurally and refuses to drop an operator that a term uses.
 The class groups construction and format boundaries, full-frame operations,
@@ -40,11 +40,11 @@ $\phi_j(q)/(\phi_1(q)t_j(q))$, expressed at the intermediate NOF occupations.
 `NumberOrderedForm.act` supplies the ladder factors and fermion signs;
 the generator validation supplies each phase $\phi_j$.
 `restrict` always multiplies the frames $W^\dagger XW$, then unwraps a mapping
-reference's one-by-one result. Restriction calls `_frame_columns` directly;
+reference's one-by-one result. Restriction calls `_retained_frame` directly;
 Hamiltonian preparation and block conversion also call `_complement_frame`.
-Both frames are cached on the owning instance. Attached scalar contractions call `_compress`
+Both frames are cached on the owning instance. Attached scalar contractions call `_restrict`
 directly, avoiding recursion through `restrict`. Compression always returns a
-NOF, including when there are no source operators. `_block_result` unwraps
+NOF, including when there are no source operators. `_format_output` unwraps
 operator-free entries and the mapping reference's matrix axis at the output
 boundary. Later perturbative arithmetic may retain zero-mode NOFs in scalar
 matrix entries. Compression of source entry $(i,j)$ acts on
@@ -54,12 +54,12 @@ $T_iP_1T_j^\dagger$ without a separate list projector or compression algorithm.
 
 The implementation separates three operations:
 
-- `Embedding._convert` constructs the retained/complement frames
+- `Embedding._split_series` constructs the retained/complement frames
   and converts general operators. It preserves zeroth-order cross blocks.
 - `Embedding._sylvester_solver` validates diagonal H0, reads retained energies
   directly from $W^\dagger H_0W$, and dispatches matrix blocks. The lattice method
   `_divide_transitions` takes a target NOF and outgoing/incoming energy expressions
-  and returns a target NOF divided by its transition gaps. `Embedding._prepare`
+  and returns a target NOF divided by its transition gaps. `Embedding._block_hamiltonian_and_solver`
   builds it for `block_diagonalize` and then omits zeroth-order cross blocks of that
   validated Hamiltonian.
 - `number_ordered_form` composes rectangular operators attached to an
@@ -159,8 +159,8 @@ occupation equations. A reference state is the special case that selects one
 eigenvalue of every target number operator. Finite spectral selections are sums
 of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
 
-The solver reads `_energy_states`, `_target_occupations`, `_coordinate_symbols`,
-and `_source_coordinates` from the embedding. The incoming energy of column
+The solver reads `_column_states`, `_target_of_source`, `_source_occupations`,
+and `_source_of_target` from the embedding. The incoming energy of column
 $j$ is evaluated at $r_j+Mq$. The attached target operator already includes
 $T_j$, so its outgoing energy is evaluated by acting on the first lattice's
 occupations $r_1+Mq$. Coordinate substitution uses $L(n-r_1)$ throughout.
