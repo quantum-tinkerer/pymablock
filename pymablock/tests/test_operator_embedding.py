@@ -865,3 +865,11 @@ def test_indexed_reference_values(generators):
         np.testing.assert_array_equal(actual, np.diag([3, 4, 0, 1]))
     else:
         assert actual == sympy.diag(3, 0)
+
+
+def test_mapping_reference_rejects_nonzero_matrix_row():
+    with pytest.raises(ValueError, match="require a reference list"):
+        Embedding({}, reference={Embedding.row: 2})
+    assert Embedding({}, reference={Embedding.row: 0}) == Embedding({}, reference={})
+    embedding = Embedding({}, reference=[{Embedding.row: 2}])
+    assert embedding.restrict(sympy.diag(3, 5, 7)) == sympy.Matrix([[7]])
