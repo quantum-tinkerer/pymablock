@@ -326,23 +326,7 @@ class Embedding(sympy.Expr):
             name=operator.name,
         )
 
-    def _block_hamiltonian_and_solver(
-        self, hamiltonian: BlockSeries
-    ) -> tuple[BlockSeries, Callable]:
-        """Return the 2x2 retained/complement Hamiltonian and its Sylvester solver.
-
-        Check H0 and build the frames W and 1 - W W† now, so an off-diagonal H0 or
-        an unsupported projector raises here instead of during lazy evaluation.
-        The validated H0 has no zeroth-order cross blocks, so they are omitted.
-        """
-        from pymablock.second_quantization import solve_sylvester_embedding
-
-        h0 = self._target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
-        solve_sylvester = solve_sylvester_embedding(h0, self)
-        self._complement_frame(h0.rows)
-        return self._split_series(hamiltonian, diagonal_origin=True), solve_sylvester
-
-    # The full frame: indexed lattices, block matrices, and solver dispatch.
+    # The full frame: indexed lattices and block matrices.
 
     @property
     def _first_lattice(self) -> Embedding:

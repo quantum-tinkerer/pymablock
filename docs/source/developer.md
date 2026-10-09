@@ -59,9 +59,9 @@ The implementation separates three operations:
 - `second_quantization.solve_sylvester_embedding(h0, embedding)` validates diagonal H0, reads retained energies
   directly from $W^\dagger H_0W$, and dispatches matrix blocks. The lattice method
   `_divide_transitions` takes a target NOF and outgoing/incoming energy expressions
-  and returns a target NOF divided by its transition gaps. `Embedding._block_hamiltonian_and_solver`
-  builds it for `block_diagonalize` and then omits zeroth-order cross blocks of that
-  validated Hamiltonian.
+  and returns a target NOF divided by its transition gaps. `block_diagonalize`
+  constructs the solver, validates the complement projector, and splits the
+  Hamiltonian into blocks, omitting the validated zeroth-order cross blocks.
 - `number_ordered_form` composes rectangular operators attached to an
   `Embedding` and supplies scalar projectors and support reduction. Both
   Sylvester solvers share coefficient division in `second_quantization`.
