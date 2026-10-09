@@ -7,9 +7,9 @@ open MvPowerSeries
 
 variable {σ A : Type*} [Ring A] [Algebra ℚ A] [StarRing A]
 
-/-- An inverse of the inter-block commutator. This is the explicit spectral-gap
+/-- An inverse of the commutator on eliminated entries. This is the explicit spectral-gap
 input. The sign convention is [solve y, H₀] = off y. -/
-structure SylvesterSolver (P : BlockStructure A) (h0 : A) where
+structure SylvesterSolver (P : Selection A) (h0 : A) where
   solve : A →ₗ[ℚ] A
   diagonal_zero : ∀ y, P.diag (solve y) = 0
   adjoint : ∀ y, star (solve y) = -solve (star y)
@@ -17,7 +17,7 @@ structure SylvesterSolver (P : BlockStructure A) (h0 : A) where
 
 namespace SylvesterSolver
 
-variable {P : BlockStructure A} {h0 : A}
+variable {P : Selection A} {h0 : A}
 
  theorem series_equation (S : SylvesterSolver P h0) (y : MvPowerSeries σ A) :
     comm (coefficientMap S.solve y) (C h0) = P.series.off y := by

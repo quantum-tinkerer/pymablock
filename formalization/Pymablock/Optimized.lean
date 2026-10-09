@@ -17,48 +17,48 @@ variable {A : Type*} [Ring A] [Algebra ℚ A] [StarRing A]
 @[simp] theorem herm_skew (a : A) : herm (skew a) = 0 := herm_of_skewadjoint _ (star_skew _)
 @[simp] theorem skew_skew (a : A) : skew (skew a) = skew a := skew_of_skewadjoint _ (star_skew _)
 
-namespace BlockStructure
+namespace Selection
 
- theorem diag_herm (P : BlockStructure A) (a : A) : P.diag (herm a) = herm (P.diag a) := by
+ theorem diag_herm (P : Selection A) (a : A) : P.diag (herm a) = herm (P.diag a) := by
   simp [herm, P.star_diag]
- theorem diag_skew (P : BlockStructure A) (a : A) : P.diag (skew a) = skew (P.diag a) := by
+ theorem diag_skew (P : Selection A) (a : A) : P.diag (skew a) = skew (P.diag a) := by
   simp [skew, P.star_diag]
- theorem off_herm (P : BlockStructure A) (a : A) : P.off (herm a) = herm (P.off a) := by
+ theorem off_herm (P : Selection A) (a : A) : P.off (herm a) = herm (P.off a) := by
   simp [herm_sub, ← P.diag_herm]
- theorem off_skew (P : BlockStructure A) (a : A) : P.off (skew a) = skew (P.off a) := by
+ theorem off_skew (P : Selection A) (a : A) : P.off (skew a) = skew (P.off a) := by
   simp [skew_sub, ← P.diag_skew]
 
-end BlockStructure
+end Selection
 
-/-- The B recurrence in `pymablock/algorithms.py` for ordinary block partitions.
-Here c is U'† B and a is H'_offdiag U'. -/
-def bUpdate (P : BlockStructure A) (c a : A) : A :=
-  -P.diag (skew c + herm a) - P.off c
+/-- The general B recurrence, including the selective correction.
+Here c = U'† B, a = H'_R U', and k = [skew U', H'_S]. -/
+def bUpdate (P : Selection A) (c a k : A) : A :=
+  -P.diag (skew c + herm a) - P.off c + P.diag (herm k)
 
- theorem off_bUpdate (P : BlockStructure A) (c a : A) :
-    P.off (bUpdate P c a) = -P.off c := by
-  simp only [bUpdate, map_sub, map_neg, P.off_diag, P.off_off, neg_zero, zero_sub]
+ theorem off_bUpdate (P : Selection A) (c a k : A) :
+    P.off (bUpdate P c a k) = -P.off c := by
+  simp only [bUpdate, map_add, map_sub, map_neg, P.off_diag, P.off_off, neg_zero, zero_sub, add_zero]
 
- theorem skew_bUpdate (P : BlockStructure A) (c a : A) :
-    skew (bUpdate P c a) = -skew c := by
-  simp only [bUpdate, skew_sub, skew_neg, ← P.diag_skew,
-    skew_add, skew_skew, skew_herm, add_zero, BlockStructure.off_apply]
+ theorem skew_bUpdate (P : Selection A) (c a k : A) :
+    skew (bUpdate P c a k) = -skew c := by
+  simp only [bUpdate, skew_add, skew_sub, skew_neg, ← P.diag_skew,
+    skew_add, skew_skew, skew_herm, add_zero, map_zero, Selection.off_apply]
   abel
 
- theorem diag_herm_bUpdate (P : BlockStructure A) (c a : A) :
-    P.diag (herm (bUpdate P c a)) = -P.diag (herm a) := by
-  simp only [bUpdate, herm_sub, herm_neg, ← P.diag_herm, ← P.off_herm,
-    herm_add, herm_skew, herm_herm, zero_add, map_sub, map_neg,
+ theorem diag_herm_bUpdate (P : Selection A) (c a k : A) :
+    P.diag (herm (bUpdate P c a k)) = -P.diag (herm a) + P.diag (herm k) := by
+  simp only [bUpdate, herm_add, herm_sub, herm_neg, ← P.diag_herm, ← P.off_herm,
+    herm_skew, herm_herm, map_zero, zero_add, map_add, map_sub, map_neg,
     P.idempotent, P.diag_off, sub_zero]
 
 /-- The optimized B recurrence fixes the anti-Hermitian part of X. -/
-theorem optimized_x_skew (P : BlockStructure A) (q b hr : A)
-    (hh : star hr = hr) (hb : b = bUpdate P (star q * b) (hr * q)) :
+theorem optimized_x_skew (P : Selection A) (q b hr k : A)
+    (hh : star hr = hr) (hb : b = bUpdate P (star q * b) (hr * q) k) :
     let x := b + hr + hr * q
     x - star x = -(star q * x) + star x * q := by
   dsimp
   have hs : b - star b = -(star q * b - star (star q * b)) := by
-    have h := congrArg (fun a : A => a + a) (skew_bUpdate P (star q * b) (hr * q))
+    have h := congrArg (fun a : A => a + a) (skew_bUpdate P (star q * b) (hr * q) k)
     rw [← hb] at h
     dsimp at h
     rw [two_skew] at h
@@ -66,15 +66,16 @@ theorem optimized_x_skew (P : BlockStructure A) (q b hr : A)
   simp only [star_add, star_mul, star_star, hh] at hs ⊢
   linear_combination (norm := noncomm_ring) hs
 
-/-- The diagonal Hermitian part of X vanishes for any block partition. -/
-theorem optimized_x_diag (P : BlockStructure A) (q b hr : A)
-    (hr0 : P.diag hr = 0) (hb : b = bUpdate P (star q * b) (hr * q)) :
-    P.diag (herm (b + hr + hr * q)) = 0 := by
+/-- The retained Hermitian part of X is the selective commutator correction. -/
+theorem optimized_x_diag (P : Selection A) (q b hr k : A)
+    (hr0 : P.diag hr = 0) (hb : b = bUpdate P (star q * b) (hr * q) k) :
+    P.diag (herm (b + hr + hr * q)) = P.diag (herm k) := by
   rw [herm_add, herm_add, map_add, map_add]
-  have h := diag_herm_bUpdate P (star q * b) (hr * q)
+  have h := diag_herm_bUpdate P (star q * b) (hr * q) k
   rw [← hb] at h
   rw [h, P.diag_herm hr, hr0]
   simp [herm]
+  abel
 
 end Pymablock
 
@@ -82,11 +83,11 @@ namespace Pymablock
 variable {A : Type*} [Ring A] [Algebra ℚ A] [StarRing A]
 
 /-- The optimized formula for H_tilde follows from the B update. -/
-theorem bUpdate_residual (P : BlockStructure A) (c a : A) :
-    bUpdate P c a + c = P.diag (herm c - herm a) := by
+theorem bUpdate_residual (P : Selection A) (c a k : A) :
+    bUpdate P c a k + c = P.diag (herm c - herm a + herm k) := by
   have h := congrArg P.diag (herm_add_skew c)
   simp only [map_add] at h
-  simp only [bUpdate, BlockStructure.off_apply, map_add, map_sub]
+  simp only [bUpdate, Selection.off_apply, map_add, map_sub]
   linear_combination (norm := module) -h
 
 end Pymablock

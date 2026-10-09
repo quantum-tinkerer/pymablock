@@ -25,7 +25,7 @@ theorem product_first_order (f g : MvPowerSeries σ A) (hf : f 0 = 0) (hg : g 0 
   simpa using he
 
 /-- The leading coefficient has the positive Sylvester source H'_R. -/
-theorem solution_first_order (P : BlockStructure A) (solve : A →ₗ[ℚ] A)
+theorem solution_first_order (P : Selection A) (solve : A →ₗ[ℚ] A)
     (hs hr : MvPowerSeries σ A) (hs0 : hs 0 = 0) (hr0 : hr 0 = 0)
     (hhr : star hr = hr) (n : σ →₀ ℕ) (hn : Finsupp.degree n = 1) :
     qSeries (solution P solve hs hr) n = solve (hr n) := by
@@ -42,7 +42,7 @@ theorem solution_first_order (P : BlockStructure A) (solve : A →ₗ[ℚ] A)
   have hb : b n = 0 := by
     have he := congrFun hrec.b_eq n
     simp only [bUpdate, series_sub_apply, series_neg_apply, series_diag_apply,
-      series_off_apply, series_add_apply, series_herm_apply, series_skew_apply, hc, ha] at he
+      series_off_apply, series_add_apply, series_herm_apply, series_skew_apply, hc, ha, comm, series_sub_apply, hvh, hhv] at he
     simpa [herm, skew] using he
   have hhn : star (hr n) = hr n := congrFun hhr n
   have he := congrFun hrec.q_eq n

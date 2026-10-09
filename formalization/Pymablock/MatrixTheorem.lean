@@ -20,7 +20,7 @@ theorem matrix_block_diagonalization
       (MatrixBlocks.blockStructure block).series.off ht = 0 ∧ star ht = ht ∧
       (MatrixBlocks.blockStructure block).series.diag (skew (u - 1)) = 0 := by
   classical
-  let P : BlockStructure (Matrix ι ι ℂ) := MatrixBlocks.blockStructure block
+  let P : Selection (Matrix ι ι ℂ) := MatrixBlocks.blockStructure block
   let S : SylvesterSolver P (H 0) := by
     rw [h0]
     exact MatrixBlocks.spectralSolver block (fun i => (e i : ℂ)) (by intro i; simp)

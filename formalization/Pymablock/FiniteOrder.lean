@@ -41,7 +41,7 @@ omit [Algebra ℚ A] [StarRing A] in
 
 /-- Products of the truncated outputs obey the defining identities modulo
 total degree N+1. This includes all mixed perturbative terms. -/
-theorem truncated_correct (P : BlockStructure A) (H : MvPowerSeries σ A)
+theorem truncated_correct (P : Selection A) (H : MvPowerSeries σ A)
     (hH : star H = H) (h0diag : P.diag (H 0) = H 0)
     (S : SylvesterSolver P (H 0)) (N : ℕ) :
     let result := blockDiagonalize P H S

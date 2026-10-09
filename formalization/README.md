@@ -1,6 +1,6 @@
 # Lean formalization of the Pymablock algorithm
 
-This directory proves correctness of the Hermitian block-partition recurrence in Lean 4 and mathlib.
+This directory proves correctness of the Hermitian selective-diagonalization recurrence in Lean 4 and mathlib.
 The development covers any finite number of blocks, arbitrary block sizes, any finite number of perturbation parameters, and every perturbative order.
 In fact, the series results allow an arbitrary parameter index type: each monomial has finite support.
 
@@ -20,6 +20,20 @@ Degeneracy within a block is permitted.
 `solution_unique` proves uniqueness of the recursive coefficient construction.
 `truncated_correct` proves the identities through any total degree `N`, including mixed terms, when the series are truncated.
 These statements concern formal series and do not assume or establish analytic convergence.
+
+## Selective diagonalization
+
+`matrix_selective_diagonalization` permits any symmetric, reflexive retained-entry relation `keep i j`, without transitivity.
+The input is a coefficientwise Hermitian complex-matrix formal series with `H₀ = diag(E_i)` in a finite basis.
+The only energy-separation requirement is `¬ keep i j → E_i ≠ E_j`; degeneracies on retained entries are allowed.
+The constructed output has zero entries wherever `keep` is false, at every multi-index, and satisfies both unitary identities, Hermiticity, and the retained-entry gauge `diag(skew(U - I)) = 0`.
+The same unique causal construction and finite-order theorem apply.
+An arbitrary number of blocks can be combined with selective diagonalization inside them by retaining only same-block entries allowed by each block's mask.
+
+`Selection` assumes only rational linearity, idempotence, and compatibility with the adjoint.
+It imposes no multiplication or block-partition laws.
+The concrete masked Sylvester solver proves the remaining solver contract from the entrywise energy gaps.
+`Tests/Selective.lean` checks a nontransitive three-state mask with two perturbation parameters and retained degeneracy, and verifies that the extra retained commutator correction is nonzero in a concrete example.
 
 ## Reproduce
 
@@ -57,34 +71,39 @@ The organization follows [qt/rmt_nlin](https://gitlab.kwant-project.org/qt/rmt_n
 | `Construction`, `Recurrence` | The actual optimized update, its unique fixed point, and the equations it satisfies. |
 | `Optimized`, `Library/Vanishing`, `Invariants` | Unitarity, gauge, and the identity `X = [U', H_S]`. |
 | `Correctness`, `Hamiltonian`, `FiniteOrder` | End-to-end theorems for the constructed outputs and their truncations. |
-| `Sylvester`, `SpectralSolver`, `MatrixTheorem` | Solver contract and its concrete realization from separated energies. |
+| `Sylvester`, `SpectralSolver`, `MatrixTheorem`, `Selective` | Solver contract and its concrete realization from separated energies. |
 | `Manuscript/Registry`, `Manuscript/Exports` | Links to manuscript labels and exports of checked types, hypotheses, definitions, and axioms. |
 | `FirstOrder`, `Tests/TwoLevel` | Leading coefficient of the constructed unitary, with an explicit two-level Hamiltonian. |
+| `Tests/Selective` | Nontransitive mask, retained degeneracy, and nonzero selective correction. |
 | `Tests/Examples` | One parameter/two blocks, two parameters/three blocks, and three degenerate two-dimensional blocks; a solver-sign calculation. |
 
 The export follows both theorem types and proofs through project declarations.
-It includes structure constructors so that assumptions inside `BlockStructure` and `SylvesterSolver` remain visible.
+It includes structure constructors so that assumptions inside `Selection` and `SylvesterSolver` remain visible.
 The registry associates equations with checked declarations; it does not establish a formal equivalence between Lean and the text of the manuscript or Python implementation.
 
 ## Correspondence to the implementation
 
-The construction uses the general branch of `pymablock/algorithms.py:main`, for ordinary block partitions (`commuting_blocks` true, `two_block_optimized` false).
+The construction uses the general branch of `pymablock/algorithms.py:main` with `two_block_optimized` false, including the selective correction used when `commuting_blocks` is false.
+The names `diag` and `off` denote retained and eliminated entries; the retained mask need not be a block partition.
 We write `q = U'`, `herm(a) = (a + a†)/2`, and `skew(a) = (a - a†)/2`.
 The update is
 
 ```text
 A = H'_R q
-B_new = -diag(skew(q† B) + herm(A)) - off(q† B)
+K = [skew(q), H'_S]
+B_new = -diag(skew(q† B) + herm(A)) - off(q† B) + diag(herm(K))
 X = B_new + H'_R + A
 W = -q† q / 2
 V = solve(herm(X) - [skew(q), H'_S])
 q_new = W + V
-H_tilde = H₀ + H'_S + diag(herm(A) - herm(q† B))
+H_tilde = H₀ + H'_S + diag(herm(A) - herm(q† B) - herm(K))
 ```
 
 The solver convention is `[solve(Y), H₀] = off(Y)`.
 In an eigenbasis this divides `Y_ij` by `E_j - E_i`.
 Python's Sylvester solver uses the opposite commutator convention, so the minus sign in its `V` definition produces this same equation.
+For Hermitian `H'_S`, `K` is Hermitian, so `herm(K) = K`; this is precisely Python's `V @ H'_diag + (V @ H'_diag).adj`.
+For ordinary block partitions its retained part vanishes.
 The new `B` is used inside the `q` update to resolve the same-degree dependency before advancing the total degree.
 The proof establishes strict causality of this update and constructs each coefficient by finitely many iterations.
 
@@ -93,8 +112,8 @@ Unitarity and the two adjoint parts of `X` imply a homogeneous recurrence for it
 The defect has only the zero formal-series solution.
 Substitution then gives `H_tilde = H_S - (B + q† B)`, whose off-diagonal part vanishes by the `B` recurrence.
 
-The formalization does not verify Python execution, lazy caching, numerical Sylvester solvers, floating-point errors, arbitrary element masks, the non-Hermitian algorithm, or the optional two-block fast path.
-It also does not prove the complexity claims or uniqueness among every possible block-diagonalizer beyond the stated recurrence.
+The formalization does not verify Python execution, lazy caching, numerical Sylvester solvers, floating-point errors, the non-Hermitian algorithm, or the optional two-block fast path.
+It also does not prove the complexity claims or uniqueness among every possible selective diagonalizer beyond the stated recurrence.
 
 ## Manuscript finding
 
@@ -124,5 +143,5 @@ For an actual unitary matrix with positive-definite diagonal blocks, a block-dia
 
 The remaining proof must connect the formal gauge to positivity on a continuous or convergent branch near the identity and establish the scope of the competing transformations.
 The manuscript's order-by-order norm argument needs a separate justification because the squared norm contains cross-order terms.
-No claim about arbitrary element masks or every matrix norm is included.
+No least-action minimality claim for arbitrary element masks or every matrix norm is included.
 See the [least-action construction](https://arxiv.org/html/2505.11167v1#S2.SS1) and [the distinction from an off-block generator](https://arxiv.org/html/2408.14637v1).

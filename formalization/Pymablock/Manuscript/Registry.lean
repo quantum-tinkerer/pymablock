@@ -11,8 +11,7 @@ structure Occurrence where
   declaration : Name
   relation : String
 
-/-- The proof covers ordinary block partitions. The manuscript additionally
-allows arbitrary masks, which are recorded as a boundary in the report. -/
+/-- Correspondence for block partitions and arbitrary symmetric entry masks. -/
 def occurrences : Array Occurrence := #[
   ⟨"eq:problem_definition", ``Pymablock.matrix_block_diagonalization,
     "Correctness for arbitrary block partitions and arbitrary parameter index types."⟩,
@@ -29,15 +28,17 @@ def occurrences : Array Occurrence := #[
   ⟨"eq:sylvester", ``Pymablock.SylvesterSolver.series_equation,
     "Coefficientwise Sylvester contract; solved concretely by spectralSolver."⟩,
   ⟨"eq:B_offdiag", ``Pymablock.off_bUpdate,
-    "Off-diagonal B update for ordinary block partitions."⟩,
+    "Eliminated-entry B update for arbitrary symmetric masks."⟩,
   ⟨"eq:B_diag", ``Pymablock.bUpdate,
-    "Specialization to block partitions, where the diagonal commutator term vanishes."⟩,
+    "General B update including the retained commutator correction."⟩,
   ⟨"eq:H_tilde_optimized", ``Pymablock.effective,
-    "Specialization to block partitions; equality to U-adjoint H U is proved."⟩]
+    "General selective formula; equality to U-adjoint H U is proved."⟩]
 
 /-- Terminal results are exported with their actual checked theorem types,
 proposition binders, transitive project dependencies, and kernel axioms. -/
 def roots : Array Name := #[
+  ``Pymablock.matrix_selective_diagonalization,
+  ``Pymablock.MatrixSelection.eliminated_entries_iff,
   ``Pymablock.matrix_block_diagonalization,
   ``Pymablock.blockDiagonalize_correct,
   ``Pymablock.solution_unique,

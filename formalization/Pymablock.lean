@@ -17,3 +17,4 @@ import Pymablock.SpectralSolver
 import Pymablock.FiniteOrder
 import Pymablock.MatrixTheorem
 import Pymablock.FirstOrder
+import Pymablock.Selective

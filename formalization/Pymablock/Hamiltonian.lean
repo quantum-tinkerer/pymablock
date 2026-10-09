@@ -40,13 +40,13 @@ omit [Algebra ℚ A] in
   exact hi
 
 /-- The selected and remaining positive-order pieces are derived from H. -/
-def selected (P : BlockStructure A) (H : MvPowerSeries σ A) : MvPowerSeries σ A :=
+def selected (P : Selection A) (H : MvPowerSeries σ A) : MvPowerSeries σ A :=
   P.series.diag (positive H)
-def remaining (P : BlockStructure A) (H : MvPowerSeries σ A) : MvPowerSeries σ A :=
+def remaining (P : Selection A) (H : MvPowerSeries σ A) : MvPowerSeries σ A :=
   P.series.off (positive H)
 
 /-- The two series returned by the mathematical algorithm: (H_tilde, U). -/
-def blockDiagonalize (P : BlockStructure A) (H : MvPowerSeries σ A)
+def blockDiagonalize (P : Selection A) (H : MvPowerSeries σ A)
     (S : SylvesterSolver P (H 0)) : MvPowerSeries σ A × MvPowerSeries σ A :=
   let hs := selected P H
   let hr := remaining P H
@@ -55,8 +55,8 @@ def blockDiagonalize (P : BlockStructure A) (H : MvPowerSeries σ A)
 
 /-- Main theorem. Every coefficient of the constructed transformation is
 unitary in both directions, satisfies the Pymablock gauge, and transforms the
-input Hamiltonian to the returned block-diagonal Hermitian series. -/
-theorem blockDiagonalize_correct (P : BlockStructure A) (H : MvPowerSeries σ A)
+input Hamiltonian to the returned Hermitian series with eliminated part zero. -/
+theorem blockDiagonalize_correct (P : Selection A) (H : MvPowerSeries σ A)
     (hH : star H = H) (h0diag : P.diag (H 0) = H 0)
     (S : SylvesterSolver P (H 0)) :
     let result := blockDiagonalize P H S

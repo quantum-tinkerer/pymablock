@@ -18,30 +18,11 @@ omit [StarRing A] in
 @[simp] theorem coefficientMap_apply (L : A →ₗ[ℚ] A) (f : MvPowerSeries σ A) (n : σ →₀ ℕ) :
     coefficientMap L f n = L (f n) := rfl
 
-/-- Block projection commutes with the multivariate Cauchy product in exactly
-the same way as the coefficient-level projection. -/
-def BlockStructure.series (P : BlockStructure A) : BlockStructure (MvPowerSeries σ A) where
+/-- Lift a selection to formal series coefficientwise. -/
+def Selection.series (P : Selection A) : Selection (MvPowerSeries σ A) where
   diag := coefficientMap P.diag
   idempotent f := by ext n; exact P.idempotent _
   star_diag f := by ext n; exact P.star_diag _
-  mul_left f g := by
-    classical
-    ext n
-    change P.diag (coeff n (coefficientMap P.diag f * g)) =
-      coeff n (coefficientMap P.diag f * coefficientMap P.diag g)
-    simp only [coeff_mul, map_sum]
-    apply Finset.sum_congr rfl
-    intro p hp
-    exact P.mul_left _ _
-  mul_right f g := by
-    classical
-    ext n
-    change P.diag (coeff n (f * coefficientMap P.diag g)) =
-      coeff n (coefficientMap P.diag f * coefficientMap P.diag g)
-    simp only [coeff_mul, map_sum]
-    apply Finset.sum_congr rfl
-    intro p hp
-    exact P.mul_right _ _
 
 omit [Algebra ℚ A] [StarRing A] in
 @[simp] theorem series_add_apply (f g : MvPowerSeries σ A) (n : σ →₀ ℕ) :
@@ -70,9 +51,9 @@ omit [Algebra ℚ A] [StarRing A] in
     herm f n = herm (f n) := rfl
 @[simp] theorem series_skew_apply (f : MvPowerSeries σ A) (n : σ →₀ ℕ) :
     skew f n = skew (f n) := rfl
-@[simp] theorem series_diag_apply (P : BlockStructure A) (f : MvPowerSeries σ A) (n : σ →₀ ℕ) :
+@[simp] theorem series_diag_apply (P : Selection A) (f : MvPowerSeries σ A) (n : σ →₀ ℕ) :
     P.series.diag f n = P.diag (f n) := rfl
-@[simp] theorem series_off_apply (P : BlockStructure A) (f : MvPowerSeries σ A) (n : σ →₀ ℕ) :
+@[simp] theorem series_off_apply (P : Selection A) (f : MvPowerSeries σ A) (n : σ →₀ ℕ) :
     P.series.off f n = P.off (f n) := rfl
 
 namespace JetEq
