@@ -135,7 +135,7 @@ class Embedding(sympy.Expr):
             self = sympy.Expr.__new__(cls, generators, reference)
             self._lattices = ((0, self),)
             self._compile(dict(generators), dict(reference))
-            self._transfers = (self._convert_operator(sympy.S.One),)
+            self._transfers = (self._target_identity,)
             return self
         states = sympy.Tuple(
             *(
@@ -196,38 +196,29 @@ class Embedding(sympy.Expr):
         )
 
     def _convert_operator(self, expression: sympy.Expr) -> NumberOrderedForm:
-        """Convert an expression to NOF in the compiled target mode order.
-
-        Reject modes missing from the reference declaration.
-        """
-        modes = self._first_lattice._target_operators
+        """Parse a target expression using the modes declared in the reference."""
         if isinstance(expression, NumberOrderedForm):
-            for i, op in enumerate(expression.operators):
-                if op not in modes and any(
-                    powers[i]
-                    or coefficient.has(expression._number_operator_placeholders[i])
-                    for powers, coefficient in expression.terms.items()
-                ):
-                    raise ValueError(
-                        "Every target mode must be declared in the reference"
-                    )
-            return (
-                expression
-                if expression.operators == modes
-                else expression._expand_operators(modes)
-            )
+            return self._rebase_target(expression)
+        modes = self._first_lattice._target_operators
         expression = sympy.sympify(expression)
         if set(find_operators(expression)) - set(modes):
             raise ValueError("Every target mode must be declared in the reference")
         return NumberOrderedForm.from_expr(expression, operators=modes)
 
-    def _attach(self, value: sympy.Expr, side: int) -> NumberOrderedForm:
-        """Represent ``value W`` for side +1, or ``W† value`` for side -1.
+    def _rebase_target(self, value: NumberOrderedForm) -> NumberOrderedForm:
+        """Express a target NOF in the declared mode order, rejecting unknown modes."""
+        modes = self._first_lattice._target_operators
+        for i, op in enumerate(value.operators):
+            if op not in modes and any(
+                powers[i] or coefficient.has(value._number_operator_placeholders[i])
+                for powers, coefficient in value.terms.items()
+            ):
+                raise ValueError("Every target mode must be declared in the reference")
+        return value if value.operators == modes else value._expand_operators(modes)
 
-        Normalize the target expression but retain the attachment until arithmetic
-        contracts it. All frame entries attach to the first reference lattice.
-        """
-        value = self._convert_operator(value)
+    def _attach(self, value: NumberOrderedForm, side: int) -> NumberOrderedForm:
+        """Represent ``value W`` for side +1, or ``W† value`` for side -1."""
+        value = self._rebase_target(value)
         return NumberOrderedForm(
             value.operators, value.args[1], self, side, validate=False
         )
@@ -258,25 +249,20 @@ class Embedding(sympy.Expr):
     def _target_matrix(
         self, expression: sympy.Expr | sympy.MatrixBase
     ) -> sympy.MatrixBase:
-        """Normalize a target coefficient, promoting scalar NOFs to 1x1 matrices."""
-        target = self._convert_target(expression)
-        return (
-            sympy.ImmutableMatrix([[target]])
-            if isinstance(target, NumberOrderedForm)
-            else target
-        )
-
-    def _occupation_projector(self, spectra: Sequence) -> NumberOrderedForm:
-        """Return the diagonal target operator selecting ``(expression, spectrum)`` pairs.
-
-        Linearizing turns indicators of fermion and spin numbers into polynomials.
-        """
-        indicator = sympy.prod(
-            _allowed_values_indicator(q, spectrum) for q, spectrum in spectra
-        )
-        return NumberOrderedForm(
-            self._target_operators, {(0,) * len(self._target_operators): indicator}
-        )._linearize_binary_operators()
+        """Parse a target coefficient into a square matrix of target NOFs."""
+        if not isinstance(expression, sympy.MatrixBase):
+            if any(row for row, _ in self._lattices):
+                raise ValueError(
+                    "Nonzero reference matrix indices require a matrix target"
+                )
+            expression = sympy.ImmutableMatrix([[expression]])
+        elif isinstance(self.args[1], sympy.Dict):
+            raise TypeError("Matrix targets require a list of reference states")
+        if expression.rows != expression.cols:
+            raise ValueError("Target matrices must be square")
+        if any(row >= expression.rows for row, _ in self._lattices):
+            raise ValueError("Reference matrix index lies outside the target matrix")
+        return sympy.ImmutableSparseMatrix(expression.applyfunc(self._convert_operator))
 
     @_cache_on_instance
     def _complement_frame(self, rows: int) -> sympy.MatrixBase:
@@ -536,24 +522,6 @@ class Embedding(sympy.Expr):
                 f"Ladder number image {op} must count from the source reference index zero",
             )
 
-    def _convert_target(
-        self, expression: sympy.Expr | sympy.MatrixBase
-    ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Normalize scalar targets or square matrices with declared row indices."""
-        if not isinstance(expression, sympy.MatrixBase):
-            if any(row for row, _ in self._lattices):
-                raise ValueError(
-                    "Nonzero reference matrix indices require a matrix target"
-                )
-            return self._convert_operator(expression)
-        if isinstance(self.args[1], sympy.Dict):
-            raise TypeError("Matrix targets require a list of reference states")
-        if expression.rows != expression.cols:
-            raise ValueError("Target matrices must be square")
-        if any(row >= expression.rows for row, _ in self._lattices):
-            raise ValueError("Reference matrix index lies outside the target matrix")
-        return sympy.ImmutableSparseMatrix(expression.applyfunc(self._convert_operator))
-
     def _validate_disjointness(self) -> None:
         """Test the unique possible source displacement between same-row lattices."""
         first = self._first_lattice
@@ -579,7 +547,7 @@ class Embedding(sympy.Expr):
             a - b for a, b in zip(self._reference_state, lattice._reference_state)
         )
         if not any(powers):
-            return self._convert_operator(sympy.S.One)
+            return self._target_identity
         if any(p and any(self._occupation_matrix.row(i)) for i, p in enumerate(powers)):
             raise NotImplementedError(
                 "Reference translations along generator-moving modes are not supported"
@@ -767,6 +735,19 @@ class Embedding(sympy.Expr):
         )
 
     @cached_property
+    def _target_zero(self) -> NumberOrderedForm:
+        """Return zero carrying the target operator basis."""
+        return NumberOrderedForm(
+            self._first_lattice._target_operators, {}, validate=False
+        )
+
+    @cached_property
+    def _target_identity(self) -> NumberOrderedForm:
+        """Return the identity in the target operator basis."""
+        modes = self._first_lattice._target_operators
+        return NumberOrderedForm(modes, {(0,) * len(modes): sympy.S.One}, validate=False)
+
+    @cached_property
     def _source_zero(self) -> NumberOrderedForm:
         """Return zero carrying the source operator basis."""
         return NumberOrderedForm(self._source_operators, {}, validate=False)
@@ -827,12 +808,12 @@ class Embedding(sympy.Expr):
         )
 
     @_cache_on_instance
-    def _compress(self, target: NumberOrderedForm) -> NumberOrderedForm | sympy.Expr:
+    def _compress(self, target: NumberOrderedForm) -> NumberOrderedForm:
         """Return ``W† target W`` by translating each term to the source algebra."""
         result = self._source_zero
         for shift, (_, weight) in target.act(self._target_occupations).items():
             result += self._project_term(shift, weight)
-        return result if self._source_operators else result.terms.get((), sympy.S.Zero)
+        return result
 
     @cached_property
     def _projector(self) -> NumberOrderedForm:
@@ -862,7 +843,12 @@ class Embedding(sympy.Expr):
                     "This bosonic embedding requires an occupation inequality"
                 )
             spectra.append((q, range(size) if size is not None else sympy.S.Integers))
-        return self._occupation_projector(spectra)
+        indicator = sympy.prod(
+            _allowed_values_indicator(q, spectrum) for q, spectrum in spectra
+        )
+        return NumberOrderedForm(
+            self._target_operators, {(0,) * len(self._target_operators): indicator}
+        )._linearize_binary_operators()
 
     @_cache_on_instance
     def _lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
@@ -872,14 +858,14 @@ class Embedding(sympy.Expr):
         both sides onto the retained space.
         """
         if value.is_zero:
-            return self._convert_operator(sympy.S.Zero)
+            return self._target_zero
         if set(value.operators) - set(self._source_operators):
             raise ValueError("Lifted operators must belong to the source algebra")
         value = value._expand_operators(self._source_operators)
         coordinates = dict(
             zip(value._number_operator_placeholders, self._source_coordinates)
         )
-        result = self._convert_operator(sympy.S.Zero)
+        result = self._target_zero
         for powers, coefficient in value.terms.items():
             term = NumberOrderedForm(
                 self._target_operators,
@@ -920,7 +906,16 @@ class Embedding(sympy.Expr):
     def _block_result(
         self, result: sympy.MatrixBase
     ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Keep list results as matrices and mapping results as NOFs."""
+        """Unwrap operator-free entries and the matrix axis of mapping references."""
+        result = result.applyfunc(
+            lambda value: (
+                value.terms.get((), sympy.S.Zero)
+                if isinstance(value, NumberOrderedForm)
+                and not value.operators
+                and value.embedding is None
+                else value
+            )
+        )
         if isinstance(self.args[1], sympy.Dict):
             return result[0, 0]
         return result

@@ -24,7 +24,7 @@ def test_normalized_generator_lift_and_attachment_contracts(reference):
     a, s = BosonOp("a"), SigmaMinus("s")
     e = Embedding({s: a**2 / sp.sqrt(N(a) * (N(a) - 1))}, reference={a: reference})
     w = sp.eye(6)[:, [reference, reference + 2]]
-    attached = e._attach(1, 1)
+    attached = e._frame_columns(1)[0, 0]
 
     def target(x):
         return nof_matrix(x, [range(6)])
