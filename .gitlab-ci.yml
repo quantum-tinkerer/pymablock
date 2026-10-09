@@ -161,6 +161,8 @@ run lean:
     - changes:
         - formalization/**/*
         - tools/formalization.py
+        - paper/algorithm.tex
+        - docs/source/nonhermitian_algorithm.md
         - pyproject.toml
         - pixi.lock
         - .gitlab-ci.yml
