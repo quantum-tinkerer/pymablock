@@ -232,6 +232,7 @@ publish = "hatch publish -u __token__"
 
 # Formal verification uses the pinned official Lean toolchain through elan.
 [tool.pixi.feature.lean.dependencies]
+curl = "*"
 python = ">=3.12,<3.13"
 git = "*"
 markdown-it-py = ">=3,<5"
