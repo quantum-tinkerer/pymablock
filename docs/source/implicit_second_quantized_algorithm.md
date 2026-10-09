@@ -184,8 +184,8 @@ with its amplitude divided by the source ladder amplitude.
 
 ### Step 3: the block Hamiltonian
 
-`operator_to_BlockSeries` performs the same conversion that `block_diagonalize`
-does in `_block_hamiltonian_and_solver`:
+`operator_to_BlockSeries` performs the same frame-based block conversion as
+`block_diagonalize`. The latter also prepares the solver and validates $H_0$:
 
 ```{code-cell} ipython3
 from IPython.display import display
