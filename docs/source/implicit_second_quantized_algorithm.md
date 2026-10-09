@@ -116,8 +116,12 @@ coupling between $|2_a 0_b\rangle$ and $|1_a 1_b\rangle$ exists in $H$, but no
 path from the retained states reaches it.
 ```
 
-The cells below inspect private implementation objects and their attributes.
-They show intermediate calculations and are not part of the public interface.
+The cells below read private attributes of the embedding and its compiled
+lattice, the names starting with an underscore. The public interface
+deliberately returns only the final operators, while these steps are about the
+intermediate data: the reference state, the shift matrix and the retained
+occupations. These attributes are implementation details that may change
+without notice; do not use them in your own code.
 
 ### Step 1: construction
 
@@ -125,6 +129,7 @@ The image $a$ of $q$ lowers $n_a$ by one and leaves $n_b$ unchanged, so $M$ has
 the single column $(1, 0)$ and the retained states are $n(q) = (q, 0)$:
 
 ```{code-cell} ipython3
+# Private attributes, read only to show the intermediate data.
 lattice = embedding._first_lattice
 print("target modes:", lattice.target_operators)
 print("reference r:", lattice._reference_state)
