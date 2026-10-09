@@ -18,11 +18,18 @@ mystnb:
 An effective model can have different operators from its microscopic Hamiltonian.
 For example, a spin flip can represent moving a fermion between two orbitals, or
 exciting an oscillator from its ground state to its first excited state.
-An embedding maps the effective model into the microscopic Hamiltonian, so we
-call the effective model the **source** and the microscopic Hamiltonian the
-**target**. The embedding defines the source operators by giving **their target
-expressions and one reference state**. For a finite matrix result, an ordered
+An embedding maps the effective model's Hilbert space, the **source**, into the
+larger Hilbert space of the original microscopic Hamiltonian, the **target**.
+Thus $W:\mathcal H_\mathrm{source}\to\mathcal H_\mathrm{target}$.
+The embedding defines the source operators by giving **their target expressions
+and one reference state**. For a finite matrix result, an ordered
 list of reference states defines the retained basis directly.
+
+The supported embeddings map each effective occupation state to a single
+microscopic occupation state, up to a phase. Generator images have fixed,
+linearly independent occupation shifts. Arbitrary superpositions of microscopic
+occupation states are not represented directly. To use a different mode basis,
+rewrite the Hamiltonian in that basis first.
 
 For a spin encoded in two fermions, the definition is
 
@@ -85,8 +92,24 @@ $$
 R(A)=W^\dagger A W
 $$
 
-and expresses the result using the source operators. It evaluates the complete
-target expression before compression. In particular, $R(AB)$ need not equal
+and expresses the result using the source operators. Restriction maps operators
+from the full target space to the effective source space. The reverse operation,
+lifting, maps an effective operator $a$ into the full space as
+$L(a)=WaW^\dagger$, acting as zero outside the retained subspace. Lifting is
+handled internally by the operator arithmetic.
+
+These operations are inverses in only one direction:
+
+$$
+R(L(a))=a,\qquad L(R(A))=PAP.
+$$
+
+Restricting a lifted operator recovers the effective operator, but lifting a
+restricted operator recovers only its projection onto the retained subspace.
+Restriction loses information about states and couplings outside that subspace.
+
+Restriction evaluates the complete target expression before compression.
+In particular, $R(AB)$ need not equal
 $R(A)R(B)$: the intermediate state in $AB$ can leave the retained space.
 
 ## Oscillator to spin, including a virtual correction
@@ -353,8 +376,25 @@ then inspect or display their `as_expr()` expressions. Reference lists return
 matrices whose entries use that same source algebra; without generators their
 entries are ordinary scalar expressions.
 
-An embedding maps Fock states of the source to Fock states of the target. To
-embed a linear combination of target modes, such as a bonding orbital, first
+The supported occupation maps have the affine form
+
+$$
+n = r + Mq.
+$$
+
+Here $q$ contains the source occupations, $r$ is a target product-state reference,
+and each column of $M$ is the fixed occupation increment produced by a generator's
+adjoint image. The columns must be linearly independent. Thus each source Fock
+state maps to one target Fock state, with a phase fixed by the generators.
+A reference list supplies several disjoint copies of this construction.
+
+Generator coefficients may depend on target occupations. Finite source modes
+permit occupation-dependent phases; infinite source modes require constant
+phases relative to their ladder amplitudes. General superpositions of target
+occupation states and entangled reference states are not supported. Validation
+distinguishes a violated identity from one it cannot establish symbolically.
+
+To embed a linear combination of target modes, such as a bonding orbital, first
 rewrite the Hamiltonian in terms of operators for that combination and the
 combinations orthogonal to it:
 
@@ -372,14 +412,6 @@ H0 = sympy.expand(H0.doit().xreplace(modes))
 embedding = Embedding({f: bonding}, reference={bonding: 0, antibonding: 0})
 embedding.restrict(H0).as_expr()  # 4 * N_f
 ```
-
-Each target expression must make **one independent occupation shift per source
-generator**, starting from a product occupation reference. Coefficients may
-depend on target occupations. Finite source modes permit occupation-dependent
-phases; infinite source modes require constant phases relative to their ladder
-amplitudes. General nonlinear superpositions and entangled reference states are
-not supported. Validation distinguishes a violated identity
-from one it cannot establish symbolically.
 
 The default perturbative solver requires Hermitian input and a target Hamiltonian
 $H_0=E(N_1,\ldots,N_M)$ diagonal in the target occupations. For a matrix

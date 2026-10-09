@@ -3,34 +3,43 @@
 
 ## Structured embeddings
 
-As in the user documentation, the *source* is the effective model and the
-*target* is the Hamiltonian passed to `block_diagonalize`. The embedding is an
-isometry $W$ from source states to target states.
+The **source** is the effective model's Hilbert space; the **target** is the
+larger Hilbert space of the original Hamiltonian passed to `block_diagonalize`.
+The embedding is an isometry $W:\mathcal H_\mathrm{source}\to\mathcal H_\mathrm{target}$.
+The retained subspace is the image of $W$ inside the target; its complement also
+belongs to the target space.
 
-`Embedding` is one structural SymPy expression. It compiles generator images
-and the affine occupation map, and recompiles when reconstructed or unpickled.
-A reference mapping defines one lattice. A list adds a source matrix index:
-column $j$ maps $q$ to target row $i_j$ and occupations $r_j+Mq$.
+`Embedding` is the structural SymPy expression defining the isometry. Every
+instance contains an ordered `(row, lattice)` collection and transfer operators.
+A mapping reference gives one lattice; a list adds a source matrix index.
+Column $j$ maps $q$ to target row $i_j$ and occupations $r_j+Mq$.
 
-A mapping-reference embedding is a lattice; a list embedding is a tuple of
-such lattices. The mapping constructor compiles its lattice directly. Lists
-construct one lattice per indexed reference through that same constructor,
-sharing the first lattice's symbolic source occupations. These coordinates retain
-nonnegative assumptions for physical modes and signed indices for `LadderOp`;
-NOF number-placeholder assumptions are unchanged.
-A list constructor stores only the ordered `(row, lattice)` collection and its transfer operators; it
-has no duplicate compiled occupation map. The solver reads the first lattice
-explicitly, rather than through forwarding properties.
+Each private `_Lattice` owns the compiled generator images, occupation maps,
+phases, validation, and single-lattice operator arithmetic. It is derived data,
+excluded from the embedding's symbolic arguments and rebuilt when an embedding
+is reconstructed or unpickled. Lattices in one embedding share symbolic source
+occupations, with nonnegative assumptions for physical modes and signed indices
+for `LadderOp`. NOF number-placeholder assumptions are unchanged.
+
+`Embedding._first_embedding` supplies the single-reference symbolic identity
+used by rectangular NOF attachments. For a list it shares the first compiled
+lattice without recompiling it. The attachment remains an `Embedding`, so SymPy
+substitution and pickling rebuild it from its public constructor arguments.
+NOF arithmetic accesses the scalar lattice through `_attachment_lattice`, which
+rejects reference-list frames. Unprefixed members of the private `_Lattice` class
+form its package-internal contract. Lattice transition mapping owns coordinate
+conversion; the solver supplies energy-gap division and resonance handling.
+Solver results preserve the incoming NOF attachment through `_rebuild`.
 
 Lifting substitutes source NOF terms into target NOFs. Scalar number
 placeholders map directly to the compiled source coordinates; generator NOFs
 and their adjoints supply the ladder factors and graded signs. Existing NOFs
 are extended to the target mode order structurally. Embedding arithmetic never
-converts NOFs to expressions and back. `_parse_target` parses expressions
+converts NOFs to expressions and back. `_Lattice._parse_target` parses expressions
 at the input boundary; `NumberOrderedForm._expand_operators` changes the operator
 list of an existing NOF structurally and refuses to drop an operator that a term uses.
-The class groups construction and format boundaries, full-frame operations,
-and single-lattice mathematics in separate sections.
+`Embedding` handles construction, format boundaries, and full-frame operations;
+`_Lattice` handles the occupation maps and single-lattice mathematics.
 
 Every frame entry uses the same scalar isometry $W_1$ at the first reference.
 The constructor builds target operators $T_j$ such that $W_j=T_jW_1$.
@@ -42,8 +51,9 @@ the generator validation supplies each phase $\phi_j$.
 `restrict` always multiplies the frames $W^\dagger XW$, then unwraps a mapping
 reference's one-by-one result. Restriction calls `_retained_frame` directly;
 Hamiltonian preparation and block conversion also call `_complement_frame`.
-Both frames are cached on the owning instance. Attached scalar contractions call `_restrict`
-directly, avoiding recursion through `restrict`. Compression always returns a
+Both frames are cached on the owning embedding. Attached scalar contractions call
+`_Lattice.restrict` directly, avoiding recursion through `Embedding.restrict`.
+Compression always returns a
 NOF, including when there are no source operators. `_format_output` unwraps
 operator-free entries and the mapping reference's matrix axis at the output
 boundary. Later perturbative arithmetic may retain zero-mode NOFs in scalar
@@ -60,7 +70,7 @@ The implementation separates three operations:
 - `second_quantization.solve_sylvester_embedding(h0, embedding)` validates diagonal
   H0, reads retained energies directly from $W^\dagger H_0W$, and dispatches matrix
   blocks. Its helper `_divide_transitions` takes a lattice, a target NOF, and
-  outgoing/incoming energy expressions and returns a target NOF divided by its
+  target/source energy expressions and returns a target NOF divided by its
   transition gaps. `block_diagonalize`
   constructs the solver, validates the complement projector, and splits the
   Hamiltonian into blocks, omitting the validated zeroth-order cross blocks.
@@ -73,11 +83,12 @@ destination and matrix element. Compression and division share this action.
 Division uses the matrix element only to identify inactive transitions; it
 divides the bare NOF coefficient, so ladder factors are not applied twice. The zero series sentinel is handled before attempting matrix operations.
 For `fully_diagonalize`, transitions within either diagonal block use the
-ordinary second-quantized Sylvester solver, with retained or target energies.
+ordinary second-quantized Sylvester solver, with source or target energies.
 Transitions between the blocks use the embedding-aware solver.
 
-Method caches belong to their compiled instance, so discarding an embedding
-also discards its conversion caches. The scalar projector cache has a fixed size.
+Frame caches belong to the embedding; lattice conversion caches belong to the
+compiled lattice. Discarding the embedding and its attached operators therefore
+allows both to be collected. The scalar projector cache has a fixed size.
 SymPy compatibility patches live in `number_ordered_form`; the condition
 workaround is feature-detected and installed once, including across reloads.
 
@@ -161,11 +172,12 @@ occupation equations. A reference state is the special case that selects one
 eigenvalue of every target number operator. Finite spectral selections are sums
 of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
 
-The solver reads `_column_states`, `_target_of_source`, `_source_occupations`,
-and `_source_of_target` from the embedding. The incoming energy of column
-$j$ is evaluated at $r_j+Mq$. The attached target operator already includes
-$T_j$, so its outgoing energy is evaluated by acting on the first lattice's
-occupations $r_1+Mq$. Coordinate substitution uses $L(n-r_1)$ throughout.
+The solver reads `_column_target_states` from the embedding to evaluate the source
+energy of column $j$ at $r_j+Mq$. The attached target operator already includes
+$T_j$. The lattice's `map_transition_coefficients` evaluates its transitions
+from $r_1+Mq$ and translates transformed coefficients back using $L(n-r_1)$.
+The solver evaluates the target energy at each final target occupation and
+divides by the target-minus-source energy gap; it does not inspect occupation maps.
 Matrix shape consistency belongs to each block conversion, so an embedding can
 be reused for operators of different target matrix sizes.
 

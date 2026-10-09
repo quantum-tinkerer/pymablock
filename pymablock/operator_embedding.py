@@ -2,8 +2,9 @@
 
 Notation used in this module:
 
-- *Source* is the effective model and *target* the Hamiltonian passed to
-  `~pymablock.block_diagonalize`. The isometry W maps source states to target states.
+- *Source* is the effective model's Hilbert space; *target* is the larger Hilbert
+  space of the original Hamiltonian passed to `~pymablock.block_diagonalize`.
+  The isometry W maps source states to target states.
 - A *lattice* is the set of target occupations ``n = r + M q`` reached from one
   reference state ``r`` by the generator images. ``M`` is ``_occupation_matrix``,
   ``q`` are the source occupations (``source_occupations``), ``n(q)`` is
@@ -74,10 +75,11 @@ def _cache_on_instance[Result](method: Callable[..., Result]) -> Callable[..., R
 class Embedding(sympy.Expr):
     r"""Select the states of an effective model inside a second-quantized Hamiltonian.
 
-    Below, *source* refers to the effective model, and *target* refers to the
-    Hamiltonian passed to `~pymablock.block_diagonalize`. The embedding maps
-    source states to target states. A generator mapping defines the source algebra;
-    a reference list adds a matrix index labeling disjoint copies of that algebra.
+    The *source* is the effective model's Hilbert space; the *target* is the larger
+    Hilbert space of the original Hamiltonian passed to
+    `~pymablock.block_diagonalize`. The embedding maps source states to target
+    states. A generator mapping defines the source algebra; a reference list adds
+    a matrix index labeling disjoint copies of that algebra.
     A mapping reference defines one occupation lattice; a list defines an ordered
     collection of disjoint lattices.
 
@@ -210,7 +212,7 @@ class Embedding(sympy.Expr):
     def restrict(
         self, expression: sympy.Expr | sympy.MatrixBase
     ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Express a target operator in terms of the embedded states.
+        """Restrict a target operator to the effective source space.
 
         The result contains the matrix elements of ``expression`` between embedded
         states, without perturbative corrections. Products are evaluated in the full
@@ -312,7 +314,7 @@ class Embedding(sympy.Expr):
         return sympy.eye(rows) - w * w.adjoint()
 
     @property
-    def _column_states(self) -> tuple:
+    def _column_target_states(self) -> tuple:
         """Return the target row and occupations ``n(q)`` of each frame column."""
         return tuple((row, lattice._target_of_source) for row, lattice in self._lattices)
 
@@ -365,14 +367,14 @@ class _Lattice:
             for op, value in generators.items()
             if isinstance(op, NumberOperator)
         }
-        operators = tuple(op for op in generators if op not in numbers)
-        if not all(isinstance(op, generator_types) for op in operators):
+        source_operators = tuple(op for op in generators if op not in numbers)
+        if not all(isinstance(op, generator_types) for op in source_operators):
             raise TypeError("Keys must be source lowering generators or ladder numbers")
-        if any(not op.is_annihilation for op in operators):
+        if any(not op.is_annihilation for op in source_operators):
             raise ValueError("Source generators must be lowering operators")
-        operators = tuple(sorted(operators, key=_operator_sort_key))
-        self._source_operators = operators
-        self._source_dimensions = tuple(map(_occupation_dimension, operators))
+        source_operators = tuple(sorted(source_operators, key=_operator_sort_key))
+        self._source_operators = source_operators
+        self._source_dimensions = tuple(map(_occupation_dimension, source_operators))
         if source_occupations is None:
             source_occupations = tuple(
                 sympy.Dummy(
@@ -380,11 +382,11 @@ class _Lattice:
                     integer=True,
                     **({} if isinstance(op, LadderOp) else {"nonnegative": True}),
                 )
-                for i, op in enumerate(operators)
+                for i, op in enumerate(source_operators)
             )
         self.source_occupations = source_occupations
         images, shifts = [], []
-        for op in operators:
+        for op in source_operators:
             image = self._parse_target(generators[op])
             if len(image.terms) != 1 or not any(shift := next(iter(image.terms))):
                 raise ValueError(
@@ -401,9 +403,9 @@ class _Lattice:
             shifts.append(shift)
         self._generator_images = tuple(images)
         self._occupation_matrix = sympy.Matrix(
-            len(self.target_operators), len(operators), lambda i, j: shifts[j][i]
+            len(self.target_operators), len(source_operators), lambda i, j: shifts[j][i]
         )
-        if self._occupation_matrix.rank() != len(operators):
+        if self._occupation_matrix.rank() != len(source_operators):
             raise ValueError("Generator shifts must be independent")
         matrix = self._occupation_matrix
         self._occupation_left_inverse = (matrix.T * matrix).inv() * matrix.T
@@ -419,7 +421,7 @@ class _Lattice:
         self._validate_generator_algebra()
         self._phase = self._reference_phase()
         expected_numbers = {
-            NumberOperator(op) for op in operators if isinstance(op, LadderOp)
+            NumberOperator(op) for op in source_operators if isinstance(op, LadderOp)
         }
         if set(numbers) != expected_numbers:
             raise ValueError(
@@ -427,13 +429,15 @@ class _Lattice:
             )
         for op, number in numbers.items():
             index = next(
-                i for i, source in enumerate(operators) if NumberOperator(source) == op
+                i
+                for i, source in enumerate(source_operators)
+                if NumberOperator(source) == op
             )
             form = self._parse_target(number)
             if any(any(powers) for powers in form.terms):
                 raise ValueError("A ladder number image must be occupation diagonal")
             expression = form.terms.get((0,) * len(self.target_operators), sympy.S.Zero)
-            expression = self.evaluate_numbers(expression, self._target_of_source)
+            expression = self.evaluate_target_numbers(expression, self._target_of_source)
             self._require_vanishing(
                 expression - self.source_occupations[index],
                 f"Ladder number image {op} must count from the source reference index zero",
@@ -481,7 +485,7 @@ class _Lattice:
         """Return zero carrying the source operator basis."""
         return NumberOrderedForm(self._source_operators, {}, validate=False)
 
-    def evaluate_numbers(
+    def evaluate_target_numbers(
         self, expression: sympy.Expr, occupations: Sequence[int | sympy.Expr]
     ) -> sympy.Expr:
         """Evaluate a target number coefficient at the supplied occupations."""
@@ -519,7 +523,7 @@ class _Lattice:
         coefficients = value.terms
         for powers, (output, amplitude) in value.act(self._target_of_source).items():
             middle = [n - max(p, 0) for n, p in zip(self._target_of_source, powers)]
-            coefficient = self.evaluate_numbers(coefficients[powers], middle)
+            coefficient = self.evaluate_target_numbers(coefficients[powers], middle)
             result = transform(coefficient, output, amplitude)
             incoming = {n: n + max(p, 0) for n, p in zip(self._target_numbers, powers)}
             terms[powers] = result.xreplace(
@@ -794,20 +798,20 @@ class _Lattice:
         )._linearize_binary_operators()
 
     @_cache_on_instance
-    def lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
-        """Represent a source operator in target space, as ``W value W†``.
+    def lift(self, source: NumberOrderedForm) -> NumberOrderedForm:
+        """Represent a source operator in target space, as ``W source W†``.
 
         Replace source generators and numbers by their target images, then project
         both sides onto the retained space.
         """
-        if value.is_zero:
+        if source.is_zero:
             return self._target_zero
-        value = value._expand_operators(self._source_operators)
+        source = source._expand_operators(self._source_operators)
         coordinates = dict(
-            zip(value._number_operator_placeholders, self._source_of_target)
+            zip(source._number_operator_placeholders, self._source_of_target)
         )
         result = self._target_zero
-        for powers, coefficient in value.terms.items():
+        for powers, coefficient in source.terms.items():
             term = NumberOrderedForm(
                 self.target_operators,
                 {(0,) * len(self.target_operators): coefficient.xreplace(coordinates)},
