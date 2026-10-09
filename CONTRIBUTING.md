@@ -35,3 +35,9 @@ To make a release, do the following:
 6. @isidora.araya updates the Zenodo repository (as its owner) or @anton-akhmerov as an administrator of the quantumtinkerer community.
   To do so, download the zip file from the [tags page](https://gitlab.kwant-project.org/qt/pymablock/-/tags), then click "create new version" on [Zenodo](https://doi.org/10.5281/zenodo.7995683), upload the zip file, and update the metadata.
 7. Maintainers of the `pymablock-feedstock` review and merge the pull request created by the conda-forge bot.
+
+## Formal verification
+
+The optional Lean development in `formalization/` checks the Hermitian block-partition algorithm for arbitrary numbers of blocks and perturbation parameters.
+Run `pixi run lean-setup` once to install the pinned Lean dependencies, then `pixi run lean` to build the proofs, examples, and correspondence report.
+The report exports checked theorem signatures, assumptions, and dependencies; see [`formalization/README.md`](formalization/README.md) for its scope and explicit remaining goals.

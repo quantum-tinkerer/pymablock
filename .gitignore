@@ -180,3 +180,6 @@ _build/
 # pixi environments
 .pixi
 *.egg-info
+
+# Optional Lean toolchain cache used by CI
+.elan/

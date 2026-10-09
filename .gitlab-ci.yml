@@ -151,3 +151,35 @@ publish to pypi:
     key: "$CI_JOB_NAME"
     paths:
         - .pixi
+
+run lean:
+  before_script: []
+  timeout: 1h
+  variables:
+    ELAN_HOME: "$CI_PROJECT_DIR/.elan"
+  rules:
+    - changes:
+        - formalization/**/*
+        - tools/formalization.py
+        - pyproject.toml
+        - pixi.lock
+        - .gitlab-ci.yml
+  script:
+    - pixi install -e lean --locked
+    - pixi run lean-setup
+    - pixi run lean
+  cache:
+    key:
+      prefix: lean
+      files:
+        - formalization/lean-toolchain
+        - formalization/lake-manifest.json
+    paths:
+      - .elan
+      - formalization/.lake/packages
+      - formalization/.lake/build
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - formalization/.lake/reports

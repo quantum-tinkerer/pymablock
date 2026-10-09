@@ -143,6 +143,7 @@ latest = { features = ["latest", "test", "mumps"], solve-group = "default" }
 latest-no-mumps = { features = ["latest", "test"], solve-group = "default" }
 precommit = { features = ["precommit"], no-default-feature = true }
 publish = { features = ["publish"], no-default-feature = true }
+lean = { features = ["lean"], no-default-feature = true }
 
 # Default feature
 
@@ -228,3 +229,14 @@ git = "*"
 [tool.pixi.feature.publish.tasks]
 build = "hatch build"
 publish = "hatch publish -u __token__"
+
+# Formal verification uses the pinned official Lean toolchain through elan.
+[tool.pixi.feature.lean.dependencies]
+python = ">=3.12,<3.13"
+git = "*"
+markdown-it-py = ">=3,<5"
+
+[tool.pixi.feature.lean.tasks]
+lean-setup = "python tools/formalization.py setup"
+lean = "python tools/formalization.py check"
+lean-correspondence = "python tools/formalization.py report"
