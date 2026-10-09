@@ -147,10 +147,11 @@ The symbolic placeholders for number operators therefore carry an integer assump
 Although bosonic occupations are nonnegative, commuting operators through a coefficient shifts its argument to values such as $N_a-k$.
 Assuming nonnegative arguments could discard a condition at a negative value before a later shift moves it to a physical occupation boundary.
 
-Pymablock adds a boundary guard when evaluating the shifted coefficient at that mode's boundary occupation produces an explicit infinity or an indeterminate value, with all other occupations and parameters left symbolic.
+During multiplication, Pymablock evaluates the shifted coefficient at occupations where the annihilation operators kill the state, leaving other occupations and parameters symbolic.
+If this gives an infinity or an indeterminate value, it inserts a `Piecewise` branch that sets the coefficient to zero at that occupation.
 It does not detect poles that appear only at particular values of those other occupations or parameters.
-For example, $a^\dagger (N_a+N_b+1)^{-1}a$ converts to $N_a/(N_a+N_b)$ without a guard.
-Its physical matrix element at $n_a=n_b=0$ is zero, but substituting both occupations into this coefficient gives an indeterminate value; substituting $N_b=0$ first can instead cancel the fraction to $1$.
+For example, $a^\dagger (N_a+N_b+1)^{-1}a$ converts to the plain fraction $N_a/(N_a+N_b)$.
+Its physical matrix element at $n_a=n_b=0$ is zero, but substituting both occupations simultaneously into this coefficient gives an indeterminate value; substituting $N_b=0$ first can instead cancel the fraction to $1$.
 
 If a pole appears only after substituting a parameter, perform that substitution before multiplying or converting the expression to number-ordered form.
 When using `block_diagonalize`, substitute into the input Hamiltonian before calling the function, since multiplication happens internally.
@@ -183,7 +184,8 @@ In other words, the ladder operators $a$ and $a^\dagger$, and the number operato
 
 $$[a, a^\dagger] = 0, \quad [N_a, a] = -a, \quad [N_a, a^\dagger] = a^\dagger.$$
 
-These lattice ladders have integer occupations extending in both directions and no vacuum boundary, so the bosonic boundary guards do not apply.
+These lattice ladders have integer occupations extending in both directions.
+Neither ladder annihilates a state, so Pymablock does not insert `Piecewise` branches that set the coefficient to zero.
 
 The multiplication table for ladder operators is similar to the one for bosons, but simpler:
 
