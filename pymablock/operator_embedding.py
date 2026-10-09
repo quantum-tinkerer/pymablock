@@ -158,6 +158,10 @@ class Embedding(sympy.Expr):
             raise TypeError("Generators must be a mapping")
         generators = sympy.Dict(generators)
         if isinstance(reference, (Mapping, sympy.Dict)):
+            if references[0][0] != 0:
+                raise ValueError(
+                    "Nonzero reference matrix indices require a reference list"
+                )
             reference = references[0][1]
             self = sympy.Expr.__new__(cls, generators, reference)
             self._lattices = ((0, self),)
