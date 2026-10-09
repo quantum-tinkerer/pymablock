@@ -37,9 +37,7 @@ def test_normalized_generator_lift_and_attachment_contracts(reference):
     assert_matrix_equal(target(attached * attached.adjoint()), w * w.T)
     for S in (1, s, s.adjoint(), N(s), s + s.adjoint()):
         value = F.from_expr(S, operators=(s,))
-        assert_matrix_equal(
-            target(e._first_lattice._lift(value)), w * source(value) * w.T
-        )
+        assert_matrix_equal(target(e._first_lattice.lift(value)), w * source(value) * w.T)
         assert_matrix_equal(target((attached * value).target) * w, w * source(value))
     for X in (a, a.adjoint(), a**2, a.adjoint() * a**2, N(a), sp.sqrt(N(a) + 1)):
         x = e._first_lattice._parse_target(X)
@@ -115,7 +113,7 @@ def test_lift_preserves_fermion_order_and_number_coefficients():
     ):
         value = F.from_expr(S, operators=(f, g))
         assert_matrix_equal(
-            nof_matrix(e._first_lattice._lift(value)), w * nof_matrix(value) * w.T
+            nof_matrix(e._first_lattice.lift(value)), w * nof_matrix(value) * w.T
         )
 
 
@@ -125,7 +123,7 @@ def test_lift_bilateral_numbers_and_symbolic_powers():
     for S in (b, b.adjoint(), N(b), b.adjoint() * N(b) * b):
         value = F.from_expr(S, operators=(b,))
         assert_matrix_equal(
-            nof_matrix(e._first_lattice._lift(value), [range(-4, 3)]),
+            nof_matrix(e._first_lattice.lift(value), [range(-4, 3)]),
             nof_matrix(value, [range(-2, 5)]),
         )
     for mode_type in (BosonOp, LadderOp):
@@ -141,7 +139,7 @@ def test_lift_bilateral_numbers_and_symbolic_powers():
             for exponent in (1, 2, 3):
                 assert_matrix_equal(
                     nof_matrix(
-                        embedding._first_lattice._lift(value).xreplace({power: exponent}),
+                        embedding._first_lattice.lift(value).xreplace({power: exponent}),
                         occupations,
                     ),
                     nof_matrix(value.xreplace({power: exponent}), occupations),

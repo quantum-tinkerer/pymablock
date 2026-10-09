@@ -343,50 +343,24 @@ def _divide_transitions(
     symbolic source occupations. Return a bare target NOF, preserving inactive
     zero-gap transitions as zero and unresolved gaps as symbolic denominators.
     """
-    occupations, coordinates = lattice._target_of_source, lattice._source_occupations
-    numbers = lattice._target_numbers
+    coordinates = lattice.source_occupations
     nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
-    terms, coefficients = {}, value.terms
-    for powers, (output, matrix_element) in value.act(occupations).items():
-        # Divide the coefficient, not the full matrix element; ladder factors
-        # only determine whether the transition is active.
-        middle_occupations = [n - max(p, 0) for n, p in zip(occupations, powers)]
-        coefficient = lattice._evaluate_numbers(coefficients[powers], middle_occupations)
+
+    def divide(coefficient, output, matrix_element):
         denominator = sympy.expand(
-            lattice._evaluate_numbers(outgoing_energy, output) - incoming_energy
+            lattice.evaluate_numbers(outgoing_energy, output) - incoming_energy
         )
-        # A literal zero gap still needs the amplitude interpreted in the
-        # source algebra: binary numbers obey n² = n, including indicators.
-        if denominator == 0 and coordinates:
-            amplitude = NumberOrderedForm(
-                lattice._source_operators,
-                {
-                    (0,) * len(coordinates): matrix_element.xreplace(
-                        dict(zip(coordinates, lattice._source_numbers))
-                    )
-                },
-                validate=False,
-            )._linearize_binary_operators()
-            if amplitude.is_zero:
-                continue
+        # Binary source identities can make a nominally resonant transition inactive.
+        if denominator == 0 and coordinates and lattice.source_is_zero(matrix_element):
+            return sympy.S.Zero
         try:
-            result = _divide_by_energy_gap(
-                coefficient,
-                denominator,
-                coordinates,
-                matrix_element,
-                nonnegative,
+            return _divide_by_energy_gap(
+                coefficient, denominator, coordinates, matrix_element, nonnegative
             )
         except ValueError as error:
             raise ZeroDivisionError(str(error)) from error
-        incoming = {n: n + max(p, 0) for n, p in zip(numbers, powers)}
-        terms[powers] = result.xreplace(
-            {
-                q: expression.xreplace(incoming)
-                for q, expression in zip(coordinates, lattice._source_of_target)
-            }
-        )
-    return NumberOrderedForm(lattice._target_operators, terms, validate=False)
+
+    return lattice.map_transition_coefficients(value, divide)
 
 
 def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Callable:
@@ -417,7 +391,7 @@ def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Cal
 
     """
     lattice = embedding._first_lattice
-    modes = lattice._target_operators
+    modes = lattice.target_operators
     if any(i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()):
         raise ValueError("Structured embeddings currently require diagonal H0")
     vacuum = (0,) * len(modes)
@@ -426,7 +400,7 @@ def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Cal
         for x in h0.diagonal()
     ]
     incoming_energies = [
-        lattice._evaluate_numbers(energies[row], state)
+        lattice.evaluate_numbers(energies[row], state)
         for row, state in embedding._column_states
     ]
 
@@ -453,7 +427,7 @@ def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Cal
             divided = _divide_transitions(
                 lattice, entry.target, energies[i], incoming_energies[j]
             )
-            entries[i, j] = embedding._first_embedding._attach(divided, 1)
+            entries[i, j] = entry._rebuild(divided.args[1], operators=divided.operators)
         result = sympy.ImmutableSparseMatrix(*block.shape, entries)
         return -result.adjoint() if reverse else result
 

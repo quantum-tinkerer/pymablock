@@ -34,7 +34,7 @@ def test_qubit_projector_selects_retained_occupations():
         dict(zip(sources, targets)), reference=dict.fromkeys(targets, 0)
     )
     for state, expected in [((0,) * 8, 1), ((1,) * 8, 1), ((2,) + (0,) * 7, 0)]:
-        actions = embedding._first_lattice._projector.act(state)
+        actions = embedding._first_lattice.projector.act(state)
         assert sum(weight for _, weight in actions.values()) == expected
 
 
