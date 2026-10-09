@@ -350,13 +350,10 @@ class Embedding(sympy.Expr):
         The callback preserves the series zero sentinel before accessing matrix entries.
         """
         # second_quantization imports this module to re-export Embedding.
-        from pymablock.second_quantization import (
-            _divide_by_energy_gap,
-            solve_sylvester_2nd_quant,
-        )
+        from pymablock.second_quantization import solve_sylvester_2nd_quant
 
         lattice = self._first_lattice
-        modes, numbers = lattice._target_operators, lattice._target_numbers
+        modes = lattice._target_operators
         if any(
             i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()
         ):
@@ -366,11 +363,6 @@ class Embedding(sympy.Expr):
             x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
             for x in h0.diagonal()
         ]
-        occupations, coordinates = (
-            lattice._target_occupations,
-            lattice._coordinate_symbols,
-        )
-        nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
         incoming_energies = [
             lattice._evaluate_numbers(energies[row], state)
             for row, state in self._energy_states
@@ -378,71 +370,9 @@ class Embedding(sympy.Expr):
 
         # Within each diagonal block the operators already use source or target
         # coordinates. Only rectangular blocks require embedding-aware division.
-        retained_energies = self.restrict(self._block_result(h0))
-        retained_energies = (
-            retained_energies.diagonal()
-            if isinstance(retained_energies, sympy.MatrixBase)
-            else [retained_energies]
-        )
+        w = self._frame_columns(h0.rows)
+        retained_energies = (w.adjoint() * h0 * w).diagonal()
         diagonal_solver = solve_sylvester_2nd_quant([retained_energies, h0.diagonal()])
-
-        def divide_transition_entry(
-            value: NumberOrderedForm | sympy.Expr, row: int, col: int
-        ) -> NumberOrderedForm | sympy.Expr:
-            """Solve one retained-to-target matrix entry using its actual transition gap."""
-            if value == 0 or value.is_zero:
-                return sympy.S.Zero
-            value = lattice._convert_operator(value.target)
-            terms, coefficients = {}, value.terms
-            for powers, (output, matrix_element) in value.act(occupations).items():
-                # Divide the coefficient, not the full matrix element; ladder factors
-                # only determine whether the transition is active.
-                middle_occupations = [n - max(p, 0) for n, p in zip(occupations, powers)]
-                coefficient = lattice._evaluate_numbers(
-                    coefficients[powers], middle_occupations
-                )
-                denominator = sympy.expand(
-                    lattice._evaluate_numbers(energies[row], output)
-                    - incoming_energies[col]
-                )
-                # A literal zero gap still needs the amplitude interpreted in the
-                # source algebra: binary numbers obey n² = n, including indicators.
-                if denominator == 0 and coordinates:
-                    amplitude = NumberOrderedForm(
-                        lattice._source_operators,
-                        {
-                            (0,) * len(coordinates): matrix_element.xreplace(
-                                dict(zip(coordinates, lattice._source_placeholders))
-                            )
-                        },
-                        validate=False,
-                    )._linearize_binary_operators()
-                    if amplitude.is_zero:
-                        continue
-                try:
-                    result = _divide_by_energy_gap(
-                        coefficient,
-                        denominator,
-                        coordinates,
-                        matrix_element,
-                        nonnegative,
-                    )
-                except ValueError as error:
-                    raise ZeroDivisionError(str(error)) from error
-                incoming = {n: n + max(p, 0) for n, p in zip(numbers, powers)}
-                terms[powers] = result.xreplace(
-                    {
-                        q: expression.xreplace(incoming)
-                        for q, expression in zip(coordinates, lattice._source_coordinates)
-                    }
-                )
-            return NumberOrderedForm(
-                lattice._target_operators,
-                terms,
-                self._first_lattice,
-                1,
-                validate=False,
-            )
 
         def solve(value: Any, index: tuple[int, ...]) -> Any:
             """Dispatch by block; use anti-Hermitian symmetry for the reverse cross block."""
@@ -452,14 +382,77 @@ class Embedding(sympy.Expr):
                 return diagonal_solver(value, index)
             reverse = index[:2] == (0, 1)
             block = value.adjoint() if reverse else value
-            result = sympy.ImmutableMatrix(
-                block.rows,
-                block.cols,
-                lambda i, j: divide_transition_entry(block[i, j], i, j),
-            )
+            entries = {}
+            for (i, j), entry in block.todok().items():
+                if entry.is_zero:
+                    continue
+                divided = lattice._divide_transitions(
+                    entry.target, energies[i], incoming_energies[j]
+                )
+                entries[i, j] = lattice._attach(divided, 1)
+            result = sympy.ImmutableSparseMatrix(*block.shape, entries)
             return -result.adjoint() if reverse else result
 
         return solve
+
+    def _divide_transitions(
+        self,
+        value: NumberOrderedForm,
+        outgoing_energy: sympy.Expr,
+        incoming_energy: sympy.Expr,
+    ) -> NumberOrderedForm:
+        """Divide a target NOF's transitions from this lattice by their energy gaps.
+
+        Outgoing energy uses target number placeholders; incoming energy uses
+        symbolic source occupations. Return a bare target NOF, preserving inactive
+        zero-gap transitions as zero and unresolved gaps as symbolic denominators.
+        """
+        from pymablock.second_quantization import _divide_by_energy_gap
+
+        occupations, coordinates = self._target_occupations, self._coordinate_symbols
+        numbers = self._target_numbers
+        nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
+        terms, coefficients = {}, value.terms
+        for powers, (output, matrix_element) in value.act(occupations).items():
+            # Divide the coefficient, not the full matrix element; ladder factors
+            # only determine whether the transition is active.
+            middle_occupations = [n - max(p, 0) for n, p in zip(occupations, powers)]
+            coefficient = self._evaluate_numbers(coefficients[powers], middle_occupations)
+            denominator = sympy.expand(
+                self._evaluate_numbers(outgoing_energy, output) - incoming_energy
+            )
+            # A literal zero gap still needs the amplitude interpreted in the
+            # source algebra: binary numbers obey n² = n, including indicators.
+            if denominator == 0 and coordinates:
+                amplitude = NumberOrderedForm(
+                    self._source_operators,
+                    {
+                        (0,) * len(coordinates): matrix_element.xreplace(
+                            dict(zip(coordinates, self._source_placeholders))
+                        )
+                    },
+                    validate=False,
+                )._linearize_binary_operators()
+                if amplitude.is_zero:
+                    continue
+            try:
+                result = _divide_by_energy_gap(
+                    coefficient,
+                    denominator,
+                    coordinates,
+                    matrix_element,
+                    nonnegative,
+                )
+            except ValueError as error:
+                raise ZeroDivisionError(str(error)) from error
+            incoming = {n: n + max(p, 0) for n, p in zip(numbers, powers)}
+            terms[powers] = result.xreplace(
+                {
+                    q: expression.xreplace(incoming)
+                    for q, expression in zip(coordinates, self._source_coordinates)
+                }
+            )
+        return NumberOrderedForm(self._target_operators, terms, validate=False)
 
     def _compile(self, generators: Mapping, reference: Mapping) -> None:
         """Compile and validate the affine occupation map."""
