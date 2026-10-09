@@ -130,7 +130,7 @@ print("modes:", embedding._target_operators)
 print("reference r:", embedding._reference_state)
 print("shift matrix M:", embedding._occupation_matrix.tolist())
 print("left inverse L:", embedding._occupation_left_inverse.tolist())
-print("retained occupations n(q):", embedding._target_occupations)
+print("retained occupations n(q):", embedding._target_of_source)
 ```
 
 The symbol `_source_0` is the source occupation $q$.
@@ -173,7 +173,7 @@ To compress a term, the code applies it to the symbolic retained occupations
 with `NumberOrderedForm.act`:
 
 ```{code-cell} ipython3
-NumberOrderedForm.from_expr(Dagger(b) * a).act(embedding._target_occupations)
+NumberOrderedForm.from_expr(Dagger(b) * a).act(embedding._target_of_source)
 ```
 
 The term $b^\dagger a$ takes $|q, 0\rangle$ to $|q - 1, 1\rangle$ with matrix
@@ -185,7 +185,7 @@ with its amplitude divided by the source ladder amplitude.
 ### Step 3: the block Hamiltonian
 
 `operator_to_BlockSeries` performs the same conversion that `block_diagonalize`
-does in `_prepare`:
+does in `_block_hamiltonian_and_solver`:
 
 ```{code-cell} ipython3
 from IPython.display import display

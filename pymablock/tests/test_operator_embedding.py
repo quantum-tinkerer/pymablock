@@ -721,7 +721,7 @@ def test_lattices_separated_by_spectator_offset():
     assert embedding.restrict(N(a)) == sympy.diag(
         *(embedding._first_lattice.restrict(N(a)),) * 2
     )
-    w = embedding._frame_columns(1)
+    w = embedding._retained_frame(1)
     assert (
         (w.adjoint() * w - sympy.eye(2))
         .applyfunc(lambda x: x.simplify() if isinstance(x, NumberOrderedForm) else x)
@@ -815,8 +815,8 @@ def test_list_reconstruction_substitution_and_printing(source_type):
             {Embedding.row: 1, target: 0, z: 2},
         ],
     )
-    w = embedding._frame_columns(2)
-    expected = renamed._frame_columns(2)
+    w = embedding._retained_frame(2)
+    expected = renamed._retained_frame(2)
     for method in ("subs", "xreplace"):
         assert getattr(embedding, method)({a: z}) == renamed
     assert w.xreplace({a: z}) == expected
@@ -825,7 +825,7 @@ def test_list_reconstruction_substitution_and_printing(source_type):
         {f: sympy.exp(sympy.I * phase) * target}, reference=embedding.args[1]
     )
     for method in ("subs", "xreplace"):
-        assert getattr(phased._frame_columns(2), method)({phase: 0}) == w
+        assert getattr(phased._retained_frame(2), method)({phase: 0}) == w
 
 
 def test_bilateral_reference_transfers_have_no_vacuum():
