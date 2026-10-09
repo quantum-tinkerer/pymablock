@@ -210,7 +210,7 @@ class Embedding(sympy.Expr):
     def _convert_operator(self, expression: sympy.Expr) -> NumberOrderedForm:
         """Parse a target expression using the modes declared in the reference."""
         if isinstance(expression, NumberOrderedForm):
-            return expression._rebase_operators(self._first_lattice._target_operators)
+            return expression._expand_operators(self._first_lattice._target_operators)
         modes = self._first_lattice._target_operators
         expression = sympy.sympify(expression)
         if set(find_operators(expression)) - set(modes):
@@ -545,7 +545,7 @@ class Embedding(sympy.Expr):
 
     def _attach(self, value: NumberOrderedForm, side: int) -> NumberOrderedForm:
         """Represent ``value W`` for side +1, or ``W† value`` for side -1."""
-        value = value._rebase_operators(self._target_operators)
+        value = value._expand_operators(self._target_operators)
         return NumberOrderedForm(
             value.operators, value.args[1], self, side, validate=False
         )
@@ -805,7 +805,7 @@ class Embedding(sympy.Expr):
         """
         if value.is_zero:
             return self._target_zero
-        value = value._rebase_operators(self._source_operators)
+        value = value._expand_operators(self._source_operators)
         coordinates = dict(
             zip(value._number_operator_placeholders, self._source_coordinates)
         )

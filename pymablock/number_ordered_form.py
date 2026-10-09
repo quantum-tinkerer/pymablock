@@ -1460,40 +1460,36 @@ class NumberOrderedForm(Operator):
 
         return self._rebuild(new_terms)
 
-    def _rebase_operators(self, operators: Sequence[OperatorType]) -> "NumberOrderedForm":
-        """Reorder or extend the mode basis; only unused modes may be dropped."""
-        for i, op in enumerate(self.operators):
-            if op not in operators and any(
-                powers[i] or coefficient.has(self._number_operator_placeholders[i])
-                for powers, coefficient in self.terms.items()
-            ):
-                raise ValueError("Operator contains modes outside the declared algebra")
-        return self if self.operators == operators else self._expand_operators(operators)
-
     def _expand_operators(
         self, new_operators: Sequence[OperatorType]
     ) -> "NumberOrderedForm":
-        """Expand the operators in this NumberOrderedForm.
-
-        This method creates a new NumberOrderedForm with the same terms but expanded
-        operators.
+        """Express this NumberOrderedForm with a different list of operators.
 
         Parameters
         ----------
         new_operators :
-            List of new quantum operators to use. Has to contain at least all the
-            original operators, and must be correctly ordered.
+            Correctly ordered quantum operators. Must contain every operator that a
+            term uses; operators that no term uses may be added or dropped.
 
         Returns
         -------
         NumberOrderedForm
-            A new NumberOrderedForm with the expanded operators.
+            A new NumberOrderedForm with the same terms and the new operators.
 
         Notes
         -----
-        Because this method is internal, it does not validate `new_operators`.
+        Because this method is internal, it does not validate the ordering of
+        `new_operators`.
 
         """
+        if tuple(new_operators) == tuple(self.operators):
+            return self
+        for i, op in enumerate(self.operators):
+            if op not in new_operators and any(
+                powers[i] or coeff.has(self._number_operator_placeholders[i])
+                for powers, coeff in self.args[1]
+            ):
+                raise ValueError(f"Cannot drop the operator {op}, which a term uses")
         index_mapping = [
             self.operators.index(op) if op in self.operators else -1
             for op in new_operators
@@ -1687,14 +1683,14 @@ class NumberOrderedForm(Operator):
             value = (
                 left._lift(other)
                 if self.side == 1
-                else other._rebase_operators(left._target_operators)
+                else other._expand_operators(left._target_operators)
             )
             result = self.target * value
             return self._rebuild(result.args[1], operators=result.operators)
         value = (
             right._lift(self)
             if other.side == -1
-            else self._rebase_operators(right._target_operators)
+            else self._expand_operators(right._target_operators)
         )
         result = value * other.target
         return other._rebuild(result.args[1], operators=result.operators)
