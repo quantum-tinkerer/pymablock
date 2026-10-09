@@ -54,8 +54,9 @@ $T_iP_1T_j^\dagger$ without a separate list projector or compression algorithm.
 
 The implementation separates three operations:
 
-- `Embedding._split_series` constructs the retained/complement frames
-  and converts general operators. It preserves zeroth-order cross blocks.
+- `block_diagonalization._split_embedding_series` uses the embedding's
+  retained/complement frames to convert general operators. It preserves
+  zeroth-order cross blocks.
 - `second_quantization.solve_sylvester_embedding(h0, embedding)` validates diagonal
   H0, reads retained energies directly from $W^\dagger H_0W$, and dispatches matrix
   blocks. Its helper `_divide_transitions` takes a lattice, a target NOF, and

@@ -253,7 +253,9 @@ def block_diagonalize(
         solve_sylvester = solve_sylvester_embedding(h0, embedding)
         # Validate the complement now, before lazy block evaluation.
         embedding._complement_frame(h0.rows)
-        hamiltonian = embedding._split_series(hamiltonian, diagonal_origin=True)
+        hamiltonian = _split_embedding_series(
+            hamiltonian, embedding, diagonal_origin=True
+        )
         subspace_eigenvectors = None
 
     use_implicit = False
@@ -691,6 +693,49 @@ def block_diagonalize(
 
 
 ### Converting different formats to BlockSeries
+def _split_embedding_series(
+    operator: BlockSeries, embedding: Embedding, *, diagonal_origin: bool = False
+) -> BlockSeries:
+    """Convert an unseparated series to retained/complement operator blocks.
+
+    Preserve every block by default, including zeroth-order observable cross
+    blocks. ``diagonal_origin=True`` omits those cross blocks only for a
+    Hamiltonian whose H0 has already been validated by the solver.
+    """
+    if operator.shape:
+        raise ValueError("Structured embeddings require an unseparated operator.")
+    origin = (0,) * operator.n_infinite
+    target_shape = None
+    frames = None
+
+    def evaluate(i: int, j: int, *order: int) -> Any:
+        nonlocal target_shape, frames
+        target = operator[tuple(order)]
+        if target is zero or (diagonal_origin and i != j and tuple(order) == origin):
+            return zero
+        target = embedding._target_matrix(target)
+        if target_shape is None:
+            target_shape = target.shape
+            frames = (
+                embedding._retained_frame(target.rows),
+                embedding._complement_frame(target.rows),
+            )
+        elif target.shape != target_shape:
+            raise ValueError(
+                "All operator coefficients must have the same target matrix shape"
+            )
+        result = frames[i].adjoint() * target * frames[j]
+        return zero if result.is_zero_matrix else embedding._format_output(result)
+
+    return BlockSeries(
+        eval=evaluate,
+        shape=(2, 2),
+        n_infinite=operator.n_infinite,
+        dimension_names=operator.dimension_names,
+        name=operator.name,
+    )
+
+
 def operator_to_BlockSeries(
     operator: list | dict | BlockSeries | sympy.Matrix,
     *,
@@ -819,7 +864,7 @@ def operator_to_BlockSeries(
     if isinstance(subspace_eigenvectors, Embedding):
         if implicit:
             raise ValueError("Structured embedding conversion does not use implicit mode")
-        return subspace_eigenvectors._split_series(operator)
+        return _split_embedding_series(operator, subspace_eigenvectors)
 
     # Separation into subspace_eigenvectors
     if not to_split:
