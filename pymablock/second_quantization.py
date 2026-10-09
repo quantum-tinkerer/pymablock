@@ -20,7 +20,6 @@ __all__ = [
     "Embedding",
     "apply_mask_to_operator",
     "solve_sylvester_2nd_quant",
-    "solve_sylvester_embedding",
 ]
 
 
@@ -367,7 +366,7 @@ def _divide_transitions(
     return lattice.map_transition_coefficients(value, divide)
 
 
-def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Callable:
+def _solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Callable:
     """Construct a Sylvester solver for source and target-complement blocks.
 
     Parameters
