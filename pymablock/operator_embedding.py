@@ -834,65 +834,6 @@ class Embedding(sympy.Expr):
             self._target_operators, {powers: coefficient}, validate=False
         )
 
-    def _divide_transitions(
-        self,
-        value: NumberOrderedForm,
-        outgoing_energy: sympy.Expr,
-        incoming_energy: sympy.Expr,
-    ) -> NumberOrderedForm:
-        """Divide a target NOF's transitions from this lattice by their energy gaps.
-
-        Outgoing energy uses target number placeholders; incoming energy uses
-        symbolic source occupations. Return a bare target NOF, preserving inactive
-        zero-gap transitions as zero and unresolved gaps as symbolic denominators.
-        """
-        from pymablock.second_quantization import _divide_by_energy_gap
-
-        occupations, coordinates = self._target_of_source, self._source_occupations
-        numbers = self._target_numbers
-        nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
-        terms, coefficients = {}, value.terms
-        for powers, (output, matrix_element) in value.act(occupations).items():
-            # Divide the coefficient, not the full matrix element; ladder factors
-            # only determine whether the transition is active.
-            middle_occupations = [n - max(p, 0) for n, p in zip(occupations, powers)]
-            coefficient = self._evaluate_numbers(coefficients[powers], middle_occupations)
-            denominator = sympy.expand(
-                self._evaluate_numbers(outgoing_energy, output) - incoming_energy
-            )
-            # A literal zero gap still needs the amplitude interpreted in the
-            # source algebra: binary numbers obey n² = n, including indicators.
-            if denominator == 0 and coordinates:
-                amplitude = NumberOrderedForm(
-                    self._source_operators,
-                    {
-                        (0,) * len(coordinates): matrix_element.xreplace(
-                            dict(zip(coordinates, self._source_numbers))
-                        )
-                    },
-                    validate=False,
-                )._linearize_binary_operators()
-                if amplitude.is_zero:
-                    continue
-            try:
-                result = _divide_by_energy_gap(
-                    coefficient,
-                    denominator,
-                    coordinates,
-                    matrix_element,
-                    nonnegative,
-                )
-            except ValueError as error:
-                raise ZeroDivisionError(str(error)) from error
-            incoming = {n: n + max(p, 0) for n, p in zip(numbers, powers)}
-            terms[powers] = result.xreplace(
-                {
-                    q: expression.xreplace(incoming)
-                    for q, expression in zip(coordinates, self._source_of_target)
-                }
-            )
-        return NumberOrderedForm(self._target_operators, terms, validate=False)
-
 
 def _parse_references(reference: Mapping | Sequence | None) -> sympy.Tuple:
     """Normalize reference declarations to target-row/occupation pairs."""
