@@ -350,11 +350,6 @@ def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     )
 
 
-def _is_singular(expression: sympy.Expr) -> bool:
-    """Return whether an evaluated expression contains an infinity or NaN."""
-    return expression.has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
-
-
 class NumberOrderedForm(Operator):
     """Number ordered form of quantum operators.
 
@@ -988,19 +983,22 @@ class NumberOrderedForm(Operator):
                     to_pair = min(op_power, max(-orig_power, 0))
                     coeff = coeff.xreplace({n_operator: n_operator - to_pair})
                     if op_index < self._n_bosons:  # Bosons
-                        # Test before multiplication can cancel a pole against a
-                        # vanishing ladder factor. Those boundary states do not act.
-                        inactive_poles = [
+                        # These boundary states do not act. Keep their zero values
+                        # unless the shifted coefficient is provably finite: a
+                        # later parameter substitution can expose a pole that
+                        # cancels the vanishing ladder factor.
+                        inactive_boundaries = [
                             sympy.Eq(n_operator, i)
                             for i in range(to_pair)
-                            if _is_singular(coeff.xreplace({n_operator: sympy.S(i)}))
+                            if coeff.xreplace({n_operator: sympy.S(i)}).is_finite
+                            is not True
                         ]
                         coeff = sympy.Mul(
                             coeff, *(n_operator - i for i in range(to_pair))
                         )
-                        if inactive_poles:
+                        if inactive_boundaries:
                             coeff = sympy.Piecewise(
-                                (Zero, sympy.Or(*inactive_poles)), (coeff, True)
+                                (Zero, sympy.Or(*inactive_boundaries)), (coeff, True)
                             )
                 else:
                     to_pair = min(-op_power, max(orig_power, 0))

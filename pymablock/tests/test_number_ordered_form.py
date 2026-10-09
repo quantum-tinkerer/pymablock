@@ -1857,6 +1857,34 @@ def test_regular_downward_shift_keeps_plain_product():
     assert form.terms == {(0,): number**2}
 
 
+@pytest.mark.parametrize("power", [1, 2, 3])
+@pytest.mark.parametrize("parameter_value", [1, 2, 3])
+def test_bosonic_boundary_survives_parameter_substitution(power, parameter_value):
+    a = boson.BosonOp("a")
+    t = sympy.Symbol("t", positive=True)
+    number = NumberOperator(a)
+    denominator = sympy.prod(number + t + i for i in range(power))
+    expression = a.adjoint() ** power * (1 / denominator) * a**power
+    generic = NumberOrderedForm.from_expr(expression)
+    after = generic.subs(t, parameter_value)
+    before = NumberOrderedForm.from_expr(expression.subs(t, parameter_value))
+    n = generic._number_operator_placeholders[0]
+
+    # Independent ladder action: annihilation kills occupations below power;
+    # otherwise the two ladders supply a falling factorial and sample f(n-power).
+    for occupation in range(power + 5):
+        expected = (
+            sympy.S.Zero
+            if occupation < power
+            else sympy.factorial(occupation)
+            / sympy.factorial(occupation - power)
+            / sympy.prod(occupation - power + parameter_value + i for i in range(power))
+        )
+        for form in (after, after.simplify(), before):
+            assert form.terms[(0,)].subs(n, occupation) == expected
+    assert NumberOrderedForm.from_expr(after.as_expr()) == after
+
+
 def test_bilateral_downward_shift_has_no_boundary_guard():
     a = LadderOp("a")
     form = NumberOrderedForm.from_expr(a.adjoint() * (1 / (NumberOperator(a) + 1)) * a)
