@@ -130,7 +130,7 @@ print("target modes:", lattice.target_operators)
 print("reference r:", lattice._reference_state)
 print("shift matrix M:", lattice._occupation_matrix.tolist())
 print("left inverse L:", lattice._occupation_left_inverse.tolist())
-print("retained occupations n(q):", lattice._target_of_source)
+print("retained occupations n(q):", lattice.target_of_source)
 ```
 
 The symbol `_source_0` is the source occupation $q$.
@@ -173,7 +173,7 @@ To compress a term, the code applies it to the symbolic retained occupations
 with `NumberOrderedForm.act`:
 
 ```{code-cell} ipython3
-NumberOrderedForm.from_expr(Dagger(b) * a).act(lattice._target_of_source)
+NumberOrderedForm.from_expr(Dagger(b) * a).act(lattice.target_of_source)
 ```
 
 The term $b^\dagger a$ takes $|q, 0\rangle$ to $|q - 1, 1\rangle$ with matrix

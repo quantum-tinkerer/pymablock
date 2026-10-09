@@ -35,7 +35,7 @@ Lifting substitutes source NOF terms into target NOFs. Scalar number
 placeholders map directly to the compiled source coordinates; generator NOFs
 and their adjoints supply the ladder factors and graded signs. Existing NOFs
 are extended to the target mode order structurally. Embedding arithmetic never
-converts NOFs to expressions and back. `_Lattice._parse_target` parses expressions
+converts NOFs to expressions and back. `_Lattice.parse_target` parses expressions
 at the input boundary; `NumberOrderedForm._expand_operators` changes the operator
 list of an existing NOF structurally and refuses to drop an operator that a term uses.
 `Embedding` handles construction, format boundaries, and full-frame operations;

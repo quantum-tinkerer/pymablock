@@ -8,7 +8,7 @@ Notation used in this module:
 - A *lattice* is the set of target occupations ``n = r + M q`` reached from one
   reference state ``r`` by the generator images. ``M`` is ``_occupation_matrix``,
   ``q`` are the source occupations (``source_occupations``), ``n(q)`` is
-  ``_target_of_source`` and ``q(n) = L (n - r)``, with ``L`` the left inverse of
+  ``target_of_source`` and ``q(n) = L (n - r)``, with ``L`` the left inverse of
   ``M``, is ``_source_of_target``.
 - ``_target_numbers`` and ``_source_numbers`` are the placeholder symbols of the
   number operators inside NOF coefficients.
@@ -176,7 +176,7 @@ class Embedding(sympy.Expr):
         self._lattices = cls._build_lattices(generators, references)
         self._validate_disjointness()
         self._transfers = tuple(
-            self._first_lattice._transfer(lattice) for _, lattice in self._lattices
+            self._first_lattice.transfer(lattice) for _, lattice in self._lattices
         )
         return self
 
@@ -252,7 +252,7 @@ class Embedding(sympy.Expr):
         if any(row >= expression.rows for row, _ in self._lattices):
             raise ValueError("Reference matrix index lies outside the target matrix")
         return sympy.ImmutableSparseMatrix(
-            expression.applyfunc(self._first_lattice._parse_target)
+            expression.applyfunc(self._first_lattice.parse_target)
         )
 
     def _format_output(
@@ -288,16 +288,12 @@ class Embedding(sympy.Expr):
 
     @cached_property
     def _first_embedding(self) -> Embedding:
-        """Return the symbolic single-reference isometry used by frame attachments."""
+        """Return the single-reference embedding that frame entries attach to."""
         if isinstance(self.args[1], sympy.Dict):
             return self
         reference = dict(self.args[1][0])
         reference.pop(Embedding.row)
-        # Share validated data; reconstruction still compiles from the public args.
-        embedding = sympy.Expr.__new__(type(self), self.args[0], sympy.Dict(reference))
-        embedding._lattices = ((0, self._first_lattice),)
-        embedding._transfers = (self._first_lattice.target_identity,)
-        return embedding
+        return Embedding(self.args[0], reference=reference)
 
     @_cache_on_instance
     def _retained_frame(self, rows: int) -> sympy.MatrixBase:
@@ -316,26 +312,16 @@ class Embedding(sympy.Expr):
     @property
     def _column_target_states(self) -> tuple:
         """Return the target row and occupations ``n(q)`` of each frame column."""
-        return tuple((row, lattice._target_of_source) for row, lattice in self._lattices)
+        return tuple((row, lattice.target_of_source) for row, lattice in self._lattices)
 
     def _validate_disjointness(self) -> None:
-        """Test the unique possible source displacement between same-row lattices."""
-        first = self._first_lattice
+        """Reject lattices in the same target row that share a target state."""
         for i, (row, lattice) in enumerate(self._lattices):
-            for other_row, other in self._lattices[:i]:
-                if row != other_row:
-                    continue
-                delta = sympy.Matrix(lattice._reference_state) - sympy.Matrix(
-                    other._reference_state
-                )
-                displacement = first._occupation_left_inverse * delta
-                if first._occupation_matrix * displacement != delta:
-                    continue
-                if all(
-                    d.is_Integer and (size is None or abs(d) < size)
-                    for d, size in zip(displacement, first._source_dimensions)
-                ):
-                    raise ValueError("Reference lattices overlap")
+            if any(
+                row == other_row and lattice.overlaps(other)
+                for other_row, other in self._lattices[:i]
+            ):
+                raise ValueError("Reference lattices overlap")
 
     def _attach(self, value: NumberOrderedForm, side: int) -> NumberOrderedForm:
         """Represent ``value W`` for side +1, or ``W† value`` for side -1."""
@@ -387,7 +373,7 @@ class _Lattice:
         self.source_occupations = source_occupations
         images, shifts = [], []
         for op in source_operators:
-            image = self._parse_target(generators[op])
+            image = self.parse_target(generators[op])
             if len(image.terms) != 1 or not any(shift := next(iter(image.terms))):
                 raise ValueError(
                     f"Image of {op} must change target occupations by one nonzero shift"
@@ -413,7 +399,7 @@ class _Lattice:
             self._occupation_left_inverse
             * (sympy.Matrix(self._target_numbers) - sympy.Matrix(self._reference_state))
         )
-        self._target_of_source = tuple(
+        self.target_of_source = tuple(
             origin + sum(matrix[i, j] * q for j, q in enumerate(self.source_occupations))
             for i, origin in enumerate(self._reference_state)
         )
@@ -433,17 +419,17 @@ class _Lattice:
                 for i, source in enumerate(source_operators)
                 if NumberOperator(source) == op
             )
-            form = self._parse_target(number)
+            form = self.parse_target(number)
             if any(any(powers) for powers in form.terms):
                 raise ValueError("A ladder number image must be occupation diagonal")
             expression = form.terms.get((0,) * len(self.target_operators), sympy.S.Zero)
-            expression = self.evaluate_target_numbers(expression, self._target_of_source)
+            expression = self.evaluate_target_numbers(expression, self.target_of_source)
             self._require_vanishing(
                 expression - self.source_occupations[index],
                 f"Ladder number image {op} must count from the source reference index zero",
             )
 
-    def _parse_target(self, expression: sympy.Expr) -> NumberOrderedForm:
+    def parse_target(self, expression: sympy.Expr) -> NumberOrderedForm:
         """Parse a target expression using the modes declared in the reference."""
         if isinstance(expression, NumberOrderedForm):
             return expression._expand_operators(self.target_operators)
@@ -521,8 +507,8 @@ class _Lattice:
         """
         terms = {}
         coefficients = value.terms
-        for powers, (output, amplitude) in value.act(self._target_of_source).items():
-            middle = [n - max(p, 0) for n, p in zip(self._target_of_source, powers)]
+        for powers, (output, amplitude) in value.act(self.target_of_source).items():
+            middle = [n - max(p, 0) for n, p in zip(self.target_of_source, powers)]
             coefficient = self.evaluate_target_numbers(coefficients[powers], middle)
             result = transform(coefficient, output, amplitude)
             incoming = {n: n + max(p, 0) for n, p in zip(self._target_numbers, powers)}
@@ -606,7 +592,7 @@ class _Lattice:
         the mixed adjoint relations by reversing an edge of each lattice square.
         """
         weights = [
-            _matrix_element(image, self._target_of_source)
+            _matrix_element(image, self.target_of_source)
             for image in self._generator_images
         ]
         coordinates = self.source_occupations
@@ -670,7 +656,7 @@ class _Lattice:
             )
         ):
             ratio = self._lowering_amplitude(i) / _matrix_element(
-                image, self._target_of_source
+                image, self.target_of_source
             )
             ratio = ratio.xreplace(
                 dict.fromkeys(self.source_occupations[:i], sympy.S.Zero)
@@ -758,7 +744,7 @@ class _Lattice:
     def restrict(self, target: NumberOrderedForm) -> NumberOrderedForm:
         """Return ``W† target W`` by translating each term to the source algebra."""
         result = self._source_zero
-        for shift, (_, amplitude) in target.act(self._target_of_source).items():
+        for shift, (_, amplitude) in target.act(self.target_of_source).items():
             result += self._restrict_term(shift, amplitude)
         return result
 
@@ -828,7 +814,22 @@ class _Lattice:
             result += term
         return self.projector * result * self.projector
 
-    def _transfer(self, lattice: _Lattice) -> NumberOrderedForm:
+    def overlaps(self, other: _Lattice) -> bool:
+        """Return whether a lattice with the same generators shares a target state.
+
+        Independent shifts leave one candidate source displacement between the two
+        references; it must be integer and fit every finite source mode.
+        """
+        delta = sympy.Matrix(other._reference_state) - sympy.Matrix(self._reference_state)
+        displacement = self._occupation_left_inverse * delta
+        if self._occupation_matrix * displacement != delta:
+            return False
+        return all(
+            d.is_Integer and (size is None or abs(d) < size)
+            for d, size in zip(displacement, self._source_dimensions)
+        )
+
+    def transfer(self, lattice: _Lattice) -> NumberOrderedForm:
         """Return the transfer operator T carrying this lattice onto ``lattice``.
 
         T is the ladder monomial for the reference difference, normalized and with the
@@ -844,7 +845,7 @@ class _Lattice:
                 "Reference translations along generator-moving modes are not supported"
             )
         monomial = NumberOrderedForm(self.target_operators, {powers: sympy.S.One})
-        weight = _matrix_element(monomial, self._target_of_source)
+        weight = _matrix_element(monomial, self.target_of_source)
         # Physical domains at both references ensure this shift never annihilates.
         coefficient = sympy.simplify(lattice._phase / self._phase / weight)
         # The coefficient sits after annihilation: recover incoming occupations.

@@ -40,10 +40,10 @@ def test_normalized_generator_lift_and_attachment_contracts(reference):
         assert_matrix_equal(target(e._first_lattice.lift(value)), w * source(value) * w.T)
         assert_matrix_equal(target((attached * value).target) * w, w * source(value))
     for X in (a, a.adjoint(), a**2, a.adjoint() * a**2, N(a), sp.sqrt(N(a) + 1)):
-        x = e._first_lattice._parse_target(X)
+        x = e._first_lattice.parse_target(X)
         assert_matrix_equal(source(e.restrict(x)), w.T * target(x) * w)
         for Y in (1, a, a.adjoint()):
-            y = e._first_lattice._parse_target(Y)
+            y = e._first_lattice.parse_target(Y)
             assert_matrix_equal(
                 target((x * attached) * (attached.adjoint() * y)),
                 target(x) * w * w.T * target(y),
@@ -78,7 +78,7 @@ def test_spectator_transfer_and_matrix_source_contracts():
     assert_matrix_equal(source(frame.adjoint() * frame), sp.eye(4))
     assert_matrix_equal(target((frame * frame.adjoint())[0, 0]), w * w.T)
     for X in (a, b, b.adjoint(), a.adjoint() * b, N(a), N(b)):
-        x = e._first_lattice._parse_target(X)
+        x = e._first_lattice.parse_target(X)
         assert_matrix_equal(source(e.restrict(x)), w.T * target(x) * w)
     for i, j in product(range(2), repeat=2):
         for S in (1, s, s.adjoint(), N(s)):
@@ -150,7 +150,7 @@ def test_existing_nof_conversion_preserves_values():
     a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
     e = Embedding({s: a}, reference={a: 0, b: 0})
     value = F.from_expr(sp.sqrt(N(a) + 1) * a.adjoint(), operators=(a,))
-    result = e._first_lattice._parse_target(value)
+    result = e._first_lattice.parse_target(value)
     assert_matrix_equal(
         nof_matrix(result, [range(4), range(2)]),
         sp.kronecker_product(nof_matrix(value, [range(4)]), sp.eye(2)),
