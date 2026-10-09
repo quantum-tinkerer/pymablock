@@ -78,7 +78,7 @@ See [structured embeddings](../structured_embeddings.md) for the generator-and-r
 interface, physical examples, and the diagonal-Hamiltonian requirement.
 
 ```{eval-rst}
-.. autoclass:: pymablock.operator_embedding.Embedding(generators=None, *, reference)
+.. autoclass:: pymablock.operator_embedding.Embedding(generators, reference)
    :members: restrict
    :class-doc-from: class
 ```
