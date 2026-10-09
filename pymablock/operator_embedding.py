@@ -1,4 +1,23 @@
-"""Operator embeddings generated from a target reference state."""
+"""Embeddings of effective models into second-quantized Hamiltonians.
+
+Notation used in this module:
+
+- *Source* is the effective model and *target* the Hamiltonian passed to
+  `~pymablock.block_diagonalize`. The isometry W maps source states to target states.
+- A *lattice* is the set of target occupations ``n = r + M q`` reached from one
+  reference state ``r`` by the generator images. ``M`` is ``_occupation_matrix``,
+  ``q`` are the source occupations (``_source_occupations``), ``n(q)`` is
+  ``_target_of_source`` and ``q(n) = L (n - r)``, with ``L`` the left inverse of
+  ``M``, is ``_source_of_target``.
+- ``_target_numbers`` and ``_source_numbers`` are the placeholder symbols of the
+  number operators inside NOF coefficients.
+- A list of references gives one lattice per reference. The *frame* W is a matrix
+  with one column per reference, placed in that reference's target row. Column j is
+  ``T_j W_1``: the transfer operator ``T_j`` carries the first lattice onto
+  lattice j, so every frame entry is attached to the first lattice.
+- An *amplitude* is the matrix element of a ladder monomial between occupation
+  states.
+"""
 
 from __future__ import annotations
 
@@ -129,7 +148,11 @@ class Embedding(sympy.Expr):
         *,
         _shared_occupations: tuple[sympy.Symbol, ...] | None = None,
     ) -> Self:
-        """Parse references, build their lattices, and prepare translated columns."""
+        """Parse references, build their lattices, and prepare the transfer operators.
+
+        ``_shared_occupations`` is internal: lattices of one list share the source
+        occupation symbols of the first lattice.
+        """
         references = _parse_references(reference)
         if not isinstance(generators, (Mapping, sympy.Dict)):
             raise TypeError("Generators must be a mapping")
@@ -157,7 +180,7 @@ class Embedding(sympy.Expr):
 
     @classmethod
     def _build_lattices(cls, generators: sympy.Dict, references: sympy.Tuple) -> tuple:
-        """Build one scalar lattice per reference, preserving its target row."""
+        """Build one lattice per reference, sharing source occupation symbols."""
         lattices = []
         for row, reference in references:
             if lattices and set(reference) != set(lattices[0][1]._target_operators):
@@ -220,7 +243,7 @@ class Embedding(sympy.Expr):
     def _target_matrix(
         self, expression: sympy.Expr | sympy.MatrixBase
     ) -> sympy.MatrixBase:
-        """Parse a target coefficient into a square matrix of target NOFs."""
+        """Parse a target operator, or a matrix of them, into a square matrix of NOFs."""
         if not isinstance(expression, sympy.MatrixBase):
             if any(row for row, _ in self._lattices):
                 raise ValueError(
@@ -238,7 +261,7 @@ class Embedding(sympy.Expr):
     def _format_output(
         self, result: sympy.MatrixBase
     ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Unwrap operator-free entries and the matrix axis of mapping references."""
+        """Return operator-free entries as scalars, and a mapping reference's entry alone."""
         result = result.applyfunc(
             lambda value: (
                 value.terms.get((), sympy.S.Zero)
@@ -312,12 +335,12 @@ class Embedding(sympy.Expr):
 
     @property
     def _first_lattice(self) -> Embedding:
-        """Scalar isometry shared by every frame entry."""
+        """Return the lattice at the first reference; every frame entry attaches to it."""
         return self._lattices[0][1]
 
     @_cache_on_instance
     def _retained_frame(self, rows: int) -> sympy.MatrixBase:
-        """Column j is T_j W₁ in its declared target row."""
+        """Return the frame W: one column ``T_j W_1`` per reference, in its target row."""
         w = sympy.zeros(rows, len(self._lattices))
         for col, ((row, _), transfer) in enumerate(zip(self._lattices, self._transfers)):
             w[row, col] = self._first_lattice._attach(transfer, 1)
@@ -331,7 +354,7 @@ class Embedding(sympy.Expr):
 
     @property
     def _column_states(self) -> tuple:
-        """Return each column's occupations in the shared source coordinates."""
+        """Return the target row and occupations ``n(q)`` of each frame column."""
         return tuple((row, lattice._target_of_source) for row, lattice in self._lattices)
 
     def _validate_disjointness(self) -> None:
@@ -360,7 +383,7 @@ class Embedding(sympy.Expr):
 
         H0 must be a target matrix of NOF entries, diagonal in both matrix indices and
         occupation numbers. Intra-block solves use the ordinary second-quantized solver.
-        Rectangular solves evaluate outgoing and incoming energies on the reference
+        Cross-block solves evaluate outgoing and incoming energies on the reference
         states or symbolic source occupations, then divide each transition.
         The callback preserves the series zero sentinel before accessing matrix entries.
         """
@@ -584,10 +607,10 @@ class Embedding(sympy.Expr):
                 raise ValueError("Generators overfill a target spin or fermion")
 
     def _require_vanishing(self, expression: sympy.Expr, context: str) -> None:
-        """Require a residual to vanish on the retained occupation domain.
+        """Require an expression to vanish for all source occupations of the lattice.
 
-        Reduce binary polynomials modulo n² - n before testing zero. A disproved
-        identity raises ValueError; an undecidable identity raises NotImplementedError.
+        Reduce binary polynomials modulo n² - n before testing zero. A nonzero result
+        raises ValueError; an undecidable one raises NotImplementedError.
         """
         binary = tuple(
             q
@@ -722,10 +745,10 @@ class Embedding(sympy.Expr):
     def _restrict_term(
         self, target_shift: tuple[int, ...], target_amplitude: sympy.Expr
     ) -> NumberOrderedForm:
-        """Compress one target term, given its matrix element on retained states.
+        """Restrict one target term, given its amplitude on retained states.
 
-        Convert its shift and matrix element to source coordinates. Spectator
-        numbers stay symbolic; a term outside the retained lattice gives zero.
+        Convert its shift and amplitude to source occupations. Spectator numbers
+        stay symbolic; a term that leaves the lattice gives zero.
         """
         powers = self._source_shift(target_shift)
         if powers is None:
@@ -759,8 +782,8 @@ class Embedding(sympy.Expr):
     def _restrict(self, target: NumberOrderedForm) -> NumberOrderedForm:
         """Return ``W† target W`` by translating each term to the source algebra."""
         result = self._source_zero
-        for shift, (_, weight) in target.act(self._target_of_source).items():
-            result += self._restrict_term(shift, weight)
+        for shift, (_, amplitude) in target.act(self._target_of_source).items():
+            result += self._restrict_term(shift, amplitude)
         return result
 
     @cached_property
@@ -830,7 +853,11 @@ class Embedding(sympy.Expr):
         return self._projector * result * self._projector
 
     def _transfer(self, lattice: Embedding) -> NumberOrderedForm:
-        """Translate this scalar lattice onto another, including norms and phases."""
+        """Return the transfer operator T carrying this lattice onto ``lattice``.
+
+        T is the ladder monomial for the reference difference, normalized and with the
+        phase that makes ``T W`` equal to the other lattice's isometry.
+        """
         powers = tuple(
             a - b for a, b in zip(self._reference_state, lattice._reference_state)
         )
