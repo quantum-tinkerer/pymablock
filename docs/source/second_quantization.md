@@ -129,6 +129,29 @@ First, addition simply merges coefficients of terms with identical operator powe
 Second, taking the adjoint negates all the powers, which turns creation operators into annihilation operators and vice versa, and conjugates the coefficients.
 Together, these operations provide all the necessary tools to manipulate quantum expressions in number-ordered form in Pymablock.
 
+#### Poles and occupation boundaries
+
+When coefficients contain poles, the multiplication rules require care at occupations where a ladder operator annihilates the state.
+For example, the bosonic operator
+
+$$a^\dagger \frac{1}{N_a+1} a$$
+
+annihilates the vacuum because the rightmost $a$ acts first.
+On every state with occupation $n\geq 1$, its matrix element is $n/[(n-1)+1]=1$.
+Naively applying the multiplication table gives $N_a/N_a$, whose cancellation to $1$ would incorrectly assign a nonzero vacuum matrix element.
+Pymablock preserves the zero at the vacuum with a `Piecewise` coefficient: zero at $N_a=0$ and one otherwise.
+More generally, $(a^\dagger)^k f(N_a) a^k$ vanishes on states with occupation below $k$, even if the shifted coefficient $f(N_a-k)$ has a pole there.
+Poles sampled by nonzero matrix elements remain singular.
+
+The symbolic placeholders for number operators therefore carry an integer assumption without a nonnegative assumption.
+Although bosonic occupations are nonnegative, commuting operators through a coefficient shifts its argument to values such as $N_a-k$.
+Assuming nonnegative arguments could discard a condition at a negative value before a later shift moves it to a physical occupation boundary.
+
+Boundary guards are added for explicit singularities encountered during multiplication.
+If a pole appears only after substituting a parameter, perform that substitution before multiplying or converting the expression to number-ordered form.
+For example, converting $a^\dagger (N_a+t)^{-1}a$ with symbolic $t$ gives $N_a/(N_a+t-1)$.
+Subsequently setting $t=1$ can cancel this fraction to $1$ and lose the vacuum zero; setting $t=1$ before conversion preserves it.
+
 #### Fermions and Spins
 
 Fermions and spins work in a similar way, except for the different commutation relations.
@@ -142,6 +165,11 @@ These rules, as well as the commutation relations, combine into the multiplicati
 | $N_a$ | $a^\dagger$ | $N_a$ | $0$ |
 | $a$ | $1-N_a$ | $a$ | $0$ |
 
+For a term containing $a^\dagger$ or $a$, only occupation zero is sampled by its middle coefficient: $a^\dagger f(N_a)=a^\dagger f(0)$ and $f(N_a)a=f(0)a$.
+Pymablock restricts these coefficients before multiplication or linearization, so a pole at occupation one does not contaminate a nonzero matrix element.
+For example, $a^\dagger (1-N_a)^{-1}$ acts as $a^\dagger$.
+For terms without creation or annihilation operators, both occupations are sampled and poles there remain singular.
+
 ### Ladder Operators
 
 Pymablock also considers ladder operators on a lattice ({autolink}`~pymablock.number_ordered_form.LadderOp`), which appear in Floquet systems—time-dependent systems with periodic drive.
@@ -149,6 +177,8 @@ These operators are similar to bosons, except creation and annihilation operator
 In other words, the ladder operators $a$ and $a^\dagger$, and the number operator $N_a$, satisfy the following relations:
 
 $$[a, a^\dagger] = 0, \quad [N_a, a] = -a, \quad [N_a, a^\dagger] = a^\dagger.$$
+
+These lattice ladders have integer occupations extending in both directions and no vacuum boundary, so the bosonic boundary guards do not apply.
 
 The multiplication table for ladder operators is similar to the one for bosons, but simpler:
 
