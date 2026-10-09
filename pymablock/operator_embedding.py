@@ -6,7 +6,7 @@ Notation used in this module:
   `~pymablock.block_diagonalize`. The isometry W maps source states to target states.
 - A *lattice* is the set of target occupations ``n = r + M q`` reached from one
   reference state ``r`` by the generator images. ``M`` is ``_occupation_matrix``,
-  ``q`` are the source occupations (``_source_occupations``), ``n(q)`` is
+  ``q`` are the source occupations (``source_occupations``), ``n(q)`` is
   ``_target_of_source`` and ``q(n) = L (n - r)``, with ``L`` the left inverse of
   ``M``, is ``_source_of_target``.
 - ``_target_numbers`` and ``_source_numbers`` are the placeholder symbols of the
@@ -183,9 +183,9 @@ class Embedding(sympy.Expr):
         """Compile each reference, sharing source occupation symbols across lattices."""
         lattices = []
         for row, reference in references:
-            if lattices and set(reference) != set(lattices[0][1]._target_operators):
+            if lattices and set(reference) != set(lattices[0][1].target_operators):
                 raise ValueError("Every reference must declare the same target modes")
-            shared = lattices[0][1]._source_occupations if lattices else None
+            shared = lattices[0][1].source_occupations if lattices else None
             lattice = _Lattice(dict(generators), dict(reference), shared)
             lattices.append((int(row), lattice))
         return tuple(lattices)
@@ -277,6 +277,13 @@ class Embedding(sympy.Expr):
         """Return the compiled lattice at the first reference."""
         return self._lattices[0][1]
 
+    @property
+    def _attachment_lattice(self) -> _Lattice:
+        """Return the lattice of a scalar attachment, rejecting matrix frames."""
+        if not isinstance(self.args[1], sympy.Dict):
+            raise TypeError("Reference-list embeddings require a matrix frame")
+        return self._first_lattice
+
     @cached_property
     def _first_embedding(self) -> Embedding:
         """Return the symbolic single-reference isometry used by frame attachments."""
@@ -287,7 +294,7 @@ class Embedding(sympy.Expr):
         # Share validated data; reconstruction still compiles from the public args.
         embedding = sympy.Expr.__new__(type(self), self.args[0], sympy.Dict(reference))
         embedding._lattices = ((0, self._first_lattice),)
-        embedding._transfers = (self._first_lattice._target_identity,)
+        embedding._transfers = (self._first_lattice.target_identity,)
         return embedding
 
     @_cache_on_instance
@@ -330,9 +337,7 @@ class Embedding(sympy.Expr):
 
     def _attach(self, value: NumberOrderedForm, side: int) -> NumberOrderedForm:
         """Represent ``value W`` for side +1, or ``W† value`` for side -1."""
-        if not isinstance(self.args[1], sympy.Dict):
-            raise TypeError("Reference-list embeddings require a matrix frame")
-        value = value._expand_operators(self._first_lattice._target_operators)
+        value = value._expand_operators(self._attachment_lattice.target_operators)
         return NumberOrderedForm(
             value.operators, value.args[1], self, side, validate=False
         )
@@ -343,6 +348,8 @@ class _Lattice:
 
     Instances are derived data, not symbolic isometries. Embedding constructor
     arguments determine their maps, phases, and instance-owned caches.
+    Unprefixed members form the package-internal interface for NOF arithmetic
+    and solvers; occupation maps and compilation details remain private.
     """
 
     def __init__(
@@ -352,9 +359,7 @@ class _Lattice:
         source_occupations: tuple[sympy.Symbol, ...] | None = None,
     ) -> None:
         """Compile and validate the affine occupation map."""
-        self._target_operators, self._reference_state = _ordered_reference_state(
-            reference
-        )
+        self.target_operators, self._reference_state = _ordered_reference_state(reference)
         numbers = {
             op: value
             for op, value in generators.items()
@@ -377,7 +382,7 @@ class _Lattice:
                 )
                 for i, op in enumerate(operators)
             )
-        self._source_occupations = source_occupations
+        self.source_occupations = source_occupations
         images, shifts = [], []
         for op in operators:
             image = self._parse_target(generators[op])
@@ -387,7 +392,7 @@ class _Lattice:
                 )
             parity = sum(
                 power
-                for target, power in zip(self._target_operators, shift, strict=True)
+                for target, power in zip(self.target_operators, shift, strict=True)
                 if isinstance(target, FermionOp)
             )
             if parity % 2 != isinstance(op, FermionOp):
@@ -396,7 +401,7 @@ class _Lattice:
             shifts.append(shift)
         self._generator_images = tuple(images)
         self._occupation_matrix = sympy.Matrix(
-            len(self._target_operators), len(operators), lambda i, j: shifts[j][i]
+            len(self.target_operators), len(operators), lambda i, j: shifts[j][i]
         )
         if self._occupation_matrix.rank() != len(operators):
             raise ValueError("Generator shifts must be independent")
@@ -407,7 +412,7 @@ class _Lattice:
             * (sympy.Matrix(self._target_numbers) - sympy.Matrix(self._reference_state))
         )
         self._target_of_source = tuple(
-            origin + sum(matrix[i, j] * q for j, q in enumerate(self._source_occupations))
+            origin + sum(matrix[i, j] * q for j, q in enumerate(self.source_occupations))
             for i, origin in enumerate(self._reference_state)
         )
         self._validate_domains()
@@ -427,18 +432,18 @@ class _Lattice:
             form = self._parse_target(number)
             if any(any(powers) for powers in form.terms):
                 raise ValueError("A ladder number image must be occupation diagonal")
-            expression = form.terms.get((0,) * len(self._target_operators), sympy.S.Zero)
-            expression = self._evaluate_numbers(expression, self._target_of_source)
+            expression = form.terms.get((0,) * len(self.target_operators), sympy.S.Zero)
+            expression = self.evaluate_numbers(expression, self._target_of_source)
             self._require_vanishing(
-                expression - self._source_occupations[index],
+                expression - self.source_occupations[index],
                 f"Ladder number image {op} must count from the source reference index zero",
             )
 
     def _parse_target(self, expression: sympy.Expr) -> NumberOrderedForm:
         """Parse a target expression using the modes declared in the reference."""
         if isinstance(expression, NumberOrderedForm):
-            return expression._expand_operators(self._target_operators)
-        modes = self._target_operators
+            return expression._expand_operators(self.target_operators)
+        modes = self.target_operators
         expression = sympy.sympify(expression)
         if set(find_operators(expression)) - set(modes):
             raise ValueError("Every target mode must be declared in the reference")
@@ -449,7 +454,7 @@ class _Lattice:
         """Return scalar number symbols in target mode order."""
         return tuple(
             _number_operator_to_placeholder(NumberOperator(op))
-            for op in self._target_operators
+            for op in self.target_operators
         )
 
     @cached_property
@@ -463,12 +468,12 @@ class _Lattice:
     @cached_property
     def _target_zero(self) -> NumberOrderedForm:
         """Return zero carrying the target operator basis."""
-        return NumberOrderedForm(self._target_operators, {}, validate=False)
+        return NumberOrderedForm(self.target_operators, {}, validate=False)
 
     @cached_property
-    def _target_identity(self) -> NumberOrderedForm:
+    def target_identity(self) -> NumberOrderedForm:
         """Return the identity in the target operator basis."""
-        modes = self._target_operators
+        modes = self.target_operators
         return NumberOrderedForm(modes, {(0,) * len(modes): sympy.S.One}, validate=False)
 
     @cached_property
@@ -476,7 +481,7 @@ class _Lattice:
         """Return zero carrying the source operator basis."""
         return NumberOrderedForm(self._source_operators, {}, validate=False)
 
-    def _evaluate_numbers(
+    def evaluate_numbers(
         self, expression: sympy.Expr, occupations: Sequence[int | sympy.Expr]
     ) -> sympy.Expr:
         """Evaluate a target number coefficient at the supplied occupations."""
@@ -484,13 +489,56 @@ class _Lattice:
             dict(zip(self._target_numbers, occupations, strict=True))
         )
 
+    def source_is_zero(self, amplitude: sympy.Expr) -> bool:
+        """Test an amplitude in the source algebra, including binary identities."""
+        return (
+            NumberOrderedForm(
+                self._source_operators,
+                {
+                    (0,) * len(self.source_occupations): amplitude.xreplace(
+                        dict(zip(self.source_occupations, self._source_numbers))
+                    )
+                },
+                validate=False,
+            )
+            ._linearize_binary_operators()
+            .is_zero
+        )
+
+    def map_transition_coefficients(
+        self, value: NumberOrderedForm, transform: Callable
+    ) -> NumberOrderedForm:
+        """Transform target coefficients evaluated on this lattice.
+
+        Call ``transform(coefficient, output, amplitude)`` in source coordinates,
+        where output contains the final target occupations and amplitude includes
+        ladder factors. Translate returned coefficients back to the intermediate
+        target occupations used by NOF. The callback owns the transformation rule.
+        """
+        terms = {}
+        coefficients = value.terms
+        for powers, (output, amplitude) in value.act(self._target_of_source).items():
+            middle = [n - max(p, 0) for n, p in zip(self._target_of_source, powers)]
+            coefficient = self.evaluate_numbers(coefficients[powers], middle)
+            result = transform(coefficient, output, amplitude)
+            incoming = {n: n + max(p, 0) for n, p in zip(self._target_numbers, powers)}
+            terms[powers] = result.xreplace(
+                {
+                    q: expression.xreplace(incoming)
+                    for q, expression in zip(
+                        self.source_occupations, self._source_of_target
+                    )
+                }
+            )
+        return NumberOrderedForm(self.target_operators, terms, validate=False)
+
     def _validate_domains(self) -> None:
         """Check target occupation bounds over the full source occupation domain.
 
         Use each affine map's minimum and maximum, rather than enumerating states.
         Raise ValueError if a generator can overfill or underfill a target mode.
         """
-        for i, op in enumerate(self._target_operators):
+        for i, op in enumerate(self.target_operators):
             lower = upper = self._reference_state[i]
             for coefficient, source, size in zip(
                 self._occupation_matrix.row(i),
@@ -525,7 +573,7 @@ class _Lattice:
         """
         binary = tuple(
             q
-            for q, size in zip(self._source_occupations, self._source_dimensions)
+            for q, size in zip(self.source_occupations, self._source_dimensions)
             if size == 2
         )
         expression = sympy.expand(expression)
@@ -557,7 +605,7 @@ class _Lattice:
             _matrix_element(image, self._target_of_source)
             for image in self._generator_images
         ]
-        coordinates = self._source_occupations
+        coordinates = self.source_occupations
         active = {
             q: sympy.S.One if size == 2 else q + 1
             for q, size in zip(coordinates, self._source_dimensions)
@@ -593,7 +641,7 @@ class _Lattice:
         term = NumberOrderedForm(
             self._source_operators, {powers: sympy.S.One}, validate=False
         )
-        return _matrix_element(term, self._source_occupations)
+        return _matrix_element(term, self.source_occupations)
 
     def _lowering_amplitude(self, index: int) -> sympy.Expr:
         """Return the source lowering amplitude for mode ``index`` at symbolic numbers."""
@@ -612,7 +660,7 @@ class _Lattice:
         for i, (image, q, size) in enumerate(
             zip(
                 self._generator_images,
-                self._source_occupations,
+                self.source_occupations,
                 self._source_dimensions,
                 strict=True,
             )
@@ -621,11 +669,11 @@ class _Lattice:
                 image, self._target_of_source
             )
             ratio = ratio.xreplace(
-                dict.fromkeys(self._source_occupations[:i], sympy.S.Zero)
+                dict.fromkeys(self.source_occupations[:i], sympy.S.Zero)
             )
             if size is None:
                 ratio = sympy.simplify(ratio)
-                if ratio.free_symbols.intersection(self._source_occupations):
+                if ratio.free_symbols.intersection(self.source_occupations):
                     raise NotImplementedError(
                         "Infinite source generators require a constant phase relative to their ladder weights"
                     )
@@ -677,7 +725,7 @@ class _Lattice:
         powers = self._source_shift(target_shift)
         if powers is None:
             return self._source_zero
-        shifted = {q: q - p for q, p in zip(self._source_occupations, powers)}
+        shifted = {q: q - p for q, p in zip(self.source_occupations, powers)}
         # The phase has unit modulus on the retained domain. Its ratio cancels
         # unchanged factors without expanding binary occupation identities.
         amplitude = (
@@ -691,7 +739,7 @@ class _Lattice:
         initial = {
             q: sympy.Integer(1 if p > 0 else 0) if p and size == 2 else n + max(p, 0)
             for q, n, p, size in zip(
-                self._source_occupations,
+                self.source_occupations,
                 self._source_numbers,
                 powers,
                 self._source_dimensions,
@@ -703,7 +751,7 @@ class _Lattice:
         )
 
     @_cache_on_instance
-    def _restrict(self, target: NumberOrderedForm) -> NumberOrderedForm:
+    def restrict(self, target: NumberOrderedForm) -> NumberOrderedForm:
         """Return ``W† target W`` by translating each term to the source algebra."""
         result = self._source_zero
         for shift, (_, amplitude) in target.act(self._target_of_source).items():
@@ -711,7 +759,7 @@ class _Lattice:
         return result
 
     @cached_property
-    def _projector(self) -> NumberOrderedForm:
+    def projector(self) -> NumberOrderedForm:
         """Return ``W W†``, the target-space projector onto retained states.
 
         Scalar indicators enforce the affine occupation constraints and each source
@@ -726,7 +774,7 @@ class _Lattice:
         source = self._source_of_target
         physical = {
             n: sympy.Dummy(integer=True, nonnegative=True)
-            for target, n in zip(self._target_operators, numbers)
+            for target, n in zip(self.target_operators, numbers)
             if not isinstance(target, LadderOp)
         }
         for q, op, size in zip(source, self._source_operators, self._source_dimensions):
@@ -742,11 +790,11 @@ class _Lattice:
             _allowed_values_indicator(q, spectrum) for q, spectrum in spectra
         )
         return NumberOrderedForm(
-            self._target_operators, {(0,) * len(self._target_operators): indicator}
+            self.target_operators, {(0,) * len(self.target_operators): indicator}
         )._linearize_binary_operators()
 
     @_cache_on_instance
-    def _lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
+    def lift(self, value: NumberOrderedForm) -> NumberOrderedForm:
         """Represent a source operator in target space, as ``W value W†``.
 
         Replace source generators and numbers by their target images, then project
@@ -761,8 +809,8 @@ class _Lattice:
         result = self._target_zero
         for powers, coefficient in value.terms.items():
             term = NumberOrderedForm(
-                self._target_operators,
-                {(0,) * len(self._target_operators): coefficient.xreplace(coordinates)},
+                self.target_operators,
+                {(0,) * len(self.target_operators): coefficient.xreplace(coordinates)},
                 validate=False,
             )
             # Match NOF ordering: creations, coefficient, reversed annihilations.
@@ -774,7 +822,7 @@ class _Lattice:
                 if power < 0:
                     term = image.adjoint() ** (-power) * term
             result += term
-        return self._projector * result * self._projector
+        return self.projector * result * self.projector
 
     def _transfer(self, lattice: _Lattice) -> NumberOrderedForm:
         """Return the transfer operator T carrying this lattice onto ``lattice``.
@@ -786,12 +834,12 @@ class _Lattice:
             a - b for a, b in zip(self._reference_state, lattice._reference_state)
         )
         if not any(powers):
-            return self._target_identity
+            return self.target_identity
         if any(p and any(self._occupation_matrix.row(i)) for i, p in enumerate(powers)):
             raise NotImplementedError(
                 "Reference translations along generator-moving modes are not supported"
             )
-        monomial = NumberOrderedForm(self._target_operators, {powers: sympy.S.One})
+        monomial = NumberOrderedForm(self.target_operators, {powers: sympy.S.One})
         weight = _matrix_element(monomial, self._target_of_source)
         # Physical domains at both references ensure this shift never annihilates.
         coefficient = sympy.simplify(lattice._phase / self._phase / weight)
@@ -800,11 +848,11 @@ class _Lattice:
         coefficient = coefficient.xreplace(
             {
                 q: coordinate.xreplace(incoming)
-                for q, coordinate in zip(self._source_occupations, self._source_of_target)
+                for q, coordinate in zip(self.source_occupations, self._source_of_target)
             }
         )
         return NumberOrderedForm(
-            self._target_operators, {powers: coefficient}, validate=False
+            self.target_operators, {powers: coefficient}, validate=False
         )
 
 
