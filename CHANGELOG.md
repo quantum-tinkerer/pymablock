@@ -21,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed `NumberOrderedForm` conversion of occupation-dependent conjugates and unused modes, and preserved zero matrix elements at bosonic, fermionic, and spin occupation boundaries when coefficients contain poles.
+- Fixed `NumberOrderedForm` import of number-only expressions, including `Piecewise` coefficients, and export of occupation-dependent conjugates.
+- Fixed `find_operators` to include declared but unused modes of a `NumberOrderedForm`.
+- Fixed number-ordered products at occupation boundaries: explicit bosonic boundary poles produce `Piecewise` coefficients that preserve zero matrix elements, and fermion and spin ladder coefficients are restricted to occupation zero before multiplication or simplification.
 - Fixed implicit projectors on SciPy 1.18 by initializing the `LinearOperator` base class.
 - Fixed the Andreev supercurrent tutorial's fermionic matrix conversion for SymPy 1.14.
 - Fixed chained and nested custom-algorithm division failing on the zero sentinel by recursively transforming division operands.

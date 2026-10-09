@@ -140,17 +140,22 @@ annihilates the vacuum because the rightmost $a$ acts first.
 On every state with occupation $n\geq 1$, its matrix element is $n/[(n-1)+1]=1$.
 Naively applying the multiplication table gives $N_a/N_a$, whose cancellation to $1$ would incorrectly assign a nonzero vacuum matrix element.
 Pymablock preserves the zero at the vacuum with a `Piecewise` coefficient: zero at $N_a=0$ and one otherwise.
-More generally, $(a^\dagger)^k f(N_a) a^k$ vanishes on states with occupation below $k$, even if the shifted coefficient $f(N_a-k)$ has a pole there.
+As a physical operator, $(a^\dagger)^k f(N_a) a^k$ vanishes on states with occupation below $k$, even if the shifted coefficient $f(N_a-k)$ has a pole there.
 Poles sampled by nonzero matrix elements remain singular.
 
 The symbolic placeholders for number operators therefore carry an integer assumption without a nonnegative assumption.
 Although bosonic occupations are nonnegative, commuting operators through a coefficient shifts its argument to values such as $N_a-k$.
 Assuming nonnegative arguments could discard a condition at a negative value before a later shift moves it to a physical occupation boundary.
 
-Boundary guards are added for explicit singularities encountered during multiplication.
+Pymablock adds a boundary guard when evaluating the shifted coefficient at that mode's boundary occupation produces an explicit infinity or an indeterminate value, with all other occupations and parameters left symbolic.
+It does not detect poles that appear only at particular values of those other occupations or parameters.
+For example, $a^\dagger (N_a+N_b+1)^{-1}a$ converts to $N_a/(N_a+N_b)$ without a guard.
+Its physical matrix element at $n_a=n_b=0$ is zero, but substituting both occupations into this coefficient gives an indeterminate value; substituting $N_b=0$ first can instead cancel the fraction to $1$.
+
 If a pole appears only after substituting a parameter, perform that substitution before multiplying or converting the expression to number-ordered form.
+When using `block_diagonalize`, substitute into the input Hamiltonian before calling the function, since multiplication happens internally.
 For example, converting $a^\dagger (N_a+t)^{-1}a$ with symbolic $t$ gives $N_a/(N_a+t-1)$.
-Subsequently setting $t=1$ can cancel this fraction to $1$ and lose the vacuum zero; setting $t=1$ before conversion preserves it.
+Subsequently setting $t=1$ cancels this fraction to $1$ and loses the vacuum zero; setting $t=1$ before conversion preserves it.
 
 #### Fermions and Spins
 
@@ -165,10 +170,10 @@ These rules, as well as the commutation relations, combine into the multiplicati
 | $N_a$ | $a^\dagger$ | $N_a$ | $0$ |
 | $a$ | $1-N_a$ | $a$ | $0$ |
 
-For a term containing $a^\dagger$ or $a$, only occupation zero is sampled by its middle coefficient: $a^\dagger f(N_a)=a^\dagger f(0)$ and $f(N_a)a=f(0)a$.
+For each fermion or spin mode whose term contains $a^\dagger$ or $a$, only occupation zero is sampled by the coefficient: $a^\dagger f(N_a)=a^\dagger f(0)$ and $f(N_a)a=f(0)a$.
 Pymablock restricts these coefficients before multiplication or linearization, so a pole at occupation one does not contaminate a nonzero matrix element.
 For example, $a^\dagger (1-N_a)^{-1}$ acts as $a^\dagger$.
-For terms without creation or annihilation operators, both occupations are sampled and poles there remain singular.
+For each fermion or spin mode without creation or annihilation operators in the term, both occupations are sampled and poles there remain singular.
 
 ### Ladder Operators
 
