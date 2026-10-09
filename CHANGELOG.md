@@ -23,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Preserved meromorphic occupation coefficients during binary simplification, preventing singular points from corrupting nonresonant sectors.
-- Fixed zero off-diagonal orders, mode mixing, reconstruction and substitution of structured embeddings. Finite embedding outputs consistently contain scalar SymPy entries, and symbolic conversion rationalizes stored floating coefficients before cancellation.
 - Fixed the zero-solution convention at inactive negative sites of bilateral ladders.
 - Fixed implicit projectors on SciPy 1.18 by initializing the `LinearOperator` base class.
 - Fixed the Andreev supercurrent tutorial's fermionic matrix conversion for SymPy 1.14.
@@ -57,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `Embedding` for generator-defined target operators and ordered finite reference bases, with virtual transitions outside the retained space. The same embedding converts observables through `operator_to_BlockSeries` and supports `fully_diagonalize` for full or selective diagonalization within blocks.
+- Added `Embedding` to select the states of an effective model inside a second-quantized Hamiltonian. Generator images map the source operators to target expressions acting on a reference state; a list of references gives a matrix of such copies, placed in target matrix rows with `Embedding.row`, and empty generators select individual states. `Embedding.restrict` returns matrix elements between embedded states. `block_diagonalize`, `operator_to_BlockSeries`, and `fully_diagonalize` accept an embedding as `subspace_eigenvectors` and keep virtual transitions outside the retained space.
+- Added `NumberOrderedForm.act`, which applies each term to a Fock state with possibly symbolic occupations and returns the output occupations and matrix elements.
 - Added a non-Hermitian similarity-transform algorithm via `block_diagonalize(..., hermitian=False)`, including support for asymmetric selective masks, symbolic inputs, and biorthogonal `subspace_eigenvectors=[(right, left), ...]` in the explicit and implicit direct paths. The implicit KPM solver remains unsupported in the non-Hermitian path.
 
 ## [2.2.1] - 2026-03-09
