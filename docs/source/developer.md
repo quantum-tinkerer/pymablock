@@ -67,7 +67,7 @@ The implementation separates three operations:
 - `block_diagonalization._split_embedding_series` uses the embedding's
   retained/complement frames to convert general operators. It preserves
   zeroth-order cross blocks.
-- `second_quantization.solve_sylvester_embedding(h0, embedding)` validates diagonal
+- `second_quantization._solve_sylvester_embedding(h0, embedding)` validates diagonal
   H0, reads retained energies directly from $W^\dagger H_0W$, and dispatches matrix
   blocks. Its helper `_divide_transitions` takes a lattice, a target NOF, and
   target/source energy expressions and returns a target NOF divided by its

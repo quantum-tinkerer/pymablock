@@ -30,7 +30,7 @@ from pymablock.number_ordered_form import (
     find_operators,
 )
 from pymablock.operator_embedding import Embedding
-from pymablock.second_quantization import solve_sylvester_embedding
+from pymablock.second_quantization import _solve_sylvester_embedding
 from pymablock.series import (
     BlockSeries,
     zero,
@@ -250,7 +250,7 @@ def block_diagonalize(
             )
         embedding = subspace_eigenvectors
         h0 = embedding._target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
-        solve_sylvester = solve_sylvester_embedding(h0, embedding)
+        solve_sylvester = _solve_sylvester_embedding(h0, embedding)
         # Validate the complement now, before lazy block evaluation.
         embedding._complement_frame(h0.rows)
         hamiltonian = _split_embedding_series(
