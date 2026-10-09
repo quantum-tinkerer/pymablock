@@ -1112,7 +1112,7 @@ class NumberOrderedForm(Operator):
 
     def act(
         self, occupations: Sequence[int | sympy.Expr]
-    ) -> dict[tuple[int, ...], tuple[tuple[sympy.Expr, ...], sympy.Expr]]:
+    ) -> dict[tuple[sympy.Expr, ...], tuple[tuple[sympy.Expr, ...], sympy.Expr]]:
         """Apply each term to the Fock state with the given occupations.
 
         Occupations follow the order of ``operators`` and may be symbolic. Positive
@@ -1122,6 +1122,8 @@ class NumberOrderedForm(Operator):
         Fermion signs follow the order of ``operators``. All ladder factors are
         checked for zero before the coefficient is evaluated, so forbidden
         transitions never evaluate coefficient poles.
+        Bosonic and bilateral ladder powers may be symbolic integers with known
+        sign; bosonic amplitudes then use rising or falling factorials.
 
         Parameters
         ----------
@@ -1163,19 +1165,52 @@ class NumberOrderedForm(Operator):
                 )
             return factor
 
+        def apply_power(
+            state: list[sympy.Expr], index: int, power: sympy.Expr
+        ) -> sympy.Expr:
+            """Apply an integer power, keeping symbolic ladder lengths unevaluated."""
+            if power.is_Integer:
+                return sympy.prod(
+                    apply_ladder(state, index, annihilate=power > 0)
+                    for _ in range(abs(int(power)))
+                )
+            operator, n = self.operators[index], state[index]
+            if power.is_integer is not True or not (
+                power.is_nonnegative is True or power.is_nonpositive is True
+            ):
+                raise NotImplementedError(
+                    "Symbolic ladder powers need a known integer sign"
+                )
+            if isinstance(operator, BosonOp):
+                factor = sympy.sqrt(
+                    sympy.ff(n, power)
+                    if power.is_nonnegative
+                    else sympy.rf(n + 1, -power)
+                )
+            elif isinstance(operator, LadderOp):
+                factor = sympy.S.One
+            else:
+                raise NotImplementedError("Symbolic powers require an infinite ladder")
+            state[index] -= power
+            return factor
+
         def apply_term(
-            powers: tuple[int, ...], coefficient: sympy.Expr
+            powers: tuple[sympy.Expr, ...], coefficient: sympy.Expr
         ) -> tuple[tuple[sympy.Expr, ...], sympy.Expr] | None:
             """Return the output occupations and matrix element, or None if zero."""
             state = list(map(sympy.sympify, occupations))
             factors = []
             for index, power in enumerate(powers):
-                for _ in range(power):
-                    factors.append(apply_ladder(state, index, annihilate=True))
+                if power.is_nonnegative:
+                    factors.append(apply_power(state, index, power))
+                elif power.is_nonpositive is not True:
+                    raise NotImplementedError(
+                        "Symbolic ladder powers need a known integer sign"
+                    )
             middle_occupations = tuple(state)
             for index, power in reversed(list(enumerate(powers))):
-                for _ in range(-power):
-                    factors.append(apply_ladder(state, index, annihilate=False))
+                if power.is_nonpositive and power.is_zero is not True:
+                    factors.append(apply_power(state, index, power))
             # Check the ladder factors first: the coefficient may be singular
             # where one of them vanishes.
             if any(factor == 0 for factor in factors):
@@ -1188,7 +1223,6 @@ class NumberOrderedForm(Operator):
 
         result = {}
         for powers, coefficient in self.args[1]:
-            powers = tuple(map(int, powers))
             if (action := apply_term(powers, coefficient)) is not None:
                 result[powers] = action
         return result

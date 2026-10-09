@@ -151,3 +151,42 @@ def test_existing_nof_conversion_preserves_values():
         nof_matrix(result, [range(4), range(2)]),
         sp.kronecker_product(nof_matrix(value, [range(4)]), sp.eye(2)),
     )
+
+
+@pytest.mark.parametrize("mode_type", [BosonOp, LadderOp])
+@pytest.mark.parametrize("sign", [-1, 1])
+def test_restrict_symbolic_ladder_power(mode_type, sign):
+    a, b = mode_type("a"), mode_type("b")
+    generators = {b: a}
+    if mode_type is LadderOp:
+        generators[N(b)] = N(a)
+    embedding = Embedding(generators, reference={a: 0})
+    k = sp.Symbol("k", integer=True, positive=True)
+    target, source = (a, b) if sign == 1 else (a.adjoint(), b.adjoint())
+    for coefficient in (1, N(a) + 1):
+        expression = coefficient * target**k
+        result = embedding.restrict(expression)
+        assert result == F.from_expr(
+            sp.sympify(coefficient).xreplace({N(a): N(b)}) * source**k
+        )
+        for exponent in (1, 2, 3):
+            assert result.xreplace({k: exponent}) == embedding.restrict(
+                expression.xreplace({k: exponent})
+            )
+
+
+def test_symbolic_shift_into_finite_source_is_not_silently_zero():
+    a, s = BosonOp("a"), SigmaMinus("s")
+    embedding = Embedding({s: a}, reference={a: 0})
+    k = sp.Symbol("k", integer=True, positive=True)
+    with pytest.raises(NotImplementedError, match="finite source shift"):
+        embedding.restrict(a**k)
+
+
+def test_symbolic_shift_may_leave_lattice():
+    a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
+    embedding = Embedding({s: a * b}, reference={a: 0, b: 0})
+    k, m = sp.symbols("k m", integer=True, positive=True)
+    # Equal shifts preserve the lattice, whereas unequal shifts leave it.
+    with pytest.raises(NotImplementedError, match="leaves the lattice"):
+        embedding.restrict(a**k * b**m)
