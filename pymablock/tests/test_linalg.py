@@ -23,16 +23,17 @@ def test_linear_operator_rmatmul_patched(rng):
 def test_direct_greens_function(dtype, rng):
     atol = 1e4 * np.finfo(dtype).eps
     n = 100
-    E = rng.standard_normal(n).astype(dtype)
-    t = rng.random(n - 1).astype(dtype)
+    E = rng.uniform(2, 3, n).astype(dtype)
+    E[: n // 2] *= -1
+    rng.shuffle(E)
+    t = (0.5 * rng.random(n - 1)).astype(dtype)
     if np.iscomplexobj(E):
         t *= np.exp(2j * np.pi * rng.random(n - 1))
     h = sparse.diags([t, E, t.conj()], [-1, 0, 1])
-    # Each row has at most two hoppings of magnitude below one. Keep the
-    # energy at least one away from the spectrum so float32 residuals do not
-    # depend on a random near-pole encounter. Eigenenergy solves are tested
-    # separately with an explicit kernel.
-    energy = np.max(np.abs(E)) + 3
+    # Gershgorin discs lie in [-4, -1] or [1, 4]. Energy zero lies in an
+    # interior gap, so the solve remains indefinite without random near-pole
+    # encounters making the float32 absolute residual check unreliable.
+    energy = 0
     G = linalg.direct_greens_function(h, energy)
     vec = rng.standard_normal(n).astype(dtype)
     if np.iscomplexobj(vec):
