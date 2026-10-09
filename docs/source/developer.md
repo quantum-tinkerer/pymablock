@@ -172,6 +172,26 @@ occupation equations. A reference state is the special case that selects one
 eigenvalue of every target number operator. Finite spectral selections are sums
 of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
 
+Occupation conditions appear in NOF coefficients in four `Piecewise` shapes:
+
+- Indicators `Piecewise((1, Eq(x, v)), (0, True))`, built by
+  `_equal_value_indicator`. Projectors are products and sums of them.
+  `_iter_fixed_number_indicators` recognizes an indicator whose equality is
+  linear in one occupation; `_simplify_on_fixed_numbers` (run by the NOF
+  constructor) and `_divide_by_energy_gap` use it to evaluate coefficients at
+  the fixed value.
+- Boundary guards `Piecewise((0, Eq(n, i) | ...), (c, True))` from normal
+  ordering, which keep a pole of a downward-shifted coefficient out of the
+  occupations where the ladder factor vanishes.
+- Inactive transitions `Piecewise((0, inactive), (c / gap, True))` from
+  coefficient division.
+- Point splits `Piecewise((value at v, Eq(n, v)), (rest, True))` from
+  coefficient division at an occupation fixed by an indicator.
+
+Only indicators are read back. The other three must stay `Piecewise`
+branches: writing them as `c * (1 - indicator)` would evaluate a coefficient
+at its pole and give $0\cdot\infty$ in the excluded sector.
+
 The solver reads `_column_target_states` from the embedding to evaluate the source
 energy of column $j$ at $r_j+Mq$. The attached target operator already includes
 $T_j$. The lattice's `map_transition_coefficients` evaluates its transitions
