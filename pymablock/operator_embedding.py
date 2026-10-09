@@ -145,14 +145,8 @@ class Embedding(sympy.Expr):
         cls,
         generators: Mapping,
         reference: Mapping | Sequence | None = None,
-        *,
-        _shared_occupations: tuple[sympy.Symbol, ...] | None = None,
     ) -> Self:
-        """Parse references, build their lattices, and prepare the transfer operators.
-
-        ``_shared_occupations`` is internal: lattices of one list share the source
-        occupation symbols of the first lattice.
-        """
+        """Parse references, build their lattices, and prepare the transfer operators."""
         references = _parse_references(reference)
         if not isinstance(generators, (Mapping, sympy.Dict)):
             raise TypeError("Generators must be a mapping")
@@ -162,12 +156,7 @@ class Embedding(sympy.Expr):
                 raise ValueError(
                     "Nonzero reference matrix indices require a reference list"
                 )
-            reference = references[0][1]
-            self = sympy.Expr.__new__(cls, generators, reference)
-            self._lattices = ((0, self),)
-            self._compile(dict(generators), dict(reference), _shared_occupations)
-            self._transfers = (self._target_identity,)
-            return self
+            return cls._lattice(generators, references[0][1])
         states = sympy.Tuple(
             *(
                 sympy.Dict({Embedding.row: row, **dict(state)})
@@ -183,6 +172,20 @@ class Embedding(sympy.Expr):
         return self
 
     @classmethod
+    def _lattice(
+        cls,
+        generators: sympy.Dict,
+        reference: sympy.Dict,
+        source_occupations: tuple[sympy.Symbol, ...] | None = None,
+    ) -> Self:
+        """Build the embedding of one lattice, optionally with given occupation symbols."""
+        self = sympy.Expr.__new__(cls, generators, reference)
+        self._lattices = ((0, self),)
+        self._compile(dict(generators), dict(reference), source_occupations)
+        self._transfers = (self._target_identity,)
+        return self
+
+    @classmethod
     def _build_lattices(cls, generators: sympy.Dict, references: sympy.Tuple) -> tuple:
         """Build one lattice per reference, sharing source occupation symbols."""
         lattices = []
@@ -190,8 +193,7 @@ class Embedding(sympy.Expr):
             if lattices and set(reference) != set(lattices[0][1]._target_operators):
                 raise ValueError("Every reference must declare the same target modes")
             shared = lattices[0][1]._source_occupations if lattices else None
-            lattice = cls(generators, reference=reference, _shared_occupations=shared)
-            lattices.append((int(row), lattice))
+            lattices.append((int(row), cls._lattice(generators, reference, shared)))
         return tuple(lattices)
 
     def _printed_arguments(self, printer) -> list[str]:
