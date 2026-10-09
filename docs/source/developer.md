@@ -27,8 +27,8 @@ placeholders map directly to the compiled source coordinates; generator NOFs
 and their adjoints supply the ladder factors and graded signs. Existing NOFs
 are extended to the target mode order structurally. Embedding arithmetic never
 converts NOFs to expressions and back. `_convert_operator` parses expressions
-at the input boundary; `NumberOrderedForm._rebase_operators` changes the basis of
-an existing NOF structurally and rejects modes on which it actually depends.
+at the input boundary; `NumberOrderedForm._expand_operators` changes the operator
+list of an existing NOF structurally and refuses to drop an operator that a term uses.
 The class groups construction and format boundaries, full-frame operations,
 and single-lattice mathematics in separate sections.
 
