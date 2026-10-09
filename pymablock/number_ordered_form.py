@@ -6,7 +6,7 @@ and number operators in the middle.
 """
 
 from collections import defaultdict
-from collections.abc import Callable, Collection, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from functools import cached_property, lru_cache
 from typing import TYPE_CHECKING
 
@@ -399,20 +399,6 @@ def _equal_value_indicator(left: sympy.Expr, right: sympy.Expr | int) -> sympy.E
     A symbolic condition is represented by a two-branch SymPy Piecewise.
     """
     return sympy.Piecewise((1, sympy.Eq(left, right)), (0, True))
-
-
-def _allowed_values_indicator(
-    expression: sympy.Expr, allowed_values: Iterable[int | sympy.Expr] | sympy.Set
-) -> sympy.Expr:
-    """Return 1 when a scalar expression lies in the allowed set, else 0.
-
-    ``allowed_values`` is either a finite collection of distinct values or
-    ``sympy.S.Integers``. Integer membership is expressed by ``x == floor(x)``.
-    This scalar coefficient can be used to construct a diagonal quantum projector.
-    """
-    if allowed_values is sympy.S.Integers:
-        return _equal_value_indicator(expression, sympy.floor(expression))
-    return sum(_equal_value_indicator(expression, value) for value in allowed_values)
 
 
 def _iter_fixed_number_indicators(

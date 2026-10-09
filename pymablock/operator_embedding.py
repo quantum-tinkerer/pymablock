@@ -37,7 +37,7 @@ from pymablock.number_ordered_form import (
     NumberOperator,
     NumberOrderedForm,
     OperatorType,
-    _allowed_values_indicator,
+    _equal_value_indicator,
     _number_operator_to_placeholder,
     _occupation_dimension,
     _operator_sort_key,
@@ -757,8 +757,9 @@ class _Lattice:
         """
         numbers = self._target_numbers
         offsets = sympy.Matrix(numbers) - sympy.Matrix(self._reference_state)
-        spectra = [
-            (sympy.expand(normal.dot(offsets)), (0,))
+        # Conserved combinations of target numbers must keep their reference values.
+        factors = [
+            _equal_value_indicator(sympy.expand(normal.dot(offsets)), 0)
             for normal in self._occupation_matrix.T.nullspace()
         ]
         source = self._source_of_target
@@ -775,12 +776,16 @@ class _Lattice:
                 raise NotImplementedError(
                     "This bosonic embedding requires an occupation inequality"
                 )
-            spectra.append((q, range(size) if size is not None else sympy.S.Integers))
-        indicator = sympy.prod(
-            _allowed_values_indicator(q, spectrum) for q, spectrum in spectra
-        )
+            # Finite source modes take the values 0, ..., size - 1; infinite source
+            # modes only require an integer source occupation, q == floor(q).
+            factors.append(
+                _equal_value_indicator(q, sympy.floor(q))
+                if size is None
+                else sum(_equal_value_indicator(q, value) for value in range(size))
+            )
         return NumberOrderedForm(
-            self.target_operators, {(0,) * len(self.target_operators): indicator}
+            self.target_operators,
+            {(0,) * len(self.target_operators): sympy.prod(factors)},
         )._linearize_binary_operators()
 
     @_cache_on_instance
