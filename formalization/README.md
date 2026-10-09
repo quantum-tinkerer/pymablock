@@ -177,19 +177,44 @@ The checked equation is
 The report records this as an unverified manuscript equation and explains the discrepancy.
 This MR leaves the manuscript text unchanged.
 
-## Additional goal: least-action minimality
+## Least-action minimality
 
-Prove that the gauge selects the unique unitary closest to the identity in Frobenius norm, for any finite block partition and a fixed invariant-subspace assignment.
-This is an explicit additional goal, not a completed result of this formalization.
+`LeastAction.closest_to_identity_norm` proves a unique global minimum in the **Frobenius norm** for any finite block partition and fixed assignment of invariant subspaces.
+The matrices are finite complex matrices; blocks can have arbitrary sizes.
+Its assumptions are:
 
-For an actual unitary matrix with positive-definite diagonal blocks, a block-diagonal unitary `D` gives the certificate
+- `U` and the competitor `T` are unitary.
+- Each block is assigned the same subspace: `U P_a U† = T P_a T†` for every coordinate block projector `P_a`.
+- `A = diag_blocks(U)` is positive definite: each Hermitian diagonal block has strictly positive eigenvalues. This is not entrywise positivity.
+
+The conclusion is `||U - I||_F <= ||T - I||_F`, with equality **if and only if `T = U`**.
+The competitor is arbitrary within that assignment, not just perturbatively close to `U`.
+No Hamiltonian or spectral-gap premise is needed in this geometric theorem; those enter when constructing `U` and its assigned invariant subspaces.
+
+`assignment_factor` proves that every such competitor has the form `T = U D`, with `D` block-diagonal and unitary.
+`distance_certificate` proves the exact full-matrix certificate
 
 ```text
-||U D - I||_F² - ||U - I||_F²
-  = sum_a ||sqrt(U_aa) (D_a - I)||_F² >= 0.
+||U D - I||_F² - ||U - I||_F² = ||sqrt(A) (D - I)||_F²,  A = diag_blocks(U).
 ```
 
-The remaining proof must connect the formal gauge to positivity on a continuous or convergent branch near the identity and establish the scope of the competing transformations.
-The manuscript's order-by-order norm argument needs a separate justification because the squared norm contains cross-order terms.
-No least-action minimality claim for arbitrary element masks or every matrix norm is included.
-See the [least-action construction](https://arxiv.org/html/2505.11167v1#S2.SS1) and [the distinction from an off-block generator](https://arxiv.org/html/2408.14637v1).
+This is the block-matrix form of the sum over blocks `sum_a ||sqrt(U_aa) (D_a - I)||_F²`.
+The implemented theorem uses the full retained matrix, so no enumeration of block labels is required.
+`frobeniusSq_eq_norm_sq` identifies the explicit trace objective with mathlib's Frobenius norm squared.
+Positivity makes the square root invertible, forcing `D = I` in the equality case.
+
+### Connection to the perturbative gauge
+
+`constructed_retained_hermitian` derives Hermiticity of every retained coefficient of the **constructed** formal output from `blockDiagonalize_correct`.
+`locally_closest_to_identity` proves the local analytic statement for a matrix family `U(x)` continuous at the origin, with `U(0) = I`, satisfying exact unitarity and the realized gauge in a neighborhood.
+The parameter space is arbitrary, including any finite number of real perturbations.
+The gauge implies Hermitian retained blocks; continuity puts them on the positive branch near the origin.
+The proof uses the sufficient condition `||A - I||_op < 1`, where this auxiliary norm is the operator norm, not the minimization objective.
+
+**Analytic boundary:** existence of such a continuous realization, and the passage from formal identities to exact identities of that realization, remain assumptions.
+The formal-series construction alone does not prove convergence, a radius of convergence, or preservation of the identities under summation.
+No algebra homomorphism evaluating all formal series at a nonzero parameter is assumed.
+The exact finite-matrix certificate avoids the manuscript's order-by-order norm argument, whose cross-order terms require separate justification.
+This proves minimality for block partitions on the positive branch; it does not assert it for arbitrary selective entry masks, non-Hermitian transformations, or every matrix norm.
+
+`Tests/LeastAction.lean` checks three unequal blocks, arbitrarily many real parameters, a nontrivial rational rotation, and the necessity of the positive branch: `-I` satisfies the gauge and has the same subspaces as `I`, yet is farther from `I`.

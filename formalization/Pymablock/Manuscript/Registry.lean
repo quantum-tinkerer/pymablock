@@ -53,6 +53,10 @@ def occurrences : Array Occurrence := #[
 /-- Terminal results are exported with their actual checked theorem types,
 proposition binders, transitive project dependencies, and kernel axioms. -/
 def roots : Array Name := #[
+  ``Pymablock.LeastAction.closest_to_identity_norm,
+  ``Pymablock.LeastAction.distance_certificate,
+  ``Pymablock.LeastAction.locally_closest_to_identity,
+  ``Pymablock.LeastAction.constructed_retained_hermitian,
   ``Pymablock.NonHermitian.matrix_nonhermitian_diagonalization,
   ``Pymablock.NonHermitian.diagonalize_correct,
   ``Pymablock.NonHermitian.solution_unique,

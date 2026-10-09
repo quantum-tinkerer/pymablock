@@ -21,3 +21,5 @@ import Pymablock.Selective
 import Pymablock.NonHermitian.Matrix
 import Pymablock.NonHermitian.FiniteOrder
 import Pymablock.NonHermitian.FirstOrder
+import Pymablock.LeastAction.Formal
+import Pymablock.LeastAction.Norm
