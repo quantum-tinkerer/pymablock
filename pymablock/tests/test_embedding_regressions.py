@@ -254,9 +254,15 @@ def test_attached_xreplace_renames_target_modes():
 def test_attached_xreplace_reorders_target_modes():
     """A rename that changes the mode order keeps fermion signs consistent."""
     c, d, q, z = map(FermionOp, ("c", "d", "q", "0z"))
-    attached = Embedding({q: c}, reference={c: 0, d: 1})._attach(c.adjoint() * d, 1)
+    embedding = Embedding({q: c}, reference={c: 0, d: 1})
+    attached = (
+        NumberOrderedForm.from_expr(c.adjoint() * d) * embedding._frame_columns(1)[0, 0]
+    )
     renamed = Embedding({q: c}, reference={c: 0, z: 1})
-    assert attached.xreplace({d: z}) == renamed._attach(c.adjoint() * z, 1)
+    assert (
+        attached.xreplace({d: z})
+        == NumberOrderedForm.from_expr(c.adjoint() * z) * renamed._frame_columns(1)[0, 0]
+    )
 
 
 @pytest.mark.parametrize("reference_list", [False, True])

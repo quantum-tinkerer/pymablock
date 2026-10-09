@@ -812,9 +812,9 @@ class NumberOrderedForm(Operator):
         from pymablock.operator_embedding import Embedding
 
         if isinstance(expr, Embedding):
-            return expr._attach(One, 1)
+            return expr._attach(expr._target_identity, 1)
         if isinstance(expr, sympy.adjoint) and isinstance(expr.args[0], Embedding):
-            return expr.args[0]._attach(One, -1)
+            return expr.args[0]._attach(expr.args[0]._target_identity, -1)
 
         # For scalar expressions (no operators)
         if not expr.has(*operator_types, NumberOperator, Embedding):
@@ -1659,9 +1659,7 @@ class NumberOrderedForm(Operator):
 
         return result
 
-    def _multiply_attached(
-        self, other: "NumberOrderedForm"
-    ) -> "NumberOrderedForm | sympy.Expr":
+    def _multiply_attached(self, other: "NumberOrderedForm") -> "NumberOrderedForm":
         """Compose operators when at least one factor carries an embedding.
 
         Matching opposite attachments give ``W† X Y W`` in source space or
@@ -1676,10 +1674,10 @@ class NumberOrderedForm(Operator):
                 return left._compress(self.target * other.target)
             return self.target * left._projector * other.target
         if left is not None:
-            value = left._lift(other) if self.side == 1 else left._convert_operator(other)
+            value = left._lift(other) if self.side == 1 else left._rebase_target(other)
             result = self.target * value
             return self._rebuild(result.args[1], operators=result.operators)
-        value = right._lift(self) if other.side == -1 else right._convert_operator(self)
+        value = right._lift(self) if other.side == -1 else right._rebase_target(self)
         result = value * other.target
         return other._rebuild(result.args[1], operators=result.operators)
 
