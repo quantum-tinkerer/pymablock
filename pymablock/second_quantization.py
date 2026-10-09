@@ -20,6 +20,7 @@ __all__ = [
     "Embedding",
     "apply_mask_to_operator",
     "solve_sylvester_2nd_quant",
+    "solve_sylvester_embedding",
 ]
 
 
@@ -326,6 +327,77 @@ def solve_sylvester_2nd_quant(
                     result[i, j] = -result[j, i].adjoint()
 
         return result
+
+    return solve_sylvester
+
+
+def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Callable:
+    """Construct a Sylvester solver for retained and complement embedding blocks.
+
+    Parameters
+    ----------
+    h0 :
+        Square target Hamiltonian with NumberOrderedForm entries in the embedding's
+        target mode order, diagonal in both matrix indices and occupation numbers.
+    embedding :
+        Isometry defining the retained states and their source representation.
+
+    Returns
+    -------
+    Callable
+        A function taking a matrix of operators and block indices and solving
+        ``H_ii * X - X * H_jj = Y``. It preserves the series zero sentinel and uses
+        anti-Hermitian symmetry for Hermitian perturbative problems.
+
+    Notes
+    -----
+    Intra-block solves use ``solve_sylvester_2nd_quant``. Cross-block solves evaluate
+    outgoing and incoming energies on the reference states or symbolic source
+    occupations, then divide each transition. Non-diagonal H0 raises ValueError.
+    Exposed resonant cross-block transitions raise ZeroDivisionError; inactive
+    transitions contribute zero and unresolved resonances remain symbolic poles.
+
+    """
+    lattice = embedding._first_lattice
+    modes = lattice._target_operators
+    if any(i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()):
+        raise ValueError("Structured embeddings currently require diagonal H0")
+    vacuum = (0,) * len(modes)
+    energies = [
+        x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
+        for x in h0.diagonal()
+    ]
+    incoming_energies = [
+        lattice._evaluate_numbers(energies[row], state)
+        for row, state in embedding._column_states
+    ]
+
+    # Within each diagonal block the operators already use source or target
+    # coordinates. Only rectangular blocks require embedding-aware division.
+    w = embedding._retained_frame(h0.rows)
+    retained_energies = (w.adjoint() * h0 * w).diagonal()
+    diagonal_solver = solve_sylvester_2nd_quant([retained_energies, h0.diagonal()])
+
+    def solve_sylvester(
+        value: sympy.MatrixBase, index: tuple[int, ...]
+    ) -> sympy.MatrixBase:
+        """Dispatch by block; use anti-Hermitian symmetry for the reverse cross block."""
+        if value is zero:
+            return zero
+        if index[0] == index[1]:
+            return diagonal_solver(value, index)
+        reverse = index[:2] == (0, 1)
+        block = value.adjoint() if reverse else value
+        entries = {}
+        for (i, j), entry in block.todok().items():
+            if entry.is_zero:
+                continue
+            divided = lattice._divide_transitions(
+                entry.target, energies[i], incoming_energies[j]
+            )
+            entries[i, j] = lattice._attach(divided, 1)
+        result = sympy.ImmutableSparseMatrix(*block.shape, entries)
+        return -result.adjoint() if reverse else result
 
     return solve_sylvester
 

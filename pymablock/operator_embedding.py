@@ -335,8 +335,10 @@ class Embedding(sympy.Expr):
         an unsupported projector raises here instead of during lazy evaluation.
         The validated H0 has no zeroth-order cross blocks, so they are omitted.
         """
+        from pymablock.second_quantization import solve_sylvester_embedding
+
         h0 = self._target_matrix(hamiltonian[(0,) * hamiltonian.n_infinite])
-        solve_sylvester = self._sylvester_solver(h0)
+        solve_sylvester = solve_sylvester_embedding(h0, self)
         self._complement_frame(h0.rows)
         return self._split_series(hamiltonian, diagonal_origin=True), solve_sylvester
 
@@ -384,63 +386,6 @@ class Embedding(sympy.Expr):
                     for d, size in zip(displacement, first._source_dimensions)
                 ):
                     raise ValueError("Reference lattices overlap")
-
-    def _sylvester_solver(
-        self, h0: sympy.MatrixBase
-    ) -> Callable[[Any, tuple[int, ...]], Any]:
-        """Validate H0 and return a solver for this embedding's Sylvester equations.
-
-        H0 must be a target matrix of NOF entries, diagonal in both matrix indices and
-        occupation numbers. Intra-block solves use the ordinary second-quantized solver.
-        Cross-block solves evaluate outgoing and incoming energies on the reference
-        states or symbolic source occupations, then divide each transition.
-        The callback preserves the series zero sentinel before accessing matrix entries.
-        """
-        # second_quantization imports this module to re-export Embedding.
-        from pymablock.second_quantization import solve_sylvester_2nd_quant
-
-        lattice = self._first_lattice
-        modes = lattice._target_operators
-        if any(
-            i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()
-        ):
-            raise ValueError("Structured embeddings currently require diagonal H0")
-        vacuum = (0,) * len(modes)
-        energies = [
-            x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
-            for x in h0.diagonal()
-        ]
-        incoming_energies = [
-            lattice._evaluate_numbers(energies[row], state)
-            for row, state in self._column_states
-        ]
-
-        # Within each diagonal block the operators already use source or target
-        # coordinates. Only rectangular blocks require embedding-aware division.
-        w = self._retained_frame(h0.rows)
-        retained_energies = (w.adjoint() * h0 * w).diagonal()
-        diagonal_solver = solve_sylvester_2nd_quant([retained_energies, h0.diagonal()])
-
-        def solve(value: Any, index: tuple[int, ...]) -> Any:
-            """Dispatch by block; use anti-Hermitian symmetry for the reverse cross block."""
-            if value is zero:
-                return zero
-            if index[0] == index[1]:
-                return diagonal_solver(value, index)
-            reverse = index[:2] == (0, 1)
-            block = value.adjoint() if reverse else value
-            entries = {}
-            for (i, j), entry in block.todok().items():
-                if entry.is_zero:
-                    continue
-                divided = lattice._divide_transitions(
-                    entry.target, energies[i], incoming_energies[j]
-                )
-                entries[i, j] = lattice._attach(divided, 1)
-            result = sympy.ImmutableSparseMatrix(*block.shape, entries)
-            return -result.adjoint() if reverse else result
-
-        return solve
 
     # One lattice: occupation maps and NOF arithmetic.
 
