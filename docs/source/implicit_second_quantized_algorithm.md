@@ -22,8 +22,8 @@ for how to define and use an embedding.
 
 ## How it works
 
-The Hamiltonian $H = H_0 + V$ acts on a Fock space, the **target**, while the
-effective model lives in a smaller **source** algebra. The embedding maps each
+The original Hamiltonian $H = H_0 + V$ acts on the larger **target** Hilbert
+space, while the effective model lives in the **source** Hilbert space. The embedding maps each
 source lowering operator $g_j$ to a target expression $G_j$ and fixes a
 reference target state $|r\rangle$. This defines the isometry
 
@@ -116,9 +116,8 @@ coupling between $|2_a 0_b\rangle$ and $|1_a 1_b\rangle$ exists in $H$, but no
 path from the retained states reaches it.
 ```
 
-The cells below inspect internal attributes, whose names start with an
-underscore. They show the intermediate objects and are not part of the public
-interface.
+The cells below inspect private implementation objects and their attributes.
+They show intermediate calculations and are not part of the public interface.
 
 ### Step 1: construction
 
@@ -126,11 +125,12 @@ The image $a$ of $q$ lowers $n_a$ by one and leaves $n_b$ unchanged, so $M$ has
 the single column $(1, 0)$ and the retained states are $n(q) = (q, 0)$:
 
 ```{code-cell} ipython3
-print("modes:", embedding._target_operators)
-print("reference r:", embedding._reference_state)
-print("shift matrix M:", embedding._occupation_matrix.tolist())
-print("left inverse L:", embedding._occupation_left_inverse.tolist())
-print("retained occupations n(q):", embedding._target_of_source)
+lattice = embedding._first_lattice
+print("target modes:", lattice.target_operators)
+print("reference r:", lattice._reference_state)
+print("shift matrix M:", lattice._occupation_matrix.tolist())
+print("left inverse L:", lattice._occupation_left_inverse.tolist())
+print("retained occupations n(q):", lattice._target_of_source)
 ```
 
 The symbol `_source_0` is the source occupation $q$.
@@ -139,7 +139,7 @@ the constraint $n_b = 0$, which comes from the nullspace of $M^T$, with the spin
 spectrum $q \in \{0, 1\}$:
 
 ```{code-cell} ipython3
-embedding._projector
+lattice._projector
 ```
 
 ### Step 2: compression
@@ -173,7 +173,7 @@ To compress a term, the code applies it to the symbolic retained occupations
 with `NumberOrderedForm.act`:
 
 ```{code-cell} ipython3
-NumberOrderedForm.from_expr(Dagger(b) * a).act(embedding._target_of_source)
+NumberOrderedForm.from_expr(Dagger(b) * a).act(lattice._target_of_source)
 ```
 
 The term $b^\dagger a$ takes $|q, 0\rangle$ to $|q - 1, 1\rangle$ with matrix

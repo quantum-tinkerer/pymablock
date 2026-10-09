@@ -270,7 +270,7 @@ def solve_sylvester_2nd_quant(
         Tuple of lists of expressions representing the diagonal Hamiltonian blocks.
     hermitian :
         Whether to use anti-Hermitian symmetry of the solution within diagonal
-        blocks. Set to False for general non-Hermitian sources.
+        blocks. Set to False for general non-Hermitian right-hand sides.
 
     Returns
     -------
@@ -334,28 +334,32 @@ def solve_sylvester_2nd_quant(
 def _divide_transitions(
     lattice: _Lattice,
     value: NumberOrderedForm,
-    outgoing_energy: sympy.Expr,
-    incoming_energy: sympy.Expr,
+    target_energy: sympy.Expr,
+    source_energy: sympy.Expr,
 ) -> NumberOrderedForm:
     """Divide a target NOF's transitions from this lattice by their energy gaps.
 
-    Outgoing energy uses target number placeholders; incoming energy uses
+    Target energy uses target number placeholders; source energy uses
     symbolic source occupations. Return a bare target NOF, preserving inactive
     zero-gap transitions as zero and unresolved gaps as symbolic denominators.
     """
-    coordinates = lattice.source_occupations
-    nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
+    source_occupations = lattice.source_occupations
+    nonnegative = tuple(q for q in source_occupations if q.is_nonnegative)
 
     def divide(coefficient, output, matrix_element):
         denominator = sympy.expand(
-            lattice.evaluate_numbers(outgoing_energy, output) - incoming_energy
+            lattice.evaluate_target_numbers(target_energy, output) - source_energy
         )
         # Binary source identities can make a nominally resonant transition inactive.
-        if denominator == 0 and coordinates and lattice.source_is_zero(matrix_element):
+        if (
+            denominator == 0
+            and source_occupations
+            and lattice.source_is_zero(matrix_element)
+        ):
             return sympy.S.Zero
         try:
             return _divide_by_energy_gap(
-                coefficient, denominator, coordinates, matrix_element, nonnegative
+                coefficient, denominator, source_occupations, matrix_element, nonnegative
             )
         except ValueError as error:
             raise ZeroDivisionError(str(error)) from error
@@ -364,7 +368,7 @@ def _divide_transitions(
 
 
 def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Callable:
-    """Construct a Sylvester solver for retained and complement embedding blocks.
+    """Construct a Sylvester solver for source and target-complement blocks.
 
     Parameters
     ----------
@@ -372,7 +376,7 @@ def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Cal
         Square target Hamiltonian with NumberOrderedForm entries in the embedding's
         target mode order, diagonal in both matrix indices and occupation numbers.
     embedding :
-        Isometry defining the retained states and their source representation.
+        Isometry from the effective source space into the original target space.
 
     Returns
     -------
@@ -384,31 +388,31 @@ def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Cal
     Notes
     -----
     Intra-block solves use ``solve_sylvester_2nd_quant``. Cross-block solves evaluate
-    outgoing and incoming energies on the reference states or symbolic source
+    target and source energies on the reference states or symbolic source
     occupations, then divide each transition. Non-diagonal H0 raises ValueError.
     Exposed resonant cross-block transitions raise ZeroDivisionError; inactive
     transitions contribute zero and unresolved resonances remain symbolic poles.
 
     """
     lattice = embedding._first_lattice
-    modes = lattice.target_operators
+    target_operators = lattice.target_operators
     if any(i != j or any(any(p) for p in x.terms) for (i, j), x in h0.todok().items()):
         raise ValueError("Structured embeddings currently require diagonal H0")
-    vacuum = (0,) * len(modes)
-    energies = [
+    vacuum = (0,) * len(target_operators)
+    target_energies = [
         x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
         for x in h0.diagonal()
     ]
-    incoming_energies = [
-        lattice.evaluate_numbers(energies[row], state)
-        for row, state in embedding._column_states
+    source_energies = [
+        lattice.evaluate_target_numbers(target_energies[row], state)
+        for row, state in embedding._column_target_states
     ]
 
     # Within each diagonal block the operators already use source or target
     # coordinates. Only rectangular blocks require embedding-aware division.
     w = embedding._retained_frame(h0.rows)
-    retained_energies = (w.adjoint() * h0 * w).diagonal()
-    diagonal_solver = solve_sylvester_2nd_quant([retained_energies, h0.diagonal()])
+    source_block_energies = (w.adjoint() * h0 * w).diagonal()
+    diagonal_solver = solve_sylvester_2nd_quant([source_block_energies, h0.diagonal()])
 
     def solve_sylvester(
         value: sympy.MatrixBase, index: tuple[int, ...]
@@ -425,7 +429,7 @@ def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Cal
             if entry.is_zero:
                 continue
             divided = _divide_transitions(
-                lattice, entry.target, energies[i], incoming_energies[j]
+                lattice, entry.target, target_energies[i], source_energies[j]
             )
             entries[i, j] = entry._rebuild(divided.args[1], operators=divided.operators)
         result = sympy.ImmutableSparseMatrix(*block.shape, entries)
