@@ -120,10 +120,14 @@ class Embedding(sympy.Expr):
 
     is_commutative = False
 
+    # Construction and format boundaries.
+
     def __new__(
         cls,
         generators: Mapping,
         reference: Mapping | Sequence | None = None,
+        *,
+        _coordinates: tuple[sympy.Symbol, ...] | None = None,
     ) -> Self:
         """Parse references, build their lattices, and prepare translated columns."""
         references = _parse_references(reference)
@@ -134,7 +138,7 @@ class Embedding(sympy.Expr):
             reference = references[0][1]
             self = sympy.Expr.__new__(cls, generators, reference)
             self._lattices = ((0, self),)
-            self._compile(dict(generators), dict(reference))
+            self._compile(dict(generators), dict(reference), _coordinates)
             self._transfers = (self._target_identity,)
             return self
         states = sympy.Tuple(
@@ -158,7 +162,8 @@ class Embedding(sympy.Expr):
         for row, reference in references:
             if lattices and set(reference) != set(lattices[0][1]._target_operators):
                 raise ValueError("Every reference must declare the same target modes")
-            lattice = cls(generators, reference=reference)
+            coordinates = lattices[0][1]._coordinate_symbols if lattices else None
+            lattice = cls(generators, reference=reference, _coordinates=coordinates)
             lattices.append((int(row), lattice))
         return tuple(lattices)
 
@@ -178,50 +183,6 @@ class Embedding(sympy.Expr):
         """Keep the public expression name in rendered equations."""
         arguments = ", ".join(self._printed_arguments(printer))
         return rf"\operatorname{{Embedding}}\left({arguments}\right)"
-
-    @cached_property
-    def _target_numbers(self) -> tuple[sympy.Symbol, ...]:
-        """Return scalar number symbols in target mode order."""
-        return tuple(
-            _number_operator_to_placeholder(NumberOperator(op))
-            for op in self._first_lattice._target_operators
-        )
-
-    def _evaluate_numbers(
-        self, expression: sympy.Expr, occupations: Sequence[int | sympy.Expr]
-    ) -> sympy.Expr:
-        """Evaluate a target number coefficient at the supplied occupations."""
-        return expression.xreplace(
-            dict(zip(self._target_numbers, occupations, strict=True))
-        )
-
-    def _convert_operator(self, expression: sympy.Expr) -> NumberOrderedForm:
-        """Parse a target expression using the modes declared in the reference."""
-        if isinstance(expression, NumberOrderedForm):
-            return self._rebase_target(expression)
-        modes = self._first_lattice._target_operators
-        expression = sympy.sympify(expression)
-        if set(find_operators(expression)) - set(modes):
-            raise ValueError("Every target mode must be declared in the reference")
-        return NumberOrderedForm.from_expr(expression, operators=modes)
-
-    def _rebase_target(self, value: NumberOrderedForm) -> NumberOrderedForm:
-        """Express a target NOF in the declared mode order, rejecting unknown modes."""
-        modes = self._first_lattice._target_operators
-        for i, op in enumerate(value.operators):
-            if op not in modes and any(
-                powers[i] or coefficient.has(value._number_operator_placeholders[i])
-                for powers, coefficient in value.terms.items()
-            ):
-                raise ValueError("Every target mode must be declared in the reference")
-        return value if value.operators == modes else value._expand_operators(modes)
-
-    def _attach(self, value: NumberOrderedForm, side: int) -> NumberOrderedForm:
-        """Represent ``value W`` for side +1, or ``W† value`` for side -1."""
-        value = self._rebase_target(value)
-        return NumberOrderedForm(
-            value.operators, value.args[1], self, side, validate=False
-        )
 
     def restrict(
         self, expression: sympy.Expr | sympy.MatrixBase
@@ -246,6 +207,16 @@ class Embedding(sympy.Expr):
         w = self._frame_columns(target.rows)
         return self._block_result(w.adjoint() * target * w)
 
+    def _convert_operator(self, expression: sympy.Expr) -> NumberOrderedForm:
+        """Parse a target expression using the modes declared in the reference."""
+        if isinstance(expression, NumberOrderedForm):
+            return expression._rebase_operators(self._first_lattice._target_operators)
+        modes = self._first_lattice._target_operators
+        expression = sympy.sympify(expression)
+        if set(find_operators(expression)) - set(modes):
+            raise ValueError("Every target mode must be declared in the reference")
+        return NumberOrderedForm.from_expr(expression, operators=modes)
+
     def _target_matrix(
         self, expression: sympy.Expr | sympy.MatrixBase
     ) -> sympy.MatrixBase:
@@ -264,11 +235,22 @@ class Embedding(sympy.Expr):
             raise ValueError("Reference matrix index lies outside the target matrix")
         return sympy.ImmutableSparseMatrix(expression.applyfunc(self._convert_operator))
 
-    @_cache_on_instance
-    def _complement_frame(self, rows: int) -> sympy.MatrixBase:
-        """Return Q = 1 - W W† when a complement block is needed."""
-        w = self._frame_columns(rows)
-        return sympy.eye(rows) - w * w.adjoint()
+    def _block_result(
+        self, result: sympy.MatrixBase
+    ) -> NumberOrderedForm | sympy.MatrixBase:
+        """Unwrap operator-free entries and the matrix axis of mapping references."""
+        result = result.applyfunc(
+            lambda value: (
+                value.terms.get((), sympy.S.Zero)
+                if isinstance(value, NumberOrderedForm)
+                and not value.operators
+                and value.embedding is None
+                else value
+            )
+        )
+        if isinstance(self.args[1], sympy.Dict):
+            return result[0, 0]
+        return result
 
     def _convert(
         self, operator: BlockSeries, *, diagonal_origin: bool = False
@@ -323,6 +305,53 @@ class Embedding(sympy.Expr):
         solve_sylvester = self._sylvester_solver(h0)
         self._complement_frame(h0.rows)
         return self._convert(hamiltonian, diagonal_origin=True), solve_sylvester
+
+    # The full frame: indexed lattices, block matrices, and solver dispatch.
+
+    @property
+    def _first_lattice(self) -> Embedding:
+        """Scalar isometry shared by every frame entry."""
+        return self._lattices[0][1]
+
+    @_cache_on_instance
+    def _frame_columns(self, rows: int) -> sympy.MatrixBase:
+        """Column j is T_j W₁ in its declared target row."""
+        w = sympy.zeros(rows, len(self._lattices))
+        for col, ((row, _), transfer) in enumerate(zip(self._lattices, self._transfers)):
+            w[row, col] = self._first_lattice._attach(transfer, 1)
+        return sympy.ImmutableMatrix(w)
+
+    @_cache_on_instance
+    def _complement_frame(self, rows: int) -> sympy.MatrixBase:
+        """Return Q = 1 - W W† when a complement block is needed."""
+        w = self._frame_columns(rows)
+        return sympy.eye(rows) - w * w.adjoint()
+
+    @property
+    def _energy_states(self) -> tuple:
+        """Return each column's occupations in the shared source coordinates."""
+        return tuple(
+            (row, lattice._target_occupations) for row, lattice in self._lattices
+        )
+
+    def _validate_disjointness(self) -> None:
+        """Test the unique possible source displacement between same-row lattices."""
+        first = self._first_lattice
+        for i, (row, lattice) in enumerate(self._lattices):
+            for other_row, other in self._lattices[:i]:
+                if row != other_row:
+                    continue
+                delta = sympy.Matrix(lattice._reference_state) - sympy.Matrix(
+                    other._reference_state
+                )
+                displacement = first._occupation_left_inverse * delta
+                if first._occupation_matrix * displacement != delta:
+                    continue
+                if all(
+                    d.is_Integer and (size is None or abs(d) < size)
+                    for d, size in zip(displacement, first._source_dimensions)
+                ):
+                    raise ValueError("Reference lattices overlap")
 
     def _sylvester_solver(
         self, h0: sympy.MatrixBase
@@ -381,66 +410,14 @@ class Embedding(sympy.Expr):
 
         return solve
 
-    def _divide_transitions(
+    # One lattice: occupation maps and NOF arithmetic.
+
+    def _compile(
         self,
-        value: NumberOrderedForm,
-        outgoing_energy: sympy.Expr,
-        incoming_energy: sympy.Expr,
-    ) -> NumberOrderedForm:
-        """Divide a target NOF's transitions from this lattice by their energy gaps.
-
-        Outgoing energy uses target number placeholders; incoming energy uses
-        symbolic source occupations. Return a bare target NOF, preserving inactive
-        zero-gap transitions as zero and unresolved gaps as symbolic denominators.
-        """
-        from pymablock.second_quantization import _divide_by_energy_gap
-
-        occupations, coordinates = self._target_occupations, self._coordinate_symbols
-        numbers = self._target_numbers
-        nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
-        terms, coefficients = {}, value.terms
-        for powers, (output, matrix_element) in value.act(occupations).items():
-            # Divide the coefficient, not the full matrix element; ladder factors
-            # only determine whether the transition is active.
-            middle_occupations = [n - max(p, 0) for n, p in zip(occupations, powers)]
-            coefficient = self._evaluate_numbers(coefficients[powers], middle_occupations)
-            denominator = sympy.expand(
-                self._evaluate_numbers(outgoing_energy, output) - incoming_energy
-            )
-            # A literal zero gap still needs the amplitude interpreted in the
-            # source algebra: binary numbers obey n² = n, including indicators.
-            if denominator == 0 and coordinates:
-                amplitude = NumberOrderedForm(
-                    self._source_operators,
-                    {
-                        (0,) * len(coordinates): matrix_element.xreplace(
-                            dict(zip(coordinates, self._source_placeholders))
-                        )
-                    },
-                    validate=False,
-                )._linearize_binary_operators()
-                if amplitude.is_zero:
-                    continue
-            try:
-                result = _divide_by_energy_gap(
-                    coefficient,
-                    denominator,
-                    coordinates,
-                    matrix_element,
-                    nonnegative,
-                )
-            except ValueError as error:
-                raise ZeroDivisionError(str(error)) from error
-            incoming = {n: n + max(p, 0) for n, p in zip(numbers, powers)}
-            terms[powers] = result.xreplace(
-                {
-                    q: expression.xreplace(incoming)
-                    for q, expression in zip(coordinates, self._source_coordinates)
-                }
-            )
-        return NumberOrderedForm(self._target_operators, terms, validate=False)
-
-    def _compile(self, generators: Mapping, reference: Mapping) -> None:
+        generators: Mapping,
+        reference: Mapping,
+        coordinates: tuple[sympy.Symbol, ...] | None,
+    ) -> None:
         """Compile and validate the affine occupation map."""
         self._target_operators, self._reference_state = _ordered_reference_state(
             reference
@@ -458,14 +435,16 @@ class Embedding(sympy.Expr):
         operators = tuple(sorted(operators, key=_operator_sort_key))
         self._source_operators = operators
         self._source_dimensions = tuple(map(_occupation_dimension, operators))
-        self._coordinate_symbols = tuple(
-            sympy.Dummy(
-                f"source_{i}",
-                integer=True,
-                **({} if isinstance(op, LadderOp) else {"nonnegative": True}),
+        if coordinates is None:
+            coordinates = tuple(
+                sympy.Dummy(
+                    f"source_{i}",
+                    integer=True,
+                    **({} if isinstance(op, LadderOp) else {"nonnegative": True}),
+                )
+                for i, op in enumerate(operators)
             )
-            for i, op in enumerate(operators)
-        )
+        self._coordinate_symbols = coordinates
         images, shifts = [], []
         for op in operators:
             image = self._convert_operator(generators[op])
@@ -522,61 +501,54 @@ class Embedding(sympy.Expr):
                 f"Ladder number image {op} must count from the source reference index zero",
             )
 
-    def _validate_disjointness(self) -> None:
-        """Test the unique possible source displacement between same-row lattices."""
-        first = self._first_lattice
-        for i, (row, lattice) in enumerate(self._lattices):
-            for other_row, other in self._lattices[:i]:
-                if row != other_row:
-                    continue
-                delta = sympy.Matrix(lattice._reference_state) - sympy.Matrix(
-                    other._reference_state
-                )
-                displacement = first._occupation_left_inverse * delta
-                if first._occupation_matrix * displacement != delta:
-                    continue
-                if all(
-                    d.is_Integer and (size is None or abs(d) < size)
-                    for d, size in zip(displacement, first._source_dimensions)
-                ):
-                    raise ValueError("Reference lattices overlap")
+    @cached_property
+    def _target_numbers(self) -> tuple[sympy.Symbol, ...]:
+        """Return scalar number symbols in target mode order."""
+        return tuple(
+            _number_operator_to_placeholder(NumberOperator(op))
+            for op in self._first_lattice._target_operators
+        )
 
-    def _transfer(self, lattice: Embedding) -> NumberOrderedForm:
-        """Translate this scalar lattice onto another, including norms and phases."""
-        powers = tuple(
-            a - b for a, b in zip(self._reference_state, lattice._reference_state)
+    @cached_property
+    def _source_placeholders(self) -> tuple[sympy.Symbol, ...]:
+        """Return scalar number symbols in source mode order."""
+        return tuple(
+            _number_operator_to_placeholder(NumberOperator(op))
+            for op in self._source_operators
         )
-        if not any(powers):
-            return self._target_identity
-        if any(p and any(self._occupation_matrix.row(i)) for i, p in enumerate(powers)):
-            raise NotImplementedError(
-                "Reference translations along generator-moving modes are not supported"
-            )
-        monomial = NumberOrderedForm(self._target_operators, {powers: sympy.S.One})
-        weight = _matrix_element(monomial, self._target_occupations)
-        # Physical domains at both references ensure this shift never annihilates.
-        phase = lattice._phase.xreplace(
-            dict(zip(lattice._coordinate_symbols, self._coordinate_symbols))
-        )
-        coefficient = sympy.simplify(phase / self._phase / weight)
-        # The coefficient sits after annihilation: recover incoming occupations.
-        incoming = {n: n + max(p, 0) for n, p in zip(self._target_numbers, powers)}
-        coefficient = coefficient.xreplace(
-            {
-                q: coordinate.xreplace(incoming)
-                for q, coordinate in zip(
-                    self._coordinate_symbols, self._source_coordinates
-                )
-            }
-        )
+
+    @cached_property
+    def _target_zero(self) -> NumberOrderedForm:
+        """Return zero carrying the target operator basis."""
         return NumberOrderedForm(
-            self._target_operators, {powers: coefficient}, validate=False
+            self._first_lattice._target_operators, {}, validate=False
         )
 
-    @property
-    def _first_lattice(self) -> Embedding:
-        """Scalar isometry shared by every frame entry."""
-        return self._lattices[0][1]
+    @cached_property
+    def _target_identity(self) -> NumberOrderedForm:
+        """Return the identity in the target operator basis."""
+        modes = self._first_lattice._target_operators
+        return NumberOrderedForm(modes, {(0,) * len(modes): sympy.S.One}, validate=False)
+
+    @cached_property
+    def _source_zero(self) -> NumberOrderedForm:
+        """Return zero carrying the source operator basis."""
+        return NumberOrderedForm(self._source_operators, {}, validate=False)
+
+    def _evaluate_numbers(
+        self, expression: sympy.Expr, occupations: Sequence[int | sympy.Expr]
+    ) -> sympy.Expr:
+        """Evaluate a target number coefficient at the supplied occupations."""
+        return expression.xreplace(
+            dict(zip(self._target_numbers, occupations, strict=True))
+        )
+
+    def _attach(self, value: NumberOrderedForm, side: int) -> NumberOrderedForm:
+        """Represent ``value W`` for side +1, or ``W† value`` for side -1."""
+        value = value._rebase_operators(self._target_operators)
+        return NumberOrderedForm(
+            value.operators, value.args[1], self, side, validate=False
+        )
 
     def _validate_domains(self) -> None:
         """Check target occupation bounds over the full source occupation domain.
@@ -610,53 +582,6 @@ class Embedding(sympy.Expr):
                 op
             ):
                 raise ValueError("Generators overfill a target spin or fermion")
-
-    @_cache_on_instance
-    def _source_weight(self, powers: tuple[int, ...]) -> sympy.Expr:
-        """Return the source ladder amplitude of a shift at symbolic occupations."""
-        term = NumberOrderedForm(
-            self._source_operators, {powers: sympy.S.One}, validate=False
-        )
-        return _matrix_element(term, self._coordinate_symbols)
-
-    def _lowering_weight(self, index: int) -> sympy.Expr:
-        """Return the source lowering amplitude for mode ``index`` at symbolic numbers."""
-        return self._source_weight(
-            tuple(int(i == index) for i in range(len(self._source_operators)))
-        )
-
-    def _reference_phase(self) -> sympy.Expr:
-        """Return the phase relating normalized target and source occupation states.
-
-        Compare target and source lowering amplitudes in a fixed creation order.
-        Infinite modes require a number-independent ratio; otherwise raise
-        NotImplementedError. The reference state's phase is one.
-        """
-        phase = sympy.S.One
-        for i, (image, q, size) in enumerate(
-            zip(
-                self._generators,
-                self._coordinate_symbols,
-                self._source_dimensions,
-                strict=True,
-            )
-        ):
-            ratio = self._lowering_weight(i) / _matrix_element(
-                image, self._target_occupations
-            )
-            ratio = ratio.xreplace(
-                dict.fromkeys(self._coordinate_symbols[:i], sympy.S.Zero)
-            )
-            if size is None:
-                ratio = sympy.simplify(ratio)
-                if ratio.free_symbols.intersection(self._coordinate_symbols):
-                    raise NotImplementedError(
-                        "Infinite source generators require a constant phase relative to their ladder weights"
-                    )
-                phase *= ratio**q
-            else:
-                phase *= 1 - q + q * sympy.simplify(ratio.xreplace({q: sympy.S.One}))
-        return sympy.factor(phase)
 
     def _validate_identity(self, expression: sympy.Expr, context: str) -> None:
         """Require a residual to vanish on the retained occupation domain.
@@ -726,31 +651,52 @@ class Embedding(sympy.Expr):
                     "Generator images must obey the source algebra",
                 )
 
-    @cached_property
-    def _source_placeholders(self) -> tuple[sympy.Symbol, ...]:
-        """Return scalar number symbols in source mode order."""
-        return tuple(
-            _number_operator_to_placeholder(NumberOperator(op))
-            for op in self._source_operators
+    @_cache_on_instance
+    def _source_weight(self, powers: tuple[int, ...]) -> sympy.Expr:
+        """Return the source ladder amplitude of a shift at symbolic occupations."""
+        term = NumberOrderedForm(
+            self._source_operators, {powers: sympy.S.One}, validate=False
+        )
+        return _matrix_element(term, self._coordinate_symbols)
+
+    def _lowering_weight(self, index: int) -> sympy.Expr:
+        """Return the source lowering amplitude for mode ``index`` at symbolic numbers."""
+        return self._source_weight(
+            tuple(int(i == index) for i in range(len(self._source_operators)))
         )
 
-    @cached_property
-    def _target_zero(self) -> NumberOrderedForm:
-        """Return zero carrying the target operator basis."""
-        return NumberOrderedForm(
-            self._first_lattice._target_operators, {}, validate=False
-        )
+    def _reference_phase(self) -> sympy.Expr:
+        """Return the phase relating normalized target and source occupation states.
 
-    @cached_property
-    def _target_identity(self) -> NumberOrderedForm:
-        """Return the identity in the target operator basis."""
-        modes = self._first_lattice._target_operators
-        return NumberOrderedForm(modes, {(0,) * len(modes): sympy.S.One}, validate=False)
-
-    @cached_property
-    def _source_zero(self) -> NumberOrderedForm:
-        """Return zero carrying the source operator basis."""
-        return NumberOrderedForm(self._source_operators, {}, validate=False)
+        Compare target and source lowering amplitudes in a fixed creation order.
+        Infinite modes require a number-independent ratio; otherwise raise
+        NotImplementedError. The reference state's phase is one.
+        """
+        phase = sympy.S.One
+        for i, (image, q, size) in enumerate(
+            zip(
+                self._generators,
+                self._coordinate_symbols,
+                self._source_dimensions,
+                strict=True,
+            )
+        ):
+            ratio = self._lowering_weight(i) / _matrix_element(
+                image, self._target_occupations
+            )
+            ratio = ratio.xreplace(
+                dict.fromkeys(self._coordinate_symbols[:i], sympy.S.Zero)
+            )
+            if size is None:
+                ratio = sympy.simplify(ratio)
+                if ratio.free_symbols.intersection(self._coordinate_symbols):
+                    raise NotImplementedError(
+                        "Infinite source generators require a constant phase relative to their ladder weights"
+                    )
+                phase *= ratio**q
+            else:
+                phase *= 1 - q + q * sympy.simplify(ratio.xreplace({q: sympy.S.One}))
+        return sympy.factor(phase)
 
     @_cache_on_instance
     def _source_shift(self, target_shift: tuple[int, ...]) -> tuple[int, ...] | None:
@@ -859,9 +805,7 @@ class Embedding(sympy.Expr):
         """
         if value.is_zero:
             return self._target_zero
-        if set(value.operators) - set(self._source_operators):
-            raise ValueError("Lifted operators must belong to the source algebra")
-        value = value._expand_operators(self._source_operators)
+        value = value._rebase_operators(self._source_operators)
         coordinates = dict(
             zip(value._number_operator_placeholders, self._source_coordinates)
         )
@@ -883,42 +827,93 @@ class Embedding(sympy.Expr):
             result += term
         return self._projector * result * self._projector
 
-    @property
-    def _energy_states(self) -> tuple:
-        """Return each column's occupations in the first lattice's coordinates."""
-        coordinates = self._first_lattice._coordinate_symbols
-        states = []
-        for row, lattice in self._lattices:
-            renames = dict(zip(lattice._coordinate_symbols, coordinates))
-            states.append(
-                (row, tuple(n.xreplace(renames) for n in lattice._target_occupations))
-            )
-        return tuple(states)
-
-    @_cache_on_instance
-    def _frame_columns(self, rows: int) -> sympy.MatrixBase:
-        """Column j is T_j W₁ in its declared target row."""
-        w = sympy.zeros(rows, len(self._lattices))
-        for col, ((row, _), transfer) in enumerate(zip(self._lattices, self._transfers)):
-            w[row, col] = self._first_lattice._attach(transfer, 1)
-        return sympy.ImmutableMatrix(w)
-
-    def _block_result(
-        self, result: sympy.MatrixBase
-    ) -> NumberOrderedForm | sympy.MatrixBase:
-        """Unwrap operator-free entries and the matrix axis of mapping references."""
-        result = result.applyfunc(
-            lambda value: (
-                value.terms.get((), sympy.S.Zero)
-                if isinstance(value, NumberOrderedForm)
-                and not value.operators
-                and value.embedding is None
-                else value
-            )
+    def _transfer(self, lattice: Embedding) -> NumberOrderedForm:
+        """Translate this scalar lattice onto another, including norms and phases."""
+        powers = tuple(
+            a - b for a, b in zip(self._reference_state, lattice._reference_state)
         )
-        if isinstance(self.args[1], sympy.Dict):
-            return result[0, 0]
-        return result
+        if not any(powers):
+            return self._target_identity
+        if any(p and any(self._occupation_matrix.row(i)) for i, p in enumerate(powers)):
+            raise NotImplementedError(
+                "Reference translations along generator-moving modes are not supported"
+            )
+        monomial = NumberOrderedForm(self._target_operators, {powers: sympy.S.One})
+        weight = _matrix_element(monomial, self._target_occupations)
+        # Physical domains at both references ensure this shift never annihilates.
+        coefficient = sympy.simplify(lattice._phase / self._phase / weight)
+        # The coefficient sits after annihilation: recover incoming occupations.
+        incoming = {n: n + max(p, 0) for n, p in zip(self._target_numbers, powers)}
+        coefficient = coefficient.xreplace(
+            {
+                q: coordinate.xreplace(incoming)
+                for q, coordinate in zip(
+                    self._coordinate_symbols, self._source_coordinates
+                )
+            }
+        )
+        return NumberOrderedForm(
+            self._target_operators, {powers: coefficient}, validate=False
+        )
+
+    def _divide_transitions(
+        self,
+        value: NumberOrderedForm,
+        outgoing_energy: sympy.Expr,
+        incoming_energy: sympy.Expr,
+    ) -> NumberOrderedForm:
+        """Divide a target NOF's transitions from this lattice by their energy gaps.
+
+        Outgoing energy uses target number placeholders; incoming energy uses
+        symbolic source occupations. Return a bare target NOF, preserving inactive
+        zero-gap transitions as zero and unresolved gaps as symbolic denominators.
+        """
+        from pymablock.second_quantization import _divide_by_energy_gap
+
+        occupations, coordinates = self._target_occupations, self._coordinate_symbols
+        numbers = self._target_numbers
+        nonnegative = tuple(q for q in coordinates if q.is_nonnegative)
+        terms, coefficients = {}, value.terms
+        for powers, (output, matrix_element) in value.act(occupations).items():
+            # Divide the coefficient, not the full matrix element; ladder factors
+            # only determine whether the transition is active.
+            middle_occupations = [n - max(p, 0) for n, p in zip(occupations, powers)]
+            coefficient = self._evaluate_numbers(coefficients[powers], middle_occupations)
+            denominator = sympy.expand(
+                self._evaluate_numbers(outgoing_energy, output) - incoming_energy
+            )
+            # A literal zero gap still needs the amplitude interpreted in the
+            # source algebra: binary numbers obey n² = n, including indicators.
+            if denominator == 0 and coordinates:
+                amplitude = NumberOrderedForm(
+                    self._source_operators,
+                    {
+                        (0,) * len(coordinates): matrix_element.xreplace(
+                            dict(zip(coordinates, self._source_placeholders))
+                        )
+                    },
+                    validate=False,
+                )._linearize_binary_operators()
+                if amplitude.is_zero:
+                    continue
+            try:
+                result = _divide_by_energy_gap(
+                    coefficient,
+                    denominator,
+                    coordinates,
+                    matrix_element,
+                    nonnegative,
+                )
+            except ValueError as error:
+                raise ZeroDivisionError(str(error)) from error
+            incoming = {n: n + max(p, 0) for n, p in zip(numbers, powers)}
+            terms[powers] = result.xreplace(
+                {
+                    q: expression.xreplace(incoming)
+                    for q, expression in zip(coordinates, self._source_coordinates)
+                }
+            )
+        return NumberOrderedForm(self._target_operators, terms, validate=False)
 
 
 def _parse_references(reference: Mapping | Sequence | None) -> sympy.Tuple:

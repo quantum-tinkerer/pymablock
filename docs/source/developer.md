@@ -14,7 +14,10 @@ column $j$ maps $q$ to target row $i_j$ and occupations $r_j+Mq$.
 
 A mapping-reference embedding is a lattice; a list embedding is a tuple of
 such lattices. The mapping constructor compiles its lattice directly. Lists
-construct one lattice per indexed reference through that same constructor.
+construct one lattice per indexed reference through that same constructor,
+sharing the first lattice's symbolic source occupations. These coordinates retain
+nonnegative assumptions for physical modes and signed indices for `LadderOp`;
+NOF number-placeholder assumptions are unchanged.
 A list constructor stores only the ordered `(row, lattice)` collection and its transfer operators; it
 has no duplicate compiled occupation map. The solver reads the first lattice
 explicitly, rather than through forwarding properties.
@@ -23,7 +26,11 @@ Lifting substitutes source NOF terms into target NOFs. Scalar number
 placeholders map directly to the compiled source coordinates; generator NOFs
 and their adjoints supply the ladder factors and graded signs. Existing NOFs
 are extended to the target mode order structurally. Embedding arithmetic never
-converts NOFs to expressions and back.
+converts NOFs to expressions and back. `_convert_operator` parses expressions
+at the input boundary; `NumberOrderedForm._rebase_operators` changes the basis of
+an existing NOF structurally and rejects modes on which it actually depends.
+The class groups construction and format boundaries, full-frame operations,
+and single-lattice mathematics in separate sections.
 
 Every frame entry uses the same scalar isometry $W_1$ at the first reference.
 The constructor builds target operators $T_j$ such that $W_j=T_jW_1$.
@@ -36,9 +43,11 @@ the generator validation supplies each phase $\phi_j$.
 reference's one-by-one result. Restriction calls `_frame_columns` directly;
 Hamiltonian preparation and block conversion also call `_complement_frame`.
 Both frames are cached on the owning instance. Attached scalar contractions call `_compress`
-directly, avoiding recursion through `restrict`. With no source operators,
-compression returns a scalar coefficient where it is produced; there is no
-matrix-entry cleanup pass. Compression of source entry $(i,j)$ acts on
+directly, avoiding recursion through `restrict`. Compression always returns a
+NOF, including when there are no source operators. `_block_result` unwraps
+operator-free entries and the mapping reference's matrix axis at the output
+boundary. Later perturbative arithmetic may retain zero-mode NOFs in scalar
+matrix entries. Compression of source entry $(i,j)$ acts on
 $T_i^\dagger X_{\rho_i,\rho_j}T_j$, with $\rho_j$ the declared target row.
 Frame products also give
 $T_iP_1T_j^\dagger$ without a separate list projector or compression algorithm.
@@ -47,8 +56,10 @@ The implementation separates three operations:
 
 - `Embedding._convert` constructs the retained/complement frames
   and converts general operators. It preserves zeroth-order cross blocks.
-- `Embedding._sylvester_solver` validates diagonal H0
-  and divides transitions by their actual energy differences. `Embedding._prepare`
+- `Embedding._sylvester_solver` validates diagonal H0, reads retained energies
+  directly from $W^\dagger H_0W$, and dispatches matrix blocks. The lattice method
+  `_divide_transitions` takes a target NOF and outgoing/incoming energy expressions
+  and returns a target NOF divided by its transition gaps. `Embedding._prepare`
   builds it for `block_diagonalize` and then omits zeroth-order cross blocks of that
   validated Hamiltonian.
 - `number_ordered_form` composes rectangular operators attached to an
