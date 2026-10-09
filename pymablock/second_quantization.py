@@ -13,7 +13,7 @@ from pymablock.number_ordered_form import (
     _iter_fixed_number_indicators,
     _number_operator_to_placeholder,
 )
-from pymablock.operator_embedding import Embedding
+from pymablock.operator_embedding import Embedding, _Lattice
 from pymablock.series import zero
 
 __all__ = [
@@ -332,7 +332,7 @@ def solve_sylvester_2nd_quant(
 
 
 def _divide_transitions(
-    lattice: Embedding,
+    lattice: _Lattice,
     value: NumberOrderedForm,
     outgoing_energy: sympy.Expr,
     incoming_energy: sympy.Expr,
@@ -453,7 +453,7 @@ def solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Cal
             divided = _divide_transitions(
                 lattice, entry.target, energies[i], incoming_energies[j]
             )
-            entries[i, j] = lattice._attach(divided, 1)
+            entries[i, j] = embedding._first_embedding._attach(divided, 1)
         result = sympy.ImmutableSparseMatrix(*block.shape, entries)
         return -result.adjoint() if reverse else result
 

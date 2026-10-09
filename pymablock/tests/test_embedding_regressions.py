@@ -276,6 +276,7 @@ def test_embeddings_are_collectable(reference_list):
         w = embedding._retained_frame(1)[0, 0]
         w * NumberOrderedForm.from_expr(q)
         bases.append(weakref.ref(embedding))
+        bases.extend(weakref.ref(lattice) for _, lattice in embedding._lattices)
     del embedding, w
     # SymPy's bounded expression cache may retain equal frame expressions.
     s.core.cache.clear_cache()
