@@ -19,7 +19,7 @@ def test_correlated_boson_projector():
 
     a, b, q = map(BosonOp, ("a", "b", "q"))
     embedding = Embedding({q: (N(a) + 1) ** (-s.S.Half) * a * b}, reference={a: 0, b: 0})
-    actual = nof_matrix(embedding._projector, [range(3)] * 2)
+    actual = nof_matrix(embedding._first_lattice._projector, [range(3)] * 2)
     assert actual == s.diag(*(int(i == j) for i, j in product(range(3), repeat=2)))
 
 
@@ -32,7 +32,9 @@ def test_floquet_projector_selects_integer_sublattice():
     embedding = Embedding(
         {source: target**2, N(source): N(target) / 2}, reference={target: 0}
     )
-    assert nof_matrix(embedding._projector, [range(-3, 4)]) == s.diag(0, 1, 0, 1, 0, 1, 0)
+    assert nof_matrix(embedding._first_lattice._projector, [range(-3, 4)]) == s.diag(
+        0, 1, 0, 1, 0, 1, 0
+    )
 
 
 @pytest.mark.parametrize("coupled", [False, True])

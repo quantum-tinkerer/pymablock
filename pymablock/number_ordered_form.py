@@ -590,7 +590,10 @@ class NumberOrderedForm(Operator):
         if not isinstance(operators, Tuple):
             operators = Tuple(*operators)
 
-        if embedding is not None and tuple(operators) != embedding._target_operators:
+        if (
+            embedding is not None
+            and tuple(operators) != embedding._first_lattice._target_operators
+        ):
             # Rebuilding after a mode rename can change the embedding's mode order;
             # _attach reorders the unvalidated form into the embedding's order.
             return embedding._attach(cls(operators, terms, validate=False), side)
@@ -812,9 +815,9 @@ class NumberOrderedForm(Operator):
         from pymablock.operator_embedding import Embedding
 
         if isinstance(expr, Embedding):
-            return expr._attach(expr._target_identity, 1)
+            return expr._attach(expr._first_lattice._target_identity, 1)
         if isinstance(expr, sympy.adjoint) and isinstance(expr.args[0], Embedding):
-            return expr.args[0]._attach(expr.args[0]._target_identity, -1)
+            return expr.args[0]._attach(expr.args[0]._first_lattice._target_identity, -1)
 
         # For scalar expressions (no operators)
         if not expr.has(*operator_types, NumberOperator, Embedding):
@@ -1711,20 +1714,20 @@ class NumberOrderedForm(Operator):
             if left != right or self.side == other.side:
                 raise ValueError("Composition requires opposite matching attachments")
             if self.side == -1:
-                return left._restrict(self.target * other.target)
-            return self.target * left._projector * other.target
+                return left._first_lattice._restrict(self.target * other.target)
+            return self.target * left._first_lattice._projector * other.target
         if left is not None:
             value = (
-                left._lift(other)
+                left._first_lattice._lift(other)
                 if self.side == 1
-                else other._expand_operators(left._target_operators)
+                else other._expand_operators(left._first_lattice._target_operators)
             )
             result = self.target * value
             return self._rebuild(result.args[1], operators=result.operators)
         value = (
-            right._lift(self)
+            right._first_lattice._lift(self)
             if other.side == -1
-            else self._expand_operators(right._target_operators)
+            else self._expand_operators(right._first_lattice._target_operators)
         )
         result = value * other.target
         return other._rebuild(result.args[1], operators=result.operators)

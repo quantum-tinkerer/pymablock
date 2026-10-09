@@ -34,7 +34,7 @@ def test_qubit_projector_selects_retained_occupations():
         dict(zip(sources, targets)), reference=dict.fromkeys(targets, 0)
     )
     for state, expected in [((0,) * 8, 1), ((1,) * 8, 1), ((2,) + (0,) * 7, 0)]:
-        actions = embedding._projector.act(state)
+        actions = embedding._first_lattice._projector.act(state)
         assert sum(weight for _, weight in actions.values()) == expected
 
 
@@ -319,11 +319,11 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     target_states = list(product((0, 1), repeat=4))
     columns = []
     direct = {first: left, second: right}
-    for state in product((0, 1), repeat=len(backend._source_operators)):
-        values = dict(zip(backend._source_operators, state, strict=True))
+    for state in product((0, 1), repeat=len(backend._first_lattice._source_operators)):
+        values = dict(zip(backend._first_lattice._source_operators, state, strict=True))
         baseline = tuple(int(op == down) for op in modes)
         column = np.eye(16)[:, target_states.index(baseline)]
-        for source in reversed(backend._source_operators):
+        for source in reversed(backend._first_lattice._source_operators):
             if values[source]:
                 raising = (
                     matrices[Dagger(up)] @ matrices[down]
@@ -342,7 +342,7 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
     finite_embedding = Embedding({}, reference=references)
     selected = [target_states.index(tuple(ref[op] for op in modes)) for ref in references]
     source_matrices = occupation_matrices(
-        backend._source_operators,
+        backend._first_lattice._source_operators,
         [(0, 1)] * 3,
     )
     for expression in (
@@ -400,7 +400,7 @@ def test_mixed_source_second_order(finite):
         assert h[0, 0, 2] == expected
     else:
         expected = NumberOrderedForm.from_expr(
-            -N(f) * N(s) ** 2 / 3, operators=embedding._source_operators
+            -N(f) * N(s) ** 2 / 3, operators=embedding._first_lattice._source_operators
         )
         assert (h[0, 0, 2] - expected).applyfunc(sympy.simplify).is_zero
 
@@ -719,7 +719,7 @@ def test_lattices_separated_by_spectator_offset():
         [[0, sympy.sqrt(2) * identity], [sympy.sqrt(2) * identity, 0]]
     )
     assert embedding.restrict(N(a)) == sympy.diag(
-        *(embedding._first_lattice.restrict(N(a)),) * 2
+        *(embedding._first_embedding.restrict(N(a)),) * 2
     )
     w = embedding._retained_frame(1)
     assert (
