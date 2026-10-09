@@ -1,6 +1,6 @@
 # Lean formalization of the Pymablock algorithm
 
-This directory proves correctness of the Hermitian selective-diagonalization recurrence in Lean 4 and mathlib.
+This directory proves correctness of the Hermitian and non-Hermitian selective-diagonalization recurrences in Lean 4 and mathlib.
 The development covers any finite number of blocks, arbitrary block sizes, any finite number of perturbation parameters, and every perturbative order.
 In fact, the series results allow an arbitrary parameter index type: each monomial has finite support.
 
@@ -34,6 +34,53 @@ An arbitrary number of blocks can be combined with selective diagonalization ins
 It imposes no multiplication or block-partition laws.
 The concrete masked Sylvester solver proves the remaining solver contract from the entrywise energy gaps.
 `Tests/Selective.lean` checks a nontransitive three-state mask with two perturbation parameters and retained degeneracy, and verifies that the extra retained commutator correction is nonzero in a concrete example.
+
+## Non-Hermitian algorithm
+
+`NonHermitian.matrix_nonhermitian_diagonalization` implements the [documented non-Hermitian recurrence](../docs/source/nonhermitian_algorithm.md).
+It assumes no Hermiticity and no relation between the inverse and adjoint.
+In a finite eigenbasis, `H₀ = diag(E_i)` may have complex eigenvalues.
+The retained-entry mask must contain the diagonal but may be asymmetric and nontransitive.
+Only eliminated entries require `E_i ≠ E_j`.
+`NonHermitian.matrix_block_diagonalization` specializes this to any finite block partition.
+
+The constructed outputs satisfy, as multivariate formal series at every order,
+
+```text
+U(0) = U_inv(0) = I
+U_inv U = U U_inv = I
+H_tilde = U_inv H U
+remaining(H_tilde) = 0
+selected((U - U_inv)/2) = 0
+```
+
+The abstract theorem `NonHermitian.diagonalize_correct` needs only a rational linear idempotent projection, `selected(H₀) = H₀`, and the explicit commutator-solver contract.
+No star structure is needed in that theorem.
+The matrix theorem constructs the solver from the complex energy denominators, discharging that contract.
+The concrete eigenbasis theorem does not cover defective `H₀`; the abstract theorem can be used whenever an appropriate Sylvester solver is separately supplied and verified.
+Construction of biorthogonal bases and the documentation's implicit oblique-projector solver remain outside the proof.
+
+The state contains `q = U'`, `g = U_inv'`, and `B`, with `V = (q-g)/2` derived.
+One update follows the documented equations:
+
+```text
+W = -g q / 2
+A = H'_R q
+B_plus = selected(B + g B)
+Z = (A - g H'_R - g B - B_plus g) / 2
+B_new = selected([V,H'_S] + Z - A) - remaining(g B)
+Y = B_new + H'_R + A - Z
+V_new = solve(Y - [V,H'_S])
+q_new = W + V_new
+g_new = W - V_new
+H_tilde = H₀ + H'_S - B_plus
+```
+
+The proof establishes strict causality and a unique fixed point, then derives both inverse identities and the commutator identity `B + H'_R + H'_R q = [q,H_S]`.
+The defect satisfies `2D = -(qD + Dg)` and therefore vanishes by total-degree induction.
+This avoids assuming the correctness identities used to motivate the recurrence.
+`NonHermitian.truncated_correct` proves both inverse identities and similarity through any finite total degree.
+`Tests/NonHermitian.lean` checks complex energies, a one-sided mask, multiple parameters, and actual first-order coefficients for `H = [[0,λ],[2λ,1]]`, whose inverse correction differs from the adjoint correction.
 
 ## Reproduce
 
@@ -72,13 +119,14 @@ The organization follows [qt/rmt_nlin](https://gitlab.kwant-project.org/qt/rmt_n
 | `Optimized`, `Library/Vanishing`, `Invariants` | Unitarity, gauge, and the identity `X = [U', H_S]`. |
 | `Correctness`, `Hamiltonian`, `FiniteOrder` | End-to-end theorems for the constructed outputs and their truncations. |
 | `Sylvester`, `SpectralSolver`, `MatrixTheorem`, `Selective` | Solver contract and its concrete realization from separated energies. |
+| `NonHermitian/*` | Explicit inverse construction, non-Hermitian correctness, complex spectral solver, and truncations. |
 | `Manuscript/Registry`, `Manuscript/Exports` | Links to manuscript labels and exports of checked types, hypotheses, definitions, and axioms. |
 | `FirstOrder`, `Tests/TwoLevel` | Leading coefficient of the constructed unitary, with an explicit two-level Hamiltonian. |
 | `Tests/Selective` | Nontransitive mask, retained degeneracy, and nonzero selective correction. |
 | `Tests/Examples` | One parameter/two blocks, two parameters/three blocks, and three degenerate two-dimensional blocks; a solver-sign calculation. |
 
 The export follows both theorem types and proofs through project declarations.
-It includes structure constructors so that assumptions inside `Selection` and `SylvesterSolver` remain visible.
+It includes structure constructors so that assumptions inside `Selection`, `SylvesterSolver`, and the non-Hermitian `Projection` and `Solver` remain visible.
 The registry associates equations with checked declarations; it does not establish a formal equivalence between Lean and the text of the manuscript or Python implementation.
 
 ## Correspondence to the implementation
@@ -112,7 +160,7 @@ Unitarity and the two adjoint parts of `X` imply a homogeneous recurrence for it
 The defect has only the zero formal-series solution.
 Substitution then gives `H_tilde = H_S - (B + q† B)`, whose off-diagonal part vanishes by the `B` recurrence.
 
-The formalization does not verify Python execution, lazy caching, numerical Sylvester solvers, floating-point errors, the non-Hermitian algorithm, or the optional two-block fast path.
+The formalization does not verify Python execution, lazy caching, numerical Sylvester solvers, floating-point errors, or the optional two-block fast path.
 It also does not prove the complexity claims or uniqueness among every possible selective diagonalizer beyond the stated recurrence.
 
 ## Manuscript finding

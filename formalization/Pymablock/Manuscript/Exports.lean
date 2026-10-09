@@ -68,10 +68,10 @@ def exportCatalog : MetaM Json := do
   let names := seen.toArray.qsort (fun a b => a.toString < b.toString)
   let declarations ← names.mapM declarationJson
   return Json.mkObj [
-    ("schema", toJson (1 : Nat)),
+    ("schema", toJson (2 : Nat)),
     ("roots", toJson (roots.map Name.toString)),
     ("occurrences", .arr (occurrences.map fun row => Json.mkObj [
-      ("label", toJson row.label), ("declaration", toJson row.declaration.toString),
+      ("source", toJson row.source), ("label", toJson row.label), ("declaration", toJson row.declaration.toString),
       ("relation", toJson row.relation)])),
     ("declarations", .arr declarations)]
 

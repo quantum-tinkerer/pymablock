@@ -68,21 +68,25 @@ def report() -> None:
     """Render Lean's checked types; prose never supplies theorem statements."""
     catalog = json.loads((REPORTS / "correspondence.json").read_text())
     declarations = {row["name"]: row for row in catalog["declarations"]}
-    manuscript = (ROOT / "paper" / "algorithm.tex").read_text()
-    labels = set(re.findall(r"\\label\{(eq:[^}]+)\}", manuscript))
-    registered = {row["label"] for row in catalog["occurrences"]}
+    registered = {(row["source"], row["label"]) for row in catalog["occurrences"]}
+    labels = set()
+    for source in sorted({source for source, _ in registered}):
+        document = (ROOT / source).read_text()
+        found = re.findall(r"\\label\{(eq:[^}]+)\}", document)
+        found += re.findall(r"^:label:\s*(nh:\S+)", document, re.MULTILINE)
+        labels.update((source, label) for label in found)
     if unknown := registered - labels:
-        raise SystemExit(f"Registry labels absent from manuscript: {sorted(unknown)}")
+        raise SystemExit(f"Registry labels absent from sources: {sorted(unknown)}")
     if missing := set(catalog["roots"]) - declarations.keys():
         raise SystemExit(f"Missing root declarations: {sorted(missing)}")
-    gaps = sorted(labels - registered)
+    gaps = [f"{source}#{label}" for source, label in sorted(labels - registered)]
     catalog["unregistered_equations"] = gaps
     (REPORTS / "correspondence.json").write_text(json.dumps(catalog, indent=2) + "\n")
     lines = [
         "# Pymablock formalization: checked correspondence report",
         "",
         "Generated from Lean's environment after compiling the proof library.",
-        "The registry locates related manuscript equations; it does not prove that",
+        "The registry locates related manuscript and documentation equations; it does not prove that",
         "the manuscript text or Python source is identical to a Lean declaration.",
         "",
         f"- Terminal theorems: {len(catalog['roots'])}",
@@ -106,11 +110,16 @@ def report() -> None:
         "",
         "## Correspondence boundaries and manuscript finding",
         "",
-        "The proofs cover the general Hermitian recurrence, including arbitrary symmetric",
-        "entry masks. Retained entries may be degenerate; eliminated entries require",
+        "The proofs cover the Hermitian recurrence with arbitrary symmetric entry masks",
+        "and the documented non-Hermitian recurrence with a tracked inverse. Retained",
+        "entries may be degenerate; eliminated entries require",
         "distinct unperturbed energies. The retained mask need not be transitive.",
+        "The non-Hermitian theorem permits complex energies and asymmetric masks.",
+        "Its concrete matrix solver assumes an eigenbasis for H0. The generic theorem",
+        "instead takes an explicit Sylvester solver contract. Biorthogonal basis",
+        "construction and the implicit oblique-projector solver are not verified.",
         "The proofs do not verify the Python parser, caching, numerical solvers, floating",
-        "point, the non-Hermitian algorithm, or the optional",
+        "point, or the optional",
         "two-block fast path. Series convergence and runtime complexity are outside",
         "the proved statements. Uniqueness refers to the constructed recurrence.",
         "",
@@ -123,11 +132,13 @@ def report() -> None:
         "",
         "## Equation registry",
         "",
-        "| Manuscript label | Lean declaration | Relation |",
-        "| --- | --- | --- |",
+        "| Source | Equation label | Lean declaration | Relation |",
+        "| --- | --- | --- | --- |",
     ]
     for row in catalog["occurrences"]:
-        lines.append(f"| {row['label']} | `{row['declaration']}` | {row['relation']} |")
+        lines.append(
+            f"| {row['source']} | {row['label']} | `{row['declaration']}` | {row['relation']} |"
+        )
     lines += ["", "Unregistered equation labels: " + ", ".join(gaps), ""]
     for name in catalog["roots"]:
         row = declarations[name]
@@ -165,8 +176,8 @@ def report() -> None:
         "body{max-width:1100px;margin:3rem auto;padding:0 1rem;color:#20252b;"
         "background:#fafafa;font:16px/1.6 system-ui}pre{white-space:pre-wrap;"
         "overflow-wrap:anywhere;font:14px/1.6 ui-monospace,monospace}"
-        "table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:.5rem;"
-        "border:1px solid #ddd;text-align:left}h2{margin-top:2.5rem;border-top:1px solid #ddd;"
+        "table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:14px}td,th{padding:.5rem;"
+        "border:1px solid #ddd;text-align:left;overflow-wrap:anywhere}h2{margin-top:2.5rem;border-top:1px solid #ddd;"
         "padding-top:1.2rem}code{background:#eef1f4;padding:.1rem .2rem}pre{padding:1rem;"
         "background:#eef1f4}a{color:#155e75}</style>"
         + MarkdownIt("commonmark", {"html": False}).enable("table").render(text)

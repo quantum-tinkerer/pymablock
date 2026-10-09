@@ -18,3 +18,6 @@ import Pymablock.FiniteOrder
 import Pymablock.MatrixTheorem
 import Pymablock.FirstOrder
 import Pymablock.Selective
+import Pymablock.NonHermitian.Matrix
+import Pymablock.NonHermitian.FiniteOrder
+import Pymablock.NonHermitian.FirstOrder

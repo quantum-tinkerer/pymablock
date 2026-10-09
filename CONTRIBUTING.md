@@ -38,6 +38,6 @@ To make a release, do the following:
 
 ## Formal verification
 
-The optional Lean development in `formalization/` checks the Hermitian block-partition and selective-diagonalization algorithm for arbitrary numbers of blocks and perturbation parameters.
+The optional Lean development in `formalization/` checks the Hermitian and non-Hermitian block-partition and selective-diagonalization algorithms for arbitrary numbers of blocks and perturbation parameters.
 Run `pixi run lean-setup` once to install the pinned Lean dependencies, then `pixi run lean` to build the proofs, examples, and correspondence report.
 The report exports checked theorem signatures, assumptions, and dependencies; see [`formalization/README.md`](formalization/README.md) for its scope and explicit remaining goals.
