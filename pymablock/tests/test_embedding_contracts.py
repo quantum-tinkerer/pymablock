@@ -156,6 +156,11 @@ def test_existing_nof_conversion_preserves_values():
         sp.kronecker_product(nof_matrix(value, [range(4)]), sp.eye(2)),
     )
 
+    # A source name may also name a frozen target: roles follow the mapping.
+    roles = Embedding({a: b}, reference={a: 0, b: 0})
+    assert nof_matrix(roles.restrict(N(b)), [range(3)]) == sp.diag(0, 1, 2)
+    assert roles.restrict(N(a)) == 0
+
 
 @pytest.mark.parametrize("mode_type", [BosonOp, LadderOp])
 @pytest.mark.parametrize("sign", [-1, 1])
@@ -236,3 +241,21 @@ def test_reconstructed_lattices_preserve_frame_matrix_elements(reference_list):
         ),
         expected,
     )
+
+
+@pytest.mark.parametrize("encoding", ["spin", "pair", "frozen", "hole"])
+def test_fermion_encoding_matrix_elements(encoding):
+    a, b, f = map(FermionOp, ("a", "b", "f"))
+    q = SigmaMinus("q")
+    generators, reference, indices, phases = {
+        "spin": ({q: b.adjoint() * a}, {a: 0, b: 1}, [1, 2], [1, 1]),
+        "pair": ({q: b * a}, {a: 0, b: 0}, [0, 3], [1, 1]),
+        "frozen": ({f: b}, {a: 1, b: 0}, [2, 3], [1, -1]),
+        "hole": ({f: b.adjoint()}, {a: 0, b: 1}, [1, 0], [1, 1]),
+    }[encoding]
+    embedding = Embedding(generators, reference=reference)
+    w = sp.eye(4)[:, indices] * sp.diag(*phases)
+    for expression in (a, b, b * a, b.adjoint() * a, N(a), N(b), a * a.adjoint()):
+        target = nof_matrix(F.from_expr(expression, (a, b)))
+        actual = F.from_expr(embedding.restrict(expression), tuple(generators))
+        assert_matrix_equal(nof_matrix(actual), w.T * target * w)
