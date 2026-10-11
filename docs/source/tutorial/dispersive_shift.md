@@ -200,3 +200,4 @@ display_eq(r"\chi", chi)
 
 In this example, we have not used the rotating wave approximation, including the frequently omitted counter-rotating terms $\sim a_{r} a_{t}$ to illustrate the extensibility of Pymablock.
 Computing higher order corrections to the qubit frequency only requires increasing the size of the truncated Hilbert space and requesting `H_tilde[0, 0, n]` to the desired order $n$.
+The [transmon qubit tutorial](transmon_resonator.md) treats the two lowest transmon levels as a qubit with a structured embedding, and obtains the dispersive Hamiltonian and its fourth-order corrections directly in qubit and resonator operators.
