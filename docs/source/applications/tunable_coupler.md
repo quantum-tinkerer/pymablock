@@ -15,19 +15,51 @@ mystnb:
 
 # Two qubits connected through a tunable coupler
 
-We calculate exchange and fourth-order ZZ coupling for two qubits connected
-through a detuned oscillator, following Yan et al.[^yan]
+How does a tunable coupler switch the interaction between two transmon qubits
+on and off? The effective model keeps two levels of each qubit:
+
+$$
+H_{\rm eff} = \tilde\omega_1 N_{q_1} + \tilde\omega_2 N_{q_2}
++ J\left(q_1^\dagger q_2 + q_2^\dagger q_1\right) + \zeta N_{q_1}N_{q_2}.
+$$
+
+The exchange coupling $J$ combines a direct term and a term mediated by the
+coupler,
+
+$$
+J = -g_{12} + \frac{g_{1c}g_{2c}}{2}\sum_{j=1,2}
+\left(\frac{1}{\omega_j-\omega_c}-\frac{1}{\omega_j+\omega_c}\right),
+$$
+
+so tuning the coupler frequency $\omega_c$ can make $J$ vanish.[^yan] We also
+compute the residual $ZZ$ coupling $\zeta$ to fourth order, including all
+counter-rotating processes.
 
 ## Model
 
-The three modes are Duffing oscillators with frequencies $\omega_j$ and
-anharmonicities $\alpha_j$. Both exchange and counterrotating couplings are
-included. Qubit–coupler coupling enters at first order; direct qubit–qubit
-coupling enters at second order, with exchange amplitude $-g_{12}$.
+The two qubits and the coupler are weakly anharmonic oscillators, $j=1,2,c$,
+with frequencies $\omega_j$ and anharmonicities $\alpha_j$:
+
+$$
+H_0 = \sum_{j=1,2,c}\left[\omega_j N_j + \frac{\alpha_j}{2}N_j(N_j-1)\right].
+$$
+
+They couple through their charges, which are proportional to
+$x_j=a_j^\dagger-a_j$:
+
+$$
+V_1 = g_{1c}\,x_1x_c + g_{2c}\,x_2x_c,\qquad V_2 = g_{12}\,x_1x_2.
+$$
+
+The direct coupling $g_{12}$ is much weaker than $g_{1c}$ and $g_{2c}$. We
+therefore count $V_1$ as first order and $V_2$ as second order, so that the
+direct and the mediated exchange appear at the same order.
 
 ```{code-cell} ipython3
+import matplotlib.pyplot as plt
+import numpy as np
 import sympy as sp
-from IPython.display import Math, display
+from IPython.display import display
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.pauli import SigmaMinus
@@ -35,114 +67,145 @@ from sympy.physics.quantum.pauli import SigmaMinus
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.second_quantization import Embedding
-
-a1, a2, ac = (BosonOp(name) for name in ("a1", "a2", "ac"))
-q1, q2 = SigmaMinus("q1"), SigmaMinus("q2")
-w1, w2, wc = sp.symbols("omega_1 omega_2 omega_c", positive=True)
-alpha1, alpha2, alphac = sp.symbols("alpha_1 alpha_2 alpha_c", real=True, nonzero=True)
-g12, g1c, g2c = sp.symbols("g_12 g_1c g_2c", real=True)
-modes = (a1, a2, ac)
-frequencies = (w1, w2, wc)
-anharmonicities = (alpha1, alpha2, alphac)
-H0 = sum(w * N(a) + alpha * N(a) * (N(a) - 1) / 2
-         for a, w, alpha in zip(modes, frequencies, anharmonicities))
-V1 = sum(g * (Dagger(a) - a) * (Dagger(ac) - ac)
-         for a, g in ((a1, g1c), (a2, g2c)))
-V2 = g12 * (Dagger(a1) - a1) * (Dagger(a2) - a2)
-for name, expression in (("H_0", H0), ("V_1", V1), ("V_2", V2)):
-    display(sp.Eq(sp.Symbol(name, commutative=False), expression))
 ```
 
-## Effective qubit Hamiltonian
-
-We retain two levels of each qubit and the coupler vacuum. Higher oscillator
-levels remain available in virtual processes.
-
 ```{code-cell} ipython3
-hamiltonian = {(0,): H0, (1,): V1, (2,): V2}
-embedding = Embedding({q1: a1, q2: a2}, reference={a1: 0, a2: 0, ac: 0})
-H, *_ = block_diagonalize(hamiltonian, subspace_eigenvectors=embedding)
-```
+omega_1, omega_2, omega_c = sp.symbols("omega_1 omega_2 omega_c", positive=True)
+alpha_1, alpha_2, alpha_c = sp.symbols("alpha_1 alpha_2 alpha_c", real=True, nonzero=True)
+g_12, g_1c, g_2c = sp.symbols("g_12 g_1c g_2c", real=True)
+a_1, a_2, a_c = BosonOp("a_1"), BosonOp("a_2"), BosonOp("a_c")
 
-## Exchange
-
-The coefficient below transfers an excitation between the qubits.
-
-```{code-cell} ipython3
-h2 = H[0, 0, 2]
-exchange_term = h2.filter_terms(((1, -1),), keep=True).as_expr()
-exchange = exchange_term.coeff(Dagger(q2) * q1)
-expected_exchange = -g12 + g1c * g2c * (
-    1 / (w1 - wc) + 1 / (w2 - wc) - 1 / (w1 + wc) - 1 / (w2 + wc)
-) / 2
-assert sp.cancel(exchange - expected_exchange) == 0
-display(sp.Eq(sp.Symbol("J^{(2)}"), exchange))
-```
-
-The sum-frequency denominators describe counterrotating processes. The result
-reproduces Eq. (33) of Yan et al.[^yan], with $g_{12}^{\rm Yan}=-g_{12}$.
-Tuning the coupler frequency changes the mediated term and can cancel the
-direct exchange.
-
-## ZZ coupling
-
-The combination $h_{11}-h_{10}-h_{01}+h_{00}$ extracts the conditional shift
-from the diagonal fourth-order Hamiltonian.
-
-```{code-cell} ipython3
-h4_symbolic = H[0, 0, 4]
-assert (h4_symbolic - h4_symbolic.adjoint()).applyfunc(sp.cancel).is_zero
-diagonal = h4_symbolic.filter_terms(((0, 0),), keep=True).as_expr()
-conditional_symbolic = (
-    diagonal.subs({N(q1): 1, N(q2): 1})
-    - diagonal.subs({N(q1): 1, N(q2): 0})
-    - diagonal.subs({N(q1): 0, N(q2): 1})
-    + diagonal.subs({N(q1): 0, N(q2): 0})
+H_0 = (
+    omega_1 * N(a_1) + alpha_1 / 2 * N(a_1) * (N(a_1) - 1)
+    + omega_2 * N(a_2) + alpha_2 / 2 * N(a_2) * (N(a_2) - 1)
+    + omega_c * N(a_c) + alpha_c / 2 * N(a_c) * (N(a_c) - 1)
 )
-# With the coupler disconnected, sum the direct virtual transitions from
-# |11>, |10>, |01>, and |00>, including counterrotating paths.
-direct_shift = 2 * g12**2 * (
-    1 / (w2 - w1 - alpha1) + 1 / (w1 - w2 - alpha2)
-    + 1 / (w1 + w2 + alpha1) + 1 / (w1 + w2 + alpha2)
-    - 2 / (w1 + w2 + alpha1 + alpha2)
-)
-assert sp.cancel(conditional_symbolic.subs({g1c: 0, g2c: 0}) - direct_shift) == 0
-# Check the harmonic limit at nonresonant frequencies, keeping all couplings symbolic.
-harmonic_point = {alpha1: 0, alpha2: 0, alphac: 0, w1: 5, w2: 7, wc: 11}
-assert sp.cancel(conditional_symbolic.subs(harmonic_point)) == 0
+x_1, x_2, x_c = Dagger(a_1) - a_1, Dagger(a_2) - a_2, Dagger(a_c) - a_c
+V_1 = g_1c * x_1 * x_c + g_2c * x_2 * x_c
+V_2 = g_12 * x_1 * x_2
 ```
 
-Mixing within each parity block cancels in this energy combination. The ZZ
-coefficient is one quarter of the conditional shift for $Z_j=1-2N_{q_j}$.
-The following direct, mixed, and mediated contributions sum to that shift;
-repeated energy gaps are abbreviated for readability.
+## What is kept
+
+We keep the ground and first excited states of each qubit, with the coupler
+in its ground state. The two-level lowering operator $q_j$ then represents
+$a_j$ on these states. Higher qubit levels and coupler excitations appear only
+in virtual processes.
 
 ```{code-cell} ipython3
-# Abbreviate repeated one-step energy denominators for display.
-gaps = {}
-for j, (omega, alpha) in enumerate(((w1, alpha1), (w2, alpha2)), 1):
-    for prefix, gap in (("d", wc - omega), ("s", wc + omega), ("t", wc + omega + alpha)):
-        symbol = sp.Symbol(f"{prefix}_{j}")
-        gaps[gap] = symbol
-        display(sp.Eq(symbol, gap))
-short_coefficient = conditional_symbolic.xreplace(gaps)
-monomials = (g12**2, g12 * g1c * g2c, g1c**2 * g2c**2)
-contributions = sp.collect(short_coefficient, monomials, evaluate=False, exact=True)
-for label, monomial in zip(("direct", "mixed", "mediated"), monomials):
-    coefficient = contributions[monomial]
-    poles = sorted((p for p in coefficient.atoms(sp.Pow) if p.exp == -1 and p.base.is_Add),
-                   key=sp.default_sort_key)
-    terms = []
-    for pole, numerator in sp.collect(coefficient, poles, evaluate=False).items():
-        terms.extend(sp.Add.make_args(numerator) if pole == 1 else [sp.factor(numerator) * pole])
-    lines = [sp.latex(term) for term in terms]
-    lhs = sp.latex(sp.Symbol(f"zeta_{{{label}}}") / monomial)
-    display(Math(r"\begin{aligned}" + lhs + r"={}&"
-                 + r"\\ &{}+".join(lines) + r"\end{aligned}"))
+q_1, q_2 = SigmaMinus("q_1"), SigmaMinus("q_2")
+embedding = Embedding({q_1: a_1, q_2: a_2}, reference={a_1: 0, a_2: 0, a_c: 0})
 ```
 
-The shift vanishes when all anharmonicities are zero. Near a resonance with a
-coupler or higher qubit level, that level must be retained explicitly.
+## Perturbation theory
+
+The effective Hamiltonian is a series in the coupling strength. Exchange
+appears at second order and $ZZ$ coupling at fourth order.
+
+```{code-cell} ipython3
+H_eff, *_ = block_diagonalize(
+    {(0,): H_0, (1,): V_1, (2,): V_2}, subspace_eigenvectors=embedding
+)
+H_2, H_4 = H_eff[0, 0, 2], H_eff[0, 0, 4]
+```
+
+## Result and check
+
+### Exchange
+
+The exchange coupling $J$ is the coefficient of $q_2^\dagger q_1$ in the
+second-order Hamiltonian. It reproduces Eq. (33) of Yan et al.,[^yan] whose
+direct coupling is $g_{12}^{\rm Yan}=-g_{12}$.
+
+```{code-cell} ipython3
+J = H_2.filter_terms(((1, -1),), keep=True).as_expr().coeff(Dagger(q_2) * q_1)
+display(sp.Eq(sp.Symbol("J"), J))
+
+J_yan = -g_12 + g_1c * g_2c / 2 * (
+    1 / (omega_1 - omega_c) - 1 / (omega_1 + omega_c)
+    + 1 / (omega_2 - omega_c) - 1 / (omega_2 + omega_c)
+)
+assert sp.simplify(J - J_yan) == 0
+```
+
+The terms with $\omega_j+\omega_c$ come from counter-rotating processes, which
+create or destroy two excitations at once.
+
+### ZZ coupling
+
+The $ZZ$ coupling is the energy of the doubly excited state minus the energies
+of the singly excited states, $\zeta=E_{11}-E_{10}-E_{01}+E_{00}$. In terms of
+Pauli operators $Z_j=1-2N_{q_j}$, it adds $(\zeta/4)Z_1Z_2$ to the Hamiltonian.
+
+```{code-cell} ipython3
+diagonal = H_4.filter_terms(((0, 0),), keep=True).as_expr()
+
+def E(n_1, n_2):
+    return diagonal.subs({N(q_1): n_1, N(q_2): n_2})
+
+zeta = E(1, 1) - E(1, 0) - E(0, 1) + E(0, 0)
+```
+
+Two limits check this result. Without the coupler, only the direct coupling
+remains. Summing its virtual transitions from $|11\rangle$, $|10\rangle$,
+$|01\rangle$ and $|00\rangle$ gives
+
+$$
+\zeta_{\rm direct} = 2g_{12}^2\left[
+\frac{1}{\omega_2-\omega_1-\alpha_1}+\frac{1}{\omega_1-\omega_2-\alpha_2}
++\frac{1}{\omega_1+\omega_2+\alpha_1}+\frac{1}{\omega_1+\omega_2+\alpha_2}
+-\frac{2}{\omega_1+\omega_2+\alpha_1+\alpha_2}\right].
+$$
+
+The first two terms are the familiar rotating-wave result
+$2g_{12}^2(\alpha_1+\alpha_2)/[(\Delta+\alpha_1)(\Delta-\alpha_2)]$ with
+$\Delta=\omega_1-\omega_2$. Second, coupled harmonic oscillators have no $ZZ$
+coupling, so $\zeta$ must vanish when all anharmonicities are zero. We check
+this at one choice of nonresonant frequencies, keeping the couplings symbolic.
+
+```{code-cell} ipython3
+zeta_direct = 2 * g_12**2 * (
+    1 / (omega_2 - omega_1 - alpha_1) + 1 / (omega_1 - omega_2 - alpha_2)
+    + 1 / (omega_1 + omega_2 + alpha_1) + 1 / (omega_1 + omega_2 + alpha_2)
+    - 2 / (omega_1 + omega_2 + alpha_1 + alpha_2)
+)
+assert sp.simplify(zeta.subs({g_1c: 0, g_2c: 0}) - zeta_direct) == 0
+
+harmonic = {alpha_1: 0, alpha_2: 0, alpha_c: 0, omega_1: 5, omega_2: 7, omega_c: 11}
+assert sp.simplify(zeta.subs(harmonic)) == 0
+```
+
+The full $\zeta$ has dozens of terms, so we plot it instead of printing it.
+The parameters are illustrative values of $\omega/2\pi$ in GHz:
+$\omega_1=4.0$, $\omega_2=4.1$, all $\alpha_j=-0.2$, $g_{1c}=g_{2c}=0.1$ and
+$g_{12}=-0.007$.
+
+```{code-cell} ipython3
+parameters = {omega_1: 4.0, omega_2: 4.1, alpha_1: -0.2, alpha_2: -0.2,
+              alpha_c: -0.2, g_1c: 0.1, g_2c: 0.1, g_12: -0.007}
+J_of_wc = sp.lambdify(omega_c, J.subs(parameters))
+zeta_of_wc = sp.lambdify(omega_c, zeta.subs(parameters))
+
+wc = np.linspace(4.7, 7.5, 200)
+fig, ax = plt.subplots()
+ax.plot(wc, 1e3 * J_of_wc(wc), label=r"$J$")
+ax.plot(wc, 1e3 * zeta_of_wc(wc), label=r"$\zeta$")
+ax.axhline(0, color="black", linewidth=0.5)
+ax.set_xlabel(r"$\omega_c$ (GHz)")
+ax.set_ylabel("coupling (MHz)")
+ax.legend();
+```
+
+## Discussion
+
+Above the qubit frequencies, the mediated exchange is negative and decreases
+in magnitude as the coupler moves away. It cancels the direct exchange at one
+coupler frequency, which switches the qubit interaction off. The $ZZ$ coupling
+requires anharmonicity and is much smaller than $J$ over most of this range.
+For these parameters it is also smallest close to the point where $J$
+vanishes. Near a resonance between a qubit state and a coupler or higher qubit
+level, that level must be kept in the effective model instead of being
+eliminated.
 
 [^yan]: F. Yan et al.,
     [Tunable coupling scheme for implementing high-fidelity two-qubit gates](https://doi.org/10.1103/PhysRevApplied.10.054062),
