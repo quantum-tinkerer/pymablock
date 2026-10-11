@@ -13,12 +13,12 @@ kernelspec:
 
 # A transmon qubit in a resonator
 
-A transmon is an anharmonic oscillator.
+At low energies, a transmon is an oscillator with a weak negative anharmonicity.
 We use its two lowest levels as a qubit, and couple the transmon to a resonator.
 What is the effective Hamiltonian of the qubit and the resonator?
 The higher transmon levels are not part of the qubit, but they still contribute through virtual transitions.
 
-In this tutorial we keep all transmon levels and all resonator levels, without truncating either.
+In this tutorial we keep all levels of the transmon model and of the resonator, without truncating either.
 A structured embedding tells Pymablock which states form the qubit.
 Pymablock then returns the effective Hamiltonian as an operator in the qubit excitation number and the resonator photon number, with every parameter symbolic.
 At second order it reproduces the dispersive shift of Koch et al. [^koch].
@@ -29,20 +29,20 @@ When the qubit is excited, this Kerr nonlinearity involves the third excited lev
 
 ## The Hamiltonian
 
-We use the same Hamiltonian as the [dispersive shift tutorial](dispersive_shift.md):
+We use the same low-energy transmon model as the [dispersive shift tutorial](dispersive_shift.md):
 
 $$
     \mathcal{H} =
-    -\omega_t a^{\dagger}_{t} a_{t}
-    + \frac{\alpha}{2} a^{\dagger}_{t} a^{\dagger}_{t} a_{t} a_{t} +
+    \omega_t a^{\dagger}_{t} a_{t}
+    - \frac{\alpha}{2} a^{\dagger}_{t} a^{\dagger}_{t} a_{t} a_{t} +
     \omega_r a^{\dagger}_{r} a_{r} -
     g (a^{\dagger}_{t} - a_{t}) (a^{\dagger}_{r} - a_{r}).
 $$
 
 Here $a_t$ and $a_r$ are the bosonic annihilation operators of the transmon and the resonator.
-The parameters $\omega_t$ and $\omega_r$ set their frequencies, $\alpha$ is the anharmonicity of the transmon, and $g$ is the coupling, which we treat as the perturbation.
-The energy of transmon level $n$ is $E_n = -\omega_t n + \alpha n (n - 1) / 2$.
-Therefore the qubit transition frequency is $\omega_{01} = E_1 - E_0 = -\omega_t$, and the transition from level one to level two has frequency $\omega_{12} = E_2 - E_1 = \alpha - \omega_t$.
+The parameters $\omega_t$ and $\omega_r$ are their frequencies, $-\alpha$ with $\alpha > 0$ is the anharmonicity of the transmon, and $g$ is the coupling, which we treat as the perturbation.
+The energy of transmon level $n$ is $E_n = \omega_t n - \alpha n (n - 1) / 2$.
+Therefore the qubit transition frequency is $\omega_{01} = E_1 - E_0 = \omega_t$, and the transition from level one to level two has frequency $\omega_{12} = E_2 - E_1 = \omega_t - \alpha$.
 We keep the counter-rotating terms $a_t a_r$ and $a_t^\dagger a_r^\dagger$.
 
 ```{code-cell} ipython3
@@ -61,8 +61,8 @@ omega_t, omega_r, alpha, g = symbols
 a_t, a_r = BosonOp("a_t"), BosonOp("a_r")
 
 H_0 = (
-    -omega_t * Dagger(a_t) * a_t + omega_r * Dagger(a_r) * a_r
-    + alpha * Dagger(a_t)**2 * a_t**2 / 2
+    omega_t * Dagger(a_t) * a_t + omega_r * Dagger(a_r) * a_r
+    - alpha * Dagger(a_t)**2 * a_t**2 / 2
 )
 
 H_p = (
@@ -132,7 +132,7 @@ display_eq("H_{0}", H_tilde[0, 0, 0].as_expr())
 display_eq(r"H^{(2)}_{\textrm{eff}}", H_tilde[0, 0, 2].as_expr())
 ```
 
-The denominators $\alpha + \omega_r - \omega_t$ and $\alpha - \omega_r - \omega_t$ are the energies of virtual transitions from transmon level one to level two.
+The denominators $\omega_t - \alpha \pm \omega_r$ are the energies $\omega_{12} \pm \omega_r$ of virtual transitions from transmon level one to level two.
 Even though level two is not part of the qubit, it enters the effective model.
 
 To read off the dispersive shift, we evaluate the diagonal effective Hamiltonian on the state with qubit excitation $n_q$ and $n_r$ photons:
@@ -161,7 +161,7 @@ $$
 H_2 = H_tilde[0, 0, 2]
 two_chi = energy(H_2, 1, 1) - energy(H_2, 1, 0) - energy(H_2, 0, 1) + energy(H_2, 0, 0)
 
-omega_01, omega_12 = -omega_t, alpha - omega_t
+omega_01, omega_12 = omega_t, omega_t - alpha
 chi_koch = sum(
     g**2 * (1 / (omega_01 - sign * omega_r) - 1 / (omega_12 - sign * omega_r))
     for sign in (1, -1)
@@ -198,7 +198,7 @@ Each factor is the energy of a virtual transition:
 display_eq(r"\mathrm{denominator}(K_{1})", sympy.denom(K[1]))
 ```
 
-The factors $3\alpha - 2\omega_t$ and $3\alpha - 2\omega_t \pm 2\omega_r$ equal $E_3 - E_1$ plus a change of the resonator energy by $0$ or $\pm 2\omega_r$.
+Up to sign, the factors $3\alpha - 2\omega_t$ and $3\alpha - 2\omega_t \pm 2\omega_r$ are the transmon energy $E_3 - E_1 = 2\omega_t - 3\alpha$, plus a change of the resonator energy by $0$ or $\pm 2\omega_r$.
 A fourth-order process that starts from the excited qubit can pass through the third excited level of the transmon.
 A process that starts from the qubit ground state reaches only level two, so $K_0$ has no such factor:
 

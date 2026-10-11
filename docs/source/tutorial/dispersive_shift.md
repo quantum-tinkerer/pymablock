@@ -22,14 +22,14 @@ The Hamiltonian of the system is given by
 
 $$
     \mathcal{H} =
-    -\omega_t a^{\dagger}_{t} a_{t}
-    + \frac{\alpha}{2} a^{\dagger}_{t} a^{\dagger}_{t} a_{t} a_{t} +
+    \omega_t a^{\dagger}_{t} a_{t}
+    - \frac{\alpha}{2} a^{\dagger}_{t} a^{\dagger}_{t} a_{t} a_{t} +
     \omega_r a^{\dagger}_{r} a_{r} -
     g (a^{\dagger}_{t} - a_{t}) (a^{\dagger}_{r} - a_{r}),
 $$
 
 where $a_t$ and $a_r$ are bosonic annihilation operators of the transmon and resonator, respectively, and $\omega_t$ and $\omega_r$ are their frequencies.
-The transmon has an anharmonicity $\alpha$, so that its energy levels are not equally spaced.
+We use a low-energy transmon model: an oscillator with a negative anharmonicity $-\alpha$, where $\alpha > 0$, so that its energy levels are not equally spaced.
 In presence of both the coupling $g$ between the transmon and the resonator and the anharmonicity, this Hamiltonian admits no analytical solution.
 We therefore treat $g$ as a perturbative parameter.
 
@@ -53,8 +53,8 @@ omega_t, omega_r, alpha, g = symbols
 a_t, a_r = BosonOp("a_t"), BosonOp("a_r")
 
 H_0 = (
-    -omega_t * Dagger(a_t) * a_t + omega_r * Dagger(a_r) * a_r
-    + alpha * Dagger(a_t)**2 * a_t**2 / 2
+    omega_t * Dagger(a_t) * a_t + omega_r * Dagger(a_r) * a_r
+    - alpha * Dagger(a_t)**2 * a_t**2 / 2
 )
 
 H_p = (
@@ -133,7 +133,7 @@ E_eff_01 = E_eff.subs({N_a_t: 0, N_a_r: 1})
 E_eff_10 = E_eff.subs({N_a_t: 1, N_a_r: 0})
 E_eff_11 = E_eff.subs({N_a_t: 1, N_a_r: 1})
 
-chi = E_eff_11 - E_eff_10 - E_eff_01 + E_eff_00
+chi = (E_eff_11 - E_eff_10 - E_eff_01 + E_eff_00) / 2
 
 display_eq(r"\chi", chi)
 ```
@@ -160,8 +160,8 @@ a_t = sympy.KroneckerProduct(a, sympy.eye(N))
 a_r = sympy.KroneckerProduct(sympy.eye(N), a)
 
 H_0 = (
-    -omega_t * Dagger(a_t) * a_t + omega_r * Dagger(a_r) * a_r
-    + alpha * Dagger(a_t)**2 * a_t**2 / 2
+    omega_t * Dagger(a_t) * a_t + omega_r * Dagger(a_r) * a_r
+    - alpha * Dagger(a_t)**2 * a_t**2 / 2
 )
 H_p = (
     -g * (Dagger(a_t) - a_t) * (Dagger(a_r) - a_r)
@@ -193,7 +193,7 @@ H_tilde.shape
 Finally, we compute the dispersive shift from the second order correction to the energies
 
 ```{code-cell} ipython3
-chi = (H_tilde[0, 0, 2] - H_tilde[1, 1, 2] - H_tilde[2, 2, 2] + H_tilde[3, 3, 2])[0, 0]
+chi = (H_tilde[0, 0, 2] - H_tilde[1, 1, 2] - H_tilde[2, 2, 2] + H_tilde[3, 3, 2])[0, 0] / 2
 
 display_eq(r"\chi", chi)
 ```
