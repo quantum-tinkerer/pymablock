@@ -15,22 +15,36 @@ mystnb:
 
 # Supercurrent through an interacting quantum dot
 
-We calculate the fourth-order Josephson current through a Coulomb-blockaded
-dot, including its parity-dependent sign.[^glazman] Each superconducting lead
-is represented by one paired orbital, as in the
-[supercurrent tutorial](../tutorial/andreev_supercurrent.md).
+How does the Josephson current through a Coulomb-blockaded quantum dot depend
+on the dot's charge? The effective model keeps only the two spin orbitals of the
+dot and eliminates the superconducting leads to fourth order in tunneling. Its
+energies $E_n(\Phi)$ in each charge sector $n$ give the current
+$I_n=(2e/\hbar)\,\partial_\Phi E_n$, where $\Phi$ is the superconducting phase
+difference. For an empty dot,
+
+$$
+I_0=\frac{2e}{\hbar}\,
+\frac{4t_L^2t_R^2\,u_Lv_Lu_Rv_R\,(2E_L+2E_R+b)}{b\,(E_L+E_R)(E_L+a)(E_R+a)}
+\sin\Phi .
+$$
+
+A singly occupied dot carries a current of the opposite sign: it is a
+$\pi$ junction.[^glazman]
 
 ## Model
 
-The dot has charging energy $U$ and offset charge $n_g$. The lead
-quasiparticles have energies $E_\alpha$ and real coherence factors satisfying
-$u_\alpha^2+v_\alpha^2=1$, with pairing amplitudes
-$\Gamma_\alpha=2E_\alpha u_\alpha v_\alpha$.
-The tunneling phase is half the condensate phase difference $\Phi$,
-so $I=(2e/\hbar)\partial_\Phi E$.
+The dot has spin orbitals $d_\uparrow,d_\downarrow$. Relative to the empty dot,
+adding one electron costs $a$ and adding two costs $b$. With charging energy $U$
+and offset charge $n_g$, these are $a=U(1/2-n_g)$ and $b=2U(1-n_g)$. As in the
+[supercurrent tutorial](../tutorial/andreev_supercurrent.md), each lead
+$\alpha=L,R$ is a single paired orbital. Its Bogoliubov quasiparticles
+$\gamma_{\alpha\sigma}$ have energy $E_\alpha$. The full Hamiltonian is
+$H=H_0+V_L+V_R$, with
 
-The energies $a$ and $b$ are measured from the empty dot. All parameters remain
-symbolic.
+$$
+H_0 = a(n_\uparrow+n_\downarrow) + (b-2a)\,n_\uparrow n_\downarrow
++ \sum_{\alpha\sigma} E_\alpha N_{\gamma_{\alpha\sigma}}.
+$$
 
 ```{code-cell} ipython3
 import sympy as sp
@@ -41,124 +55,140 @@ from sympy.physics.quantum.fermion import FermionOp
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.second_quantization import Embedding
+```
 
-Phi = sp.Symbol("Phi", real=True)
+```{code-cell} ipython3
+a, b, Phi = sp.symbols("a b Phi", real=True)
+E_L, E_R, t_L, t_R = sp.symbols("E_L E_R t_L t_R", positive=True)
+u_L, v_L, u_R, v_R = sp.symbols("u_L v_L u_R v_R", positive=True)
+
 d_up, d_down = FermionOp("d_up"), FermionOp("d_down")
-gamma = {
-    lead: (FermionOp(f"gamma_{lead}_up"), FermionOp(f"gamma_{lead}_down"))
-    for lead in ("L", "R")
-}
-U = sp.Symbol("U", positive=True)
-ng = sp.Symbol("n_g", real=True)
-a, b = sp.symbols("a b", real=True)
-EL, ER, tL, tR = sp.symbols("E_L E_R t_L t_R", positive=True)
-GammaL, GammaR = sp.symbols("Gamma_L Gamma_R", positive=True)
-uL, uR, vL, vR = sp.symbols("u_L u_R v_L v_R", real=True)
-charge = sp.Symbol("n", integer=True)
-charging = U * (charge - ng)**2 / 2
-charging_energies = {energy: sp.expand(charging.subs(charge, n) - charging.subs(charge, 0))
-                     for energy, n in ((a, 1), (b, 2))}
-for energy, expression in charging_energies.items():
-    display(sp.Eq(energy, expression))
-lead_parameters = {
-    "L": (EL, uL, vL, tL, Phi / 2),
-    "R": (ER, uR, vR, tR, sp.S.Zero),
-}
-H0 = a * (N(d_up) + N(d_down)) + (b - 2 * a) * N(d_up) * N(d_down)
-couplings = {}
-for lead, (energy, u, v, hopping, phase) in lead_parameters.items():
-    up, down = gamma[lead]
-    H0 += energy * (N(up) + N(down))
-    forward = hopping * sp.exp(sp.I * phase) * (
-        Dagger(d_up) * (u * up - v * Dagger(down))
-        + Dagger(d_down) * (u * down + v * Dagger(up))
-    )
-    couplings[lead] = forward + Dagger(forward)
-V = sum(couplings.values())
-display(sp.Eq(sp.Symbol("H_0", commutative=False), H0))
-for lead, coupling in couplings.items():
-    display(sp.Eq(sp.Symbol(f"V_{lead}", commutative=False), coupling))
+gamma_L_up, gamma_L_down = FermionOp("gamma_L_up"), FermionOp("gamma_L_down")
+gamma_R_up, gamma_R_down = FermionOp("gamma_R_up"), FermionOp("gamma_R_down")
+
+H_0 = (
+    a * (N(d_up) + N(d_down))
+    + (b - 2 * a) * N(d_up) * N(d_down)
+    + E_L * (N(gamma_L_up) + N(gamma_L_down))
+    + E_R * (N(gamma_R_up) + N(gamma_R_down))
+)
 ```
 
-## Effective dot Hamiltonian
+The lead electrons are $c_{\alpha\uparrow}=u_\alpha\gamma_{\alpha\uparrow}
+-v_\alpha\gamma_{\alpha\downarrow}^\dagger$ and
+$c_{\alpha\downarrow}=u_\alpha\gamma_{\alpha\downarrow}
++v_\alpha\gamma_{\alpha\uparrow}^\dagger$, with real coherence factors
+$u_\alpha^2+v_\alpha^2=1$. Tunneling with amplitude $t_\alpha$ is
 
-We retain both dot fermions and eliminate the lead quasiparticles. Counting
-left and right tunneling separately selects the leading current contribution
-at order $(2,2)$.
+$$
+V_\alpha = t_\alpha e^{i\phi_\alpha}
+\sum_\sigma d_\sigma^\dagger c_{\alpha\sigma} + \mathrm{h.c.},
+\qquad \phi_L=\Phi/2,\quad \phi_R=0.
+$$
+
+The left phase is half the condensate phase difference, because a Cooper pair
+carries two electrons.
 
 ```{code-cell} ipython3
-dot = tuple(sorted((d_up, d_down), key=lambda op: str(op.name)))
-quasiparticles = tuple(op for pair in gamma.values() for op in pair)
-modes = tuple(sorted(dot + quasiparticles, key=lambda op: str(op.name)))
+c_L_up = u_L * gamma_L_up - v_L * Dagger(gamma_L_down)
+c_L_down = u_L * gamma_L_down + v_L * Dagger(gamma_L_up)
+c_R_up = u_R * gamma_R_up - v_R * Dagger(gamma_R_down)
+c_R_down = u_R * gamma_R_down + v_R * Dagger(gamma_R_up)
+
+T_L = t_L * sp.exp(sp.I * Phi / 2) * (Dagger(d_up) * c_L_up + Dagger(d_down) * c_L_down)
+T_R = t_R * (Dagger(d_up) * c_R_up + Dagger(d_down) * c_R_down)
+V_L = T_L + Dagger(T_L)
+V_R = T_R + Dagger(T_R)
+```
+
+## What is kept
+
+We keep all four states of the dot and put both leads in their quasiparticle
+vacuum. Each dot fermion therefore represents itself, and every lead
+quasiparticle is reached only in virtual processes.
+
+```{code-cell} ipython3
 embedding = Embedding(
-    {op: op for op in dot},
-    reference=dict.fromkeys(modes, 0),
+    {d_up: d_up, d_down: d_down},
+    reference={d_up: 0, d_down: 0,
+               gamma_L_up: 0, gamma_L_down: 0, gamma_R_up: 0, gamma_R_down: 0},
 )
-H, *_ = block_diagonalize(
-    {(0, 0): H0, (1, 0): couplings["L"], (0, 1): couplings["R"]},
-    subspace_eigenvectors=embedding,
-)
-h0 = H[0, 0, 0, 0].as_expr()
-hL, hR = H[0, 0, 2, 0], H[0, 0, 0, 2]
-hLR = H[0, 0, 2, 2]
-assert all(part.filter_terms(((1, -1), (-1, 1)), keep=True).is_zero
-           for part in (hL, hR))
-# Pair annihilation leaves the empty dot; its coefficient is Delta_ind.
-pair_L, pair_R = [
-    part.filter_terms(((1, 1),), keep=True).as_expr().coeff(d_up * d_down)
-    for part in (hL, hR)
-]
-pairing = sp.factor(pair_L) + sp.factor(pair_R)
-display(sp.Eq(sp.Symbol("Delta_ind"), pairing))
 ```
 
-## Charge-resolved current
+## Perturbation theory
 
-The induced pairing mixes the empty and doubly occupied dot states. Their
-energies therefore include the pairing contribution as well as the diagonal
-fourth-order term; the odd doublet does not mix. Differentiating the resulting
-phase-dependent energies gives the three charge-sector currents below.
+We count left and right tunneling as separate perturbations, so the effective
+Hamiltonian is a series in $t_L$ and $t_R$. The phase-dependent energy first
+appears at order $t_L^2t_R^2$. At second order, tunneling also induces pairing
+on the dot, which mixes the empty and doubly occupied states.
+`fully_diagonalize=(0,)` removes this mixing perturbatively, so that the
+effective Hamiltonian depends only on $n_\uparrow$ and $n_\downarrow$.
 
 ```{code-cell} ipython3
-coherence = uL * vL * uR * vR
-currents = []
-diagonal_LR = hLR.filter_terms(((0, 0),), keep=True).as_expr()
-pair_mixing = pair_L * sp.conjugate(pair_R) + pair_R * sp.conjugate(pair_L)
-for occupations in ((0, 0), (0, 1), (1, 0), (1, 1)):
-    charge = sum(occupations)
-    values = dict(zip(map(N, dot), occupations))
-    correction = diagonal_LR.subs(values)
-    if charge != 1:
-        # Pairing mixes the empty and doubly occupied dot states.
-        other = dict(zip(map(N, dot), (1 - n for n in occupations)))
-        gap = h0.subs(values) - h0.subs(other)
-        correction += pair_mixing / gap
-    # Expose the phase factor in each denominator before extracting harmonics.
-    expanded = sp.Add(*(sp.factor_terms(term) for term in sp.Add.make_args(sp.expand(correction))))
-    plus = expanded.coeff(sp.exp(sp.I * Phi))
-    minus = expanded.coeff(sp.exp(sp.I * Phi), -1)
-    constant = sp.expand(expanded - plus * sp.exp(sp.I * Phi) - minus * sp.exp(-sp.I * Phi))
-    assert Phi not in constant.free_symbols
-    assert sp.factor(minus - plus) == 0
-    amplitude = sp.factor(plus / coherence)
-    current = sp.diff(2 * amplitude * sp.cos(Phi), Phi)
-    currents.append(current * GammaL * GammaR / (4 * EL * ER))
-assert currents[1] == currents[2]
-
-currents = [currents[i] for i in (0, 1, 3)]
-# The empty-dot branch includes both virtual quasiparticles and pair mixing.
-expected_empty = (GammaL * GammaR * tL**2 * tR**2 * (2 * EL + 2 * ER + b)
-                  * sp.sin(Phi) / (EL * ER * b * (EL + ER) * (EL + a) * (ER + a)))
-assert sp.cancel(currents[0] - expected_empty) == 0
-# Restore charging energy and gate voltage symbolically, for arbitrary U and n_g.
-currents_by_gate = [current.subs(charging_energies) for current in currents]
-for charge, current in enumerate(currents_by_gate):
-    display(sp.Eq(sp.Symbol(f"I_{charge}") / sp.Symbol("2e/hbar"), current))
+H_eff, *_ = block_diagonalize(
+    {(0, 0): H_0, (1, 0): V_L, (0, 1): V_R},
+    subspace_eigenvectors=embedding,
+    fully_diagonalize=(0,),
+)
+H_22 = H_eff[0, 0, 2, 2].as_expr()
 ```
 
-The odd-charge ground state carries a $\pi$-junction current, opposite to the
-even sectors. These branch expressions apply away from charge degeneracies;
-near $b=0$, the retained even block must be diagonalized together.
+## Result and check
+
+In each charge sector, we evaluate the energy and differentiate it with
+respect to $\Phi$. We write currents in units of $2e/\hbar$.
+
+```{code-cell} ipython3
+def current(n_up, n_down):
+    energy = H_22.subs({N(d_up): n_up, N(d_down): n_down})
+    return sp.factor(sp.simplify(sp.diff(energy, Phi).rewrite(sp.cos)))
+
+I_0, I_1, I_2 = current(0, 0), current(1, 0), current(1, 1)
+display(sp.Eq(sp.Symbol("I_0"), I_0))
+display(sp.Eq(sp.Symbol("I_1"), I_1))
+display(sp.Eq(sp.Symbol("I_2"), I_2))
+```
+
+The current is odd in $\Phi$, as time-reversal symmetry requires, and the two
+odd states carry the same current. The empty-dot current matches the formula at
+the top of the page.
+
+```{code-cell} ipython3
+assert all(sp.simplify(I.subs(Phi, -Phi) + I) == 0 for I in (I_0, I_1, I_2))
+assert sp.simplify(current(0, 1) - I_1) == 0
+
+expected_I_0 = (4 * t_L**2 * t_R**2 * u_L * v_L * u_R * v_R * (2 * E_L + 2 * E_R + b)
+                * sp.sin(Phi) / (b * (E_L + E_R) * (E_L + a) * (E_R + a)))
+assert sp.simplify(I_0 - expected_I_0) == 0
+```
+
+Two further checks test the physics. A particle–hole transformation of the dot
+exchanges the empty and doubly occupied states. It maps $a\to a-b$ and
+$b\to-b$, so it must turn $I_0$ into $I_2$ and leave $I_1$ unchanged. Second,
+the current must change sign between an empty dot ($n_g=0$) and a singly
+occupied dot ($n_g=1$), the $\pi$-junction behavior found by Glazman and
+Matveev.[^glazman]
+
+```{code-cell} ipython3
+particle_hole = {a: a - b, b: -b}
+assert sp.simplify(I_0.subs(particle_hole, simultaneous=True) - I_2) == 0
+assert sp.simplify(I_1.subs(particle_hole, simultaneous=True) - I_1) == 0
+
+U, n_g = sp.symbols("U n_g", positive=True)
+charge_energies = {a: U * (sp.Rational(1, 2) - n_g), b: 2 * U * (1 - n_g)}
+point = {U: 1, E_L: 2, E_R: 3, Phi: sp.pi / 2}
+assert I_0.subs(charge_energies).subs(n_g, 0).subs(point) > 0
+assert I_1.subs(charge_energies).subs(n_g, 1).subs(point) < 0
+```
+
+## Discussion
+
+Even charge states carry a positive current, and the odd state carries a
+negative one. In the odd state, transferring a Cooper pair reverses the order of
+the two spins on the dot, which contributes a fermionic minus sign. The
+expressions hold away from charge degeneracies. Near $b=0$ the empty and doubly
+occupied states are degenerate, so their mixing must be treated exactly rather
+than perturbatively.
 
 [^glazman]: L. I. Glazman and K. A. Matveev,
     [Resonant Josephson current through Kondo impurities in a tunnel barrier](http://jetpletters.ru/ps/1121/article_16988.pdf),
