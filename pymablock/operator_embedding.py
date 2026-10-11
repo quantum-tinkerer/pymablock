@@ -503,7 +503,9 @@ class _Lattice:
         Call ``transform(coefficient, output, amplitude)`` in source coordinates,
         where output contains the final target occupations and amplitude includes
         ladder factors. Translate returned coefficients back to the intermediate
-        target occupations used by NOF. The callback owns the transformation rule.
+        target occupations used by NOF. Source-dependent coefficients are extended
+        by zero outside this input lattice; constants need no extension guard.
+        The callback owns the transformation rule on the lattice.
         """
         terms = {}
         coefficients = value.terms
@@ -512,7 +514,7 @@ class _Lattice:
             coefficient = self.evaluate_target_numbers(coefficients[powers], middle)
             result = transform(coefficient, output, amplitude)
             incoming = {n: n + max(p, 0) for n, p in zip(self._target_numbers, powers)}
-            terms[powers] = result.xreplace(
+            mapped = result.xreplace(
                 {
                     q: expression.xreplace(incoming)
                     for q, expression in zip(
@@ -520,6 +522,13 @@ class _Lattice:
                     )
                 }
             )
+            if result.free_symbols.intersection(self.source_occupations):
+                # The inverse occupation map is valid only on the input lattice.
+                # Multiplying by the projector would evaluate off-lattice poles
+                # before their zero weight can suppress them.
+                support = self.projector.terms[(0,) * len(powers)].xreplace(incoming)
+                mapped = sympy.Piecewise((mapped, sympy.Ne(support, 0)), (0, True))
+            terms[powers] = mapped
         return NumberOrderedForm(self.target_operators, terms, validate=False)
 
     def _validate_domains(self) -> None:

@@ -3,6 +3,7 @@
 import gc
 import pickle
 import weakref
+from itertools import product
 
 import numpy as np
 import pytest
@@ -18,6 +19,47 @@ from pymablock.operator_embedding import Embedding
 from pymablock.second_quantization import solve_scalar
 from pymablock.series import cauchy_dot_product, zero
 from pymablock.tests.second_quantization_helpers import nof_matrix
+
+
+@pytest.mark.parametrize("particle_hole", [False, True])
+def test_hubbard_dimer_fourth_order(particle_hole):
+    u = [FermionOp(f"c{i}u") for i in range(2)]
+    d = [FermionOp(f"c{i}d") for i in range(2)]
+    spins = [SigmaMinus(f"s{i}") for i in range(2)]
+    t, interaction = s.symbols("t U", positive=True)
+    down = d if particle_hole else [op.adjoint() for op in d]
+    generators = {sp: dn * up for sp, dn, up in zip(spins, down, u)}
+    references = [
+        {**dict(zip(u, q)), **dict(zip(d, q if particle_hole else [1 - n for n in q]))}
+        for q in product((0, 1), repeat=2)
+    ]
+    h0 = interaction * sum(
+        N(up) * (1 - N(dn) if particle_hole else N(dn)) for up, dn in zip(u, d)
+    )
+    hopping = -t * sum(
+        sign * (ops[0].adjoint() * ops[1] + ops[1].adjoint() * ops[0])
+        for ops, sign in ((u, 1), (d, -1 if particle_hole else 1))
+    )
+    embedded, *_ = block_diagonalize(
+        [h0, hopping],
+        subspace_eigenvectors=Embedding(generators, reference=references[0]),
+        symbols=[t],
+    )
+    reference, *_ = block_diagonalize(
+        [h0, hopping],
+        subspace_eigenvectors=Embedding({}, reference=references),
+        symbols=[t],
+    )
+    # Site-major fermion ordering gives the same phases as the spin generators.
+    actual = nof_matrix(embedded[0, 0, 4])
+    expected = (
+        8
+        * t**4
+        / interaction**3
+        * s.Matrix([[0, 0, 0, 0], [0, 1, -1, 0], [0, -1, 1, 0], [0, 0, 0, 0]])
+    )
+    assert (actual - reference[0, 0, 4]).applyfunc(s.simplify) == s.zeros(4)
+    assert (actual - expected).applyfunc(s.simplify) == s.zeros(4)
 
 
 @pytest.mark.parametrize("embedded", [False, True])
