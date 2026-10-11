@@ -15,20 +15,46 @@ mystnb:
 
 # Interaction-assisted hopping in the Crépel–Fu model
 
-We calculate assisted hopping and the induced pair interaction in the spinful
-honeycomb model of Crépel and Fu.[^crepel-fu]
+Crépel and Fu proposed that electrons doped into a charge-transfer insulator
+attract each other through virtual excitations of the insulator.[^crepel-fu]
+How do the hopping and interaction of the doped electrons arise? The effective
+model has spinless fermions $f_j$ on the B sites of a honeycomb lattice:
+
+$$
+H_{\rm eff} = \sum_{\langle ij\rangle}\left(t+\lambda n_k\right) f_i^\dagger f_j
++ \mathrm{h.c.} + \sum_{\langle ij\rangle} W n_i n_j + \dots,
+$$
+
+where $k$ is the third B site next to the A site that connects $i$ and $j$.
+To second order in the A–B hopping $t_0$,
+
+$$
+t=\frac{t_0^2}{\Delta+V_0},\qquad
+\lambda=\frac{V_0\,t_0^2}{\Delta\,(\Delta+V_0)}.
+$$
+
+A dopant on site $k$ makes the virtual excitation cheaper and so assists the
+hopping between $i$ and $j$.
 
 ## Model
 
-The cluster contains one doubly occupied A site and its three B neighbors.
-Equal-spin dopants occupy the B sites. The Hamiltonian includes a sublattice
-offset, on-site repulsions $U_A,U_B$, nearest-neighbor repulsion $V_0$, and
-hopping $t_0$.
+We use the smallest cluster that contains assisted hopping: one A site and its
+three B neighbors $j=0,1,2$. Each site has spin-up and spin-down orbitals,
+$a_\sigma$ and $b_{j\sigma}$, with occupations $n_A=n_{A\uparrow}+n_{A\downarrow}$
+and $n_{B_j}=n_{B_j\uparrow}+n_{B_j\downarrow}$. The unperturbed Hamiltonian is
 
-Omitted A neighbors remain doubly occupied. Each contributes $2V_0n_j$ to its
-B neighbor, preserving the lattice energy denominators. Our gap convention is
-$\Delta=\Delta_{\rm CF}+3V_0$, where the preprint defines
-$\Delta_{\rm CF}=\delta_0-U_A$.
+$$
+H_0 = \frac{\delta_0}{2}\Big(\sum_j n_{B_j} - n_A\Big)
++ U_A n_{A\uparrow}n_{A\downarrow} + U_B\sum_j n_{B_j\uparrow}n_{B_j\downarrow}
++ V_0\, n_A\sum_j n_{B_j} + 4V_0\sum_j n_{B_j}.
+$$
+
+Here $\delta_0$ is the sublattice energy offset, $U_A$ and $U_B$ are on-site
+repulsions, and $V_0$ is the nearest-neighbor repulsion. In the lattice, each B
+site has two more A neighbors. They stay doubly occupied and each adds
+$2V_0 n_{B_j}$, which gives the last term. We write
+$\delta_0=\Delta+U_A-3V_0$; thus $\Delta=\Delta_{\rm CF}+3V_0$ in terms of the
+gap $\Delta_{\rm CF}=\delta_0-U_A$ of Crépel and Fu.
 
 ```{code-cell} ipython3
 import sympy as sp
@@ -39,85 +65,129 @@ from sympy.physics.quantum.fermion import FermionOp
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.second_quantization import Embedding
-
-Delta, V0, UA, UB, t0 = sp.symbols("Delta V0 U_A U_B t_0", positive=True)
-
-def cluster(edges, num_a, num_b):
-    A = tuple((FermionOp(f"a{i}_up"), FermionOp(f"a{i}_down")) for i in range(num_a))
-    B = tuple((FermionOp(f"b{i}_up"), FermionOp(f"b{i}_down")) for i in range(num_b))
-    f = tuple(FermionOp(f"f{i}") for i in range(num_b))
-    nA = [sum(N(op) for op in site) for site in A]
-    nB = [sum(N(op) for op in site) for site in B]
-    degrees = [sum(j == site for _, j in edges) for site in range(num_b)]
-    delta0 = Delta + UA - 3 * V0
-    H0 = (delta0 * (sum(nB) - sum(nA)) / 2
-          + UA * sum(N(up) * N(down) for up, down in A)
-          + UB * sum(N(up) * N(down) for up, down in B)
-          + V0 * sum(nA[i] * nB[j] for i, j in edges)
-          + 2 * V0 * sum((3 - z) * n for z, n in zip(degrees, nB)))
-    V = -t0 * sum(
-        Dagger(B[j][s]) * A[i][s] + Dagger(A[i][s]) * B[j][s]
-        for i, j in edges for s in range(2)
-    )
-    reference = {**{op: 1 for site in A for op in site},
-                 **{op: 0 for site in B for op in site}}
-    embedding = Embedding({f[i]: B[i][0] for i in range(num_b)}, reference=reference)
-    return H0, V, embedding, A, B, f
-
-star = cluster(((0, 0), (0, 1), (0, 2)), 1, 3)
-H0, V, embedding, A, B, f = star
-display(sp.Eq(sp.Symbol("H_0", commutative=False), H0))
-display(sp.Eq(sp.Symbol("V", commutative=False), V))
 ```
 
-## Effective dopant Hamiltonian
-
-The embedding retains the B up-spin fermions. The other spin orbitals enter
-only through virtual states.
-
 ```{code-cell} ipython3
-H, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
-h2 = H[0, 0, 2]
-```
+Delta, V_0, U_A, U_B, t_0 = sp.symbols("Delta V_0 U_A U_B t_0", positive=True)
+delta_0 = Delta + U_A - 3 * V_0
 
-## Hopping and pair interaction
+a_up, a_down = FermionOp("a_up"), FermionOp("a_down")
+b_up = [FermionOp(f"b{j}_up") for j in range(3)]
+b_down = [FermionOp(f"b{j}_down") for j in range(3)]
 
-The occupation of $B_2$ distinguishes bare hopping from $B_0$ to $B_1$ from
-its assisted contribution. The diagonal term gives the pair interaction after
-subtracting the individual particle shifts.
-
-```{code-cell} ipython3
-# Powers (1, -1, 0) select hopping from B0 to B1, with B2 a spectator.
-hopping = h2.filter_terms(((1, -1, 0),), keep=True).as_expr()
-display(hopping)
-bare = sp.factor(hopping.subs(N(f[2]), 0).coeff(Dagger(f[1]) * f[0]))
-assisted = sp.factor(hopping.subs(N(f[2]), 1).coeff(Dagger(f[1]) * f[0]))
-lam = sp.factor(assisted - bare)
-assert sp.cancel(bare - t0**2 / (Delta + V0)) == 0
-assert sp.cancel(lam - V0 * t0**2 / (Delta * (Delta + V0))) == 0
-display(sp.Eq(sp.Symbol("t"), bare), sp.Eq(sp.Symbol("lambda"), lam))
-
-# Connected pair-density term with the third B site empty.
-diagonal = h2.filter_terms(((0, 0, 0),), keep=True).as_expr()
-pair_energy = diagonal.subs(N(f[2]), 0)
-interaction = sp.factor(
-    pair_energy.subs({N(f[0]): 1, N(f[1]): 1})
-    - pair_energy.subs({N(f[0]): 1, N(f[1]): 0})
-    - pair_energy.subs({N(f[0]): 0, N(f[1]): 1})
-    + pair_energy.subs({N(f[0]): 0, N(f[1]): 0})
+n_A = N(a_up) + N(a_down)
+n_B = sum(N(b_up[j]) + N(b_down[j]) for j in range(3))
+H_0 = (
+    delta_0 / 2 * (n_B - n_A)
+    + U_A * N(a_up) * N(a_down)
+    + U_B * sum(N(b_up[j]) * N(b_down[j]) for j in range(3))
+    + V_0 * n_A * n_B
+    + 4 * V_0 * n_B
 )
-# Independently sum the six one-hop virtual channels for 0, 1, and 2 dopants.
-shift0 = -6 * t0**2 / (Delta + 2 * V0)
-shift1 = -t0**2 / (Delta + V0 + UB) - 4 * t0**2 / (Delta + V0)
-shift2 = -2 * t0**2 / (Delta + UB) - 2 * t0**2 / Delta
-assert sp.cancel(interaction - (shift2 - 2 * shift1 + shift0)) == 0
-display(sp.Eq(sp.Symbol("W^{(2)}"), sp.apart(interaction, Delta)))
 ```
 
-These amplitudes reproduce the equal-spin sector of Crépel and Fu[^crepel-fu]
-without a large-$U_B$ approximation. A spectator changes the virtual
-charge-transfer energy and assists hopping; the induced pair interaction can
-have a different sign from the microscopic repulsions.
+The perturbation is hopping between the A site and its neighbors,
+
+$$
+V = -t_0\sum_{j\sigma}\left(b_{j\sigma}^\dagger a_\sigma
++ a_\sigma^\dagger b_{j\sigma}\right).
+$$
+
+```{code-cell} ipython3
+V = -t_0 * sum(
+    Dagger(b_up[j]) * a_up + Dagger(b_down[j]) * a_down
+    + Dagger(a_up) * b_up[j] + Dagger(a_down) * b_down[j]
+    for j in range(3)
+)
+```
+
+## What is kept
+
+The insulator has a doubly occupied A site and empty B sites. We follow Crépel
+and Fu and keep dopants of one spin only: the effective fermion $f_j$ is a
+spin-up electron on site $B_j$. All other configurations, including those with
+an A electron moved to a B site, are reached only in virtual processes.
+
+```{code-cell} ipython3
+f = [FermionOp(f"f{j}") for j in range(3)]
+embedding = Embedding(
+    {f[0]: b_up[0], f[1]: b_up[1], f[2]: b_up[2]},
+    reference={a_up: 1, a_down: 1,
+               b_up[0]: 0, b_up[1]: 0, b_up[2]: 0,
+               b_down[0]: 0, b_down[1]: 0, b_down[2]: 0},
+)
+```
+
+## Perturbation theory
+
+The hopping $V$ has no matrix elements inside the kept subspace, so the
+dopant Hamiltonian first appears at second order in $t_0$.
+
+```{code-cell} ipython3
+H_eff, *_ = block_diagonalize([H_0, V], subspace_eigenvectors=embedding)
+H_2 = H_eff[0, 0, 2]
+```
+
+## Result and check
+
+We select the term that moves a dopant from $B_0$ to $B_1$. The `filter_terms`
+powers $(1,-1,0)$ refer to $(f_0,f_1,f_2)$: one $f_0$ annihilated, one $f_1$
+created, and $f_2$ untouched.
+
+```{code-cell} ipython3
+hopping = H_2.filter_terms(((1, -1, 0),), keep=True).as_expr()
+display(hopping)
+```
+
+The amplitude without a spectator on $B_2$ is $t$; the spectator adds
+$\lambda$. Both agree with the equal-spin amplitudes of Crépel and
+Fu.[^crepel-fu]
+
+```{code-cell} ipython3
+t = sp.factor(hopping.subs(N(f[2]), 0).coeff(Dagger(f[1]) * f[0]))
+lam = sp.factor(hopping.subs(N(f[2]), 1).coeff(Dagger(f[1]) * f[0]) - t)
+display(sp.Eq(sp.Symbol("t"), t), sp.Eq(sp.Symbol("lambda"), lam))
+
+assert sp.simplify(t - t_0**2 / (Delta + V_0)) == 0
+assert sp.simplify(lam - V_0 * t_0**2 / (Delta * (Delta + V_0))) == 0
+```
+
+The pair interaction is the energy of two dopants minus the energies of each
+dopant alone, $W=E_{11}-E_{10}-E_{01}+E_{00}$. Here $E_{n_0n_1}$ is the
+second-order energy with $B_2$ empty.
+
+```{code-cell} ipython3
+diagonal = H_2.filter_terms(((0, 0, 0),), keep=True).as_expr().subs(N(f[2]), 0)
+
+def E(n_0, n_1):
+    return diagonal.subs({N(f[0]): n_0, N(f[1]): n_1})
+
+W = sp.apart(sp.factor(E(1, 1) - E(1, 0) - E(0, 1) + E(0, 0)), Delta)
+display(sp.Eq(sp.Symbol("W"), W))
+```
+
+As a check, we count virtual processes directly. Each energy is a sum of
+$-t_0^2/\epsilon$ over the processes that move one A electron to a B site, with
+$\epsilon$ the cost of that move. Without dopants there are six processes,
+each costing $\Delta+2V_0$. With one dopant, a spin-down electron hopping onto
+it costs $\Delta+V_0+U_B$, four other hops cost $\Delta+V_0$, and the hop onto the
+occupied spin-up orbital is blocked. With two dopants, two hops cost
+$\Delta+U_B$ and two cost $\Delta$.
+
+```{code-cell} ipython3
+E_00 = -6 * t_0**2 / (Delta + 2 * V_0)
+E_10 = -t_0**2 / (Delta + V_0 + U_B) - 4 * t_0**2 / (Delta + V_0)
+E_11 = -2 * t_0**2 / (Delta + U_B) - 2 * t_0**2 / Delta
+assert sp.simplify(W - (E_11 - 2 * E_10 + E_00)) == 0
+```
+
+## Discussion
+
+These amplitudes reproduce the equal-spin sector of Crépel and Fu without
+assuming large $U_B$. A spectator dopant lowers the cost of the virtual charge
+transfer, which makes $\lambda$ positive. The pair interaction $W$ combines
+several virtual channels and can be attractive even though every microscopic
+interaction is repulsive.
 
 [^crepel-fu]: V. Crépel and L. Fu,
     [Spin-triplet superconductivity from excitonic effect in doped insulators](https://doi.org/10.1073/pnas.2117735119),
