@@ -48,6 +48,45 @@ from pymablock.number_ordered_form import (
 __all__ = ["Embedding"]
 
 
+def _has_occupation_poles(
+    expression: sympy.Basic, occupations: Sequence[sympy.Symbol]
+) -> bool:
+    """Conservatively detect poles introduced by substituting occupations.
+
+    Scalar parameters are generic, as in energy-gap division. A polynomial
+    denominator with a nonzero, occupation-independent parameter coefficient
+    cannot vanish identically under any occupation substitution.
+    """
+    numbers = set(occupations)
+    if not expression.free_symbols & numbers:
+        return False
+    if isinstance(expression, sympy.Piecewise):
+        return any(
+            _has_occupation_poles(part, occupations)
+            for branch in expression.args
+            for part in branch
+        )
+    if (
+        expression.is_Add
+        or expression.is_Mul
+        or isinstance(expression, sympy.logic.boolalg.Boolean)
+    ):
+        return any(_has_occupation_poles(arg, occupations) for arg in expression.args)
+    if not expression.is_rational_function(*occupations):
+        return True
+    for power in expression.atoms(sympy.Pow):
+        if not power.base.free_symbols & numbers or power.exp.is_nonnegative:
+            continue
+        parameters = power.base.free_symbols - numbers
+        polynomial = power.base.as_poly(*parameters) if parameters else None
+        if polynomial is None or not any(
+            coefficient.is_zero is False and not coefficient.free_symbols & numbers
+            for coefficient in polynomial.coeffs()
+        ):
+            return True
+    return False
+
+
 class _ReferenceRow(sympy.AtomicExpr):
     """A reference key distinct from every user symbol, including after pickling."""
 
@@ -503,8 +542,8 @@ class _Lattice:
         Call ``transform(coefficient, output, amplitude)`` in source coordinates,
         where output contains the final target occupations and amplitude includes
         ladder factors. Translate returned coefficients back to the intermediate
-        target occupations used by NOF. Source-dependent coefficients are extended
-        by zero outside this input lattice; constants need no extension guard.
+        target occupations used by NOF. Coefficients with possible occupation poles
+        are extended by zero outside this input lattice; finite pullbacks need no guard.
         The callback owns the transformation rule on the lattice.
         """
         terms = {}
@@ -522,7 +561,7 @@ class _Lattice:
                     )
                 }
             )
-            if result.free_symbols.intersection(self.source_occupations):
+            if _has_occupation_poles(result, self.source_occupations):
                 # The inverse occupation map is valid only on the input lattice.
                 # Multiplying by the projector would evaluate off-lattice poles
                 # before their zero weight can suppress them.
