@@ -15,25 +15,32 @@ mystnb:
 
 # Two qubits connected through a tunable coupler
 
-How does a tunable coupler switch the interaction between two transmon qubits
-on and off? The effective model keeps two levels of each qubit:
+How does a tunable coupler switch the exchange between two transmon qubits on
+and off, and how much $ZZ$ coupling remains? The effective model keeps two
+levels of each qubit:
 
 $$
 H_{\rm eff} = \tilde\omega_1 N_{q_1} + \tilde\omega_2 N_{q_2}
-+ J\left(q_1^\dagger q_2 + q_2^\dagger q_1\right) + \zeta N_{q_1}N_{q_2}.
++ J\left(q_1^\dagger q_2 + q_2^\dagger q_1\right)
+- J\left(q_1 q_2 + q_2^\dagger q_1^\dagger\right)
++ \zeta N_{q_1}N_{q_2} + \dots
 $$
 
-The exchange coupling $J$ combines a direct term and a term mediated by the
-coupler,
+Here $\tilde\omega_j$ are the dressed qubit frequencies. The ellipsis contains
+fourth-order corrections to the exchange and pair terms, which we do not
+evaluate. The pair terms $q_1q_2$ and $q_2^\dagger q_1^\dagger$ change the
+number of qubit excitations by two. They are far off resonance and are usually
+dropped in a further rotating-wave approximation of the effective model. The
+exchange coupling $J$ combines a direct term and a term mediated by the coupler,
 
 $$
 J = -g_{12} + \frac{g_{1c}g_{2c}}{2}\sum_{j=1,2}
 \left(\frac{1}{\omega_j-\omega_c}-\frac{1}{\omega_j+\omega_c}\right),
 $$
 
-so tuning the coupler frequency $\omega_c$ can make $J$ vanish.[^yan] We also
-compute the residual $ZZ$ coupling $\zeta$ to fourth order, including all
-counter-rotating processes.
+so tuning the coupler frequency $\omega_c$ can make $J$ vanish.[^yan] At that
+point a small fourth-order $ZZ$ coupling $\zeta$ remains. We compute $\zeta$
+including all counter-rotating processes.
 
 ## Model
 
@@ -115,7 +122,8 @@ H_2, H_4 = H_eff[0, 0, 2], H_eff[0, 0, 4]
 
 The exchange coupling $J$ is the coefficient of $q_2^\dagger q_1$ in the
 second-order Hamiltonian. It reproduces Eq. (33) of Yan et al.,[^yan] whose
-direct coupling is $g_{12}^{\rm Yan}=-g_{12}$.
+direct coupling is $g_{12}^{\rm Yan}=-g_{12}$. The pair term $q_1q_2$ has
+coefficient $-J$.
 
 ```{code-cell} ipython3
 J = H_2.filter_terms(((1, -1),), keep=True).as_expr().coeff(Dagger(q_2) * q_1)
@@ -126,6 +134,9 @@ J_yan = -g_12 + g_1c * g_2c / 2 * (
     + 1 / (omega_2 - omega_c) - 1 / (omega_2 + omega_c)
 )
 assert sp.simplify(J - J_yan) == 0
+
+pair = H_2.filter_terms(((1, 1),), keep=True).as_expr().coeff(q_2 * q_1)
+assert sp.simplify(pair + J) == 0
 ```
 
 The terms with $\omega_j+\omega_c$ come from counter-rotating processes, which
@@ -136,8 +147,11 @@ create or destroy two excitations at once.
 The $ZZ$ coupling is the energy of the doubly excited state minus the energies
 of the singly excited states, $\zeta=E_{11}-E_{10}-E_{01}+E_{00}$. In terms of
 Pauli operators $Z_j=1-2N_{q_j}$, it adds $(\zeta/4)Z_1Z_2$ to the Hamiltonian.
+The fourth-order effective Hamiltonian must be Hermitian, which makes $\zeta$
+real.
 
 ```{code-cell} ipython3
+assert (H_4 - H_4.adjoint()).applyfunc(sp.cancel).is_zero
 diagonal = H_4.filter_terms(((0, 0),), keep=True).as_expr()
 
 def E(n_1, n_2):
@@ -146,7 +160,8 @@ def E(n_1, n_2):
 zeta = E(1, 1) - E(1, 0) - E(0, 1) + E(0, 0)
 ```
 
-Two limits check this result. Without the coupler, only the direct coupling
+This fourth-order $\zeta$ is our own calculation and does not reproduce a
+formula from Yan et al. Two limits check it. Without the coupler, only the direct coupling
 remains. Summing its virtual transitions from $|11\rangle$, $|10\rangle$,
 $|01\rangle$ and $|00\rangle$ gives
 
@@ -175,37 +190,78 @@ harmonic = {alpha_1: 0, alpha_2: 0, alpha_c: 0, omega_1: 5, omega_2: 7, omega_c:
 assert sp.simplify(zeta.subs(harmonic)) == 0
 ```
 
-The full $\zeta$ has dozens of terms, so we plot it instead of printing it.
-The parameters are illustrative values of $\omega/2\pi$ in GHz:
+The full $\zeta$ has dozens of terms, so we do not print it. Instead, we split
+it by its dependence on the couplings,
+
+$$
+\zeta = \zeta_{\rm direct} + \zeta_{\rm mixed} + \zeta_{\rm mediated},
+$$
+
+with terms proportional to $g_{12}^2$, $g_{12}g_{1c}g_{2c}$ and
+$g_{1c}^2g_{2c}^2$. No other combination of couplings contributes.
+
+```{code-cell} ipython3
+zeta_mediated = zeta.subs(g_12, 0)
+zeta_mixed = sp.expand(zeta - zeta_direct - zeta_mediated)
+```
+
+We evaluate these terms for illustrative parameters. All frequencies and
+couplings are given as $\omega/2\pi$ and $g/2\pi$ in GHz:
 $\omega_1=4.0$, $\omega_2=4.1$, all $\alpha_j=-0.2$, $g_{1c}=g_{2c}=0.1$ and
 $g_{12}=-0.007$.
 
 ```{code-cell} ipython3
 parameters = {omega_1: 4.0, omega_2: 4.1, alpha_1: -0.2, alpha_2: -0.2,
               alpha_c: -0.2, g_1c: 0.1, g_2c: 0.1, g_12: -0.007}
-J_of_wc = sp.lambdify(omega_c, J.subs(parameters))
-zeta_of_wc = sp.lambdify(omega_c, zeta.subs(parameters))
+omega_c_off = sp.nsolve(J.subs(parameters), omega_c, 5.7)
+display(sp.Eq(sp.Symbol(r"\omega_c^{\rm off}/2\pi"), omega_c_off))
+for name, part in [("direct", zeta_direct), ("mixed", zeta_mixed),
+                   ("mediated", zeta_mediated), ("total", zeta)]:
+    value_MHz = 1e3 * part.subs(parameters).subs(omega_c, omega_c_off)
+    display(sp.Eq(sp.Symbol(rf"\zeta_{{\rm {name}}}/2\pi"), sp.Float(value_MHz, 4)))
+```
 
+The values are in MHz at the coupler frequency where $J=0$. The mixed term
+nearly cancels the other two, leaving a residual of about $-5$ kHz. To plot
+both couplings against the coupler frequency, we evaluate each expression on a
+grid of $\omega_c$ values.
+
+```{code-cell} ipython3
 wc = np.linspace(4.7, 7.5, 200)
-fig, ax = plt.subplots()
-ax.plot(wc, 1e3 * J_of_wc(wc), label=r"$J$")
-ax.plot(wc, 1e3 * zeta_of_wc(wc), label=r"$\zeta$")
-ax.axhline(0, color="black", linewidth=0.5)
-ax.set_xlabel(r"$\omega_c$ (GHz)")
-ax.set_ylabel("coupling (MHz)")
-ax.legend();
+
+def in_MHz(expr):
+    # Broadcast, because zeta_direct does not depend on omega_c.
+    values = sp.lambdify(omega_c, expr.subs(parameters))(wc)
+    return 1e3 * np.broadcast_to(values, wc.shape)
+```
+
+The dotted line marks the coupler frequency where $J=0$.
+
+```{code-cell} ipython3
+fig, (ax_J, ax_zeta) = plt.subplots(1, 2, figsize=(10, 4))
+ax_J.plot(wc, in_MHz(J))
+ax_J.set_ylabel(r"$J/2\pi$ (MHz)")
+for name, part in [("direct", zeta_direct), ("mixed", zeta_mixed),
+                   ("mediated", zeta_mediated), ("total", zeta)]:
+    ax_zeta.plot(wc, in_MHz(part), label=name)
+ax_zeta.set_ylabel(r"$\zeta/2\pi$ (MHz)")
+ax_zeta.legend()
+for ax in (ax_J, ax_zeta):
+    ax.axhline(0, color="black", linewidth=0.5)
+    ax.axvline(omega_c_off, color="gray", linestyle=":")
+    ax.set_xlabel(r"$\omega_c/2\pi$ (GHz)")
 ```
 
 ## Discussion
 
 Above the qubit frequencies, the mediated exchange is negative and decreases
-in magnitude as the coupler moves away. It cancels the direct exchange at one
-coupler frequency, which switches the qubit interaction off. The $ZZ$ coupling
-requires anharmonicity and is much smaller than $J$ over most of this range.
-For these parameters it is also smallest close to the point where $J$
-vanishes. Near a resonance between a qubit state and a coupler or higher qubit
-level, that level must be kept in the effective model instead of being
-eliminated.
+in magnitude as the coupler moves away. At one coupler frequency it cancels the
+direct exchange, so the second-order exchange vanishes. The $ZZ$ coupling does
+not vanish there: its direct, mixed and mediated parts are each of order 1 MHz,
+and they nearly cancel to leave a few kHz. This residual $\zeta$ and the fourth-order
+corrections to exchange limit how completely the coupler turns the interaction
+off. Near a resonance between a qubit state and a coupler or higher qubit level,
+that level must be kept in the effective model instead of being eliminated.
 
 [^yan]: F. Yan et al.,
     [Tunable coupling scheme for implementing high-fidelity two-qubit gates](https://doi.org/10.1103/PhysRevApplied.10.054062),
