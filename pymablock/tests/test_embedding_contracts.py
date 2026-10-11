@@ -47,6 +47,26 @@ def test_mapped_coefficients_exclude_off_lattice_poles(particle_hole):
         assert_matrix_equal(nof_matrix(left * mapped), nof_matrix(left) * expected)
 
 
+@pytest.mark.parametrize("generic_gap", [False, True])
+def test_integer_pullback_guards_only_possible_occupation_poles(generic_gap):
+    a, s = BosonOp("a"), SigmaMinus("s")
+    lattice = Embedding({s: a}, reference={a: 0})._first_lattice
+    (q,) = lattice.source_occupations
+    omega, alpha = sp.symbols("omega alpha", nonzero=True)
+    # Integrality alone is insufficient: n=2 is outside the source spin domain.
+    denominator = omega + alpha * q if generic_gap else q - 2
+    mapped = lattice.map_transition_coefficients(
+        lattice.parse_target(1), lambda *_: 1 / denominator
+    )
+    if generic_gap:
+        # No occupation can eliminate the independent omega coefficient.
+        assert not mapped.has(sp.Piecewise)
+        expected = sp.diag(*(1 / (omega + alpha * n) for n in range(4)))
+    else:
+        expected = sp.diag(-sp.Rational(1, 2), -1, 0, 0)
+    assert_matrix_equal(nof_matrix(mapped, [range(4)]), expected)
+
+
 @pytest.mark.parametrize("reference", [0, 1])
 def test_normalized_generator_lift_and_attachment_contracts(reference):
     a, s = BosonOp("a"), SigmaMinus("s")

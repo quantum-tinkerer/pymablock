@@ -198,9 +198,12 @@ The solver reads `_column_target_states` from the embedding to evaluate the sour
 energy of column $j$ at $r_j+Mq$. The attached target operator already includes
 $T_j$. The lattice's `map_transition_coefficients` evaluates its transitions
 from $r_1+Mq$ and translates transformed coefficients back using $L(n-r_1)$.
-It guards source-occupation-dependent coefficients with a `Piecewise` that is zero
-outside the incoming lattice, so later NOF arithmetic cannot sample an off-lattice
-pole of this inverse map.
+It guards coefficients with possible occupation poles with a `Piecewise` that is
+zero outside the incoming lattice. The guard is omitted for rational expressions
+whose denominators cannot vanish under occupation substitution for generic scalar
+parameters: each denominator has a nonzero, occupation-independent coefficient
+when expanded in those parameters. This check also applies to every branch of
+existing `Piecewise` expressions; undecidable cases retain the lattice guard.
 The solver evaluates the target energy at each final target occupation and
 divides by the target-minus-source energy gap; it does not inspect occupation maps.
 Matrix shape consistency belongs to each block conversion, so an embedding can
