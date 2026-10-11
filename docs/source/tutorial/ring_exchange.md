@@ -14,9 +14,10 @@ kernelspec:
 
 At half filling and strong repulsion, each site of the Hubbard model holds one
 electron, and only its spin remains free. Virtual hopping of the electrons
-couples the spins. At second order in the hopping this gives the Heisenberg
-model. At fourth order, an electron can also hop around a square plaquette, and
-this generates a four-spin interaction called ring exchange.
+couples the spins, and at second order in the hopping this gives the Heisenberg
+model. Which interaction supplements Heisenberg exchange at fourth order?
+An electron can then hop around a square plaquette, and this generates a
+four-spin interaction called ring exchange.
 
 In this tutorial we derive the spin model of a single square plaquette directly
 from its Hubbard Hamiltonian. To fourth order in the hopping $t$, the result is
@@ -45,15 +46,15 @@ Here $\mathbf{S}_i$ is the spin-1/2 operator of site $i$, the sites $1, 2, 3, 4$
 go around the square, and $U$ is the on-site repulsion.
 The ring-exchange coefficient $J_c = 80t^4/U^3$ and the diagonal coupling $J_2$
 agree with the square-lattice result of MacDonald, Girvin, and Yoshioka [^mgy].
-The correction to $J_1$ differs from the lattice value, and we explain why at the
-end.
+The correction to $J_1$ differs from the lattice value, and we explain why
+below.
 
 [^mgy]: A. H. MacDonald, S. M. Girvin, and D. Yoshioka,
   [Phys. Rev. B **37**, 9753 (1988)](https://doi.org/10.1103/PhysRevB.37.9753).
   The explicit spin form used here is Eq. (11) of J.-Y. P. Delannoy *et al.*,
   [Phys. Rev. B **72**, 115114 (2005)](https://doi.org/10.1103/PhysRevB.72.115114).
 
-## The Hubbard plaquette
+## Model
 
 The full Hamiltonian is $H = H_0 + V$ with
 
@@ -68,9 +69,6 @@ $n_{i\sigma} = c^\dagger_{i\sigma} c_{i\sigma}$, and $\langle ij \rangle$ runs o
 the four edges of the square. The unperturbed Hamiltonian $H_0$ counts doubly
 occupied sites, and the hopping $V$ is the perturbation.
 
-The code mirrors these equations. We label the sites $0$ to $3$ in the code,
-following Python indexing.
-
 ```{code-cell} ipython3
 import sympy
 from sympy.physics.quantum import Dagger
@@ -82,14 +80,22 @@ from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.number_ordered_form import NumberOrderedForm
 from pymablock.second_quantization import Embedding
+```
 
+We label the sites $0$ to $3$ in the code, following Python indexing.
+
+```{code-cell} ipython3
 t, U = sympy.symbols("t U", positive=True)
 sites = range(4)
 edges = [(0, 1), (1, 2), (2, 3), (3, 0)]
 
 c_up = [FermionOp(rf"c_{{{i}\uparrow}}") for i in sites]
 c_down = [FermionOp(rf"c_{{{i}\downarrow}}") for i in sites]
+```
 
+The Hamiltonian then reads
+
+```{code-cell} ipython3
 H_0 = U * sum(N(c_up[i]) * N(c_down[i]) for i in sites)
 V = -t * sum(
     Dagger(c[i]) * c[j] + Dagger(c[j]) * c[i]
@@ -98,9 +104,15 @@ V = -t * sum(
 )
 ```
 
-## Spins from singly occupied sites
+## What is kept
 
-The effective model has one spin-1/2 per site. We define it with an
+The hopping conserves the number of electrons, so we stay at four electrons.
+States with one electron per site have $H_0 = 0$, while any other state has an
+empty and a doubly occupied site and costs at least $U$. For $t \ll U$ the
+low-energy states are therefore the 16 singly occupied states, and the effective
+model has one spin-1/2 per site.
+
+We define this effective model with an
 {class}`~pymablock.operator_embedding.Embedding`, which states how each spin
 operator acts on the electrons. The lowering operator $s_i$ of spin $i$ flips the
 electron on site $i$ from spin up to spin down:
@@ -123,8 +135,7 @@ embedding = Embedding(
 
 Raising spins one at a time from the reference moves an electron between the two
 spin orbitals of its own site, so every state reached has exactly one electron
-per site. The effective model therefore lives on the 16 singly occupied states,
-and every state with an empty or doubly occupied site is a virtual state.
+per site. Every state with an empty or doubly occupied site is a virtual state.
 Pymablock never lists either set of states: it works only with the reference and
 the four operator images above.
 
@@ -137,6 +148,8 @@ S^z_i = N_i - \tfrac{1}{2}, \qquad S^+_i = s_i^\dagger, \qquad S^-_i = s_i,
 $$
 
 and we use these relations to write the expected spin models in code.
+In displayed output, Pymablock writes $s_i$ as $\sigma_-^{(i)}$ and
+$s_i^\dagger$ as $\sigma_+^{(i)}$.
 
 ```{code-cell} ipython3
 def spin_vector(i):
@@ -152,7 +165,7 @@ def dot(i, j):
     return sum(a * b for a, b in zip(spin_vector(i), spin_vector(j)))
 ```
 
-## Effective Hamiltonian
+## Perturbation theory
 
 We pass the Hamiltonian and the embedding to
 {autolink}`~pymablock.block_diagonalize`. It returns the effective Hamiltonian
@@ -161,14 +174,10 @@ written in the spin operators $s_i$.
 
 ```{code-cell} ipython3
 H_tilde, *_ = block_diagonalize([H_0, V], subspace_eigenvectors=embedding)
-
 second_order = H_tilde[0, 0, 2].simplify()
-display(second_order.as_expr())
 ```
 
-The terms with $N_i N_j$ come from $S^z_i S^z_j$, and the terms
-$\sigma_+^{(i)} \sigma_-^{(j)}$ exchange spins on neighboring sites. Together they
-form the Heisenberg model,
+At second order we expect the Heisenberg model,
 
 $$
 H^{(2)}_{\textrm{eff}} = \frac{4t^2}{U} \sum_{\textrm{edges}}
@@ -176,21 +185,33 @@ H^{(2)}_{\textrm{eff}} = \frac{4t^2}{U} \sum_{\textrm{edges}}
 $$
 
 The constant $-1/4$ makes the energy vanish for parallel spins, which cannot hop
-because of the Pauli principle.
+because of the Pauli principle. The second-order correction agrees with this
+model exactly:
 
 ```{code-cell} ipython3
 heisenberg = 4 * t**2 / U * sum(dot(i, j) - sympy.Rational(1, 4) for i, j in edges)
 assert (second_order - NumberOrderedForm.from_expr(heisenberg)).simplify().is_zero
 ```
 
+The full expression has a term for each pair of neighboring spins. One of them
+exchanges spins $0$ and $1$ with amplitude $J_1/2 = 2t^2/U$, the coefficient of
+$S^+_0 S^-_1$ in $\mathbf{S}_0 \cdot \mathbf{S}_1$.
+In `filter_terms`, a power of $-1$ selects $s_i^\dagger$ and a power of $1$
+selects $s_i$.
+
+```{code-cell} ipython3
+display(second_order.filter_terms(((-1, 1, 0, 0),), keep=True).as_expr())
+```
+
 The third-order correction vanishes, because an electron cannot return to its
-starting configuration after three hops on a square. The fourth-order correction
-contains all the terms of the spin model above.
+starting configuration after three hops on a square.
 
 ```{code-cell} ipython3
 assert H_tilde[0, 0, 3].simplify().is_zero
 fourth_order = H_tilde[0, 0, 4].simplify()
 ```
+
+## Result and check
 
 Printed in spin operators, the fourth-order correction has many terms.
 We compare it with the spin model of the introduction instead.
@@ -212,16 +233,12 @@ process that flips all four spins, taking $\uparrow\downarrow\uparrow\downarrow$
 around the square to $\downarrow\uparrow\downarrow\uparrow$. A two-spin interaction
 flips at most two spins, so only the ring term contributes. Its coefficient is
 $J_c/2$, because the first two products in the ring term each contain
-$S^+_1 S^-_2 S^+_3 S^-_4 / 4$.
-In `filter_terms`, a power of $-1$ selects $s_i^\dagger$ and a power of $1$
-selects $s_i$.
+$S^+_0 S^-_1 S^+_2 S^-_3 / 4$.
 
 ```{code-cell} ipython3
 four_spin_flip = fourth_order.filter_terms(((-1, 1, -1, 1),), keep=True).as_expr()
 display(four_spin_flip)
 ```
-
-## Comparison with the square lattice
 
 MacDonald, Girvin, and Yoshioka derived the same expansion for the infinite
 square lattice. They found
@@ -234,16 +251,25 @@ $$
 
 where $J_3$ couples sites two lattice spacings apart along a row.
 At fourth order an electron hops four times, so each process stays within a
-cluster of at most four sites. A pair of diagonal neighbors and a ring of four
-sites each belong to a single plaquette, so $J_2$ and $J_c$ match our result.
-A plaquette has no third neighbors, so $J_3$ is absent here.
+connected cluster of at most four sites. Each lattice coupling is therefore a
+sum of contributions from three kinds of cluster:
 
-The fourth-order correction to $J_1$ is different, because each lattice bond
-belongs to two plaquettes. On a single bond, the fourth-order correction is
-$-16t^4/U^3$, and processes along an open chain of three sites do not change it.
-The plaquette adds $-4t^4/U^3$ from processes around the ring, which gives
-$-20t^4/U^3$. The second plaquette that shares each bond in the lattice adds
-another $-4t^4/U^3$, which gives the lattice value $-24t^4/U^3$.
+- A single bond contributes $-16t^4/U^3$ to the exchange across it.
+- An open chain of three sites adds nothing to its two bonds and couples its
+  end sites with $+4t^4/U^3$.
+- A plaquette, after subtracting the bonds and chains it contains, adds
+  $-4t^4/U^3$ to all six pairs of its sites, and the ring term with $80t^4/U^3$.
+
+Diagonal neighbors are the end sites of two three-site chains, one through each
+of the other two corners, and they share one plaquette. This gives
+$J_2 = (2 \times 4 - 4)t^4/U^3 = 4t^4/U^3$, the same on the lattice and on an
+isolated plaquette, which contains the same chains. Sites two spacings apart
+along a row are the ends of a single straight chain and share no plaquette, so
+$J_3 = 4t^4/U^3$. An isolated plaquette has no such pairs.
+
+The fourth-order correction to $J_1$ differs, because each lattice bond belongs
+to two plaquettes. The isolated plaquette gives $(-16 - 4)t^4/U^3 = -20t^4/U^3$,
+while the lattice gives $(-16 - 2 \times 4)t^4/U^3 = -24t^4/U^3$.
 
 ## Discussion
 
