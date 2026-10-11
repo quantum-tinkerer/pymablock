@@ -103,9 +103,9 @@ V = -t_0 * sum(
 
 ## What is kept
 
-The insulator has a doubly occupied A site and empty B sites. We follow Crépel
-and Fu and keep dopants of one spin only: the effective fermion $f_j$ is a
-spin-up electron on site $B_j$. All other configurations, including those with
+The insulator has a doubly occupied A site and empty B sites. We keep dopants
+of one spin only, the equal-spin sector of Crépel and Fu: the effective fermion
+$f_j$ is a spin-up electron on site $B_j$. All other configurations, including those with
 an A electron moved to a B site, are reached only in virtual processes.
 
 ```{code-cell} ipython3
