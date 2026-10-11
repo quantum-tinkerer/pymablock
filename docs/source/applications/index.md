@@ -1,33 +1,24 @@
 # Applications
 
-These advanced examples derive effective Hamiltonians for interacting quantum
-systems using [structured embeddings](../structured_embeddings.md). Each develops
-a model, identifies its retained degrees of freedom, and interprets the resulting
-couplings or observables. The calculations assume familiarity with
-[second quantization](../second_quantization.md) and perturbation theory and can
-be read independently. References on each page identify the source model and
-separate reproduced results from further calculations.
+These pages derive effective models of interacting quantum systems with
+[structured embeddings](../structured_embeddings.md). Each page states its
+question and result first, then builds the full Hamiltonian, chooses the states
+to keep, and checks the result against the literature, a limiting case, or a
+symmetry. The pages assume familiarity with
+[second quantization](../second_quantization.md) and perturbation theory, and
+can be read in any order.
 
-| Application | Retained degrees of freedom | Effective description |
-| --- | --- | --- |
-| [Supercurrent through an interacting dot](supercurrent.md) | Two dot fermions | Symbolic fourth-order current in all charge sectors |
-| [Crépel–Fu interactions](crepel_fu_interactions.md) | Equal-spin dopants on the B sublattice | Analytic assisted hopping and density interactions |
-| [Tunable coupler](tunable_coupler.md) | Two qubits | Exchange and fourth-order ZZ coupling, including counterrotating processes |
-| [Artificial cavity spin](cavity_spin.md) | A three- or four-state matrix | Engineered ladder amplitudes and second-order virtual corrections |
+- [Supercurrent through an interacting dot](supercurrent.md): how does the
+  Josephson current depend on the dot charge? The effective model keeps the two
+  dot spin orbitals.
+- [Crépel–Fu interactions](crepel_fu_interactions.md): how do dopants in a
+  charge-transfer insulator hop and interact? The effective model has
+  spin-polarized fermions on the B sublattice.
+- [Tunable coupler](tunable_coupler.md): how does a coupler switch the exchange
+  and $ZZ$ coupling between two qubits? The effective model keeps two levels of
+  each qubit.
+- [Artificial cavity spin](cavity_spin.md): can cavity Fock states driven
+  through an ancilla act as a large spin? The effective model is a $(2s+1)$-level
+  spin matrix.
 
-## Reproducing the calculations
-
-The pages are executable MyST notebooks. From the repository root,
-`pixi run -e docs docs-build` builds the documentation with their outputs,
-reusing cached calculations where available.
-
-To execute a single document and save its output as a notebook:
-
-```bash
-pixi run -e docs python docs/source/applications/reproduce.py supercurrent \
-    --output-dir /tmp/pymablock-applications
-```
-
-Replace `supercurrent` with `crepel_fu_interactions`, `tunable_coupler`, or
-`cavity_spin` to run another example. The
-{download}`reproduction script <reproduce.py>` uses the current Python environment.
+Each page is an executable notebook; the documentation build runs all of them.
