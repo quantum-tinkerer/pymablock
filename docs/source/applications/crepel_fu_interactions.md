@@ -25,7 +25,9 @@ H_{\rm eff} = \sum_{\langle ij\rangle}\left(t+\lambda n_k\right) f_i^\dagger f_j
 + \mathrm{h.c.} + \sum_{\langle ij\rangle} W n_i n_j + \dots,
 $$
 
-where $k$ is the third B site next to the A site that connects $i$ and $j$.
+Here $n_j=f_j^\dagger f_j$, and the sums run over pairs of neighboring sites
+of the B sublattice, which is a triangular lattice. Each such pair shares one A
+neighbor, and $k$ is the third B site next to that A site.
 To second order in the A–B hopping $t_0$,
 
 $$
