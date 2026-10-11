@@ -26,6 +26,7 @@ Dispersive shift of a resonator <tutorial/dispersive_shift.md>
 Transmon qubit in a resonator <tutorial/transmon_resonator.md>
 Rabi model <tutorial/spin_rwa_floquet.md>
 tutorial/andreev_supercurrent.md
+Ring exchange <tutorial/ring_exchange.md>
 ```
 
 ```{toctree}
