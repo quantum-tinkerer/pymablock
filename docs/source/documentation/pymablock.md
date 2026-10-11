@@ -76,6 +76,7 @@
 
 See [structured embeddings](../structured_embeddings.md) for the generator-and-reference
 interface, physical examples, and the diagonal-Hamiltonian requirement.
+Import the class with `from pymablock.second_quantization import Embedding`.
 
 ```{eval-rst}
 .. autoclass:: pymablock.operator_embedding.Embedding(generators, reference)
