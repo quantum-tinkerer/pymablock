@@ -244,17 +244,18 @@ New pages follow the same standard.
 - **Fixed structure.** Use the sections Model, What is kept, Perturbation
   theory, Result and check, and Discussion.
 - **Math, then code.** Write each Hamiltonian as an equation, then as code whose
-  names match its symbols. Avoid generic builders and loops that hide terms;
-  a loop may mirror a sum in the equation.
+  names match its symbols. Avoid generic builders and loops that hide terms.
+  A short loop or comprehension that mirrors a sum in the equation is fine.
 - **Short cells.** Keep cells to about 15 lines, each doing the one thing that
   the preceding prose announces. Comment only what the prose does not explain.
 - **Public API only.** Extract results with `restrict`, `as_expr`,
   `filter_terms`, and `simplify`; never read private attributes.
 - **Explain the embedding.** Before `Embedding(...)`, say in one or two
   sentences which states are kept and why.
-- **Check physics.** Assert agreement with the literature, a limiting case, or
-  a symmetry, and cite the reference in the prose. Do not add
-  internal-consistency checks.
+- **Check physics.** Assert agreement with the literature, a limiting case, a
+  symmetry, or another physical constraint such as Hermiticity or a
+  conservation law. Cite references in the prose. Leave out checks that only
+  verify an implementation step.
 - **Plain prose.** Use short sentences and define every symbol at first use.
   Avoid implementation terms such as lattice, frame, or NOF. Say "effective
   model" and "full Hamiltonian".
