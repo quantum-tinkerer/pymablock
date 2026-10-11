@@ -18,9 +18,10 @@ mystnb:
 How does the Josephson current through a Coulomb-blockaded quantum dot depend
 on the dot's charge? The effective model keeps only the two spin orbitals of the
 dot and eliminates the superconducting leads to fourth order in tunneling. Its
-energies $E_n(\Phi)$ in each charge sector $n$ give the current
-$I_n=(2e/\hbar)\,\partial_\Phi E_n$, where $\Phi$ is the superconducting phase
-difference. For an empty dot,
+energy $E_n(\Phi)$ for dot charge $n$ gives the current carried by that charge
+state, $I_n=(2e/\hbar)\,\partial_\Phi E_n$, where $\Phi$ is the
+superconducting phase difference. At low temperature the junction carries the
+current of the ground-state charge. For an empty dot,
 
 $$
 I_0=\frac{2e}{\hbar}\,
@@ -28,8 +29,8 @@ I_0=\frac{2e}{\hbar}\,
 \sin\Phi .
 $$
 
-A singly occupied dot carries a current of the opposite sign: it is a
-$\pi$ junction.[^glazman]
+When the singly occupied dot is the ground state, the current has the
+opposite sign: the junction is a $\pi$ junction.[^glazman]
 
 ## Model
 
@@ -119,9 +120,23 @@ embedding = Embedding(
 
 We count left and right tunneling as separate perturbations, so the effective
 Hamiltonian is a series in $t_L$ and $t_R$. The phase-dependent energy first
-appears at order $t_L^2t_R^2$. At second order, tunneling also induces pairing
-on the dot, which mixes the empty and doubly occupied states.
-`fully_diagonalize=(0,)` removes this mixing perturbatively, so that the
+appears at order $t_L^2t_R^2$. At second order in one lead, tunneling induces
+pairing $d_\uparrow d_\downarrow$ on the dot, which mixes the empty and doubly
+occupied states. Because tunneling conserves spin, it induces no spin flips
+$d_\uparrow^\dagger d_\downarrow$. The `filter_terms` powers refer to
+$(d_\downarrow,d_\uparrow)$: $(1,1)$ annihilates a pair and $(1,-1)$ flips a
+spin.
+
+```{code-cell} ipython3
+H_pairing, *_ = block_diagonalize(
+    {(0, 0): H_0, (1, 0): V_L, (0, 1): V_R}, subspace_eigenvectors=embedding
+)
+H_20 = H_pairing[0, 0, 2, 0]
+assert not H_20.filter_terms(((1, 1),), keep=True).is_zero
+assert H_20.filter_terms(((1, -1), (-1, 1)), keep=True).is_zero
+```
+
+`fully_diagonalize=(0,)` removes the pairing perturbatively, so that the
 effective Hamiltonian depends only on $n_\uparrow$ and $n_\downarrow$.
 
 ```{code-cell} ipython3
@@ -162,29 +177,42 @@ expected_I_0 = (4 * t_L**2 * t_R**2 * u_L * v_L * u_R * v_R * (2 * E_L + 2 * E_R
 assert sp.simplify(I_0 - expected_I_0) == 0
 ```
 
-Two further checks test the physics. A particle–hole transformation of the dot
-exchanges the empty and doubly occupied states. It maps $a\to a-b$ and
-$b\to-b$, so it must turn $I_0$ into $I_2$ and leave $I_1$ unchanged. Second,
-the current must change sign between an empty dot ($n_g=0$) and a singly
-occupied dot ($n_g=1$), the $\pi$-junction behavior found by Glazman and
-Matveev.[^glazman]
+A particle–hole transformation of the dot exchanges the empty and doubly
+occupied states. It maps $a\to a-b$ and $b\to-b$, so it must turn $I_0$ into
+$I_2$ and leave $I_1$ unchanged.
 
 ```{code-cell} ipython3
 particle_hole = {a: a - b, b: -b}
 assert sp.simplify(I_0.subs(particle_hole, simultaneous=True) - I_2) == 0
 assert sp.simplify(I_1.subs(particle_hole, simultaneous=True) - I_1) == 0
+```
 
+The ground state is empty for $n_g<1/2$, singly occupied for
+$1/2<n_g<3/2$, and doubly occupied for $n_g>3/2$. The equilibrium current must
+be positive in the even ground states and negative in the odd one, the
+$\pi$-junction behavior found by Glazman and Matveev.[^glazman] We check this at
+one gate value in each range. Excited charge states need not follow this
+pattern: at $n_g=0$ the doubly occupied state carries a negative current.
+
+```{code-cell} ipython3
 U, n_g = sp.symbols("U n_g", positive=True)
 charge_energies = {a: U * (sp.Rational(1, 2) - n_g), b: 2 * U * (1 - n_g)}
 point = {U: 1, E_L: 2, E_R: 3, Phi: sp.pi / 2}
-assert I_0.subs(charge_energies).subs(n_g, 0).subs(point) > 0
-assert I_1.subs(charge_energies).subs(n_g, 1).subs(point) < 0
+
+def at_gate(I, gate):
+    return I.subs(charge_energies).subs(n_g, gate).subs(point)
+
+assert at_gate(I_0, sp.Rational(1, 4)) > 0
+assert at_gate(I_1, 1) < 0
+assert at_gate(I_2, sp.Rational(7, 4)) > 0
+assert at_gate(I_2, 0) < 0
 ```
 
 ## Discussion
 
-Even charge states carry a positive current, and the odd state carries a
-negative one. In the odd state, transferring a Cooper pair reverses the order of
+In equilibrium, an even ground state carries a positive current and the odd
+ground state a negative one. The branch currents $I_n$ of excited charge states
+can have either sign. In the odd state, transferring a Cooper pair reverses the order of
 the two spins on the dot, which contributes a fermionic minus sign. The
 expressions hold away from charge degeneracies. Near $b=0$ the empty and doubly
 occupied states are degenerate, so their mixing must be treated exactly rather
