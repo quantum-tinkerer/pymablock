@@ -14,11 +14,13 @@ can be read in any order.
 - [Crépel–Fu interactions](crepel_fu_interactions.md): how do dopants in a
   charge-transfer insulator hop and interact? The effective model has
   spin-polarized fermions on the B sublattice.
-- [Tunable coupler](tunable_coupler.md): how does a coupler switch the exchange
-  and $ZZ$ coupling between two qubits? The effective model keeps two levels of
-  each qubit.
+- [Tunable coupler](tunable_coupler.md): how does a coupler switch off the
+  exchange between two qubits, and how much $ZZ$ coupling remains? The effective
+  model keeps two levels of each qubit.
 - [Artificial cavity spin](cavity_spin.md): can cavity Fock states driven
   through an ancilla act as a large spin? The effective model is a $(2s+1)$-level
   spin matrix.
 
-Each page is an executable notebook; the documentation build runs all of them.
+Each page is an executable notebook. From the repository root,
+`pixi run -e docs docs-build` builds the documentation and executes the pages,
+reusing cached notebook execution.
