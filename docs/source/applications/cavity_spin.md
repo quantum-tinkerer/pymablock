@@ -32,24 +32,14 @@ $s=3/2$, and compute the second-order correction for $s=1$.
 ## Model
 
 A cavity mode $c$ has dispersive shift $\chi$ to an ancilla qubit with states
-$|g\rangle,|e\rangle$. A comb of drive tones $k=0,\ldots,2s$ acts on the
-ancilla. Each tone has amplitude $\Omega$ and phase $\phi_k$, and tone $k$ is
-resonant when the cavity holds $k$ photons. We work in the rotating-wave
-approximation for the carrier frequencies and keep all comb tones. An integer
-ladder $\ell$ (a Floquet index) records the detuning $(k-n)\chi$ of tone $k$ in
-cavity sector $n$; it contributes $\chi N_\ell$ to the energy.
-
-In sector $n\le 2s$, the resonant tone dresses the ancilla into states
-$|\pm_n\rangle$ with energies $\pm\Omega/2$. We write the ancilla as a
-two-by-two matrix in this dressed basis. Its columns in the $(g,e)$ basis form
-
-$$
-R_n = \frac{1}{\sqrt2}\begin{pmatrix}
-e^{i\phi_n/2} & -e^{i\phi_n/2}\\ e^{-i\phi_n/2} & e^{-i\phi_n/2}
-\end{pmatrix}.
-$$
-
-In sector $n=2s+1$ no tone is resonant, and $R_n$ is the identity.
+$|g\rangle,|e\rangle$ and lowering operator $\sigma^-=|g\rangle\langle e|$. A
+comb of drive tones $k=0,\ldots,2s$ acts on the ancilla. Each tone has
+amplitude $\Omega$ and phase $\phi_k$, and tone $k$ is resonant when the cavity
+holds $k$ photons. We work in the rotating-wave approximation for the carrier
+frequencies and keep all comb tones. The Floquet shift operator $\ell$ raises
+an integer Floquet index, the eigenvalue of $N_\ell$. This index records the
+detuning $(k-n)\chi$ of tone $k$ in cavity sector $n$ and contributes
+$\chi N_\ell$ to the energy.
 
 ```{code-cell} ipython3
 import sympy as sp
@@ -69,7 +59,21 @@ varphi = sp.Symbol("varphi", real=True)
 c, ell = BosonOp("c"), LadderOp("ell")
 sigma_minus = sp.Matrix([[0, 1], [0, 0]])
 g, e = sp.diag(1, 0), sp.diag(0, 1)
+```
 
+In sector $n\le 2s$, the resonant tone dresses the ancilla into states
+$|\pm_n\rangle$ with energies $\pm\Omega/2$. We write the ancilla as a
+two-by-two matrix in this dressed basis. Its columns in the $(g,e)$ basis form
+
+$$
+R_n = \frac{1}{\sqrt2}\begin{pmatrix}
+e^{i\phi_n/2} & -e^{i\phi_n/2}\\ e^{-i\phi_n/2} & e^{-i\phi_n/2}
+\end{pmatrix}.
+$$
+
+In sector $n=2s+1$ no tone is resonant, and $R_n$ is the identity.
+
+```{code-cell} ipython3
 def phases(s):
     return sp.symbols(f"phi_0:{2 * s + 1}", real=True)
 
@@ -83,8 +87,8 @@ def R(n, s):
 
 The projector $P_n$ onto $n$ photons enters every term. We write it as the
 polynomial in $N_c$ that equals one at $N_c=n$ and zero at the other values
-$0,\ldots,2s+1$. To second order, processes starting from the kept states never
-leave this range of photon numbers.
+$0,\ldots,2s+1$. This range is enough through second order: a second-order
+term has one intermediate state, which holds at most $2s+1$ photons.
 
 ```{code-cell} ipython3
 def P(n, s):
@@ -109,7 +113,7 @@ perturbation. With $\sigma_n^-=R_n^\dagger\sigma^-R_n$ the ancilla lowering
 operator in the dressed basis,
 
 $$
-V_{\rm comb} = \sum_{n=0}^{2s+1}\sum_{k\ne n} \frac{\Omega}{2}e^{i\phi_k}
+V_{\rm comb} = \sum_{n=0}^{2s+1}\ \sum_{k=0,\,k\ne n}^{2s} \frac{\Omega}{2}e^{i\phi_k}
 P_n\,\sigma_n^-\,(\ell^\dagger)^{k-n} + \mathrm{h.c.}
 $$
 
@@ -162,19 +166,32 @@ other states, including the lower dressed branch and nonzero Floquet indices,
 appear only in virtual processes.
 
 ```{code-cell} ipython3
-H_eff = {}
-for s in (sp.Integer(1), sp.Rational(3, 2)):
-    kept = Embedding({}, reference=[{c: n, ell: 0} for n in range(2 * s + 1)])
-    H_eff[s], *_ = block_diagonalize(
-        [H_0(s), V_comb(s) + V_drive(s)], subspace_eigenvectors=kept
-    )
+spins = (sp.Integer(1), sp.Rational(3, 2))
+kept = {s: Embedding({}, reference=[{c: n, ell: 0} for n in range(2 * s + 1)])
+        for s in spins}
 ```
 
 ## Perturbation theory
 
-Both $\Omega$-sidebands and the cavity drive count as first order. At first
-order, the cavity drive couples neighboring photon numbers. Roy et al. find the
-amplitude[^roy]
+Both the comb sidebands and the cavity drive count as first order. The
+expansion is controlled when the couplings are small compared with the gaps
+they bridge, roughly $|\epsilon|\sqrt{2s+1}\ll|\Omega|\ll|\chi|$. The sidebands
+connect states whose Floquet index differs by one or more, which costs a
+multiple of $\chi$. The cavity drive must not mix the two dressed branches,
+which are split by $\Omega$. Roy et al. work in this regime (Appendix B).[^roy]
+
+```{code-cell} ipython3
+H_eff = {}
+for s in spins:
+    H_eff[s], *_ = block_diagonalize(
+        [H_0(s), V_comb(s) + V_drive(s)], subspace_eigenvectors=kept[s]
+    )
+```
+
+## Result and check
+
+At first order, the cavity drive couples neighboring photon numbers. Roy et al.
+find the amplitude[^roy]
 
 $$
 H^{(1)}_{n-1,n} = \frac{\epsilon\sqrt{n}}{2}\,e^{i\varphi}
@@ -188,20 +205,15 @@ for both spins.
 def tidy(x):
     return sp.factor(sp.simplify(x.rewrite(sp.cos)).rewrite(sp.exp))
 
-for s in H_eff:
+for s in spins:
     phi = phases(s)
     for n in range(1, 2 * s + 1):
         expected = epsilon * sp.sqrt(n) / 2 * sp.exp(sp.I * varphi) * sp.cos((phi[n] - phi[n - 1]) / 2)
         assert tidy(H_eff[s][0, 0, 1][n - 1, n] - expected) == 0
 ```
 
-## Result and check
-
 Roy et al. choose the comb phases so that
 $\cos[(\phi_n-\phi_{n-1})/2]=\sqrt{(2s+1-n)/2s}$, Eq. (27) of their paper.
-Then $\sqrt n\cos[(\phi_n-\phi_{n-1})/2]=\sqrt{n(2s+1-n)}/\sqrt{2s}$, and
-$\sqrt{n(2s+1-n)}$ is the matrix element of $S_-$ between $m=n-s$ and $m-1$.
-We check that this gives the spin rotation stated at the top of the page.
 
 ```{code-cell} ipython3
 def roy_phases(s):
@@ -209,8 +221,14 @@ def roy_phases(s):
     for n in range(1, 2 * s + 1):
         values.append(values[-1] + 2 * sp.acos(sp.sqrt(sp.Rational(2 * s + 1 - n, 2 * s))))
     return dict(zip(phases(s), values))
+```
 
-for s in H_eff:
+Then $\sqrt n\cos[(\phi_n-\phi_{n-1})/2]=\sqrt{n(2s+1-n)}/\sqrt{2s}$, and
+$\sqrt{n(2s+1-n)}$ is the matrix element of $S_-$ between $m=n-s$ and $m-1$.
+We check that this gives the spin rotation stated at the top of the page.
+
+```{code-cell} ipython3
+for s in spins:
     H_1 = H_eff[s][0, 0, 1].subs(roy_phases(s)).applyfunc(tidy)
     S_minus = sp.Matrix(2 * s + 1, 2 * s + 1,
                         lambda i, j: sp.sqrt(j * (2 * s + 1 - j)) if i == j - 1 else 0)
