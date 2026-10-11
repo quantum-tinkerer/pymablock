@@ -20,6 +20,33 @@ def assert_matrix_equal(actual, expected):
     assert (actual - expected).applyfunc(sp.simplify) == sp.zeros(*expected.shape)
 
 
+@pytest.mark.parametrize("particle_hole", [False, True])
+def test_mapped_coefficients_exclude_off_lattice_poles(particle_hole):
+    u, d, s = FermionOp("u"), FermionOp("d"), SigmaMinus("s")
+    e = Embedding(
+        {s: d * u if particle_hole else d.adjoint() * u},
+        reference={u: 0, d: 0 if particle_hole else 1},
+    )
+    lattice = e._first_lattice
+    (q,) = lattice.source_occupations
+    # 1/(2q-1) is finite on both source states, but its target expression
+    # has poles on the other two Fock states for either fractional inverse.
+    # Target modes sort as d,u, hence q=0 corresponds to d=1,u=0.
+    diagonal = sp.diag(-1, 0, 0, 1) if particle_hole else sp.diag(0, 1, -1, 0)
+    frame = e._retained_frame(1)[0, 0]
+    for expression in (1, u, u.adjoint(), d, d.adjoint()):
+        value = lattice.parse_target(expression)
+        mapped = lattice.map_transition_coefficients(
+            value, lambda coefficient, _output, _amplitude: coefficient / (2 * q - 1)
+        )
+        expected = nof_matrix(value) * diagonal
+        assert_matrix_equal(nof_matrix(mapped), expected)
+        assert_matrix_equal(nof_matrix(mapped * frame * frame.adjoint()), expected)
+        # Subsequent multiplication must not spread excluded poles to the lattice.
+        left = lattice.parse_target(u + u.adjoint())
+        assert_matrix_equal(nof_matrix(left * mapped), nof_matrix(left) * expected)
+
+
 @pytest.mark.parametrize("reference", [0, 1])
 def test_normalized_generator_lift_and_attachment_contracts(reference):
     a, s = BosonOp("a"), SigmaMinus("s")

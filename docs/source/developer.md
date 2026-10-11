@@ -172,7 +172,7 @@ occupation equations. A reference state is the special case that selects one
 eigenvalue of every target number operator. Finite spectral selections are sums
 of equality indicators; integer spectra use the condition $x=\lfloor x\rfloor$.
 
-Occupation conditions appear in NOF coefficients in four `Piecewise` shapes:
+Occupation conditions appear in NOF coefficients in five `Piecewise` shapes:
 
 - Indicators `Piecewise((1, Eq(x, v)), (0, True))`, built by
   `_equal_value_indicator`. Projectors are products and sums of them.
@@ -187,8 +187,10 @@ Occupation conditions appear in NOF coefficients in four `Piecewise` shapes:
   coefficient division.
 - Point splits `Piecewise((value at v, Eq(n, v)), (rest, True))` from
   coefficient division at an occupation fixed by an indicator.
+- Lattice guards `Piecewise((c, Ne(projector, 0)), (0, True))` around
+  coefficients translated from source occupations back to target occupations.
 
-Only indicators are read back. The other three must stay `Piecewise`
+Only indicators are read back. The other four must stay `Piecewise`
 branches: writing them as `c * (1 - indicator)` would evaluate a coefficient
 at its pole and give $0\cdot\infty$ in the excluded sector.
 
@@ -196,6 +198,9 @@ The solver reads `_column_target_states` from the embedding to evaluate the sour
 energy of column $j$ at $r_j+Mq$. The attached target operator already includes
 $T_j$. The lattice's `map_transition_coefficients` evaluates its transitions
 from $r_1+Mq$ and translates transformed coefficients back using $L(n-r_1)$.
+It guards source-occupation-dependent coefficients with a `Piecewise` that is zero
+outside the incoming lattice, so later NOF arithmetic cannot sample an off-lattice
+pole of this inverse map.
 The solver evaluates the target energy at each final target occupation and
 divides by the target-minus-source energy gap; it does not inspect occupation maps.
 Matrix shape consistency belongs to each block conversion, so an embedding can
