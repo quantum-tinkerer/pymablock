@@ -41,6 +41,7 @@ $$
 
 Here $a_t$ and $a_r$ are the bosonic annihilation operators of the transmon and the resonator.
 The parameters $\omega_t$ and $\omega_r$ are their frequencies, $-\alpha$ with $\alpha > 0$ is the anharmonicity of the transmon, and $g$ is the coupling, which we treat as the perturbation.
+We set $\hbar = 1$, so frequencies are also energies.
 The energy of transmon level $n$ is $E_n = \omega_t n - \alpha n (n - 1) / 2$.
 Therefore the qubit transition frequency is $\omega_{01} = E_1 - E_0 = \omega_t$, and the transition from level one to level two has frequency $\omega_{12} = E_2 - E_1 = \omega_t - \alpha$.
 We keep the counter-rotating terms $a_t a_r$ and $a_t^\dagger a_r^\dagger$.
@@ -123,17 +124,25 @@ H_tilde, U, U_adjoint = block_diagonalize(
 ```
 
 The result is diagonal: a function of the qubit excitation number $N_q = \sigma_+ \sigma_-$, which is either 0 or 1, and the photon number $N_r = r^\dagger r$.
-The zeroth order is the restricted $H_0$, and the second-order correction is
+The zeroth order is the restricted $H_0$.
+Its anharmonic term $N_q (N_q - 1)$ vanishes because $N_q^2 = N_q$, and `simplify` removes it:
 
 ```{code-cell} ipython3
 N_q, N_r = NumberOperator(sigma), NumberOperator(r)
 
-display_eq("H_{0}", H_tilde[0, 0, 0].as_expr())
-display_eq(r"H^{(2)}_{\textrm{eff}}", H_tilde[0, 0, 2].as_expr())
+display_eq("H_{0}", H_tilde[0, 0, 0].simplify().as_expr())
+```
+
+We write the second-order correction as $H^{(2)}_{\textrm{eff}} = (1 - N_q) H^{(2)}_0 + N_q H^{(2)}_1$, where $H^{(2)}_{n_q}$ acts on the resonator when the qubit is in state $n_q$:
+
+```{code-cell} ipython3
+H_2 = H_tilde[0, 0, 2]
+for n_q in (0, 1):
+    display_eq(f"H^{{(2)}}_{n_q}", H_2.subs({N_q: n_q}).as_expr())
 ```
 
 The denominators $\omega_t - \alpha \pm \omega_r$ are the energies $\omega_{12} \pm \omega_r$ of virtual transitions from transmon level one to level two.
-Even though level two is not part of the qubit, it enters the effective model.
+They appear only in $H^{(2)}_1$: even though level two is not part of the qubit, it enters the effective model.
 
 To read off the dispersive shift, we evaluate the diagonal effective Hamiltonian on the state with qubit excitation $n_q$ and $n_r$ photons:
 
@@ -147,7 +156,7 @@ To second order the effective Hamiltonian is linear in $N_r$.
 Its term $2\chi N_q N_r$ equals $\chi \sigma_z N_r$, up to a shift of the resonator frequency, where $\sigma_z = 2 N_q - 1$.
 This is the convention of Koch et al. for the dispersive shift $\chi$.
 Hence $2\chi = E_{11} - E_{10} - E_{01} + E_{00}$, where $E_{n_q n_r}$ is the energy of the state with $n_q$ qubit excitations and $n_r$ photons.
-The dispersive shift tutorial computes the same combination.
+The dispersive shift tutorial computes the same $\chi$.
 
 Koch et al. derive $\chi = \chi_{01} - \chi_{12}/2$, with $\chi_{ij} = g_{ij}^2 / (\omega_{ij} - \omega_r)$, within the rotating-wave approximation.
 Here $g_{01} = g$ and $g_{12} = \sqrt{2} g$ are the coupling matrix elements of the two transitions.
@@ -158,8 +167,10 @@ $$
 $$
 
 ```{code-cell} ipython3
-H_2 = H_tilde[0, 0, 2]
-two_chi = energy(H_2, 1, 1) - energy(H_2, 1, 0) - energy(H_2, 0, 1) + energy(H_2, 0, 0)
+two_chi = (
+    energy(H_2, 1, 1) - energy(H_2, 1, 0)
+    - energy(H_2, 0, 1) + energy(H_2, 0, 0)
+)
 
 omega_01, omega_12 = omega_t, omega_t - alpha
 chi_koch = sum(
@@ -183,13 +194,17 @@ A Kerr coefficient that depends on the qubit state also makes the dispersive shi
 ```{code-cell} ipython3
 H_4 = H_tilde[0, 0, 4]
 K = [
-    sympy.factor(energy(H_4, n_q, 2) - 2 * energy(H_4, n_q, 1) + energy(H_4, n_q, 0))
+    sympy.factor(
+        energy(H_4, n_q, 2) - 2 * energy(H_4, n_q, 1) + energy(H_4, n_q, 0)
+    )
     for n_q in (0, 1)
 ]
-display_eq("K_{0}", K[0])
+numerator, denominator = sympy.fraction(K[0])
+display_eq(r"\mathrm{numerator}(K_{0})", numerator)
+display_eq(r"\mathrm{denominator}(K_{0})", denominator)
 ```
 
-Like the dispersive shift, the Kerr nonlinearity vanishes when $\alpha = 0$, since two coupled harmonic oscillators remain harmonic.
+Like the dispersive shift, the Kerr nonlinearity is proportional to $\alpha$ and vanishes for a harmonic transmon, since two coupled harmonic oscillators remain harmonic.
 
 The expression for $K_1$ is longer, so we show only its denominator.
 Each factor is the energy of a virtual transition:
@@ -200,13 +215,20 @@ display_eq(r"\mathrm{denominator}(K_{1})", sympy.denom(K[1]))
 
 Up to sign, the factors $3\alpha - 2\omega_t$ and $3\alpha - 2\omega_t \pm 2\omega_r$ are the transmon energy $E_3 - E_1 = 2\omega_t - 3\alpha$, plus a change of the resonator energy by $0$ or $\pm 2\omega_r$.
 A fourth-order process that starts from the excited qubit can pass through the third excited level of the transmon.
-A process that starts from the qubit ground state reaches only level two, so $K_0$ has no such factor:
+A process that starts from the qubit ground state reaches only level two, so $K_0$ has no such pole.
+We check this at a generic parameter point on the resonance $E_3 = E_1$, where $\omega_t = 3$ and $\alpha = 2$.
+There, $(3\alpha - 2\omega_t) K_1$ has a nonzero residue, while $(3\alpha - 2\omega_t) K_0$ vanishes:
 
 ```{code-cell} ipython3
-level_3_resonance = {alpha: 2 * omega_t / 3}  # Where E_3 = E_1.
-assert sympy.denom(K[1]).subs(level_3_resonance) == 0
-assert sympy.denom(K[0]).subs(level_3_resonance) != 0
+point = {omega_t: 3, omega_r: 7, g: 1}
+residues = [
+    sympy.cancel(((3 * alpha - 2 * omega_t) * K_n).subs(point)).subs(alpha, 2)
+    for K_n in K
+]
+assert residues[0] == 0 and residues[1] != 0
 ```
+
+The fourth-order Kerr formula itself breaks down near this resonance, like any nondegenerate perturbative result near a pole.
 
 A matrix calculation that obtains $K_1$ therefore needs at least four transmon levels and, for each photon number used to extract the curvature, two more resonator levels.
 It also needs several photon numbers to fit the polynomial in $n_r$.
@@ -216,6 +238,7 @@ The embedding returns the dependence on $N_r$ as a single operator, and no trunc
 
 Without `fully_diagonalize`, Pymablock only eliminates the transmon levels outside the qubit.
 The effective model then keeps the qubit–resonator exchange interaction at first order, which is useful when the qubit is close to resonance with the resonator.
+This only requires the transitions to the higher transmon levels to remain far detuned compared with the coupling.
 The second-order correction now contains only the virtual transitions through transmon level two:
 
 ```{code-cell} ipython3
@@ -223,16 +246,25 @@ H_tilde_exchange, *_ = block_diagonalize(
     H_0 + H_p, subspace_eigenvectors=embedding, symbols=[g]
 )
 display_eq(r"H^{(1)}_{\textrm{eff}}", H_tilde_exchange[0, 0, 1].as_expr())
-display_eq(r"H^{(2)}_{\textrm{eff}}", H_tilde_exchange[0, 0, 2].simplify().as_expr())
+
+H_2_exchange = H_tilde_exchange[0, 0, 2]
+no_shift = ((0, 0),)  # Terms that do not change N_q or N_r.
+display_eq(
+    r"H^{(2)}_{\textrm{diagonal}}",
+    H_2_exchange.filter_terms(no_shift, keep=True).as_expr(),
+)
+display_eq(r"H^{(2)}_{\textrm{two-photon}}", H_2_exchange.filter_terms(no_shift).as_expr())
 ```
 
 These corrections act only on the excited qubit state.
-Besides shifting its energy, they contain two-photon terms $N_q r^2$ and $N_q r^{\dagger 2}$: the excited qubit can emit or absorb two photons through transmon level two.
+The diagonal part shifts its energy, and the remaining part contains two-photon terms $N_q r^2$ and $N_q r^{\dagger 2}$: the excited qubit can emit or absorb two photons through transmon level two.
 
 ## Summary
 
 A single embedding $\sigma_- \mapsto a_t$, $r \mapsto a_r$ turns the transmon into a qubit while keeping all its higher levels available as virtual states.
-The resulting effective Hamiltonian is an operator in $N_q$ and $N_r$, valid for every photon number and symbolic in all parameters.
+The resulting effective Hamiltonian is an operator in $N_q$ and $N_r$, symbolic in all parameters and in the photon number.
+Like any perturbative result, it is accurate only where the couplings, including the ladder factors $\sqrt{n_r + 1}$, are small compared with the energies of the virtual transitions.
+This is a condition on the physical regime, not a truncation of the resonator.
 The [dispersive shift tutorial](dispersive_shift.md) computes the same energies either as a function of the transmon occupation, or with a truncated matrix.
 The embedding instead returns the result directly in qubit operators, and it allows choosing which couplings to eliminate: all of them for the dispersive Hamiltonian, or only those to the higher transmon levels.
 See [structured embeddings](../structured_embeddings.md) for other embeddings and their requirements.
