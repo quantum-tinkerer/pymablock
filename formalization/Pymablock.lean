@@ -24,3 +24,4 @@ import Pymablock.NonHermitian.FirstOrder
 import Pymablock.LeastAction.Formal
 import Pymablock.LeastAction.Norm
 import Pymablock.Convergence.Realization
+import Pymablock.Convergence.Inputs

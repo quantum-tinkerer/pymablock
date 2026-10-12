@@ -53,6 +53,11 @@ def occurrences : Array Occurrence := #[
 /-- Terminal results are exported with their actual checked theorem types,
 proposition binders, transitive project dependencies, and kernel axioms. -/
 def roots : Array Name := #[
+  ``Pymablock.Convergence.matrix_radius_bound,
+  ``Pymablock.Convergence.blockDiagonalize_optimized_bound,
+  ``Pymablock.Convergence.blockDiagonalize_weighted,
+  ``Pymablock.Convergence.affine_radius_certificate,
+  ``Pymablock.Convergence.analytic_radius_certificate,
   ``Pymablock.Convergence.matrix_convergent,
   ``Pymablock.Convergence.matrix_least_action,
   ``Pymablock.Convergence.realized_hamiltonian,

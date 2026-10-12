@@ -218,6 +218,17 @@ The abstract convergence theorem applies to the Hermitian/selective recurrence w
 The concrete end-to-end theorem specializes to ordinary block partitions.
 The non-Hermitian recurrence has additional terms and is not covered by this convergence proof.
 
+## Explicit radius bounds
+
+The convergence result now includes usable bounds in [RADIUS.md](RADIUS.md).
+For affine input `H = H0 + sum_j x_j V_j`, a common radius is
+`9 delta / (130 sum_j ||V_j||_F)`, where `delta` is the smallest cross-block gap.
+A split retained/off-block estimate and a one-variable optimized certificate improve this.
+For general analytic input, a known positive-degree mass `M` at radius `R` gives
+`R min(1, 9 delta/(130 M))` when `M > 0`.
+The report includes the derivation, exact assumptions, and an exact two-level benchmark
+showing how conservative these sufficient bounds are.
+
 ## Least-action minimality
 
 `LeastAction.closest_to_identity_norm` proves a unique global minimum in the **Frobenius norm** for any finite block partition and fixed assignment of invariant subspaces.

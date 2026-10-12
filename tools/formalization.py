@@ -174,6 +174,9 @@ def report() -> None:
         "| Source | Equation label | Lean declaration | Relation |",
         "| --- | --- | --- | --- |",
     ]
+    radius_notes = (PROJECT / "RADIUS.md").read_text().splitlines()
+    insertion = lines.index("## Correspondence boundaries and manuscript finding")
+    lines[insertion:insertion] = [*radius_notes, ""]
     for row in catalog["occurrences"]:
         lines.append(
             f"| {row['source']} | {row['label']} | `{row['declaration']}` | {row['relation']} |"
