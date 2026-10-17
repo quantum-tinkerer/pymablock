@@ -7,8 +7,7 @@ and number operators in the middle.
 
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
-from functools import cached_property, lru_cache
-from typing import TYPE_CHECKING
+from functools import lru_cache
 
 import sympy
 from packaging.specifiers import SpecifierSet
@@ -19,9 +18,6 @@ from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.commutator import Commutator
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.operatorordering import normal_ordered_form
-
-if TYPE_CHECKING:
-    import pymablock.operator_embedding
 
 __all__ = [
     "NumberOperator",
@@ -510,9 +506,6 @@ class NumberOrderedForm(Operator):
         Dictionary mapping operator power tuples to coefficient expressions.
         Negative powers represent creation operators, positive powers represent
         annihilation operators.
-    embedding, side :
-        Optional fixed isometry and its side: +1 represents X W, -1 represents W† X.
-        Omitting the embedding gives an ordinary operator X.
     **hints : dict
         Additional hints passed to the parent class.
 
@@ -544,8 +537,6 @@ class NumberOrderedForm(Operator):
         cls,
         operators: Sequence[OperatorType],
         terms: TermDict,
-        embedding=None,
-        side=0,
         *,
         validate: bool = True,
         **hints,
@@ -560,8 +551,6 @@ class NumberOrderedForm(Operator):
             Dictionary mapping operator power tuples to coefficient expressions.
             Negative powers represent creation operators, positive powers represent
             annihilation operators.
-        embedding, side :
-            Optional fixed isometry and attachment side: +1 for X W, -1 for W† X.
         validate :
             Whether to validate the operators and terms, by default True.
         **hints : dict
@@ -575,14 +564,6 @@ class NumberOrderedForm(Operator):
         """
         if not isinstance(operators, Tuple):
             operators = Tuple(*operators)
-
-        if (
-            embedding is not None
-            and tuple(operators) != embedding._attachment_lattice.target_operators
-        ):
-            # Rebuilding after a mode rename can change the embedding's mode order;
-            # _attach reorders the unvalidated form into the embedding's order.
-            return embedding._attach(cls(operators, terms, validate=False), side)
 
         if validate:
             cls._validate_operators(operators)
@@ -632,12 +613,7 @@ class NumberOrderedForm(Operator):
         terms = Tuple(
             *(Tuple(powers, coeff) for powers, coeff in simplified if coeff != 0)
         )
-        attachment = ()
-        if embedding is not None and terms:
-            if side not in (-1, 1):
-                raise ValueError("An embedding attachment must be left (-1) or right (1)")
-            attachment = (embedding, sympy.Integer(side))
-        result = sympy.Expr.__new__(cls, operators, terms, *attachment, **hints)
+        result = sympy.Expr.__new__(cls, operators, terms, **hints)
 
         result._n_bosons = sum(isinstance(op, BosonOp) for op in operators)
         result._n_ladders = sum(isinstance(op, LadderOp) for op in operators)
@@ -650,29 +626,13 @@ class NumberOrderedForm(Operator):
 
         return result
 
-    @property
-    def embedding(self) -> "pymablock.operator_embedding.Embedding | None":
-        """Return the attached embedding, or None for an ordinary operator."""
-        return self.args[2] if len(self.args) == 4 else None
-
-    @property
-    def side(self) -> int:
-        """Return -1 for W† X, +1 for X W, or zero for no attachment."""
-        return int(self.args[3]) if self.embedding is not None else 0
-
-    @cached_property
-    def target(self) -> "NumberOrderedForm":
-        """The target operator without its embedding attachment."""
-        return NumberOrderedForm(self.operators, self.args[1], validate=False)
-
     def _rebuild(
         self, terms: TermDict, operators: Sequence[OperatorType] | None = None
     ) -> "NumberOrderedForm":
-        """Replace the terms while preserving the map's domain and codomain."""
+        """Replace terms and optionally the operator list without revalidating."""
         return type(self)(
             self.operators if operators is None else operators,
             terms,
-            *self.args[2:],
             validate=False,
         )
 
@@ -798,17 +758,8 @@ class NumberOrderedForm(Operator):
         if isinstance(expr, NumberOrderedForm):
             return expr
 
-        from pymablock.operator_embedding import Embedding
-
-        if isinstance(expr, Embedding):
-            return expr._attach(expr._attachment_lattice.target_identity, 1)
-        if isinstance(expr, sympy.adjoint) and isinstance(expr.args[0], Embedding):
-            return expr.args[0]._attach(
-                expr.args[0]._attachment_lattice.target_identity, -1
-            )
-
         # For scalar expressions (no operators)
-        if not expr.has(*operator_types, NumberOperator, Embedding):
+        if not expr.has(*operator_types, NumberOperator):
             # Return a NumberOrderedForm with no operators and a single term
             operators = operators or []
             return cls(
@@ -1020,14 +971,6 @@ class NumberOrderedForm(Operator):
         3 + N_a
 
         """
-        if self.embedding is not None:
-            value = self.target.as_expr()
-            return (
-                value * self.embedding
-                if self.side == 1
-                else sympy.adjoint(self.embedding) * value
-            )
-
         if not self.operators:
             # If there are no operators, just return the constant term
             return next(iter(self.terms.values())) if self.terms else Zero
@@ -1548,15 +1491,11 @@ class NumberOrderedForm(Operator):
             except Exception:
                 return NotImplemented
 
-        # Empty forms are neutral regardless of their embedding attachment.
         # Avoid symbolic zero inference on every intermediate coefficient.
         if not self:
             return other
         if not other:
             return self
-        if self.args[2:] != other.args[2:]:
-            raise ValueError("Addition requires matching embedding attachments")
-
         self_expanded, other_expanded = self._combine_operators(other)
 
         new_terms = defaultdict(lambda: Zero)
@@ -1652,9 +1591,6 @@ class NumberOrderedForm(Operator):
             except Exception:
                 return NotImplemented
 
-        if self.embedding is not None or other.embedding is not None:
-            return self._multiply_attached(other)
-
         self_expanded, other_expanded = self._combine_operators(other)
 
         # Binary ladder terms act only at middle occupation zero. Restrict their
@@ -1689,37 +1625,6 @@ class NumberOrderedForm(Operator):
             result = result + partial._linearize_binary_operators()
 
         return result
-
-    def _multiply_attached(self, other: "NumberOrderedForm") -> "NumberOrderedForm":
-        """Compose operators when at least one factor carries an embedding.
-
-        Matching opposite attachments give ``W† X Y W`` in source space or
-        ``X W W† Y`` in target space. With one attachment, interpret the adjacent
-        factor in the appropriate target or source basis and preserve the map.
-        """
-        left, right = self.embedding, other.embedding
-        lattice = (left if left is not None else right)._attachment_lattice
-        if left is not None and right is not None:
-            if left != right or self.side == other.side:
-                raise ValueError("Composition requires opposite matching attachments")
-            if self.side == -1:
-                return lattice.restrict(self.target * other.target)
-            return self.target * lattice.projector * other.target
-        if left is not None:
-            value = (
-                lattice.lift(other)
-                if self.side == 1
-                else other._expand_operators(lattice.target_operators)
-            )
-            result = self.target * value
-            return self._rebuild(result.args[1], operators=result.operators)
-        value = (
-            lattice.lift(self)
-            if other.side == -1
-            else self._expand_operators(lattice.target_operators)
-        )
-        result = value * other.target
-        return other._rebuild(result.args[1], operators=result.operators)
 
     def __rmul__(self, other) -> "NumberOrderedForm":
         """Right multiply this NumberOrderedForm with another object.
@@ -1765,9 +1670,7 @@ class NumberOrderedForm(Operator):
             (tuple(-power for power in powers), coeff.adjoint())
             for powers, coeff in self.args[1]
         )
-        return type(self)(
-            self.operators, new_terms, self.embedding, -self.side, validate=False
-        )
+        return self._rebuild(new_terms)
 
     def __eq__(self, other):
         """Evaluate equality between this NumberOrderedForm and another object.
@@ -1790,8 +1693,6 @@ class NumberOrderedForm(Operator):
                 other = NumberOrderedForm.from_expr(sympy.sympify(other))
             except Exception:
                 return None  # Let SymPy handle the comparison
-        if (self.embedding, self.side) != (other.embedding, other.side):
-            return False
         if self.operators != other.operators:
             self, other = self._combine_operators(other)
         return self.terms == other.terms
@@ -1953,11 +1854,6 @@ class NumberOrderedForm(Operator):
             return NotImplemented
         exp = sympy.sympify(exp)
 
-        if self.embedding is not None:
-            if exp == 1:
-                return self
-            raise ValueError("A rectangular map cannot be raised to a power")
-
         # A single monomial with a binary mode is nilpotent, including for
         # symbolic integer exponents that are provably greater than one.
         if exp.is_integer and (exp - 1).is_positive and len(self.terms) == 1:
@@ -2021,16 +1917,10 @@ class NumberOrderedForm(Operator):
         return all(not any(powers) for powers, _ in self.args[1])
 
     def _eval_subs(self, old: sympy.Basic, new: sympy.Basic) -> "NumberOrderedForm":
-        """Substitute coefficients, reconstructing attachments with the new embedding.
-
-        Bare operators retain their basis; direct mode replacement is rejected.
-        """
+        """Substitute coefficients; direct mode replacement is rejected."""
         if old in self.operators or new in self.operators:
             raise ValueError("Cannot substitute operators in NumberOrderedForm.")
 
-        if self.embedding is not None:
-            attachment = self.embedding.subs(old, new)
-            return attachment._attach(self.target.subs(old, new), self.side)
         old = old.xreplace(self._number_operator_to_placeholder)
         new = new.xreplace(self._number_operator_to_placeholder)
         return self._rebuild(
@@ -2045,8 +1935,7 @@ class NumberOrderedForm(Operator):
         """Replace exact subexpressions and report whether anything changed.
 
         Coefficients store number operators as placeholder symbols named after their
-        modes, so renaming a mode also renames its placeholder. The constructor
-        normalizes attached operators for the replaced embedding.
+        modes, so renaming a mode also renames its placeholder.
         """
         renames = {
             placeholder: _number_operator_to_placeholder(NumberOperator(new))
@@ -2055,7 +1944,17 @@ class NumberOrderedForm(Operator):
             )
             if isinstance(new := rule.get(op), generator_types) and new.is_annihilation
         }
-        return super()._xreplace({**renames, **rule} if renames else rule)
+        if self in rule:
+            return rule[self], True
+        operators, changed_ops = self.operators._xreplace(rule)
+        terms, changed_terms = self.args[1]._xreplace({**renames, **rule})
+        if not (changed_ops or changed_terms):
+            return self, False
+        result = self._rebuild(terms, operators=operators)
+        ordered = sorted(operators, key=_operator_sort_key)
+        result = result._expand_operators(ordered)
+        # Revalidate replacements that introduce new number operators.
+        return result.func(*result.args), True
 
     def filter_terms(
         self, conditions: tuple[tuple[sympy.core.Expr, ...], ...], keep: bool = False
