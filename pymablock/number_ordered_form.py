@@ -1904,9 +1904,7 @@ class NumberOrderedForm(Operator):
                     values = tuple(reduced.xreplace({number: n}) for n in (Zero, One))
                     if any(map(_is_singular, values)):
                         continue
-                coeff = sympy.expand_mul(
-                    (One - number) * values[0] + number * values[1], deep=False
-                )
+                coeff = (One - number) * values[0] + number * values[1]
             new_terms[powers] = coeff
         return self._rebuild(new_terms)
 
