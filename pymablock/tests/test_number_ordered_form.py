@@ -1953,3 +1953,23 @@ def test_bilateral_downward_shift_has_no_boundary_guard():
     number = form._number_operator_placeholders[0]
     assert form.terms == {(0,): 1 / number}
     assert form.terms[(0,)].subs(number, -2) == -sympy.Rational(1, 2)
+
+
+@pytest.mark.parametrize("mode_type", [boson.BosonOp, fermion.FermionOp])
+def test_mode_rename_reorders_numbers_and_ladders(mode_type):
+    """Renaming across canonical mode order preserves amplitudes and graded signs."""
+    a, b, z = map(mode_type, ("a", "b", "z"))
+    expression = NumberOperator(a) * b + a.adjoint() * b
+    renamed = NumberOperator(z) * b + z.adjoint() * b
+    form = NumberOrderedForm.from_expr(expression)
+    assert form.xreplace({a: z}) == NumberOrderedForm.from_expr(renamed)
+
+
+def test_xreplace_scalar_with_number_operator():
+    """New number operators in coefficients enter the placeholder algebra."""
+    a = boson.BosonOp("a")
+    g = sympy.Symbol("g")
+    form = NumberOrderedForm.from_expr(g * a)
+    result = form.xreplace({g: NumberOperator(a)})
+    assert result == NumberOrderedForm.from_expr(NumberOperator(a) * a)
+    assert result.act((2,)) == {(1,): ((1,), sympy.sqrt(2))}
