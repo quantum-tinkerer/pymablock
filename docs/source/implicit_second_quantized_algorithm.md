@@ -59,7 +59,7 @@ $L(a) = W a W^\dagger$.
 2. **Preparation.** The frames $F_0 = W$ and $F_1 = Q$ give the $2\times 2$ block
    Hamiltonian $H_{ij} = F_i^\dagger H F_j$. $H_0$ must be diagonal in the
    occupations.
-3. **Products.** The off-diagonal blocks contain forms attached to $W$, such as
+3. **Products.** The off-diagonal blocks contain rectangular maps involving $W$, such as
    $XW$ or $W^\dagger X$. Their products reduce to the three operations:
 
    | product | result | operation |

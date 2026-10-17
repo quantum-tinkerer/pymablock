@@ -249,20 +249,22 @@ def test_float_fourth_order_matches_exact_values(preconverted):
 
 
 @pytest.mark.parametrize("mode_type", [BosonOp, FermionOp])
-def test_attachment_substitution_and_reconstruction(mode_type):
+def test_map_substitution_and_reconstruction(mode_type):
     a, b, z = map(mode_type, ("a", "b", "0z"))
     q = mode_type("q")
     g = s.Symbol("g", real=True)
     e = Embedding({q: a}, reference={a: 0, b: 1})
     renamed = Embedding({q: a}, reference={a: 0, z: 1})
-    w = NumberOrderedForm.from_expr(e)
+    w = e._retained_frame(1)[0, 0]
     x = NumberOrderedForm.from_expr(g * N(b) + a.adjoint() * b)
-    expected = NumberOrderedForm.from_expr(2 * N(z) + a.adjoint() * z) * renamed
+    expected = (
+        NumberOrderedForm.from_expr(2 * N(z) + a.adjoint() * z)
+        * renamed._retained_frame(1)[0, 0]
+    )
     for value in (x * w, (x * w).adjoint()):
         for restored in (
             value.func(*value.args),
             pickle.loads(pickle.dumps(value)),
-            NumberOrderedForm.from_expr(value.as_expr()),
         ):
             assert restored == value
         assert value.adjoint().adjoint() == value

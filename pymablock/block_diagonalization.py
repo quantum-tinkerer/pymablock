@@ -29,7 +29,7 @@ from pymablock.number_ordered_form import (
     _operator_sort_key,
     find_operators,
 )
-from pymablock.operator_embedding import Embedding
+from pymablock.operator_embedding import Embedding, _EmbeddedMap
 from pymablock.second_quantization import _solve_sylvester_embedding
 from pymablock.series import (
     BlockSeries,
@@ -205,8 +205,8 @@ def block_diagonalize(
         Inverse of U. For Hermitian problems this coincides with the adjoint.
 
     With an ``Embedding``, each retained block ``[0, 0, ...]`` uses the source
-    algebra or reference-list matrix basis. Off-diagonal blocks carry embedding
-    attachments; the complement block uses ordinary target operators.
+    algebra or reference-list matrix basis. Off-diagonal blocks are rectangular
+    maps; the complement block uses ordinary target operators.
 
     """
     if isinstance(symbols, sympy.Symbol):
@@ -235,6 +235,7 @@ def block_diagonalize(
     )
     solver_options = {} if solver_options is None else dict(solver_options)
 
+    embedding = None
     if isinstance(subspace_eigenvectors, Embedding):
         if subspace_indices is not None:
             raise ValueError(
@@ -431,7 +432,7 @@ def block_diagonalize(
                 return result.applyfunc(
                     lambda x: (
                         x
-                        if x.is_commutative
+                        if x.is_commutative or isinstance(x, _EmbeddedMap)
                         else NumberOrderedForm.from_expr(x, operators)
                     )
                 )
@@ -648,6 +649,12 @@ def block_diagonalize(
     # Simplify the results and unwrap them for scalar inputs - convert 1x1 matrices back
     # to scalars
     if operators:
+        # Restriction returns source NOFs, but cached SymPy Add/Mul constructors
+        # can replace them with equal NOFs carrying unused target modes. A finite
+        # source has only scalar entries, regardless of that cached mode list.
+        scalar_source = (
+            embedding is not None and not embedding._first_lattice._source_operators
+        )
 
         def create_postprocessing_eval(block_series):
             """Create an eval function that unwraps 1x1 matrices to scalars."""
@@ -661,10 +668,13 @@ def block_diagonalize(
                     lambda x: (
                         (
                             x.as_expr()
-                            if not x.operators and x.embedding is None
+                            if isinstance(x, NumberOrderedForm)
+                            and (
+                                not x.operators or (scalar_source and index[:2] == (0, 0))
+                            )
                             else x._poly_simplify()
                         )
-                        if isinstance(x, NumberOrderedForm)
+                        if isinstance(x, (NumberOrderedForm, _EmbeddedMap))
                         else x
                     )
                 )

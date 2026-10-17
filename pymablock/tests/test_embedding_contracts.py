@@ -68,11 +68,11 @@ def test_integer_pullback_guards_only_possible_occupation_poles(generic_gap):
 
 
 @pytest.mark.parametrize("reference", [0, 1])
-def test_normalized_generator_lift_and_attachment_contracts(reference):
+def test_normalized_generator_lift_and_map_contracts(reference):
     a, s = BosonOp("a"), SigmaMinus("s")
     e = Embedding({s: a**2 / sp.sqrt(N(a) * (N(a) - 1))}, reference={a: reference})
     w = sp.eye(6)[:, [reference, reference + 2]]
-    attached = e._retained_frame(1)[0, 0]
+    w_map = e._retained_frame(1)[0, 0]
 
     def target(x):
         return nof_matrix(x, [range(6)])
@@ -80,23 +80,23 @@ def test_normalized_generator_lift_and_attachment_contracts(reference):
     def source(x):
         return nof_matrix(x) if isinstance(x, F) else x * sp.eye(2)
 
-    assert_matrix_equal(source(attached.adjoint() * attached), sp.eye(2))
-    assert_matrix_equal(target(attached * attached.adjoint()), w * w.T)
+    assert_matrix_equal(source(w_map.adjoint() * w_map), sp.eye(2))
+    assert_matrix_equal(target(w_map * w_map.adjoint()), w * w.T)
     for S in (1, s, s.adjoint(), N(s), s + s.adjoint()):
         value = F.from_expr(S, operators=(s,))
         assert_matrix_equal(target(e._first_lattice.lift(value)), w * source(value) * w.T)
-        assert_matrix_equal(target((attached * value).target) * w, w * source(value))
+        assert_matrix_equal(target((w_map * value).target) * w, w * source(value))
     for X in (a, a.adjoint(), a**2, a.adjoint() * a**2, N(a), sp.sqrt(N(a) + 1)):
         x = e._first_lattice.parse_target(X)
         assert_matrix_equal(source(e.restrict(x)), w.T * target(x) * w)
         for Y in (1, a, a.adjoint()):
             y = e._first_lattice.parse_target(Y)
             assert_matrix_equal(
-                target((x * attached) * (attached.adjoint() * y)),
+                target((x * w_map) * (w_map.adjoint() * y)),
                 target(x) * w * w.T * target(y),
             )
             assert_matrix_equal(
-                source((attached.adjoint() * x) * (y * attached)),
+                source((w_map.adjoint() * x) * (y * w_map)),
                 w.T * target(x * y) * w,
             )
 

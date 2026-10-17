@@ -370,7 +370,7 @@ for all supported independent integer generator shifts and product source domain
 
 Generator mappings return `NumberOrderedForm`, including when the source
 contains infinite bosonic or Floquet modes. The effective Hamiltonian is an
-ordinary source operator with no embedding attachment; `as_expr()` returns its
+ordinary source operator; `as_expr()` returns its
 SymPy expression. Use `filter_terms(..., keep=True)` to select occupation shifts,
 then inspect or display their `as_expr()` expressions. Reference lists return
 matrices whose entries use that same source algebra; without generators their

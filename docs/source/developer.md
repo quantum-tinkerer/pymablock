@@ -22,14 +22,13 @@ occupations, with nonnegative assumptions for physical modes and signed indices
 for `LadderOp`. NOF number-placeholder assumptions are unchanged.
 
 `Embedding._first_embedding` supplies the single-reference symbolic identity
-used by rectangular NOF attachments. For a list it shares the first compiled
-lattice without recompiling it. The attachment remains an `Embedding`, so SymPy
-substitution and pickling rebuild it from its public constructor arguments.
-NOF arithmetic accesses the scalar lattice through `_attachment_lattice`, which
-rejects reference-list frames. Unprefixed members of the private `_Lattice` class
+used by rectangular maps. SymPy substitution and pickling rebuild the embedding
+from its public constructor arguments. The private `_EmbeddedMap` class owns
+rectangular arithmetic and accesses the embedding's first lattice.
+Unprefixed members of the private `_Lattice` class
 form its package-internal contract. Lattice transition mapping owns coordinate
 conversion; the solver supplies energy-gap division and resonance handling.
-Solver results preserve the incoming NOF attachment through `_rebuild`.
+Solver results reconstruct the map with its divided target operator.
 
 Lifting substitutes source NOF terms into target NOFs. Scalar number
 placeholders map directly to the compiled source coordinates; generator NOFs
@@ -74,8 +73,8 @@ The implementation separates three operations:
   transition gaps. `block_diagonalize`
   constructs the solver, validates the complement projector, and splits the
   Hamiltonian into blocks, omitting the validated zeroth-order cross blocks.
-- `number_ordered_form` composes rectangular operators attached to an
-  `Embedding` and supplies scalar projectors and support reduction. Both
+- `operator_embedding._EmbeddedMap` composes rectangular maps eagerly.
+  `number_ordered_form` supplies square operator algebra and support reduction. Both
   Sylvester solvers share coefficient division in `second_quantization`.
 
 `NumberOrderedForm.act` applies each term to a Fock state, returning its
@@ -87,7 +86,7 @@ ordinary second-quantized Sylvester solver, with source or target energies.
 Transitions between the blocks use the embedding-aware solver.
 
 Frame caches belong to the embedding; lattice conversion caches belong to the
-compiled lattice. Discarding the embedding and its attached operators therefore
+compiled lattice. Discarding the embedding and its rectangular maps therefore
 allows both to be collected. The scalar projector cache has a fixed size.
 SymPy compatibility patches live in `number_ordered_form`; the condition
 workaround is feature-detected and installed once, including across reloads.
@@ -109,7 +108,7 @@ symbolic coefficients can still grow; this is not a polynomial-time guarantee.
 
 Each generator image has one fixed occupation change, so retained states are
 target Fock states and target operators keep their declared names. Substitution
-and replacement in an attached NOF act on its arguments, including the embedding.
+and replacement in a rectangular map act on its arguments, including the embedding.
 Renaming a mode also renames its number-operator placeholder, and the constructor
 reorders the result to match the replaced embedding.
 
@@ -123,16 +122,20 @@ driver. Virtual products do not enumerate or truncate the discarded states.
 For each of `H_eff`, `U`, and `U_adjoint`, block `[0, 0, ...]` uses the source
 operators or reference-list matrix basis. Block `[1, 1, ...]` uses target
 operators on the complement. The off-diagonal blocks are rectangular maps:
-$XW$ or $W^\dagger X$. Their NOFs carry the fixed `embedding` and a `side`
-(`1` for a right attachment, `-1` for a left attachment). The `target` property
-returns the ordinary target operator $X$.
+$XW$ or $W^\dagger X$. A private `_EmbeddedMap` SymPy expression stores the
+ordinary target NOF $X$, the fixed `embedding`, and a `side` (`1` for $XW$,
+`-1` for $W^\dagger X$). Maps are separate from `NumberOrderedForm`.
 
 These blocks support ordinary addition, multiplication, and adjoints. In
 particular, $W^\dagger XW$ contracts immediately to an ordinary source operator,
 and $(XW)(W^\dagger Y)=XPY$. Multiplying by a target operator preserves the
-attachment; it does not project or normalize after each operation. Support is
+map. A factor adjacent to the source space is lifted with $WSW^\dagger$.
+Scalars multiply $X$ directly, without introducing a projector. Support is
 reduced before dividing by an energy gap, so cancelling virtual amplitudes do
-not produce spurious resonance errors.
+not produce spurious resonance errors. After division, the solver explicitly
+applies the incoming projector to reduce coefficients on fixed occupations.
+Maps have no `act` method: `NumberOrderedForm.act` only applies square operators
+in their declared Fock basis.
 
 For a generator embedding, algebraic use looks like this:
 
@@ -140,20 +143,20 @@ For a generator embedding, algebraic use looks like this:
 from pymablock.number_ordered_form import NumberOrderedForm
 
 embedding = Embedding({s: a}, reference={a: 0})
-W = NumberOrderedForm.from_expr(embedding)
+W = embedding._retained_frame(1)[0, 0]  # the scalar map used internally
 X = NumberOrderedForm.from_expr(a + Dagger(a))
 rectangular = X * W
 compressed = W.adjoint() * rectangular  # embedding.restrict(X)
 ```
 
-A reference-list frame is a matrix of NOFs attached to $W_1$.
+A reference-list frame is a matrix of rectangular maps using $W_1$.
 The zero-generator case uses the same transfer construction: a shift monomial
 maps the first listed occupation state to each other state, including negative
 bilateral ladder indices. A vacuum first reference gives normalized creation
 monomials as a special case.
 
 The usual `zero` and `one` series sentinels represent zero and the identity on
-the block's space. Embedding attachments occur only on rectangular blocks;
+the block's space. Rectangular maps occur only on cross blocks;
 the effective Hamiltonian has already been contracted into the source algebra.
 
 `NumberOrderedForm.as_expr()` exports diagonal projectors as ordinary SymPy
@@ -195,7 +198,7 @@ branches: writing them as `c * (1 - indicator)` would evaluate a coefficient
 at its pole and give $0\cdot\infty$ in the excluded sector.
 
 The solver reads `_column_target_states` from the embedding to evaluate the source
-energy of column $j$ at $r_j+Mq$. The attached target operator already includes
+energy of column $j$ at $r_j+Mq$. The map's target operator already includes
 $T_j$. The lattice's `map_transition_coefficients` evaluates its transitions
 from $r_1+Mq$ and translates transformed coefficients back using $L(n-r_1)$.
 It guards coefficients with possible occupation poles with a `Piecewise` that is

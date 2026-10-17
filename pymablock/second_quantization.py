@@ -431,7 +431,10 @@ def _solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Ca
             divided = _divide_transitions(
                 lattice, entry.target, target_energies[i], source_energies[j]
             )
-            entries[i, j] = entry._rebuild(divided.args[1], operators=divided.operators)
+            # X W only acts on the incoming lattice. Applying its support here
+            # reduces fixed occupations before subsequent coefficient arithmetic.
+            divided = divided * lattice.projector
+            entries[i, j] = entry.func(divided, entry.embedding, entry.side)
         result = sympy.ImmutableSparseMatrix(*block.shape, entries)
         return -result.adjoint() if reverse else result
 

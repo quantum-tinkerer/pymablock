@@ -301,9 +301,7 @@ class Embedding(sympy.Expr):
         result = result.applyfunc(
             lambda value: (
                 value.terms.get((), sympy.S.Zero)
-                if isinstance(value, NumberOrderedForm)
-                and not value.operators
-                and value.embedding is None
+                if isinstance(value, NumberOrderedForm) and not value.operators
                 else value
             )
         )
@@ -318,16 +316,9 @@ class Embedding(sympy.Expr):
         """Return the compiled lattice at the first reference."""
         return self._lattices[0][1]
 
-    @property
-    def _attachment_lattice(self) -> _Lattice:
-        """Return the lattice of a scalar attachment, rejecting matrix frames."""
-        if not isinstance(self.args[1], sympy.Dict):
-            raise TypeError("Reference-list embeddings require a matrix frame")
-        return self._first_lattice
-
     @cached_property
     def _first_embedding(self) -> Embedding:
-        """Return the single-reference embedding that frame entries attach to."""
+        """Return the single-reference isometry used in frame entries."""
         if isinstance(self.args[1], sympy.Dict):
             return self
         reference = dict(self.args[1][0])
@@ -339,7 +330,7 @@ class Embedding(sympy.Expr):
         """Return the frame W: one column ``T_j W_1`` per reference, in its target row."""
         w = sympy.zeros(rows, len(self._lattices))
         for col, ((row, _), transfer) in enumerate(zip(self._lattices, self._transfers)):
-            w[row, col] = self._first_embedding._attach(transfer, 1)
+            w[row, col] = _EmbeddedMap(transfer, self._first_embedding, 1)
         return sympy.ImmutableMatrix(w)
 
     @_cache_on_instance
@@ -362,12 +353,143 @@ class Embedding(sympy.Expr):
             ):
                 raise ValueError("Reference lattices overlap")
 
-    def _attach(self, value: NumberOrderedForm, side: int) -> NumberOrderedForm:
-        """Represent ``value W`` for side +1, or ``W† value`` for side -1."""
-        value = value._expand_operators(self._attachment_lattice.target_operators)
-        return NumberOrderedForm(
-            value.operators, value.args[1], self, side, validate=False
+
+class _EmbeddedMap(sympy.Expr):
+    """An eager rectangular map X W (side +1) or W† X (side -1)."""
+
+    is_commutative = False
+    _op_priority = 10.02
+
+    def __new__(cls, target: NumberOrderedForm, embedding: Embedding, side: int):
+        if side not in (-1, 1):
+            raise ValueError("A map's side must be +1 (X W) or -1 (W† X)")
+        if not isinstance(embedding.args[1], sympy.Dict):
+            raise TypeError("Reference-list embeddings require a matrix frame")
+        target = target._expand_operators(embedding._first_lattice.target_operators)
+        if not target:
+            return sympy.S.Zero
+        return sympy.Expr.__new__(cls, target, embedding, sympy.Integer(side))
+
+    @property
+    def target(self) -> NumberOrderedForm:
+        """The square target operator X."""
+        return self.args[0]
+
+    @property
+    def embedding(self) -> Embedding:
+        """The scalar isometry W."""
+        return self.args[1]
+
+    @property
+    def side(self) -> int:
+        """+1 for X W, -1 for W† X."""
+        return int(self.args[2])
+
+    def as_expr(self) -> sympy.Expr:
+        """Export the target expression and its isometry."""
+        target = self.target.as_expr()
+        return (
+            target * self.embedding
+            if self.side == 1
+            else sympy.adjoint(self.embedding) * target
         )
+
+    def _sympystr(self, printer):
+        return printer._print(self.as_expr())
+
+    _pretty = _sympystr
+    _latex = _sympystr
+
+    def __add__(self, other):
+        if other == 0:
+            return self
+        if not isinstance(other, _EmbeddedMap):
+            return NotImplemented
+        if self.args[1:] != other.args[1:]:
+            raise ValueError("Addition requires matching embeddings and sides")
+        return type(self)(self.target + other.target, self.embedding, self.side)
+
+    __radd__ = __add__
+
+    def __neg__(self):
+        return type(self)(-self.target, self.embedding, self.side)
+
+    def __sub__(self, other):
+        return self + (-other)
+
+    def __rsub__(self, other):
+        return -self + other
+
+    def _multiply(self, other, *, reverse=False):
+        """Contract maps, or lift a square factor adjacent to the source space."""
+        lattice = self.embedding._first_lattice
+        if isinstance(other, _EmbeddedMap):
+            left, right = (other, self) if reverse else (self, other)
+            if left.embedding != right.embedding or left.side == right.side:
+                raise ValueError("Composition requires opposite matching maps")
+            if left.side == -1:
+                return lattice.restrict(left.target * right.target)
+            return left.target * lattice.projector * right.target
+        other = sympy.sympify(other)
+        if isinstance(other, NumberOrderedForm) and not other.operators:
+            other = other.as_expr()
+        if other.is_commutative:
+            # Scalars act on X directly, without introducing W W†.
+            return type(self)(self.target * other, self.embedding, self.side)
+        try:
+            value = NumberOrderedForm.from_expr(other)
+        except (TypeError, ValueError):
+            return NotImplemented
+        source_side = self.side == (-1 if reverse else 1)
+        value = (
+            lattice.lift(value)
+            if source_side
+            else value._expand_operators(lattice.target_operators)
+        )
+        target = value * self.target if reverse else self.target * value
+        return type(self)(target, self.embedding, self.side)
+
+    def __mul__(self, other):
+        return self._multiply(other)
+
+    def __rmul__(self, other):
+        return self._multiply(other, reverse=True)
+
+    def __truediv__(self, other):
+        other = sympy.sympify(other)
+        if other.is_commutative:
+            return self * (1 / other)
+        return self * (NumberOrderedForm.from_expr(other) ** -1)
+
+    def __pow__(self, exponent):
+        if exponent == 1:
+            return self
+        raise ValueError("A rectangular map cannot be raised to a power")
+
+    def _eval_adjoint(self):
+        return type(self)(self.target.adjoint(), self.embedding, -self.side)
+
+    def _eval_is_zero(self):
+        return self.target.is_zero
+
+    def __eq__(self, other):
+        if isinstance(other, _EmbeddedMap):
+            return self.args[1:] == other.args[1:] and self.target == other.target
+        return self.as_expr() == other
+
+    def __hash__(self):
+        if self._mhash is None:
+            self._mhash = hash(self.as_expr())
+        return self._mhash
+
+    def _eval_subs(self, old, new):
+        return type(self)(
+            self.target.subs(old, new), self.embedding.subs(old, new), self.side
+        )
+
+    def _poly_simplify(self):
+        """Simplify target coefficients at the block-series output boundary."""
+        return type(self)(self.target._poly_simplify(), self.embedding, self.side)
 
 
 class _Lattice:

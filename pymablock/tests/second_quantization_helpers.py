@@ -90,10 +90,8 @@ def nof_matrix(form, occupations=None):
     matrix is a compression of this expression, with products evaluated
     before truncation. Rows and columns follow lexicographic occupation order.
     """
-    if form.embedding is not None:
-        raise ValueError(
-            "Convert .target to a matrix and apply the embedding basis explicitly"
-        )
+    if not isinstance(form, NumberOrderedForm):
+        raise TypeError("Expected a square NumberOrderedForm")
     if occupations is None:
         dimensions = tuple(map(_occupation_dimension, form.operators))
         if None in dimensions:
