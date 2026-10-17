@@ -10,6 +10,7 @@ from sympy.physics.quantum import (
     Commutator,
     Dagger,
     HermitianOperator,
+    Operator,
     boson,
     fermion,
     pauli,
@@ -29,6 +30,16 @@ from .second_quantization_helpers import occupation_matrices, operator_matrix
 
 # Here and in other tests we need to convert `NumberOrderedForm` to `Expr` in
 # order to check if it is zero because of https://github.com/sympy/sympy/issues/10728
+
+
+@pytest.mark.parametrize(
+    "expression", [sympy.Symbol("x", commutative=False), Operator("A")]
+)
+def test_from_expr_rejects_unsupported_noncommutative_factors(expression):
+    a = boson.BosonOp("a")
+    for value in (expression, expression * a):
+        with pytest.raises(ValueError):
+            NumberOrderedForm.from_expr(value)
 
 
 def test_ladder_operator_interface():
