@@ -383,9 +383,25 @@ def _number_operator_to_placeholder(op: NumberOperator) -> sympy.Symbol:
     )
 
 
-def _is_singular(expression: sympy.Expr) -> bool:
+# The two scans below run on every coefficient built during perturbation theory.
+# `Basic.has` walks the whole tree on each call, while coefficients of successive
+# orders share most of their subtrees. Caching the recursion per node visits each
+# shared subtree once; this removes most of the scanning overhead in spin and
+# fermion models. The bounded caches hold only scalar SymPy expressions.
+@lru_cache(maxsize=4096)
+def _is_singular(expression: sympy.Basic) -> bool:
     """Return whether an evaluated expression contains an infinity or NaN."""
-    return expression.has(sympy.zoo, sympy.nan, sympy.oo, -sympy.oo)
+    return expression in (sympy.zoo, sympy.nan, sympy.oo, -sympy.oo) or any(
+        _is_singular(arg) for arg in expression.args
+    )
+
+
+@lru_cache(maxsize=4096)
+def _has_piecewise(expression: sympy.Basic) -> bool:
+    """Return whether an expression contains a Piecewise node."""
+    return isinstance(expression, Piecewise) or any(
+        _has_piecewise(arg) for arg in expression.args
+    )
 
 
 def _equal_value_indicator(left: sympy.Expr, right: sympy.Expr | int) -> sympy.Expr:
@@ -606,7 +622,7 @@ class NumberOrderedForm(Operator):
         )
         simplified = (
             (powers, _simplify_on_fixed_numbers(coeff, numbers, nonnegative))
-            if coeff.has(Piecewise)
+            if _has_piecewise(coeff)
             else (powers, coeff)
             for powers, coeff in terms
         )
