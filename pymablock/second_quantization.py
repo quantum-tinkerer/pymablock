@@ -280,9 +280,10 @@ def solve_sylvester_2nd_quant(
         including its choice of zero for undetermined fermion and spin matrix
         elements. An exposed zero energy difference for a nonzero right-hand
         side raises ``ValueError``. Explicit occupation selections can expose
-        such a gap, but binary sectors and integer roots are not searched.
-        Other resonances remain symbolic poles; the result is valid only away
-        from them.
+        such a gap, but integer roots are not searched, and neither are binary
+        sectors, because their number grows exponentially with the number of
+        fermion and spin modes. Other resonances remain symbolic poles; the
+        result is valid only away from them.
 
     """
     eigs = [

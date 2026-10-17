@@ -15,7 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Second-quantized energy-gap division evaluates explicit occupation selections and preserves unresolved resonances as symbolic poles. It does not search binary occupation sectors. Explicit nonzero couplings at zero gaps still raise an error.
 - Raised minimum versions to Python 3.12, NumPy 2.2, SciPy 1.15, and SymPy 1.14 following the September 2026 SPEC 0 support window.
 - Reworked the implicit direct solver to constrain known degenerate kernels using QR-selected pivot equations instead of relying on MUMPS singularity detection, and added a SciPy sparse-LU fallback when `python-mumps` is unavailable.
 - Reduced the number of matrix products in selective Hermitian diagonalization by evaluating the selected auxiliary directly, and in non-Hermitian diagonalization by exploiting the selected structure of the transformed residual.
@@ -45,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed second-quantized Sylvester equations with zero diagonal blocks, including rectangular right-hand sides.
 - Corrected the KPM auxiliary-vector option to `auxiliary_vectors` throughout documentation and tests, and verified that auxiliary vectors are used.
 - Corrected the number-operator shifts in the documented boson and ladder multiplication rules.
-- Fixed division by zero in fermion and spin Sylvester equations when both the right-hand side and the energy difference vanish.
+- Fixed division by zero in fermion and spin Sylvester equations when both the right-hand side and the energy difference vanish. An explicit zero energy difference with a nonzero right-hand side raises an error, and unresolved resonances remain symbolic poles.
 - Fixed incorrect number-dependent coefficients in products of fermion and spin operators.
 - Fixed extra minus signs in products containing annihilation operators for multiple fermion modes.
 - Fixed incorrect shifts of number-dependent coefficients when multiplying boson and ladder expressions by creation operators.
