@@ -135,7 +135,8 @@ def test_bosonic_projector_output_blocks():
         elif i == j == 0:
             matrix = nof_matrix(entry)
         else:
-            matrix = nof_matrix(entry.target, [range(cutoff)]).extract(
+            target_form = entry if i == j else entry.target
+            matrix = nof_matrix(target_form, [range(cutoff)]).extract(
                 selected[i], selected[j]
             )
         expected = reference[k][i, j, n]
