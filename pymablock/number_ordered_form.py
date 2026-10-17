@@ -759,7 +759,7 @@ class NumberOrderedForm(Operator):
             return expr
 
         # For scalar expressions (no operators)
-        if not expr.has(*operator_types, NumberOperator):
+        if expr.is_commutative and not expr.has(*operator_types, NumberOperator):
             # Return a NumberOrderedForm with no operators and a single term
             operators = operators or []
             return cls(

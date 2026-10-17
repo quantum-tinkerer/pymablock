@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed incorrect results and division-by-zero errors in symbolic block diagonalization involving zero-energy blocks.
+- Fixed `NumberOrderedForm.from_expr` silently treating unsupported noncommutative objects as commuting scalar coefficients; it now raises a `ValueError`.
 - Preserved meromorphic occupation coefficients during binary simplification, preventing singular points from corrupting nonresonant sectors.
 - Fixed the zero-solution convention at inactive negative sites of bilateral ladders.
 - Fixed implicit projectors on SciPy 1.18 by initializing the `LinearOperator` base class.
