@@ -11,7 +11,7 @@ from pymablock.second_quantization import (
     apply_mask_to_operator,
     solve_sylvester_2nd_quant,
 )
-from pymablock.series import cauchy_dot_product
+from pymablock.series import cauchy_dot_product, zero
 
 from .second_quantization_helpers import occupation_matrices, operator_matrix
 from .test_block_diagonalization import compare_series, is_unitary
@@ -848,6 +848,47 @@ def test_nonhermitian_quantized_reconstruction(upper, scalar):
         actual = reconstructed[0, 0, order]
         for i, j in np.ndindex(h0.shape):
             assert sympy.expand(actual[i, j].doit() - expected[i, j].doit()) == 0
+
+
+@pytest.mark.parametrize("as_nof", [False, True])
+def test_nonhermitian_quantized_zero_retained_block(as_nof):
+    n = NumberOperator(BosonOp("a"))
+    h0 = sympy.diag(0, 0, -n - 1, -2 * (n + 1))
+    perturbation = (
+        sympy.Matrix([[0, 0, 1, 2], [0, 0, 3, 4], [5, 6, 0, 0], [7, 8, 0, 0]]) / 10
+    )
+    numeric = block_diagonalize(
+        [np.array(h0.subs(n, 2), dtype=complex), np.array(perturbation, dtype=complex)],
+        subspace_indices=[0, 0, 1, 1],
+        hermitian=False,
+    )
+    if as_nof:
+        h0 = h0.applyfunc(NumberOrderedForm.from_expr)
+        perturbation = perturbation.applyfunc(NumberOrderedForm.from_expr)
+    symbolic = block_diagonalize(
+        [h0, perturbation], subspace_indices=[0, 0, 1, 1], hermitian=False
+    )
+    # Couplings preserve occupation, so each number sector is an exact finite
+    # matrix problem. Check all three returned series in the n=2 sector.
+    for actual, expected in zip(symbolic, numeric):
+        for i, j in np.ndindex(2, 2):
+            for order in range(1, 5):
+                value, reference = actual[i, j, order], expected[i, j, order]
+                if value is not zero:
+                    value = np.array(
+                        value.applyfunc(
+                            lambda x: (
+                                x.as_expr() if isinstance(x, NumberOrderedForm) else x
+                            ).subs(n, 2)
+                        ),
+                        dtype=complex,
+                    )
+                np.testing.assert_allclose(
+                    value if value is not zero else 0,
+                    reference if reference is not zero else 0,
+                    atol=1e-13,
+                    rtol=1e-13,
+                )
 
 
 @pytest.mark.parametrize(
