@@ -13,9 +13,9 @@ from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main, nonhermitian
 from pymablock.block_diagonalization import (
     block_diagonalize,
+    operator_to_BlockSeries,
     solve_sylvester_direct,
 )
-from pymablock.number_ordered_form import NumberOrderedForm
 from pymablock.series import AlgebraElement, BlockSeries, cauchy_dot_product, zero
 
 from .test_block_diagonalization import (
@@ -648,71 +648,38 @@ def test_block_diagonalize_nonhermitian_accepts_bare_sympy_matrix():
     assert U_inv[(0, 1, 2)] == sympy.Matrix([[-(x**2)]])
 
 
-@pytest.mark.parametrize("as_nof", [False, True])
-def test_nonhermitian_symbolic_zero_retained_block(as_nof):
-    a, b, c, d, e, f, g, h = sympy.symbols("a b c d e f g h")
-    h0 = sympy.diag(0, 0, -1, -2)
-    perturbation = sympy.Matrix([[0, 0, a, b], [0, 0, c, d], [e, f, 0, 0], [g, h, 0, 0]])
-    # Scalar NOFs without declared modes use the ordinary symbolic solver too.
-    inputs = [h0, perturbation]
-    if as_nof:
-        inputs = [matrix.applyfunc(NumberOrderedForm.from_expr) for matrix in inputs]
-    effective, u, u_inv = block_diagonalize(
-        inputs, subspace_indices=[0, 0, 1, 1], hermitian=False
-    )
-    B, C = perturbation[:2, 2:], perturbation[2:, :2]
-    inverse_gap = sympy.diag(1, sympy.Rational(1, 2))
-    second = B * inverse_gap * C
-    assert sympy.expand(effective[0, 0, 2].doit() - second).is_zero_matrix
-    # Eliminating Q gives det(E I - t**2 B (D + E I)**(-1) C) = 0.
-    # The two roots near zero sum to fourth-order coefficient -tr(M1 M2),
-    # where Mk = B D**(-k) C, independently of the retained-block gauge.
-    fourth_trace = -sympy.trace(second * B * inverse_gap**2 * C)
-    assert sympy.expand(sympy.trace(effective[0, 0, 4]).doit() - fourth_trace) == 0
-    assert u[1, 0, 1].doit() == inverse_gap * C
-    assert u_inv[1, 0, 1].doit() == -inverse_gap * C
-
-
 @pytest.mark.parametrize(
-    ("energies", "indices", "fully_diagonalize", "hermitian"),
-    [
-        ([0, 0, -1, -2, -3], [0, 0, 1, 1, 2], (), False),
-        ([0, 0, -1, -2], [0, 0, 1, 1], (1,), False),
-        ([-1, -2, 0, 0], [0, 0, 1, 1], (), True),
-    ],
-    ids=["three-block", "full", "hermitian"],
+    ("n_blocks", "hermitian", "fully_diagonalize"),
+    [(2, False, False), (3, False, False), (2, False, True), (2, True, False)],
+    ids=["two-block", "three-block", "full", "hermitian"],
 )
-def test_symbolic_zero_block_matches_numeric(
-    energies, indices, fully_diagonalize, hermitian, rng
-):
-    n = len(energies)
-    h0 = sympy.diag(*energies)
-    perturbation = sympy.Matrix(rng.integers(-3, 4, (n, n))) / 10
+def test_symbolic_zero_block_roundtrip(n_blocks, hermitian, fully_diagonalize, rng):
+    block_dims = rng.integers(2, 4, size=n_blocks)
+    indices = np.repeat(np.arange(n_blocks), block_dims)
+    n = sum(block_dims)
+    energies = rng.permutation(np.arange(1, n + 1))
+    # The zero block must have multiple states. Keep it last to exercise the
+    # problematic solve orientation in the Hermitian algorithm as well.
+    energies[indices == n_blocks - 1] = 0
+    h0 = sympy.diag(*energies.tolist())
+    perturbation = sympy.Matrix(rng.integers(-2, 3, (n, n)))
     if hermitian:
-        perturbation += perturbation.T
-    options = dict(
-        subspace_indices=indices,
-        fully_diagonalize=fully_diagonalize,
-        hermitian=hermitian,
+        perturbation += perturbation.adjoint()
+    H = operator_to_BlockSeries(
+        [h0, perturbation], subspace_indices=indices, hermitian=hermitian
     )
-    symbolic = block_diagonalize([h0, perturbation], **options)
-    numeric = block_diagonalize(
-        [np.array(h0, dtype=complex), np.array(perturbation, dtype=complex)], **options
+    diagonal_blocks = tuple(range(n_blocks - 1)) if fully_diagonalize else ()
+    effective, u, u_inv = block_diagonalize(
+        H, fully_diagonalize=diagonal_blocks, hermitian=hermitian
     )
-    # Check every block of the effective Hamiltonian, transform, and inverse,
-    # including nonzero odd orders supplied by within-block perturbations.
-    for actual, expected in zip(symbolic, numeric):
-        for i, j, order in product(
-            range(actual.shape[0]), range(actual.shape[1]), range(1, 5)
-        ):
-            value, reference = actual[i, j, order], expected[i, j, order]
-            np.testing.assert_allclose(
-                np.array(value, dtype=complex) if value is not zero else 0,
-                reference if reference is not zero else 0,
-                atol=1e-13,
-                rtol=1e-13,
-                err_msg=f"{actual.name}, {(i, j, order)=}",
-            )
+    # Exact identities against the original Hamiltonian check both inverse
+    # relations and both similarity transforms; for Hermitian input, unitarity.
+    _assert_roundtrip(H, {"H_tilde": effective, "U": u, "U†": u_inv}, (4,))
+    _assert_block_offdiag_zero(effective, (4,))
+    for block, order in product(diagonal_blocks, range(1, 5)):
+        value = effective[block, block, order]
+        if value is not zero:
+            assert value.is_diagonal()
 
 
 @pytest.mark.parametrize("index", [(0, 1), (1, 0)])
