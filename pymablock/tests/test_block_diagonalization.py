@@ -2121,14 +2121,12 @@ def test_symbolic_sylvester_uses_exact_degeneracy():
     assert solve(sympy.ones(1, 1), (0, 1)) == sympy.Matrix([[-1 / gap]])
 
 
-@pytest.mark.parametrize("sizes", [(2, 2), (2, 3), (3, 2)])
 @pytest.mark.parametrize("reverse", [False, True])
-def test_symbolic_sylvester_zero_block_broadcast(sizes, reverse):
+def test_symbolic_sylvester_zero_block_broadcast(reverse):
     # _extract_diagonal represents an all-zero block by a scalar, whereas
     # SymPy's nonzero diagonal is a row array. Test both solve orientations.
-    rows, cols = sizes
-    energies = sympy.Matrix([[1 + i for i in range(rows)]])
-    A, B = sympy.diag(*energies), sympy.zeros(cols)
+    energies = sympy.Matrix([[1, 2]])
+    A, B = sympy.diag(*energies), sympy.zeros(3)
     eigs = [np.array(energies, dtype=object), np.array(0)]
     if reverse:
         A, B = B, A

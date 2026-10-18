@@ -21,8 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed symbolic Sylvester energy denominators for multi-state zero-energy blocks, correcting effective Hamiltonians and transformation series in non-Hermitian and some Hermitian problems, including multi-block and full/selective diagonalization.
-  Also fixed division by zero when solving within symbolic zero-energy blocks.
+- Fixed incorrect results and division-by-zero errors in symbolic block diagonalization involving zero-energy blocks.
 - Fixed implicit projectors on SciPy 1.18 by initializing the `LinearOperator` base class.
 - Fixed the Andreev supercurrent tutorial's fermionic matrix conversion for SymPy 1.14.
 - Fixed chained and nested custom-algorithm division failing on the zero sentinel by recursively transforming division operands.

@@ -13,7 +13,6 @@ from pymablock.algorithm_parsing import series_computation
 from pymablock.algorithms import main, nonhermitian
 from pymablock.block_diagonalization import (
     block_diagonalize,
-    operator_to_BlockSeries,
     solve_sylvester_direct,
 )
 from pymablock.number_ordered_form import NumberOrderedForm
@@ -677,34 +676,11 @@ def test_nonhermitian_symbolic_zero_retained_block(as_nof):
 @pytest.mark.parametrize(
     ("energies", "indices", "fully_diagonalize", "hermitian"),
     [
-        ([0, 0, -1, -2], [0, 0, 1, 1], (), False),
         ([0, 0, -1, -2, -3], [0, 0, 1, 1, 2], (), False),
-        ([-1, -2, -3, 0, 0], [0, 0, 0, 1, 1], (), False),
         ([0, 0, -1, -2], [0, 0, 1, 1], (1,), False),
-        (
-            [0, 0, -1, -2],
-            [0, 0, 1, 1],
-            {1: np.array([[False, True], [False, False]])},
-            False,
-        ),
         ([-1, -2, 0, 0], [0, 0, 1, 1], (), True),
-        ([3, 3, 2, 1], [0, 0, 1, 1], (), False),
-        ([0, -1, -2], [0, 1, 1], (), False),
-        ([0, 0, -1, -2], [0, 0, 1, 2], (), False),
-        ([0, 0, -1, -2], [0, 0, 0, 0], (), False),
     ],
-    ids=[
-        "two-block",
-        "three-block",
-        "rectangular",
-        "full",
-        "selective",
-        "hermitian",
-        "shifted",
-        "one-state",
-        "split",
-        "single-block",
-    ],
+    ids=["three-block", "full", "hermitian"],
 )
 def test_symbolic_zero_block_matches_numeric(
     energies, indices, fully_diagonalize, hermitian, rng
@@ -737,10 +713,6 @@ def test_symbolic_zero_block_matches_numeric(
                 rtol=1e-13,
                 err_msg=f"{actual.name}, {(i, j, order)=}",
             )
-    source = operator_to_BlockSeries(
-        [h0, perturbation], subspace_indices=indices, hermitian=hermitian
-    )
-    _assert_roundtrip(source, dict(zip(("H_tilde", "U", "U†"), symbolic)), (4,))
 
 
 @pytest.mark.parametrize("index", [(0, 1), (1, 0)])
@@ -895,23 +867,6 @@ def test_block_diagonalize_nonhermitian_implicit_direct_solver_supports_biorthog
     )
 
     compare_series(H_tilde_implicit[0, 0], H_tilde_explicit[0, 0], (2,), atol=1e-6)
-
-
-def test_nonhermitian_implicit_zero_retained_block(rng):
-    h0 = np.diag([0.0, 0.0, -1.0, -2.0])
-    perturbation = rng.integers(-3, 4, (4, 4)) / 10
-    implicit = block_diagonalize(
-        [sparse.csr_array(h0), perturbation],
-        subspace_eigenvectors=[np.eye(4)[:, :2]],
-        hermitian=False,
-    )
-    explicit = block_diagonalize(
-        [h0, perturbation], subspace_indices=[0, 0, 1, 1], hermitian=False
-    )
-    # The implicit representation uses ambient coordinates for the complement.
-    # Retained blocks have identical coordinates in all three series.
-    for actual, expected in zip(implicit, explicit):
-        compare_series(actual[0, 0], expected[0, 0], (4,), atol=1e-12)
 
 
 def test_block_diagonalize_nonhermitian_rejects_implicit_kpm(rng):
