@@ -959,9 +959,16 @@ def solve_sylvester_diagonal(
         if isinstance(Y, sympy.MatrixBase):
             array_eigs_a = np.array(eigs_A, dtype=object)  # Use numpy to reshape
             array_eigs_b = np.array(eigs_B, dtype=object)
-            energy_denominators = sympy.Matrix(
-                np.resize(1 / (array_eigs_a.reshape(-1, 1) - array_eigs_b), Y.shape)
-            ).subs(sympy.zoo, sympy.S.Zero)  # Take care of diagonal elements
+            # A zero block has a scalar energy. Broadcast its denominators along
+            # the missing axis; resizing would repeat the flattened array.
+            energy_differences = sympy.Matrix(
+                np.broadcast_to(array_eigs_a.reshape(-1, 1) - array_eigs_b, Y.shape)
+            )
+            # Convert to SymPy before division so scalar integer zero also
+            # produces zoo, which is replaced by the diagonal gauge value zero.
+            energy_denominators = energy_differences.applyfunc(lambda gap: 1 / gap).subs(
+                sympy.zoo, sympy.S.Zero
+            )
             return energy_denominators.multiply_elementwise(Y)
         raise TypeError(f"Unsupported rhs type: {type(Y)}")
 
