@@ -1,11 +1,13 @@
 version: 2
 
 build:
-  os: ubuntu-22.04
+  os: ubuntu-26.04
   commands:
     - asdf plugin add pixi https://github.com/pavelzw/asdf-pixi.git
-    - asdf install pixi latest
-    - asdf global pixi latest
+    # Keep the Pixi version in sync with the CI image.
+    - >-
+      sed -n 's|^image: ghcr.io/prefix-dev/pixi:|pixi |p' .gitlab-ci.yml > .tool-versions
+    - asdf install pixi
     - pixi run docs-build
     - mkdir -p $READTHEDOCS_OUTPUT/html/
     - cp -r docs/build/html/** $READTHEDOCS_OUTPUT/html/
