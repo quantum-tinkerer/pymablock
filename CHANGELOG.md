@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fixed incorrect results and division-by-zero errors in symbolic block diagonalization involving zero-energy blocks.
 - Fixed implicit projectors on SciPy 1.18 by initializing the `LinearOperator` base class.
 - Fixed the Andreev supercurrent tutorial's fermionic matrix conversion for SymPy 1.14.
 - Fixed chained and nested custom-algorithm division failing on the zero sentinel by recursively transforming division operands.
