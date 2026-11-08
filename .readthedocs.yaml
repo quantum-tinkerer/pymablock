@@ -6,7 +6,7 @@ build:
     - asdf plugin add pixi https://github.com/pavelzw/asdf-pixi.git
     # Keep the Pixi version in sync with the CI image.
     - >-
-      sed -n 's|^image: ghcr.io/prefix-dev/pixi:|pixi |p' .gitlab-ci.yml > .tool-versions
+      sed -n "s|^image: ghcr.io/prefix-dev/pixi:|pixi |p" .gitlab-ci.yml > .tool-versions
     - asdf install pixi
     - pixi run docs-build
     - mkdir -p $READTHEDOCS_OUTPUT/html/
