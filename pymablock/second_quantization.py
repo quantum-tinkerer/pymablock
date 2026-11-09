@@ -12,8 +12,9 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
     _iter_fixed_number_indicators,
     _number_operator_to_placeholder,
+    _vanishes_by_indicator_algebra,
 )
-from pymablock.operator_embedding import Embedding, _Lattice
+from pymablock.operator_embedding import Embedding
 from pymablock.series import zero
 
 __all__ = [
@@ -26,7 +27,6 @@ def _divide_by_energy_gap(
     coefficient: sympy.Expr,
     energy_gap: sympy.Expr,
     number_symbols: Sequence[sympy.Symbol] = (),
-    amplitude: sympy.Expr | None = None,
     nonnegative_numbers: Sequence[sympy.Symbol] = (),
 ) -> sympy.Expr:
     """Return coefficient / energy_gap, choosing zero for inactive 0/0 channels.
@@ -34,29 +34,27 @@ def _divide_by_energy_gap(
     Ordinary cancellation can lose an inactive transition: n/n must be zero at
     n=0, not one everywhere. Occupations fixed by indicators are evaluated
     directly; otherwise the quotient is conditional on the transition being active.
-    ``amplitude`` (default: ``coefficient``) also contains ladder factors and fermion
-    signs and only decides inactivity. ``number_symbols`` are occupation coordinates
+    The NOF coefficient is the amplitude at the middle occupations.
+    ``number_symbols`` are occupation coordinates
     and other symbols are generic parameters; ``nonnegative_numbers`` only avoids
-    unnecessary conditionals. A literal zero gap with a nonzero amplitude raises
+    unnecessary conditionals. A literal zero gap with a nonzero coefficient raises
     ValueError; other resonances remain symbolic poles and are not searched for.
     """
-    amplitude = coefficient if amplitude is None else amplitude
-    if amplitude == 0:
+    if coefficient == 0:
         return sympy.S.Zero
     energy_gap = sympy.cancel(energy_gap)
-    arguments = coefficient, energy_gap, amplitude
+    arguments = coefficient, energy_gap
 
     def divide_after_substitution(
         substitution: Mapping[sympy.Expr, sympy.Expr],
     ) -> sympy.Expr:
-        selected_coefficient, selected_gap, selected_amplitude = (
+        selected_coefficient, selected_gap = (
             expression.xreplace(substitution) for expression in arguments
         )
         return _divide_by_energy_gap(
             selected_coefficient,
             selected_gap,
             number_symbols,
-            selected_amplitude,
             nonnegative_numbers,
         )
 
@@ -72,6 +70,8 @@ def _divide_by_energy_gap(
             (divide_after_substitution({delta: sympy.S.Zero}), True),
         )
     if energy_gap == 0:
+        if _vanishes_by_indicator_algebra(coefficient, variables):
+            return sympy.S.Zero
         raise ValueError(
             "Cannot solve the Sylvester equation: the right-hand side is nonzero "
             "but the energy difference is zero (degenerate channel)."
@@ -102,7 +102,7 @@ def _divide_by_energy_gap(
         )
     ):
         return quotient
-    factors = (factor.as_numer_denom()[0] for factor in sympy.Mul.make_args(amplitude))
+    factors = (factor.as_numer_denom()[0] for factor in sympy.Mul.make_args(coefficient))
     inactive = sympy.Or(
         *(
             sympy.Eq(factor, 0, evaluate=False)
@@ -110,10 +110,10 @@ def _divide_by_energy_gap(
             if factor.free_symbols & variables
         )
     )
-    # A meromorphic amplitude has no defined zero at its poles. Its numerator
+    # A meromorphic coefficient has no defined zero at its poles. Its numerator
     # can vanish there without making the virtual channel inactive.
-    amplitude_denominator = sympy.together(amplitude).as_numer_denom()[1]
-    inactive = sympy.And(inactive, sympy.Ne(amplitude_denominator, 0))
+    coefficient_denominator = sympy.together(coefficient).as_numer_denom()[1]
+    inactive = sympy.And(inactive, sympy.Ne(coefficient_denominator, 0))
     return sympy.Piecewise((0, inactive), (quotient, True), evaluate=False)
 
 
@@ -330,39 +330,6 @@ def solve_sylvester_2nd_quant(
     return solve_sylvester
 
 
-def _divide_transitions(
-    lattice: _Lattice,
-    value: NumberOrderedForm,
-    target_energy: sympy.Expr,
-    source_energy: sympy.Expr,
-) -> NumberOrderedForm:
-    """Divide a target NOF's transitions from this lattice by their energy gaps.
-
-    Target energy uses target number placeholders; source energy uses
-    symbolic source occupations. Return a bare target NOF, preserving inactive
-    zero-gap transitions as zero and unresolved gaps as symbolic denominators.
-    """
-    source_occupations = lattice.source_occupations
-    nonnegative = tuple(q for q in source_occupations if q.is_nonnegative)
-
-    def divide(coefficient, output, matrix_element):
-        denominator = sympy.expand(
-            lattice.evaluate_target_numbers(target_energy, output) - source_energy
-        )
-        # Binary source identities can make a nominally resonant transition inactive.
-        if (
-            denominator == 0
-            and source_occupations
-            and lattice.source_is_zero(matrix_element)
-        ):
-            return sympy.S.Zero
-        return _divide_by_energy_gap(
-            coefficient, denominator, source_occupations, matrix_element, nonnegative
-        )
-
-    return lattice.map_transition_coefficients(value, divide)
-
-
 def _solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Callable:
     """Construct a Sylvester solver for source and target-complement blocks.
 
@@ -383,11 +350,13 @@ def _solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Ca
 
     Notes
     -----
-    Intra-block solves use ``solve_sylvester_2nd_quant``. Cross-block solves evaluate
-    target and source energies on the reference states or symbolic source
-    occupations, then divide each transition. Non-diagonal H0 raises ValueError.
-    Exposed resonant cross-block transitions raise ZeroDivisionError; inactive
-    transitions contribute zero and unresolved resonances remain symbolic poles.
+    Both intra-block and cross-block solves use target/source NOF scalar division.
+    Cross blocks solve ``(H0 X - X H0) P = Y P`` in target coordinates. For a
+    reference list, column energies are translated to the first reference.
+    Non-diagonal H0 raises ValueError. A nonzero transition with a zero gap
+    on a projector-selected occupation raises ValueError in either embedding
+    format. Inactive transitions give zero; unresolved parameter poles stay
+    symbolic. Binary sectors are never enumerated.
 
     """
     lattice = embedding._first_lattice
@@ -399,13 +368,20 @@ def _solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Ca
         x.terms.get(vacuum, sympy.S.Zero) if x != 0 else sympy.S.Zero
         for x in h0.diagonal()
     ]
-    source_energies = [
-        lattice.evaluate_target_numbers(target_energies[row], state)
-        for row, state in embedding._column_target_states
+    row_energies = [
+        NumberOrderedForm(target_operators, {vacuum: e}) for e in target_energies
     ]
-
-    # Within each diagonal block the operators already use source or target
-    # coordinates. Only rectangular blocks require embedding-aware division.
+    column_energies = [
+        NumberOrderedForm(
+            target_operators,
+            {
+                vacuum: target_energies[row].xreplace(
+                    {n: n + offset for n, offset in offsets.items()}
+                )
+            },
+        )
+        for row, offsets in embedding._column_offsets
+    ]
     w = embedding._retained_frame(h0.rows)
     source_block_energies = (w.adjoint() * h0 * w).diagonal()
     diagonal_solver = solve_sylvester_2nd_quant([source_block_energies, h0.diagonal()])
@@ -424,11 +400,9 @@ def _solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Ca
         for (i, j), entry in block.todok().items():
             if entry.is_zero:
                 continue
-            divided = _divide_transitions(
-                lattice, entry.target, target_energies[i], source_energies[j]
+            divided = solve_scalar(
+                entry.target * lattice.projector, row_energies[i], column_energies[j]
             )
-            # X W only acts on the incoming lattice. Applying its support here
-            # reduces fixed occupations before subsequent coefficient arithmetic.
             divided = divided * lattice.projector
             entries[i, j] = entry.func(divided, entry.embedding, entry.side)
         result = sympy.ImmutableSparseMatrix(*block.shape, entries)

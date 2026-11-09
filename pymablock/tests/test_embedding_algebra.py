@@ -161,51 +161,6 @@ def assert_matrix_equal(actual, expected):
     assert (actual - expected).applyfunc(sp.simplify) == sp.zeros(*expected.shape)
 
 
-@pytest.mark.parametrize("particle_hole", [False, True])
-def test_mapped_coefficients_exclude_off_lattice_poles(particle_hole):
-    u, d, s = FermionOp("u"), FermionOp("d"), SigmaMinus("s")
-    e = Embedding(
-        {s: d * u if particle_hole else d.adjoint() * u},
-        reference={u: 0, d: 0 if particle_hole else 1},
-    )
-    lattice = e._first_lattice
-    (q,) = lattice.source_occupations
-    # 1/(2q-1) is finite on both source states, but its target expression
-    # has poles on the other two Fock states for either fractional inverse.
-    # Target modes sort as d,u, hence q=0 corresponds to d=1,u=0.
-    diagonal = sp.diag(-1, 0, 0, 1) if particle_hole else sp.diag(0, 1, -1, 0)
-    frame = e._retained_frame(1)[0, 0]
-    for expression in (1, u, u.adjoint(), d, d.adjoint()):
-        value = lattice.parse_target(expression)
-        mapped = lattice.map_transition_coefficients(
-            value, lambda coefficient, _output, _amplitude: coefficient / (2 * q - 1)
-        )
-        expected = nof_matrix(value) * diagonal
-        assert_matrix_equal(nof_matrix(mapped), expected)
-        assert_matrix_equal(nof_matrix(mapped * frame * frame.adjoint()), expected)
-        # Subsequent multiplication must not spread excluded poles to the lattice.
-        left = lattice.parse_target(u + u.adjoint())
-        assert_matrix_equal(nof_matrix(left * mapped), nof_matrix(left) * expected)
-
-
-@pytest.mark.parametrize("generic_gap", [False, True])
-def test_integer_pullback_respects_retained_domain(generic_gap):
-    a, s = BosonOp("a"), SigmaMinus("s")
-    lattice = Embedding({s: a}, reference={a: 0})._first_lattice
-    (q,) = lattice.source_occupations
-    omega, alpha = sp.symbols("omega alpha", nonzero=True)
-    # Integrality alone is insufficient: n=2 is outside the source spin domain.
-    denominator = omega + alpha * q if generic_gap else q - 2
-    mapped = lattice.map_transition_coefficients(
-        lattice.parse_target(1), lambda *_: 1 / denominator
-    )
-    if generic_gap:
-        expected = sp.diag(1 / omega, 1 / (omega + alpha), 0, 0)
-    else:
-        expected = sp.diag(-sp.Rational(1, 2), -1, 0, 0)
-    assert_matrix_equal(nof_matrix(mapped, [range(4)]), expected)
-
-
 @pytest.mark.parametrize("reference", [0, 1])
 def test_normalized_generator_lift_and_map_contracts(reference):
     a, s = BosonOp("a"), SigmaMinus("s")
@@ -527,3 +482,41 @@ def test_nof_defers_to_map_priority():
     value = F.from_expr(a)
     assert value.__mul__(w) is NotImplemented
     assert (value * w).target == value
+
+
+@pytest.mark.parametrize("generic_gap", [False, True])
+def test_target_division_excludes_unselected_poles(generic_gap):
+    """The target-coordinate solve stays finite on and outside a truncated boson."""
+    from pymablock.second_quantization import solve_scalar
+
+    a, q = BosonOp("a"), SigmaMinus("q")
+    e = Embedding({q: a}, reference={a: 0})
+    lattice = e._first_lattice
+    omega, alpha = sp.symbols("omega alpha", nonzero=True)
+    gap = omega + alpha * N(a) if generic_gap else N(a) - 2
+    divided = solve_scalar(lattice.projector, gap, 0) * lattice.projector
+    expected = (
+        sp.diag(1 / omega, 1 / (omega + alpha), 0, 0)
+        if generic_gap
+        else sp.diag(-sp.Rational(1, 2), -1, 0, 0)
+    )
+    assert_matrix_equal(nof_matrix(divided, [range(4)]), expected)
+    left = lattice.parse_target(a + a.adjoint())
+    assert_matrix_equal(
+        nof_matrix(left * divided, [range(4)]), nof_matrix(left, [range(4)]) * expected
+    )
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Indicator algebra does not infer exclusivity of different floor conditions",
+)
+def test_mutually_exclusive_floor_indicators():
+    """Even and odd sublattice supports have an empty intersection."""
+    from pymablock.number_ordered_form import _equal_value_indicator
+    from pymablock.second_quantization import _divide_by_energy_gap
+
+    n = sp.Symbol("n", integer=True)
+    even = _equal_value_indicator(n / 2, sp.floor(n / 2))
+    odd = _equal_value_indicator((n - 1) / 2, sp.floor((n - 1) / 2))
+    assert _divide_by_energy_gap(even * odd, sp.S.Zero, (n,)) == 0

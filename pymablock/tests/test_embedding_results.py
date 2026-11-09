@@ -579,7 +579,8 @@ def test_cancellation_before_resonance_check(generator):
         "explicit-zero",
     ],
 )
-def test_division_policy(case):
+@pytest.mark.parametrize("format", ["generator", "list"])
+def test_division_policy(case, format):
     a, b, q = map(BosonOp, ("a", "b", "q"))
     n = N(a)
     point = s.Piecewise((1, s.Eq(n, 1)), (0, True))
@@ -601,16 +602,19 @@ def test_division_policy(case):
     if case == "explicit-zero":
         x = s.Symbol("x")
         energy = (x**2 - 1) / (x - 1) - x - 1
+    embedding = Embedding({q: a}, reference={a: 0, b: 0})
+    if format == "list":
+        if not case.startswith("binary"):
+            pytest.skip("Equivalent finite list only for truncated boson")
+        embedding = Embedding({}, reference=[{a: 0, b: 0}, {a: 1, b: 0}])
     h, *_ = block_diagonalize(
         [n + energy * N(b), coupling * b.adjoint() + s.adjoint(coupling) * b],
-        subspace_eigenvectors=Embedding({q: a}, reference={a: 0, b: 0}),
+        subspace_eigenvectors=embedding,
     )
-    if case in ("point-resonance", "explicit-zero"):
+    if case in ("point-resonance", "explicit-zero", "binary-pole"):
         with pytest.raises(ValueError):
             _ = h[0, 0, 2]
-    elif case == "binary-pole":
-        expression = h[0, 0, 2].as_expr()
-        assert expression.subs(N(q), 0) == -1
-        assert expression.subs(N(q), 1).has(s.zoo, s.nan)
+    elif format == "list":
+        assert h[0, 0, 2] == expected
     else:
         assert nof_matrix(h[0, 0, 2], [range(expected.rows)]) == expected

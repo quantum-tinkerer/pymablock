@@ -24,7 +24,7 @@ Notation used in this module:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from functools import cached_property
 from typing import Self
 
@@ -41,6 +41,7 @@ from pymablock.number_ordered_form import (
     _number_operator_to_placeholder,
     _occupation_dimension,
     _operator_sort_key,
+    _vanishes_by_indicator_algebra,
     find_operators,
     generator_types,
 )
@@ -281,9 +282,26 @@ class Embedding(sympy.Expr):
         return sympy.eye(rows) - w * w.adjoint()
 
     @property
-    def _column_target_states(self) -> tuple:
-        """Return the target row and occupations ``n(q)`` of each frame column."""
-        return tuple((row, lattice.target_of_source) for row, lattice in self._lattices)
+    def _column_offsets(self) -> tuple:
+        """Return each column's target row and translation from the first reference."""
+        first = self._first_lattice
+        return tuple(
+            (
+                row,
+                dict(
+                    zip(
+                        first._target_numbers,
+                        (
+                            r - r1
+                            for r, r1 in zip(
+                                lattice._reference_state, first._reference_state
+                            )
+                        ),
+                    )
+                ),
+            )
+            for row, lattice in self._lattices
+        )
 
     def _validate_disjointness(self) -> None:
         """Reject lattices in the same target row that share a target state."""
@@ -406,9 +424,12 @@ class _EmbeddedMap(sympy.Expr):
 
     def _eval_is_zero(self):
         projector = self.embedding._first_lattice.projector
-        return (
+        on_lattice = (
             self.target * projector if self.side == 1 else projector * self.target
-        ).is_zero
+        )
+        if all(_vanishes_by_indicator_algebra(c) for c in on_lattice.terms.values()):
+            return True
+        return on_lattice.is_zero
 
 
 class _Lattice:
@@ -558,56 +579,6 @@ class _Lattice:
         return expression.xreplace(
             dict(zip(self._target_numbers, occupations, strict=True))
         )
-
-    def source_is_zero(self, amplitude: sympy.Expr) -> bool:
-        """Test an amplitude in the source algebra, including binary identities."""
-        return (
-            NumberOrderedForm(
-                self._source_operators,
-                {
-                    (0,) * len(self.source_occupations): amplitude.xreplace(
-                        dict(zip(self.source_occupations, self._source_numbers))
-                    )
-                },
-                validate=False,
-            )
-            ._linearize_binary_operators()
-            .is_zero
-        )
-
-    def map_transition_coefficients(
-        self, value: NumberOrderedForm, transform: Callable
-    ) -> NumberOrderedForm:
-        """Transform target coefficients evaluated on this lattice.
-
-        Call ``transform(coefficient, output, amplitude)`` in source coordinates,
-        where output contains the final target occupations and amplitude includes
-        ladder factors. Translate returned coefficients back to the intermediate
-        target occupations used by NOF. Coefficients with possible occupation poles
-        are extended by zero outside this input lattice; finite pullbacks need no guard.
-        The callback owns the transformation rule on the lattice.
-        """
-        terms = {}
-        coefficients = value.terms
-        for powers, (output, amplitude) in value.act(self.target_of_source).items():
-            middle = [n - max(p, 0) for n, p in zip(self.target_of_source, powers)]
-            coefficient = self.evaluate_target_numbers(coefficients[powers], middle)
-            result = transform(coefficient, output, amplitude)
-            incoming = {n: n + max(p, 0) for n, p in zip(self._target_numbers, powers)}
-            mapped = result.xreplace(
-                {
-                    q: expression.xreplace(incoming)
-                    for q, expression in zip(
-                        self.source_occupations, self._source_of_target
-                    )
-                }
-            )
-            # The inverse occupation map is valid only on the input lattice.
-            # Keep off-lattice poles unevaluated until their zero weight applies.
-            support = self.projector.terms[(0,) * len(powers)].xreplace(incoming)
-            mapped = sympy.Piecewise((mapped, sympy.Ne(support, 0)), (0, True))
-            terms[powers] = mapped
-        return NumberOrderedForm(self.target_operators, terms, validate=False)
 
     def _validate_domains(self) -> None:
         """Check target occupation bounds over the full source occupation domain.

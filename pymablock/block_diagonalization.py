@@ -254,9 +254,7 @@ def block_diagonalize(
         solve_sylvester = _solve_sylvester_embedding(h0, embedding)
         # Validate the complement now, before lazy block evaluation.
         embedding._complement_frame(h0.rows)
-        hamiltonian = _split_embedding_series(
-            hamiltonian, embedding, diagonal_origin=True
-        )
+        hamiltonian = _split_embedding_series(hamiltonian, embedding)
         subspace_eigenvectors = None
 
     use_implicit = False
@@ -703,25 +701,20 @@ def block_diagonalize(
 
 
 ### Converting different formats to BlockSeries
-def _split_embedding_series(
-    operator: BlockSeries, embedding: Embedding, *, diagonal_origin: bool = False
-) -> BlockSeries:
+def _split_embedding_series(operator: BlockSeries, embedding: Embedding) -> BlockSeries:
     """Convert an unseparated series to retained/complement operator blocks.
 
-    Preserve every block by default, including zeroth-order observable cross
-    blocks. ``diagonal_origin=True`` omits those cross blocks only for a
-    Hamiltonian whose H0 has already been validated by the solver.
+    Preserve every block, including zeroth-order observable cross blocks.
     """
     if operator.shape:
         raise ValueError("Structured embeddings require an unseparated operator.")
-    origin = (0,) * operator.n_infinite
     target_shape = None
     frames = None
 
     def evaluate(i: int, j: int, *order: int) -> Any:
         nonlocal target_shape, frames
         target = operator[tuple(order)]
-        if target is zero or (diagonal_origin and i != j and tuple(order) == origin):
+        if target is zero:
             return zero
         target = embedding._target_matrix(target)
         if target_shape is None:

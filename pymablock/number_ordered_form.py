@@ -430,14 +430,47 @@ def _iter_fixed_number_indicators(
             or not isinstance(delta.args[0].cond, sympy.Equality)
         ):
             continue
-        variables = set(number_symbols) & delta.free_symbols
-        if len(variables) != 1:
-            continue
-        (n,) = variables
         equation = sympy.expand(delta.args[0].cond.lhs - delta.args[0].cond.rhs)
-        slope = equation.coeff(n)
-        if slope.is_number and slope and not (equation - slope * n).has(n):
-            yield delta, n, sympy.cancel(n - equation / slope)
+        for n in sorted(
+            set(number_symbols) & delta.free_symbols, key=sympy.default_sort_key
+        ):
+            slope = equation.coeff(n)
+            if slope.is_number and slope and not (equation - slope * n).has(n):
+                yield delta, n, sympy.cancel(n - equation / slope)
+                break
+
+
+def _vanishes_by_indicator_algebra(
+    coefficient: sympy.Expr, number_symbols: Collection[sympy.Symbol] = ()
+) -> bool:
+    """Return whether a coefficient is zero by the algebra of its indicators.
+
+    An indicator of an affine occupation equality splits the coefficient into
+    the sector where it holds, evaluated by substitution, and its complement.
+    The remaining indicators only use ``delta**2 == delta``, which SymPy applies
+    when expanding. Nothing is evaluated outside the sector it belongs to.
+    """
+    if coefficient == 0:
+        return True
+    for delta, n, value in _iter_fixed_number_indicators(coefficient, number_symbols):
+        return _vanishes_by_indicator_algebra(
+            coefficient.xreplace({delta: Zero}), number_symbols
+        ) and _vanishes_by_indicator_algebra(
+            coefficient.xreplace({n: value}), number_symbols
+        )
+    indicators = [
+        delta
+        for delta in coefficient.atoms(Piecewise)
+        if len(delta.args) == 2
+        and delta.args[0].expr == 1
+        and delta.args[1] == (0, sympy.true)
+    ]
+    if not indicators:
+        return False
+    try:
+        return sympy.Poly(coefficient, *indicators, domain=sympy.EXRAW).is_zero
+    except sympy.polys.polyerrors.PolynomialError:
+        return False
 
 
 @lru_cache(maxsize=1024)
