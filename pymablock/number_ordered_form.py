@@ -1585,6 +1585,8 @@ class NumberOrderedForm(Operator):
             The result of the multiplication.
 
         """
+        if getattr(other, "_op_priority", 0) > self._op_priority:
+            return NotImplemented
         if not isinstance(other, NumberOrderedForm):
             try:
                 other = NumberOrderedForm.from_expr(sympy.sympify(other))

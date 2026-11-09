@@ -77,3 +77,11 @@ def test_zero_maps_on_retained_domain():
     ):
         assert value.is_zero is True
     assert (F.from_expr(a.adjoint()) * w).is_zero is not True
+
+
+def test_nof_defers_to_map_priority():
+    a, q = BosonOp("a"), SigmaMinus("q")
+    w = Embedding({q: a}, reference={a: 0})._retained_frame(1)[0, 0]
+    value = F.from_expr(a)
+    assert value.__mul__(w) is NotImplemented
+    assert (value * w).target == value
