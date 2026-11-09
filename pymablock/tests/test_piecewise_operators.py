@@ -33,6 +33,28 @@ def test_calculated_vacuum_projector_roundtrip():
     assert NumberOrderedForm.from_expr(a * projector) == direct
 
 
+def test_patch_keeps_scalar_piecewise_commutative():
+    """The global patch orders operator-valued conditions only."""
+    from pymablock.number_ordered_form import _install_piecewise_patch
+
+    _install_piecewise_patch()
+    _install_piecewise_patch()
+    n, a = s.symbols("N a", commutative=False)
+    p = s.Piecewise((1, s.Eq(n, 0)), (0, True))
+    assert a * p - p * a != 0
+    assert p.subs(n, 0) == 1
+    assert p.subs(n, 1) == 0
+    scalar = p.subs(n, s.Symbol("x"))
+    assert scalar.is_commutative is True
+    assert a * scalar - scalar * a == 0
+
+    x = s.Symbol("x", real=True)
+    a = s.Symbol("a", commutative=False, finite=True)
+    p = s.Piecewise((a, x > 0), (2 * a, True))
+    assert p.is_commutative is False
+    assert p.is_finite is True
+
+
 def test_nof_piecewise_roundtrip():
     a = BosonOp("a")
     n = NumberOperator(a)
