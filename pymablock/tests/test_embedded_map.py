@@ -63,3 +63,19 @@ def test_map_expression_contracts(adjoint):
     )
     with pytest.raises(ValueError, match="opposite matching"):
         value * value
+
+
+def test_zero_maps_on_retained_domain():
+    from pymablock.number_ordered_form import NumberOperator as N
+
+    a, q = BosonOp("a"), SigmaMinus("q")
+    embedding = Embedding({q: a}, reference={a: 0})
+    w = embedding._retained_frame(1)[0, 0]
+    complement = embedding._complement_frame(1)[0, 0]
+    for value in (
+        w.adjoint() * F.from_expr(N(a)) * complement,
+        complement * w,
+        F.from_expr(N(a) * (N(a) - 1)) * w,
+    ):
+        assert value.is_zero is True
+    assert (F.from_expr(a.adjoint()) * w).is_zero is not True

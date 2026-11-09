@@ -357,7 +357,7 @@ class Embedding(sympy.Expr):
 class _EmbeddedMap(sympy.Expr):
     """An eager rectangular map X W (side +1) or W† X (side -1)."""
 
-    is_commutative = False
+    is_commutative = None
     _op_priority = 10.02
 
     def __new__(cls, target: NumberOrderedForm, embedding: Embedding, side: int):
@@ -470,7 +470,10 @@ class _EmbeddedMap(sympy.Expr):
         return type(self)(self.target.adjoint(), self.embedding, -self.side)
 
     def _eval_is_zero(self):
-        return self.target.is_zero
+        projector = self.embedding._first_lattice.projector
+        return (
+            self.target * projector if self.side == 1 else projector * self.target
+        ).is_zero
 
     def __eq__(self, other):
         if isinstance(other, _EmbeddedMap):
