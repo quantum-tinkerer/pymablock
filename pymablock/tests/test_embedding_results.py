@@ -568,7 +568,7 @@ def test_cancellation_before_resonance_check(generator):
 
 
 @pytest.mark.parametrize(
-    ("case", "format"),
+    ("case", "representation"),
     [
         *(
             (case, "generator")
@@ -587,7 +587,7 @@ def test_cancellation_before_resonance_check(generator):
         ("binary-pole", "list"),
     ],
 )
-def test_division_policy(case, format):
+def test_division_policy(case, representation):
     a, b, q = map(BosonOp, ("a", "b", "q"))
     n = N(a)
     point = s.Piecewise((1, s.Eq(n, 1)), (0, True))
@@ -610,7 +610,7 @@ def test_division_policy(case, format):
         x = s.Symbol("x")
         energy = (x**2 - 1) / (x - 1) - x - 1
     embedding = Embedding({q: a}, reference={a: 0, b: 0})
-    if format == "list":
+    if representation == "list":
         embedding = Embedding({}, reference=[{a: 0, b: 0}, {a: 1, b: 0}])
     h, *_ = block_diagonalize(
         [n + energy * N(b), coupling * b.adjoint() + s.adjoint(coupling) * b],
@@ -619,7 +619,7 @@ def test_division_policy(case, format):
     if case in ("point-resonance", "explicit-zero", "binary-pole"):
         with pytest.raises(ValueError):
             _ = h[0, 0, 2]
-    elif format == "list":
+    elif representation == "list":
         assert h[0, 0, 2] == expected
     else:
         assert nof_matrix(h[0, 0, 2], [range(expected.rows)]) == expected

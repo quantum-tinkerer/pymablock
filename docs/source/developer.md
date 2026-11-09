@@ -44,7 +44,8 @@ forms $W^\dagger XW$ and unwraps a mapping reference's one-by-one result.
 boundaries unwrap operator-free entries. `lift` substitutes source generators
 and number coordinates structurally. Existing NOFs change mode order through
 `_expand_operators`; lattice consumers normalize their own inputs because NOF
-equality ignores unused modes and SymPy caches can substitute equal NOFs. They never make a round trip through printed expressions.
+equality ignores unused modes and SymPy caches can substitute equal NOFs. None
+of these conversions makes a round trip through printed expressions.
 
 `_split_embedding_series` converts general operators with the retained and
 complement frames, preserving zeroth-order cross blocks. Hamiltonian preparation
@@ -61,8 +62,9 @@ for restriction with concrete integer ladder powers. Division instead uses NOF
 coefficients at middle occupations. Affine occupation indicators split the active
 sectors; indicator algebra recognizes zero coefficients before a zero-gap error
 and zero rectangular maps on their retained domain. It does not enumerate binary
-sectors. Distinct mutually exclusive `floor` indicators are not always recognized:
-this can cause a spurious `ValueError`, as covered by a strict xfail regression.
+sectors. Some empty indicator combinations, such as mutually exclusive `floor`
+conditions or $\delta(n+m,1)\,\delta(n,2)$ with nonnegative occupations, are not
+recognized: this causes a spurious `ValueError`, pinned by a strict xfail test.
 
 Occupation conditions have four `Piecewise` shapes in NOF coefficients:
 
@@ -79,7 +81,8 @@ global SymPy `Piecewise` patch preserves their noncommutativity; occupation
 placeholders inside NOF coefficients remain commutative.
 
 Division first applies occupations selected by indicators, including truncated
-boson levels and reference lists in either embedding format. A defined zero transition has zero
+boson levels and reference lists in either embedding format. A defined zero
+transition has zero
 solution even at zero gap. An exposed zero gap with nonzero amplitude raises
 `ValueError`; unresolved resonances stay symbolic poles. Scalar parameters are
 generic. The solver does not enumerate binary sectors or integer roots, so a

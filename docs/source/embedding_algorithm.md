@@ -298,23 +298,25 @@ factor could silently assign a value to a transition that does not occur.
 For a NOF coefficient $c$ at the middle occupations and an energy difference
 $\Delta E$, the division
 
-1. returns zero if the coefficient vanishes by occupation-indicator algebra;
+1. returns zero if the coefficient is zero;
 2. evaluates the quotient separately on any occupation value fixed by an
    indicator in the coefficient;
-3. raises `ValueError` if $\Delta E = 0$ while the amplitude is nonzero, since the
+3. if $\Delta E = 0$, returns zero when the coefficient vanishes by the algebra
+   of its occupation indicators, and otherwise raises `ValueError`, since the
    equation has no solution;
 4. returns $c / \Delta E$ when $\Delta E$ cannot vanish on the allowed
    occupations, for example when it is a positive constant plus nonnegative
    occupations, or when it contains a generic parameter such as $\Omega$,
    which is assumed not to be tuned to a resonance;
 5. otherwise returns $c/\Delta E$ conditional on the transition being active,
-   and zero where an occupation-dependent factor of the amplitude vanishes.
+   and zero where an occupation-dependent factor of the coefficient vanishes.
 
 Projector indicators select truncated or listed boson levels in both generator
 and reference-list formats. A nonzero resonant transition on such a sector raises
-`ValueError`. Binary sectors are never searched or enumerated. Distinct mutually
-exclusive `floor` indicators may escape the zero test and cause a spurious error;
-this is a known limitation, protected by an xfail test.
+`ValueError`. Binary sectors are never searched or enumerated. Some empty
+combinations of indicators, such as mutually exclusive `floor` conditions or
+$\delta(n+m,1)\,\delta(n,2)$ with nonnegative occupations, are not recognized
+as zero and cause a spurious error instead of a wrong value.
 
 Resonances that the rules above cannot detect remain poles of the result. The
 effective Hamiltonian is then valid away from those parameter values.

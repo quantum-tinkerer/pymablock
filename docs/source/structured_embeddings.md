@@ -426,9 +426,9 @@ Symbolic division selects zero when the virtual amplitude vanishes, including
 at a zero gap. A zero gap with a nonzero amplitude on a sector selected by the
 projector's occupation indicators raises `ValueError`. This includes truncated and listed
 boson levels in both generator and reference-list formats. Binary fermion and
-spin sectors are never searched or enumerated. Cross blocks are divided in target
-coordinates using $(H_0X-XH_0)P=YP$. Distinct mutually exclusive `floor` indicators
-can escape the indicator zero test, causing a spurious error (a known limitation).
+spin sectors are never searched or enumerated. Some empty combinations of
+indicators, such as mutually exclusive `floor` conditions, are not recognized as
+zero and cause a spurious error instead of a wrong value.
 Unresolved occupation-dependent resonances remain symbolic poles: evaluate
 the effective model only in nonresonant sectors. Binary simplification preserves
 such coefficients rather than evaluating their singular points.

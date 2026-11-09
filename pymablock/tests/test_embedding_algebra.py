@@ -19,10 +19,12 @@ from pymablock import block_diagonalize
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOrderedForm,
+    _equal_value_indicator,
 )
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.number_ordered_form import NumberOrderedForm as F
 from pymablock.operator_embedding import Embedding
+from pymablock.second_quantization import _divide_by_energy_gap, solve_scalar
 from pymablock.tests.second_quantization_helpers import (
     nof_matrix,
     occupation_matrices,
@@ -487,7 +489,6 @@ def test_nof_defers_to_map_priority():
 @pytest.mark.parametrize("generic_gap", [False, True])
 def test_target_division_excludes_unselected_poles(generic_gap):
     """The target-coordinate solve stays finite on and outside a truncated boson."""
-    from pymablock.second_quantization import solve_scalar
 
     a, q = BosonOp("a"), SigmaMinus("q")
     e = Embedding({q: a}, reference={a: 0})
@@ -513,8 +514,6 @@ def test_target_division_excludes_unselected_poles(generic_gap):
 )
 def test_mutually_exclusive_floor_indicators():
     """Even and odd sublattice supports have an empty intersection."""
-    from pymablock.number_ordered_form import _equal_value_indicator
-    from pymablock.second_quantization import _divide_by_energy_gap
 
     n = sp.Symbol("n", integer=True)
     even = _equal_value_indicator(n / 2, sp.floor(n / 2))

@@ -449,8 +449,9 @@ def _vanishes_by_indicator_algebra(
     An indicator of an affine occupation equality splits the coefficient into
     the sector where it holds, evaluated by substitution, and its complement.
     The remaining indicators only use ``delta**2 == delta``, which SymPy applies
-    when expanding. Distinct mutually exclusive floor conditions may not be
-    recognized. Nothing is evaluated outside the sector it belongs to.
+    when expanding. Some empty combinations, such as mutually exclusive floor
+    conditions or ``delta(n + m, 1) * delta(n, 2)`` with nonnegative occupations,
+    are not recognized. Nothing is evaluated outside the sector it belongs to.
     """
     if coefficient == 0:
         return True

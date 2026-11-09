@@ -288,17 +288,14 @@ class Embedding(sympy.Expr):
         return tuple(
             (
                 row,
-                dict(
-                    zip(
+                {
+                    n: r - r1
+                    for n, r, r1 in zip(
                         first._target_numbers,
-                        (
-                            r - r1
-                            for r, r1 in zip(
-                                lattice._reference_state, first._reference_state
-                            )
-                        ),
+                        lattice._reference_state,
+                        first._reference_state,
                     )
-                ),
+                },
             )
             for row, lattice in self._lattices
         )
@@ -524,7 +521,9 @@ class _Lattice:
             if any(any(powers) for powers in form.terms):
                 raise ValueError("A ladder number image must be occupation diagonal")
             expression = form.terms.get((0,) * len(self.target_operators), sympy.S.Zero)
-            expression = self.evaluate_target_numbers(expression, self.target_of_source)
+            expression = expression.xreplace(
+                dict(zip(self._target_numbers, self.target_of_source, strict=True))
+            )
             self._require_vanishing(
                 expression - self.source_occupations[index],
                 f"Ladder number image {op} must count from the source reference index zero",
@@ -571,14 +570,6 @@ class _Lattice:
     def _source_zero(self) -> NumberOrderedForm:
         """Return zero carrying the source operator basis."""
         return NumberOrderedForm(self._source_operators, {}, validate=False)
-
-    def evaluate_target_numbers(
-        self, expression: sympy.Expr, occupations: Sequence[int | sympy.Expr]
-    ) -> sympy.Expr:
-        """Evaluate a target number coefficient at the supplied occupations."""
-        return expression.xreplace(
-            dict(zip(self._target_numbers, occupations, strict=True))
-        )
 
     def _validate_domains(self) -> None:
         """Check target occupation bounds over the full source occupation domain.

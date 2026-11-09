@@ -350,7 +350,7 @@ def _solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Ca
 
     Notes
     -----
-    Both intra-block and cross-block solves use target/source NOF scalar division.
+    Both intra-block and cross-block solves use ``solve_scalar``.
     Cross blocks solve ``(H0 X - X H0) P = Y P`` in target coordinates. For a
     reference list, column energies are translated to the first reference.
     Non-diagonal H0 raises ValueError. A nonzero transition with a zero gap
@@ -400,10 +400,14 @@ def _solve_sylvester_embedding(h0: sympy.MatrixBase, embedding: Embedding) -> Ca
         for (i, j), entry in block.todok().items():
             if entry.is_zero:
                 continue
-            divided = solve_scalar(
-                entry.target * lattice.projector, row_energies[i], column_energies[j]
+            divided = (
+                solve_scalar(
+                    entry.target * lattice.projector,
+                    row_energies[i],
+                    column_energies[j],
+                )
+                * lattice.projector
             )
-            divided = divided * lattice.projector
             entries[i, j] = entry.func(divided, entry.embedding, entry.side)
         result = sympy.ImmutableSparseMatrix(*block.shape, entries)
         return -result.adjoint() if reverse else result
