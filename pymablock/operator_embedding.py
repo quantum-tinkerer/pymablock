@@ -24,8 +24,8 @@ Notation used in this module:
 
 from __future__ import annotations
 
-from collections.abc import Callable, Hashable, Mapping, Sequence
-from functools import cached_property, wraps
+from collections.abc import Callable, Mapping, Sequence
+from functools import cached_property
 from typing import Self
 
 import sympy
@@ -53,23 +53,6 @@ class _ReferenceRow(sympy.AtomicExpr):
 
     def _sympystr(self, _printer):
         return "Embedding.row"
-
-
-def _cache_on_instance[Result](method: Callable[..., Result]) -> Callable[..., Result]:
-    """Memoize a method with hashable positional arguments on its owning instance.
-
-    Unlike a global method cache, this does not keep discarded embeddings alive.
-    The wrapped methods accept positional arguments only.
-    """
-
-    @wraps(method)
-    def cached(self: object, *args: Hashable) -> Result:
-        memo = self.__dict__.setdefault("_memo_" + method.__name__, {})
-        if args not in memo:
-            memo[args] = method(self, *args)
-        return memo[args]
-
-    return cached
 
 
 class Embedding(sympy.Expr):
@@ -286,7 +269,6 @@ class Embedding(sympy.Expr):
         reference.pop(Embedding.row)
         return Embedding(self.args[0], reference=reference)
 
-    @_cache_on_instance
     def _retained_frame(self, rows: int) -> sympy.MatrixBase:
         """Return the frame W: one column ``T_j W_1`` per reference, in its target row."""
         w = sympy.zeros(rows, len(self._lattices))
@@ -294,7 +276,6 @@ class Embedding(sympy.Expr):
             w[row, col] = _EmbeddedMap(transfer, self._first_embedding, 1)
         return sympy.ImmutableMatrix(w)
 
-    @_cache_on_instance
     def _complement_frame(self, rows: int) -> sympy.MatrixBase:
         """Return Q = 1 - W W† when a complement block is needed."""
         w = self._retained_frame(rows)
@@ -460,7 +441,7 @@ class _Lattice:
     """Compiled occupation map and operator algebra for one reference state.
 
     Instances are derived data, not symbolic isometries. Embedding constructor
-    arguments determine their maps, phases, and instance-owned caches.
+    arguments determine their maps and phases.
     Unprefixed members form the package-internal interface for NOF arithmetic
     and solvers; occupation maps and compilation details remain private.
     """
@@ -757,7 +738,6 @@ class _Lattice:
                     "Generator images must obey the source algebra",
                 )
 
-    @_cache_on_instance
     def _source_amplitude(self, powers: tuple[int, ...]) -> sympy.Expr:
         """Return the source ladder amplitude of a shift at symbolic occupations."""
         term = NumberOrderedForm(
@@ -804,7 +784,6 @@ class _Lattice:
                 phase *= 1 - q + q * sympy.simplify(ratio.xreplace({q: sympy.S.One}))
         return sympy.factor(phase)
 
-    @_cache_on_instance
     def _source_shift(
         self, target_shift: tuple[sympy.Expr, ...]
     ) -> tuple[sympy.Expr, ...] | None:
@@ -835,7 +814,6 @@ class _Lattice:
                     raise NotImplementedError("Cannot establish a finite source shift")
         return tuple(result)
 
-    @_cache_on_instance
     def _restrict_term(
         self, target_shift: tuple[int, ...], target_amplitude: sympy.Expr
     ) -> NumberOrderedForm:
@@ -872,7 +850,6 @@ class _Lattice:
             self._source_operators, {powers: coefficient}, validate=False
         )
 
-    @_cache_on_instance
     def restrict(self, target: NumberOrderedForm) -> NumberOrderedForm:
         """Return ``W† target W`` by translating each term to the source algebra."""
         result = self._source_zero
@@ -920,7 +897,6 @@ class _Lattice:
             {(0,) * len(self.target_operators): sympy.prod(factors)},
         )._linearize_binary_operators()
 
-    @_cache_on_instance
     def lift(self, source: NumberOrderedForm) -> NumberOrderedForm:
         """Represent a source operator in target space, as ``W source W†``.
 

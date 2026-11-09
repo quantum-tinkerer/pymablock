@@ -50,7 +50,7 @@ the generator validation supplies each phase $\phi_j$.
 `restrict` always multiplies the frames $W^\dagger XW$, then unwraps a mapping
 reference's one-by-one result. Restriction calls `_retained_frame` directly;
 Hamiltonian preparation and block conversion also call `_complement_frame`.
-Both frames are cached on the owning embedding. Attached scalar contractions call
+Attached scalar contractions call
 `_Lattice.restrict` directly, avoiding recursion through `Embedding.restrict`.
 Compression always returns a
 NOF, including when there are no source operators. `_format_output` unwraps
@@ -84,12 +84,6 @@ divides the bare NOF coefficient, so ladder factors are not applied twice. The z
 For `fully_diagonalize`, transitions within either diagonal block use the
 ordinary second-quantized Sylvester solver, with source or target energies.
 Transitions between the blocks use the embedding-aware solver.
-
-Frame caches belong to the embedding; lattice conversion caches belong to the
-compiled lattice. Discarding the embedding and its rectangular maps therefore
-allows both to be collected. The scalar projector cache has a fixed size.
-SymPy compatibility patches live in `number_ordered_form`; the condition
-workaround is feature-detected and installed once, including across reloads.
 
 ### Validation
 

@@ -1,8 +1,6 @@
 """Counterexamples from the independent embedding review."""
 
-import gc
 import pickle
-import weakref
 from itertools import product
 
 import numpy as np
@@ -199,25 +197,6 @@ def test_dressed_observable_conversion(finite):
     else:
         # Generator selection retains levels 0,1, so only level 1 is dressed by Q.
         assert nof_matrix(value) == s.diag(0, s.Rational(2, 9))
-
-
-@pytest.mark.parametrize("reference_list", [False, True])
-def test_embeddings_are_collectable(reference_list):
-    """Caching useful conversions cannot keep dropped embeddings alive."""
-    a, q = BosonOp("a"), SigmaMinus("q")
-    bases = []
-    for _ in range(5):
-        embedding = Embedding({q: a}, reference=[{a: 0}] if reference_list else {a: 0})
-        embedding.restrict(a)
-        w = embedding._retained_frame(1)[0, 0]
-        w * NumberOrderedForm.from_expr(q)
-        bases.append(weakref.ref(embedding))
-        bases.extend(weakref.ref(lattice) for _, lattice in embedding._lattices)
-    del embedding, w
-    # SymPy's bounded expression cache may retain equal frame expressions.
-    s.core.cache.clear_cache()
-    gc.collect()
-    assert all(basis() is None for basis in bases)
 
 
 @pytest.mark.parametrize("preconverted", [False, True])
