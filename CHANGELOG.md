@@ -46,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed second-quantized Sylvester equations with zero diagonal blocks, including rectangular right-hand sides.
 - Corrected the KPM auxiliary-vector option to `auxiliary_vectors` throughout documentation and tests, and verified that auxiliary vectors are used.
 - Corrected the number-operator shifts in the documented boson and ladder multiplication rules.
-- Fixed division by zero in fermion and spin Sylvester equations when both the right-hand side and the energy difference vanish. An explicit zero energy difference with a nonzero right-hand side raises an error, and unresolved resonances remain symbolic poles.
+- Fixed division by zero in fermion and spin Sylvester equations when both the right-hand side and the energy difference vanish. An explicit zero energy difference with a nonzero right-hand side raises `ValueError` in both second-quantized solvers, and unresolved resonances remain symbolic poles.
 - Fixed incorrect number-dependent coefficients in products of fermion and spin operators.
 - Fixed extra minus signs in products containing annihilation operators for multiple fermion modes.
 - Fixed incorrect shifts of number-dependent coefficients when multiplying boson and ladder expressions by creation operators.
@@ -57,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `Embedding` to select the states of an effective model inside a second-quantized Hamiltonian. Generator images map the source operators to target expressions acting on a reference state; a list of references gives a matrix of such copies, placed in target matrix rows with `Embedding.row`, and empty generators select individual states. `Embedding.restrict` returns matrix elements between embedded states. `block_diagonalize`, `operator_to_BlockSeries`, and `fully_diagonalize` accept an embedding as `subspace_eigenvectors` and keep virtual transitions outside the retained space.
+- Added `Embedding` to select the states of an effective model inside a second-quantized Hamiltonian. Generator images map the source operators to target expressions acting on a reference state; a list of references gives a matrix of such copies, placed in target matrix rows with `Embedding.row`, and empty generators select individual states. `Embedding.restrict` returns matrix elements between embedded states. `block_diagonalize`, `operator_to_BlockSeries`, and `fully_diagonalize` accept an embedding as `subspace_eigenvectors` and keep virtual transitions outside the retained space. Exposed resonances raise `ValueError`, as in the ordinary second-quantized solver.
 - Added `NumberOrderedForm.act`, which applies each term to a Fock state with possibly symbolic occupations and returns the output occupations and matrix elements.
 - Added a non-Hermitian similarity-transform algorithm via `block_diagonalize(..., hermitian=False)`, including support for asymmetric selective masks, symbolic inputs, and biorthogonal `subspace_eigenvectors=[(right, left), ...]` in the explicit and implicit direct paths. The implicit KPM solver remains unsupported in the non-Hermitian path.
 

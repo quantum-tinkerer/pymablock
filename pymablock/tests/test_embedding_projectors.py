@@ -172,7 +172,7 @@ def test_cancellation_before_resonance_check(generator):
     if not generator:
         v[1, 3] = v[3, 1] = 0
         eff, *_ = block_diagonalize([h0, v], subspace_eigenvectors=e)
-        with pytest.raises(ZeroDivisionError):
+        with pytest.raises(ValueError):
             _ = eff[0, 0, 4]
 
 
@@ -215,7 +215,7 @@ def test_division_policy(case):
         subspace_eigenvectors=Embedding({q: a}, reference={a: 0, b: 0}),
     )
     if case in ("point-resonance", "explicit-zero"):
-        with pytest.raises(ZeroDivisionError):
+        with pytest.raises(ValueError):
             _ = h[0, 0, 2]
     elif case == "binary-pole":
         expression = h[0, 0, 2].as_expr()

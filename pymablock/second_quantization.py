@@ -356,12 +356,9 @@ def _divide_transitions(
             and lattice.source_is_zero(matrix_element)
         ):
             return sympy.S.Zero
-        try:
-            return _divide_by_energy_gap(
-                coefficient, denominator, source_occupations, matrix_element, nonnegative
-            )
-        except ValueError as error:
-            raise ZeroDivisionError(str(error)) from error
+        return _divide_by_energy_gap(
+            coefficient, denominator, source_occupations, matrix_element, nonnegative
+        )
 
     return lattice.map_transition_coefficients(value, divide)
 
