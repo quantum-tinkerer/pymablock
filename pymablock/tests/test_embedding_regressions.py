@@ -276,3 +276,29 @@ def test_map_substitution_and_reconstruction(mode_type):
     assert (x * w) ** 1 == x * w
     with pytest.raises(ValueError):
         (x * w) ** 2
+
+
+def test_zero_source_amplitude_at_degenerate_gap():
+    """A vanishing retained amplitude must be discarded before gap division."""
+    a, q = BosonOp("a"), SigmaMinus("q")
+    omega, g = s.symbols("omega g", positive=True)
+    h, *_ = block_diagonalize(
+        omega * N(a) + g * (N(a) * (N(a) - 1) + a + a.adjoint()),
+        subspace_eigenvectors=Embedding({q: a}, reference={a: 0}),
+        symbols=[g],
+    )
+    assert (
+        s.simplify(h[0, 0, 3] - g**3 / omega**2 * (4 * N(q) - (q + q.adjoint()) / 2)) == 0
+    )
+
+
+def test_correlated_boson_nonnegative_gap_stays_compact():
+    a, b, q = map(BosonOp, ("a", "b", "q"))
+    g = s.Symbol("g", positive=True)
+    h, *_ = block_diagonalize(
+        [N(a) + 2 * N(b) + N(a) * N(b) / 7, g * (a + a.adjoint())],
+        subspace_eigenvectors=Embedding(
+            {q: (N(a) + 1) ** (-s.S.Half) * a * b}, reference={a: 0, b: 0}
+        ),
+    )
+    assert s.count_ops(h[0, 0, 4]) < 10

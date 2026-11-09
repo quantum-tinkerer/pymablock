@@ -1984,3 +1984,12 @@ def test_xreplace_scalar_with_number_operator():
     result = form.xreplace({g: NumberOperator(a)})
     assert result == NumberOrderedForm.from_expr(NumberOperator(a) * a)
     assert result.act((2,)) == {(1,): ((1,), sympy.sqrt(2))}
+
+
+def test_binary_linearization_cancels_removable_endpoint_pole():
+    """Cancel a removable pole before interpolating the two occupations."""
+    q = pauli.SigmaMinus("q")
+    n = _number_operator_to_placeholder(NumberOperator(q))
+    coefficient = sympy.Mul(n**2 - 1, sympy.Pow(n - 1, -1), evaluate=False)
+    value = NumberOrderedForm((q,), {(0,): coefficient}, validate=False)
+    assert value._linearize_binary_operators().terms[(0,)] == n + 1
