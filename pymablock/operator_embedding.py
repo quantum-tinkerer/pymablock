@@ -785,6 +785,8 @@ class _Lattice:
 
     def restrict(self, target: NumberOrderedForm) -> NumberOrderedForm:
         """Return ``W† target W`` by translating each term to the source algebra."""
+        # Equal NOFs may carry different unused modes after SymPy cache lookup.
+        target = self.parse_target(target)
         result = self._source_zero
         for shift, (_, amplitude) in target.act(self.target_of_source).items():
             result += self._restrict_term(shift, amplitude)
@@ -836,9 +838,10 @@ class _Lattice:
         Replace source generators and numbers by their target images, then project
         both sides onto the retained space.
         """
+        # The input of lift is in the source basis, even after cache substitution.
+        source = source._expand_operators(self._source_operators)
         if source.is_zero:
             return self._target_zero
-        source = source._expand_operators(self._source_operators)
         coordinates = dict(
             zip(source._number_operator_placeholders, self._source_of_target)
         )

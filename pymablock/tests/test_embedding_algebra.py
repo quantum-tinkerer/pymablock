@@ -520,3 +520,14 @@ def test_mutually_exclusive_floor_indicators():
     even = _equal_value_indicator(n / 2, sp.floor(n / 2))
     odd = _equal_value_indicator((n - 1) / 2, sp.floor((n - 1) / 2))
     assert _divide_by_energy_gap(even * odd, sp.S.Zero, (n,)) == 0
+
+
+def test_lattice_consumers_normalize_equal_nofs():
+    """Inject the same mode-list substitution that SymPy's equality cache permits."""
+    a, b, q = BosonOp("a"), BosonOp("b"), SigmaMinus("q")
+    lattice = Embedding({q: a}, reference={a: 0})._first_lattice
+    plain = F((), {(): sp.Integer(2)})
+    cached = F((a, b), {(0, 0): sp.Integer(2)})
+    assert plain == cached and hash(plain) == hash(cached)
+    assert lattice.restrict(cached) == lattice.restrict(plain) == 2
+    assert lattice.lift(cached) == lattice.lift(plain) == 2 * lattice.projector
