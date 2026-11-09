@@ -48,45 +48,6 @@ from pymablock.number_ordered_form import (
 __all__ = ["Embedding"]
 
 
-def _has_occupation_poles(
-    expression: sympy.Basic, occupations: Sequence[sympy.Symbol]
-) -> bool:
-    """Conservatively detect poles introduced by substituting occupations.
-
-    Scalar parameters are generic, as in energy-gap division. A polynomial
-    denominator with a nonzero, occupation-independent parameter coefficient
-    cannot vanish identically under any occupation substitution.
-    """
-    numbers = set(occupations)
-    if not expression.free_symbols & numbers:
-        return False
-    if isinstance(expression, sympy.Piecewise):
-        return any(
-            _has_occupation_poles(part, occupations)
-            for branch in expression.args
-            for part in branch
-        )
-    if (
-        expression.is_Add
-        or expression.is_Mul
-        or isinstance(expression, sympy.logic.boolalg.Boolean)
-    ):
-        return any(_has_occupation_poles(arg, occupations) for arg in expression.args)
-    if not expression.is_rational_function(*occupations):
-        return True
-    for power in expression.atoms(sympy.Pow):
-        if not power.base.free_symbols & numbers or power.exp.is_nonnegative:
-            continue
-        parameters = power.base.free_symbols - numbers
-        polynomial = power.base.as_poly(*parameters) if parameters else None
-        if polynomial is None or not any(
-            coefficient.is_zero is False and not coefficient.free_symbols & numbers
-            for coefficient in polynomial.coeffs()
-        ):
-            return True
-    return False
-
-
 class _ReferenceRow(sympy.AtomicExpr):
     """A reference key distinct from every user symbol, including after pickling."""
 
@@ -686,12 +647,10 @@ class _Lattice:
                     )
                 }
             )
-            if _has_occupation_poles(result, self.source_occupations):
-                # The inverse occupation map is valid only on the input lattice.
-                # Multiplying by the projector would evaluate off-lattice poles
-                # before their zero weight can suppress them.
-                support = self.projector.terms[(0,) * len(powers)].xreplace(incoming)
-                mapped = sympy.Piecewise((mapped, sympy.Ne(support, 0)), (0, True))
+            # The inverse occupation map is valid only on the input lattice.
+            # Keep off-lattice poles unevaluated until their zero weight applies.
+            support = self.projector.terms[(0,) * len(powers)].xreplace(incoming)
+            mapped = sympy.Piecewise((mapped, sympy.Ne(support, 0)), (0, True))
             terms[powers] = mapped
         return NumberOrderedForm(self.target_operators, terms, validate=False)
 

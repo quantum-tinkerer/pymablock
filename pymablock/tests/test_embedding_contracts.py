@@ -48,7 +48,7 @@ def test_mapped_coefficients_exclude_off_lattice_poles(particle_hole):
 
 
 @pytest.mark.parametrize("generic_gap", [False, True])
-def test_integer_pullback_guards_only_possible_occupation_poles(generic_gap):
+def test_integer_pullback_respects_retained_domain(generic_gap):
     a, s = BosonOp("a"), SigmaMinus("s")
     lattice = Embedding({s: a}, reference={a: 0})._first_lattice
     (q,) = lattice.source_occupations
@@ -59,9 +59,7 @@ def test_integer_pullback_guards_only_possible_occupation_poles(generic_gap):
         lattice.parse_target(1), lambda *_: 1 / denominator
     )
     if generic_gap:
-        # No occupation can eliminate the independent omega coefficient.
-        assert not mapped.has(sp.Piecewise)
-        expected = sp.diag(*(1 / (omega + alpha * n) for n in range(4)))
+        expected = sp.diag(1 / omega, 1 / (omega + alpha), 0, 0)
     else:
         expected = sp.diag(-sp.Rational(1, 2), -1, 0, 0)
     assert_matrix_equal(nof_matrix(mapped, [range(4)]), expected)
