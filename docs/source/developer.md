@@ -43,32 +43,34 @@ forms $W^\dagger XW$ and unwraps a mapping reference's one-by-one result.
 `_Lattice.restrict` returns a source NOF even without source modes; only output
 boundaries unwrap operator-free entries. `lift` substitutes source generators
 and number coordinates structurally. Existing NOFs change mode order through
-`_expand_operators`; they never make a round trip through printed expressions.
+`_expand_operators`; lattice consumers normalize their own inputs because NOF
+equality ignores unused modes and SymPy caches can substitute equal NOFs. They never make a round trip through printed expressions.
 
 `_split_embedding_series` converts general operators with the retained and
 complement frames, preserving zeroth-order cross blocks. Hamiltonian preparation
-validates diagonal $H_0$ and its vanishing cross blocks before omitting them.
-The embedding solver gets retained energies from $W^\dagger H_0W$.
-`map_transition_coefficients` handles coordinate conversion; the solver supplies
-energy-gap division. Diagonal blocks selected by `fully_diagonalize` use the
-ordinary second-quantized solver. Both solvers share the division policy.
+validates diagonal $H_0$. The same indicator zero test recognizes its vanishing
+cross blocks. The embedding solver gets retained energies from $W^\dagger H_0W$.
+Cross blocks solve $(H_0X-XH_0)P=YP$ in target coordinates using `solve_scalar`,
+with $P=W_1W_1^\dagger$. Column energies for a reference list are translated
+by the reference offsets. The divided result is projected again before wrapping
+it as a rectangular map. No source-coordinate division or lattice guard is needed.
+Diagonal blocks use the ordinary second-quantized solver.
 
 `NumberOrderedForm.act` supplies destination occupations and ladder amplitudes
-for concrete integer ladder powers. Division uses the amplitude to identify
-inactive transitions but divides the bare coefficient, avoiding double-counted
-ladder factors. It evaluates target energies at the destination and source
-energies at the incoming state. A binary-zero source amplitude is discarded
-before division. Incoming lattice guards prevent off-lattice evaluation, and
-the solver multiplies the divided target operator by the projector afterwards.
+for restriction with concrete integer ladder powers. Division instead uses NOF
+coefficients at middle occupations. Affine occupation indicators split the active
+sectors; indicator algebra recognizes zero coefficients before a zero-gap error
+and zero rectangular maps on their retained domain. It does not enumerate binary
+sectors. Distinct mutually exclusive `floor` indicators are not always recognized:
+this can cause a spurious `ValueError`, as covered by a strict xfail regression.
 
-Occupation conditions have five `Piecewise` shapes in NOF coefficients:
+Occupation conditions have four `Piecewise` shapes in NOF coefficients:
 
 - Indicators: `((1, Eq(x, v)), (0, True))`; products and sums build projectors.
 - Boundary guards: `((0, Eq(n, i) | ...), (c, True))`, suppressing poles where
   downward ladder factors vanish.
 - Inactive transitions: `((0, inactive), (c / gap, True))`.
 - Point splits: `((value at v, Eq(n, v)), (rest, True))`.
-- Lattice guards: `((c, Ne(projector, 0)), (0, True))`.
 
 Only indicators are read back as fixed occupations. The other shapes must
 remain branches: multiplying a pole by a zero indicator would evaluate
@@ -76,7 +78,8 @@ $0\cdot\infty$. `as_expr` exports operator-valued conditions. A feature-detected
 global SymPy `Piecewise` patch preserves their noncommutativity; occupation
 placeholders inside NOF coefficients remain commutative.
 
-Division first applies fixed occupations. A defined zero transition has zero
+Division first applies occupations selected by indicators, including truncated
+boson levels and reference lists in either embedding format. A defined zero transition has zero
 solution even at zero gap. An exposed zero gap with nonzero amplitude raises
 `ValueError`; unresolved resonances stay symbolic poles. Scalar parameters are
 generic. The solver does not enumerate binary sectors or integer roots, so a

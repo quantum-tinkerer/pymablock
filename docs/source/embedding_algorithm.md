@@ -69,7 +69,8 @@ $L(a) = W a W^\dagger$.
    | $(XW)\,z$, $z$ a source operator | $X\,L(z)\,W$ | lifting |
 
 4. **Sylvester equations.** The off-diagonal block divides each term by its
-   actual energy difference, evaluated on $n(q)$. A transition whose amplitude
+   actual energy difference in target occupations, solving
+   $(H_0X-XH_0)P=YP$ with the ordinary scalar solver and $P=WW^\dagger$. A transition whose amplitude
    vanishes contributes zero, rather than the $1$ that cancelling $n/n$ would
    give; see [exact division](#exact-division-by-energy-differences).
 
@@ -223,7 +224,8 @@ for the off-diagonal block:
 U_series[1, 0, 1]
 ```
 
-The solver applies $QVW$ to $n(q) = (q, 0)$. The term $g\,b^\dagger a$ goes to
+To interpret the target-coordinate solve, consider an incoming retained state
+$n(q) = (q, 0)$. The term $g\,b^\dagger a$ goes to
 $|q - 1, 1\rangle$, and the energy difference is
 
 $$
@@ -293,13 +295,13 @@ retained states reaches $n_a = 2$.
 The division in step 4 is the one place where an implicit treatment differs
 from a matrix calculation. The occupations are symbols, so cancelling a common
 factor could silently assign a value to a transition that does not occur.
-For a coefficient $c$, an energy difference $\Delta E$, and the full amplitude
-of the transition, the division
+For a NOF coefficient $c$ at the middle occupations and an energy difference
+$\Delta E$, the division
 
-1. returns zero if the amplitude vanishes identically;
+1. returns zero if the coefficient vanishes by occupation-indicator algebra;
 2. evaluates the quotient separately on any occupation value fixed by an
    indicator in the coefficient;
-3. raises an error if $\Delta E = 0$ while the amplitude is nonzero, since the
+3. raises `ValueError` if $\Delta E = 0$ while the amplitude is nonzero, since the
    equation has no solution;
 4. returns $c / \Delta E$ when $\Delta E$ cannot vanish on the allowed
    occupations, for example when it is a positive constant plus nonnegative
@@ -307,6 +309,12 @@ of the transition, the division
    which is assumed not to be tuned to a resonance;
 5. otherwise returns $c/\Delta E$ conditional on the transition being active,
    and zero where an occupation-dependent factor of the amplitude vanishes.
+
+Projector indicators select truncated or listed boson levels in both generator
+and reference-list formats. A nonzero resonant transition on such a sector raises
+`ValueError`. Binary sectors are never searched or enumerated. Distinct mutually
+exclusive `floor` indicators may escape the zero test and cause a spurious error;
+this is a known limitation, protected by an xfail test.
 
 Resonances that the rules above cannot detect remain poles of the result. The
 effective Hamiltonian is then valid away from those parameter values.
