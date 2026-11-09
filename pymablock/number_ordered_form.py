@@ -1072,8 +1072,8 @@ class NumberOrderedForm(Operator):
         Fermion signs follow the order of ``operators``. All ladder factors are
         checked for zero before the coefficient is evaluated, so forbidden
         transitions never evaluate coefficient poles.
-        Bosonic and bilateral ladder powers may be symbolic integers with known
-        sign; bosonic amplitudes then use rising or falling factorials.
+        Ladder powers must be concrete integers; symbolic powers raise
+        ``NotImplementedError``.
 
         Parameters
         ----------
@@ -1118,31 +1118,15 @@ class NumberOrderedForm(Operator):
         def apply_power(
             state: list[sympy.Expr], index: int, power: sympy.Expr
         ) -> sympy.Expr:
-            """Apply an integer power, keeping symbolic ladder lengths unevaluated."""
-            if power.is_Integer:
-                return sympy.prod(
-                    apply_ladder(state, index, annihilate=power > 0)
-                    for _ in range(abs(int(power)))
-                )
-            operator, n = self.operators[index], state[index]
-            if power.is_integer is not True or not (
-                power.is_nonnegative is True or power.is_nonpositive is True
-            ):
+            """Apply a concrete integer ladder power."""
+            if not power.is_Integer:
                 raise NotImplementedError(
-                    "Symbolic ladder powers need a known integer sign"
+                    "Ladder powers in act and restrict must be concrete integers"
                 )
-            if isinstance(operator, BosonOp):
-                factor = sympy.sqrt(
-                    sympy.ff(n, power)
-                    if power.is_nonnegative
-                    else sympy.rf(n + 1, -power)
-                )
-            elif isinstance(operator, LadderOp):
-                factor = sympy.S.One
-            else:
-                raise NotImplementedError("Symbolic powers require an infinite ladder")
-            state[index] -= power
-            return factor
+            return sympy.prod(
+                apply_ladder(state, index, annihilate=power > 0)
+                for _ in range(abs(int(power)))
+            )
 
         def apply_term(
             powers: tuple[sympy.Expr, ...], coefficient: sympy.Expr
@@ -1150,16 +1134,16 @@ class NumberOrderedForm(Operator):
             """Return the output occupations and matrix element, or None if zero."""
             state = list(map(sympy.sympify, occupations))
             factors = []
+            if any(not power.is_Integer for power in powers):
+                raise NotImplementedError(
+                    "Ladder powers in act and restrict must be concrete integers"
+                )
             for index, power in enumerate(powers):
-                if power.is_nonnegative:
+                if power > 0:
                     factors.append(apply_power(state, index, power))
-                elif power.is_nonpositive is not True:
-                    raise NotImplementedError(
-                        "Symbolic ladder powers need a known integer sign"
-                    )
             middle_occupations = tuple(state)
             for index, power in reversed(list(enumerate(powers))):
-                if power.is_nonpositive and power.is_zero is not True:
+                if power < 0:
                     factors.append(apply_power(state, index, power))
             # Check the ladder factors first: the coefficient may be singular
             # where one of them vanishes.

@@ -1285,20 +1285,8 @@ def test_act_symbolic_boson_power(sign):
     n = sympy.Symbol("n", integer=True, nonnegative=True)
     operator = a if sign == 1 else Dagger(a)
     form = NumberOrderedForm.from_expr((NumberOperator(a) + 1) * operator**k)
-    output, amplitude = form.act((n,))[(sign * k,)]
-    assert output == (n - sign * k,)
-    for count in (0, 1, 4):
-        for exponent in (1, 2, 3):
-            if sign == 1 and exponent > count:
-                expected = 0
-            else:
-                factor = (
-                    sympy.factorial(count) / sympy.factorial(count - exponent)
-                    if sign == 1
-                    else sympy.factorial(count + exponent) / sympy.factorial(count)
-                )
-                expected = (count - sign * exponent + 1) * sympy.sqrt(factor)
-            assert sympy.simplify(amplitude.subs({n: count, k: exponent})) == expected
+    with pytest.raises(NotImplementedError, match="concrete integers"):
+        form.act((n,))
 
 
 def test_xreplace_renames_number_operators():

@@ -210,9 +210,8 @@ class Embedding(sympy.Expr):
         fermion and spin occupations are 0 or 1; call ``simplify()`` to remove
         them. With a list of states, the result is a SymPy matrix in the order of
         the list, with source NOFs as entries when generators are supplied.
-        Symbolic integer powers with known sign are supported for infinite source
-        ladders when their induced shifts are provably integer. Undecidable shifts
-        or finite-source bounds raise ``NotImplementedError``.
+        Ladder powers must be concrete integers. Symbolic ladder powers raise
+        ``NotImplementedError``.
         """
         target = self._target_matrix(expression)
         w = self._retained_frame(target.rows)
@@ -795,23 +794,11 @@ class _Lattice:
         target = sympy.Matrix(target_shift)
         result = self._occupation_left_inverse * target
         residual = self._occupation_matrix * result - target
-        if any(value.is_zero is False for value in residual):
+        if any(residual):
             return None
-        if any(value.is_zero is not True for value in residual):
-            raise NotImplementedError(
-                "Cannot establish whether the shift leaves the lattice"
-            )
         for value, size in zip(result, self._source_dimensions, strict=True):
-            if value.is_integer is False:
+            if not value.is_Integer or (size is not None and abs(value) >= size):
                 return None
-            if value.is_integer is not True:
-                raise NotImplementedError("Cannot establish an integer source shift")
-            if size is not None:
-                outside = abs(value) >= size
-                if outside is sympy.S.true:
-                    return None
-                if outside is not sympy.S.false:
-                    raise NotImplementedError("Cannot establish a finite source shift")
         return tuple(result)
 
     def _restrict_term(

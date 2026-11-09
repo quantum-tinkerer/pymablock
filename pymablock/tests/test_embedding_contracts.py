@@ -162,7 +162,7 @@ def test_lift_preserves_fermion_order_and_number_coefficients():
         )
 
 
-def test_lift_bilateral_numbers_and_symbolic_powers():
+def test_lift_bilateral_numbers():
     a, b = LadderOp("a"), LadderOp("b")
     e = Embedding({b: a, N(b): N(a) + 2}, reference={a: -2})
     for S in (b, b.adjoint(), N(b), b.adjoint() * N(b) * b):
@@ -171,24 +171,6 @@ def test_lift_bilateral_numbers_and_symbolic_powers():
             nof_matrix(e._first_lattice.lift(value), [range(-4, 3)]),
             nof_matrix(value, [range(-2, 5)]),
         )
-    for mode_type in (BosonOp, LadderOp):
-        target, source = mode_type("target"), mode_type("source")
-        generators = {source: target}
-        if mode_type is LadderOp:
-            generators[N(source)] = N(target)
-        embedding = Embedding(generators, reference={target: 0})
-        power = sp.Symbol("power", integer=True, positive=True)
-        for shift in (power, -power):
-            value = F((source,), {(shift,): sp.S.One}, validate=False)
-            occupations = [range(-2, 4)] if mode_type is LadderOp else [range(4)]
-            for exponent in (1, 2, 3):
-                assert_matrix_equal(
-                    nof_matrix(
-                        embedding._first_lattice.lift(value).xreplace({power: exponent}),
-                        occupations,
-                    ),
-                    nof_matrix(value.xreplace({power: exponent}), occupations),
-                )
 
 
 def test_existing_nof_conversion_preserves_values():
@@ -216,34 +198,9 @@ def test_restrict_symbolic_ladder_power(mode_type, sign):
         generators[N(b)] = N(a)
     embedding = Embedding(generators, reference={a: 0})
     k = sp.Symbol("k", integer=True, positive=True)
-    target, source = (a, b) if sign == 1 else (a.adjoint(), b.adjoint())
-    for coefficient in (1, N(a) + 1):
-        expression = coefficient * target**k
-        result = embedding.restrict(expression)
-        assert result == F.from_expr(
-            sp.sympify(coefficient).xreplace({N(a): N(b)}) * source**k
-        )
-        for exponent in (1, 2, 3):
-            assert result.xreplace({k: exponent}) == embedding.restrict(
-                expression.xreplace({k: exponent})
-            )
-
-
-def test_symbolic_shift_into_finite_source_is_not_silently_zero():
-    a, s = BosonOp("a"), SigmaMinus("s")
-    embedding = Embedding({s: a}, reference={a: 0})
-    k = sp.Symbol("k", integer=True, positive=True)
-    with pytest.raises(NotImplementedError, match="finite source shift"):
-        embedding.restrict(a**k)
-
-
-def test_symbolic_shift_may_leave_lattice():
-    a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
-    embedding = Embedding({s: a * b}, reference={a: 0, b: 0})
-    k, m = sp.symbols("k m", integer=True, positive=True)
-    # Equal shifts preserve the lattice, whereas unequal shifts leave it.
-    with pytest.raises(NotImplementedError, match="leaves the lattice"):
-        embedding.restrict(a**k * b**m)
+    target = a if sign == 1 else a.adjoint()
+    with pytest.raises(NotImplementedError, match="concrete integers"):
+        embedding.restrict(target**k)
 
 
 @pytest.mark.parametrize("reference_list", [False, True])
