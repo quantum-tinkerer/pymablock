@@ -674,7 +674,7 @@ def block_diagonalize(
                             )
                             else x._poly_simplify()
                         )
-                        if isinstance(x, (NumberOrderedForm, _EmbeddedMap))
+                        if isinstance(x, NumberOrderedForm)
                         else x
                     )
                 )

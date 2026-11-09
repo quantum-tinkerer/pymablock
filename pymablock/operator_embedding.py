@@ -358,9 +358,6 @@ class _EmbeddedMap(sympy.Expr):
     def __sub__(self, other):
         return self + (-other)
 
-    def __rsub__(self, other):
-        return -self + other
-
     def _multiply(self, other, *, reverse=False):
         """Contract maps, or lift a square factor adjacent to the source space."""
         lattice = self.embedding._first_lattice
@@ -377,10 +374,7 @@ class _EmbeddedMap(sympy.Expr):
         if other.is_commutative:
             # Scalars act on X directly, without introducing W W†.
             return type(self)(self.target * other, self.embedding, self.side)
-        try:
-            value = NumberOrderedForm.from_expr(other)
-        except (TypeError, ValueError):
-            return NotImplemented
+        value = NumberOrderedForm.from_expr(other)
         source_side = self.side == (-1 if reverse else 1)
         value = (
             lattice.lift(value)
@@ -400,7 +394,7 @@ class _EmbeddedMap(sympy.Expr):
         other = sympy.sympify(other)
         if other.is_commutative:
             return self * (1 / other)
-        return self * (NumberOrderedForm.from_expr(other) ** -1)
+        return NotImplemented
 
     def __pow__(self, exponent):
         if exponent == 1:
@@ -415,25 +409,6 @@ class _EmbeddedMap(sympy.Expr):
         return (
             self.target * projector if self.side == 1 else projector * self.target
         ).is_zero
-
-    def __eq__(self, other):
-        if isinstance(other, _EmbeddedMap):
-            return self.args[1:] == other.args[1:] and self.target == other.target
-        return self.as_expr() == other
-
-    def __hash__(self):
-        if self._mhash is None:
-            self._mhash = hash(self.as_expr())
-        return self._mhash
-
-    def _eval_subs(self, old, new):
-        return type(self)(
-            self.target.subs(old, new), self.embedding.subs(old, new), self.side
-        )
-
-    def _poly_simplify(self):
-        """Simplify target coefficients at the block-series output boundary."""
-        return type(self)(self.target._poly_simplify(), self.embedding, self.side)
 
 
 class _Lattice:

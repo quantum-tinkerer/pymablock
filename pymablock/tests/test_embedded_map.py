@@ -54,8 +54,6 @@ def test_map_expression_contracts(adjoint):
     assert sp.pretty(value) == sp.pretty(value.as_expr())
     assert sp.latex(value) == sp.latex(value.as_expr())
     assert value.adjoint().adjoint() == value
-    assert value == value.as_expr()
-    assert hash(value) == hash(value.as_expr())
     assert value.subs(c, 0) == 0
     assert value.xreplace({c: 0}) == 0
     assert value.xreplace({q: SigmaMinus("z")}).as_expr() == value.as_expr().xreplace(
