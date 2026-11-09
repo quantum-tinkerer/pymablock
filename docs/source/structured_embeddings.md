@@ -108,7 +108,7 @@ Restricting a lifted operator recovers the effective operator, but lifting a
 restricted operator recovers only its projection onto the retained subspace.
 Restriction loses information about states and couplings outside that subspace.
 
-Restriction evaluates the complete target expression before compression.
+Restriction evaluates the complete target expression before restriction.
 In particular, $R(AB)$ need not equal
 $R(A)R(B)$: the intermediate state in $AB$ can leave the retained space.
 

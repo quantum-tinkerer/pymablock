@@ -13,7 +13,7 @@ mystnb:
   execution_timeout: 300
 ---
 
-# The implicit second-quantized algorithm
+# How block diagonalization uses an embedding
 
 This page explains what happens inside {func}`~pymablock.block_diagonalize` when
 the subspace is an {class}`~pymablock.operator_embedding.Embedding`, and follows
@@ -37,7 +37,7 @@ the $P$–$Q$ blocks of $H$ and returns $W^\dagger \tilde{H} W$ in source operat
 
 Both subspaces are usually infinite, so the algorithm never lists states: every
 operator stays a [number-ordered form](second_quantization.md), and all the work
-reduces to compression $R(A) = W^\dagger A W$, projection $P$, and lifting
+reduces to restriction $R(A) = W^\dagger A W$, projection $P$, and lifting
 $L(a) = W a W^\dagger$.
 
 `block_diagonalize` proceeds in four steps:
@@ -64,7 +64,7 @@ $L(a) = W a W^\dagger$.
 
    | product | result | operation |
    |---|---|---|
-   | $(W^\dagger X)(YW)$ | $W^\dagger XYW$ | compression $R(XY)$ |
+   | $(W^\dagger X)(YW)$ | $W^\dagger XYW$ | restriction $R(XY)$ |
    | $(XW)(W^\dagger Y)$ | $XPY$ | projection |
    | $(XW)\,z$, $z$ a source operator | $X\,L(z)\,W$ | lifting |
 
@@ -116,38 +116,28 @@ coupling between $|2_a 0_b\rangle$ and $|1_a 1_b\rangle$ exists in $H$, but no
 path from the retained states reaches it.
 ```
 
-The cells below read private attributes of the embedding and its compiled
-lattice, the names starting with an underscore. The public interface
-deliberately returns only the final operators, while these steps are about the
-intermediate data: the reference state, the shift matrix and the retained
-occupations. These attributes are implementation details that may change
-without notice; do not use them in your own code.
-
 ### Step 1: construction
 
 The image $a$ of $q$ lowers $n_a$ by one and leaves $n_b$ unchanged, so $M$ has
 the single column $(1, 0)$ and the retained states are $n(q) = (q, 0)$:
 
 ```{code-cell} ipython3
-# Private attributes, read only to show the intermediate data.
-lattice = embedding._first_lattice
-print("target modes:", lattice.target_operators)
-print("reference r:", lattice._reference_state)
-print("shift matrix M:", lattice._occupation_matrix.tolist())
-print("left inverse L:", lattice._occupation_left_inverse.tolist())
-print("retained occupations n(q):", lattice.target_of_source)
+source_occupation = sympy.Symbol("q", integer=True, nonnegative=True)
+retained_occupations = (source_occupation, 0)
+print("retained occupations n(q):", retained_occupations)
 ```
 
-The symbol `_source_0` is the source occupation $q$.
 The projector $P = WW^\dagger$ is the indicator of these states. It combines
 the constraint $n_b = 0$, which comes from the nullspace of $M^T$, with the spin
 spectrum $q \in \{0, 1\}$:
 
 ```{code-cell} ipython3
-lattice.projector
+identity_blocks = operator_to_BlockSeries(sympy.S.One, subspace_eigenvectors=embedding)
+projector = NumberOrderedForm.from_expr(1) - identity_blocks[1, 1]
+projector
 ```
 
-### Step 2: compression
+### Step 2: restriction
 
 `restrict` computes $R(A) = W^\dagger A W$ in the source operators:
 
@@ -174,16 +164,16 @@ for name, operator in [
   evaluated in the full target space first: on $q = 1$, $a^\dagger$ passes
   through $|2_a\rangle$, which is outside the retained states.
 
-To compress a term, the code applies it to the symbolic retained occupations
+To restrict a term, the code applies it to the symbolic retained occupations
 with `NumberOrderedForm.act`:
 
 ```{code-cell} ipython3
-NumberOrderedForm.from_expr(Dagger(b) * a).act(lattice.target_of_source)
+NumberOrderedForm.from_expr(Dagger(b) * a).act(retained_occupations)
 ```
 
 The term $b^\dagger a$ takes $|q, 0\rangle$ to $|q - 1, 1\rangle$ with matrix
 element $\sqrt{q}$. Its occupation shift $(-1, +1)$ is not a multiple of the
-column of $M$, so the outgoing state is never retained and the term compresses
+column of $M$, so the outgoing state is never retained and the term restricts
 to zero. A term whose shift *is* in the range of $M$ becomes a source operator,
 with its amplitude divided by the source ladder amplitude.
 
@@ -206,7 +196,7 @@ for index, label in [
     display(H[index])
 ```
 
-The retained block of $H_0$ is its compression. The complement block is $H_0$
+The retained block of $H_0$ is its restriction. The complement block is $H_0$
 with the retained energies removed. The off-diagonal block $QVW$ is a form
 attached to $W$ on the right. The indicators in it come from
 $Q = 1 - WW^\dagger$: the part of $a^\dagger b$ that would land back in a
@@ -223,7 +213,7 @@ for order in range(5):
     display(H_tilde[0, 0, order])
 ```
 
-**Order 0** is the compression of $H_0$.
+**Order 0** is the restriction of $H_0$.
 
 **Order 1** has no retained correction, because $R(V) = 0$. To continue,
 the algorithm needs the first-order rotation, which solves a Sylvester equation
@@ -247,7 +237,7 @@ pin the occupations after $a$ acts to $n_a = 0$, that is, to the incoming state
 $q = 1$.
 
 **Order 2** comes from products such as $H_{01}\,\mathcal{U}_{10}$. These are
-products of $W^\dagger X$ with $YW$, so they reduce to the compression of the
+products of $W^\dagger X$ with $YW$, so they reduce to the restriction of the
 target product $XY$:
 
 $$
@@ -260,7 +250,7 @@ This is the dispersive shift of the qubit.
 to $n_b = 0$, which takes an even number of photon exchanges.
 
 **Order 4** combines both kinds of products. $(XW)(W^\dagger Y)$ places the
-projector between target factors, and $(W^\dagger X)(YW)$ compresses at the end:
+projector between target factors, and $(W^\dagger X)(YW)$ restricts at the end:
 
 $$
 \tilde{H}^{(4)}_{\text{eff}} = \frac{g^4}{(\Omega - \omega)^3}\, N_q .
