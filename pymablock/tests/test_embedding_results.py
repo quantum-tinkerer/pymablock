@@ -568,18 +568,25 @@ def test_cancellation_before_resonance_check(generator):
 
 
 @pytest.mark.parametrize(
-    "case",
+    ("case", "format"),
     [
-        "point-zero",
-        "point-resonance",
-        "ladder-zero",
-        "nonlinear",
-        "binary-zero",
-        "binary-pole",
-        "explicit-zero",
+        *(
+            (case, "generator")
+            for case in (
+                "point-zero",
+                "point-resonance",
+                "ladder-zero",
+                "nonlinear",
+                "binary-zero",
+                "binary-pole",
+                "explicit-zero",
+            )
+        ),
+        # A finite reference list only represents the truncated-boson cases.
+        ("binary-zero", "list"),
+        ("binary-pole", "list"),
     ],
 )
-@pytest.mark.parametrize("format", ["generator", "list"])
 def test_division_policy(case, format):
     a, b, q = map(BosonOp, ("a", "b", "q"))
     n = N(a)
@@ -604,8 +611,6 @@ def test_division_policy(case, format):
         energy = (x**2 - 1) / (x - 1) - x - 1
     embedding = Embedding({q: a}, reference={a: 0, b: 0})
     if format == "list":
-        if not case.startswith("binary"):
-            pytest.skip("Equivalent finite list only for truncated boson")
         embedding = Embedding({}, reference=[{a: 0, b: 0}, {a: 1, b: 0}])
     h, *_ = block_diagonalize(
         [n + energy * N(b), coupling * b.adjoint() + s.adjoint(coupling) * b],
