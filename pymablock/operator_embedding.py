@@ -135,7 +135,7 @@ class Embedding(sympy.Expr):
     def __new__(
         cls,
         generators: Mapping,
-        reference: Mapping | Sequence | None = None,
+        reference: Mapping | Sequence,
     ) -> Self:
         """Build the symbolic isometry and compile its occupation lattices."""
         references = _parse_references(reference)

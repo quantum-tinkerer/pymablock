@@ -79,7 +79,7 @@ from IPython.display import display
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.number_ordered_form import NumberOrderedForm
-from pymablock.second_quantization import Embedding
+from pymablock.operator_embedding import Embedding
 ```
 
 We label the sites $0$ to $3$ in the code, following Python indexing.

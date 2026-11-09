@@ -17,7 +17,6 @@ from pymablock.operator_embedding import Embedding, _Lattice
 from pymablock.series import zero
 
 __all__ = [
-    "Embedding",
     "apply_mask_to_operator",
     "solve_sylvester_2nd_quant",
 ]

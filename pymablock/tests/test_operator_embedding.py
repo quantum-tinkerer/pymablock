@@ -18,7 +18,7 @@ from pymablock.number_ordered_form import (
     NumberOrderedForm,
 )
 from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.second_quantization import Embedding
+from pymablock.operator_embedding import Embedding
 from pymablock.series import zero
 from pymablock.tests.second_quantization_helpers import (
     nof_matrix,

@@ -50,7 +50,7 @@ from sympy.physics.quantum.boson import BosonOp
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import LadderOp
 from pymablock.number_ordered_form import NumberOperator as N
-from pymablock.second_quantization import Embedding
+from pymablock.operator_embedding import Embedding
 ```
 
 ```{code-cell} ipython3

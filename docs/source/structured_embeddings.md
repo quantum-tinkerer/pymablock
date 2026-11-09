@@ -49,7 +49,7 @@ projector.
 from sympy.physics.quantum import Dagger
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.pauli import SigmaMinus
-from pymablock.second_quantization import Embedding
+from pymablock.operator_embedding import Embedding
 
 up, down = FermionOp("up"), FermionOp("down")
 s = SigmaMinus("s")

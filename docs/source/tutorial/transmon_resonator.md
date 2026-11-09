@@ -54,7 +54,7 @@ from sympy.physics.quantum.pauli import SigmaMinus
 
 from pymablock import block_diagonalize
 from pymablock.number_ordered_form import NumberOperator
-from pymablock.second_quantization import Embedding
+from pymablock.operator_embedding import Embedding
 
 symbols = sympy.symbols(r"\omega_{t} \omega_{r} \alpha g", real=True, positive=True)
 omega_t, omega_r, alpha, g = symbols

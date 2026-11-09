@@ -96,7 +96,7 @@ from sympy.physics.quantum.pauli import SigmaMinus
 from pymablock import block_diagonalize, operator_to_BlockSeries
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.number_ordered_form import NumberOrderedForm
-from pymablock.second_quantization import Embedding
+from pymablock.operator_embedding import Embedding
 
 a, b, q = BosonOp("a"), BosonOp("b"), SigmaMinus("q")
 omega, Omega, U, g = sympy.symbols("omega Omega U g", positive=True)
