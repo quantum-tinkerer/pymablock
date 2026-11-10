@@ -1941,10 +1941,6 @@ class NumberOrderedForm(Operator):
         return self._rebuild(new_terms)
 
 
-def _occupation_dimension(operator: OperatorType) -> int | None:
-    """Return 2 for a spin or fermion mode, and None for an infinite mode.
-
-    Boson occupations range over nonnegative integers; bilateral ladder indices
-    range over all integers. Both therefore have infinite-dimensional spaces.
-    """
-    return 2 if isinstance(operator, (FermionOp, pauli.SigmaMinus)) else None
+def _is_binary(operator: OperatorType) -> bool:
+    """Return whether a mode has binary (spin or fermion) occupations."""
+    return isinstance(operator, (FermionOp, pauli.SigmaMinus))

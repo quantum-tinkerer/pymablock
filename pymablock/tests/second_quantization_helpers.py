@@ -12,7 +12,7 @@ from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
-    _occupation_dimension,
+    _is_binary,
 )
 
 
@@ -93,19 +93,17 @@ def nof_matrix(form, occupations=None):
     if not isinstance(form, NumberOrderedForm):
         raise TypeError("Expected a square NumberOrderedForm")
     if occupations is None:
-        dimensions = tuple(map(_occupation_dimension, form.operators))
-        if None in dimensions:
+        if not all(map(_is_binary, form.operators)):
             raise ValueError("Specify occupations for infinite modes")
-        occupations = tuple(range(size) for size in dimensions)
+        occupations = tuple(range(2) for _ in form.operators)
     if len(occupations) != len(form.operators):
         raise ValueError("Supply one occupation sequence per operator")
     domains = tuple(tuple(map(sympy.sympify, domain)) for domain in occupations)
     for op, domain in zip(form.operators, domains, strict=True):
-        size = _occupation_dimension(op)
         if len(set(domain)) != len(domain) or any(
             not n.is_Integer
             or (not isinstance(op, LadderOp) and n < 0)
-            or (size is not None and n >= size)
+            or (_is_binary(op) and n >= 2)
             for n in domain
         ):
             raise ValueError(f"Invalid occupation basis for {op}")

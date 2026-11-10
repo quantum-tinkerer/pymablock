@@ -41,8 +41,8 @@ from pymablock.number_ordered_form import (
     NumberOperator,
     NumberOrderedForm,
     OperatorType,
+    _is_binary,
     _number_operator_to_placeholder,
-    _occupation_dimension,
     _operator_sort_key,
     find_operators,
     generator_types,
@@ -220,6 +220,11 @@ class Embedding(sympy.Expr):
         w = self._retained_frame(target.rows)
         return self._format_output(w.adjoint() * target * w)
 
+    @property
+    def _single_reference(self) -> bool:
+        """Return whether the reference is a mapping rather than a list."""
+        return isinstance(self.args[1], sympy.Dict)
+
     def _target_matrix(
         self, expression: sympy.Expr | sympy.MatrixBase
     ) -> sympy.MatrixBase:
@@ -230,7 +235,7 @@ class Embedding(sympy.Expr):
                     "Nonzero reference matrix indices require a matrix target"
                 )
             expression = sympy.ImmutableMatrix([[expression]])
-        elif isinstance(self.args[1], sympy.Dict):
+        elif self._single_reference:
             raise TypeError("Matrix targets require a list of reference states")
         if expression.rows != expression.cols:
             raise ValueError("Target matrices must be square")
@@ -251,7 +256,7 @@ class Embedding(sympy.Expr):
                 else value
             )
         )
-        if isinstance(self.args[1], sympy.Dict):
+        if self._single_reference:
             return result[0, 0]
         return result
 
@@ -265,7 +270,7 @@ class Embedding(sympy.Expr):
     @cached_property
     def _first_embedding(self) -> Embedding:
         """Return the single-reference isometry used in frame entries."""
-        if isinstance(self.args[1], sympy.Dict):
+        if self._single_reference:
             return self
         reference = dict(self.args[1][0])
         reference.pop(Embedding.row)
@@ -460,7 +465,7 @@ class _Lattice:
             raise ValueError("Source generators must be lowering operators")
         source_operators = tuple(sorted(source_operators, key=_operator_sort_key))
         self._source_operators = source_operators
-        self._source_dimensions = tuple(map(_occupation_dimension, source_operators))
+        self._source_binary = tuple(map(_is_binary, source_operators))
         if source_occupations is None:
             source_occupations = tuple(
                 sympy.Dummy(
@@ -506,8 +511,14 @@ class _Lattice:
         self._validate_domains()
         self._validate_generator_algebra()
         self._phase = self._reference_phase()
+        self._validate_ladder_numbers(numbers)
+
+    def _validate_ladder_numbers(self, numbers: Mapping) -> None:
+        """Check independent ladder number images on the source lattice."""
         expected_numbers = {
-            NumberOperator(op) for op in source_operators if isinstance(op, LadderOp)
+            NumberOperator(op)
+            for op in self._source_operators
+            if isinstance(op, LadderOp)
         }
         if set(numbers) != expected_numbers:
             raise ValueError(
@@ -516,7 +527,7 @@ class _Lattice:
         for op, number in numbers.items():
             index = next(
                 i
-                for i, source in enumerate(source_operators)
+                for i, source in enumerate(self._source_operators)
                 if NumberOperator(source) == op
             )
             form = self.parse_target(number)
@@ -581,15 +592,15 @@ class _Lattice:
         """
         for i, op in enumerate(self.target_operators):
             lower = upper = self._reference_state[i]
-            for coefficient, source, size in zip(
+            for coefficient, source, binary in zip(
                 self._occupation_matrix.row(i),
                 self._source_operators,
-                self._source_dimensions,
+                self._source_binary,
                 strict=True,
             ):
                 if not coefficient:
                     continue
-                if size is None:
+                if not binary:
                     if isinstance(source, LadderOp):
                         lower, upper = -sympy.oo, sympy.oo
                     elif coefficient > 0:
@@ -597,13 +608,11 @@ class _Lattice:
                     else:
                         lower = -sympy.oo
                 else:
-                    lower += min(0, coefficient) * (size - 1)
-                    upper += max(0, coefficient) * (size - 1)
+                    lower += min(0, coefficient)
+                    upper += max(0, coefficient)
             if not isinstance(op, LadderOp) and lower < 0:
                 raise ValueError("Generators leave the physical target occupation domain")
-            if _occupation_dimension(op) is not None and upper >= _occupation_dimension(
-                op
-            ):
+            if _is_binary(op) and upper >= 2:
                 raise ValueError("Generators overfill a target spin or fermion")
 
     def _require_vanishing(self, expression: sympy.Expr, context: str) -> None:
@@ -613,9 +622,7 @@ class _Lattice:
         raises ValueError; an undecidable one raises NotImplementedError.
         """
         binary = tuple(
-            q
-            for q, size in zip(self.source_occupations, self._source_dimensions)
-            if size == 2
+            q for q, binary in zip(self.source_occupations, self._source_binary) if binary
         )
         expression = sympy.expand(expression)
         for q in binary:
@@ -648,8 +655,8 @@ class _Lattice:
         ]
         coordinates = self.source_occupations
         active = {
-            q: sympy.S.One if size == 2 else q + 1
-            for q, size in zip(coordinates, self._source_dimensions)
+            q: sympy.S.One if binary else q + 1
+            for q, binary in zip(coordinates, self._source_binary)
         }
         for i, q in enumerate(coordinates):
             norm = (
@@ -697,11 +704,11 @@ class _Lattice:
         NotImplementedError. The reference state's phase is one.
         """
         phase = sympy.S.One
-        for i, (image, q, size) in enumerate(
+        for i, (image, q, binary) in enumerate(
             zip(
                 self._generator_images,
                 self.source_occupations,
-                self._source_dimensions,
+                self._source_binary,
                 strict=True,
             )
         ):
@@ -711,7 +718,7 @@ class _Lattice:
             ratio = ratio.xreplace(
                 dict.fromkeys(self.source_occupations[:i], sympy.S.Zero)
             )
-            if size is None:
+            if not binary:
                 ratio = sympy.simplify(ratio)
                 if ratio.free_symbols.intersection(self.source_occupations):
                     raise NotImplementedError(
@@ -735,8 +742,8 @@ class _Lattice:
         residual = self._occupation_matrix * result - target
         if any(residual):
             return None
-        for value, size in zip(result, self._source_dimensions, strict=True):
-            if not value.is_Integer or (size is not None and abs(value) >= size):
+        for value, binary in zip(result, self._source_binary, strict=True):
+            if not value.is_Integer or (binary and abs(value) >= 2):
                 return None
         return tuple(result)
 
@@ -763,12 +770,12 @@ class _Lattice:
         # NOF coefficients sit between creation and annihilation operators.
         # A binary transition fixes its input occupation; spectators stay symbolic.
         initial = {
-            q: sympy.Integer(1 if p > 0 else 0) if p and size == 2 else n + max(p, 0)
-            for q, n, p, size in zip(
+            q: sympy.Integer(1 if p > 0 else 0) if p and binary else n + max(p, 0)
+            for q, n, p, binary in zip(
                 self.source_occupations,
                 self._source_numbers,
                 powers,
-                self._source_dimensions,
+                self._source_binary,
             )
         }
         coefficient = sympy.factor_terms(amplitude.xreplace(initial))
@@ -805,7 +812,7 @@ class _Lattice:
             for target, n in zip(self.target_operators, numbers)
             if not isinstance(target, LadderOp)
         }
-        for q, op, size in zip(source, self._source_operators, self._source_dimensions):
+        for q, op, binary in zip(source, self._source_operators, self._source_binary):
             if (
                 isinstance(op, BosonOp)
                 and q.xreplace(physical).is_nonnegative is not True
@@ -813,12 +820,12 @@ class _Lattice:
                 raise NotImplementedError(
                     "This bosonic embedding requires an occupation inequality"
                 )
-            # Finite source modes take the values 0, ..., size - 1; infinite source
-            # modes only require an integer source occupation, q == floor(q).
+            # Binary source modes take the values 0 and 1; infinite source modes
+            # only require an integer source occupation, q == floor(q).
             factors.append(
                 _equal_value_indicator(q, sympy.floor(q))
-                if size is None
-                else sum(_equal_value_indicator(q, value) for value in range(size))
+                if not binary
+                else sum(_equal_value_indicator(q, value) for value in range(2))
             )
         return NumberOrderedForm(
             self.target_operators,
@@ -867,8 +874,8 @@ class _Lattice:
         if self._occupation_matrix * displacement != delta:
             return False
         return all(
-            d.is_Integer and (size is None or abs(d) < size)
-            for d, size in zip(displacement, self._source_dimensions)
+            d.is_Integer and (not binary or abs(d) < 2)
+            for d, binary in zip(displacement, self._source_binary)
         )
 
     def transfer(self, lattice: _Lattice) -> NumberOrderedForm:
@@ -948,11 +955,10 @@ def _ordered_reference_state(
     operators = tuple(sorted(reference, key=_operator_sort_key))
     state = tuple(sympy.sympify(reference[op]) for op in operators)
     for op, n in zip(operators, state, strict=True):
-        size = _occupation_dimension(op)
         if (
             not n.is_Integer
             or (not isinstance(op, LadderOp) and n < 0)
-            or (size is not None and n >= size)
+            or (_is_binary(op) and n >= 2)
         ):
             raise ValueError("Reference occupations lie outside the target algebra")
     return operators, state
