@@ -26,8 +26,8 @@ from pymablock.linalg import (
 )
 from pymablock.number_ordered_form import (
     NumberOrderedForm,
+    _operator_sort_key,
     find_operators,
-    generator_types,
 )
 from pymablock.series import (
     BlockSeries,
@@ -35,6 +35,8 @@ from pymablock.series import (
 )
 
 __all__ = ["block_diagonalize", "operator_to_BlockSeries"]
+
+_DEFAULT_ATOL = 1e-12
 
 # Common types
 SingleSubspaceBasis = np.ndarray | sympy.MatrixBase | sparse.spmatrix | sparse.sparray
@@ -53,7 +55,7 @@ def block_diagonalize(
     direct_solver: bool = True,
     solver_options: dict | None = None,
     symbols: sympy.Symbol | Sequence[sympy.Symbol] | None = None,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
     fully_diagonalize: (
         tuple[int, ...]
         | dict[int, np.ndarray | sympy.Matrix | sympy.Expr]
@@ -375,11 +377,7 @@ def block_diagonalize(
         operators = list(
             set().union(*(find_operators(block) for block in nonzero_blocks))
         )
-        operators = tuple(
-            sorted(
-                operators, key=lambda op: (generator_types.index(type(op)), str(op.name))
-            )
-        )
+        operators = tuple(sorted(operators, key=_operator_sort_key))
     else:
         operators = ()
 
@@ -465,7 +463,7 @@ def block_diagonalize(
         i: (
             (np.abs(diagonal[i].reshape(-1, 1) - diagonal[i]) < atol).astype(int)
             if diagonal[i].dtype != object  # numerical array, else sympy
-            else ((diagonal[i].reshape(-1, 1) == diagonal[i]) == True)  # noqa E712
+            else ((diagonal[i].reshape(-1, 1) == diagonal[i]) == True)  # noqa: E712
         )
         for i in set(fully_diagonalize)
     }
@@ -660,7 +658,7 @@ def operator_to_BlockSeries(
     subspace_indices: tuple[int, ...] | None = None,
     implicit: bool = False,
     symbols: list[sympy.Symbol] | None = None,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
     hermitian: bool = False,
 ) -> BlockSeries:
     """Convert an operator to `~pymablock.series.BlockSeries` format.
@@ -885,7 +883,7 @@ def _preprocess_sylvester(solve_sylvester: Callable) -> Callable:
 def solve_sylvester_diagonal(
     eigs: tuple[np.ndarray | sympy.matrices.MatrixBase, ...],
     vecs_implicit: np.ndarray | None = None,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
 ) -> Callable:
     """Define a function for solving a Sylvester's equation for diagonal matrices.
 
@@ -1299,7 +1297,7 @@ def _list_to_dict(operator: list[Any]) -> dict[int, Any]:
 def _dict_to_BlockSeries(
     operator: dict[tuple[int, ...], Any],
     symbols: Sequence[sympy.Symbol] | None = None,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
 ) -> tuple[BlockSeries, list[sympy.Symbol]]:
     """Convert a dictionary of perturbations to a BlockSeries.
 
@@ -1468,7 +1466,7 @@ def _sympy_to_BlockSeries(
 def _to_scalar_BlockSeries(
     operator: list | dict | BlockSeries | sympy.Matrix,
     symbols: Sequence[sympy.Symbol] = (),
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
     check_hermitian: bool = True,
 ) -> BlockSeries:
     """Normalize input to BlockSeries without transforming values.
@@ -1491,7 +1489,7 @@ def _to_scalar_BlockSeries(
     raise TypeError(f"Unsupported input type of Hamiltonian: {type(operator)}.")
 
 
-def _unpack_blocks(operator: BlockSeries, atol: float = 1e-12) -> BlockSeries:
+def _unpack_blocks(operator: BlockSeries, atol: float = _DEFAULT_ATOL) -> BlockSeries:
     """Check if operator values are list of lists and if so, unpack them into blocks."""
     if operator.shape:
         return operator
@@ -1590,7 +1588,7 @@ def _normalize_subspace_eigenvectors(
 
 def _extract_diagonal(
     operator: BlockSeries,
-    atol: float = 1e-12,
+    atol: float = _DEFAULT_ATOL,
     implicit: bool = False,
     operators: Sequence[sympy.physics.quantum.Operator] = (),
 ) -> tuple[np.ndarray, ...]:
@@ -1632,7 +1630,7 @@ def _extract_diagonal(
     return tuple(diags)
 
 
-def _convert_if_zero(value: Any, atol: float = 1e-12):
+def _convert_if_zero(value: Any, atol: float = _DEFAULT_ATOL):
     """Convert an exact zero to sentinel value zero.
 
     Parameters

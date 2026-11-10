@@ -306,14 +306,14 @@ def apply_mask_to_operator(
     >>>
     >>> # Create a matrix with different operator terms
     >>> H = sympy.Matrix([[a * Dagger(a) + b * Dagger(b), a * Dagger(b)],
-            [b * Dagger(a), a * Dagger(a) - b * Dagger(b)]])
+    ...                   [b * Dagger(a), a * Dagger(a) - b * Dagger(b)]])
     >>> # Convert to NumberOrderedForm for easier handling
     >>> H_nof = H.applyfunc(NumberOrderedForm.from_expr)
     >>>
     >>> # Create a mask that selects only terms with a specific power pattern
     >>> # Select only terms with exactly one 'a' operator and one 'b' operator
     >>> mask = sympy.Matrix([[sympy.S.Zero, NumberOrderedForm([a, b], {(1, -1): sympy.S.One})],
-                [NumberOrderedForm([a, b], {(1, 1): sympy.S.One}), sympy.S.Zero]])
+    ...                      [NumberOrderedForm([a, b], {(1, 1): sympy.S.One}), sympy.S.Zero]])
     >>> H_filtered = apply_mask_to_operator(H_nof, mask, keep=True)
     >>> # H_filtered now contains only the terms that match the mask:
     >>> # [[0, Dagger(b)a], [0, 0]]
