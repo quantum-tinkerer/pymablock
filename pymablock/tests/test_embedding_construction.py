@@ -89,10 +89,10 @@ def test_list_substitution_and_printing(source_type):
         ],
     )
     w = embedding._retained_frame(2)
-    expected = renamed._retained_frame(2)
     for method in ("subs", "xreplace"):
         assert getattr(embedding, method)({a: z}) == renamed
-    assert w.xreplace({a: z}) == expected
+    with pytest.raises(ValueError, match="Cannot replace operators"):
+        w.xreplace({a: z})
     phase = sympy.Symbol("phase", real=True)
     phased = Embedding(
         {f: sympy.exp(sympy.I * phase) * target}, reference=embedding.args[1]

@@ -1289,18 +1289,13 @@ def test_act_symbolic_boson_power(sign):
         form.act((n,))
 
 
-def test_xreplace_renames_number_operators():
-    """Renaming a mode also renames its number operator in the coefficients."""
+def test_xreplace_rejects_mode_replacement():
+    """Like subs, xreplace does not rename or replace the modes of a form."""
     a, b = boson.BosonOp("a"), boson.BosonOp("b")
     nof = NumberOrderedForm.from_expr(NumberOperator(a) * a + 2)
-    expected = NumberOrderedForm.from_expr(NumberOperator(b) * b + 2)
-    assert nof.xreplace({a: b, Dagger(a): Dagger(b)}) == expected
-
-    c, d, e = (fermion.FermionOp(name) for name in ("c", "d", "a0"))
-    nof = NumberOrderedForm.from_expr(Dagger(c) * d + NumberOperator(c) * d)
-    expected = NumberOrderedForm.from_expr(Dagger(e) * d + NumberOperator(e) * d)
-    renamed = nof.xreplace({c: e, Dagger(c): Dagger(e)})
-    assert renamed.as_expr() == expected.as_expr()
+    for rule in ({a: b}, {Dagger(a): Dagger(b)}):
+        with pytest.raises(ValueError, match="Cannot replace operators"):
+            nof.xreplace(rule)
 
 
 def test_is_particle_conserving():
@@ -1952,16 +1947,6 @@ def test_bilateral_downward_shift_has_no_boundary_guard():
     number = form._number_operator_placeholders[0]
     assert form.terms == {(0,): 1 / number}
     assert form.terms[(0,)].subs(number, -2) == -sympy.Rational(1, 2)
-
-
-@pytest.mark.parametrize("mode_type", [boson.BosonOp, fermion.FermionOp])
-def test_mode_rename_reorders_numbers_and_ladders(mode_type):
-    """Renaming across canonical mode order preserves amplitudes and graded signs."""
-    a, b, z = map(mode_type, ("a", "b", "z"))
-    expression = NumberOperator(a) * b + a.adjoint() * b
-    renamed = NumberOperator(z) * b + z.adjoint() * b
-    form = NumberOrderedForm.from_expr(expression)
-    assert form.xreplace({a: z}) == NumberOrderedForm.from_expr(renamed)
 
 
 def test_xreplace_scalar_with_number_operator():

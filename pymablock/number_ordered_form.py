@@ -1823,28 +1823,16 @@ class NumberOrderedForm(Operator):
     def _xreplace(
         self, rule: Mapping[sympy.Basic, sympy.Basic]
     ) -> tuple[sympy.Basic, bool]:
-        """Replace exact subexpressions and report whether anything changed.
-
-        Coefficients store number operators as placeholder symbols named after their
-        modes, so renaming a mode also renames its placeholder.
-        """
-        renames = {
-            placeholder: _number_operator_to_placeholder(NumberOperator(new))
-            for op, placeholder in zip(
-                self.operators, self._number_operator_placeholders, strict=True
-            )
-            if isinstance(new := rule.get(op), generator_types) and new.is_annihilation
-        }
+        """Replace exact subexpressions in coefficients; mode replacement is rejected."""
         if self in rule:
             return rule[self], True
-        operators, changed_ops = self.operators._xreplace(rule)
-        terms, changed_terms = self.args[1]._xreplace({**renames, **rule})
-        if not (changed_ops or changed_terms):
+        if any(op in rule or Dagger(op) in rule for op in self.operators):
+            raise ValueError("Cannot replace operators in NumberOrderedForm.")
+        terms, changed = self.args[1]._xreplace(rule)
+        if not changed:
             return self, False
-        result = self._rebuild(terms, operators=operators)
-        ordered = sorted(operators, key=_operator_sort_key)
-        result = result._expand_operators(ordered)
         # Revalidate replacements that introduce new number operators.
+        result = self._rebuild(terms)
         return result.func(*result.args), True
 
     def filter_terms(

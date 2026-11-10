@@ -366,13 +366,9 @@ def test_map_substitution_and_reconstruction(mode_type):
     q = mode_type("q")
     g = s.Symbol("g", real=True)
     e = Embedding({q: a}, reference={a: 0, b: 1})
-    renamed = Embedding({q: a}, reference={a: 0, z: 1})
     w = e._retained_frame(1)[0, 0]
     x = NumberOrderedForm.from_expr(g * N(b) + a.adjoint() * b)
-    expected = (
-        NumberOrderedForm.from_expr(2 * N(z) + a.adjoint() * z)
-        * renamed._retained_frame(1)[0, 0]
-    )
+    expected = NumberOrderedForm.from_expr(2 * N(b) + a.adjoint() * b) * w
     for value in (x * w, (x * w).adjoint()):
         for restored in (
             value.func(*value.args),
@@ -382,9 +378,10 @@ def test_map_substitution_and_reconstruction(mode_type):
         assert value.adjoint().adjoint() == value
     for method in ("subs", "xreplace"):
         replaced = getattr(x * w, method)({g: 2})
-        actual = replaced.xreplace({b: z, b.adjoint(): z.adjoint()})
-        assert actual == expected
-        assert replaced.adjoint().xreplace({b: z}) == expected.adjoint()
+        assert replaced == expected
+        assert replaced.adjoint() == expected.adjoint()
+    with pytest.raises(ValueError, match="Cannot replace operators"):
+        (x * w).xreplace({b: z})
     assert (x * w) ** 1 == x * w
     with pytest.raises(ValueError):
         (x * w) ** 2
