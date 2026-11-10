@@ -2,12 +2,15 @@ import pytest
 import sympy as s
 from sympy.physics.quantum.boson import BosonOp
 
+from pymablock._occupation_coefficients import (
+    _divide_by_energy_gap,
+    _equal_value_indicator,
+    _simplify_on_fixed_numbers,
+)
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
-    _equal_value_indicator,
-    _simplify_on_fixed_numbers,
 )
 from pymablock.tests.second_quantization_helpers import nof_matrix
 
@@ -139,3 +142,16 @@ def test_fixed_number_background_indicators_cancel():
     # Setting the inner indicators to zero creates indicators in the background.
     coefficient = sum(g * delta for delta in nested) - 2 * g * sum(indicators)
     assert _simplify_on_fixed_numbers(coefficient, (n,), (n,)) == 0
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="Indicator algebra does not infer exclusivity of different floor conditions",
+)
+def test_mutually_exclusive_floor_indicators():
+    """Even and odd sublattice supports have an empty intersection."""
+
+    n = s.Symbol("n", integer=True)
+    even = _equal_value_indicator(n / 2, s.floor(n / 2))
+    odd = _equal_value_indicator((n - 1) / 2, s.floor((n - 1) / 2))
+    assert _divide_by_energy_gap(even * odd, s.S.Zero, (n,)) == 0

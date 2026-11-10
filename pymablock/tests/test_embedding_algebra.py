@@ -19,12 +19,11 @@ from pymablock import block_diagonalize
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOrderedForm,
-    _equal_value_indicator,
 )
 from pymablock.number_ordered_form import NumberOperator as N
 from pymablock.number_ordered_form import NumberOrderedForm as F
 from pymablock.operator_embedding import Embedding
-from pymablock.second_quantization import _divide_by_energy_gap, solve_scalar
+from pymablock.second_quantization import solve_scalar
 from pymablock.tests.second_quantization_helpers import (
     nof_matrix,
     occupation_matrices,
@@ -506,19 +505,6 @@ def test_target_division_excludes_unselected_poles(generic_gap):
     assert_matrix_equal(
         nof_matrix(left * divided, [range(4)]), nof_matrix(left, [range(4)]) * expected
     )
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="Indicator algebra does not infer exclusivity of different floor conditions",
-)
-def test_mutually_exclusive_floor_indicators():
-    """Even and odd sublattice supports have an empty intersection."""
-
-    n = sp.Symbol("n", integer=True)
-    even = _equal_value_indicator(n / 2, sp.floor(n / 2))
-    odd = _equal_value_indicator((n - 1) / 2, sp.floor((n - 1) / 2))
-    assert _divide_by_energy_gap(even * odd, sp.S.Zero, (n,)) == 0
 
 
 def test_lattice_consumers_normalize_equal_nofs():

@@ -58,35 +58,12 @@ it as a rectangular map. No source-coordinate division or lattice guard is neede
 Diagonal blocks use the ordinary second-quantized solver.
 
 `NumberOrderedForm.act` supplies destination occupations and ladder amplitudes
-for restriction with concrete integer ladder powers. Division instead uses NOF
-coefficients at middle occupations. Affine occupation indicators split the active
-sectors; indicator algebra recognizes zero coefficients before a zero-gap error
-and zero rectangular maps on their retained domain. It does not enumerate binary
-sectors. Some empty indicator combinations, such as mutually exclusive `floor`
-conditions or $\delta(n+m,1)\,\delta(n,2)$ with nonnegative occupations, are not
-recognized: this causes a spurious `ValueError`, pinned by a strict xfail test.
-
-Occupation conditions have four `Piecewise` shapes in NOF coefficients:
-
-- Indicators: `((1, Eq(x, v)), (0, True))`; products and sums build projectors.
-- Boundary guards: `((0, Eq(n, i) | ...), (c, True))`, suppressing poles where
-  downward ladder factors vanish.
-- Inactive transitions: `((0, inactive), (c / gap, True))`.
-- Point splits: `((value at v, Eq(n, v)), (rest, True))`.
-
-Only indicators are read back as fixed occupations. The other shapes must
-remain branches: multiplying a pole by a zero indicator would evaluate
-$0\cdot\infty$. `as_expr` exports operator-valued conditions. A feature-detected,
-global SymPy `Piecewise` patch preserves their noncommutativity; occupation
-placeholders inside NOF coefficients remain commutative.
-
-Division first applies occupations selected by indicators, including truncated
-boson levels and reference lists in either embedding format. A defined zero
-transition has zero
-solution even at zero gap. An exposed zero gap with nonzero amplitude raises
-`ValueError`; unresolved resonances stay symbolic poles. Scalar parameters are
-generic. The solver does not enumerate binary sectors or integer roots, so a
-returned expression does not certify nonresonance in every sector.
+for restriction with concrete integer ladder powers. The scalar coefficient
+helpers, pole-handling contract, and indicator/`Piecewise` shapes live in
+[`pymablock._occupation_coefficients`](https://gitlab.kwant-project.org/qt/pymablock/-/blob/feature/structured-embeddings/pymablock/_occupation_coefficients.py).
+`as_expr` exports operator-valued conditions. A feature-detected, global SymPy
+`Piecewise` patch preserves their noncommutativity; occupation placeholders
+inside NOF coefficients remain commutative.
 
 Supported embeddings map source states to individual target occupation states,
 up to phases. Arbitrary superpositions and dependent generator shifts are

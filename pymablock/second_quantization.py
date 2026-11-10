@@ -1,18 +1,17 @@
 """Second quantization tools for number-ordered operators."""
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable
 
 import numpy as np
 import sympy
 from sympy.physics.quantum.boson import BosonOp
 
+from pymablock._occupation_coefficients import _divide_by_energy_gap
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
-    _iter_fixed_number_indicators,
     _number_operator_to_placeholder,
-    _vanishes_by_indicator_algebra,
 )
 from pymablock.operator_embedding import Embedding
 from pymablock.series import zero
@@ -21,100 +20,6 @@ __all__ = [
     "apply_mask_to_operator",
     "solve_sylvester_2nd_quant",
 ]
-
-
-def _divide_by_energy_gap(
-    coefficient: sympy.Expr,
-    energy_gap: sympy.Expr,
-    number_symbols: Sequence[sympy.Symbol] = (),
-    nonnegative_numbers: Sequence[sympy.Symbol] = (),
-) -> sympy.Expr:
-    """Return coefficient / energy_gap, choosing zero for inactive 0/0 channels.
-
-    Ordinary cancellation can lose an inactive transition: n/n must be zero at
-    n=0, not one everywhere. Occupations fixed by indicators are evaluated
-    directly; otherwise the quotient is conditional on the transition being active.
-    The NOF coefficient is the amplitude at the middle occupations.
-    ``number_symbols`` are occupation coordinates
-    and other symbols are generic parameters; ``nonnegative_numbers`` only avoids
-    unnecessary conditionals. A literal zero gap with a nonzero coefficient raises
-    ValueError; other resonances remain symbolic poles and are not searched for.
-    """
-    if coefficient == 0:
-        return sympy.S.Zero
-    energy_gap = sympy.cancel(energy_gap)
-    arguments = coefficient, energy_gap
-
-    def divide_after_substitution(
-        substitution: Mapping[sympy.Expr, sympy.Expr],
-    ) -> sympy.Expr:
-        selected_coefficient, selected_gap = (
-            expression.xreplace(substitution) for expression in arguments
-        )
-        return _divide_by_energy_gap(
-            selected_coefficient,
-            selected_gap,
-            number_symbols,
-            nonnegative_numbers,
-        )
-
-    variables = set(number_symbols)
-    point = next(
-        _iter_fixed_number_indicators(coefficient, variables & energy_gap.free_symbols),
-        None,
-    )
-    if point is not None:
-        delta, n, v = point
-        return sympy.Piecewise(
-            (divide_after_substitution({n: v}), sympy.Eq(n, v)),
-            (divide_after_substitution({delta: sympy.S.Zero}), True),
-        )
-    if energy_gap == 0:
-        if _vanishes_by_indicator_algebra(coefficient, variables):
-            return sympy.S.Zero
-        raise ValueError(
-            "Cannot solve the Sylvester equation: the right-hand side is nonzero "
-            "but the energy difference is zero (degenerate channel)."
-        )
-    # Generic scalar parameters are not tuned to occupation resonances. Keep
-    # their quotients compact rather than expanding conditional expressions.
-    gap = energy_gap.as_numer_denom()[0]
-    for parameter in gap.free_symbols - variables:
-        parameter_coefficient = gap.coeff(parameter)
-        if (
-            parameter_coefficient.is_Atom
-            and parameter_coefficient.is_zero is False
-            and not parameter_coefficient.free_symbols & variables
-        ):
-            return coefficient / energy_gap
-    quotient = coefficient / energy_gap
-    if not energy_gap.free_symbols & variables:
-        return quotient
-    # A constant plus occupations with the same sign cannot vanish. Inspect
-    # numeric coefficients only, rather than asking the assumptions engine to
-    # prove a general expression nonzero.
-    constant, rest = energy_gap.as_coeff_Add()
-    if constant and all(
-        factor in set(nonnegative_numbers)
-        and (coefficient * constant).is_positive is True
-        for coefficient, factor in (
-            term.as_coeff_Mul() for term in sympy.Add.make_args(rest)
-        )
-    ):
-        return quotient
-    factors = (factor.as_numer_denom()[0] for factor in sympy.Mul.make_args(coefficient))
-    inactive = sympy.Or(
-        *(
-            sympy.Eq(factor, 0, evaluate=False)
-            for factor in factors
-            if factor.free_symbols & variables
-        )
-    )
-    # A meromorphic coefficient has no defined zero at its poles. Its numerator
-    # can vanish there without making the virtual channel inactive.
-    coefficient_denominator = sympy.together(coefficient).as_numer_denom()[1]
-    inactive = sympy.And(inactive, sympy.Ne(coefficient_denominator, 0))
-    return sympy.Piecewise((0, inactive), (quotient, True), evaluate=False)
 
 
 def _diagonal_coefficient(expression: NumberOrderedForm) -> sympy.Expr:

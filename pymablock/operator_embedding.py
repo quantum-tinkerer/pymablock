@@ -32,16 +32,18 @@ import sympy
 from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 
+from pymablock._occupation_coefficients import (
+    _equal_value_indicator,
+    _vanishes_by_indicator_algebra,
+)
 from pymablock.number_ordered_form import (
     LadderOp,
     NumberOperator,
     NumberOrderedForm,
     OperatorType,
-    _equal_value_indicator,
     _number_operator_to_placeholder,
     _occupation_dimension,
     _operator_sort_key,
-    _vanishes_by_indicator_algebra,
     find_operators,
     generator_types,
 )
