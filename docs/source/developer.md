@@ -60,7 +60,7 @@ Diagonal blocks use the ordinary second-quantized solver.
 `NumberOrderedForm.act` supplies destination occupations and ladder amplitudes
 for restriction with concrete integer ladder powers. The scalar coefficient
 helpers, pole-handling contract, and indicator/`Piecewise` shapes live in
-[`pymablock._occupation_coefficients`](https://gitlab.kwant-project.org/qt/pymablock/-/blob/feature/structured-embeddings/pymablock/_occupation_coefficients.py).
+the module docstring of `pymablock/_occupation_coefficients.py`.
 `as_expr` exports operator-valued conditions. A feature-detected, global SymPy
 `Piecewise` patch preserves their noncommutativity; occupation placeholders
 inside NOF coefficients remain commutative.
