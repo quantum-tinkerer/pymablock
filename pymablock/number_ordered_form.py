@@ -30,50 +30,24 @@ Zero = sympy.S.Zero
 One = sympy.S.One
 Tuple = sympy.Tuple
 
-# Monkey patch sympy to propagate adjoint to matrix elements.
-if sympy.__version__ in SpecifierSet("<1.14"):  # pragma: no cover
-
-    def _eval_adjoint(self):
-        return self.transpose().applyfunc(lambda x: x.adjoint())
-
-    def _eval_transpose(self):
-        from sympy.functions.elementary.complexes import conjugate
-
-        if self.is_commutative:
-            return self
-        if self.is_hermitian:
-            return conjugate(self)
-        if self.is_antihermitian:
-            return -conjugate(self)
-        return None
-
-    sympy.MatrixBase.adjoint = _eval_adjoint
-    sympy.Expr._eval_transpose = _eval_transpose  # type: ignore
-    del _eval_adjoint
-    del _eval_transpose
-
-    # Only implements skipping identity, and is deleted in 1.14.
-    try:
-        del BosonOp.__mul__
-        del Operator.__mul__
-    except AttributeError:
-        pass
-
 
 # TODO: reimplement once https://github.com/sympy/sympy/issues/27385 is fixed.
 # Monkey patch sympy to override the sum method to ExpressionRawDomain.
-def _sum(self, items):  # noqa ARG001
-    """Slower, but overridable version of sympy.Add."""
+def _sum_sequentially(
+    _domain: sympy.polys.domains.expressionrawdomain.ExpressionRawDomain,
+    items: Sequence[sympy.Expr],
+) -> sympy.Expr:
+    """Sum from left to right so operator subclasses can handle each addition."""
     if not items:
-        return Zero
+        return sympy.S.Zero
     result = items[0]
     for item in items[1:]:
         result += item
     return result
 
 
-sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum  # type: ignore
-del _sum
+sympy.polys.domains.expressionrawdomain.ExpressionRawDomain.sum = _sum_sequentially  # type: ignore
+del _sum_sequentially
 
 if sympy.__version__ in SpecifierSet("<1.15"):
     # Define is_annihilation on spins for API uniformity
@@ -107,7 +81,7 @@ class LadderOp(Operator):
     def is_annihilation(self):
         return bool(self.args[1])
 
-    def __new__(cls, *args, **hints):  # noqa: ARG004
+    def __new__(cls, *args, **_hints):
         if len(args) not in [1, 2]:
             raise ValueError("1 or 2 parameters expected, got %s" % args)
 
@@ -148,6 +122,11 @@ generator_types = (BosonOp, LadderOp, pauli.SigmaMinus, FermionOp)
 operator_type_by_name = {sympy.Symbol(op.__name__): op for op in operator_types}
 PowerKey = tuple[int | sympy.Integer, ...]
 TermDict = dict[PowerKey, sympy.Expr] | tuple[tuple[PowerKey, sympy.Expr], ...] | Tuple
+
+
+def _operator_sort_key(operator: OperatorType) -> tuple[int, str]:
+    """Order modes by algebra type, then name; fermion signs follow this order."""
+    return generator_types.index(type(operator)), str(operator.name)
 
 
 class NumberOperator(HermitianOperator):
@@ -334,7 +313,7 @@ def find_operators(expr: sympy.Expr) -> list[OperatorType]:
                 for atom in expr.atoms(NumberOperator)
             ),
         ),
-        key=lambda op: (generator_types.index(type(op)), str(op.name)),
+        key=_operator_sort_key,
     )
 
 
@@ -485,6 +464,16 @@ class NumberOrderedForm(Operator):
 
         return result
 
+    def _rebuild(
+        self, terms: TermDict, operators: Sequence[OperatorType] | None = None
+    ) -> "NumberOrderedForm":
+        """Replace terms and optionally the operator list without revalidating."""
+        return type(self)(
+            self.operators if operators is None else operators,
+            terms,
+            validate=False,
+        )
+
     @staticmethod
     def _validate_operators(operators: Sequence[OperatorType]) -> None:
         """Validate the operators list.
@@ -512,9 +501,7 @@ class NumberOrderedForm(Operator):
             raise ValueError("Operators must be annihilation operators.")
 
         # Confirm operator sort order
-        if list(operators) != sorted(
-            operators, key=lambda op: (generator_types.index(type(op)), str(op.name))
-        ):
+        if list(operators) != sorted(operators, key=_operator_sort_key):
             raise ValueError("Operators must be sorted by type and name.")
 
     @staticmethod
@@ -1023,7 +1010,7 @@ class NumberOrderedForm(Operator):
         else:  # Fermions and spins
             if abs(op_power) > One:
                 # Fermionic and spin operators are nilpotent
-                return type(self)(self.operators, Tuple(), validate=False)
+                return self._rebuild(Tuple())
             for powers, coeff in self.args[1]:
                 orig_power = powers[op_index]
                 new_power = orig_power + op_power
@@ -1072,7 +1059,7 @@ class NumberOrderedForm(Operator):
                 new_terms[new_powers] = coeff
 
         # Create the new NumberOrderedForm with the same operators but new terms
-        return type(self)(self.operators, new_terms, validate=False)
+        return self._rebuild(new_terms)
 
     def _multiply_expr(self, expr: sympy.Expr):
         """Multiply by an expression without creation or annihilation operators.
@@ -1122,7 +1109,7 @@ class NumberOrderedForm(Operator):
             new_terms[powers] = coeff * expr.xreplace(replacements)
 
         # Return a new NumberOrderedForm instance with the updated terms
-        return type(self)(self.operators, new_terms, validate=False)
+        return self._rebuild(new_terms)
 
     def _cancel_binary_operator_numbers(self):
         """Cancel fermionic and spin number operators.
@@ -1152,7 +1139,7 @@ class NumberOrderedForm(Operator):
                 continue
             new_terms[powers] = coeff
 
-        return type(self)(self.operators, new_terms, validate=False)
+        return self._rebuild(new_terms)
 
     def _expand_operators(
         self, new_operators: Sequence[OperatorType]
@@ -1189,7 +1176,7 @@ class NumberOrderedForm(Operator):
             ): coeff
             for powers, coeff in self.args[1]
         }
-        return type(self)(new_operators, new_terms, validate=False)
+        return self._rebuild(new_terms, operators=new_operators)
 
     def __add__(self, other) -> "NumberOrderedForm":
         """Add this NumberOrderedForm with another object.
@@ -1218,7 +1205,7 @@ class NumberOrderedForm(Operator):
             new_terms[powers] += coeff
         for powers, coeff in other_expanded.args[1]:
             new_terms[powers] += coeff
-        return type(self)(self_expanded.operators, new_terms, validate=False)
+        return self._rebuild(new_terms, operators=self_expanded.operators)
 
     def _combine_operators(
         self, other
@@ -1227,7 +1214,7 @@ class NumberOrderedForm(Operator):
         if other.operators != self.operators:
             new_operators = sorted(
                 set(self.operators).union(other.operators),
-                key=lambda op: (generator_types.index(type(op)), str(op.name)),
+                key=_operator_sort_key,
             )
             self_expanded = self._expand_operators(new_operators)
             other_expanded = other._expand_operators(new_operators)
@@ -1286,11 +1273,7 @@ class NumberOrderedForm(Operator):
             The negated NumberOrderedForm.
 
         """
-        return type(self)(
-            self.operators,
-            tuple((powers, -coeff) for powers, coeff in self.args[1]),
-            validate=False,
-        )
+        return self._rebuild(tuple((powers, -coeff) for powers, coeff in self.args[1]))
 
     def __mul__(self, other) -> "NumberOrderedForm":
         """Multiply this NumberOrderedForm with another object.
@@ -1319,7 +1302,7 @@ class NumberOrderedForm(Operator):
         self_expanded = self_expanded._cancel_binary_operator_numbers()
         other_expanded = other_expanded._cancel_binary_operator_numbers()
 
-        result = type(self)(self_expanded.operators, {}, validate=False)
+        result = self._rebuild({}, operators=self_expanded.operators)
         for powers, coeff in other_expanded.args[1]:
             # First multiply by creation operators, those are with negative powers
             partial = NumberOrderedForm(
@@ -1385,7 +1368,7 @@ class NumberOrderedForm(Operator):
             (tuple(-power for power in powers), coeff.adjoint())
             for powers, coeff in self.args[1]
         )
-        return type(self)(self.operators, new_terms, validate=False)
+        return self._rebuild(new_terms)
 
     def __eq__(self, other):
         """Evaluate equality between this NumberOrderedForm and another object.
@@ -1484,7 +1467,7 @@ class NumberOrderedForm(Operator):
             result_expr = func(coeff, *args, **kwargs)
             new_terms[powers] = result_expr
 
-        return type(self)(self.operators, new_terms, validate=False)
+        return self._rebuild(new_terms)
 
     def _linearize_binary_operators(self):
         """Convert coefficients with binary number operators to linear form.
@@ -1513,7 +1496,7 @@ class NumberOrderedForm(Operator):
                     {number: Zero}
                 ) + number * coeff.xreplace({number: One})
             new_terms[powers] = coeff
-        return type(self)(self.operators, new_terms, validate=False)
+        return self._rebuild(new_terms)
 
     def _eval_simplify(self, **kwargs):
         """SymPy's hook for the simplify() function.
@@ -1565,7 +1548,7 @@ class NumberOrderedForm(Operator):
         if exp.is_integer and (exp - 1).is_positive and len(self.terms) == 1:
             powers = next(iter(self.terms))
             if any(powers[self._n_inf_order :]):
-                return type(self)(self.operators, {}, validate=False)
+                return self._rebuild({})
 
         # Positive symbolic bosonic powers are used as selective masks.
         if not self.is_particle_conserving() and exp.is_integer and exp.is_nonnegative:
@@ -1574,10 +1557,8 @@ class NumberOrderedForm(Operator):
                 if not any(powers[self._n_inf_order :]) and not coeff.has(
                     *self._number_operator_placeholders
                 ):
-                    return type(self)(
-                        self.operators,
-                        {tuple(power * exp for power in powers): coeff**exp},
-                        validate=False,
+                    return self._rebuild(
+                        {tuple(power * exp for power in powers): coeff**exp}
                     )
 
         if not self.is_particle_conserving() and not (
@@ -1589,11 +1570,7 @@ class NumberOrderedForm(Operator):
             )
 
         if exp == 0:
-            return type(self)(
-                self.operators,
-                Tuple(Tuple((Zero,) * len(self.operators), One)),
-                validate=False,
-            )
+            return self._rebuild(Tuple(Tuple((Zero,) * len(self.operators), One)))
 
         # For integer exponents, convert to repeated multiplication
         if (isinstance(exp, int) or exp.is_Integer) and exp > 0:
@@ -1604,11 +1581,7 @@ class NumberOrderedForm(Operator):
 
         # Since the expression only contains number operators, it's safe to apply the power
         # We extract the coefficient (if exists) and raise it to the given exponent.
-        return type(self)(
-            self.operators,
-            {key: value**exp for key, value in self.args[1]},
-            validate=False,
-        )
+        return self._rebuild({key: value**exp for key, value in self.args[1]})
 
     def __truediv__(self, other) -> "NumberOrderedForm":
         """Divide this NumberOrderedForm by another object."""
@@ -1632,19 +1605,17 @@ class NumberOrderedForm(Operator):
         """
         return all(not any(powers) for powers, _ in self.args[1])
 
-    def _eval_subs(self, old, new):
+    def _eval_subs(self, old: sympy.Basic, new: sympy.Basic) -> "NumberOrderedForm":
+        """Substitute coefficients; direct mode replacement is rejected."""
         if old in self.operators or new in self.operators:
             raise ValueError("Cannot substitute operators in NumberOrderedForm.")
 
         old = old.xreplace(self._number_operator_to_placeholder)
         new = new.xreplace(self._number_operator_to_placeholder)
-
-        return type(self)(
-            self.operators,
+        return self._rebuild(
             Tuple(
                 *(Tuple(powers, coeff.subs(old, new)) for powers, coeff in self.args[1])
-            ),
-            validate=False,
+            )
         )
 
     def filter_terms(
@@ -1683,7 +1654,7 @@ class NumberOrderedForm(Operator):
                 for condition in conditions
             )
         )
-        return type(self)(self.operators, new_terms, validate=False)
+        return self._rebuild(new_terms)
 
     def _poly_simplify(self) -> "NumberOrderedForm":
         """Simplify a NumberOrderedForm by converting it to polynomials and back.
@@ -1734,4 +1705,4 @@ class NumberOrderedForm(Operator):
                 domain=sympy.EXRAW,
             ).as_expr()
 
-        return type(self)(self.operators, new_terms, validate=False)
+        return self._rebuild(new_terms)
