@@ -647,11 +647,8 @@ def block_diagonalize(
     # Simplify the results and unwrap them for scalar inputs - convert 1x1 matrices back
     # to scalars
     if operators:
-        # Restriction returns source NOFs, but cached SymPy Add/Mul constructors
-        # can replace them with equal NOFs carrying unused target modes. A finite
-        # source has only scalar entries, regardless of that cached mode list.
-        scalar_source = (
-            embedding is not None and not embedding._first_lattice._source_operators
+        source_operators = (
+            embedding._first_lattice._source_operators if embedding is not None else None
         )
 
         def create_postprocessing_eval(block_series):
@@ -663,17 +660,8 @@ def block_diagonalize(
                     return result
 
                 result = result.applyfunc(
-                    lambda x: (
-                        (
-                            x.as_expr()
-                            if isinstance(x, NumberOrderedForm)
-                            and (
-                                not x.operators or (scalar_source and index[:2] == (0, 0))
-                            )
-                            else x._poly_simplify()
-                        )
-                        if isinstance(x, NumberOrderedForm)
-                        else x
+                    lambda x: _simplify_entry(
+                        x, source_operators if index[:2] == (0, 0) else None
                     )
                 )
 
@@ -698,6 +686,17 @@ def block_diagonalize(
         )
 
     return outputs["H_tilde"], outputs["U"], outputs["U†"]
+
+
+def _simplify_entry(value, source_operators=None):
+    """Normalize retained NOFs, simplify coefficients, and unwrap scalar entries."""
+    if not isinstance(value, NumberOrderedForm):
+        return value
+    if source_operators is not None:
+        # NOF equality ignores unused modes; SymPy caches can restore target modes
+        # after restriction, so normalize at the output boundary as well.
+        value = value._expand_operators(source_operators)
+    return value.as_expr() if not value.operators else value._poly_simplify()
 
 
 ### Converting different formats to BlockSeries
