@@ -413,9 +413,13 @@ def block_diagonalize(
     else:
         operators = ()
 
+    if embedding is not None:
+        operators = embedding._first_lattice.target_operators
+        scalar_input = embedding._single_reference
+
     # To handle the second-quantized problem, convert the Hamiltonian to our
     # NumberOrderedForm.
-    if operators:
+    if operators or embedding is not None:
         H_orig = H
 
         def H_eval(*index):
@@ -646,7 +650,7 @@ def block_diagonalize(
 
     # Simplify the results and unwrap them for scalar inputs - convert 1x1 matrices back
     # to scalars
-    if operators:
+    if operators or embedding is not None:
         source_operators = (
             embedding._first_lattice._source_operators if embedding is not None else None
         )

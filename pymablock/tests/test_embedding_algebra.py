@@ -513,3 +513,14 @@ def test_lattice_consumers_normalize_equal_nofs():
     assert plain == cached and hash(plain) == hash(cached)
     assert lattice.restrict(cached) == lattice.restrict(plain) == 2
     assert lattice.lift(cached) == lattice.lift(plain) == 2 * lattice.projector
+
+
+@pytest.mark.parametrize("listed", [False, True])
+def test_embedding_scalar_projected_h0(listed):
+    a = BosonOp("a")
+    projector = s.Piecewise((1, s.Eq(N(a), 0)), (0, True))
+    reference = [{a: 0}] if listed else {a: 0}
+    h, *_ = block_diagonalize(
+        [projector, a + a.adjoint()], subspace_eigenvectors=Embedding({}, reference)
+    )
+    assert h[0, 0, 2] == (s.Matrix([[1]]) if listed else 1)
