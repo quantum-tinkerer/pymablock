@@ -929,3 +929,11 @@ def test_second_quantization_matrix_representations(matrix_type):
     for actual, expected in zip(result, reference):
         compare_series(actual, expected, (2,))
     assert (result[0][0, 0, 2][0, 0] + g**2 / w).doit().simplify() == 0
+
+
+def test_scalar_order_preserves_number_ordered_form():
+    a = BosonOp("a")
+    h, *_ = block_diagonalize([NumberOperator(a), sympy.Integer(3)])
+    value = h[0, 0, 1]
+    assert isinstance(value, NumberOrderedForm)
+    assert value.filter_terms(((0,),), keep=True).as_expr() == 3

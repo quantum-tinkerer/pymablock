@@ -434,7 +434,8 @@ def block_diagonalize(
                 return result.applyfunc(
                     lambda x: (
                         x
-                        if x.is_commutative or isinstance(x, _EmbeddedMap)
+                        if (embedding is not None and x.is_commutative)
+                        or isinstance(x, _EmbeddedMap)
                         else NumberOrderedForm.from_expr(x, operators)
                     )
                 )
