@@ -13,7 +13,7 @@ from pymablock.second_quantization import (
 )
 from pymablock.series import cauchy_dot_product
 
-from .second_quantization_helpers import occupation_matrices, operator_matrix
+from .second_quantization_helpers import nof_matrix, occupation_matrices, operator_matrix
 from .test_block_diagonalization import compare_series, is_unitary
 
 
@@ -800,7 +800,10 @@ def test_sylvester_binary_projector_cancellation(operator_type, source_kind):
     solve = solve_sylvester_2nd_quant(((energy,), (sympy.S.Zero,)))
     solution = solve(sympy.Matrix([[source]]), (0, 1, 1))[0, 0].simplify()
     matrices = occupation_matrices((f, g), [(0, 1), (0, 1)])
-    actual = operator_matrix(solution, matrices).toarray()
+    # Pole-preserving simplification can retain rational occupation functions.
+    actual = np.array(
+        nof_matrix(NumberOrderedForm.from_expr(solution.as_expr(), (f, g))), dtype=complex
+    )
     energies = operator_matrix(energy, matrices).diagonal()
     # For unequal binary occupations the rational case has denominator 3.
     reference = (n_f - n_g) / 3 if source_kind == "rational" else source

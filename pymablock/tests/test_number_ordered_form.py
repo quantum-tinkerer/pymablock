@@ -1980,3 +1980,15 @@ def test_diagonal_occupation_powers():
     assert form.terms == {(0,): (1 + _number_operator_to_placeholder(n)) ** 2048}
     with pytest.raises(ValueError):
         NumberOrderedForm.from_expr(2**a)
+
+
+def test_binary_interpolation_preserves_spectator_pole():
+    from pymablock.second_quantization import solve_scalar
+
+    b, f = boson.BosonOp("b"), fermion.FermionOp("f")
+    result = solve_scalar(
+        sympy.S.One, NumberOperator(b) + NumberOperator(f), sympy.S.Zero
+    )
+    assert result.act((0, 1)) == {(0, 0): ((0, 1), 1)}
+    assert result.simplify().act((0, 1)) == result.act((0, 1))
+    assert result.simplify().act((1, 0)) == result.act((1, 0))

@@ -1705,6 +1705,9 @@ class NumberOrderedForm(Operator):
                     values = tuple(reduced.xreplace({number: n}) for n in (Zero, One))
                     if any(map(_is_singular, values)):
                         continue
+                # Symbolic endpoint denominators can hide spectator poles.
+                if any(sympy.denom(value).is_nonzero is not True for value in values):
+                    continue
                 coeff = (One - number) * values[0] + number * values[1]
             new_terms[powers] = coeff
         return self._rebuild(new_terms)
