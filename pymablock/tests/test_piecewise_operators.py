@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 import pytest
 import sympy as s
 from sympy.physics.quantum.boson import BosonOp
@@ -170,3 +173,28 @@ def test_fixed_number_reduction_preserves_spectator_poles(quotient):
         expected = expression.xreplace(dict(zip((n, m), map(s.Integer, state))))
         assert form.act(state) == ({(0, 0): (state, expected)} if expected else {})
         assert Embedding({}, dict(zip((a, b), state))).restrict(expression) == expected
+
+
+def test_piecewise_import_order_limitation():
+    # A fresh interpreter is essential: the patch is global and installed at import.
+    subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            """
+import sympy as s
+x, a, b = s.symbols("x a b", commutative=False)
+def flag(y):
+    return s.Piecewise((1, s.Eq(y, 0)), (0, True))
+p = flag(a)
+assert p.is_commutative is True
+import pymablock
+assert p.is_commutative is True
+assert flag(a).is_commutative is False
+assert x*p - p*x == 0
+assert x*flag(a) - flag(a)*x == 0
+assert x*flag(b) - flag(b)*x != 0
+""",
+        ],
+        check=True,
+    )

@@ -63,7 +63,9 @@ helpers, pole-handling contract, and indicator/`Piecewise` shapes live in
 the module docstring of `pymablock/_occupation_coefficients.py`.
 `as_expr` exports operator-valued conditions. A feature-detected, global SymPy
 `Piecewise` patch preserves their noncommutativity; occupation placeholders
-inside NOF coefficients remain commutative.
+inside NOF coefficients remain commutative. Import Pymablock before constructing
+operator-valued `Piecewise` expressions: assumptions and products cached before
+the patch is installed can retain incorrect commutativity after import.
 
 Supported embeddings map source states to individual target occupation states,
 up to phases. Arbitrary superpositions and dependent generator shifts are
