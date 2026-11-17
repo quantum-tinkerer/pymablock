@@ -674,6 +674,15 @@ class NumberOrderedForm(Operator):
         if not operators:
             operators = find_operators(expr)
 
+        # Parse diagonal functions as a whole, including occupation exponents.
+        coefficient = expr.xreplace(
+            {n: _number_operator_to_placeholder(n) for n in expr.atoms(NumberOperator)}
+        )
+        if coefficient.is_commutative and not coefficient.has(*operator_types):
+            return cls(operators, {(0,) * len(operators): coefficient})
+        if isinstance(expr, sympy.Pow) and expr.exp.is_commutative is not True:
+            raise ValueError("Operator-valued exponents require diagonal occupations")
+
         # Handle Add expressions by converting each term and summing
         if isinstance(expr, sympy.Add):
             terms = [

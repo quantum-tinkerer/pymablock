@@ -1966,3 +1966,17 @@ def test_binary_linearization_cancels_removable_endpoint_pole():
     coefficient = sympy.Mul(n**2 - 1, sympy.Pow(n - 1, -1), evaluate=False)
     value = NumberOrderedForm((q,), {(0,): coefficient}, validate=False)
     assert value._linearize_binary_operators().terms[(0,)] == n + 1
+
+
+def test_diagonal_occupation_powers():
+    from pymablock.operator_embedding import Embedding
+
+    a = boson.BosonOp("a")
+    n = NumberOperator(a)
+    parity = NumberOrderedForm.from_expr((-1) ** n)
+    assert (a * parity + parity * a).simplify().as_expr() == 0
+    assert Embedding({}, {a: 3}).restrict((-1) ** n) == -1
+    form = NumberOrderedForm.from_expr((1 + n) ** 2048)
+    assert form.terms == {(0,): (1 + _number_operator_to_placeholder(n)) ** 2048}
+    with pytest.raises(ValueError):
+        NumberOrderedForm.from_expr(2**a)
