@@ -713,7 +713,7 @@ def _split_embedding_series(operator: BlockSeries, embedding: Embedding) -> Bloc
     if operator.shape:
         raise ValueError("Structured embeddings require an unseparated operator.")
     target_shape = None
-    frames = None
+    frames = {}
 
     def evaluate(i: int, j: int, *order: int) -> Any:
         nonlocal target_shape, frames
@@ -723,14 +723,17 @@ def _split_embedding_series(operator: BlockSeries, embedding: Embedding) -> Bloc
         target = embedding._target_matrix(target)
         if target_shape is None:
             target_shape = target.shape
-            frames = (
-                embedding._retained_frame(target.rows),
-                embedding._complement_frame(target.rows),
-            )
         elif target.shape != target_shape:
             raise ValueError(
                 "All operator coefficients must have the same target matrix shape"
             )
+        for side in (i, j):
+            if side not in frames:
+                frames[side] = (
+                    embedding._retained_frame(target.rows)
+                    if side == 0
+                    else embedding._complement_frame(target.rows)
+                )
         result = frames[i].adjoint() * target * frames[j]
         return zero if result.is_zero_matrix else embedding._format_output(result)
 
@@ -798,7 +801,8 @@ def operator_to_BlockSeries(
         observable into retained/complement blocks, including zeroth-order cross
         blocks. Its references need not be eigenstates of the observable.
         Generator embeddings produce source operators; reference lists produce
-        finite matrices.
+        finite matrices. Retained blocks only require the retained frame;
+        blocks involving the complement also require its projector.
 
         Alternatively, a tuple describing the subspaces onto which the operator is projected
         and separated into blocks. Each entry may be either a single basis

@@ -156,6 +156,15 @@ def test_restriction_does_not_require_a_complement_projector():
     assert embedding.restrict(N(a)) == NumberOrderedForm.from_expr(3 + N(b))
     with pytest.raises(NotImplementedError):
         block_diagonalize([N(a)], subspace_eigenvectors=embedding)
+    from pymablock import operator_to_BlockSeries
+
+    series = operator_to_BlockSeries([N(a), N(a)], subspace_eigenvectors=embedding)
+    assert series[0, 0, 0] == embedding.restrict(N(a))
+    for order in (0, 1):
+        with pytest.raises(RuntimeError) as error:
+            series[1, 1, order]
+        assert isinstance(error.value.__cause__, NotImplementedError)
+        assert series[0, 0, order] == embedding.restrict(N(a))
 
 
 def assert_matrix_equal(actual, expected):
