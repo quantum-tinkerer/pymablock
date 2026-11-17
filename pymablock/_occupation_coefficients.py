@@ -52,6 +52,20 @@ def _has_piecewise(expression: sympy.Basic) -> bool:
     )
 
 
+def _occupation_pole_possible(
+    expression: sympy.Expr, number_symbols: Collection[sympy.Symbol]
+) -> bool:
+    """Return whether a denominator of occupations alone may vanish.
+
+    Scalar parameters are generic, so denominators containing them are trusted.
+    """
+    denominator = sympy.denom(expression)
+    return (
+        denominator.free_symbols <= set(number_symbols)
+        and denominator.is_nonzero is not True
+    )
+
+
 def _equal_value_indicator(left: sympy.Expr, right: sympy.Expr | int) -> sympy.Expr:
     """Return the scalar indicator of ``left == right`` (1 if equal, else 0).
 
@@ -158,7 +172,7 @@ def _simplify_on_fixed_numbers(
         # undefined point values to the other occupation sectors.
         if any(
             _is_singular(expression.xreplace({n: v}))
-            or sympy.denom(expression.xreplace({n: v})).is_nonzero is not True
+            or _occupation_pole_possible(expression.xreplace({n: v}), number_symbols)
             for expression in (coefficient, background)
             for v in values
         ):

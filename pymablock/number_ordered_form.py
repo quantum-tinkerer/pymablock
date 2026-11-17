@@ -21,6 +21,7 @@ from sympy.physics.quantum.operatorordering import normal_ordered_form
 from pymablock._occupation_coefficients import (
     _has_piecewise,
     _is_singular,
+    _occupation_pole_possible,
     _simplify_on_fixed_numbers,
 )
 
@@ -1705,8 +1706,11 @@ class NumberOrderedForm(Operator):
                     values = tuple(reduced.xreplace({number: n}) for n in (Zero, One))
                     if any(map(_is_singular, values)):
                         continue
-                # Symbolic endpoint denominators can hide spectator poles.
-                if any(sympy.denom(value).is_nonzero is not True for value in values):
+                # Endpoint denominators can hide spectator occupation poles.
+                if any(
+                    _occupation_pole_possible(value, self._number_operator_placeholders)
+                    for value in values
+                ):
                     continue
                 coeff = (One - number) * values[0] + number * values[1]
             new_terms[powers] = coeff

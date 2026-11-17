@@ -1992,3 +1992,14 @@ def test_binary_interpolation_preserves_spectator_pole():
     assert result.act((0, 1)) == {(0, 0): ((0, 1), 1)}
     assert result.simplify().act((0, 1)) == result.act((0, 1))
     assert result.simplify().act((1, 0)) == result.act((1, 0))
+
+
+def test_binary_interpolation_trusts_parameter_denominators():
+    """Generic parameters do not block binary linearization, as before."""
+    omega, k = sympy.symbols("omega K", real=True)
+    s = pauli.SigmaMinus("s")
+    form = NumberOrderedForm.from_expr(1 / (omega + k * NumberOperator(s)))
+    n = form._number_operator_placeholders[0]
+    expected = (1 - n) / omega + n / (omega + k)
+    linearized = form._linearize_binary_operators()
+    assert linearized.terms == {(0,): expected}
