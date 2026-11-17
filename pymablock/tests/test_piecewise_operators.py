@@ -155,3 +155,18 @@ def test_mutually_exclusive_floor_indicators():
     even = _equal_value_indicator(n / 2, s.floor(n / 2))
     odd = _equal_value_indicator((n - 1) / 2, s.floor((n - 1) / 2))
     assert _divide_by_energy_gap(even * odd, s.S.Zero, (n,)) == 0
+
+
+@pytest.mark.parametrize("quotient", [False, True])
+def test_fixed_number_reduction_preserves_spectator_poles(quotient):
+    from pymablock.operator_embedding import Embedding
+
+    a, b = map(BosonOp, "ab")
+    n, m = NumberOperator(a), NumberOperator(b)
+    p = s.Piecewise((1, s.Eq(n, 0)), (0, True))
+    expression = p / (m + n) if quotient else 1 / (n + m + p)
+    form = NumberOrderedForm.from_expr(expression, (a, b))
+    for state in ((1, 0), (0, 1), (1, 1)) + (() if quotient else ((0, 0),)):
+        expected = expression.xreplace(dict(zip((n, m), map(s.Integer, state))))
+        assert form.act(state) == ({(0, 0): (state, expected)} if expected else {})
+        assert Embedding({}, dict(zip((a, b), state))).restrict(expression) == expected

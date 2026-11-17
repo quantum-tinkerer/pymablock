@@ -158,6 +158,7 @@ def _simplify_on_fixed_numbers(
         # undefined point values to the other occupation sectors.
         if any(
             _is_singular(expression.xreplace({n: v}))
+            or sympy.denom(expression.xreplace({n: v})).is_nonzero is not True
             for expression in (coefficient, background)
             for v in values
         ):
