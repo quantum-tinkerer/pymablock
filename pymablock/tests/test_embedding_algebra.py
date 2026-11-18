@@ -119,27 +119,6 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
         )
 
 
-def test_transfer_fermion_sign_and_generator_phase():
-    """A spectator before the moving fermion changes its generator-defined phase."""
-    spectator, target, source = map(FermionOp, ("a", "b", "f"))
-    embedding = Embedding(
-        {source: sympy.I * target},
-        reference=[
-            {spectator: 0, target: 0},
-            {spectator: 1, target: 0},
-        ],
-    )
-    source_matrices = occupation_matrices((source,), [(0, 1)])
-    matrices = occupation_matrices((spectator, target), [(0, 1)] * 2)
-    w = np.diag([1, -1j, 1, 1j])
-    for expression in (spectator, target, Dagger(spectator) * target):
-        actual = operator_matrix(
-            embedding.restrict(expression), source_matrices
-        ).toarray()
-        full = operator_matrix(expression, matrices).toarray()
-        np.testing.assert_allclose(actual, w.conj().T @ full @ w, atol=1e-14)
-
-
 def test_bilateral_reference_transfers_have_no_vacuum():
     from pymablock.number_ordered_form import LadderOp
 
@@ -205,50 +184,6 @@ def test_normalized_generator_lift_and_map_contracts(reference):
             )
 
 
-def test_spectator_transfer_and_matrix_source_contracts():
-    a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
-    e = Embedding({s: a}, reference=[{a: 0, b: 0}, {a: 0, b: 1}])
-    states = list(product(range(4), range(3)))
-    basis = sp.eye(len(states))
-    columns = [basis[:, [states.index((q, r)) for q in (0, 1)]] for r in (0, 1)]
-    w = columns[0].row_join(columns[1])
-    frame = e._retained_frame(1)
-
-    def target(x):
-        return nof_matrix(x, [range(4), range(3)])
-
-    def source(matrix):
-        return sp.BlockMatrix(
-            [
-                [nof_matrix(x) if isinstance(x, F) else x * sp.eye(2) for x in row]
-                for row in matrix.tolist()
-            ]
-        ).as_explicit()
-
-    assert_matrix_equal(target(e._transfers[1]) * columns[0], columns[1])
-    assert_matrix_equal(source(frame.adjoint() * frame), sp.eye(4))
-    assert_matrix_equal(target((frame * frame.adjoint())[0, 0]), w * w.T)
-    for X in (a, b, b.adjoint(), a.adjoint() * b, N(a), N(b)):
-        x = e._first_lattice.parse_target(X)
-        assert_matrix_equal(source(e.restrict(x)), w.T * target(x) * w)
-    for i, j in product(range(2), repeat=2):
-        for S in (1, s, s.adjoint(), N(s)):
-            matrix = sp.zeros(2)
-            matrix[i, j] = F.from_expr(S, operators=(s,))
-            result = frame * matrix
-            actual = sp.BlockMatrix(
-                [
-                    [
-                        sp.zeros(len(states), 2)
-                        if x == 0
-                        else target(x.target) * columns[0]
-                        for x in result.tolist()[0]
-                    ]
-                ]
-            ).as_explicit()
-            assert_matrix_equal(actual, w * source(matrix))
-
-
 def test_lift_preserves_fermion_order_and_number_coefficients():
     c, d, f, g = map(FermionOp, ("c", "d", "f", "g"))
     e = Embedding({f: d, g: c}, reference={c: 0, d: 0})
@@ -312,17 +247,15 @@ def test_reconstructed_lattices_preserve_frame_matrix_elements(reference_list):
     a, b, s = BosonOp("a"), BosonOp("b"), SigmaMinus("s")
     references = [{a: 0, b: 1}, {a: 0, b: 2}]
     embedding = Embedding(
-        {s: sp.I * a}, reference=references if reference_list else references[0]
+        {} if reference_list else {s: sp.I * a},
+        reference=references if reference_list else references[0],
     )
     operator = a + a.adjoint() + b + b.adjoint() + N(a) * N(b)
-    # W|1,r> = -i|1,r>: the a transition has phase -i; b connects r=1,2
-    # with amplitude sqrt(2), independently of the source spin occupation.
-    spin_flip = -sp.I * s + sp.I * s.adjoint()
-    expected = sp.Matrix(
-        [[spin_flip + N(s), sp.sqrt(2)], [sp.sqrt(2), spin_flip + 2 * N(s)]]
+    expected = (
+        sp.Matrix([[0, sp.sqrt(2)], [sp.sqrt(2), 0]])
+        if reference_list
+        else sp.Matrix([[-sp.I * s + sp.I * s.adjoint() + N(s)]])
     )
-    if not reference_list:
-        expected = expected[:1, :1]
 
     def expressions(matrix):
         return matrix.applyfunc(

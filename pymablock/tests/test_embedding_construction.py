@@ -69,9 +69,9 @@ def test_generator_relations_with_shared_occupation_phase(operator_type):
 @pytest.mark.parametrize("source_type", [BosonOp, FermionOp])
 def test_list_substitution_and_printing(source_type):
     a, z = map(BosonOp, ("a", "z"))
-    f, target = source_type("f"), source_type("target")
+    target = source_type("target")
     embedding = Embedding(
-        {f: target},
+        {},
         reference=[
             {target: 0, a: 1},
             {Embedding.row: 1, target: 0, a: 2},
@@ -82,7 +82,7 @@ def test_list_substitution_and_printing(source_type):
         == embedding
     )
     renamed = Embedding(
-        {f: target},
+        {},
         reference=[
             {target: 0, z: 1},
             {Embedding.row: 1, target: 0, z: 2},
@@ -93,12 +93,6 @@ def test_list_substitution_and_printing(source_type):
         assert getattr(embedding, method)({a: z}) == renamed
     with pytest.raises(ValueError, match="Cannot replace operators"):
         w.xreplace({a: z})
-    phase = sympy.Symbol("phase", real=True)
-    phased = Embedding(
-        {f: sympy.exp(sympy.I * phase) * target}, reference=embedding.args[1]
-    )
-    for method in ("subs", "xreplace"):
-        assert getattr(phased._retained_frame(2), method)({phase: 0}) == w
 
 
 @pytest.mark.parametrize(
@@ -114,11 +108,6 @@ def test_list_substitution_and_printing(source_type):
         ({f: sympy.Symbol("z") * f}, {f: 0}, NotImplementedError),
         ({ell: target_ell, N(ell): N(target_ell)}, {target_ell: 3}, TypeError),
         ({s: a / sympy.sqrt(N(a))}, [{a: 0}, {a: 1}], ValueError),
-        (
-            {s: a**2 / sympy.sqrt(N(a) * (N(a) - 1))},
-            [{a: 0}, {a: 1}],
-            NotImplementedError,
-        ),
         ({s: (1 + N(b)) * a}, [{a: 0, b: 0}, {a: 0, b: 1}], ValueError),
         ({s: (1 + N(t)) * s, t: t}, {s: 0, t: 0}, ValueError),
         ({}, None, TypeError),
@@ -154,3 +143,8 @@ def test_invalid_embedding_input(generators, reference, error):
 def test_invalid_matrix_target(operation):
     with pytest.raises(ValueError):
         operation(Embedding({}, reference=[{Embedding.row: 1}]))
+
+
+def test_generators_require_one_mapping_reference():
+    with pytest.raises(ValueError, match="one mapping reference.*no generators"):
+        Embedding({s: a}, reference=[{a: 0}])

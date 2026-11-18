@@ -12,10 +12,9 @@ Notation used in this module:
   ``M``, is ``_source_of_target``.
 - ``_target_numbers`` and ``_source_numbers`` are the placeholder symbols of the
   number operators inside NOF coefficients.
-- A list of references gives one lattice per reference. The *frame* W is a matrix
-  with one column per reference, placed in that reference's target row. Column j is
-  ``T_j W_1``: the transfer operator ``T_j`` carries the first lattice onto
-  lattice j, so every frame entry carries the first reference's symbolic embedding.
+- A list of explicit states defines a finite source. The *frame* W has one column
+  per reference, placed in that reference's target row. Column j is ``T_j W_1``:
+  the normalized target monomial ``T_j`` carries the first state onto state j.
   ``_Lattice`` stores the compiled maps and algebra; ``Embedding`` owns the symbolic
   identity, ordered lattice collection, and frame.
 - An *amplitude* is the matrix element of a ladder monomial between occupation
@@ -64,10 +63,9 @@ class Embedding(sympy.Expr):
     The *source* is the effective model's Hilbert space; the *target* is the larger
     Hilbert space of the original Hamiltonian passed to
     `~pymablock.block_diagonalize`. The embedding maps source states to target
-    states. A generator mapping defines the source algebra; a reference list adds
-    a matrix index labeling disjoint copies of that algebra.
-    A mapping reference defines one occupation lattice; a list defines an ordered
-    collection of disjoint lattices.
+    states. A generator mapping with one mapping reference defines the source
+    algebra. An empty generator mapping with an ordered reference list defines
+    a finite matrix basis.
 
     Each source occupation state maps, up to a phase, to a single target occupation
     state. Generator images must have fixed, linearly independent occupation shifts,
@@ -98,9 +96,8 @@ class Embedding(sympy.Expr):
         phases. ``LadderOp`` source operators also use the target expressions
         themselves to reach negative indices.
 
-        A list declares one such reference per source matrix index. Each reference
-        generates a copy of the source algebra; these lattices must be disjoint.
-        With no generators, each copy is a single state. All references must use
+        A list with no generators declares one explicit target state per source
+        matrix index. These states must be distinct. All references must use
         the same target operators. The optional ``Embedding.row`` dictionary key
         selects the target matrix row and defaults to zero. For a matrix Hamiltonian
         without operators, use ``[{}, {Embedding.row: 2}]``.
@@ -150,6 +147,13 @@ class Embedding(sympy.Expr):
                 )
             states = references[0][1]
         else:
+            if generators:
+                raise ValueError(
+                    "Use generators with one mapping reference, or an ordered list "
+                    "of explicit references with no generators"
+                )
+            if len(set(references)) != len(references):
+                raise ValueError("Reference states must be distinct")
             states = sympy.Tuple(
                 *(
                     sympy.Dict({Embedding.row: row, **dict(state)})
@@ -158,7 +162,6 @@ class Embedding(sympy.Expr):
             )
         self = sympy.Expr.__new__(cls, generators, states)
         self._lattices = cls._build_lattices(generators, references)
-        self._validate_disjointness()
         self._transfers = tuple(
             self._first_lattice.transfer(lattice) for _, lattice in self._lattices
         )
@@ -166,13 +169,12 @@ class Embedding(sympy.Expr):
 
     @staticmethod
     def _build_lattices(generators: sympy.Dict, references: sympy.Tuple) -> tuple:
-        """Compile each reference, sharing source occupation symbols across lattices."""
+        """Compile the generated source or the explicit reference states."""
         lattices = []
         for row, reference in references:
             if lattices and set(reference) != set(lattices[0][1].target_operators):
                 raise ValueError("Every reference must declare the same target modes")
-            shared = lattices[0][1].source_occupations if lattices else None
-            lattice = _Lattice(dict(generators), dict(reference), shared)
+            lattice = _Lattice(dict(generators), dict(reference))
             lattices.append((int(row), lattice))
         return tuple(lattices)
 
@@ -210,7 +212,7 @@ class Embedding(sympy.Expr):
         It may contain products such as ``N_s * (1 - N_s)`` that vanish because
         fermion and spin occupations are 0 or 1; call ``simplify()`` to remove
         them. With a list of states, the result is a SymPy matrix in the order of
-        the list, with source NOFs as entries when generators are supplied.
+        the list, with scalar entries.
         Ladder powers must be concrete integers. Symbolic ladder powers raise
         ``NotImplementedError``.
         """
@@ -304,15 +306,6 @@ class Embedding(sympy.Expr):
             )
             for row, lattice in self._lattices
         )
-
-    def _validate_disjointness(self) -> None:
-        """Reject lattices in the same target row that share a target state."""
-        for i, (row, lattice) in enumerate(self._lattices):
-            if any(
-                row == other_row and lattice.overlaps(other)
-                for other_row, other in self._lattices[:i]
-            ):
-                raise ValueError("Reference lattices overlap")
 
 
 class _EmbeddedMap(sympy.Expr):
@@ -447,7 +440,6 @@ class _Lattice:
         self,
         generators: Mapping,
         reference: Mapping,
-        source_occupations: tuple[sympy.Symbol, ...] | None = None,
     ) -> None:
         """Compile and validate the affine occupation map."""
         self.target_operators, self._reference_state = _ordered_reference_state(reference)
@@ -461,16 +453,14 @@ class _Lattice:
         source_operators = tuple(sorted(source_operators, key=_operator_sort_key))
         self._source_operators = source_operators
         self._source_binary = tuple(map(_is_binary, source_operators))
-        if source_occupations is None:
-            source_occupations = tuple(
-                sympy.Dummy(
-                    f"source_{i}",
-                    integer=True,
-                    **({} if isinstance(op, LadderOp) else {"nonnegative": True}),
-                )
-                for i, op in enumerate(source_operators)
+        self.source_occupations = tuple(
+            sympy.Dummy(
+                f"source_{i}",
+                integer=True,
+                **({} if isinstance(op, LadderOp) else {"nonnegative": True}),
             )
-        self.source_occupations = source_occupations
+            for i, op in enumerate(source_operators)
+        )
         images, shifts = [], []
         for op in source_operators:
             image = self.parse_target(generators[op])
@@ -828,48 +818,19 @@ class _Lattice:
             result += term
         return self.projector * result * self.projector
 
-    def overlaps(self, other: _Lattice) -> bool:
-        """Return whether a lattice with the same generators shares a target state.
-
-        Independent shifts leave one candidate source displacement between the two
-        references; it must be integer and fit every finite source mode.
-        """
-        delta = sympy.Matrix(other._reference_state) - sympy.Matrix(self._reference_state)
-        displacement = self._occupation_left_inverse * delta
-        if self._occupation_matrix * displacement != delta:
-            return False
-        return all(
-            d.is_Integer and (not binary or abs(d) < 2)
-            for d, binary in zip(displacement, self._source_binary)
-        )
-
     def transfer(self, lattice: _Lattice) -> NumberOrderedForm:
-        """Return the transfer operator T carrying this lattice onto ``lattice``.
+        """Return the normalized target monomial between two explicit reference states.
 
-        T is the ladder monomial for the reference difference, normalized and with the
-        phase that makes ``T W`` equal to the other lattice's isometry.
+        Its matrix element includes fermionic ordering signs.
         """
         powers = tuple(
             a - b for a, b in zip(self._reference_state, lattice._reference_state)
         )
         if not any(powers):
             return self.target_identity
-        if any(p and any(self._occupation_matrix.row(i)) for i, p in enumerate(powers)):
-            raise NotImplementedError(
-                "Reference translations along generator-moving modes are not supported"
-            )
         monomial = NumberOrderedForm(self.target_operators, {powers: sympy.S.One})
-        weight = _matrix_element(monomial, self.target_of_source)
-        # Physical domains at both references ensure this shift never annihilates.
-        coefficient = sympy.simplify(lattice._phase / self._phase / weight)
-        # The coefficient sits after annihilation: recover incoming occupations.
-        incoming = {n: n + max(p, 0) for n, p in zip(self._target_numbers, powers)}
-        coefficient = coefficient.xreplace(
-            {
-                q: coordinate.xreplace(incoming)
-                for q, coordinate in zip(self.source_occupations, self._source_of_target)
-            }
-        )
+        weight = _matrix_element(monomial, self._reference_state)
+        coefficient = sympy.simplify(1 / weight)
         return NumberOrderedForm(
             self.target_operators, {powers: coefficient}, validate=False
         )

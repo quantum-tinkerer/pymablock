@@ -88,8 +88,6 @@ def finite_matrix(value, occupations=()):
         "hole",
         "boson",
         "ladder",
-        "rows",
-        "spectator",
     ],
 )
 def test_perturbation_against_finite_matrix(model):
@@ -141,22 +139,6 @@ def test_perturbation_against_finite_matrix(model):
         )
         e = Embedding(generators, reference={a: 0, q: 0})
         kept = list(range(0, 2 * len(occupations[0]), 2))
-    elif model == "rows":
-        h0 = sympy.diag(h0, 2 + h0)
-        v = sympy.Matrix(
-            [
-                [v, 1 + 2 * a + sympy.I * a.adjoint()],
-                [1 + 2 * a.adjoint() - sympy.I * a, 2 * v],
-            ]
-        )
-        e = Embedding({s: a}, reference=[{Embedding.row: 1, a: 0}, {a: 0}])
-        kept, sample = [8, 9, 0, 1], list(range(4))
-    elif model == "spectator":
-        operators, occupations = (a, b), [range(6), range(6)]
-        h0 = 3 * N(a) + N(a) * (N(a) - 1) / 5 + 7 * N(b)
-        v = a + a.adjoint() + b + b.adjoint()
-        e = Embedding({s: a}, reference=[{a: 0, b: 1}, {a: 0, b: 0}])
-        kept, sample = [1, 7, 0, 6], list(range(4))
     matrices = occupation_matrices(operators, occupations)
     full_h0, full_v = (operator_matrix(x, matrices).toarray() for x in (h0, v))
     basis = np.eye(len(full_h0))

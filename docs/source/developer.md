@@ -10,15 +10,13 @@
 | $W$ | Isometry from source to retained target states |
 | $P=WW^\dagger$, $Q=1-P$ | Retained and complement target projectors |
 | Lattice | Target occupations $n=r+Mq$ reached from reference $r$ |
-| Transfer $T_j$ | Target operator carrying the first lattice to lattice $j$ |
+| Transfer $T_j$ | Normalized target monomial carrying the first state to state $j$ |
 
 `Embedding` is the structural SymPy expression, publicly imported from
 `pymablock.operator_embedding`. Its arguments are generators and required
-reference occupations. A mapping reference defines one lattice; a list adds an
-ordered source matrix index. Column $j$ has target row $\rho_j$ and occupations
-$r_j+Mq$. Reconstruction, substitution, and pickling rebuild derived data from
-these arguments. Different target rows are disjoint; lattices in the same row
-must not overlap.
+reference occupations. A mapping reference defines one lattice; a list with no generators defines an
+ordered finite basis. Column $j$ has target row $\rho_j$ and occupations $r_j$. Reconstruction, substitution, and pickling rebuild derived data from
+these arguments. Explicit references must have distinct row/occupation pairs.
 
 `_Lattice` compiles occupation maps, phases, generators, and single-lattice
 arithmetic. Its unprefixed methods are package-internal contracts. The columns
@@ -71,7 +69,7 @@ Supported embeddings map source states to individual target occupation states,
 up to phases. Arbitrary superpositions and dependent generator shifts are
 unsupported. Infinite bosonic source domains must follow from nonnegative target
 occupations; otherwise projector construction raises `NotImplementedError`.
-Transfers along generator directions are unsupported. Finite lists and binary
+Finite lists and binary
 sources use equality conditions. Symbolic ladder powers in `act` and `restrict`
 are rejected. Avoiding basis enumeration does not prevent expression growth.
 
