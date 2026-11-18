@@ -160,7 +160,10 @@ def solve_scalar(
         else:
             denominator = shifted_H_jj - shifted_H_ii
         # Denominators often simplify because linear powers of bosonic operators cancel.
-        denominator = sympy.collect_const(denominator.simplify()).doit()
+        if denominator.is_polynomial(*denominator.free_symbols):
+            denominator = sympy.factor(denominator)
+        else:
+            denominator = sympy.collect_const(denominator.simplify()).doit()
         # For fermions and spins, a† N = N a = 0. Set N = 0 in the
         # coefficient when the term contains a† or a for that mode.
         fixed = {
