@@ -21,43 +21,90 @@ exciting an oscillator from its ground state to its first excited state.
 An embedding maps the effective model's Hilbert space, the **source**, into the
 larger Hilbert space of the original microscopic Hamiltonian, the **target**.
 Thus $W:\mathcal H_\mathrm{source}\to\mathcal H_\mathrm{target}$.
-The embedding defines the source operators by giving **their target expressions
-and one reference state**. For a finite matrix result, an ordered
-list of reference states defines the retained basis directly.
 
-The supported embeddings map each effective occupation state to a single
-microscopic occupation state, up to a phase. Generator images have fixed,
-linearly independent occupation shifts. Arbitrary superpositions of microscopic
-occupation states are not represented directly. To use a different mode basis,
-rewrite the Hamiltonian in that basis first.
-
-For a spin encoded in two fermions, the definition is
-
-$$
-s \longmapsto c_\downarrow^\dagger c_\uparrow,
-\qquad
-|0\rangle_s \longmapsto |n_\uparrow=0,n_\downarrow=1\rangle.
-$$
-
-Applying the adjoint generates the other spin state. The reference fixes which
-representation is intended, while the generator determines its relative phase
-and amplitude. Repeating this definition at each site requires one local
-operator expression per spin, without listing a many-body basis or supplying a
-projector.
+There are two ways to specify the retained space. For an oscillator, a generator
+mapping selects its two lowest levels as a spin. Restriction returns a
+`NumberOrderedForm` in the spin operators:
 
 ```{code-cell} ipython3
+import sympy
 from sympy.physics.quantum import Dagger
+from sympy.physics.quantum.boson import BosonOp
 from sympy.physics.quantum.fermion import FermionOp
 from sympy.physics.quantum.pauli import SigmaMinus
+from pymablock import block_diagonalize
 from pymablock.operator_embedding import Embedding
+from pymablock.number_ordered_form import NumberOperator as N, NumberOrderedForm
 
-up, down = FermionOp("up"), FermionOp("down")
-s = SigmaMinus("s")
-embedding = Embedding(
-    {s: Dagger(down) * up},
-    reference={up: 0, down: 1},
-)
+a, s = BosonOp("a"), SigmaMinus("s")
+embedding = Embedding({s: a}, reference={a: 0})
+assert embedding.restrict(a).as_expr() == s
 ```
+
+An empty generator mapping and an ordered list of explicit states instead return
+ordinary SymPy matrices, with rows and columns in the listed order:
+
+```{code-cell} ipython3
+finite_embedding = Embedding({}, reference=[{a: 0}, {a: 1}, {a: 2}])
+assert finite_embedding.restrict(N(a)) == sympy.diag(0, 1, 2)
+```
+
+## Including a virtual correction
+
+Consider an anharmonic oscillator with a weak drive,
+
+$$
+H_0=\omega N_a+\frac{\alpha}{2}N_a(N_a-1),\qquad
+V=g(a+a^\dagger).
+$$
+
+The default perturbative solver requires Hermitian input and $H_0$ diagonal in
+the target occupations. For a matrix target, $H_0$ must also be diagonal in its
+matrix indices. The selected target states are then invariant under $H_0$.
+Coupled degeneracies require changing the retained block or model; retained
+infinite modes require nonresonant energy denominators in the occupations used.
+
+```{code-cell} ipython3
+omega, alpha, g = sympy.symbols("omega alpha g", positive=True)
+H0 = omega * N(a) + alpha * N(a) * (N(a) - 1) / 2
+V = g * (a + Dagger(a))
+H_eff, U, U_adjoint = block_diagonalize(
+    [H0, V], subspace_eigenvectors=embedding
+)
+second_order = H_eff[0, 0, 2]
+expected = NumberOrderedForm.from_expr(-2 * g**2 * N(s) / (omega + alpha))
+assert (second_order - expected).applyfunc(sympy.cancel).is_zero
+
+H_finite, *_ = block_diagonalize([H0, V], subspace_eigenvectors=finite_embedding)
+second_order_matrix = H_finite[0, 0, 2]
+```
+
+The effective Hamiltonian through second order is
+
+$$
+H_{\mathrm{eff}}=\omega N_s+g(s+s^\dagger)
+-\frac{2g^2}{\omega+\alpha}N_s+O(g^3).
+$$
+
+The last term comes from $|1\rangle_a\to|2\rangle_a\to|1\rangle_a$.
+Its matrix element is $\sqrt{2}g$ and its energy denominator is
+$-(\omega+\alpha)$. Writing $R(A)=W^\dagger A W$ for restriction,
+
+$$
+R(a)=s,\qquad R(aa^\dagger)=1+N_s,
+\qquad R(a)R(a^\dagger)=1-N_s.
+$$
+
+The fixed embedding defines the source operators. The perturbative unitary
+$\mathcal U$ subsequently accounts for virtual dressing:
+$H_{\mathrm{eff}}=W^\dagger\mathcal U^\dagger H\mathcal U W$.
+
+For further tasks, see [dressed observables](#dressed-observables),
+[diagonalizing the retained block](#diagonalizing-the-retained-block), and the
+[application notebooks](applications/index.md). The [ring-exchange
+tutorial](tutorial/ring_exchange.md) extends a local spin encoding to many sites.
+The [algorithm example](embedding_algorithm.md) explains the rotation and energy
+denominators in detail.
 
 ## What the definition means
 
@@ -112,60 +159,6 @@ Restriction evaluates the complete target expression before restriction.
 In particular, $R(AB)$ need not equal
 $R(A)R(B)$: the intermediate state in $AB$ can leave the retained space.
 
-## Oscillator to spin, including a virtual correction
-
-Consider an anharmonic oscillator with a weak drive,
-
-$$
-H_0=\omega N_a+\frac{\alpha}{2}N_a(N_a-1),\qquad
-V=g(a+a^\dagger).
-$$
-
-The generator $s\mapsto a$ and the target vacuum identify the first two
-oscillator levels with the source spin. The source algebra sets the upper
-boundary, so no target cutoff is needed.
-
-```{code-cell} ipython3
-import sympy
-from sympy.physics.quantum.boson import BosonOp
-from pymablock import block_diagonalize
-from pymablock.number_ordered_form import NumberOperator as N
-
-a = BosonOp("a")
-omega, alpha, g = sympy.symbols("omega alpha g", positive=True)
-H0 = omega * N(a) + alpha * N(a) * (N(a) - 1) / 2
-V = g * (a + Dagger(a))
-
-embedding = Embedding({s: a}, reference={a: 0})
-H_eff, U, U_adjoint = block_diagonalize(
-    [H0, V], subspace_eigenvectors=embedding
-)
-second_order = H_eff[0, 0, 2]
-from pymablock.number_ordered_form import NumberOrderedForm
-expected = NumberOrderedForm.from_expr(-2 * g**2 * N(s) / (omega + alpha))
-assert (second_order - expected).applyfunc(sympy.cancel).is_zero
-```
-
-The effective Hamiltonian through second order is
-
-$$
-H_{\mathrm{eff}}=\omega N_s+g(s+s^\dagger)
--\frac{2g^2}{\omega+\alpha}N_s+O(g^3).
-$$
-
-The last term comes from $|1\rangle_a\to|2\rangle_a\to|1\rangle_a$.
-Its matrix element is $\sqrt{2}g$ and its energy denominator is
-$-(\omega+\alpha)$. Correspondingly,
-
-$$
-R(a)=s,\qquad R(aa^\dagger)=1+N_s,
-\qquad R(a)R(a^\dagger)=1-N_s.
-$$
-
-The fixed embedding defines the source operators. The perturbative unitary
-$\mathcal U$ subsequently accounts for virtual dressing:
-$H_{\mathrm{eff}}=W^\dagger\mathcal U^\dagger H\mathcal U W$.
-
 ## Diagonalizing the retained block
 
 The usual `fully_diagonalize` options also apply to embedded blocks. For example,
@@ -211,25 +204,10 @@ embeddings; it also multiplies the SymPy matrices from reference lists.
 
 ## Combining degrees of freedom
 
-Independent generator definitions fit in one mapping. A tunable coupler uses
-three target oscillators and two source spins:
-
-```{code-cell} ipython3
-a1, a2, coupler = (BosonOp(name) for name in ("a1", "a2", "coupler"))
-s1, s2 = SigmaMinus("s1"), SigmaMinus("s2")
-embedding = Embedding(
-    {s1: a1, s2: a2},
-    reference={a1: 0, a2: 0, coupler: 0},
-)
-```
-
-The coupler stays in its vacuum in the reference representation, but can be
-excited during a virtual process. Both computational oscillators can likewise
-visit higher levels during perturbation theory.
-
 A localized spin, conduction fermion, and cavity can coexist in one source:
 
 ```{code-cell} ipython3
+up, down = FermionOp("up"), FermionOp("down")
 f, conduction = FermionOp("f"), FermionOp("conduction")
 b, cavity = BosonOp("b"), BosonOp("cavity")
 embedding = Embedding(
@@ -271,21 +249,11 @@ embedding = Embedding(
 
 ## Finite matrices from a reference list
 
-Pass an empty generator mapping and list the retained target states in the desired
-matrix order. Selecting the first three oscillator levels gives
-
-```{code-cell} ipython3
-embedding = Embedding({}, reference=[{a: 0}, {a: 1}, {a: 2}])
-assert embedding.restrict(N(a)) == sympy.diag(0, 1, 2)
-H_eff, *_ = block_diagonalize([H0, V], subspace_eigenvectors=embedding)
-second_order_matrix = H_eff[0, 0, 2]
-```
-
-The coefficients are ordinary SymPy matrices. This is sufficient for an
-artificial higher spin: its ladder matrices and any engineered drive amplitudes
-are expressed directly in this basis. There is no additional higher-spin
-operator class. The target oscillator remains infinite, including the virtual
-transition from level two to level three.
+The three-level oscillator basis above is sufficient for an artificial higher
+spin: its ladder matrices and engineered drive amplitudes are expressed directly
+in that basis. There is no additional higher-spin operator class. The target
+oscillator remains infinite, including virtual transitions from level two to
+level three.
 
 Each dictionary must declare the same complete set of target modes. References
 are distinct product occupation states and need not form a contiguous range.
@@ -366,25 +334,10 @@ embedding = Embedding({f: bonding}, reference={bonding: 0, antibonding: 0})
 embedding.restrict(H0).as_expr()  # 4 * N_f
 ```
 
-The default perturbative solver requires Hermitian input and a target Hamiltonian
-$H_0=E(N_1,\ldots,N_M)$ diagonal in the target occupations. For a matrix
-target, H0 must also be diagonal in its matrix indices, with occupation-diagonal
-entries. The selected target states
-are then invariant under $H_0$. Each virtual transition uses its actual energy
-difference; coupled degeneracies require changing the retained block or model.
-For retained infinite modes, symbolic energy denominators require the usual
-nonresonance assumption on the occupations where the effective model is used.
-
-Symbolic division selects zero when the virtual amplitude vanishes, including
-at a zero gap. A zero gap with a nonzero amplitude on a sector selected by the
-projector's occupation indicators raises `ValueError`. This includes truncated and listed
-boson levels in both generator and reference-list formats. Binary fermion and
-spin sectors are never searched or enumerated. Some empty combinations of
-indicators, such as mutually exclusive `floor` conditions, are not recognized as
-zero and cause a spurious error instead of a wrong value.
-Unresolved occupation-dependent resonances remain symbolic poles: evaluate
-the effective model only in nonresonant sectors. Binary simplification preserves
-such coefficients rather than evaluating their singular points.
+For the symbolic division rules and occupation-dependent resonances, see
+[the algorithm example](embedding_algorithm.md). A selected transition with a
+nonzero amplitude and a zero energy gap raises `ValueError`; unresolved
+occupation-dependent resonances remain symbolic poles.
 
 [The developer documentation](developer.md) describes validation,
 projectors, and the rectangular blocks returned outside the retained subspace.
