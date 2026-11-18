@@ -256,15 +256,15 @@ It gives $R(N_{\mathrm{electron}})=1-N_{\mathrm{hole}}$. A pair pseudospin uses
 ## Integer ladders
 
 A `LadderOp` represents a bilateral integer shift, such as a Floquet index.
-It has no vacuum. Its reference represents source index zero, and its number
-operator must be supplied independently because $L^\dagger L=1$:
+It has no vacuum. Its reference represents source index zero; the generator shifts determine its
+number operator on the retained states:
 
 ```{code-cell} ipython3
 from pymablock.number_ordered_form import LadderOp
 
 ell, target_ell = LadderOp("ell"), LadderOp("target_ell")
 embedding = Embedding(
-    {ell: target_ell, N(ell): N(target_ell) - 3},
+    {ell: target_ell},
     reference={target_ell: 3},
 )
 ```
@@ -360,7 +360,7 @@ Offsets along modes moved by the generators are currently rejected with
 require occupation-dependent bosonic normalization; their integration with
 source lifting needs further work. Spectator offsets and different matrix rows
 are supported. Every reference must still satisfy the same generator norms,
-phase convention, occupation bounds, and independent ladder-number images.
+phase convention, occupation bounds, and inferred ladder numbers.
 Invalid translations and overlapping lattices raise clear errors during
 construction. Fermion ordering signs and spectator `LadderOp` shifts are
 included; no vacuum is assumed for a bilateral ladder. The overlap test is exact

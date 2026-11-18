@@ -112,8 +112,7 @@ def test_list_substitution_and_printing(source_type):
         ({b: a.adjoint()}, {a: 0}, ValueError),
         ({b: 2 * a}, {a: 0}, ValueError),
         ({f: sympy.Symbol("z") * f}, {f: 0}, NotImplementedError),
-        ({ell: target_ell}, {target_ell: 0}, ValueError),
-        ({ell: target_ell, N(ell): N(target_ell)}, {target_ell: 3}, ValueError),
+        ({ell: target_ell, N(ell): N(target_ell)}, {target_ell: 3}, TypeError),
         ({s: a / sympy.sqrt(N(a))}, [{a: 0}, {a: 1}], ValueError),
         (
             {s: a**2 / sympy.sqrt(N(a) * (N(a) - 1))},

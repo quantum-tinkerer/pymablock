@@ -270,7 +270,7 @@ def test_lift_preserves_fermion_order_and_number_coefficients():
 
 def test_lift_bilateral_numbers():
     a, b = LadderOp("a"), LadderOp("b")
-    e = Embedding({b: a, N(b): N(a) + 2}, reference={a: -2})
+    e = Embedding({b: a}, reference={a: -2})
     for S in (b, b.adjoint(), N(b), b.adjoint() * N(b) * b):
         value = F.from_expr(S, operators=(b,))
         assert_matrix_equal(
@@ -300,8 +300,6 @@ def test_existing_nof_conversion_preserves_values():
 def test_restrict_symbolic_ladder_power(mode_type, sign):
     a, b = mode_type("a"), mode_type("b")
     generators = {b: a}
-    if mode_type is LadderOp:
-        generators[N(b)] = N(a)
     embedding = Embedding(generators, reference={a: 0})
     k = sp.Symbol("k", integer=True, positive=True)
     target = a if sign == 1 else a.adjoint()
@@ -409,12 +407,13 @@ def test_floquet_projector_selects_integer_sublattice():
     from pymablock.number_ordered_form import LadderOp
 
     target, source = LadderOp("target"), LadderOp("source")
-    embedding = Embedding(
-        {source: target**2, N(source): N(target) / 2}, reference={target: 0}
-    )
+    embedding = Embedding({source: target**2}, reference={target: 1})
     assert nof_matrix(embedding._first_lattice.projector, [range(-3, 4)]) == s.diag(
-        0, 1, 0, 1, 0, 1, 0
+        1, 0, 1, 0, 1, 0, 1
     )
+    assert nof_matrix(
+        embedding._first_lattice.lift(F.from_expr(N(source))), [range(-3, 4)]
+    ) == s.diag(-2, 0, -1, 0, 0, 0, 1)
 
 
 @pytest.mark.parametrize("adjoint", [False, True])

@@ -88,9 +88,7 @@ class Embedding(sympy.Expr):
     ----------
     generators : collections.abc.Mapping
         Maps each source lowering operator to a target expression. The keys may be
-        ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` operators. A
-        ``LadderOp`` key also needs an entry mapping its ``NumberOperator`` to a
-        target expression, because its lowering operator does not determine it.
+        ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` operators. Source numbers are inferred from the reference and generator shifts.
         Use an empty mapping to select finite reference states.
     reference : collections.abc.Mapping or collections.abc.Sequence
         A mapping declares every target operator and its occupation in
@@ -453,14 +451,11 @@ class _Lattice:
     ) -> None:
         """Compile and validate the affine occupation map."""
         self.target_operators, self._reference_state = _ordered_reference_state(reference)
-        numbers = {
-            op: value
-            for op, value in generators.items()
-            if isinstance(op, NumberOperator)
-        }
-        source_operators = tuple(op for op in generators if op not in numbers)
+        source_operators = tuple(generators)
         if not all(isinstance(op, generator_types) for op in source_operators):
-            raise TypeError("Keys must be source lowering generators or ladder numbers")
+            raise TypeError(
+                "Keys must be source lowering generators; number keys are not supported"
+            )
         if any(not op.is_annihilation for op in source_operators):
             raise ValueError("Source generators must be lowering operators")
         source_operators = tuple(sorted(source_operators, key=_operator_sort_key))
@@ -511,36 +506,6 @@ class _Lattice:
         self._validate_domains()
         self._validate_generator_algebra()
         self._phase = self._reference_phase()
-        self._validate_ladder_numbers(numbers)
-
-    def _validate_ladder_numbers(self, numbers: Mapping) -> None:
-        """Check independent ladder number images on the source lattice."""
-        expected_numbers = {
-            NumberOperator(op)
-            for op in self._source_operators
-            if isinstance(op, LadderOp)
-        }
-        if set(numbers) != expected_numbers:
-            raise ValueError(
-                "Supply the independent number image for each source LadderOp"
-            )
-        for op, number in numbers.items():
-            index = next(
-                i
-                for i, source in enumerate(self._source_operators)
-                if NumberOperator(source) == op
-            )
-            form = self.parse_target(number)
-            if any(any(powers) for powers in form.terms):
-                raise ValueError("A ladder number image must be occupation diagonal")
-            expression = form.terms.get((0,) * len(self.target_operators), sympy.S.Zero)
-            expression = expression.xreplace(
-                dict(zip(self._target_numbers, self.target_of_source, strict=True))
-            )
-            self._require_vanishing(
-                expression - self.source_occupations[index],
-                f"Ladder number image {op} must count from the source reference index zero",
-            )
 
     def parse_target(self, expression: sympy.Expr) -> NumberOrderedForm:
         """Parse a target expression using the modes declared in the reference."""

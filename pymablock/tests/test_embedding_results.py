@@ -127,7 +127,7 @@ def test_perturbation_against_finite_matrix(model):
             a, b = LadderOp("a"), LadderOp("b")
             occupations = [range(-6, 7), range(2)]
             source_domain = [range(-6, 7)]
-            generators = {b: a, N(b): N(a)}
+            generators = {b: a}
             sample = list(range(4, 9))
         else:
             occupations = [range(9), range(2)]
