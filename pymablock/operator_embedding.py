@@ -86,7 +86,8 @@ class Embedding(sympy.Expr):
     ----------
     generators : collections.abc.Mapping
         Maps each source lowering operator to a target expression. The keys may be
-        ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` operators. Source numbers are inferred from the reference and generator shifts.
+        ``SigmaMinus``, ``FermionOp``, ``BosonOp``, or ``LadderOp`` operators.
+        Source numbers follow from the reference and the generator shifts.
         Use an empty mapping to select finite reference states.
     reference : collections.abc.Mapping or collections.abc.Sequence
         A mapping declares every target operator and its occupation in

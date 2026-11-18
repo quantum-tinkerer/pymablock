@@ -14,9 +14,11 @@
 
 `Embedding` is the structural SymPy expression, publicly imported from
 `pymablock.operator_embedding`. Its arguments are generators and required
-reference occupations. A mapping reference defines one lattice; a list with no generators defines an
-ordered finite basis. Column $j$ has target row $\rho_j$ and occupations $r_j$. Reconstruction, substitution, and pickling rebuild derived data from
-these arguments. Explicit references must have distinct row/occupation pairs.
+reference occupations. A mapping reference defines one lattice; a list with no
+generators defines an ordered finite basis. Column $j$ has target row $\rho_j$
+and occupations $r_j$. Reconstruction, substitution, and pickling rebuild
+derived data from these arguments. Explicit references must have distinct
+row/occupation pairs.
 
 `_Lattice` compiles occupation maps, phases, generators, and single-lattice
 arithmetic. Its unprefixed methods are package-internal contracts. The columns
@@ -69,9 +71,9 @@ Supported embeddings map source states to individual target occupation states,
 up to phases. Arbitrary superpositions and dependent generator shifts are
 unsupported. Infinite bosonic source domains must follow from nonnegative target
 occupations; otherwise projector construction raises `NotImplementedError`.
-Finite lists and binary
-sources use equality conditions. Symbolic ladder powers in `act` and `restrict`
-are rejected. Avoiding basis enumeration does not prevent expression growth.
+Finite lists and binary sources use equality conditions. Symbolic ladder powers
+in `act` and `restrict` are rejected. Avoiding basis enumeration does not
+prevent expression growth.
 
 The [applications](applications/index.md) and
 [API reference](documentation/pymablock.md#structured-embeddings) demonstrate
