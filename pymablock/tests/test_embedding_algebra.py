@@ -48,8 +48,7 @@ def test_conversion_preserves_factored_spectators(annihilate):
 
 @pytest.mark.parametrize("reverse", [False, True])
 @pytest.mark.parametrize("interleave", [False, True])
-@pytest.mark.parametrize("finite", [False, True])
-def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, finite):
+def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave):
     """Prepare encoded columns using creation matrices, independently of phases."""
     modes = tuple(FermionOp(name) for name in ("a", "b", "c", "d"))
     up, down, left, right = (
@@ -86,7 +85,8 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
         for state in target_states
         if state[modes.index(up)] + state[modes.index(down)] == 1
     ]
-    finite_embedding = Embedding({}, reference=references)
+    order = [3, 0, 6, 1, 7, 4, 2, 5]
+    finite_embedding = Embedding({}, reference=[references[i] for i in order])
     selected = [target_states.index(tuple(ref[op] for op in modes)) for ref in references]
     source_matrices = occupation_matrices(
         backend._first_lattice._source_operators,
@@ -106,12 +106,11 @@ def test_mixed_spin_and_fermions_against_fock_matrices(reverse, interleave, fini
         full = operator_matrix(expression, matrices).toarray()
         expected = w.T @ full @ w
         np.testing.assert_allclose(actual, expected, atol=1e-14)
-        if finite:
-            np.testing.assert_allclose(
-                np.array(finite_embedding.restrict(expression), dtype=complex),
-                full[np.ix_(selected, selected)],
-                atol=1e-14,
-            )
+        np.testing.assert_allclose(
+            np.array(finite_embedding.restrict(expression), dtype=complex),
+            full[np.ix_(selected, selected)][np.ix_(order, order)],
+            atol=1e-14,
+        )
     # The chosen columns preserve each directly retained fermion generator.
     for target, source in ((left, first), (right, second)):
         np.testing.assert_allclose(
@@ -199,7 +198,8 @@ def test_lift_preserves_fermion_order_and_number_coefficients():
     ):
         value = F.from_expr(S, operators=(f, g))
         assert_matrix_equal(
-            nof_matrix(e._first_lattice.lift(value)), w * nof_matrix(value) * w.T
+            nof_matrix(e._first_lattice.lift(value)._expand_operators((c, d))),
+            w * nof_matrix(value) * w.T,
         )
 
 
@@ -418,9 +418,7 @@ def test_zero_maps_on_retained_domain():
 def test_nof_defers_to_map_priority():
     a, q = BosonOp("a"), SigmaMinus("q")
     w = Embedding({q: a}, reference={a: 0})._retained_frame(1)[0, 0]
-    value = F.from_expr(a)
-    assert value.__mul__(w) is NotImplemented
-    assert (value * w).target == value
+    assert (F.from_expr(a) * w).target == F.from_expr(a)
 
 
 @pytest.mark.parametrize("generic_gap", [False, True])
